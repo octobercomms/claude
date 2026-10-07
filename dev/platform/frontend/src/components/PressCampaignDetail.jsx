@@ -70,6 +70,9 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [segDirty, setSegDirty] = useState(false);
   const [savingSeg, setSavingSeg] = useState(false);
   const [draftingSeg, setDraftingSeg] = useState(false);
+  // Bumped to tell the audiences panel to re-read itself after something
+  // outside it changed the counts (the country rules below it).
+  const [audienceReload, setAudienceReload] = useState(0);
 
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -557,7 +560,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
       // If the audience being edited has gone, fall back to the shared group
       // rather than leaving the steps pointed at nothing.
       setActiveSegId(prev => (prev && !(r.segments || []).some(s => s.id === prev) ? null : prev));
+      // Returned so a caller can report the effect of what it just changed.
+      return r;
     } catch { /* the Who panel reports its own errors */ }
+    return null;
   }, [release?.id]);
 
   useEffect(() => { loadSegments(); }, [loadSegments]);
@@ -1003,24 +1009,30 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
           </div>
         )}
 
-        {/* Audiences. Optional and additive: a release with none behaves exactly
-            as it always has, one pitch to the list built above. Add audiences
-            when the same release needs a different covering note per group, and
-            each one then carries its own subjects, intro, follow-ups and Send.
-            Lives on the Who step because that is where the list is decided. */}
-        {step === 'who' && release && (
-          <PressCountryExclusions releaseId={release.id} readOnly={readOnly} onSaved={loadSegments} />
-        )}
-
+        {/* Audiences, then countries. Build the lists first, then filter them:
+            the country rules only mean anything once there is an audience to
+            apply them to. Both are optional and additive, so a release with
+            neither behaves exactly as it always has, one pitch to the list
+            built above. Lives on the Who step because that is where the list
+            is decided. */}
         {step === 'who' && release && (
           <PressAudiences
             releaseId={release.id}
             clientId={clientId}
             readOnly={readOnly}
+            reloadToken={audienceReload}
             onChanged={(r) => {
               setSegments(r.segments || []);
               setUnassignedIds((r.unassigned || []).map(c => c.id));
             }}
+          />
+        )}
+
+        {step === 'who' && release && (
+          <PressCountryExclusions
+            releaseId={release.id}
+            readOnly={readOnly}
+            onSaved={async () => { setAudienceReload(n => n + 1); return loadSegments(); }}
           />
         )}
 
