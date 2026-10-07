@@ -121,6 +121,31 @@ interest**. Set up & send is five numbered steps:
 **Stop at step 5.** Report the recipient count, the sanity check verdict, and
 anything the checklist shows as not green. Daniel presses Send.
 
+### Several audiences on one release
+
+Below step 1 there is an **Audiences** panel. A release can carry several named
+audiences (Workplace, Retail…), each built from its own upload plus tags, each
+with its own subject lines, intro and follow-ups, while the press release itself
+stays shared. Each audience has its own Send, so they go out in waves.
+
+Rules that matter when you are operating this:
+
+- A contact can be in exactly one audience per release, enforced in the database.
+  Adding a list that overlaps an existing audience moves nobody: the overlap is
+  reported and Daniel chooses where those people belong.
+- The choice is which audience, never which tag. Never resolve an overlap by
+  editing a contact's tags; tags are shared across every client.
+- A sent audience is frozen. Its list and copy cannot change, and its members
+  cannot be moved elsewhere.
+- Drafting an intro for an audience costs about 3 cents regardless of its size,
+  because it is one draft for the whole group. An audience with no intro falls
+  back to per-recipient pitches at roughly 3 cents each; the send plan quotes
+  that figure before sending.
+- Lock an audience before writing its copy, so later retagging cannot change who
+  receives it.
+
+Full detail in `docs/omi/press-audiences.md`.
+
 ### 4. What happens after he presses Send
 
 Nothing is written into recipients' inboxes immediately. Sends queue, then a job

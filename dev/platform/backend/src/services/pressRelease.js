@@ -615,13 +615,33 @@ Return ONLY the email body paragraphs (no greeting, no sign-off, no Subject:). $
 // targeted sends; per-journalist personalisation stays available for small,
 // cold pitch lists where it earns its cost. No greeting/sign-off/URL — the
 // platform adds those, exactly as with the per-recipient pitch.
-async function generateSharedPitch({ release, brandBriefing, sender }) {
+// Whether this shared draft is for the whole list or for one audience of it.
+// Without an audience the email must stay beat-agnostic, because it reaches
+// everybody; with one it should lean into that slice's interest.
+function audienceGuide(audience) {
+  const name = audience && String(audience.name || '').trim();
+  if (!name) {
+    return "Because this one email goes to everyone, DON'T reference a specific outlet, beat or named journalist — lead with the story itself and why it's worth covering, in a way that lands for any relevant reporter.";
+  }
+  const tags = Array.isArray(audience.tags) ? audience.tags.filter(Boolean) : [];
+  const topics = tags.length ? ` Their patch, in the operator's own words: ${tags.join(', ')}.` : '';
+  return `This email goes to one slice of the list: journalists who cover ${name}.${topics} Lead with the angle that matters to THAT patch and say in the first sentence why it is relevant to them. Still DON'T name a specific outlet or journalist, because everyone in this group gets the same email.`;
+}
+
+// `audience` is optional: the name (and tags) of one audience on the release,
+// when the AM is writing a tailored covering note per audience rather than one
+// note for the whole list. It changes the brief from "say nothing beat-specific"
+// to "lead with the angle this slice cares about", which is the entire point of
+// splitting a release into audiences. Still ONE call per audience, so a release
+// with five audiences costs five drafts rather than one per journalist.
+async function generateSharedPitch({ release, brandBriefing, sender, audience = null }) {
   const senderName = sender?.first_name || sender?.name?.split(' ')[0] || 'Daniel';
   const releaseText = (release.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
+  const audienceBrief = audienceGuide(audience);
 
   const prompt = `You're a PR consultant writing ONE pitch email that will be sent to a whole list of journalists at once (not personalised per person). Your style is direct, personal, short — like an email a real human wrote in 2 minutes. Never marketing-speak. Never "I hope this email finds you well".
 
-Because this one email goes to everyone, DON'T reference a specific outlet, beat or named journalist — lead with the story itself and why it's worth covering, in a way that lands for any relevant reporter.
+${audienceBrief}
 
 The email body must:
  - Open with the single strongest, most specific hook from the release. Lead with the angle/news, not the brand.
@@ -647,11 +667,13 @@ Return ONLY the email body paragraphs (no greeting, no sign-off, no Subject:). $
 
 // Three shared follow-ups for the whole list (journalist-agnostic), mirroring
 // generateFollowUps but written once for everyone. Returns [{subject, body}].
-async function generateSharedFollowUps({ release, brandBriefing, sender }) {
+async function generateSharedFollowUps({ release, brandBriefing, sender, audience = null }) {
   const senderName = sender?.first_name || sender?.name?.split(' ')[0] || 'Daniel';
   const releaseText = (release.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1200);
 
-  const prompt = `You're writing three follow-up emails that chase a whole list of journalists who haven't replied. ONE set of three, sent to everyone — so DON'T reference a specific outlet, beat or named person. Each one is short, personal, and uses a DIFFERENT angle — never "just bumping this up".
+  const prompt = `You're writing three follow-up emails that chase a whole list of journalists who haven't replied. ONE set of three, sent to everyone in this group. Each one is short, personal, and uses a DIFFERENT angle — never "just bumping this up".
+
+${audienceGuide(audience)}
 
 CRITICAL: the reader may NOT have read the first email, so EACH follow-up must READ AS A STANDALONE PITCH. In the first sentence, re-anchor what the story is in plain terms (who + the one-line hook). Then add the new angle.
 
