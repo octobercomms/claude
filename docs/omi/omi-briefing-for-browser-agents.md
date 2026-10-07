@@ -65,10 +65,25 @@ This is the flow Daniel uses. Follow it in this order.
 
 ### 1. Get the contacts into the media library
 
-Earned → Build → **Pitch** (the Media database panel) has a paste-and-sort
-import. Paste whatever you have: a messy list, a directory page, names with
-outlets. Claude extracts contacts, deduplicates against the existing library,
-merges, and attaches them to the client. It returns a summary.
+Inside the campaign's audience step (step 1 below) there is **"paste or upload a
+list"**. You can drop a `.csv`, `.tsv` or `.txt` file onto it, choose a file, or
+paste text straight in.
+
+A CSV with a header row containing an email column is read directly, with no AI
+call: free, instant, and it handles thousands of rows. Column names are matched
+generously, so `outlet`, `publication` and `company` all map to the same field,
+as do `e-mail` and `email address`. Anything messier (pasted signatures, a
+directory page, `Jane Doe, arts editor, The Times, jane@…`) goes through Claude
+in chunks instead.
+
+Either way it deduplicates against the existing library, enriches the record it
+already has rather than creating a second one, attaches everyone to the client
+and the campaign, and adds them to the audience you are building. The toast tells
+you how many ended up in the audience, not just how many rows were read.
+
+`.xlsx` is not supported, because it is a zip rather than text. Export as CSV
+first. If the importer finds no contacts it now says so and fails rather than
+reporting zero as a success.
 
 The media library is **shared across every client**, not per-client. A
 journalist added for one client is available to all of them. That is deliberate.

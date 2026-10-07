@@ -59,6 +59,9 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [searchingGlobal, setSearchingGlobal] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const [fileName, setFileName] = useState('');
+  const fileInputRef = useRef(null);
   const [pasting, setPasting] = useState(false);
 
   // Emails.
@@ -286,14 +289,42 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     catch (e) { toast(e.message, 'error'); }
     finally { setSearchingGlobal(false); }
   }
+  // Read a dropped or chosen file into the textarea. Text formats only —
+  // .xlsx is a zip and would arrive as binary noise, so say so rather than
+  // posting rubbish to the importer.
+  const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+  async function loadFile(file) {
+    if (!file) return;
+    if (/\.(xlsx|xls|numbers|pdf|docx?)$/i.test(file.name)) {
+      toast(`${file.name} is not a text file. In your spreadsheet choose File → Export as CSV, then drop that.`, 'error');
+      return;
+    }
+    if (file.size > IMPORT_MAX_BYTES) {
+      toast(`${file.name} is ${(file.size / 1024 / 1024).toFixed(1)}MB. Split it into files under 2MB.`, 'error');
+      return;
+    }
+    try {
+      const text = await file.text();
+      if (!text.trim()) { toast(`${file.name} is empty.`, 'error'); return; }
+      setPasteText(text);
+      setFileName(file.name);
+      setShowPaste(true);
+    } catch (e) { toast(`Could not read ${file.name}: ${e.message}`, 'error'); }
+  }
+
   async function doPasteImport() {
     if (!pasteText.trim() || !release) return;
     setPasting(true);
     try {
       const r = await api.post(`/press/clients/${clientId}/import-smart`, { text: pasteText, campaign_id: release.campaign_id });
-      toast(`Sorted: ${r.added} added, ${r.updated} updated${r.skipped ? `, ${r.skipped} skipped` : ''}.`, 'success');
-      (r.items || []).forEach(it => it.id && addExtra({ id: it.id, name: it.name, email: it.email }));
-      setPasteText(''); setShowPaste(false);
+      const added = (r.items || []).filter(it => it.id);
+      added.forEach(it => addExtra({ id: it.id, name: it.name, email: it.email }));
+      // Say how many landed in the audience, not just how many rows were
+      // sorted. A sort that adds nobody used to read as a success.
+      const how = r.source === 'csv' ? ' (read straight from the spreadsheet, no AI cost)' : '';
+      toast(`Sorted: ${r.added} added, ${r.updated} updated${r.skipped ? `, ${r.skipped} skipped` : ''} — ${added.length} now in this audience${how}.`,
+        added.length ? 'success' : 'error');
+      setPasteText(''); setFileName(''); setShowPaste(false);
     } catch (e) { toast(e.message, 'error'); }
     finally { setPasting(false); }
   }
@@ -754,13 +785,27 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
                 <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Add specific journalists</div>
-                <button className="btn btn-link btn-sm" onClick={() => setShowPaste(v => !v)}>{showPaste ? 'close paste' : '📋 paste a list'}</button>
+                <button className="btn btn-link btn-sm" onClick={() => setShowPaste(v => !v)}>{showPaste ? 'close paste' : '📋 paste or upload a list'}</button>
               </div>
               {showPaste && (
-                <div style={{ marginBottom: 'var(--s2)' }}>
-                  <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={3} className="input"
-                    placeholder="Paste anything — a spreadsheet, signatures, 'Jane Doe, arts editor, The Times, jane@…'. Claude sorts + de-dupes into your DB and adds them here." style={{ width: '100%', boxSizing: 'border-box', fontSize: 'var(--fs-caption)' }} />
-                  <button {...roWrite(readOnly, { onClick: doPasteImport, disabled: pasting || !pasteText.trim() })} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>{pasting ? 'Sorting…' : 'Sort & add'}</button>
+                <div
+                  onDragOver={e => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); loadFile(e.dataTransfer?.files?.[0]); }}
+                  style={{
+                    marginBottom: 'var(--s2)', padding: 'var(--s2)', borderRadius: 'var(--r-sm)',
+                    border: `var(--border-w) dashed ${dragOver ? 'var(--accent)' : 'var(--card-border)'}`,
+                    background: dragOver ? 'var(--accent-soft)' : 'transparent', transition: 'background .12s',
+                  }}>
+                  <textarea value={pasteText} onChange={e => { setPasteText(e.target.value); setFileName(''); }} rows={3} className="input"
+                    placeholder="Drop a CSV here, or paste anything — a spreadsheet, signatures, 'Jane Doe, arts editor, The Times, jane@…'. A CSV with an email column is read directly; anything messier goes through Claude." style={{ width: '100%', boxSizing: 'border-box', fontSize: 'var(--fs-caption)' }} />
+                  <input ref={fileInputRef} type="file" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"
+                    onChange={e => { loadFile(e.target.files?.[0]); e.target.value = ''; }} style={{ display: 'none' }} />
+                  <div className="row center" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
+                    <button {...roWrite(readOnly, { onClick: doPasteImport, disabled: pasting || !pasteText.trim() })} className="btn btn-secondary btn-sm">{pasting ? 'Sorting…' : 'Sort & add'}</button>
+                    <button className="btn btn-link btn-sm" onClick={() => fileInputRef.current?.click()} disabled={pasting}>choose a file…</button>
+                    {fileName && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{fileName} loaded · {pasteText.split(/\r?\n/).filter(l => l.trim()).length.toLocaleString()} lines</span>}
+                  </div>
                 </div>
               )}
               <div style={{ display: 'flex', gap: 'var(--s2)' }}>
