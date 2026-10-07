@@ -1009,7 +1009,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             each one then carries its own subjects, intro, follow-ups and Send.
             Lives on the Who step because that is where the list is decided. */}
         {step === 'who' && release && (
-          <PressCountryExclusions releaseId={release.id} readOnly={readOnly} />
+          <PressCountryExclusions releaseId={release.id} readOnly={readOnly} onSaved={loadSegments} />
         )}
 
         {step === 'who' && release && (

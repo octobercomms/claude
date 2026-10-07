@@ -180,6 +180,37 @@ async function addContact(name, email, location, company) {
     ids = await seg.memberIds(audience.id);
     ok(ids.length === 2 && !ids.includes(String(unknown)), "with policy 'hold', an unknown country is held back too");
 
+    console.log('\nThe number on screen moves when a country is excluded');
+    {
+      // This is what the operator actually sees. The send was already correct
+      // (memberIds and the dispatch gate both apply the rules), but the audience
+      // header counted only the other suppressions, so excluding a country left
+      // "N to send" unchanged and read as having done nothing.
+      await pool.query("UPDATE outreach_press_releases SET excluded_countries = '{}', unknown_country_policy = 'send' WHERE id = $1", [releaseId]);
+      let listed = (await seg.list(campaignId)).find((x) => x.id === audience.id);
+      const before = listed.member_count - listed.suppressed_count;
+      ok(before === 4, 'with no country rules, all 4 members show as sendable');
+      ok(listed.country_excluded_count === 0, 'and none are reported as held back by country');
+
+      await pool.query("UPDATE outreach_press_releases SET excluded_countries = ARRAY['United States'] WHERE id = $1", [releaseId]);
+      listed = (await seg.list(campaignId)).find((x) => x.id === audience.id);
+      const after = listed.member_count - listed.suppressed_count;
+      ok(after === before - 1, `excluding the US drops the displayed count (${before} -> ${after})`);
+      ok(listed.country_excluded_count === 1, 'and names 1 as held back by country specifically');
+      ok(listed.member_count === 4, 'while the membership itself is untouched');
+
+      // The displayed number and the number that will send must be the same one.
+      ok(after === (await seg.memberIds(audience.id)).length,
+        'the displayed sendable count equals what the send would queue');
+
+      await pool.query("UPDATE outreach_press_releases SET unknown_country_policy = 'hold' WHERE id = $1", [releaseId]);
+      listed = (await seg.list(campaignId)).find((x) => x.id === audience.id);
+      ok(listed.member_count - listed.suppressed_count === 2,
+        "holding unknowns drops it again, and still matches the send");
+      ok((await seg.memberIds(audience.id)).length === 2, 'the send agrees');
+      await pool.query("UPDATE outreach_press_releases SET unknown_country_policy = 'hold', excluded_countries = ARRAY['United States'] WHERE id = $1", [releaseId]);
+    }
+
     const bd = await seg.suppressionBreakdown(audience.id);
     ok(bd.members === 4 && bd.country_excluded === 2, 'the breakdown says 2 held back by country');
     ok(bd.country_unknown === 1, 'and names how many of those are unknown rather than excluded');

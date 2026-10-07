@@ -19,7 +19,7 @@ import { useToast } from '../context/ToastContext';
 const LINE = 'var(--border-w) solid var(--card-border)';
 const CAP = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' };
 
-export default function PressCountryExclusions({ releaseId, readOnly }) {
+export default function PressCountryExclusions({ releaseId, readOnly, onSaved }) {
   const toast = useToast();
   const [cov, setCov] = useState(null);
   const [excluded, setExcluded] = useState([]);
@@ -56,6 +56,9 @@ export default function PressCountryExclusions({ releaseId, readOnly }) {
         ? `${excluded.length} countr${excluded.length === 1 ? 'y' : 'ies'} excluded from this release.`
         : 'Country exclusions cleared.', 'success');
       setDirty(false);
+      // Refresh the audiences: their "to send" counts include the country rules,
+      // so without this the operator saves an exclusion and sees nothing change.
+      await onSaved?.();
     } catch (e) { toast(e.message, 'error'); }
     finally { setSaving(false); }
   }
@@ -67,6 +70,9 @@ export default function PressCountryExclusions({ releaseId, readOnly }) {
       const sources = Object.entries(r.by_source || {}).map(([k, n]) => `${n} from ${k}`).join(', ');
       toast(`Resolved ${r.updated} more${sources ? ` (${sources})` : ''}. ${r.coverage_pct}% of the library now has a country.`, 'success');
       await load();
+      // Newly resolved countries can match an existing exclusion, so the
+      // audience counts can move even though the rules did not change.
+      await onSaved?.();
     } catch (e) { toast(e.message, 'error'); }
     finally { setBackfilling(false); }
   }

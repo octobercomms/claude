@@ -63,6 +63,7 @@ export default function PressAudiences({ releaseId, clientId, readOnly, onChange
   }
 
   const totalSendable = segments.reduce((n, s) => n + (s.member_count - s.suppressed_count), 0);
+  const countryHeld = segments.reduce((n, s) => n + (s.country_excluded_count || 0), 0);
 
   return (
     <div className="card" style={{ padding: 'var(--s4)', marginTop: 'var(--s4)' }}>
@@ -76,7 +77,10 @@ export default function PressAudiences({ releaseId, clientId, readOnly, onChange
         {segments.length > 0 && (
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, lineHeight: 1 }}>{totalSendable.toLocaleString()}</div>
-            <div style={CAP}>across {segments.length} audience{segments.length === 1 ? '' : 's'}</div>
+            <div style={CAP}>
+              across {segments.length} audience{segments.length === 1 ? '' : 's'}
+              {countryHeld > 0 && ` · ${countryHeld.toLocaleString()} held back by country`}
+            </div>
           </div>
         )}
       </div>
@@ -137,6 +141,7 @@ function Audience({ seg, releaseId, clientId, readOnly, isOpen, onToggle, onChan
   const frozen = !!seg.sent_at;
   const locked = !!seg.locked_at;
   const sendable = seg.member_count - seg.suppressed_count;
+  const otherSuppressed = Math.max(0, seg.suppressed_count - (seg.country_excluded_count || 0));
   const ro = readOnly || frozen;
 
   async function act(label, fn) {
@@ -157,7 +162,11 @@ function Audience({ seg, releaseId, clientId, readOnly, isOpen, onToggle, onChan
           </div>
           <div style={CAP}>
             {sendable.toLocaleString()} to send
-            {seg.suppressed_count > 0 && ` · ${seg.suppressed_count} suppressed`}
+            {/* Country hold-backs are named separately from the rest. Excluding a
+                country should visibly move this number, otherwise it reads as
+                having done nothing. */}
+            {seg.country_excluded_count > 0 && ` · ${seg.country_excluded_count.toLocaleString()} held back by country`}
+            {otherSuppressed > 0 && ` · ${otherSuppressed} suppressed`}
             {seg.intro ? ' · tailored intro written' : ' · using the shared pitch'}
           </div>
         </div>
