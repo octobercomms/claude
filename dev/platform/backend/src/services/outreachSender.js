@@ -324,13 +324,27 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
   );
   if (!relRows.length) throw new Error('Press release for this campaign not found');
   const release = relRows[0];
+
+  // Which audience is this recipient in, if the release has audiences at all?
+  // One release can carry several (Workplace, Retail…), each with its own
+  // subject lines, intro and follow-ups, while the release body and hero stay
+  // shared. Returns null for a campaign with no audiences, so everything below
+  // behaves exactly as it did before. See services/pressSegments.js.
+  const segCopy = await require('./pressSegments').copyForContact(campaignId, contact.id);
+  const segIntro = (segCopy && segCopy.intro) || '';
+
   // Full author mode: the AM has turned AI off and writes every email
   // themselves (the invite/announcement + the follow-ups). In that mode we
   // generate NOTHING — no AI pitch, no AI follow-ups, no cost — and the first
   // email uses the AM's written body instead of an AI press pitch (which is
   // what wrongly framed event invites as "press releases").
-  const authorMode = release.followups_ai === false;
-  const authorReleaseBody = authorMode ? (release.custom_release_body || '').trim() : '';
+  //
+  // An audience intro is the same thing scoped to one audience: shared copy,
+  // written once, no per-recipient AI. So it takes the same path, which is also
+  // what keeps a tailored multi-audience release cheap (one draft per audience,
+  // not one per journalist).
+  const authorMode = release.followups_ai === false || !!segIntro;
+  const authorReleaseBody = authorMode ? (segIntro || release.custom_release_body || '').trim() : '';
 
   let cached = null;
   if (!authorMode) {
@@ -367,7 +381,8 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = 1 LIMIT 1',
     [campaignId]
   );
-  const editedSubject = seqRows[0]?.subject;
+  // An audience's own subject for this step wins over the shared sequence row.
+  const editedSubject = (segCopy && segCopy.subjectFor(1)) || seqRows[0]?.subject;
 
   // The first email's body: the AM's written invite/announcement in author
   // mode, else the AI-personalised pitch. fillTemplate honours {{merge}} tags.
@@ -422,15 +437,20 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
       'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = $2 LIMIT 1',
       [campaignId, stepNo]
     );
-    const stepSubject = stepRows[0]?.subject;
+    const stepSubject = (segCopy && segCopy.subjectFor(stepNo)) || stepRows[0]?.subject;
 
-    if (release.followups_ai === false) {
+    // A shared (non-AI) follow-up body comes from the recipient's audience when
+    // it has one, else from the release when the AM turned AI follow-ups off.
+    const segFollowUp = segCopy ? segCopy.followUpFor(stepNo) : null;
+    const sharedFollowUps = !!segFollowUp || release.followups_ai === false;
+
+    if (sharedFollowUps) {
       // Author-written follow-ups: the AM turned OFF AI follow-ups and wrote
       // their own body for this step, so send that — the SAME to everyone (with
       // merge tags), regardless of whether they opened. No AI, no per-person
       // variation. Falls back to a release resend if no body was written.
       const customs = Array.isArray(release.custom_followups) ? release.custom_followups : [];
-      const c = customs[followupIndex - 1];
+      const c = segFollowUp || customs[followupIndex - 1];
       const body = c && typeof c.body === 'string' ? c.body.trim() : '';
       if (body) {
         subject = stepSubject || (c.subject && c.subject.trim()) || `Re: ${release.title}`;

@@ -368,6 +368,16 @@ progress is obvious on `platform.octobercomms.com`.
   `budget.taskCapReached(task)`. Wire up every new direct-SDK caller.
 - The `costLog.js` price table is hand-maintained and was 25% low on Haiku for
   months. Check it against published rates before quoting any cost figure.
+- **Prefer an unrepresentable state to a check you have to remember.** A press
+  release can have several audiences, each with its own copy, and a contact in two
+  of them would receive two different pitches a day apart (the frequency cap
+  reschedules rather than drops). Rather than a dedupe screen, the audience lives
+  on `outreach_campaign_contacts`, whose primary key is
+  `(campaign_id, contact_id)`, so the second membership row cannot exist. Also
+  note what was NOT done: `outreach_sequences` has 46 call sites and the send
+  queue `CROSS JOIN`s it, so per-audience sequence rows would have handed every
+  recipient every audience's emails. The copy lives on the audience row and is
+  overlaid at render time instead. See `docs/omi/press-audiences.md`.
 - **An AI extraction that returns nothing must fail, not return nothing.** The
   paste-and-sort contact importer made one Claude call with the input cut at
   12,000 characters and `max_tokens` at 3,000. Past roughly 50 contacts the JSON

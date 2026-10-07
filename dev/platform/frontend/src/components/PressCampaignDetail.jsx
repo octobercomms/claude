@@ -5,6 +5,7 @@ import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import PressCampaignAnalytics from './PressCampaignAnalytics';
 import StepRail from './shells/StepRail';
+import PressAudiences from './PressAudiences';
 
 // Detail view for one press_release campaign, run as a clear five-step flow:
 //   1 · Who     — build the audience from tags (scales to thousands) + adds.
@@ -853,6 +854,20 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               <button className="btn btn-primary btn-sm" onClick={goNext} disabled={!done.who}>Next: the emails ›</button>
             </NavRow>
           </div>
+        )}
+
+        {/* Audiences. Optional and additive: a release with none behaves exactly
+            as it always has, one pitch to the list built above. Add audiences
+            when the same release needs a different covering note per group, and
+            each one then carries its own subjects, intro, follow-ups and Send.
+            Lives on the Who step because that is where the list is decided. */}
+        {step === 'who' && release && (
+          <PressAudiences
+            releaseId={release.id}
+            clientId={clientId}
+            readOnly={readOnly}
+            steps={steps}
+          />
         )}
 
         {/* ── 2 · WHAT ────────────────────────────────────────────────── */}

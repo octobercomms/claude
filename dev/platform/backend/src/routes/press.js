@@ -29,6 +29,26 @@ router.param('id', async (req, res, next, id) => {
   } catch (err) { next(err); }
 });
 
+// Audience UUIDs resolve to a client through their campaign. The :id guard above
+// only covers /releases/ paths, so without this an audience id would be an
+// unguarded cross-tenant handle.
+router.param('segId', async (req, res, next, id) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.client_id FROM outreach_campaign_segments s
+         JOIN outreach_campaigns c ON c.id = s.campaign_id
+        WHERE s.id = $1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Audience not found' });
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this client' });
+    }
+    req.segmentClientId = rows[0].client_id;
+    next();
+  } catch (err) { next(err); }
+});
+
 // Fetch a downloadfor.press URL (or any public press page) and return
 // the parsed shape. Doesn't persist — the AM previews first, then
 // clicks Save to write a row.
@@ -1360,6 +1380,228 @@ router.post('/releases/:id/send', async (req, res) => {
     console.error('[press] send failed:', err.message);
     res.status(502).json({ error: err.message });
   }
+});
+
+
+// ── Audiences within a release ───────────────────────────────────────────────
+//
+// One release, several named audiences, each with its own subject lines, intro
+// and follow-ups. Membership lives on outreach_campaign_contacts (primary key
+// campaign_id + contact_id), so a contact cannot be in two audiences on one
+// release. See services/pressSegments.js and migration 191.
+
+const pressSegments = require('../services/pressSegments');
+
+/** Resolve a release to its campaign, refusing if it has none yet. */
+async function campaignForRelease(releaseId) {
+  const { rows } = await pool.query(
+    'SELECT id, campaign_id, client_id FROM outreach_press_releases WHERE id = $1',
+    [releaseId]
+  );
+  if (!rows.length) { const e = new Error('Press release not found'); e.status = 404; throw e; }
+  if (!rows[0].campaign_id) {
+    const e = new Error('This release has no pitch campaign yet — create one first.');
+    e.status = 400; throw e;
+  }
+  return rows[0];
+}
+
+function sendErr(res, err, where) {
+  console.error(`[press] ${where} failed:`, err.message);
+  res.status(err.status || 500).json({ error: err.message });
+}
+
+router.get('/releases/:id/segments', async (req, res) => {
+  try {
+    const rel = await campaignForRelease(req.params.id);
+    assertClientAccess(req, rel.client_id);
+    const [segments, unassigned] = await Promise.all([
+      pressSegments.list(rel.campaign_id),
+      pressSegments.unassigned(rel.campaign_id),
+    ]);
+    res.json({ segments, unassigned, campaign_id: rel.campaign_id });
+  } catch (err) { sendErr(res, err, 'list audiences'); }
+});
+
+router.post('/releases/:id/segments', async (req, res) => {
+  try {
+    const rel = await campaignForRelease(req.params.id);
+    assertClientAccess(req, rel.client_id);
+    const seg = await pressSegments.create({
+      campaignId: rel.campaign_id,
+      name: req.body?.name,
+      tags: Array.isArray(req.body?.tags) ? req.body.tags : [],
+    });
+    res.status(201).json(seg);
+  } catch (err) { sendErr(res, err, 'create audience'); }
+});
+
+router.patch('/segments/:segId', async (req, res) => {
+  try { res.json(await pressSegments.update(req.params.segId, req.body || {})); }
+  catch (err) { sendErr(res, err, 'update audience'); }
+});
+
+router.post('/segments/:segId/lock', async (req, res) => {
+  try { res.json(await pressSegments.setLocked(req.params.segId, req.body?.locked !== false)); }
+  catch (err) { sendErr(res, err, 'lock audience'); }
+});
+
+router.delete('/segments/:segId', async (req, res) => {
+  try { res.json(await pressSegments.remove(req.params.segId)); }
+  catch (err) { sendErr(res, err, 'delete audience'); }
+});
+
+// Add contacts. Anyone already in a different audience on this release comes
+// back as a conflict rather than being moved: that is the dedupe, and it is the
+// operator's call because it changes which pitch they receive.
+router.post('/segments/:segId/members', async (req, res) => {
+  try {
+    res.json(await pressSegments.assign({
+      segmentId: req.params.segId,
+      contactIds: Array.isArray(req.body?.contact_ids) ? req.body.contact_ids : [],
+    }));
+  } catch (err) { sendErr(res, err, 'add audience members'); }
+});
+
+router.post('/segments/:segId/resolve', async (req, res) => {
+  try {
+    res.json(await pressSegments.resolve({
+      segmentId: req.params.segId,
+      contactIds: Array.isArray(req.body?.contact_ids) ? req.body.contact_ids : [],
+      action: req.body?.action,
+    }));
+  } catch (err) { sendErr(res, err, 'resolve audience overlap'); }
+});
+
+router.delete('/segments/:segId/members', async (req, res) => {
+  try {
+    res.json(await pressSegments.unfile({
+      segmentId: req.params.segId,
+      contactIds: Array.isArray(req.body?.contact_ids) ? req.body.contact_ids : [],
+    }));
+  } catch (err) { sendErr(res, err, 'remove audience members'); }
+});
+
+// One AI draft for this audience: an intro that leans into its patch, plus a
+// shared set of follow-ups. One call per audience, not one per journalist, so a
+// five-audience release costs about five drafts.
+router.post('/segments/:segId/shared-pitch', async (req, res) => {
+  try {
+    const seg = await pressSegments.get(req.params.segId);
+    const state = pressSegments.editableState(seg);
+    if (!state.ok) return res.status(409).json({ error: state.reason });
+    const { rows } = await pool.query(
+      'SELECT * FROM outreach_press_releases WHERE campaign_id = $1 LIMIT 1', [seg.campaign_id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release for this audience not found' });
+    const release = rows[0];
+    const audience = { name: seg.name, tags: seg.tags || [] };
+    const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
+
+    const intro = await pressRelease.generateSharedPitch({
+      release, brandBriefing: release.briefing_field, sender, audience,
+    });
+    let followups = [];
+    if (req.body?.with_followups !== false) {
+      try {
+        followups = await pressRelease.generateSharedFollowUps({
+          release, brandBriefing: release.briefing_field, sender, audience,
+        });
+      } catch (e) {
+        // Keep the intro — it is the expensive half and the one that must exist.
+        console.error('[press] audience follow-ups failed (intro kept):', e.message);
+      }
+    }
+    const lean = (Array.isArray(followups) ? followups : []).slice(0, 10).map((c) => ({
+      subject: typeof c?.subject === 'string' ? c.subject.slice(0, 300) : null,
+      body: typeof c?.body === 'string' ? c.body.slice(0, 20000) : '',
+    }));
+    res.json(await pressSegments.update(seg.id, { intro: intro.slice(0, 40000), followups: lean }));
+  } catch (err) { sendErr(res, err, 'draft audience pitch'); }
+});
+
+// What sending this audience would do. Mirrors /releases/:id/send-plan so the
+// confirm dialog's numbers match the send exactly.
+router.post('/segments/:segId/send-plan', async (req, res) => {
+  try {
+    const seg = await pressSegments.get(req.params.segId);
+    if (!seg) return res.status(404).json({ error: 'Audience not found' });
+    const { rows } = await pool.query(
+      'SELECT * FROM outreach_press_releases WHERE campaign_id = $1 LIMIT 1', [seg.campaign_id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release for this audience not found' });
+    const release = rows[0];
+
+    const excluded = await excludedIdsForRelease(release);
+    const ids = (await pressSegments.memberIds(seg.id)).filter((id) => !excluded.has(String(id)));
+    const { rows: alreadyRows } = await pool.query(
+      `SELECT COUNT(DISTINCT contact_id)::int AS n FROM outreach_sends
+        WHERE campaign_id = $1 AND contact_id = ANY($2::uuid[])`,
+      [seg.campaign_id, ids.length ? ids : [null]]
+    );
+    const already = ids.length ? (alreadyRows[0]?.n || 0) : 0;
+    const fresh = Math.max(0, ids.length - already);
+    // An audience with its own intro sends shared copy, so there is no
+    // per-recipient AI cost at all. Only an untailored one pays per journalist.
+    let est = null;
+    if (!(seg.intro || '').trim() && release.followups_ai !== false) {
+      try { est = await require('../services/budget').estimatePressSendUsd(fresh); } catch { /* best effort */ }
+    }
+    res.json({
+      audience: seg.name, total: ids.length, already, new: fresh,
+      tailored: !!(seg.intro || '').trim(),
+      est_cost_usd: est ? est.est_usd : 0,
+    });
+  } catch (err) { sendErr(res, err, 'audience send plan'); }
+});
+
+// Queue one audience. Separate from the release-level send so audiences can go
+// out in waves, and so a wrong intro on one audience cannot take the rest with
+// it. Marks the audience sent, which freezes its membership and copy.
+router.post('/segments/:segId/send', async (req, res) => {
+  try {
+    const seg = await pressSegments.get(req.params.segId);
+    const state = pressSegments.editableState(seg);
+    if (!state.ok) return res.status(409).json({ error: state.reason });
+    const { rows } = await pool.query(
+      'SELECT * FROM outreach_press_releases WHERE campaign_id = $1 LIMIT 1', [seg.campaign_id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release for this audience not found' });
+    const release = rows[0];
+
+    const excluded = await excludedIdsForRelease(release);
+    const all = await pressSegments.memberIds(seg.id);
+    const ids = all.filter((id) => !excluded.has(String(id)));
+    const heldBack = all.length - ids.length;
+    if (!ids.length) {
+      return res.status(400).json({
+        error: heldBack
+          ? `Everyone in "${seg.name}" is excluded from this release.`
+          : `"${seg.name}" has nobody in it to send to.`,
+        held_back: heldBack,
+      });
+    }
+
+    await pool.query(
+      "UPDATE outreach_campaigns SET status = 'active', launched_at = COALESCE(launched_at, NOW()) WHERE id = $1",
+      [seg.campaign_id]
+    );
+    // Same set-based queue as the release-level send: one pending row per
+    // (recipient x sequence step), NOT EXISTS so a retry tops up rather than
+    // double-queueing. Sequences stay per campaign — the audience supplies the
+    // copy at render time, not extra sequence rows — so no cross-product.
+    const { rowCount: queued } = await pool.query(
+      `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
+       SELECT $1, c.id, s.id, 'pending', NOW() + make_interval(days => s.delay_days)
+         FROM unnest($2::uuid[]) AS c(id)
+         CROSS JOIN outreach_sequences s
+        WHERE s.campaign_id = $1
+          AND NOT EXISTS (
+            SELECT 1 FROM outreach_sends os
+             WHERE os.campaign_id = $1 AND os.contact_id = c.id AND os.sequence_id = s.id
+          )`,
+      [seg.campaign_id, ids]
+    );
+    await pressSegments.markSent(seg.id);
+    res.json({ audience: seg.name, queued, recipients: ids.length, held_back: heldBack });
+  } catch (err) { sendErr(res, err, 'audience send'); }
 });
 
 module.exports = router;
