@@ -27,7 +27,7 @@ import { roWrite } from '../utils/readOnly';
 const LINE = 'var(--border-w) solid var(--card-border)';
 const CAP = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' };
 
-export default function PressAudiences({ releaseId, clientId, readOnly, onChanged }) {
+export default function PressAudiences({ releaseId, clientId, readOnly, onChanged, reloadToken = 0 }) {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [segments, setSegments] = useState([]);
@@ -45,8 +45,14 @@ export default function PressAudiences({ releaseId, clientId, readOnly, onChange
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [releaseId]);
+  }, [releaseId, reloadToken]);   // reloadToken: see the comment on the effect below
 
+  // This panel owns its own copy of the audience list, so something that changes
+  // the counts from OUTSIDE it (saving country rules, or resolving more
+  // countries, both of which live in the panel below) has to say so. Without
+  // this the operator saves an exclusion and the audience lines right above the
+  // button keep showing the old "to send" numbers, which is the whole thing the
+  // count was supposed to demonstrate.
   useEffect(() => { load(); }, [load]);
 
   async function create(e) {

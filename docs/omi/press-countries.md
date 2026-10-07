@@ -93,8 +93,18 @@ Excluding a country changes three numbers, all of which come from the same rule:
 `pressSegments.list()` applies the country rules as well as counting them, and
 reports `country_excluded_count` separately from the other suppressions, so
 `member_count - suppressed_count` is always the number that will actually be
-emailed. Saving the rules (and resolving more countries, which can newly match an
-existing exclusion) refreshes the audience panel.
+emailed.
+
+The Countries panel sits below the Audiences panel on step 1: build the lists
+first, then filter them. Its button is labelled **Save countries and refresh
+audience counts**, and because the audience lines it changes are above it and
+can be off-screen, it also prints the result beside the button ("0 will send
+across 2 audiences, with 4 held back by country"). The Audiences panel owns its
+own copy of the list, so saving bumps a reload token that makes it re-read
+itself; without that the lines right above the button keep the old numbers,
+which is the exact thing the count exists to show. Resolving more countries
+refreshes it too, since a newly resolved country can match an exclusion that was
+already set.
 
 That wiring is the point rather than a nicety: the send was already correct
 before it, because `memberIds` and the dispatch gate both applied the rules, but

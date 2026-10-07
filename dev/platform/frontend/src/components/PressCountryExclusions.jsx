@@ -28,6 +28,10 @@ export default function PressCountryExclusions({ releaseId, readOnly, onSaved })
   const [saving, setSaving] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // What the last save did to the audiences, shown next to the button so the
+  // effect is where the action was. The audience panel sits above this one, so
+  // its updated counts would otherwise be off-screen.
+  const [effect, setEffect] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -52,13 +56,22 @@ export default function PressCountryExclusions({ releaseId, readOnly, onSaved })
       await api.put(`/press/releases/${releaseId}/country-exclusions`, {
         excluded_countries: excluded, unknown_country_policy: policy,
       });
-      toast(excluded.length
-        ? `${excluded.length} countr${excluded.length === 1 ? 'y' : 'ies'} excluded from this release.`
-        : 'Country exclusions cleared.', 'success');
       setDirty(false);
       // Refresh the audiences: their "to send" counts include the country rules,
       // so without this the operator saves an exclusion and sees nothing change.
-      await onSaved?.();
+      const r = await onSaved?.();
+      const segs = (r && r.segments) || [];
+      if (segs.length) {
+        const sendable = segs.reduce((n, sg) => n + Math.max(0, sg.member_count - sg.suppressed_count), 0);
+        const held = segs.reduce((n, sg) => n + (sg.country_excluded_count || 0), 0);
+        setEffect({ sendable, held, audiences: segs.length });
+        toast(`Saved. ${sendable.toLocaleString()} will send, ${held.toLocaleString()} held back by country.`, 'success');
+      } else {
+        setEffect(null);
+        toast(excluded.length
+          ? `${excluded.length} countr${excluded.length === 1 ? 'y' : 'ies'} excluded from this release.`
+          : 'Country exclusions cleared.', 'success');
+      }
     } catch (e) { toast(e.message, 'error'); }
     finally { setSaving(false); }
   }
@@ -186,10 +199,26 @@ export default function PressCountryExclusions({ releaseId, readOnly, onSaved })
       </div>
 
       {!readOnly && (
-        <button className="btn btn-primary btn-sm" style={{ marginTop: 'var(--s3)' }}
-          onClick={save} disabled={saving || !dirty}>
-          {saving ? 'Saving…' : 'Save country rules'}
-        </button>
+        <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+          <button className="btn btn-primary" onClick={save} disabled={saving || !dirty}>
+            {saving ? 'Saving…' : 'Save countries and refresh audience counts'}
+          </button>
+          {effect && (
+            <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-body)', color: 'var(--text)' }}>
+              <strong>{effect.sendable.toLocaleString()}</strong> will send across {effect.audiences}{' '}
+              audience{effect.audiences === 1 ? '' : 's'}
+              {effect.held > 0
+                ? <>, with <strong>{effect.held.toLocaleString()}</strong> held back by country.</>
+                : '. No one is held back by country.'}
+              <div style={CAP}>The audience list above now shows the same numbers.</div>
+            </div>
+          )}
+          {dirty && !saving && (
+            <div style={{ ...CAP, marginTop: 'var(--s2)' }}>
+              Unsaved. The struck-through countries do nothing until you press this.
+            </div>
+          )}
+        </div>
       )}
       <div style={{ ...CAP, marginTop: 'var(--s2)' }}>
         Enforced when each email is sent, not only when the list is built, so a country corrected after
