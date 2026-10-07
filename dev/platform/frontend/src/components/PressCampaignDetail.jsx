@@ -539,39 +539,11 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     finally { setSending(false); }
   }
 
-  const send = () => sendTo(Array.from(combinedIds));
-
-  if (loadError) {
-    return (
-      <div>
-        <button onClick={onExit} className="btn btn-secondary btn-sm">Back to campaigns</button>
-        <div style={{ padding: 'var(--s5)', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', color: 'var(--warning)' }}>
-          <div style={{ fontWeight: 700, marginBottom: 'var(--s2)' }}>This campaign isn't linked to a press release</div>
-          <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>It's tagged as a press campaign but has no parsed release attached. Delete it and start a new one via <strong>+ New press campaign</strong>.</div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>Server said: {loadError}</div>
-        </div>
-      </div>
-    );
-  }
-  if (!release) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading release…</div>;
-
-  // Completion flags drive the green ticks in the stepper + confirm step.
-  const done = {
-    who: totalRecipients > 0,
-    what: steps.length > 0 && steps.every(s => (s.subject || '').trim()),
-    test: tested,
-    preview: previewed,
-  };
-
-  const visibleTags = pressTags.filter(t => !tagSearch || t.tag.toLowerCase().includes(tagSearch.toLowerCase()));
-  const TagChip = ({ tag, count, on }) => (
-    <button type="button" onClick={() => toggleTag(tag)}
-      className={`tab ${on ? 'active' : ''}`} style={{ margin: '0 var(--s2) var(--s2) 0' }}>
-      {on ? '✓ ' : ''}{tag}{count != null ? <span style={{ opacity: 0.6 }}> · {count}</span> : ''}
-    </button>
-  );
-
-  const stepIndex = STEPS.findIndex(s => s.key === step);
+  // These hooks must stay ABOVE the early returns below: the component returns
+  // early while the release is still loading, so a hook declared after that point
+  // runs on the second render but not the first, and React aborts the tree with
+  // "Rendered more hooks than during the previous render". That is exactly what
+  // took the Earned page down after the audiences change.
   const activeSeg = segments.find(s => s.id === activeSegId) || null;
   // An audience that has sent is frozen: its list and its copy are fixed.
   const segFrozen = !!activeSeg?.sent_at;
@@ -662,6 +634,47 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     finally { setDraftingSeg(false); }
   }
 
+
+  const send = () => sendTo(Array.from(combinedIds));
+
+  if (loadError) {
+    return (
+      <div>
+        <button onClick={onExit} className="btn btn-secondary btn-sm">Back to campaigns</button>
+        <div style={{ padding: 'var(--s5)', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', color: 'var(--warning)' }}>
+          <div style={{ fontWeight: 700, marginBottom: 'var(--s2)' }}>This campaign isn't linked to a press release</div>
+          <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>It's tagged as a press campaign but has no parsed release attached. Delete it and start a new one via <strong>+ New press campaign</strong>.</div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>Server said: {loadError}</div>
+        </div>
+      </div>
+    );
+  }
+  if (!release) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading release…</div>;
+
+  // Everyone in an audience, across all of them. Filing a contact into an
+  // audience takes them out of the step-1 tag selection, so a release built
+  // entirely from audiences has a step-1 count of zero. Without this the stepper
+  // would show Who as incomplete and the Confirm checklist would show its one
+  // hard requirement in red, on a campaign that is perfectly ready to send.
+  const audienceRecipients = segments.reduce((n, sg) => n + Math.max(0, sg.member_count - sg.suppressed_count), 0);
+
+  // Completion flags drive the green ticks in the stepper + confirm step.
+  const done = {
+    who: totalRecipients > 0 || audienceRecipients > 0,
+    what: steps.length > 0 && steps.every(s => (s.subject || '').trim()),
+    test: tested,
+    preview: previewed,
+  };
+
+  const visibleTags = pressTags.filter(t => !tagSearch || t.tag.toLowerCase().includes(tagSearch.toLowerCase()));
+  const TagChip = ({ tag, count, on }) => (
+    <button type="button" onClick={() => toggleTag(tag)}
+      className={`tab ${on ? 'active' : ''}`} style={{ margin: '0 var(--s2) var(--s2) 0' }}>
+      {on ? '✓ ' : ''}{tag}{count != null ? <span style={{ opacity: 0.6 }}> · {count}</span> : ''}
+    </button>
+  );
+
+  const stepIndex = STEPS.findIndex(s => s.key === step);
   const goNext = () => { const i = STEPS.findIndex(s => s.key === step); if (i < STEPS.length - 1) setStep(STEPS[i + 1].key); };
   const goBack = () => { const i = STEPS.findIndex(s => s.key === step); if (i > 0) setStep(STEPS[i - 1].key); };
 
@@ -1303,7 +1316,15 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s1) 0 var(--s4)' }}>Everything below should be green before you send.</div>
 
             {[
-              { ok: done.who, label: 'Audience chosen', detail: `${totalRecipients.toLocaleString()} recipient${totalRecipients === 1 ? '' : 's'}${selTags.size ? ` · ${selTags.size} tag${selTags.size === 1 ? '' : 's'}` : ''}${extras.size ? ` · ${extras.size} added by hand` : ''}`, hard: true },
+              {
+                ok: done.who,
+                label: 'Audience chosen',
+                detail: segments.length
+                  ? `${audienceRecipients.toLocaleString()} across ${segments.length} audience${segments.length === 1 ? '' : 's'}`
+                    + (totalRecipients ? ` · ${totalRecipients.toLocaleString()} more from tags` : '')
+                  : `${totalRecipients.toLocaleString()} recipient${totalRecipients === 1 ? '' : 's'}${selTags.size ? ` · ${selTags.size} tag${selTags.size === 1 ? '' : 's'}` : ''}${extras.size ? ` · ${extras.size} added by hand` : ''}`,
+                hard: true,
+              },
               { ok: done.what, label: 'Subject lines set', detail: `${steps.length} email${steps.length === 1 ? '' : 's'} in the sequence`, hard: true },
               { ok: done.test, label: 'Test email sent', detail: done.test ? 'you’ve seen a real copy' : 'recommended — go back to step 3', hard: false },
               { ok: done.preview, label: 'Previewed a journalist’s email', detail: done.preview ? 'you’ve reviewed the personalised pitch' : 'recommended — go back to step 4', hard: false },

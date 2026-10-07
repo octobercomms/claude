@@ -1,0 +1,67 @@
+# Pre-merge checks for the OMI platform.
+#
+# Until now nothing ran on a PR, so the auto-merge bot's "every check is green"
+# test was vacuously true and a change could only be found broken in production.
+# A hook added below an early return in PressCampaignDetail shipped that way and
+# took the Earned page down with "Rendered more hooks than during the previous
+# render" — a crash `vite build` is perfectly happy to produce.
+#
+# Deliberately fast and narrow: the checks that catch a crash, not a style gate.
+#   - rules-of-hooks, which is the one lint rule whose violation always crashes
+#   - the frontend build
+#   - the backend suites that need no database
+#
+# The database-backed suites (press-segments, press-audience-routes,
+# contact-country) are not here yet: migration 001 creates schema_migrations,
+# which migrations/run.js has already created, so a bootstrap from empty fails
+# and CI has no schema to run against. Worth fixing; until then those suites run
+# locally against a scratch database.
+
+name: Platform checks
+
+on:
+  pull_request:
+    paths:
+      - 'dev/platform/**'
+      - '.github/workflows/platform-checks.yml'
+
+concurrency:
+  group: platform-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dev/platform/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Rules of Hooks
+        run: npm run lint:hooks
+      - name: Build
+        run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dev/platform/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Guard — every unattended AI loop checks its budget
+        run: node tests/budget-gating.test.js
+      - name: Guard — the paste importer cannot silently import nothing
+        run: node tests/press-import.test.js
+      - name: Syntax check every service and route
+        run: |
+          set -e
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
