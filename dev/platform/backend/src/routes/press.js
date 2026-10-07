@@ -254,13 +254,33 @@ router.get('/tags', async (_req, res) => {
 router.get('/audience', async (req, res) => {
   const tags = String(req.query.tags || '').split(',').map(t => t.trim()).filter(Boolean);
   if (!tags.length) return res.json({ total: 0, ids: [], sample: [], excluded: 0 });
+  // Optional: apply this release's country exclusions, so the number the picker
+  // shows is the number that will send. The dispatch gate enforces them either
+  // way; without a release id we cannot know them, and the response says so
+  // rather than implying the list is filtered.
+  const releaseId = String(req.query.release_id || '').trim() || null;
+  let countryRules = { countries: [], policy: 'send' };
+  if (releaseId) {
+    const { rows: rr } = await pool.query(
+      'SELECT excluded_countries, unknown_country_policy FROM outreach_press_releases WHERE id = $1',
+      [releaseId]
+    );
+    if (rr.length) {
+      countryRules = {
+        countries: rr[0].excluded_countries || [],
+        policy: rr[0].unknown_country_policy || 'send',
+      };
+    }
+  }
   // client_id is optional so the endpoint keeps working for callers that don't
   // pass it, but without it we cannot know the client's permanent exclusions,
   // so the response says so rather than implying the list is filtered.
   const clientId = String(req.query.client_id || '').trim() || null;
   try {
+    const countrySql = require('../services/contactCountry')
+      .excludedByCountrySql('c', '$3::text[]', '$4::text');
     const { rows } = await pool.query(
-      `SELECT id, name, email, company, contact_type, tags
+      `SELECT id, name, email, company, contact_type, tags, country, country_source
          FROM outreach_contacts c
         WHERE c.kind = 'media' AND c.email IS NOT NULL AND c.email <> ''
           AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
@@ -269,9 +289,28 @@ router.get('/audience', async (req, res) => {
                 SELECT 1 FROM outreach_contact_clients occ
                  WHERE occ.contact_id = c.id AND occ.client_id = $2::uuid
                    AND occ.excluded_at IS NOT NULL))
+          AND NOT ${countrySql}
         ORDER BY c.name LIMIT 20000`,
-      [tags, clientId]
+      [tags, clientId, countryRules.countries, countryRules.policy]
     );
+    // How many the country rules removed, and how many of those were held back
+    // only because their country is unknown — the number that tells the operator
+    // whether 'hold unknowns' is costing them real reach.
+    let countryExcluded = 0; let unknownHeld = 0;
+    if (countryRules.countries.length) {
+      const { rows: ce } = await pool.query(
+        `SELECT COUNT(*)::int AS n,
+                COUNT(*) FILTER (WHERE c.country IS NULL)::int AS unknown
+           FROM outreach_contacts c
+          WHERE c.kind = 'media' AND c.email IS NOT NULL AND c.email <> ''
+            AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
+            AND c.tags && $1::text[]
+            AND ${require('../services/contactCountry').excludedByCountrySql('c', '$2::text[]', '$3::text')}`,
+        [tags, countryRules.countries, countryRules.policy]
+      );
+      countryExcluded = ce[0]?.n || 0;
+      unknownHeld = ce[0]?.unknown || 0;
+    }
     // How many the exclusion list removed, so the UI can say "12 held back"
     // rather than silently showing a shorter list.
     let excluded = 0;
@@ -289,6 +328,11 @@ router.get('/audience', async (req, res) => {
     res.json({
       total: rows.length, ids: rows.map(r => r.id), sample: rows.slice(0, 200),
       excluded, exclusions_applied: !!clientId,
+      country_excluded: countryExcluded,
+      country_unknown_held: unknownHeld,
+      country_rules_applied: !!releaseId,
+      excluded_countries: countryRules.countries,
+      unknown_country_policy: countryRules.policy,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -318,7 +362,7 @@ router.post('/clients/:clientId/import-smart', async (req, res) => {
 // text (name/outlet/email), tag, beat, location, outlet. Excludes suppressed /
 // bounced / emailless. The send route auto-attaches whoever is picked.
 router.get('/journalists', async (req, res) => {
-  const { search, tag, beat, outlet, location } = req.query;
+  const { search, tag, beat, outlet, location, country } = req.query;
   const where = [
     `oc.kind = 'media'`,
     `oc.email IS NOT NULL AND oc.email <> ''`,
@@ -332,9 +376,19 @@ router.get('/journalists', async (req, res) => {
   if (beat) { where.push(`oc.contact_type ILIKE ${like(beat)}`); }
   if (location) { where.push(`oc.location ILIKE ${like(location)}`); }
   if (outlet) { where.push(`oc.company ILIKE ${like(outlet)}`); }
+  // Country is an exact match on the normalised value, not a LIKE: the whole
+  // point of the column is that "UK" and "United Kingdom" are one value, so a
+  // fuzzy match would reintroduce the ambiguity it exists to remove. '__unknown'
+  // asks for the contacts with no country, which is how the operator finds the
+  // gap a country filter cannot cover.
+  if (country) {
+    if (country === '__unknown') where.push('oc.country IS NULL');
+    else { params.push(country); where.push(`oc.country = $${params.length}`); }
+  }
   try {
     const { rows } = await pool.query(
-      `SELECT oc.id, oc.name, oc.email, oc.company, oc.contact_type, oc.title, oc.location, oc.tags
+      `SELECT oc.id, oc.name, oc.email, oc.company, oc.contact_type, oc.title, oc.location,
+              oc.tags, oc.country, oc.country_source
          FROM outreach_contacts oc
         WHERE ${where.join(' AND ')}
         ORDER BY oc.name LIMIT 300`,
@@ -1602,6 +1656,94 @@ router.post('/segments/:segId/send', async (req, res) => {
     await pressSegments.markSent(seg.id);
     res.json({ audience: seg.name, queued, recipients: ids.length, held_back: heldBack });
   } catch (err) { sendErr(res, err, 'audience send'); }
+});
+
+
+// ── Countries ────────────────────────────────────────────────────────────────
+//
+// Country on a journalist is derived from data OMI already holds (the outlet's
+// country, the location text, the email TLD) with no model call. An unresolved
+// country stays NULL, because a guess would silently send a release to someone
+// the operator told it to hold back. See services/contactCountry.js.
+
+const contactCountry = require('../services/contactCountry');
+
+// How much of the media library has a country, broken down by country and by how
+// it was derived. This is the number that decides whether a country exclusion is
+// worth trusting, so it is a screen of its own rather than a footnote.
+router.get('/countries', async (_req, res) => {
+  try { res.json(await contactCountry.coverage()); }
+  catch (err) { sendErr(res, err, 'country coverage'); }
+});
+
+// Run the derivation. Free and idempotent: re-running only fills gaps and
+// upgrades a value to a better-sourced one, and never overwrites a country typed
+// by a person. `dry_run` reports what it would change without writing.
+router.post('/countries/backfill', async (req, res) => {
+  try {
+    // The media library is shared across every client, so a backfill is an
+    // agency-wide write. Viewers never get it.
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admins only' });
+    res.json(await contactCountry.backfill({
+      dryRun: req.body?.dry_run === true,
+      limit: Math.min(Number(req.body?.limit) || 50000, 200000),
+    }));
+  } catch (err) { sendErr(res, err, 'country backfill'); }
+});
+
+// Correct one journalist's country by hand. 'manual' outranks every derivation,
+// so a later backfill leaves it alone.
+router.put('/contacts/:contactId/country', async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admins only' });
+    res.json(await contactCountry.setManual(req.params.contactId, req.body?.country));
+  } catch (err) { sendErr(res, err, 'set contact country'); }
+});
+
+// A release's country exclusions, and what to do with contacts whose country is
+// unknown. Enforced in the dispatch gate as well as here, so a country resolved
+// between queueing and dispatch is still caught.
+router.get('/releases/:id/country-exclusions', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT client_id, excluded_countries, unknown_country_policy FROM outreach_press_releases WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rows[0].client_id);
+    res.json({
+      excluded_countries: rows[0].excluded_countries || [],
+      unknown_country_policy: rows[0].unknown_country_policy || 'send',
+    });
+  } catch (err) { sendErr(res, err, 'read country exclusions'); }
+});
+
+router.put('/releases/:id/country-exclusions', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rows[0].client_id);
+
+    const countries = Array.isArray(req.body?.excluded_countries)
+      ? [...new Set(req.body.excluded_countries
+          .map((c) => String(c || '').trim())
+          .filter(Boolean)
+          // Store the canonical spelling, so an exclusion typed as "UK" matches
+          // the contacts stored as "United Kingdom".
+          .map((c) => contactCountry.normaliseCountry(c) || c))]
+      : [];
+    const policy = req.body?.unknown_country_policy === 'hold' ? 'hold' : 'send';
+
+    const { rows: out } = await pool.query(
+      `UPDATE outreach_press_releases
+          SET excluded_countries = $2::text[], unknown_country_policy = $3
+        WHERE id = $1
+        RETURNING excluded_countries, unknown_country_policy`,
+      [req.params.id, countries, policy]
+    );
+    res.json(out[0]);
+  } catch (err) { sendErr(res, err, 'save country exclusions'); }
 });
 
 module.exports = router;

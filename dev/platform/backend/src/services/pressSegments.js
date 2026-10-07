@@ -237,8 +237,10 @@ async function unfile({ segmentId, contactIds }) {
 }
 
 // The sendable member ids of an audience, with the same suppression rules the
-// audience picker uses. The dispatch gate remains the authoritative stop; this
-// just means we do not queue sends that are only going to be cancelled.
+// audience picker uses, plus the release's country exclusions. The dispatch gate
+// remains the authoritative stop; this just means we do not queue sends that are
+// only going to be cancelled, so the count the operator confirms is the number
+// that actually goes out.
 async function memberIds(segmentId) {
   const { rows } = await pool.query(
     `SELECT cc.contact_id AS id
@@ -248,15 +250,47 @@ async function memberIds(segmentId) {
        LEFT JOIN outreach_contact_clients m
               ON m.contact_id = cc.contact_id
              AND m.client_id = (SELECT client_id FROM outreach_campaigns WHERE id = s.campaign_id)
+       LEFT JOIN outreach_press_releases pr ON pr.campaign_id = s.campaign_id
       WHERE cc.segment_id = $1
         AND c.email IS NOT NULL AND c.email <> ''
         AND (c.status IS NULL OR c.status <> 'do_not_contact')
         AND c.bounced_at IS NULL
         AND m.unsubscribed_at IS NULL
-        AND m.excluded_at IS NULL`,
+        AND m.excluded_at IS NULL
+        AND NOT COALESCE(${require('./contactCountry').excludedByCountrySql(
+             'c', 'pr.excluded_countries', 'pr.unknown_country_policy')}, FALSE)`,
     [segmentId]
   );
   return rows.map((r) => String(r.id));
+}
+
+// Why an audience's members are being held back, so the send panel can say
+// "24 held back: 18 in an excluded country, 6 unsubscribed" rather than showing a
+// number that silently shrank.
+async function suppressionBreakdown(segmentId) {
+  const cc = require('./contactCountry');
+  const { rows } = await pool.query(
+    `SELECT
+       COUNT(*)::int AS members,
+       COUNT(*) FILTER (WHERE c.email IS NULL OR c.email = '')::int AS no_email,
+       COUNT(*) FILTER (WHERE c.status = 'do_not_contact')::int      AS do_not_contact,
+       COUNT(*) FILTER (WHERE c.bounced_at IS NOT NULL)::int         AS bounced,
+       COUNT(*) FILTER (WHERE m.unsubscribed_at IS NOT NULL)::int    AS unsubscribed,
+       COUNT(*) FILTER (WHERE m.excluded_at IS NOT NULL)::int        AS client_excluded,
+       COUNT(*) FILTER (WHERE ${cc.excludedByCountrySql('c', 'pr.excluded_countries', 'pr.unknown_country_policy')})::int
+         AS country_excluded,
+       COUNT(*) FILTER (WHERE c.country IS NULL)::int                AS country_unknown
+      FROM outreach_campaign_contacts occ
+      JOIN outreach_contacts c ON c.id = occ.contact_id
+      JOIN outreach_campaign_segments s ON s.id = occ.segment_id
+      LEFT JOIN outreach_contact_clients m
+             ON m.contact_id = occ.contact_id
+            AND m.client_id = (SELECT client_id FROM outreach_campaigns WHERE id = s.campaign_id)
+      LEFT JOIN outreach_press_releases pr ON pr.campaign_id = s.campaign_id
+     WHERE occ.segment_id = $1`,
+    [segmentId]
+  );
+  return rows[0];
 }
 
 // Which audience's copy applies to this recipient, if any. Called by the sender
@@ -295,6 +329,6 @@ async function markSent(segmentId) {
 
 module.exports = {
   get, list, unassigned, create, update, setLocked, remove,
-  assign, resolve, unfile, memberIds, copyForContact, markSent,
+  assign, resolve, unfile, memberIds, suppressionBreakdown, copyForContact, markSent,
   editableState,
 };

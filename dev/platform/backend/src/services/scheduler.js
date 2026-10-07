@@ -974,7 +974,23 @@ async function runOutreachSends() {
               SELECT 1 FROM outreach_press_releases pr
                WHERE pr.campaign_id = s.campaign_id
                  AND s.contact_id = ANY(pr.excluded_contacts)
-            ) AS release_excluded
+            ) AS release_excluded,
+            -- Country exclusions for this release. Enforced HERE, not only in the
+            -- audience pickers, for the same reason do_not_contact had to be:
+            -- filtering a state out of a selection query is not enforcement,
+            -- because the state can change after the queue was built. A country
+            -- resolved (or corrected) between queueing and dispatch is caught.
+            -- An unresolved country is held back only when the operator chose
+            -- 'hold' for this release; the default keeps reach.
+            EXISTS (
+              SELECT 1 FROM outreach_press_releases pr
+               WHERE pr.campaign_id = s.campaign_id
+                 AND COALESCE(array_length(pr.excluded_countries, 1), 0) > 0
+                 AND CASE
+                       WHEN con.country IS NULL THEN pr.unknown_country_policy = 'hold'
+                       ELSE con.country = ANY(pr.excluded_countries)
+                     END
+            ) AS country_excluded
        FROM outreach_sends s
        JOIN outreach_sequences seq ON seq.id = s.sequence_id
        JOIN outreach_contacts con ON con.id = s.contact_id
@@ -1029,6 +1045,13 @@ async function runOutreachSends() {
     // which is the case the operator most needs, since the realisation that a
     // client is already talking to a journalist usually arrives late.
     if (row.release_excluded) {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
+    // In a country this release excludes, or of unknown country on a release set
+    // to hold unknowns. See services/contactCountry.js for how country is
+    // derived and why an unresolved one is a real state rather than a blank.
+    if (row.country_excluded) {
       await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
       continue;
     }

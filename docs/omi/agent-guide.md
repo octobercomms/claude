@@ -368,6 +368,21 @@ progress is obvious on `platform.octobercomms.com`.
   `budget.taskCapReached(task)`. Wire up every new direct-SDK caller.
 - The `costLog.js` price table is hand-maintained and was 25% low on Haiku for
   months. Check it against published rates before quoting any cost figure.
+- **There are two contact tables, and they are not interchangeable.** Press sends,
+  audiences and the Settings media library all use `outreach_contacts`. The
+  journalist profile page at `/media/journalist/:id` reads `pr_contacts` through
+  `/pr/contacts/:id`, and `pr_outlets` (which has `region` and `domain`, but no
+  `country`) is the publication side of that older PR module. Adding a field to
+  "the journalist record" means picking one; putting it on both creates two
+  columns to keep in sync. Country went on `outreach_contacts` because that is
+  what sending reads. See `docs/omi/press-countries.md`.
+- **A derived field needs to say where it came from.** Country is inferred from
+  the outlet, the location text or an email TLD, and the operator excludes
+  countries from a send on the strength of it, so `country_source` is stored
+  alongside and shown in the UI. Unresolved stays NULL rather than being guessed,
+  ambiguous inputs ("Birmingham", `.co`, an outlet region of "EMEA") resolve to
+  nothing, and the coverage percentage is surfaced because a filter over 30% of a
+  library is not the filter it looks like.
 - **Prefer an unrepresentable state to a check you have to remember.** A press
   release can have several audiences, each with its own copy, and a contact in two
   of them would receive two different pitches a day apart (the frequency cap
