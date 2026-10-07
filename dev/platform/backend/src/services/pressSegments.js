@@ -414,9 +414,30 @@ async function markSent(segmentId) {
   );
 }
 
+// Cancelling a scheduled send puts its audiences back in play. An audience is
+// only reopened when nothing of it is queued or sent any more — if one of its
+// members already had an email go out, it stays frozen, because its copy is
+// now partly in the world.
+async function reopenUnsent(campaignId) {
+  const { rows } = await pool.query(
+    `UPDATE outreach_campaign_segments s
+        SET sent_at = NULL, updated_at = NOW()
+      WHERE s.campaign_id = $1 AND s.sent_at IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM outreach_campaign_contacts cc
+            JOIN outreach_sends os
+              ON os.campaign_id = cc.campaign_id AND os.contact_id = cc.contact_id
+           WHERE cc.segment_id = s.id
+        )
+      RETURNING s.name`,
+    [campaignId]
+  );
+  return rows.map((r) => r.name);
+}
+
 module.exports = {
   get, list, unassigned, create, update, setLocked, remove,
   assign, resolve, unfile, memberIds, members, suppressionBreakdown,
-  copyForContact, copyForSegment, overlayRelease, markSent,
+  copyForContact, copyForSegment, overlayRelease, markSent, reopenUnsent,
   editableState,
 };

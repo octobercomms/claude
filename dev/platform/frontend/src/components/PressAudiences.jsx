@@ -396,7 +396,7 @@ function Who({ seg, releaseId, clientId, ro, locked, busy, act, conflicts, setCo
 
 // One audience's confirm checklist and its own Send. Rendered by step 5, once per
 // audience, so a wrong intro on one cannot take the rest of the release with it.
-export function AudienceSend({ seg, ro, onChanged, onSent }) {
+export function AudienceSend({ seg, ro, sendAt = null, onChanged, onSent }) {
   const toast = useToast();
   const [plan, setPlan] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -417,6 +417,7 @@ export function AudienceSend({ seg, ro, onChanged, onSent }) {
       <div style={{ padding: 'var(--s3)', border: LINE, borderRadius: 'var(--r-sm)', marginTop: 'var(--s2)' }}>
         <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{seg.name}</div>
         <div style={CAP}>Sent on {new Date(seg.sent_at).toLocaleString('en-GB')}. Results are on the Results &amp; interest tab.</div>
+        <div style={CAP}>If this one is still waiting to go, cancelling the scheduled send above puts it back in play.</div>
       </div>
     );
   }
@@ -467,17 +468,22 @@ export function AudienceSend({ seg, ro, onChanged, onSent }) {
         <button className="btn btn-primary" disabled={ro || sending || !(plan?.total > 0)}
           {...roWrite(ro, {
             onClick: async () => {
-              if (!window.confirm(`Send "${seg.name}" to ${plan.new.toLocaleString()} journalist${plan.new === 1 ? '' : 's'}? Follow-ups queue on your timings and stop automatically if they reply.`)) return;
+              const when = sendAt ? new Date(sendAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : null;
+              if (!window.confirm(when
+                ? `Schedule "${seg.name}" for ${plan.new.toLocaleString()} journalist${plan.new === 1 ? '' : 's'} at ${when}? Nothing goes out until then, and you can call it back. Follow-ups are counted from then.`
+                : `Send "${seg.name}" to ${plan.new.toLocaleString()} journalist${plan.new === 1 ? '' : 's'} now? Follow-ups queue on your timings and stop automatically if they reply.`)) return;
               setSending(true);
               try {
-                const r = await api.post(`/press/segments/${seg.id}/send`, {});
-                toast(`${seg.name}: ${r.queued} email${r.queued === 1 ? '' : 's'} queued for ${r.recipients} recipient${r.recipients === 1 ? '' : 's'}.`, 'success');
+                const r = await api.post(`/press/segments/${seg.id}/send`, { send_at: sendAt });
+                toast(r.scheduled_at
+                  ? `${seg.name}: ${r.queued} email${r.queued === 1 ? '' : 's'} scheduled for ${when}.`
+                  : `${seg.name}: ${r.queued} email${r.queued === 1 ? '' : 's'} queued for ${r.recipients} recipient${r.recipients === 1 ? '' : 's'}.`, 'success');
                 await onChanged(); onSent?.();
               } catch (e) { toast(e.message, 'error'); }
               finally { setSending(false); }
             },
           })}>
-          {sending ? 'Queueing…' : `Send ${seg.name} to ${(plan?.new ?? 0).toLocaleString()}`}
+          {sending ? 'Queueing…' : `${sendAt ? 'Schedule' : 'Send'} ${seg.name} to ${(plan?.new ?? 0).toLocaleString()}`}
         </button>
       </div>
     </div>

@@ -25,6 +25,20 @@ const STEPS = [
   { key: 'confirm', label: 'Confirm', hint: 'check & send' },
 ];
 
+// 8am tomorrow, in the operator's own timezone, formatted for <input
+// type="datetime-local">. The browser's clock is the only timezone we need: the
+// value is converted to an absolute instant before it reaches the server.
+function defaultSendAt() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(8, 0, 0, 0);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+const WHEN = (iso) => new Date(iso).toLocaleString('en-GB', {
+  weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+});
+
 function AttrStat({ value, label, big, hint }) {
   return (
     <div title={hint || undefined} style={hint ? { cursor: 'help' } : undefined}>
@@ -66,6 +80,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [segments, setSegments] = useState([]);
   const [unassignedIds, setUnassignedIds] = useState([]);
   const [activeSegId, setActiveSegId] = useState(null);
+  // When the release goes out. 'now' queues immediately; 'later' queues against
+  // a time, and the follow-up days run from that time rather than from the
+  // click. One time for the whole release — every audience you send uses it.
+  const [sendMode, setSendMode] = useState('now');
+  const [sendAtLocal, setSendAtLocal] = useState(defaultSendAt);
+  const [scheduled, setScheduled] = useState(null);   // { recipients, send_at }
+  const [cancelling, setCancelling] = useState(false);
   // The active audience's sendable members, loaded from the server. The step-1
   // tag picker's sample does not cover them: a release built from audiences has
   // no tags selected, which is why the preview picker used to come up empty.
@@ -537,16 +558,18 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         + `Send the release to the ${plan.new} new recipient${plan.new === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop if they reply.`
         + costLine;
       if (!confirm(msg)) return;
-    } else if (!confirm(`Send to ${who} journalist${count === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.${costLine}`)) {
+    } else if (!confirm(`${sendAtIso ? `Schedule ${who} journalist${count === 1 ? '' : 's'} for ${WHEN(sendAtIso)}` : `Send to ${who} journalist${count === 1 ? '' : 's'} now`}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.${costLine}`)) {
       return;
     }
     setSending(true);
     try {
-      const r = await api.post(`/press/releases/${release.id}/send`, { contact_ids: list });
+      const r = await api.post(`/press/releases/${release.id}/send`, { contact_ids: list, send_at: sendAtIso });
       toast(r.queued
-        ? `Queued ${r.queued} emails${label ? ` for ${label}` : ''}.`
+        ? (r.scheduled_at
+            ? `${r.queued} emails${label ? ` for ${label}` : ''} scheduled for ${WHEN(r.scheduled_at)}. You can call them back until they go.`
+            : `Queued ${r.queued} emails${label ? ` for ${label}` : ''}.`)
         : 'Nothing new to queue — everyone was already sent.', 'success');
-      await loadSegments();
+      await Promise.all([loadSegments(), loadScheduled()]);
     } catch (e) { toast(`Send failed: ${e.message}`, 'error'); }
     finally { setSending(false); }
   }
@@ -576,6 +599,42 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   }, [release?.id]);
 
   useEffect(() => { loadSegments(); }, [loadSegments]);
+
+  // What is queued but has not gone yet, so step 5 can say what is waiting and
+  // offer to call it back. Read on arrival at the step and after every send.
+  const loadScheduled = useCallback(async () => {
+    if (!release?.id) return;
+    try {
+      const r = await api.get(`/press/releases/${release.id}/scheduled`);
+      setScheduled(r.send_at ? r : null);
+    } catch { /* the banner is informational — never block the step on it */ }
+  }, [release?.id]);
+
+  useEffect(() => { if (step === 'confirm') loadScheduled(); }, [step, loadScheduled]);
+
+  // The absolute instant the send is queued against, or null for "now". The
+  // datetime-local value is read in the operator's own timezone, so 08:00 means
+  // 08:00 where they are.
+  const sendAtIso = React.useMemo(() => {
+    if (sendMode !== 'later' || !sendAtLocal) return null;
+    const d = new Date(sendAtLocal);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }, [sendMode, sendAtLocal]);
+
+  async function cancelScheduled() {
+    if (!release) return;
+    if (!confirm(`Call back the release queued for ${scheduled?.recipients?.toLocaleString() || ''} journalists at ${scheduled ? WHEN(scheduled.send_at) : ''}?\n\nNothing has been sent yet, so nobody will know. Anyone already emailed on this release keeps their follow-ups.`)) return;
+    setCancelling(true);
+    try {
+      const r = await api.post(`/press/releases/${release.id}/cancel-scheduled`, {});
+      toast(r.cancelled
+        ? `Called back ${r.cancelled} queued email${r.cancelled === 1 ? '' : 's'}.${r.reopened.length ? ` ${r.reopened.join(' and ')} can be edited again.` : ''}`
+        : 'Nothing was still waiting to go.', 'success');
+      await Promise.all([loadScheduled(), loadSegments()]);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setCancelling(false); }
+  }
+
 
   // Members of the audience the later steps are scoped to. Re-read when the
   // audience changes and when its membership or the release's exclusions change
@@ -1103,8 +1162,12 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', minWidth: 60 }}>{s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}</span>
                   {s.step_number === 1 ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>sends immediately</span> : (
                     <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 'var(--s1)' }}>after
-                      <input type="number" min="1" value={s.delay_days ?? ''} disabled={!!activeSeg}
-                        title={activeSeg ? 'Timings are shared across audiences — each audience sends on its own, so the delays run from its own send.' : undefined}
+                      {/* Editable with an audience selected too. The timings are
+                          shared, but they were disabled whenever an audience was
+                          active — and since the wizard selects the first audience
+                          by default, that meant they could never be changed. */}
+                      <input type="number" min="1" value={s.delay_days ?? ''}
+                        title={activeSeg ? 'Timings are shared by every audience. Each audience sends on its own, so the delay runs from that audience’s own send.' : undefined}
                         onChange={e => setStepField(s.step_number, 'delay_days', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
                         className="input" style={{ width: 46 }} /> days
                     </span>
@@ -1424,6 +1487,45 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               )}
             </div>
 
+            {/* When it goes out. One time for the release: set it here and every
+                audience you send below is queued against it. A release landing at
+                11pm is read at 11pm, which is to say not at all. */}
+            <div style={{ marginTop: 'var(--s4)', paddingTop: 'var(--s3)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
+              <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>When it goes out</div>
+              <div className="row" style={{ gap: 'var(--s3)', marginTop: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center' }}>
+                <label style={{ display: 'flex', gap: 'var(--s1)', alignItems: 'center', cursor: 'pointer' }}>
+                  <input type="radio" name="sendmode" checked={sendMode === 'now'} onChange={() => setSendMode('now')} />
+                  <span style={{ fontSize: 'var(--fs-body)' }}>Send now</span>
+                </label>
+                <label style={{ display: 'flex', gap: 'var(--s1)', alignItems: 'center', cursor: 'pointer' }}>
+                  <input type="radio" name="sendmode" checked={sendMode === 'later'} onChange={() => setSendMode('later')} />
+                  <span style={{ fontSize: 'var(--fs-body)' }}>Schedule</span>
+                </label>
+                <input type="datetime-local" value={sendAtLocal} disabled={sendMode !== 'later'}
+                  onChange={e => setSendAtLocal(e.target.value)} className="input" style={{ width: 220 }} />
+              </div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
+                {sendMode === 'later' && sendAtIso
+                  ? `Everything you send below is queued for ${WHEN(sendAtIso)}, your local time. Follow-up days are counted from then, not from now, and you can call it back any time before it goes.`
+                  : 'Emails start going out within about three minutes, paced for deliverability.'}
+              </div>
+            </div>
+
+            {scheduled && (
+              <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3)', border: 'var(--border-w) solid var(--accent)', background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)' }}>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
+                  {scheduled.recipients.toLocaleString()} journalist{scheduled.recipients === 1 ? '' : 's'} waiting to be emailed at {WHEN(scheduled.send_at)}
+                </div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: 'var(--s1) 0 var(--s2)' }}>
+                  Nothing has been sent yet. Exclusions are re-checked at the moment it goes, so anyone you hold
+                  back between now and then is still stopped.
+                </div>
+                <button {...roWrite(readOnly, { onClick: cancelScheduled, disabled: cancelling })} className="btn btn-secondary btn-sm">
+                  {cancelling ? 'Calling it back…' : 'Cancel the scheduled send'}
+                </button>
+              </div>
+            )}
+
             {/* With audiences, each one confirms and sends on its own, so a wrong
                 intro on one cannot take the rest of the release with it. The
                 checks above are release-level and apply to all of them. */}
@@ -1434,8 +1536,9 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   One at a time, in whatever order suits. Each is frozen once it has gone.
                 </div>
                 {segments.map(sg => (
-                  <AudienceSend key={sg.id} seg={sg} ro={readOnly}
-                    onChanged={loadSegments} onSent={() => setTested(false)} />
+                  <AudienceSend key={sg.id} seg={sg} ro={readOnly} sendAt={sendAtIso}
+                    onChanged={async () => { await Promise.all([loadSegments(), loadScheduled()]); }}
+                    onSent={() => setTested(false)} />
                 ))}
                 {unassignedIds.length > 0 && (
                   <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s2)' }}>
