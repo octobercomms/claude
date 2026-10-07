@@ -92,6 +92,36 @@ const ok=(c,l)=>{ if(c) console.log('  ok   '+l); else {console.log('  FAIL '+l)
     ok(r.status===403,'nor list its release’s audiences');
     visible=[clientId];
 
+    console.log('\nThe preview picker reads the audience');
+    {
+      const r2 = await call('GET', `/segments/${work}/members`);
+      ok(r2.status === 200 && r2.body.members.length === 2, 'GET members returns the audience’s sendable people');
+      ok(r2.body.members.every((m) => m.email && 'country' in m), 'with the fields the picker shows');
+      visible = [other[0].id];
+      ok((await call('GET', `/segments/${work}/members`)).status === 403, 'and is behind the cross-tenant guard');
+      visible = [clientId];
+    }
+
+    console.log('\nThe sanity check reads the audiences, not the step-1 tags');
+    {
+      // It used to be handed the tag picker's selection, which a release built
+      // from audiences never touches: three audiences and 2,180 recipients were
+      // reviewed as "no tags selected — no audience at all, cannot send".
+      let seen = '';
+      require.cache[require.resolve(path + 'src/services/claude.js')] = {
+        id: 'claude', loaded: true,
+        exports: { callClaude: async ({ user }) => { seen = user; return '{"rating":"good","verdict":"ok","checks":[]}'; } },
+      };
+      const r2 = await call('POST', `/releases/${releaseId}/review`, { tags: [], recipient_count: 0 });
+      ok(r2.status === 200, 'the review runs');
+      ok(!/no tags selected|unknown size/.test(seen), 'it is never told there is no audience when audiences exist');
+      ok(/Workplace/.test(seen) && /Retail/.test(seen), 'every audience is named');
+      ok(/2 sendable of 2/.test(seen), 'with its sendable count, not the posted zero');
+      ok(/WP subject/.test(seen), 'and the subject line that audience actually overrides');
+      ok(/Shared follow-up/.test(seen), 'the shared sequence is still there for the audiences that use it');
+      delete require.cache[require.resolve(path + 'src/services/claude.js')];
+    }
+
     console.log('\nSend plan and send');
     r=await call('POST',`/segments/${work}/send-plan`,{});
     ok(r.status===200 && r.body.total===2 && r.body.tailored===true,'plan counts the 2 left in Workplace and sees the tailored intro');
