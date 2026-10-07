@@ -5,23 +5,29 @@ import { roWrite } from '../utils/readOnly';
 
 // Audiences within one press release.
 //
-// One release, several named audiences (Workplace, Retail, Residential…). Each
-// is built from an uploaded list plus tags, locked to snapshot who is in it, and
-// given its own subject lines, intro and follow-ups. The release body and hero
-// stay shared, because it is one press release.
+// This file owns the Who step's audience list (naming, membership, the dedupe,
+// locking) and exports the pieces the LATER wizard steps use:
+//
+//   AudienceBar  — the selector steps 2-5 put at the top, so each step is worked
+//                  once per audience rather than once for the release.
+//   AudienceSend — one audience's confirm checklist and its own Send, used by
+//                  step 5.
+//
+// The copy itself (subjects, intro, follow-ups) is edited in step 2 alongside the
+// shared settings, not here. An earlier version put it inside this panel, which
+// meant you set an audience's subject on step 1 and then step 2 showed you the
+// shared subject with no sign of which one won. The wizard is the right spine:
+// Who, What, Test, Preview, Confirm, each now iterating over audiences.
 //
 // The dedupe is not a report you remember to run. Membership lives on
 // (campaign, contact), so adding a list that overlaps an existing audience
 // surfaces the overlap immediately and asks where those people belong. Nobody
 // moves on their own, and nobody can end up in two.
-//
-// Each audience sends on its own Go, with its own test and preview, so a wrong
-// intro on one audience cannot take the rest of the release with it.
 
 const LINE = 'var(--border-w) solid var(--card-border)';
 const CAP = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' };
 
-export default function PressAudiences({ releaseId, clientId, readOnly, steps = [], onSent }) {
+export default function PressAudiences({ releaseId, clientId, readOnly, onChanged }) {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [segments, setSegments] = useState([]);
@@ -35,6 +41,7 @@ export default function PressAudiences({ releaseId, clientId, readOnly, steps = 
       const r = await api.get(`/press/releases/${releaseId}/segments`);
       setSegments(r.segments || []);
       setUnassigned(r.unassigned || []);
+      onChanged?.(r);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,11 +97,9 @@ export default function PressAudiences({ releaseId, clientId, readOnly, steps = 
           releaseId={releaseId}
           clientId={clientId}
           readOnly={readOnly}
-          steps={steps}
           isOpen={open === s.id}
           onToggle={() => setOpen(open === s.id ? null : s.id)}
           onChanged={load}
-          onSent={onSent}
           others={segments.filter((x) => x.id !== s.id)}
         />
       ))}
@@ -124,9 +129,8 @@ export default function PressAudiences({ releaseId, clientId, readOnly, steps = 
   );
 }
 
-function Audience({ seg, releaseId, clientId, readOnly, steps, isOpen, onToggle, onChanged, onSent, others }) {
+function Audience({ seg, releaseId, clientId, readOnly, isOpen, onToggle, onChanged, others }) {
   const toast = useToast();
-  const [tab, setTab] = useState('who');
   const [busy, setBusy] = useState('');
   const [conflicts, setConflicts] = useState([]);
 
@@ -163,11 +167,9 @@ function Audience({ seg, releaseId, clientId, readOnly, steps, isOpen, onToggle,
       {isOpen && (
         <div style={{ padding: 'var(--s3)', borderTop: LINE }}>
           <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
-            {[['who', 'Who is in it'], ['copy', 'Its emails'], ['send', 'Send this audience']].map(([k, label]) => (
-              <button key={k} onClick={() => setTab(k)}
-                className={`btn btn-sm ${tab === k ? 'btn-primary' : 'btn-secondary'}`}>{label}</button>
-            ))}
-            <div style={{ flex: 1 }} />
+            <div style={{ ...CAP, flex: 1 }}>
+              Its emails are written on the next step, and it sends from the Confirm step.
+            </div>
             {!frozen && !readOnly && (
               <>
                 <button className="btn btn-link btn-sm" disabled={!!busy}
@@ -189,12 +191,8 @@ function Audience({ seg, releaseId, clientId, readOnly, steps, isOpen, onToggle,
             </div>
           )}
 
-          {tab === 'who' && (
-            <Who seg={seg} releaseId={releaseId} clientId={clientId} ro={ro} locked={locked} busy={busy} act={act}
-              conflicts={conflicts} setConflicts={setConflicts} others={others} toast={toast} />
-          )}
-          {tab === 'copy' && <Copy seg={seg} ro={ro} steps={steps} busy={busy} act={act} />}
-          {tab === 'send' && <Send seg={seg} ro={ro} toast={toast} onChanged={onChanged} onSent={onSent} />}
+          <Who seg={seg} releaseId={releaseId} clientId={clientId} ro={ro} locked={locked} busy={busy} act={act}
+            conflicts={conflicts} setConflicts={setConflicts} others={others} toast={toast} />
         </div>
       )}
     </div>
@@ -375,100 +373,12 @@ function Who({ seg, releaseId, clientId, ro, locked, busy, act, conflicts, setCo
   );
 }
 
-// ── Its emails ───────────────────────────────────────────────────────────────
-
-function Copy({ seg, ro, steps, busy, act }) {
-  const [intro, setIntro] = useState(seg.intro || '');
-  const [subjects, setSubjects] = useState(() => ({ ...(seg.subjects || {}) }));
-  const [followups, setFollowups] = useState(() => (Array.isArray(seg.followups) ? seg.followups : []));
-  const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    setIntro(seg.intro || '');
-    setSubjects({ ...(seg.subjects || {}) });
-    setFollowups(Array.isArray(seg.followups) ? seg.followups : []);
-    setDirty(false);
-  }, [seg.id, seg.updated_at]);
-
-  const stepList = steps.length ? steps : [{ step_number: 1 }];
-  const touch = (fn) => { fn(); setDirty(true); };
-
-  return (
-    <div>
-      <div style={{ ...CAP, marginBottom: 'var(--s3)' }}>
-        This audience's covering note and subject lines. The press release itself, and its hero image, are shared
-        across every audience. Leave these empty and this audience sends the release's shared pitch instead.
-      </div>
-
-      {!ro && (
-        <button className="btn btn-secondary btn-sm" disabled={!!busy} style={{ marginBottom: 'var(--s3)' }}
-          onClick={() => {
-            if (intro.trim() && !window.confirm(`Replace "${seg.name}"'s intro and follow-ups with a new AI draft written for this audience?`)) return;
-            act('draft', () => api.post(`/press/segments/${seg.id}/shared-pitch`, { with_followups: true }));
-          }}>
-          {busy === 'draft' ? '✨ Writing…' : `✨ Draft for ${seg.name} with AI`}
-        </button>
-      )}
-      <div style={{ ...CAP, marginBottom: 'var(--s3)' }}>
-        One draft for the whole audience, so it costs about 3 cents however many journalists are in it.
-      </div>
-
-      <label style={{ display: 'block', marginBottom: 'var(--s3)' }}>
-        <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)' }}>Intro, first email</span>
-        <textarea className="input" rows={6} value={intro} disabled={ro}
-          onChange={(e) => touch(() => setIntro(e.target.value))}
-          placeholder="Why this story matters to this particular patch. {{first_name}} works here."
-          style={{ width: '100%', boxSizing: 'border-box', marginTop: 'var(--s1)' }} />
-      </label>
-
-      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
-        Subject lines for this audience
-      </div>
-      {stepList.map((st) => (
-        <label key={st.step_number} style={{ display: 'block', marginBottom: 'var(--s2)' }}>
-          <span style={CAP}>{st.step_number === 1 ? 'First email' : `Follow-up ${st.step_number - 1}`}</span>
-          <input className="input" disabled={ro} value={subjects[String(st.step_number)] || ''}
-            onChange={(e) => touch(() => setSubjects((p) => ({ ...p, [String(st.step_number)]: e.target.value })))}
-            placeholder={st.subject ? `Shared: ${st.subject}` : 'Leave empty to use the shared subject'}
-            style={{ width: '100%', boxSizing: 'border-box', marginTop: 2 }} />
-        </label>
-      ))}
-
-      {followups.length > 0 && (
-        <>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', margin: 'var(--s3) 0 var(--s2)' }}>
-            Follow-up bodies for this audience
-          </div>
-          {followups.map((f, i) => (
-            <label key={i} style={{ display: 'block', marginBottom: 'var(--s2)' }}>
-              <span style={CAP}>Follow-up {i + 1}</span>
-              <textarea className="input" rows={4} disabled={ro} value={f.body || ''}
-                onChange={(e) => touch(() => setFollowups((p) => p.map((x, j) => (j === i ? { ...x, body: e.target.value } : x))))}
-                style={{ width: '100%', boxSizing: 'border-box', marginTop: 2 }} />
-            </label>
-          ))}
-        </>
-      )}
-
-      {!ro && (
-        <button className="btn btn-primary btn-sm" disabled={!dirty || !!busy}
-          onClick={() => act('save', async () => {
-            // Blank subject overrides are stored as absent, so a cleared field
-            // falls back to the shared sequence row rather than sending empty.
-            const clean = {};
-            for (const [k, v] of Object.entries(subjects)) if (String(v || '').trim()) clean[k] = String(v).trim();
-            await api.patch(`/press/segments/${seg.id}`, { intro, subjects: clean, followups });
-          })}>
-          {busy === 'save' ? 'Saving…' : 'Save this audience’s emails'}
-        </button>
-      )}
-    </div>
-  );
-}
-
 // ── Send this audience ───────────────────────────────────────────────────────
 
-function Send({ seg, ro, toast, onChanged, onSent }) {
+// One audience's confirm checklist and its own Send. Rendered by step 5, once per
+// audience, so a wrong intro on one cannot take the rest of the release with it.
+export function AudienceSend({ seg, ro, onChanged, onSent }) {
+  const toast = useToast();
   const [plan, setPlan] = useState(null);
   const [checking, setChecking] = useState(false);
   const [sending, setSending] = useState(false);
@@ -484,7 +394,12 @@ function Send({ seg, ro, toast, onChanged, onSent }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   if (seg.sent_at) {
-    return <div style={CAP}>Sent on {new Date(seg.sent_at).toLocaleString('en-GB')}. Results are on the Results &amp; interest tab.</div>;
+    return (
+      <div style={{ padding: 'var(--s3)', border: LINE, borderRadius: 'var(--r-sm)', marginTop: 'var(--s2)' }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{seg.name}</div>
+        <div style={CAP}>Sent on {new Date(seg.sent_at).toLocaleString('en-GB')}. Results are on the Results &amp; interest tab.</div>
+      </div>
+    );
   }
 
   const checks = [
@@ -494,9 +409,10 @@ function Send({ seg, ro, toast, onChanged, onSent }) {
   ];
 
   return (
-    <div>
-      <div style={{ ...CAP, marginBottom: 'var(--s3)' }}>
-        Each audience goes out on its own, so you can send this one now and hold the rest.
+    <div style={{ padding: 'var(--s3)', border: LINE, borderRadius: 'var(--r-sm)', marginTop: 'var(--s2)' }}>
+      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{seg.name}</div>
+      <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>
+        Goes out on its own, so you can send this one now and hold the rest.
       </div>
       {checks.map((c, i) => (
         <div key={i} className="row" style={{ gap: 'var(--s2)', padding: 'var(--s2) 0', borderTop: i ? LINE : 'none', alignItems: 'flex-start' }}>
@@ -544,6 +460,45 @@ function Send({ seg, ro, toast, onChanged, onSent }) {
           })}>
           {sending ? 'Queueing…' : `Send ${seg.name} to ${(plan?.new ?? 0).toLocaleString()}`}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// The selector steps 2-5 put at the top. Picking an audience scopes that step to
+// it; "Everyone else" is the contacts on the release that are in no audience, who
+// receive the shared pitch. Renders nothing when the release has no audiences, so
+// a single-audience release is the wizard exactly as it was.
+export function AudienceBar({ segments, unassignedCount, activeId, onPick, label }) {
+  if (!segments.length) return null;
+  const chip = (on) => ({
+    cursor: 'pointer', fontWeight: on ? 700 : 400,
+    borderColor: on ? 'var(--accent)' : undefined,
+    background: on ? 'var(--accent-soft)' : undefined,
+  });
+  return (
+    <div style={{ marginBottom: 'var(--s3)', paddingBottom: 'var(--s3)', borderBottom: LINE }}>
+      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
+        {label || 'Which audience'}
+      </div>
+      <div className="row wrap" style={{ gap: 'var(--s1)' }}>
+        {segments.map((s) => (
+          <button key={s.id} className="chip" style={chip(activeId === s.id)} onClick={() => onPick(s.id)}
+            title={s.sent_at ? `Sent ${new Date(s.sent_at).toLocaleDateString('en-GB')}` : undefined}>
+            {s.name} {(s.member_count - s.suppressed_count).toLocaleString()}
+            {s.sent_at ? ' ✓' : (s.intro ? '' : ' ·')}
+          </button>
+        ))}
+        {unassignedCount > 0 && (
+          <button className="chip" style={chip(activeId === null)} onClick={() => onPick(null)}
+            title="On the release but in no audience — they get the shared pitch">
+            Everyone else {unassignedCount.toLocaleString()}
+          </button>
+        )}
+      </div>
+      <div style={{ ...CAP, marginTop: 'var(--s2)' }}>
+        A dot means no tailored intro written yet, so that audience sends the shared pitch. A tick means
+        it has already been sent.
       </div>
     </div>
   );

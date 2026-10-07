@@ -17,18 +17,39 @@ different covering note per group.
 
 ## The flow
 
-1. Name an audience.
-2. Fill it: tick tags and add everyone with them, or drop a CSV on the panel. The
-   CSV path reads the file directly when it has an email column, with no AI call.
-3. Resolve any overlap (below).
-4. Lock it, which snapshots membership so later retagging cannot move people.
-5. Write its emails, or press **Draft for \<audience\> with AI** for one draft
-   written to that audience's patch.
-6. Send it on its own Go, with its own checklist.
+The five-step wizard is still the spine. Audiences do not add a step; each step
+from 2 onwards is worked once per audience, with a selector bar at the top.
 
-Audiences send separately, so you can send Workplace today and hold Retail until
-its intro reads right. Follow-up delays are shared across audiences and run from
-each audience's own send, so staggering works at the audience level.
+**1 · Who** defines the audiences: name one, fill it by ticking tags or dropping a
+CSV on the panel, resolve any overlap (below), then lock it so later retagging
+cannot move people. Repeat per audience.
+
+**2 · What** writes the emails. The selector bar picks which audience you are
+writing; the subject and body fields are the same ones as before, now scoped to
+it, with the shared version shown as the placeholder so you can see what you are
+overriding. Leave a field blank and that audience falls back to the shared
+version, so you only write what differs. **Draft for \<audience\> with AI** writes
+one intro and one set of follow-ups aimed at that audience's patch.
+
+Release-level settings stay shared and are edited once: the embed toggle, the hero
+image, the release link, the footer, and the follow-up delays. Delays are shared
+because each audience sends separately and the delays run from its own send.
+
+**3 · Test** sends a test of the selected audience, marked
+`[TEST · <audience>]` so a round across four audiences does not land as four
+identical-looking emails. The server picks one of that audience's own members to
+personalise for.
+
+**4 · Preview** renders that audience's email. An intro written for the wrong
+patch is only visible here, so preview one from each audience you have tailored.
+
+**5 · Confirm** keeps the release-level checks (sender, footer, subjects) and then
+lists every audience with its own checklist and its own Send. Plus a row for
+anyone on the release who is in no audience, who receives the shared pitch.
+
+An earlier version put the copy editor and the send inside each audience's panel
+on step 1. That was wrong: you set an audience's subject on step 1 and then step 2
+showed you the shared subject with no sign of which one won.
 
 ## The dedupe
 
@@ -87,6 +108,18 @@ shared pitch, so a half-finished split still works.
 `services/outreachSender.js` resolves the recipient's audience once per dispatch
 (`pressSegments.copyForContact`) and prefers its copy at each render point. A
 campaign with no audiences resolves to `null` and every path behaves as before.
+
+The preview and the test go through the same overlay rather than reimplementing
+it: `pressSegments.overlayRelease(release, copy)` returns the release as that
+audience will send it, so what you check is what the recipient gets. Both accept
+an explicit `segment_id` (the wizard's "this audience"), and the preview falls
+back to the contact's own audience when none is given, so previewing a journalist
+from a list shows the email they will actually receive.
+
+That also fixed a pre-existing bug: `sendPressTest` always generated a
+per-recipient AI pitch, so a test on a "one email for everyone" release showed an
+email no journalist would receive and billed for it. It now renders the shared
+copy, with merge tags filled, exactly as the sender does.
 
 ## Cost
 

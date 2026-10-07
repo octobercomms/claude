@@ -989,7 +989,7 @@ router.get('/releases/:id/backlink-attribution', async (req, res) => {
 // Preview the email a specific journalist will receive — generates (or
 // reuses cached) intro + follow-ups, returns the rendered HTML.
 router.post('/releases/:id/preview', async (req, res) => {
-  const { contact_id, force } = req.body || {};
+  const { contact_id, force, segment_id } = req.body || {};
   if (!contact_id) return res.status(400).json({ error: 'contact_id required' });
   try {
     const { rows: contactRows } = await pool.query('SELECT * FROM outreach_contacts WHERE id = $1', [contact_id]);
@@ -997,8 +997,20 @@ router.post('/releases/:id/preview', async (req, res) => {
 
     const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
     if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
-    const release = relRows[0];
+    let release = relRows[0];
     assertClientAccess(req, release.client_id);
+
+    // A preview has to show what the recipient actually gets, so the audience's
+    // copy is overlaid exactly as the sender overlays it. An explicit segment_id
+    // previews that audience (the wizard's "preview this audience"); otherwise
+    // the contact's own audience is used, so previewing a journalist from the
+    // list shows the email they will receive rather than the shared pitch.
+    const segments = require('../services/pressSegments');
+    const audienceCopy = segment_id
+      ? await segments.copyForSegment(segment_id)
+      : await segments.copyForContact(release.campaign_id, contact_id);
+    release = segments.overlayRelease(release, audienceCopy);
+    const audienceSubject = (step) => (audienceCopy ? audienceCopy.subjectFor(step) : null);
 
     // Hero image lives in release.images[0] (extracted at fetch time);
     // surface it as hero_image so buildEmailHtml can render it.
@@ -1007,10 +1019,13 @@ router.post('/releases/:id/preview', async (req, res) => {
     const signature = await pressRelease.clientSignature(release.client_id);
     const recipientName = contactRows[0].name;
     // Follow-up subjects are owned by the sequence (steps 2-4).
-    const { rows: fuSteps } = await pool.query(
+    const { rows: fuStepRows } = await pool.query(
       'SELECT step_number, subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number > 1 ORDER BY step_number',
       [release.campaign_id]
     );
+    const fuSteps = fuStepRows.map((r) => ({
+      ...r, subject: audienceSubject(Number(r.step_number)) || r.subject,
+    }));
 
     let html, pitchOut, followUpsOut, follow_ups_html, generatedAt = null;
 
@@ -1197,12 +1212,24 @@ router.post('/releases/:id/test', async (req, res) => {
   try {
     const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
     if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
-    const release = relRows[0];
+    let release = relRows[0];
     assertClientAccess(req, release.client_id);
 
-    // Pick a journalist to personalise for: the one requested, else any contact
-    // attached to this client (so the test shows real personalisation).
+    const segmentId = req.body?.segment_id || null;
+
+    // Pick a journalist to personalise for: the one requested, else a member of
+    // the audience being tested (so the test reads as that audience's recipient
+    // would read it), else any contact attached to this client.
     let contactId = req.body?.contact_id || null;
+    if (!contactId && segmentId) {
+      const { rows: m } = await pool.query(
+        `SELECT cc.contact_id AS id FROM outreach_campaign_contacts cc
+           JOIN outreach_contacts oc ON oc.id = cc.contact_id
+          WHERE cc.segment_id = $1 AND oc.email IS NOT NULL AND oc.email <> '' LIMIT 1`,
+        [segmentId]
+      );
+      contactId = m[0]?.id || null;
+    }
     if (!contactId) {
       const { rows: c } = await pool.query(
         `SELECT oc.id FROM outreach_contacts oc
@@ -1212,16 +1239,32 @@ router.post('/releases/:id/test', async (req, res) => {
       );
       contactId = c[0]?.id || null;
     }
-    if (!contactId) return res.status(400).json({ error: 'Add at least one journalist to this client before sending a test, so the pitch can be personalised.' });
+    if (!contactId) {
+      return res.status(400).json({
+        error: segmentId
+          ? 'Put at least one journalist in this audience before testing it, so the pitch can be personalised.'
+          : 'Add at least one journalist to this client before sending a test, so the pitch can be personalised.',
+      });
+    }
     const { rows: contactRows } = await pool.query('SELECT * FROM outreach_contacts WHERE id = $1', [contactId]);
     if (!contactRows.length) return res.status(404).json({ error: 'Contact not found' });
+
+    // Overlay the audience's copy, so a test of an audience sends that
+    // audience's email rather than the release's shared pitch.
+    const segments = require('../services/pressSegments');
+    const audienceCopy = segmentId
+      ? await segments.copyForSegment(segmentId)
+      : await segments.copyForContact(release.campaign_id, contactId);
+    release = segments.overlayRelease(release, audienceCopy);
 
     const { rows: clientRows } = await pool.query('SELECT outreach_sending FROM clients WHERE id = $1', [release.client_id]);
     await outreachSender.sendPressTest({
       release, contact: contactRows[0], toAddress: email,
       sending: clientRows[0]?.outreach_sending || null, clientId: release.client_id, stepNumber,
+      subjectOverride: audienceCopy ? audienceCopy.subjectFor(stepNumber) : null,
+      audienceName: audienceCopy ? audienceCopy.name : null,
     });
-    res.json({ ok: true, sent_to: email });
+    res.json({ ok: true, sent_to: email, audience: audienceCopy ? audienceCopy.name : null });
   } catch (err) {
     console.error('[press] test send failed:', err.message);
     res.status(err.status || 502).json({ error: err.message });
