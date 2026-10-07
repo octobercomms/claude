@@ -1548,6 +1548,15 @@ router.delete('/segments/:segId', async (req, res) => {
   catch (err) { sendErr(res, err, 'delete audience'); }
 });
 
+// The audience's sendable members, for the preview picker. Returns exactly the
+// people who will be emailed, so "preview this audience" and "send this
+// audience" can never disagree about who is in it.
+router.get('/segments/:segId/members', async (req, res) => {
+  try {
+    res.json({ members: await pressSegments.members(req.params.segId, req.query?.limit) });
+  } catch (err) { sendErr(res, err, 'list audience members'); }
+});
+
 // Add contacts. Anyone already in a different audience on this release comes
 // back as a conflict rather than being moved: that is the dedupe, and it is the
 // operator's call because it changes which pitch they receive.

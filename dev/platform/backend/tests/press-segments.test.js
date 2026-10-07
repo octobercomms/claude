@@ -142,6 +142,27 @@ async function cleanup() {
       await pool.query('DELETE FROM outreach_press_releases WHERE id = $1', [relId]);
     }
 
+    console.log('\nThe previewable members are the sendable members');
+    {
+      // The preview picker reads this. It drifted once already: it was built
+      // from the step-1 tag sample, which is empty on a release built from
+      // audiences, so the dropdown came up blank with recipients in place.
+      const rows = await seg.members(retail.id);
+      const ids = await seg.memberIds(retail.id);
+      ok(rows.length === ids.length, `members() returns one row per sendable member (${rows.length})`);
+      ok(rows.every((x) => ids.includes(String(x.id))), 'and never anyone the send would skip');
+      ok(rows.every((x) => x.email && 'name' in x && 'company' in x && 'country' in x),
+        'each row carries what the picker shows: email, name, company, country');
+
+      await pool.query("UPDATE outreach_contacts SET bounced_at = NOW() WHERE id = $1", [ids[0]]);
+      const fewer = await seg.members(retail.id);
+      ok(fewer.length === rows.length - 1 && !fewer.some((x) => String(x.id) === String(ids[0])),
+        'a bounced member drops out of the previewable list too');
+      await pool.query('UPDATE outreach_contacts SET bounced_at = NULL WHERE id = $1', [ids[0]]);
+
+      ok((await seg.members(work.id, 1)).length === 1, 'the limit is honoured');
+    }
+
     console.log('\nPer-audience copy');
     await seg.update(work.id, {
       intro: 'Thought this might suit your workplace coverage.',

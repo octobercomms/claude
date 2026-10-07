@@ -66,6 +66,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [segments, setSegments] = useState([]);
   const [unassignedIds, setUnassignedIds] = useState([]);
   const [activeSegId, setActiveSegId] = useState(null);
+  // The active audience's sendable members, loaded from the server. The step-1
+  // tag picker's sample does not cover them: a release built from audiences has
+  // no tags selected, which is why the preview picker used to come up empty.
+  const [segMembers, setSegMembers] = useState([]);
   const [segDraft, setSegDraft] = useState(null);     // { subjects, intro, followups }
   const [segDirty, setSegDirty] = useState(false);
   const [savingSeg, setSavingSeg] = useState(false);
@@ -270,14 +274,19 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   }, [audience, extras, excluded, permanentExcl]);
   const totalRecipients = combinedIds.size;
 
-  // The list you can preview/edit from (sample of the audience + every extra).
+  // The list you can preview/edit from. With an audience selected it is that
+  // audience's members, because that is who the copy on screen goes to. Without
+  // one it is the step-1 tag sample plus every individually added journalist.
   const previewList = React.useMemo(() => {
     const seen = new Set(); const out = [];
-    for (const c of [...extras.values(), ...(audience.sample || [])]) {
+    const source = activeSegId
+      ? segMembers
+      : [...extras.values(), ...(audience.sample || [])];
+    for (const c of source) {
       if (c && c.id && !seen.has(c.id)) { seen.add(c.id); out.push(c); }
     }
     return out.slice(0, 300);
-  }, [audience, extras]);
+  }, [audience, extras, activeSegId, segMembers]);
 
   // Autopilot — suggest the audience TAGS for this story, with a reason each.
   async function runAutopilot() {
@@ -567,6 +576,26 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   }, [release?.id]);
 
   useEffect(() => { loadSegments(); }, [loadSegments]);
+
+  // Members of the audience the later steps are scoped to. Re-read when the
+  // audience changes and when its membership or the release's exclusions change
+  // (member_count moves), so the picker never offers someone now held back.
+  useEffect(() => {
+    if (!activeSegId) { setSegMembers([]); return; }
+    let live = true;
+    api.get(`/press/segments/${activeSegId}/members`)
+      .then(r => {
+        if (!live) return;
+        const list = r.members || [];
+        setSegMembers(list);
+        // The journalist on screen may belong to the audience we just left.
+        // Leaving them selected would show one audience's copy against another
+        // audience's recipient, which is the mistake this step exists to catch.
+        setPreviewing(prev => (prev && !list.some(c => c.id === prev) ? null : prev));
+      })
+      .catch(() => { if (live) setSegMembers([]); });
+    return () => { live = false; };
+  }, [activeSegId, activeSeg?.member_count, activeSeg?.suppressed_count]);
 
   // Default the later steps to the first audience when every contact is filed
   // into one. Otherwise nothing would look selected and step 2 would quietly be
@@ -1240,7 +1269,9 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center', marginBottom: 'var(--s3)' }}>
               <select value={previewing || ''} onChange={e => e.target.value && preview(e.target.value)} className="input" style={{ minWidth: 240, maxWidth: 360 }}>
-                <option value="">{previewList.length ? 'Pick a journalist to preview…' : 'Add an audience first (step 1)'}</option>
+                <option value="">{previewList.length ? 'Pick a journalist to preview…'
+                  : (activeSegId ? `No one left to send to in ${activeSeg?.name || 'this audience'}`
+                                 : (segments.length ? 'Pick an audience above' : 'Add recipients first (step 1)'))}</option>
                 {previewList.map(c => <option key={c.id} value={c.id}>{c.name || '(no name)'}{c.company ? ` · ${c.company}` : ''} — {c.email}</option>)}
               </select>
               {previewList.length > 1 && previewing && (

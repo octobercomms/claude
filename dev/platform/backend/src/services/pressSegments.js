@@ -282,6 +282,36 @@ async function memberIds(segmentId) {
   return rows.map((r) => String(r.id));
 }
 
+// The sendable members of an audience with the fields the UI shows. Same rules
+// as memberIds, deliberately: the journalists you can preview are exactly the
+// journalists who will receive it, so a preview can never show an email that
+// nobody gets (and a recipient can never be unpreviewable).
+async function members(segmentId, limit = 500) {
+  const { rows } = await pool.query(
+    `SELECT c.id, c.name, c.email, c.company, c.country, c.tags
+       FROM outreach_campaign_contacts cc
+       JOIN outreach_contacts c ON c.id = cc.contact_id
+       JOIN outreach_campaign_segments s ON s.id = cc.segment_id
+       LEFT JOIN outreach_contact_clients m
+              ON m.contact_id = cc.contact_id
+             AND m.client_id = (SELECT client_id FROM outreach_campaigns WHERE id = s.campaign_id)
+       LEFT JOIN outreach_press_releases pr ON pr.campaign_id = s.campaign_id
+      WHERE cc.segment_id = $1
+        AND c.email IS NOT NULL AND c.email <> ''
+        AND (c.status IS NULL OR c.status <> 'do_not_contact')
+        AND c.bounced_at IS NULL
+        AND m.unsubscribed_at IS NULL
+        AND m.excluded_at IS NULL
+        AND NOT COALESCE(cc.contact_id = ANY(pr.excluded_contacts), FALSE)
+        AND NOT COALESCE(${require('./contactCountry').excludedByCountrySql(
+             'c', 'pr.excluded_countries', 'pr.unknown_country_policy')}, FALSE)
+      ORDER BY c.name NULLS LAST, c.email
+      LIMIT $2`,
+    [segmentId, Math.min(Math.max(Number(limit) || 500, 1), 2000)]
+  );
+  return rows;
+}
+
 // Why an audience's members are being held back, so the send panel can say
 // "24 held back: 18 in an excluded country, 6 unsubscribed" rather than showing a
 // number that silently shrank.
@@ -386,7 +416,7 @@ async function markSent(segmentId) {
 
 module.exports = {
   get, list, unassigned, create, update, setLocked, remove,
-  assign, resolve, unfile, memberIds, suppressionBreakdown,
+  assign, resolve, unfile, memberIds, members, suppressionBreakdown,
   copyForContact, copyForSegment, overlayRelease, markSent,
   editableState,
 };
