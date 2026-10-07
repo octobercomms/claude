@@ -1313,18 +1313,66 @@ router.post('/releases/:id/review', async (req, res) => {
       'SELECT step_number, subject, delay_days FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number',
       [release.campaign_id]
     );
-    const storyText = (release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
-    const seq = steps.map(s => `${s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`} (day ${s.delay_days}): ${s.subject || '(no subject)'}`).join('\n');
+
+    // The audience is read from the campaign, not from what the client posted.
+    // The posted tags are the step-1 picker, which a release built from
+    // audiences never touches — trusting them told the reviewer there were zero
+    // journalists on a release with three audiences and 2,180 recipients.
+    const segs = await pressSegments.list(release.campaign_id);
+    const unfiled = segs.length ? (await pressSegments.unassigned(release.campaign_id)).length : 0;
+    const sendableOf = (x) => Math.max(0, (x.member_count || 0) - (x.suppressed_count || 0));
+
+    let audienceBlock;
+    if (segs.length) {
+      const lines = segs.map((x) => {
+        const bits = [`${sendableOf(x)} sendable of ${x.member_count || 0}`];
+        if (x.country_excluded_count) bits.push(`${x.country_excluded_count} in an excluded country`);
+        if (x.release_excluded_count) bits.push(`${x.release_excluded_count} held back by name`);
+        if ((x.tags || []).length) bits.push(`tags: ${x.tags.join(', ')}`);
+        if (x.sent_at) bits.push('ALREADY SENT');
+        bits.push(x.intro ? 'has its own tailored intro' : 'uses the shared pitch');
+        return `- ${x.name}: ${bits.join('; ')}`;
+      });
+      if (unfiled) lines.push(`- (${unfiled} contacts in no audience — they get the shared pitch)`);
+      const total = segs.reduce((n, x) => n + sendableOf(x), 0);
+      audienceBlock = `${total} journalists across ${segs.length} audience${segs.length === 1 ? '' : 's'}, each with its own copy:\n${lines.join('\n')}`;
+    } else {
+      audienceBlock = `${recipientCount != null ? `${recipientCount} journalists` : 'unknown size'}${tags.length ? `, from segments: ${tags.join(', ')}` : ' (no tags selected)'}`;
+    }
+
+    const story = (release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    // Say when we cut it. The reviewer used to read its own 1,800-character cut
+    // as a truncated press release and flag the copy for it.
+    const storyText = story.length > 4000
+      ? `${story.slice(0, 4000)}\n[Excerpt ends here — this cut is ours, for length. The release itself continues.]`
+      : story;
+
+    const seqLabel = (x) => (x.step_number === 1 ? 'Release' : `Follow-up ${x.step_number - 1}`);
+    let seq = steps.map((x) => `${seqLabel(x)} (day ${x.delay_days}): ${x.subject || '(no subject)'}`).join('\n');
+    // Per-audience subject overrides. Reviewing only the shared row would judge
+    // subject lines nobody receives.
+    const tailored = segs.filter((x) => Object.keys(x.subjects || {}).length);
+    if (tailored.length) {
+      seq += `\n\nSubject lines overridden per audience (these are what actually goes out):`;
+      for (const x of tailored) {
+        for (const st of steps) {
+          const subj = (x.subjects || {})[String(st.step_number)];
+          if (subj) seq += `\n- ${x.name} · ${seqLabel(st)} (day ${st.delay_days}): ${subj}`;
+        }
+      }
+    }
 
     const claude = require('../services/claude');
     const system = 'You are a senior PR account director reviewing a press campaign before it goes out. Be candid and specific — you would rather flag a real problem than rubber-stamp. British English.';
-    const user = `Review this press campaign and judge whether it looks ready to send. Consider: does the audience fit the story and is it a sensible size (not so broad it looks like spam, not so tiny it won't land coverage)? Are the four subject lines distinct, specific and enticing? Is the follow-up cadence reasonable?
+    const user = `Review this press campaign and judge whether it looks ready to send. Consider: does the audience fit the story and is it a sensible size (not so broad it looks like spam, not so tiny it won't land coverage)? Are the subject lines distinct, specific and enticing? Is the follow-up cadence reasonable?
+
+A campaign can carry several audiences, each with its own list and its own copy. Judge the ones listed below; do not treat a release that uses audiences as having no audience. Journalists already excluded by country or held back by name are out of the sendable figures given — that is the operator's deliberate choice, not a problem to flag.
 
 STORY HEADLINE: ${release.title}
 STORY: ${storyText}
 CLIENT: ${release.client_name}
 
-AUDIENCE: ${recipientCount != null ? `${recipientCount} journalists` : 'unknown size'}${tags.length ? `, from segments: ${tags.join(', ')}` : ' (no tags selected)'}
+AUDIENCE: ${audienceBlock}
 
 SEQUENCE (subject line per step):
 ${seq || '(no steps)'}
