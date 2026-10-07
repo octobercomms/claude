@@ -286,7 +286,10 @@ router.post('/clients/:clientId/import-smart', async (req, res) => {
     res.json(out);
   } catch (err) {
     console.error('[press] smart import failed:', err.message);
-    res.status(502).json({ error: err.message });
+    // 422 is the importer saying "I read it and there were no contacts in it",
+    // which is the operator's problem to fix (wrong file, no email column), not
+    // an upstream failure. Anything else is ours.
+    res.status(err.status === 422 ? 422 : 502).json({ error: err.message });
   }
 });
 

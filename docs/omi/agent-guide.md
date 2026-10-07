@@ -368,6 +368,18 @@ progress is obvious on `platform.octobercomms.com`.
   `budget.taskCapReached(task)`. Wire up every new direct-SDK caller.
 - The `costLog.js` price table is hand-maintained and was 25% low on Haiku for
   months. Check it against published rates before quoting any cost figure.
+- **An AI extraction that returns nothing must fail, not return nothing.** The
+  paste-and-sort contact importer made one Claude call with the input cut at
+  12,000 characters and `max_tokens` at 3,000. Past roughly 50 contacts the JSON
+  reply truncated mid-object, the all-or-nothing parser returned `[]`, and the
+  import reported "0 added, 0 updated" over a real list. The operator saw a
+  success toast and an empty audience. Three rules came out of it: give a bulk
+  extraction a deterministic path when the input is structured (a CSV with an
+  email column now skips the model entirely), chunk anything you send to a model
+  so one reply cannot reach the cap, and never let an empty result return
+  success. `callClaude` hands back text only, so a caller cannot see
+  `stop_reason: max_tokens` and must not assume a parse failure means empty
+  input. Guarded by `backend/tests/press-import.test.js`.
 - L1 masthead stays **big** (display title + kicker), matching Settings.
 - Two "Leads" screens — name which one. Owned→Email→Leads is two-pane;
   Biz dev→Leads stays a table.
