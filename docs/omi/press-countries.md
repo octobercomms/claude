@@ -48,9 +48,18 @@ Deliberate omissions, because a wrong country is worse than a gap:
 ## The backfill
 
 `POST /press/countries/backfill`, admin only, or the "Resolve more countries"
-button on the release's Countries panel. Free, no model call, idempotent: one read
-and one batched write for the whole library. `{"dry_run": true}` reports what it
-would change without writing.
+button on the release's Countries panel. Free, no model call, idempotent.
+`{"dry_run": true}` reports what it would change without writing.
+
+It reads the publications once into a map and resolves contacts against it in
+memory, paging through them 5,000 at a time with one batched write per page. The
+obvious SQL (a LATERAL join matching the email domain against the outlet domain
+with a trailing wildcard) measured **69 seconds** for 20,000 contacts against
+3,000 outlets, which is long enough to be cut off by the web server before it
+returns. The in-memory version is **0.7 seconds** for the same data, and it is
+also more correct: a trailing-wildcard match claims "faketimes.co.uk" for the
+outlet "thetimes.co.uk". Matching is exact on the email domain, then on the
+domain with one subdomain label stripped, then on the company name.
 
 It returns the coverage figure, which is the number that matters. Excluding the
 United States on a library where 30% of contacts have a country means you have

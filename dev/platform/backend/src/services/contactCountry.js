@@ -191,74 +191,96 @@ function supersedes(nextSource, currentSource) {
  * what is still unresolved, because the coverage figure is the thing that decides
  * whether a country exclusion is worth trusting.
  */
-async function backfill({ limit = 50000, dryRun = false } = {}) {
-  // Join each contact to its publication. Email domain first, because that is an
-  // exact match; outlet name second, because a pasted company name is not
-  // reliably the outlet's canonical name. Take the outlet's region (if it names a
-  // country) or its domain's country TLD.
-  const { rows } = await pool.query(
-    `SELECT c.id, c.email, c.location, c.country, c.country_source,
-            o.region AS outlet_region, o.domain AS outlet_domain
-       FROM outreach_contacts c
-       LEFT JOIN LATERAL (
-         SELECT o.region, o.domain
-           FROM pr_outlets o
-          WHERE o.merged_into IS NULL
-            AND (
-              (o.domain IS NOT NULL AND o.domain <> ''
-                 AND lower(split_part(c.email, '@', 2)) LIKE '%' || lower(o.domain))
-              OR (c.company IS NOT NULL AND c.company <> ''
-                 AND lower(COALESCE(o.canonical_name, o.name)) = lower(c.company))
-            )
-          -- Prefer the domain match: ordering by whether the domain matched puts
-          -- it first, so a name collision cannot beat an exact domain.
-          ORDER BY (o.domain IS NOT NULL AND o.domain <> ''
-                    AND lower(split_part(c.email, '@', 2)) LIKE '%' || lower(o.domain)) DESC
-          LIMIT 1
-       ) o ON TRUE
-      WHERE c.kind = 'media' AND c.merged_into IS NULL
-      LIMIT $1`,
-    [limit]
+async function backfill({ limit = 50000, dryRun = false, pageSize = 5000 } = {}) {
+  // Publications first, as one small read. There are thousands of outlets and
+  // tens of thousands of contacts, and the obvious SQL (a LATERAL join matching
+  // the email domain against the outlet domain with a trailing wildcard) is a
+  // nested loop that cannot use an index: measured at 69 seconds for 20,000
+  // contacts against 3,000 outlets, which is long enough to be cut off by the
+  // web server before it returns. Resolving in memory against a map is the same
+  // answer in a fraction of the time.
+  const { rows: outlets } = await pool.query(
+    `SELECT region, domain, COALESCE(canonical_name, name) AS name
+       FROM pr_outlets WHERE merged_into IS NULL`
   );
-
-  const updates = [];
-  const bySource = {};
-  let unchanged = 0;
-  for (const r of rows) {
-    // An outlet's region only counts when it actually names a country ("UK",
-    // "Germany"); values like "EMEA" or "North" resolve to nothing. Its domain's
-    // country TLD is the fallback.
-    const outletCountry = normaliseCountry(r.outlet_region)
-      || countryFromEmail(`x@${r.outlet_domain || ''}`);
-    const got = derive({ email: r.email, location: r.location, outletCountry });
-    if (!got) { unchanged++; continue; }
-    if (r.country === got.country && r.country_source === got.source) { unchanged++; continue; }
-    if (!supersedes(got.source, r.country_source)) { unchanged++; continue; }
-    updates.push([r.id, got.country, got.source]);
-    bySource[got.source] = (bySource[got.source] || 0) + 1;
+  const byDomain = new Map();
+  const byName = new Map();
+  for (const o of outlets) {
+    // Only an outlet that can actually yield a country is worth indexing.
+    const country = normaliseCountry(o.region) || countryFromEmail(`x@${o.domain || ''}`);
+    if (!country) continue;
+    if (o.domain) byDomain.set(String(o.domain).toLowerCase(), country);
+    if (o.name) byName.set(String(o.name).toLowerCase(), country);
   }
 
-  if (updates.length && !dryRun) {
-    // One statement for the whole batch: 20,000 contacts is one round trip.
-    await pool.query(
-      `UPDATE outreach_contacts AS c
-          SET country = u.country, country_source = u.source, updated_at = NOW()
-         FROM (SELECT * FROM unnest($1::uuid[], $2::text[], $3::text[])
-                 AS t(id, country, source)) AS u
-        WHERE c.id = u.id`,
-      [updates.map((u) => u[0]), updates.map((u) => u[1]), updates.map((u) => u[2])]
-    );
-  }
-
-  return {
-    examined: rows.length,
-    updated: dryRun ? 0 : updates.length,
-    would_update: updates.length,
-    by_source: bySource,
-    unchanged,
-    dry_run: !!dryRun,
-    ...(await coverage()),
+  // The outlet country for one contact: exact email domain, then the domain with
+  // one subdomain label stripped (news.thetimes.co.uk -> thetimes.co.uk), then
+  // the company name. Equality only, no scanning.
+  const outletCountryFor = (email, company) => {
+    const dom = String(email || '').toLowerCase().split('@')[1];
+    if (dom) {
+      if (byDomain.has(dom)) return byDomain.get(dom);
+      const dot = dom.indexOf('.');
+      if (dot > 0) {
+        const parent = dom.slice(dot + 1);
+        if (byDomain.has(parent)) return byDomain.get(parent);
+      }
+    }
+    const co = String(company || '').trim().toLowerCase();
+    return (co && byName.get(co)) || null;
   };
+
+  const result = { examined: 0, updated: 0, would_update: 0, by_source: {}, unchanged: 0 };
+  let after = null;
+
+  // Page by id so a library of any size runs in bounded memory, and so one
+  // oversized read cannot stall the request.
+  for (;;) {
+    const remaining = limit - result.examined;
+    if (remaining <= 0) break;
+    const { rows } = await pool.query(
+      `SELECT id, email, company, location, country, country_source
+         FROM outreach_contacts
+        WHERE kind = 'media' AND merged_into IS NULL
+          AND ($1::uuid IS NULL OR id > $1::uuid)
+        ORDER BY id
+        LIMIT $2`,
+      [after, Math.min(pageSize, remaining)]
+    );
+    if (!rows.length) break;
+    result.examined += rows.length;
+    after = rows[rows.length - 1].id;
+
+    const updates = [];
+    for (const r of rows) {
+      const got = derive({
+        email: r.email,
+        location: r.location,
+        outletCountry: outletCountryFor(r.email, r.company),
+      });
+      if (!got) { result.unchanged++; continue; }
+      if (r.country === got.country && r.country_source === got.source) { result.unchanged++; continue; }
+      if (!supersedes(got.source, r.country_source)) { result.unchanged++; continue; }
+      updates.push([r.id, got.country, got.source]);
+      result.by_source[got.source] = (result.by_source[got.source] || 0) + 1;
+    }
+    result.would_update += updates.length;
+
+    if (updates.length && !dryRun) {
+      // One statement per page rather than per row.
+      await pool.query(
+        `UPDATE outreach_contacts AS c
+            SET country = u.country, country_source = u.source, updated_at = NOW()
+           FROM (SELECT * FROM unnest($1::uuid[], $2::text[], $3::text[])
+                   AS t(id, country, source)) AS u
+          WHERE c.id = u.id`,
+        [updates.map((u) => u[0]), updates.map((u) => u[1]), updates.map((u) => u[2])]
+      );
+      result.updated += updates.length;
+    }
+  }
+
+  return { ...result, dry_run: !!dryRun, ...(await coverage()) };
 }
 
 /** How much of the media library has a country, by country and by source. */

@@ -119,6 +119,33 @@ async function addContact(name, email, location, company) {
     ok(by[fr].country === 'France' && by[fr].country_source === 'tld', 'a .fr address with no location used the TLD');
     ok(by[unknown].country === null, 'an unresolvable contact stays NULL rather than being guessed');
 
+    console.log('\nMatching a contact to its publication');
+    {
+      // The outlet lookup used to be a trailing-wildcard LIKE in SQL, which was
+      // both slow (69s on 20k contacts x 3k outlets) and wrong at the edges:
+      // "faketimes.co.uk" ends with "thetimes.co.uk". It is now an exact match on
+      // the email domain, then on the domain with one subdomain label stripped,
+      // then on the company name.
+      await pool.query(
+        `INSERT INTO pr_outlets (name, canonical_name, domain, region)
+         VALUES ('CT Times', 'CT Times', $1, 'France')`, [`${SLUG}-times.co.uk`]);
+      const sub = await addContact('Sub', `a@news.${SLUG}-times.co.uk`, null, null);
+      const fake = await addContact('Fake', `b@not${SLUG}-times.co.uk`, null, null);
+      const byName = await addContact('ByName', `c@elsewhere.com`, null, 'CT Times');
+      await cc.backfill({});
+      const { rows } = await pool.query(
+        'SELECT id, country, country_source FROM outreach_contacts WHERE id = ANY($1::uuid[])',
+        [[sub, fake, byName]]);
+      const m = Object.fromEntries(rows.map(r => [String(r.id), r]));
+      ok(m[sub].country === 'France' && m[sub].country_source === 'outlet',
+        'a subdomain of the outlet domain matches it');
+      ok(m[fake].country !== 'France',
+        'a domain that merely ENDS WITH the outlet domain does not match it');
+      ok(m[byName].country === 'France' && m[byName].country_source === 'outlet',
+        'the company name matches when the email domain does not');
+      await pool.query('DELETE FROM pr_outlets WHERE name = $1', ['CT Times']);
+    }
+
     const cov = await cc.coverage();
     ok(cov.contacts >= 4 && cov.with_country >= 3, 'coverage counts what resolved');
     ok(cov.unknown >= 1 && typeof cov.coverage_pct === 'number', 'and reports the gap as a number');
