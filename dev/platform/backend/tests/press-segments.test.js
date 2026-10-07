@@ -111,6 +111,37 @@ async function cleanup() {
     ok((await seg.memberIds(retail.id)).length === 3, 'and is left out of the sendable members');
     await pool.query("UPDATE outreach_contacts SET status = 'active' WHERE id = $1", [rt[0]]);
 
+    console.log('\nHolding one person back by name');
+    {
+      // The per-release exclusion list already existed and the dispatch gate
+      // already enforced it, but the audience counts ignored it, so naming
+      // someone left "N to send" unchanged. Same failure as the country rules.
+      const relId = (await pool.query(
+        'INSERT INTO outreach_press_releases (client_id, campaign_id, title) VALUES ($1,$2,$3) RETURNING id',
+        [clientId, campaignId, 'Exclusion probe'])).rows[0].id;
+      const target = (await seg.memberIds(retail.id))[0];
+      const before = (await seg.memberIds(retail.id)).length;
+
+      await pool.query('UPDATE outreach_press_releases SET excluded_contacts = ARRAY[$2::uuid] WHERE id = $1',
+        [relId, target]);
+      const after = await seg.memberIds(retail.id);
+      ok(after.length === before - 1, `naming one person drops the sendable count (${before} -> ${after.length})`);
+      ok(!after.includes(String(target)), 'and it is that person who is held back');
+
+      const listed = (await seg.list(campaignId)).find((x) => x.id === retail.id);
+      ok(listed.release_excluded_count === 1, 'the panel reports 1 held back by name');
+      ok(listed.member_count - listed.suppressed_count === after.length,
+        'the displayed sendable count equals what the send would queue');
+      ok(listed.member_count === before, 'membership itself is untouched — they are held back, not un-filed');
+
+      const bd = await seg.suppressionBreakdown(retail.id);
+      ok(bd.release_excluded === 1, 'the breakdown names it separately from the other suppressions');
+
+      await pool.query('UPDATE outreach_press_releases SET excluded_contacts = ARRAY[]::uuid[] WHERE id = $1', [relId]);
+      ok((await seg.memberIds(retail.id)).length === before, 'removing the exclusion puts them back');
+      await pool.query('DELETE FROM outreach_press_releases WHERE id = $1', [relId]);
+    }
+
     console.log('\nPer-audience copy');
     await seg.update(work.id, {
       intro: 'Thought this might suit your workplace coverage.',

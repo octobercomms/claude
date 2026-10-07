@@ -54,9 +54,15 @@ async function list(campaignId) {
               WHERE c.email IS NULL OR c.email = ''
                  OR c.status = 'do_not_contact' OR c.bounced_at IS NOT NULL
                  OR m.unsubscribed_at IS NOT NULL OR m.excluded_at IS NOT NULL
+                 OR cc.contact_id = ANY(pr.excluded_contacts)
                  OR ${countrySql}
             )::int AS suppressed_count,
-            COUNT(cc.contact_id) FILTER (WHERE ${countrySql})::int AS country_excluded_count
+            COUNT(cc.contact_id) FILTER (WHERE ${countrySql})::int AS country_excluded_count,
+            -- Named by hand for this release, so the panel can say so rather
+            -- than folding them into the generic "suppressed" bucket.
+            COUNT(cc.contact_id) FILTER (
+              WHERE cc.contact_id = ANY(pr.excluded_contacts)
+            )::int AS release_excluded_count
        FROM outreach_campaign_segments s
        LEFT JOIN outreach_campaign_contacts cc ON cc.segment_id = s.id
        LEFT JOIN outreach_contacts c ON c.id = cc.contact_id
@@ -268,6 +274,7 @@ async function memberIds(segmentId) {
         AND c.bounced_at IS NULL
         AND m.unsubscribed_at IS NULL
         AND m.excluded_at IS NULL
+        AND NOT COALESCE(cc.contact_id = ANY(pr.excluded_contacts), FALSE)
         AND NOT COALESCE(${require('./contactCountry').excludedByCountrySql(
              'c', 'pr.excluded_countries', 'pr.unknown_country_policy')}, FALSE)`,
     [segmentId]
@@ -290,6 +297,7 @@ async function suppressionBreakdown(segmentId) {
        COUNT(*) FILTER (WHERE m.excluded_at IS NOT NULL)::int        AS client_excluded,
        COUNT(*) FILTER (WHERE ${cc.excludedByCountrySql('c', 'pr.excluded_countries', 'pr.unknown_country_policy')})::int
          AS country_excluded,
+       COUNT(*) FILTER (WHERE occ.contact_id = ANY(pr.excluded_contacts))::int AS release_excluded,
        COUNT(*) FILTER (WHERE c.country IS NULL)::int                AS country_unknown
       FROM outreach_campaign_contacts occ
       JOIN outreach_contacts c ON c.id = occ.contact_id
