@@ -368,6 +368,25 @@ progress is obvious on `platform.octobercomms.com`.
   `budget.taskCapReached(task)`. Wire up every new direct-SDK caller.
 - The `costLog.js` price table is hand-maintained and was 25% low on Haiku for
   months. Check it against published rates before quoting any cost figure.
+- **A hook below an early return is a crash, and `vite build` will not tell you.**
+  PressCampaignDetail returns early while the release loads, so hooks added after
+  that point run on the second render and not the first; React tears the whole
+  page down with "Rendered more hooks than during the previous render". The build
+  passes regardless. `npm run lint:hooks` in `dev/platform/frontend` is now the
+  guard (the rules-of-hooks rule, nothing else), and it runs on every PR touching
+  `dev/platform/**` via `.github/workflows/platform-checks.yml`. Before that
+  workflow there were NO checks on a PR at all, which is why the auto-merge bot's
+  "every check is green" test was vacuously true.
+- **The sandbox really can reproduce a UI bug, and inspection often cannot.**
+  Start Postgres (`service postgresql start`), seed a client/campaign/release,
+  run the backend on 3001 with `DB_* JWT_SECRET ENCRYPTION_KEY`, `npx vite --port
+  5174`, then drive it with the global Playwright at
+  `/opt/node22/lib/node_modules/playwright/index.mjs` (it is in neither package's
+  node_modules). Auth is an httpOnly cookie, not a bearer token, so log in
+  through the page rather than curling a token. The Earned page keeps its tab and
+  open campaign in `localStorage` under `omi.earned.<clientId>.tab` / `.campaign`;
+  set those before navigating to land straight inside a campaign instead of
+  clicking through. Listening for `pageerror` gives the real message in seconds.
 - **There are two contact tables, and they are not interchangeable.** Press sends,
   audiences and the Settings media library all use `outreach_contacts`. The
   journalist profile page at `/media/journalist/:id` reads `pr_contacts` through

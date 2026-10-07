@@ -66,7 +66,7 @@ export default function CompetitorAdsPanel({ clientId }) {
     } catch (e) { toast(e.message, 'error'); }
     finally { setSuggesting(false); }
   }
-  function useSuggestion(c) {
+  function applySuggestion(c) {
     const q = c.domain || c.name;
     setQuery(q);
     if (configured) pull(q);
@@ -119,7 +119,7 @@ export default function CompetitorAdsPanel({ clientId }) {
                           <div className="body-sm" style={{ fontWeight: 700 }}>{c.name}</div>
                           {c.domain && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.domain}</div>}
                         </div>
-                        <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => useSuggestion(c), disabled: busy })}>{configured ? 'Look up' : 'Use'}</button>
+                        <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => applySuggestion(c), disabled: busy })}>{configured ? 'Look up' : 'Use'}</button>
                       </div>
                       {c.reason && <div className="body-xs text-muted" style={{ marginTop: 'var(--s1)', lineHeight: 1.4 }}>{c.reason}</div>}
                     </div>
