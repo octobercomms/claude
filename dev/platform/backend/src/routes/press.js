@@ -560,15 +560,43 @@ router.get('/clients/:clientId/warm-config', async (req, res) => {
     res.json(cfg);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
-router.put('/clients/:clientId/warm-config', async (req, res) => {
-  const b = req.body || {};
+// 0 is a real value here, not a missing one: it means opens never warm anyone
+// on their own, which is the default and the only setting that survives Apple
+// Mail Privacy Protection pre-fetching every tracking pixel. The old
+// Math.max(1, …) made it unreachable, so touching the control at all silently
+// moved the client off it with no way back.
+function readWarmConfig(b) {
   const cfg = {};
-  if (b.min_opens != null) cfg.min_opens = Math.max(1, parseInt(b.min_opens, 10) || 3);
+  if (b.min_opens != null && b.min_opens !== '') {
+    const n = parseInt(b.min_opens, 10);
+    if (!Number.isFinite(n) || n < 0) { const e = new Error('Opens must be 0 or more.'); e.status = 400; throw e; }
+    cfg.min_opens = Math.min(n, 1000);
+  }
   if (typeof b.any_click === 'boolean') cfg.any_click = b.any_click;
+  return cfg;
+}
+
+// What a rule would do to the history, before committing to it. The whole point
+// of the change: the AM sees "4 warm would become 61" rather than finding out
+// after saving.
+router.post('/clients/:clientId/warm-config/preview', async (req, res) => {
   try {
+    const pressInterest = require('../services/pressInterest');
+    res.json(await pressInterest.preview(req.params.clientId, readWarmConfig(req.body || {})));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.put('/clients/:clientId/warm-config', async (req, res) => {
+  try {
+    const cfg = readWarmConfig(req.body || {});
     await pool.query('UPDATE clients SET press_warm_config = $1 WHERE id = $2', [JSON.stringify(cfg), req.params.clientId]);
-    res.json(cfg);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    // Re-score everything already recorded against the new rule. Without this
+    // the setting only ever applied to opens and clicks that had not happened
+    // yet, so changing it appeared to do nothing at all.
+    const pressInterest = require('../services/pressInterest');
+    const changed = await pressInterest.recompute(req.params.clientId);
+    res.json({ ...cfg, ...changed });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Per-client press signature/footer — the block appended to every pitch and

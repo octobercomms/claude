@@ -33,6 +33,13 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   const [serverSort, setServerSort] = useState('interest');
   const [sort, setSort] = useState({ key: 'interest_score', dir: 'desc' });
   const [cfg, setCfg] = useState(null);
+  // The rule is edited as a draft, then applied. It used to save on every
+  // keystroke, which was harmless when saving did nothing to the existing
+  // results — now that applying re-scores the whole client, it has to be
+  // deliberate, and it has to show what it will do first.
+  const [draft, setDraft] = useState(null);
+  const [effect, setEffect] = useState(null);   // { warm_now, warm_after, … }
+  const [applying, setApplying] = useState(false);
   const [supp, setSupp] = useState(null);
 
   // Debounce the search box so typing doesn't fire a request per keystroke.
@@ -44,7 +51,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   // Warm-config loads once — it doesn't change with search/paging.
   useEffect(() => {
     let alive = true;
-    api.get(`/press/clients/${clientId}/warm-config`).then(c => { if (alive) setCfg(c); }).catch(() => {});
+    api.get(`/press/clients/${clientId}/warm-config`).then(c => { if (alive) { setCfg(c); setDraft(c); } }).catch(() => {});
     return () => { alive = false; };
   }, [clientId]);
 
@@ -99,10 +106,37 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   }
 
   const [retrying, setRetrying] = useState(false);
-  async function saveCfg(next) {
-    setCfg(next);
-    try { await api.put(`/press/clients/${clientId}/warm-config`, next); }
-    catch (e) { toast(e.message, 'error'); }
+  const ruleChanged = !!cfg && !!draft
+    && (Number(draft.min_opens || 0) !== Number(cfg.min_opens || 0)
+        || (draft.any_click !== false) !== (cfg.any_click !== false));
+
+  // Ask the server what the proposed rule would do to the journalists already
+  // on the list, without writing anything. Debounced: the number box fires per
+  // keystroke.
+  useEffect(() => {
+    if (!draft || !ruleChanged) { setEffect(null); return; }
+    let alive = true;
+    const t = setTimeout(() => {
+      api.post(`/press/clients/${clientId}/warm-config/preview`, draft)
+        .then(r => { if (alive) setEffect(r); })
+        .catch(() => { if (alive) setEffect(null); });
+    }, 400);
+    return () => { alive = false; clearTimeout(t); };
+  }, [clientId, draft, ruleChanged]);
+
+  async function applyCfg() {
+    if (!draft) return;
+    setApplying(true);
+    try {
+      const r = await api.put(`/press/clients/${clientId}/warm-config`, draft);
+      setCfg({ min_opens: r.min_opens ?? 0, any_click: r.any_click !== false });
+      setEffect(null);
+      toast(r.warmed || r.cooled
+        ? `Rule applied: ${r.warmed} warm, ${r.cooled} no longer warm.`
+        : 'Rule applied — nobody changed category.', 'success');
+      await load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setApplying(false); }
   }
   async function retryFailed() {
     const campaignId = summary?.campaign_id;
@@ -369,20 +403,52 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         );
       })()}
 
-      {/* Warm threshold */}
-      {cfg && (
-        <div style={{ display: 'flex', gap: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
-          <span style={{ fontWeight: 600 }}>“Warm” when</span>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
-            opens ≥
-            <input type="number" min="1" value={cfg.min_opens ?? 3} onChange={e => saveCfg({ ...cfg, min_opens: parseInt(e.target.value, 10) || 1 })}
-              className="input" style={{ width: 48 }} />
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
-            <input type="checkbox" checked={cfg.any_click !== false} onChange={e => saveCfg({ ...cfg, any_click: e.target.checked })} />
-            or any link click
-          </label>
-          <span style={{ color: 'var(--text-subtle)' }}>· warm journalists appear on the client’s coverage dashboard automatically.</span>
+      {/* Warm threshold. 0 opens is a real setting, not an empty box: it means
+          opens never warm anyone on their own. The control used to render it as
+          "opens ≥ 0", which reads as "everyone qualifies", and a min of 1 meant
+          it could never be set back. */}
+      {draft && (
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', gap: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontWeight: 600 }}>“Warm” when</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+              opens ≥
+              <input type="number" min="0" value={draft.min_opens ?? 0}
+                onChange={e => setDraft(d => ({ ...d, min_opens: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                className="input" style={{ width: 48 }} />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+              <input type="checkbox" checked={draft.any_click !== false}
+                onChange={e => setDraft(d => ({ ...d, any_click: e.target.checked }))} />
+              or any link click
+            </label>
+            {ruleChanged && (
+              <button className="btn btn-primary btn-sm" onClick={applyCfg} disabled={applying}>
+                {applying ? 'Re-scoring…' : 'Apply to this client'}
+              </button>
+            )}
+            {ruleChanged && (
+              <button className="btn btn-link btn-sm" onClick={() => { setDraft(cfg); setEffect(null); }}>cancel</button>
+            )}
+          </div>
+          <div style={{ marginTop: 'var(--s2)', color: 'var(--text-subtle)' }}>
+            {Number(draft.min_opens || 0) === 0
+              ? 'Opens are ignored — only a link click warms a journalist. Apple Mail and Gmail pre-fetch tracking pixels without anyone reading, so an opens threshold is a bar machines clear on their own.'
+              : `${draft.min_opens} opens or more will warm a journalist on their own. Watch for false positives: image proxies fetch the tracking pixel repeatedly without a human involved.`}
+            {' '}The rule is shared by every release for this client.
+          </div>
+          {effect && (
+            <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              Applying this would take <strong>{effect.warm_now.toLocaleString()}</strong> warm to{' '}
+              <strong>{effect.warm_after.toLocaleString()}</strong>
+              {effect.newly_warm ? ` · ${effect.newly_warm.toLocaleString()} added` : ''}
+              {effect.no_longer_warm ? ` · ${effect.no_longer_warm.toLocaleString()} removed` : ''}
+              {'. '}Nobody is emailed about the change.
+            </div>
+          )}
+          <div style={{ marginTop: 'var(--s1)', color: 'var(--text-subtle)' }}>
+            Warm journalists appear on the client’s coverage dashboard automatically.
+          </div>
         </div>
       )}
 

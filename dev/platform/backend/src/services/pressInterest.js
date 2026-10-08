@@ -145,6 +145,127 @@ async function evaluate({ campaignId, contactId, clientId }) {
   catch (e) { console.warn('[pressInterest] coverage push failed:', e.message); }
 }
 
+// ─── Recompute: changing the rule changes the answer ─────────────────────────
+//
+// onEngagement() scores a journalist at the moment an open or click arrives,
+// reading the config as it stands then and never again. So moving the warm bar
+// used to change nothing already recorded: the list the AM was looking at was
+// scored under the old rule, and warm was sticky (warm_at is COALESCEd and the
+// alert row is unique per campaign), so raising the bar never un-warmed anyone.
+//
+// This re-scores every (campaign × journalist) for a client against the current
+// rule in one pass, and moves them BOTH ways. Set-based on purpose: a client
+// with 10k contacts across a few releases is one query, not 30k round trips.
+
+// opens and clicks are aggregated separately and then joined. Summing
+// open_count across a join to outreach_clicks would multiply every open by the
+// number of clicks on that send.
+const WARM_SQL = `
+WITH sends AS (
+  SELECT s.id AS send_id, s.campaign_id, s.contact_id, COALESCE(s.open_count, 0) AS open_count
+    FROM outreach_sends s
+    JOIN outreach_campaigns c ON c.id = s.campaign_id
+   WHERE c.client_id = $1 AND c.kind = 'press_release' AND s.contact_id IS NOT NULL
+),
+o AS (SELECT campaign_id, contact_id, SUM(open_count)::int AS opens FROM sends GROUP BY 1, 2),
+k AS (
+  SELECT sn.campaign_id, sn.contact_id, COUNT(*)::int AS clicks
+    FROM sends sn JOIN outreach_clicks cl ON cl.send_id = sn.send_id
+   GROUP BY 1, 2
+),
+m AS (
+  SELECT o.campaign_id, o.contact_id, o.opens,
+         COALESCE(k.clicks, 0) AS clicks,
+         o.opens + COALESCE(k.clicks, 0) * 3 AS score,
+         (($2::boolean AND COALESCE(k.clicks, 0) > 0)
+           OR ($3::int > 0 AND o.opens >= $3::int)) AS warm,
+         CASE WHEN COALESCE(k.clicks, 0) > 0
+              THEN 'clicked a link' || CASE WHEN o.opens > 0 THEN ' and opened ' || o.opens || '×' ELSE '' END
+              ELSE 'opened ' || o.opens || '×' END AS reason
+    FROM o LEFT JOIN k ON k.campaign_id = o.campaign_id AND k.contact_id = o.contact_id
+)`;
+
+/** What the current (or a proposed) rule would make of the history. No writes. */
+async function preview(clientId, override) {
+  const cfg = { ...(await config(clientId)), ...(override || {}) };
+  const params = [clientId, cfg.any_click !== false, Number(cfg.min_opens) > 0 ? Number(cfg.min_opens) : 0];
+  const { rows } = await pool.query(
+    `${WARM_SQL}
+     SELECT COUNT(*) FILTER (WHERE m.warm)::int                                   AS warm_after,
+            COUNT(*) FILTER (WHERE a.campaign_id IS NOT NULL)::int                AS warm_now,
+            COUNT(*) FILTER (WHERE m.warm AND a.campaign_id IS NULL)::int         AS newly_warm,
+            COUNT(*) FILTER (WHERE NOT m.warm AND a.campaign_id IS NOT NULL)::int AS no_longer_warm,
+            COUNT(*)::int                                                         AS scored
+       FROM m LEFT JOIN press_interest_alerts a
+         ON a.campaign_id = m.campaign_id AND a.contact_id = m.contact_id`,
+    params
+  );
+  return rows[0] || { warm_after: 0, warm_now: 0, newly_warm: 0, no_longer_warm: 0, scored: 0 };
+}
+
+/** Apply the current rule to everything already recorded for this client. */
+async function recompute(clientId) {
+  const cfg = await config(clientId);
+  const params = [clientId, cfg.any_click !== false, Number(cfg.min_opens) > 0 ? Number(cfg.min_opens) : 0];
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+
+    // Off the list: the rule no longer counts them. The alert row is the record
+    // of "we flagged this one", so it goes too — otherwise re-lowering the bar
+    // later would find the row already there and never re-flag them.
+    const dropped = await db.query(
+      `${WARM_SQL}
+       DELETE FROM press_interest_alerts a
+        USING m
+        WHERE a.campaign_id = m.campaign_id AND a.contact_id = m.contact_id AND NOT m.warm`,
+      params
+    );
+
+    // On the list. alerted_at is set now, deliberately: these are historical
+    // engagements being re-read, and mailing the backlog is the exact failure
+    // that made the opens threshold a problem in the first place.
+    const added = await db.query(
+      `${WARM_SQL}
+       INSERT INTO press_interest_alerts (client_id, campaign_id, contact_id, score, reason, alerted_at)
+       SELECT $1, m.campaign_id, m.contact_id, m.score, m.reason, NOW()
+         FROM m WHERE m.warm
+       ON CONFLICT (campaign_id, contact_id)
+       DO UPDATE SET score = EXCLUDED.score, reason = EXCLUDED.reason`,
+      params
+    );
+
+    // The per-contact flag. A journalist is warm for this client if any one of
+    // their campaigns qualifies; the reason and campaign come from their
+    // strongest. warm_at keeps its original date — when they first went warm is
+    // a fact about them, not about when the rule was last edited.
+    await db.query(
+      `${WARM_SQL},
+       best AS (
+         SELECT DISTINCT ON (contact_id) contact_id, campaign_id, score, reason
+           FROM m WHERE warm ORDER BY contact_id, score DESC
+       ),
+       top AS (SELECT contact_id, MAX(score)::int AS score FROM m GROUP BY contact_id)
+       UPDATE outreach_contact_clients oc
+          SET interest_score = top.score,
+              warm_at        = CASE WHEN best.contact_id IS NULL THEN NULL ELSE COALESCE(oc.warm_at, NOW()) END,
+              warm_reason    = best.reason,
+              warm_campaign_id = best.campaign_id
+         FROM top LEFT JOIN best ON best.contact_id = top.contact_id
+        WHERE oc.contact_id = top.contact_id AND oc.client_id = $1`,
+      params
+    );
+
+    await db.query('COMMIT');
+    return { warmed: added.rowCount, cooled: dropped.rowCount };
+  } catch (err) {
+    await db.query('ROLLBACK');
+    throw err;
+  } finally {
+    db.release();
+  }
+}
+
 async function loadNames(clientId, contactId) {
   const [{ rows: cl }, { rows: co }] = await Promise.all([
     pool.query('SELECT name FROM clients WHERE id = $1', [clientId]),
@@ -220,4 +341,5 @@ async function sendWarmDigest({ limit = 200 } = {}) {
 module.exports = {
   onEngagement, evaluate, scoreAndReason, config, metrics,
   alertMode, sendWarmDigest, DEFAULT_CONFIG, ALERT_MODES, DEFAULT_ALERT_MODE,
+  preview, recompute,
 };
