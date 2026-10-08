@@ -467,20 +467,34 @@ the audience year over year. Extends existing infrastructure (`Account`,
 `[oe_account_dashboard]`, the Members surface, and the invoices shipped in
 1.200.x) rather than starting fresh.
 
+### Compliance baseline (DECIDED)
+**GDPR is the global standard for this plugin**, not just UK/EU installs. The
+festival is US-based and the plugin targets multiple countries; holding one high
+privacy bar everywhere beats branching rules per jurisdiction and future-proofs
+it. All of §11 is built to that bar.
+
 ### Two hard constraints (non-negotiable)
-- **No dark pattern (GDPR).** October is UK-based; demographic data (gender, age,
-  industry) is personal data and consent for profiling must be *freely given*.
-  Dressing the optional survey as a mandatory step to force completion is
-  coercion that invalidates the consent and is a reputational risk. Build it as
-  a confident final step with honest copy and a clear, quiet **Skip** — that
-  still converts the large majority. **Do not** build the "looks essential"
-  version.
-- **No PII leak on pre-fill.** Pre-filling a profile from a bare, unverified
-  email entered at checkout lets anyone type someone else's address and see
-  their saved gender/age/employer. Pre-fill freely only within the session that
-  just bought (they control that inbox); for a returning person, load the full
-  profile only when **logged in** or behind a one-tap magic link. Never pre-fill
-  sensitive fields off an unverified email.
+- **No dark pattern.** Demographic data (gender, age, industry) is personal data
+  and consent for profiling must be *freely given*. Dressing the optional survey
+  as a mandatory step to force completion is coercion that invalidates the
+  consent and is a reputational risk. Build it as a confident final step with
+  honest copy and a clear, quiet **Skip** — that still converts the large
+  majority. **Do not** build the "looks essential" version.
+- **No PII leak on pre-fill (DECIDED).** Paying for a ticket to an email does
+  **not** prove control of that inbox: the buyer types any address, and the
+  modal renders in *their* browser the instant payment clears, before the inbox
+  is involved. So "behind a checkout" is not an access control — it is a ~$45
+  speed bump (and £0 via a free ticket) to harvest a named person's saved data.
+  Resolution, which keeps the low-friction UX:
+  - **New purchase** → the modal collects fresh (a first-timer has no stored
+    profile, nothing to leak).
+  - **Returning person** → pre-fill **only when authenticated**. The ticket email
+    carries a one-tap magic link that signs them into their account, so a
+    returning buyer clicking "finalise" is already logged in and sees their real
+    pre-filled data; someone who just paid under a stranger's email is not signed
+    in as that stranger and gets a blank form.
+  - The pre-fill is gated on proving inbox control (the login), never on having
+    paid. Same one-tap experience, no leak.
 
 ### Phasing
 
@@ -510,8 +524,8 @@ the audience year over year. Extends existing infrastructure (`Account`,
 - Per-site A–C delivers most of the value; D federates it later.
 
 ### Open decisions
-1. **Compliance posture**: honest/optional/skippable (recommended, and the only
-   version with legally usable consent) vs the coercive version.
+1. ~~**Compliance posture**~~ — DECIDED: honest/optional/skippable, GDPR as the
+   global baseline. Pre-fill gated on authentication, not payment (see Flag 2).
 2. **Fields**: gender, age band, industry, interests, location — confirm the
    set. **Avoid special-category data** (ethnicity, health, etc.) unless there is
    a specific lawful basis; it is a different legal regime.
