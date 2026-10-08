@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.201.0 — Volunteer profiles + manual no-show/abuse flag
+
+- New **Volunteers → Volunteer profiles** view: one row per volunteer (matched
+  by email) with years active, total signups, shifts worked, no-shows and
+  cancels, built live from signup history. Reliable volunteers rise by Worked
+  count; flagged people sit at the top.
+- **Manual abuse flag**: flag anyone who no-showed or cancelled yet still used
+  their free ticket (match the scanned-ticket list by hand for now). The flag is
+  keyed by email, carries a note, and follows the person into future years —
+  the "we saw you" marker. One-click clear for genuine cases.
+- **No-show rate and cancel rate** for the current year shown up top, so next
+  year's volunteer over-subscription can be sized on real numbers.
+- Works retrospectively for 2026 from existing data (no-shows were already being
+  marked in the system). No schema change — flags live in one option.
+- Groundwork for 2027: automatic no-show detection via shift check-in, and
+  gating a flagged returner on a card on file, build on this.
+
 ## 1.200.1 — Keep the admin bill-to box off the printed invoice
 
 - The admin-only "Bill to" editor used an inline `display:flex`, which overrode

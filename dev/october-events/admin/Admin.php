@@ -35,6 +35,7 @@ final class Admin {
         add_action('admin_post_oe_volunteer_add', [$this, 'handle_volunteer_add']);
         add_action('admin_post_oe_preview_volunteer_email', [$this, 'handle_preview_volunteer_email']);
         add_action('admin_post_oe_volunteer_blast', [$this, 'handle_volunteer_blast']);
+        add_action('admin_post_oe_volunteer_flag', [$this, 'handle_volunteer_flag']);
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
         add_action('admin_post_oe_gt_reservation_remove', [$this, 'handle_gt_reservation_remove']);
         add_action('admin_post_oe_gt_reservation_add', [$this, 'handle_gt_reservation_add']);
@@ -399,6 +400,15 @@ final class Admin {
                 delete_transient('oe_vol_blast_' . get_current_user_id());
             }
             require OE_DIR . 'admin/views/volunteer-message.php';
+            return;
+        }
+
+        // Volunteer profiles (year-over-year participation + manual abuse flag).
+        if (isset($_GET['view']) && $_GET['view'] === 'profiles') {
+            $profiles = \OE\Volunteers\Profiles::all();
+            $year     = gmdate('Y');
+            $rates    = \OE\Volunteers\Profiles::rates($year);
+            require OE_DIR . 'admin/views/volunteer-profiles.php';
             return;
         }
 
@@ -913,6 +923,27 @@ final class Admin {
     }
 
     /** Move a signup to another shift/opportunity. Target is "oppId:shiftId". */
+    /**
+     * Raise or clear the manual "abuse flag" on a volunteer (by email): someone
+     * who no-showed or cancelled yet still used their free ticket. Persists
+     * across years and is checked on re-signup. A note records the detail.
+     */
+    public function handle_volunteer_flag(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_volunteer_flag');
+        $email   = sanitize_email(wp_unslash((string) ($_POST['email'] ?? '')));
+        $flagged = ! empty($_POST['flagged']);
+        $note    = sanitize_text_field(wp_unslash((string) ($_POST['note'] ?? '')));
+        if ($email !== '') {
+            \OE\Volunteers\Profiles::set_flag($email, $flagged, $note);
+        }
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-volunteers&view=profiles');
+        wp_safe_redirect(add_query_arg('oe_msg', $flagged ? 'vflag_on' : 'vflag_off', remove_query_arg('oe_msg', $back)));
+        exit;
+    }
+
     public function handle_volunteer_move(): void {
         $id = $this->verify_action('oe_volunteer_move'); // signup id
         $target = isset($_REQUEST['to']) ? sanitize_text_field(wp_unslash((string) $_REQUEST['to'])) : '';
