@@ -27,11 +27,13 @@ repeating it.
 | **1.206.0** | Guided tour comms (instructions + map; 24h close + host list) | Medium | Shares map/cron machinery; recurring host ask |
 | **1.207.0** | Tickets dashboard UX (one page + refresh) | Medium | Consolidation; best after the above settle |
 | **1.208.0+** | Volunteer pool / location allocation | High | Large; see `volunteer-pool.md` |
+| **(10)** | Volunteer accountability & profiles | High | Profiles now; no-show enforcement needs §4 shift check-in |
 | **Backlog** | Batch check-in, instant-scan, volunteer chat | — | Device-dependent or held |
 
-A **1.199.7** bugfix (email logo renders tiny: relies on CSS `max-*` which
-Outlook ignores, no `width` attribute like the QR has) can ship any time,
-independent of this sequence.
+> **Version numbers shifted.** Invoices / receipts shipped out of band as
+> **1.200.0** and **1.200.1** (a customer was waiting). The volunteer version
+> numbers above are indicative; assign the real one at build time. The 1.199.7
+> email-logo bugfix is still unshipped and can go any time.
 
 Versioning reminder: bump three places in lockstep — the `Version:` header in
 `october-events.php`, the `OE_VERSION` constant, and `Stable tag` in
@@ -371,6 +373,90 @@ haversine.
 
 Open questions still to confirm there: time blocks fixed site-wide vs per event;
 roles per site; final-days cover assignment manual vs fill-gaps-nearest-first.
+
+---
+
+## 10. Volunteer accountability & profiles
+
+Stop volunteers claiming a free ticket, touring, and skipping their shift, and
+build a year-over-year picture of who is reliable and who games the system.
+
+### The problem it closes
+A volunteer's shift may be Sunday afternoon, but their free ticket can be used
+Saturday morning. If they then no-show the shift, voiding the ticket (§4)
+achieves nothing — it was already used. So enforcement cannot be only
+"void the ticket on no-show"; it needs an after-the-fact cross-check.
+
+### 10a. Volunteer profiles (buildable now, from existing data)
+- One profile per volunteer, keyed by **normalised email**.
+- Logs per year/event: signed up, worked the shift (once attendance exists),
+  cancelled, and whether their **comp ticket was scanned** at any location.
+- Surfaces: times volunteered, first-timer vs returning, reliability, and the
+  abuse pattern (no-show + ticket used, repeated).
+- **Identity limit (accepted):** email is the key. A fresh email evades the
+  history; that raises the effort, it does not seal it. Fuzzy name matching is a
+  later refinement, not v1.
+- **Seed from what we have:** `VolunteerSignups` gives participation history;
+  check-in scans give ticket-used. Both can seed profiles immediately, 2026
+  included.
+
+### 10b. Abuse cross-check (needs §4 shift check-in)
+- End of festival, join **no-show** (lead marked it, §4) × **comp ticket
+  scanned** (check-in data).
+- No-show + never scanned → fine, not reported.
+- No-show + scanned at a location → the **abuse list**: into the end-of-festival
+  report and onto the profile.
+
+### 10c. Repeat-offender gate on re-signup (needs profiles + saved card)
+- A returning volunteer whose profile shows a prior no-show-with-ticket is
+  **flagged** on re-signup, with a warm auto-email: thanks for signing up, we
+  noticed last year, to issue this year's free ticket we need your card on file,
+  charged only if you no-show, released if you work the shift.
+- **A one-click "clear flag"** for genuine cases (a real emergency last year);
+  do not punish a good volunteer.
+
+### Card mechanism (DECIDED, corrected)
+A pre-auth **hold expires in ~7 days**, so it cannot bridge months from signup
+to the festival. The real mechanism is **save the card at signup (SetupIntent)
++ a conditional off-session charge after the festival on no-show**, not a live
+hold. Caveats to accept: an off-session charge can hit 3DS and fail, and can be
+disputed; the T&C consent at signup is what makes it defensible. Framing stays
+warm ("authorised, released if you show").
+
+### Enforcement reality (state plainly)
+Chasing a **first-time** offender for payment with no card on file rarely
+converts — those "please pay" emails are mostly symbolic. The teeth are
+**detection + the saved-card gate on return**. Strategy: detect, warn once, and
+make the free ticket conditional on a card if they come back. Do not sell it
+internally as "we recover the money" on first offence.
+
+### End-of-festival report additions
+- **Cancel rate** and **no-show rate** as percentages, so the over-subscription
+  buffer is set on real numbers. Cancels available for 2026; no-show % for 2026
+  only with an attendance source (below).
+
+### Retrospective 2026 (the key caveat)
+Shift check-in did not exist in 2026, so the system **cannot know who skipped a
+shift** last year on its own. Options:
+- A lead's list (even a spreadsheet) of 2026 no-shows → import it and the full
+  cross-check runs for 2026.
+- No list → the 2026 report seeds participation + ticket-used per volunteer, and
+  no-shows are entered manually where known. Future years are automatic once §4
+  ships.
+
+### Open decisions
+1. **Card mechanism**: accept save-card + charge-on-no-show (not a live hold),
+   flagged returners only?
+2. **2026 no-show source**: is there a lead record of who didn't work their
+   shift? Decides automatic vs manual retrospective cross-check.
+3. **Enforcement sequence**: how many payment-request emails, over what window?
+   (Draft the T&C clause + email copy.)
+4. **Flag override**: confirm the one-click "clear flag".
+
+### Sequencing
+10a (profiles) + the 2026 retrospective seeding can start now on existing data.
+10b and the report's no-show % depend on §4 shift check-in. 10c depends on 10a
+plus saved-card (SetupIntent) support.
 
 ---
 
