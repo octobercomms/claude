@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.200.0 — Invoices / receipts for ticket orders
+
+- Buyers can now download an invoice / paid receipt for their order. The
+  confirmation email gains a **Download invoice / receipt** link (paid orders
+  only), and admins get an **Invoice** button on every charged row in
+  Tickets → Transactions.
+- The invoice is a branded, print-first page (browser "Save as PDF") covering
+  the whole Stripe payment: seller block, buyer, line items per ticket type,
+  any promo discount, total, a PAID mark and the payment reference. Resolves
+  the recurring "I can't find an invoice" request without manual work.
+- New **Settings → Checkout → Invoicing** section (fill once): business name,
+  address, email, phone, optional tax label + number, invoice-number prefix
+  (`PREFIX-YEAR-0000`, fixed once issued), footer notes, and a shared **paper
+  size** choice (US Letter / A4) for printable output.
+- **Bill to**: admins can set a company/billing name on a transaction's invoice
+  (e.g. "Savannah College of Art and Design") from the invoice page itself; it
+  shows on the customer's copy, the editor does not.
+- Works on past orders: an existing paid order produces its invoice as soon as
+  the business details are filled in. Buyers reach it with their own ticket
+  token; admins by transaction. No schema change.
+
 ## 1.199.6 — Fix false "already checked in" from holding the QR
 
 - The scanner's same-code repeat guard didn't extend while a QR stayed in view.

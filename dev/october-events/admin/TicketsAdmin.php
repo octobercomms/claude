@@ -40,6 +40,7 @@ final class TicketsAdmin {
         add_action('admin_post_oe_transfer_ticket', [$this, 'handle_transfer_ticket']);
         add_action('admin_post_oe_ticket_checkin', [$this, 'handle_ticket_checkin']);
         add_action('admin_post_oe_checkin_undo', [$this, 'handle_checkin_undo']);
+        add_action('admin_post_oe_invoice_billto', [$this, 'handle_invoice_billto']);
         add_action('admin_post_oe_set_event_date', [$this, 'handle_set_event_date']);
         add_action('admin_post_oe_import_history', [$this, 'handle_import_history']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
@@ -609,6 +610,18 @@ final class TicketsAdmin {
         $removed   = \OE\Ticketing\CheckIn::undo($ticket_id, $event_id, $venue);
         $back      = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets&tab=checkin');
         wp_safe_redirect(add_query_arg('oe_msg', $removed > 0 ? 'checkin_undone' : 'undo_failed', remove_query_arg('oe_msg', $back)));
+        exit;
+    }
+
+    /** Save the "Bill to" line on a transaction's invoice (admin, from the invoice page). */
+    public function handle_invoice_billto(): void {
+        $this->guard('oe_invoice_billto');
+        $payment_id = sanitize_text_field(wp_unslash((string) ($_POST['payment_id'] ?? '')));
+        $bill_to    = sanitize_text_field(wp_unslash((string) ($_POST['bill_to'] ?? '')));
+        if ($payment_id !== '') {
+            \OE\Ticketing\OrderInvoice::set_bill_to($payment_id, $bill_to);
+        }
+        wp_safe_redirect(home_url('/?oe_invoice_txn=' . rawurlencode($payment_id)));
         exit;
     }
 

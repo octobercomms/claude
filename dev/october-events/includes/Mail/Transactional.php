@@ -202,6 +202,24 @@ final class Transactional {
         $ev_meta = trim($when . ($where !== '' ? ($when !== '' ? '<br>' : '') . esc_html($where) : ''));
         if ($when !== '') { $ev_meta = esc_html($when) . ($where !== '' ? '<br>' . esc_html($where) : ''); }
 
+        // "Download invoice / receipt" — only for a paid order (there is a Stripe
+        // payment). Links to the invoice page via the buyer's own ticket token.
+        $invoice_html = '';
+        $order_id = (int) ($params['order_id'] ?? 0);
+        $first_token = '';
+        foreach ($tickets as $t) {
+            $tk = (string) ($t['token'] ?? '');
+            if ($tk !== '') { $first_token = $tk; break; }
+        }
+        if ($order_id > 0 && $first_token !== '') {
+            $ord = \OE\Ticketing\Orders::get($order_id);
+            if ($ord && (string) ($ord->payment_id ?? '') !== '') {
+                $inv_url = home_url('/?oe_invoice_token=' . rawurlencode($first_token));
+                $invoice_html = '<tr><td style="padding:0 22px 18px"><a href="' . esc_url($inv_url)
+                    . '" style="font-size:13px;font-weight:700;color:#111">' . esc_html__('Download invoice / receipt', 'october-events') . '</a></td></tr>';
+            }
+        }
+
         // "Add to calendar" — a real clickable Google Calendar link when we can
         // build one, with the .ics attachment noted only when one is attached.
         $cal_url = (string) ($params['cal_url'] ?? '');
@@ -235,6 +253,8 @@ final class Transactional {
             // tickets
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $rows . '</table>'
             . '</td></tr>'
+            // invoice / receipt link (paid orders only)
+            . $invoice_html
             // footer
             . '<tr><td style="padding:16px 22px;border-top:2px solid #111;font-size:12px;color:#777">'
             . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a> · ' . esc_html__('Questions? Just reply to this email.', 'october-events')
