@@ -40,6 +40,13 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   const [effect, setEffect] = useState(null);   // { warm_now, warm_after, … }
   const [applying, setApplying] = useState(false);
   const [supp, setSupp] = useState(null);
+  // Whether reply polling is actually running. It fails silently when no inbox
+  // is connected, which looks identical to "nobody ever unsubscribes by reply".
+  const [replyStatus, setReplyStatus] = useState(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasting, setPasting] = useState(false);
+  const [pasteResult, setPasteResult] = useState(null);
 
   // Debounce the search box so typing doesn't fire a request per keystroke.
   useEffect(() => {
@@ -51,8 +58,9 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   useEffect(() => {
     let alive = true;
     api.get(`/press/clients/${clientId}/warm-config`).then(c => { if (alive) { setCfg(c); setDraft(c); } }).catch(() => {});
+    api.get(`/press/releases/${release.id}/reply-status`).then(r => { if (alive) setReplyStatus(r); }).catch(() => {});
     return () => { alive = false; };
-  }, [clientId]);
+  }, [clientId, release.id]);
 
   const fetchPage = useCallback(async (offset) => {
     const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset), sort: serverSort });
@@ -122,6 +130,20 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     }, 400);
     return () => { alive = false; clearTimeout(t); };
   }, [clientId, draft, ruleChanged]);
+
+  async function unsubscribePasted() {
+    if (!pasteText.trim()) return;
+    setPasting(true); setPasteResult(null);
+    try {
+      const r = await api.post(`/press/clients/${clientId}/unsubscribe-emails`, { emails: pasteText });
+      setPasteResult(r);
+      if (r.unsubscribed) { setPasteText(''); await load(); }
+      toast(r.unsubscribed
+        ? `${r.unsubscribed} unsubscribed for this client. Their queued follow-ups are cancelled.`
+        : 'Nobody new — they were already unsubscribed.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPasting(false); }
+  }
 
   async function applyCfg() {
     if (!draft) return;
@@ -268,6 +290,12 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1, color: t.warm ? 'var(--warm)' : 'var(--text)' }}>{t.warm ?? 0}</div>
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>🔥 warm</div>
         </div>
+        <div style={{ minWidth: 90 }}>
+          <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>{t.unsubscribed ?? 0}</div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
+            unsubscribed{t.unsub_rate != null ? ` · ${t.unsub_rate}%` : ''}
+          </div>
+        </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
           <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
           <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={exporting}>{exporting ? 'Exporting…' : 'Export CSV'}</button>
@@ -397,6 +425,63 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           </div>
         );
       })()}
+
+      {/* Opt-outs. Two routes in: the one-click link in every email, and a
+          reply that asks to be removed — which only works if OMI can read the
+          inbox those replies land in. When it cannot, say so here rather than
+          leaving it to look like nobody ever asks. */}
+      {replyStatus && (
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+          {!replyStatus.configured ? (
+            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--warn, #b8860b)', borderRadius: 'var(--r-sm)' }}>
+              <strong>Reply polling is off.</strong> No inbox is connected, so a journalist who replies
+              “unsubscribe” is never taken off the list automatically — you have to do it by hand.
+              Connect the mailbox journalists reply to in Settings → Outreach (IMAP host, user, app password).
+              {replyStatus.reply_to ? <> This campaign’s reply-to is <strong>{replyStatus.reply_to}</strong>, so that is the inbox to connect.</> : null}
+            </div>
+          ) : replyStatus.inbox_matches_reply_to === false ? (
+            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--warn, #b8860b)', borderRadius: 'var(--r-sm)' }}>
+              <strong>Replies are landing somewhere OMI cannot see.</strong> It polls{' '}
+              <strong>{replyStatus.inbox}</strong>, but this campaign tells journalists to reply to{' '}
+              <strong>{replyStatus.reply_to}</strong>. Unsubscribe replies to that address are not picked up.
+            </div>
+          ) : (
+            <div>
+              Reply polling is on ({replyStatus.inbox}), every 15 minutes.
+              {replyStatus.last_ok_at ? ` Last checked ${new Date(replyStatus.last_ok_at).toLocaleString('en-GB')}.` : ' Not run yet.'}
+              {replyStatus.last_match_at ? ` Last matched a reply ${new Date(replyStatus.last_match_at).toLocaleString('en-GB')}.` : ''}
+              {replyStatus.last_error ? ` Last error: ${replyStatus.last_error}` : ''}
+            </div>
+          )}
+          <button className="btn btn-link btn-sm" style={{ paddingLeft: 0 }} onClick={() => setPasteOpen(o => !o)}>
+            {pasteOpen ? '✕ close' : '＋ Unsubscribe people by email'}
+          </button>
+          {pasteOpen && (
+            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              <div style={{ marginBottom: 'var(--s2)' }}>
+                Paste the addresses of anyone who asked to come off, however they asked. Names, angle brackets,
+                commas and line breaks are all fine — paste straight from Gmail. They are unsubscribed for this
+                client only, and anything still queued for them is cancelled.
+              </div>
+              <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={5} className="input"
+                placeholder={'Jane Smith <jane@outlet.com>\nsam@another.co.uk'}
+                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+              <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)', alignItems: 'center' }}>
+                <button className="btn btn-primary btn-sm" onClick={unsubscribePasted} disabled={pasting || !pasteText.trim()}>
+                  {pasting ? 'Unsubscribing…' : 'Unsubscribe them'}
+                </button>
+                {pasteResult && (
+                  <span>
+                    {pasteResult.unsubscribed} unsubscribed
+                    {pasteResult.already ? `, ${pasteResult.already} already were` : ''}
+                    {pasteResult.unknown?.length ? `, ${pasteResult.unknown.length} not in the list: ${pasteResult.unknown.slice(0, 5).join(', ')}` : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Warm threshold. 0 opens is a real setting, not an empty box: it means
           opens never warm anyone on their own. The control used to render it as

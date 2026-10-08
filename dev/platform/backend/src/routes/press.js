@@ -862,6 +862,90 @@ async function recipientPage({ release, like, orderBy, limit, offset }) {
   }));
 }
 
+// Is reply polling actually running? The poll reads one fixed inbox and returns
+// a silent `skipped` when it is not configured, so an operator whose press
+// reply-to points somewhere OMI cannot read has no way to learn that unsubscribe
+// replies are never picked up. This puts it on the screen where the
+// consequences show up.
+router.get('/releases/:id/reply-status', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rows[0].client_id);
+    const state = await require('../services/outreachReplies').pollState();
+    // The address journalists actually reply to. When it differs from the
+    // inbox being polled, the replies are landing somewhere OMI never looks —
+    // which is the failure that looks exactly like "the feature is broken".
+    const sender = await outreachSender.resolveSender(rows[0].client_id).catch(() => null);
+    const replyTo = sender?.reply_to || sender?.from_email || null;
+    const norm = (v) => (v ? String(v).trim().toLowerCase() : null);
+    res.json({
+      ...state,
+      reply_to: replyTo,
+      inbox_matches_reply_to: state.inbox && replyTo ? norm(state.inbox) === norm(replyTo) : null,
+    });
+  } catch (err) { sendErr(res, err, 'reply status'); }
+});
+
+// Unsubscribe a batch of journalists by email address, for one client.
+//
+// The automatic path is the one-click link and the reply poll. This is for what
+// those cannot reach: a reply that landed in a mailbox OMI has no access to, or
+// someone who said it to your face. Paste the addresses, they come off the
+// list. Per-client, same as every other opt-out — these are journalists, and
+// one client's list is not another's.
+router.post('/clients/:clientId/unsubscribe-emails', async (req, res) => {
+  try {
+    assertClientAccess(req, req.params.clientId);
+    const raw = String(req.body?.emails || '');
+    // Tolerant on purpose: pasted from Gmail this arrives as names, angle
+    // brackets, commas and newlines all mixed together.
+    const found = raw.match(/[^\s<>,;"']+@[^\s<>,;"']+\.[a-z]{2,}/gi) || [];
+    const emails = Array.from(new Set(found.map((e) => e.toLowerCase().replace(/[.,;]+$/, ''))));
+    if (!emails.length) return res.status(400).json({ error: 'No email addresses found in that.' });
+    if (emails.length > 500) return res.status(400).json({ error: `That is ${emails.length} addresses — paste 500 or fewer at a time.` });
+
+    const { rows: matched } = await pool.query(
+      `SELECT id, name, email FROM outreach_contacts WHERE LOWER(email) = ANY($1::text[])`, [emails]);
+    const known = new Set(matched.map((m) => m.email.toLowerCase()));
+    const unknown = emails.filter((e) => !known.has(e));
+
+    let changed = 0;
+    for (const m of matched) {
+      const { rows: r } = await pool.query(
+        `INSERT INTO outreach_contact_clients (contact_id, client_id, unsubscribed_at)
+           VALUES ($1, $2, NOW())
+         ON CONFLICT (contact_id, client_id)
+           DO UPDATE SET unsubscribed_at = NOW()
+           -- Conditional, so a row comes back only when this call is what
+           -- changed it. Pasting the same list twice reports "already", and
+           -- the original opt-out date is preserved.
+           WHERE outreach_contact_clients.unsubscribed_at IS NULL
+         RETURNING 1`,
+        [m.id, req.params.clientId]
+      );
+      if (r.length) changed += 1;
+    }
+    if (matched.length) {
+      // Kill anything still queued for them on this client, so the results
+      // screen stops claiming emails are on their way to someone who opted out.
+      await pool.query(
+        `UPDATE outreach_sends s SET status = 'cancelled'
+           FROM outreach_campaigns c
+          WHERE s.campaign_id = c.id AND c.client_id = $1
+            AND s.contact_id = ANY($2::uuid[]) AND s.status = 'pending'`,
+        [req.params.clientId, matched.map((m) => m.id)]
+      );
+    }
+    res.json({
+      submitted: emails.length,
+      unsubscribed: changed,
+      already: matched.length - changed,
+      unknown,
+    });
+  } catch (err) { sendErr(res, err, 'bulk unsubscribe'); }
+});
+
 // The results table as a file, with no row cap.
 //
 // The export used to call /analytics with limit=100000. That route clamps to
@@ -963,7 +1047,7 @@ router.get('/releases/:id/analytics', async (req, res) => {
     const orderBy = ANALYTICS_SORTS[req.query.sort] || ANALYTICS_SORTS.interest;
 
     // Fast totals — aggregates, no per-row work.
-    const [tAgg, cAgg, wAgg] = await Promise.all([
+    const [tAgg, cAgg, wAgg, uAgg] = await Promise.all([
       pool.query(
         `SELECT COUNT(DISTINCT contact_id)::int AS recipients,
                 COUNT(DISTINCT contact_id) FILTER (WHERE opened_at IS NOT NULL)::int AS opened,
@@ -979,10 +1063,20 @@ router.get('/releases/:id/analytics', async (req, res) => {
           WHERE occ.client_id = $2 AND occ.warm_at IS NOT NULL
             AND occ.contact_id IN (SELECT contact_id FROM outreach_sends WHERE campaign_id = $1)`,
         [release.campaign_id, release.client_id]),
+      // Opt-outs among this release's recipients. Counted the same way the
+      // dispatch gate reads them (per client), so the number on screen is the
+      // number of people who will never get another email on this list.
+      pool.query(
+        `SELECT COUNT(DISTINCT occ.contact_id)::int AS unsubscribed
+           FROM outreach_contact_clients occ
+          WHERE occ.client_id = $2 AND occ.unsubscribed_at IS NOT NULL
+            AND occ.contact_id IN (SELECT contact_id FROM outreach_sends WHERE campaign_id = $1)`,
+        [release.campaign_id, release.client_id]),
     ]);
     const recipients = tAgg.rows[0].recipients;
     const opened = tAgg.rows[0].opened, replied = tAgg.rows[0].replied;
     const clicked = cAgg.rows[0].clicked, warm = wAgg.rows[0].warm;
+    const unsubscribed = uAgg.rows[0].unsubscribed;
     const pct = (n) => (recipients ? Math.round((n / recipients) * 100) : 0);
 
     const rows = await recipientPage({ release, like, orderBy, limit, offset });
@@ -1073,8 +1167,9 @@ router.get('/releases/:id/analytics', async (req, res) => {
     res.json({
       campaign_id: release.campaign_id,
       totals: {
-        recipients, opened, clicked, replied, warm,
+        recipients, opened, clicked, replied, warm, unsubscribed,
         open_rate: pct(opened), click_rate: pct(clicked), reply_rate: pct(replied),
+        unsub_rate: pct(unsubscribed),
       },
       delivery,
       recipients: rows,
