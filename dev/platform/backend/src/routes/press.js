@@ -798,6 +798,146 @@ router.put('/releases/:id/exclusions', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+const ANALYTICS_SORTS = {
+  interest: 'occ.interest_score DESC NULLS LAST, opens DESC',
+  opens: 'opens DESC, occ.interest_score DESC NULLS LAST',
+  name: 'oc.name ASC NULLS LAST',
+  publication: 'oc.company ASC NULLS LAST, oc.name ASC NULLS LAST',
+  email: 'oc.email ASC NULLS LAST',
+  recent: 'MAX(s.last_opened_at) DESC NULLS LAST',
+};
+
+// One page of the results table, with its clicks. Shared by the on-screen table
+// and the CSV export so a column can never mean one thing on screen and another
+// in the file. Clicks are fetched for the page's contacts in a second query
+// rather than as a per-row subquery: that subquery is what made Results hang on
+// a 10k-recipient campaign.
+async function recipientPage({ release, like, orderBy, limit, offset }) {
+  const params = [release.campaign_id, release.client_id];
+  let whereQ = '';
+  if (like) {
+    params.push(like);
+    whereQ = `AND (oc.name ILIKE $${params.length} OR oc.email ILIKE $${params.length} OR oc.company ILIKE $${params.length})`;
+  }
+  params.push(limit); const limIdx = params.length;
+  params.push(offset); const offIdx = params.length;
+  const { rows: pageRows } = await pool.query(
+    `SELECT oc.id AS contact_id, oc.name, oc.email, oc.company,
+            COALESCE(SUM(s.open_count), 0)::int AS opens,
+            BOOL_OR(s.opened_at IS NOT NULL) AS opened,
+            MAX(s.last_opened_at) AS last_opened_at,
+            COUNT(*) FILTER (WHERE s.status = 'sent')::int AS sent_count,
+            COUNT(*) FILTER (WHERE s.status = 'failed')::int AS failed_count,
+            MAX(s.last_error) FILTER (WHERE s.status = 'failed') AS fail_reason,
+            BOOL_OR(s.replied_at IS NOT NULL) AS replied,
+            BOOL_OR(s.bounced_at IS NOT NULL) AS bounced,
+            occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at,
+            (cc.stopped_at IS NOT NULL) AS followups_stopped
+       FROM outreach_sends s
+       JOIN outreach_contacts oc ON oc.id = s.contact_id
+       LEFT JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $2
+       LEFT JOIN outreach_campaign_contacts cc ON cc.campaign_id = $1 AND cc.contact_id = oc.id
+      WHERE s.campaign_id = $1 ${whereQ}
+      GROUP BY oc.id, oc.name, oc.email, oc.company, occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at, cc.stopped_at
+      ORDER BY ${orderBy}
+      LIMIT $${limIdx} OFFSET $${offIdx}`,
+    params
+  );
+  const ids = pageRows.map((r) => r.contact_id);
+  const clickMap = {};
+  if (ids.length) {
+    const { rows: clk } = await pool.query(
+      `SELECT s.contact_id, COUNT(*)::int AS clicks, array_agg(DISTINCT cl.url) AS clicked_urls
+         FROM outreach_clicks cl JOIN outreach_sends s ON s.id = cl.send_id
+        WHERE s.campaign_id = $1 AND s.contact_id = ANY($2::uuid[])
+        GROUP BY s.contact_id`,
+      [release.campaign_id, ids]
+    );
+    for (const r of clk) clickMap[r.contact_id] = r;
+  }
+  return pageRows.map((r) => ({
+    ...r,
+    clicks: clickMap[r.contact_id]?.clicks || 0,
+    clicked_urls: clickMap[r.contact_id]?.clicked_urls || null,
+  }));
+}
+
+// The results table as a file, with no row cap.
+//
+// The export used to call /analytics with limit=100000. That route clamps to
+// Math.min(1000, …) to keep the on-screen table cheap, so the browser asked for
+// everything, silently got the first 1,000, and wrote a CSV that looked
+// complete. On a 10,598-recipient release that is 9,598 journalists missing
+// from a file somebody then reviewed as if it were the whole list.
+//
+// Written row by row in batches so a 20k export never holds the whole thing in
+// memory at either end, the same shape as the contacts-library export.
+const EXPORT_BATCH = 1000;
+const EXPORT_COLUMNS = [
+  ['Name',         (r) => r.name],
+  ['Email',        (r) => r.email],
+  ['Outlet',       (r) => r.company],
+  ['Opens',        (r) => r.opens],
+  ['Clicks',       (r) => r.clicks],
+  ['Warm',         (r) => (r.warm_at ? 'warm' : '')],
+  ['Warm reason',  (r) => r.warm_reason],
+  ['Replied',      (r) => (r.replied ? 'replied' : '')],
+  ['Bounced',      (r) => (r.bounced ? 'bounced' : '')],
+  ['Unsubscribed', (r) => (r.unsubscribed_at ? 'unsubscribed' : '')],
+  ['Failed',       (r) => (r.failed_count ? 'failed' : '')],
+  ['Fail reason',  (r) => (r.failed_count ? (r.fail_reason || '') : '')],
+  ['Follow-ups',   (r) => (r.followups_stopped ? 'stopped' : '')],
+  ['Last opened',  (r) => r.last_opened_at],
+  ['Clicked URLs', (r) => r.clicked_urls],
+];
+
+router.get('/releases/:id/export.csv', async (req, res) => {
+  try {
+    const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!relRows.length) return res.status(404).send('Press release not found');
+    const release = relRows[0];
+    assertClientAccess(req, release.client_id);
+
+    const q = (req.query.q || '').trim();
+    const like = q ? `%${q.replace(/[%_\\]/g, (m) => '\\' + m)}%` : null;
+    const orderBy = ANALYTICS_SORTS[req.query.sort] || ANALYTICS_SORTS.interest;
+    const slug = String(release.title || 'campaign').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="press-results-${slug || 'campaign'}.csv"`);
+    res.write(EXPORT_COLUMNS.map(([h]) => csvEscape(h)).join(',') + '\n');
+
+    let offset = 0;
+    let written = 0;
+    for (;;) {
+      const batch = await recipientPage({ release, like, orderBy, limit: EXPORT_BATCH, offset });
+      for (const row of batch) {
+        res.write(EXPORT_COLUMNS.map(([, get]) => csvEscape(formatCsvCell(get(row)))).join(',') + '\n');
+      }
+      written += batch.length;
+      if (batch.length < EXPORT_BATCH) break;
+      offset += EXPORT_BATCH;
+    }
+    console.log(`[press] exported ${written} recipients for release ${release.id}`);
+    res.end();
+  } catch (err) {
+    console.error('[press] export failed:', err.message);
+    if (res.headersSent) return res.end();
+    res.status(err.status || 500).send(err.message);
+  }
+});
+
+function csvEscape(v) {
+  const s = v == null ? '' : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function formatCsvCell(v) {
+  if (v == null) return '';
+  if (Array.isArray(v)) return v.join(' | ');
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
+}
+
 router.get('/releases/:id/analytics', async (req, res) => {
   try {
     const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
@@ -820,15 +960,7 @@ router.get('/releases/:id/analytics', async (req, res) => {
     const like = q ? `%${q.replace(/[%_\\]/g, m => '\\' + m)}%` : null;
     const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit, 10) || 100));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
-    const SORTS = {
-      interest: 'occ.interest_score DESC NULLS LAST, opens DESC',
-      opens: 'opens DESC, occ.interest_score DESC NULLS LAST',
-      name: 'oc.name ASC NULLS LAST',
-      publication: 'oc.company ASC NULLS LAST, oc.name ASC NULLS LAST',
-      email: 'oc.email ASC NULLS LAST',
-      recent: 'MAX(s.last_opened_at) DESC NULLS LAST',
-    };
-    const orderBy = SORTS[req.query.sort] || SORTS.interest;
+    const orderBy = ANALYTICS_SORTS[req.query.sort] || ANALYTICS_SORTS.interest;
 
     // Fast totals — aggregates, no per-row work.
     const [tAgg, cAgg, wAgg] = await Promise.all([
@@ -853,48 +985,7 @@ router.get('/releases/:id/analytics', async (req, res) => {
     const clicked = cAgg.rows[0].clicked, warm = wAgg.rows[0].warm;
     const pct = (n) => (recipients ? Math.round((n / recipients) * 100) : 0);
 
-    // The page of recipients matching the search — no click subquery here.
-    const pageParams = [release.campaign_id, release.client_id];
-    let whereQ = '';
-    if (like) { pageParams.push(like); whereQ = `AND (oc.name ILIKE $${pageParams.length} OR oc.email ILIKE $${pageParams.length} OR oc.company ILIKE $${pageParams.length})`; }
-    pageParams.push(limit); const limIdx = pageParams.length;
-    pageParams.push(offset); const offIdx = pageParams.length;
-    const { rows: pageRows } = await pool.query(
-      `SELECT oc.id AS contact_id, oc.name, oc.email, oc.company,
-              COALESCE(SUM(s.open_count), 0)::int AS opens,
-              BOOL_OR(s.opened_at IS NOT NULL) AS opened,
-              MAX(s.last_opened_at) AS last_opened_at,
-              COUNT(*) FILTER (WHERE s.status = 'sent')::int AS sent_count,
-              COUNT(*) FILTER (WHERE s.status = 'failed')::int AS failed_count,
-              MAX(s.last_error) FILTER (WHERE s.status = 'failed') AS fail_reason,
-              BOOL_OR(s.replied_at IS NOT NULL) AS replied,
-              BOOL_OR(s.bounced_at IS NOT NULL) AS bounced,
-              occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at,
-              (cc.stopped_at IS NOT NULL) AS followups_stopped
-         FROM outreach_sends s
-         JOIN outreach_contacts oc ON oc.id = s.contact_id
-         LEFT JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $2
-         LEFT JOIN outreach_campaign_contacts cc ON cc.campaign_id = $1 AND cc.contact_id = oc.id
-        WHERE s.campaign_id = $1 ${whereQ}
-        GROUP BY oc.id, oc.name, oc.email, oc.company, occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at, cc.stopped_at
-        ORDER BY ${orderBy}
-        LIMIT $${limIdx} OFFSET $${offIdx}`,
-      pageParams
-    );
-    // Clicks only for the returned page's contacts (keeps it cheap).
-    const pageIds = pageRows.map(r => r.contact_id);
-    const clickMap = {};
-    if (pageIds.length) {
-      const { rows: clk } = await pool.query(
-        `SELECT s.contact_id, COUNT(*)::int AS clicks, array_agg(DISTINCT cl.url) AS clicked_urls
-           FROM outreach_clicks cl JOIN outreach_sends s ON s.id = cl.send_id
-          WHERE s.campaign_id = $1 AND s.contact_id = ANY($2::uuid[])
-          GROUP BY s.contact_id`,
-        [release.campaign_id, pageIds]
-      );
-      for (const r of clk) clickMap[r.contact_id] = r;
-    }
-    const rows = pageRows.map(r => ({ ...r, clicks: clickMap[r.contact_id]?.clicks || 0, clicked_urls: clickMap[r.contact_id]?.clicked_urls || null }));
+    const rows = await recipientPage({ release, like, orderBy, limit, offset });
 
     // Count matching the search (for "showing N of M" + load-more).
     let recipientTotal = recipients;

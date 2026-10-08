@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { csvEscape } from '../utils/csv';
 
 // A tracked click URL → a short, human label (the host, minus www), so a row
 // reads "clicked: downloadfor.press · octobercomms.com" instead of a run-on of
@@ -158,25 +157,21 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   async function exportCsv() {
     setExporting(true);
     try {
-      // Export the whole set (respecting any active search), not just the
-      // rows currently loaded on screen.
-      const params = new URLSearchParams({ limit: '100000', offset: '0', sort: serverSort });
+      // The server builds and streams the file, walking every matching
+      // recipient. This used to ask /analytics for limit=100000, which clamps
+      // to 1,000 to keep the on-screen table cheap: the download looked
+      // complete and was missing everyone past row 1,000.
+      const params = new URLSearchParams({ sort: serverSort });
       if (query) params.set('q', query);
-      const full = await api.get(`/press/releases/${release.id}/analytics?${params.toString()}`);
-      const src = full.recipients || [];
-      const rows = src.map(r => [
-        r.name, r.email, r.company, r.opens, r.clicks, r.warm_at ? 'warm' : '',
-        r.replied ? 'replied' : '', r.bounced ? 'bounced' : '',
-        r.failed_count ? 'failed' : '', r.failed_count ? (r.fail_reason || '') : '',
-        (r.clicked_urls || []).join(' | '),
-      ]);
-      const header = ['Name', 'Email', 'Outlet', 'Opens', 'Clicks', 'Warm', 'Replied', 'Bounced', 'Failed', 'Fail reason', 'Clicked URLs'];
-      const csv = [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
+      const res = await api.raw(`/press/releases/${release.id}/export.csv?${params.toString()}`);
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      a.href = url;
       a.download = `press-results-${(release.title || 'campaign').replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}.csv`;
-      a.click();
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
     } catch (e) { toast(e.message, 'error'); }
     finally { setExporting(false); }
   }
