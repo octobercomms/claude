@@ -495,6 +495,11 @@ it. All of §11 is built to that bar.
     in as that stranger and gets a blank form.
   - The pre-fill is gated on proving inbox control (the login), never on having
     paid. Same one-tap experience, no leak.
+  - **Convenience mechanism:** once logged in, the browser keeps the session, so
+    every later purchase on that browser pre-fills and finalises in one tap. The
+    profile is **account-backed, not stored in the browser**, so it also carries
+    to a new device on login and survives a cleared browser; demographic data is
+    never written to browser storage as plain PII (keeps it off shared machines).
 
 ### Phasing
 
