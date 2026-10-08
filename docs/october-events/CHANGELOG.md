@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.200.1 — Keep the admin bill-to box off the printed invoice
+
+- The admin-only "Bill to" editor used an inline `display:flex`, which overrode
+  the print stylesheet's `.noprint` rule, so the box showed up when saving the
+  invoice to PDF. The print-hide now uses `!important` and wins. The customer's
+  PDF is clean; the editor still shows on screen for admins.
+
 ## 1.200.0 — Invoices / receipts for ticket orders
 
 - Buyers can now download an invoice / paid receipt for their order. The

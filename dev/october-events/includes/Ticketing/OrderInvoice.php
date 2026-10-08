@@ -231,7 +231,7 @@ final class OrderInvoice {
   .printbtn{text-align:center;margin:18px auto;max-width:720px}
   .printbtn button{font:inherit;font-weight:700;border:2px solid #111;background:#111;color:#fff;padding:10px 22px;cursor:pointer}
   @page{size:<?php echo esc_html($paper); ?>;margin:14mm}
-  @media print{body{background:#fff}.sheet{border:0;margin:0;max-width:none;padding:0}.noprint{display:none}}
+  @media print{body{background:#fff}.sheet{border:0;margin:0;max-width:none;padding:0}.noprint{display:none !important}}
 </style></head><body>
   <div class="sheet">
     <div class="top">
