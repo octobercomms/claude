@@ -582,6 +582,16 @@ final class Settings {
             // Live chat (Chatwoot).
             'chatwoot_base_url'     => esc_url_raw(trim((string) ($in['chatwoot_base_url'] ?? ''))),
             'chatwoot_token'        => sanitize_text_field((string) ($in['chatwoot_token'] ?? '')),
+            // Invoicing — seller details on ticket-order invoices / receipts.
+            'invoice_business_name'    => sanitize_text_field((string) ($in['invoice_business_name'] ?? '')),
+            'invoice_business_address' => sanitize_textarea_field((string) ($in['invoice_business_address'] ?? '')),
+            'invoice_business_email'   => sanitize_email((string) ($in['invoice_business_email'] ?? '')),
+            'invoice_business_phone'   => sanitize_text_field((string) ($in['invoice_business_phone'] ?? '')),
+            'invoice_tax_label'        => sanitize_text_field((string) ($in['invoice_tax_label'] ?? '')),
+            'invoice_tax_number'       => sanitize_text_field((string) ($in['invoice_tax_number'] ?? '')),
+            'invoice_prefix'           => strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', (string) ($in['invoice_prefix'] ?? 'INV'))) ?: 'INV',
+            'invoice_notes'            => sanitize_textarea_field((string) ($in['invoice_notes'] ?? '')),
+            'paper_size'               => (($in['paper_size'] ?? 'letter') === 'a4') ? 'a4' : 'letter',
         ]);
 
         // Editing a tier's price IDs should show in the footer lists at once.

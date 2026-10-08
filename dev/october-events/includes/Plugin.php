@@ -266,6 +266,30 @@ final class Plugin {
             $this->render_invoice($invoice_listing);
             exit;
         }
+
+        // Ticket-order invoice / receipt. Buyers reach it with a ticket token
+        // (their own secret); admins can open any transaction by payment id.
+        $inv_token = isset($_GET['oe_invoice_token']) ? sanitize_text_field(wp_unslash($_GET['oe_invoice_token'])) : '';
+        if ($inv_token !== '') {
+            $this->render_order_invoice(\OE\Ticketing\OrderInvoice::payment_for_token($inv_token));
+            exit;
+        }
+        $inv_txn = isset($_GET['oe_invoice_txn']) ? sanitize_text_field(wp_unslash($_GET['oe_invoice_txn'])) : '';
+        if ($inv_txn !== '' && current_user_can('manage_options')) {
+            $this->render_order_invoice($inv_txn);
+            exit;
+        }
+    }
+
+    /** Render the invoice for a ticket transaction (payment id). */
+    private function render_order_invoice(string $payment_id): void {
+        nocache_headers();
+        $inv = $payment_id !== '' ? \OE\Ticketing\OrderInvoice::for_payment($payment_id) : null;
+        if (! is_array($inv)) {
+            wp_die(esc_html__('Invoice not available for this order.', 'october-events'), '', ['response' => 404]);
+        }
+        header('Content-Type: text/html; charset=utf-8');
+        echo \OE\Ticketing\OrderInvoice::render($inv, current_user_can('manage_options')); // phpcs:ignore — escaped within.
     }
 
     /** Render the door check-in PWA as a standalone full page. */

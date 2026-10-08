@@ -255,6 +255,16 @@ final class Settings {
             'theme_font_css'    => '', // optional @font-face / Google Fonts URL
             'theme_font_url'    => '', // optional uploaded REGULAR-weight font file (woff2/woff/ttf/otf)
             'theme_font_url_bold' => '', // optional uploaded BOLD-weight font file (for headings)
+            // Invoicing — seller block on ticket-order invoices / receipts.
+            'invoice_business_name'    => '', // legal/business name (falls back to brand_name)
+            'invoice_business_address' => '', // multi-line postal address
+            'invoice_business_email'   => '', // billing contact email
+            'invoice_business_phone'   => '',
+            'invoice_tax_label'        => '', // e.g. "VAT" or "Sales tax" (blank = none shown)
+            'invoice_tax_number'       => '', // VAT/registration number (blank = not shown)
+            'invoice_prefix'           => 'INV', // invoice number prefix → INV-YYYY-NNNN
+            'invoice_notes'            => '', // footer notes / payment terms
+            'paper_size'               => 'letter', // printable output size: 'letter' | 'a4'
             // Email — Amazon SES as the site's outgoing mail transport (phase 1
             // of the email platform). Off by default: until enabled + configured
             // the site keeps using its existing mail transport, unchanged.

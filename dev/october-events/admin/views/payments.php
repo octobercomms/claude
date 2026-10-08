@@ -230,6 +230,10 @@ $ab_recov = $ab_seen > 0 ? round($abandon_stats['recovered'] / $ab_seen * 100) :
                 <td style="white-space:nowrap"><?php echo esc_html($when); ?></td>
                 <td><?php echo esc_html($r->detail); ?></td>
                 <td>
+                    <?php if (in_array($r->kind, ['paid', 'part_refunded'], true) && (string) $r->payment_id !== '') : ?>
+                        <a class="button button-small" target="_blank" rel="noopener" style="margin:0 4px 4px 0"
+                           href="<?php echo esc_url(home_url('/?oe_invoice_txn=' . rawurlencode((string) $r->payment_id))); ?>"><?php esc_html_e('Invoice', 'october-events'); ?></a>
+                    <?php endif; ?>
                     <?php if (($r->kind === 'paid' || $r->kind === 'part_refunded') && $r->active > 0 && $tk) :
                         $panel_order_id = (int) $r->order_id;
                         $panel_tickets  = $tk;
