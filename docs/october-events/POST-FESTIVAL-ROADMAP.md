@@ -460,6 +460,72 @@ plus saved-card (SetupIntent) support.
 
 ---
 
+## 11. Customer profiles & audience intelligence
+
+Store who buys tickets, give them a self-serve account, and build a picture of
+the audience year over year. Extends existing infrastructure (`Account`,
+`[oe_account_dashboard]`, the Members surface, and the invoices shipped in
+1.200.x) rather than starting fresh.
+
+### Two hard constraints (non-negotiable)
+- **No dark pattern (GDPR).** October is UK-based; demographic data (gender, age,
+  industry) is personal data and consent for profiling must be *freely given*.
+  Dressing the optional survey as a mandatory step to force completion is
+  coercion that invalidates the consent and is a reputational risk. Build it as
+  a confident final step with honest copy and a clear, quiet **Skip** — that
+  still converts the large majority. **Do not** build the "looks essential"
+  version.
+- **No PII leak on pre-fill.** Pre-filling a profile from a bare, unverified
+  email entered at checkout lets anyone type someone else's address and see
+  their saved gender/age/employer. Pre-fill freely only within the session that
+  just bought (they control that inbox); for a returning person, load the full
+  profile only when **logged in** or behind a one-tap magic link. Never pre-fill
+  sensitive fields off an unverified email.
+
+### Phasing
+
+**A. Customer profile + account dashboard (per-site, start now):**
+- Profile keyed by email, extending `Account`. Links to their orders.
+- Customer dashboard (`[oe_account_dashboard]`) gains: change password, **download
+  invoices** (reuses 1.200.x), and a list of events they hold / have held tickets
+  for.
+- Zero compliance exposure — it only lets people see their own tickets and
+  invoices. Buildable immediately.
+
+**B. Post-checkout demographics modal:**
+- After the existing **Complete registration** button (no cart changes), a
+  survey modal: safe pre-fill (per Flag 2), honest copy + visible Skip (Flag 1),
+  saves via REST to the profile. Tickets are already issued; this is additive.
+- Repeat buyers see their data pre-filled and confirm/edit in one tap.
+
+**C. Demographics & behaviour dashboard (admin):**
+- Graphs: gender / age band / industry / interests; multi-event attendees;
+  multi-year returners; year-on-year skews. Thin in year one, compounds.
+
+**D. Cross-site profiles (the heavy, architectural phase):**
+- A central hub (the platform / OMI `dev/platform`, or one designated site)
+  keyed by email; sites sync via the existing partner connection (the same rails
+  that sync volunteers). Merges identity, event history and demographics across
+  sites.
+- Per-site A–C delivers most of the value; D federates it later.
+
+### Open decisions
+1. **Compliance posture**: honest/optional/skippable (recommended, and the only
+   version with legally usable consent) vs the coercive version.
+2. **Fields**: gender, age band, industry, interests, location — confirm the
+   set. **Avoid special-category data** (ethnicity, health, etc.) unless there is
+   a specific lawful basis; it is a different legal regime.
+3. **Cross-site hub**: platform/OMI as the central store vs a designated site.
+4. **Accounts**: every buyer gets a lightweight profile by email; a
+   password/login is optional (only for the dashboard). Confirm.
+
+### Dependencies / sequencing
+A reuses `Account` + dashboard + invoices and ships now. B/C wait on the
+compliance posture and field set. D is a platform-architecture piece and the
+slow one. Add GDPR export/delete to the dashboard before B goes live.
+
+---
+
 ## Backlog (device-dependent or held)
 
 - **Batch / group check-in**: when the scanner reads multiple codes at once,
