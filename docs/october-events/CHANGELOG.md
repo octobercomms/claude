@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.201.1 — Volunteer profiles: "name flagged before" watch
+
+- A serial no-shower can dodge the email-keyed flag by signing up with a new
+  address, but their **name** recurs. The profiles view now marks any volunteer
+  whose name matches someone you flagged under a **different email** with a
+  "⚠ name flagged before" badge (amber row), and floats them up the list.
+- It never blocks anyone automatically — it surfaces the name so a human can
+  look before confirming, matching the "we'll see that name sign up again"
+  workflow. Blocking a persistent offender stays a manual decision.
+
 ## 1.201.0 — Volunteer profiles + manual no-show/abuse flag
 
 - New **Volunteers → Volunteer profiles** view: one row per volunteer (matched

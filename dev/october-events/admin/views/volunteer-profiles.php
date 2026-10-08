@@ -64,10 +64,11 @@ $back = admin_url('admin.php?page=oe-volunteers');
             $flagged = ! empty($p['flagged']);
             $years   = implode(', ', (array) $p['years']);
         ?>
-            <tr style="<?php echo $flagged ? 'background:#fdeceb' : ''; ?>">
+            <tr style="<?php echo $flagged ? 'background:#fdeceb' : (! empty($p['name_watch']) ? 'background:#fdf3e3' : ''); ?>">
                 <td>
                     <strong><?php echo esc_html((string) $p['name'] ?: (string) $p['email']); ?></strong>
                     <?php if ($flagged) : ?><span title="<?php echo esc_attr((string) $p['flag_note']); ?>" style="margin-left:6px;font-size:11px;font-weight:700;color:#b23c17;border:1px solid #b23c17;border-radius:3px;padding:1px 6px">⚑ <?php esc_html_e('FLAGGED', 'october-events'); ?></span><?php endif; ?>
+                    <?php if (! empty($p['name_watch'])) : ?><span title="<?php esc_attr_e('This name was flagged before under a different email. Worth a look before confirming.', 'october-events'); ?>" style="margin-left:6px;font-size:11px;font-weight:700;color:#8a5a00;border:1px solid #d7a53a;border-radius:3px;padding:1px 6px">⚠ <?php esc_html_e('NAME FLAGGED BEFORE', 'october-events'); ?></span><?php endif; ?>
                     <br><a href="<?php echo esc_url('mailto:' . $p['email']); ?>" class="description" style="font-size:12px"><?php echo esc_html((string) $p['email']); ?></a>
                     <?php if ($flagged && (string) $p['flag_note'] !== '') : ?><div class="description" style="font-size:12px;color:#b23c17;margin-top:2px"><?php echo esc_html((string) $p['flag_note']); ?></div><?php endif; ?>
                 </td>
@@ -95,6 +96,6 @@ $back = admin_url('admin.php?page=oe-volunteers');
         <?php endforeach; ?>
         </tbody>
     </table>
-    <p class="description" style="margin-top:12px;max-width:820px"><?php esc_html_e('Worked / no-shows / cancels come from each person\'s signup history (matched by email). Match the scanned-ticket list by hand to decide who to flag. From 2027, shift check-in marks no-shows automatically and a flagged volunteer who signs up again is gated on a card on file.', 'october-events'); ?></p>
+    <p class="description" style="margin-top:12px;max-width:820px"><?php esc_html_e('Worked / no-shows / cancels come from each person\'s signup history (matched by email). Match the scanned-ticket list by hand to decide who to flag. Someone can dodge a flag with a new email, but their name recurs: a "name flagged before" badge marks anyone whose name you flagged under a different address, so you can look before confirming them. From 2027, shift check-in marks no-shows automatically and a flagged volunteer who signs up again is gated on a card on file.', 'october-events'); ?></p>
     <?php endif; ?>
 </div>
