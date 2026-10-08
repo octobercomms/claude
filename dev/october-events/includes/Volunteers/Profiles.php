@@ -30,6 +30,11 @@ final class Profiles {
         return strtolower(trim($email));
     }
 
+    /** Normalise a name for cross-email matching: lower-case, collapse spaces. */
+    public static function norm_name(string $name): string {
+        return trim(preg_replace('/\s+/', ' ', strtolower(trim($name))) ?? '');
+    }
+
     /* ---- manual abuse flag ------------------------------------------------ */
 
     private static function flags(): array {
@@ -125,7 +130,8 @@ final class Profiles {
             unset($p);
         }
 
-        $out = [];
+        $out          = [];
+        $flagged_names = [];
         foreach ($people as $p) {
             $yrs = array_keys($p['years']);
             sort($yrs);
@@ -134,13 +140,26 @@ final class Profiles {
             $fl               = self::flag($p['email']);
             $p['flagged']     = $fl['flagged'];
             $p['flag_note']   = $fl['note'];
+            if ($p['flagged']) {
+                $flagged_names[self::norm_name((string) $p['name'])] = true;
+            }
             $out[] = $p;
         }
 
-        // Flagged first, then by worked count, then by signups.
+        // Name-match watch: a volunteer who shares a name with someone flagged
+        // under a different email. Email-switching dodges the flag, but the name
+        // recurs — surface it so a human can look, never auto-block.
+        unset($flagged_names['']);
+        foreach ($out as &$p) {
+            $p['name_watch'] = ! $p['flagged'] && isset($flagged_names[self::norm_name((string) $p['name'])]);
+        }
+        unset($p);
+
+        // Flagged first, then name-watch, then by worked count, then by signups.
         usort($out, static function ($a, $b) {
-            if ($a['flagged'] !== $b['flagged']) { return $a['flagged'] ? -1 : 1; }
-            if ($a['worked'] !== $b['worked'])   { return $b['worked'] <=> $a['worked']; }
+            if ($a['flagged'] !== $b['flagged'])       { return $a['flagged'] ? -1 : 1; }
+            if ($a['name_watch'] !== $b['name_watch']) { return $a['name_watch'] ? -1 : 1; }
+            if ($a['worked'] !== $b['worked'])         { return $b['worked'] <=> $a['worked']; }
             return $b['signups'] <=> $a['signups'];
         });
         return $out;
