@@ -521,12 +521,31 @@ it. All of §11 is built to that bar.
 - Graphs: gender / age band / industry / interests; multi-event attendees;
   multi-year returners; year-on-year skews. Thin in year one, compounds.
 
-**D. Cross-site profiles (the heavy, architectural phase):**
-- A central hub (the platform / OMI `dev/platform`, or one designated site)
-  keyed by email; sites sync via the existing partner connection (the same rails
-  that sync volunteers). Merges identity, event history and demographics across
-  sites.
-- Per-site A–C delivers most of the value; D federates it later.
+### Entity boundary (DECIDED — reshapes D)
+The festival and the tours are becoming **separate legal entities**, and the
+tours may be **sold** one day. Sale-readiness is the overriding constraint: each
+entity's data must be **self-contained and transferable**, so the tours can be
+lifted out without untangling it from the festival. This governs the whole
+stack (Nextcloud instances, website/plugin installs, books, email), and it
+**reshapes the cross-site scope below**:
+
+- **Within an entity** (e.g. the festival's own sites) → sites may federate into
+  one CRM. Fine.
+- **Across entities (festival ↔ tours)** → **do not merge.** Each entity owns its
+  own CRM, ticketing, invoices and profiles, self-contained. A shared store
+  would tangle the two at sale and crosses a consent line (a customer consented
+  to one entity, not a pooled database).
+- **Trade-off, accepted:** no automatic "same person across festival and tours"
+  view. If that insight is wanted later it is an **explicit, consented,
+  severable link** between two separate systems (cuttable cleanly at sale),
+  never a merged database.
+
+**D. Cross-site profiles — WITHIN an entity (the heavy, architectural phase):**
+- A hub **scoped to one entity** keyed by email; that entity's sites sync via the
+  partner connection (the rails that sync volunteers). Merges identity, event
+  history and demographics **only across that entity's sites**, never across the
+  entity boundary.
+- Per-site A–C delivers most of the value; D federates within an entity later.
 
 ### Open decisions
 1. ~~**Compliance posture**~~ — DECIDED: honest/optional/skippable, GDPR as the
@@ -534,7 +553,9 @@ it. All of §11 is built to that bar.
 2. **Fields**: gender, age band, industry, interests, location — confirm the
    set. **Avoid special-category data** (ethnicity, health, etc.) unless there is
    a specific lawful basis; it is a different legal regime.
-3. **Cross-site hub**: platform/OMI as the central store vs a designated site.
+3. ~~**Cross-site hub**~~ — RE-SCOPED: a hub is **per entity**, not one store
+   across both (see Entity boundary). Which host within each entity is a later,
+   smaller call.
 4. **Accounts**: every buyer gets a lightweight profile by email; a
    password/login is optional (only for the dashboard). Confirm.
 
