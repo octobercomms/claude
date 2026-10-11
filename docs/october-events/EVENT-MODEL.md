@@ -36,8 +36,16 @@ a CPT.
 | **Tickets** | Ticket types, checkout (Stripe/PayPal), promo, waitlist, QR check-in. Not all events sell tickets, so this is a switch | **Built** |
 | **Tour / multi-location** | One-or-more locations, per-location timed-slot gated booking (the "pass" model), name-on-list arrival vs QR (`check_in_mode`), 48h reconfirm, release schedule | **Built** (`GuidedTours`; see `TOURS-RATIONALIZATION.md`) |
 | **Conference** | Speakers, past speakers, sessions/agenda, accommodation | **Not built** (site-side JetEngine today; field set needed — see Open inputs) |
-| **Exhibition** | Exhibitors (repeater) | **Not built** (site-side JetEngine today; field set needed) |
+| **Exhibition** | Exhibitors (repeater) | **Not built** (site-side JetEngine today; field set captured — see `FIELD-MAPPING.md`) |
+| **Volunteers** | "Needs volunteers" switch → shifts → signups (`oe_volunteer_signups`). Replaces the standalone `volunteer` CPT | **Mostly built** (signups engine exists; move opportunity from CPT to a switch) |
+| **Staff / non-shift roles** | Role page + apply-by-email form (lightweight entry to `CREW-MODULE.md`) | **Not built** |
 | *(future)* | New event types become new packs | — |
+
+> **Validation:** ADF's live `events` CPT already uses exactly these on/off
+> switchers (conference / exhibition / tickets / speakers / sessions /
+> accommodation). The native model formalizes what already runs. Confirmed field
+> sets and the JetEngine→plugin migration map are in
+> [`FIELD-MAPPING.md`](FIELD-MAPPING.md) (source captures in `reference/`).
 
 ### Scope discipline
 Build the **framework** (capability registry + per-event toggles + base event) and

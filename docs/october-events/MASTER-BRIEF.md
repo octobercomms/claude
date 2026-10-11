@@ -57,7 +57,8 @@ Read this brief first, then the canonical doc for the topic you're working on.
 - [`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md) — one codebase, many tenants: the operating rulebook + flag-hardening.
 - [`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md) — make the plugin self-contained (no Jet/Crocoblock). **Engineering priority one.**
 - [`CREW-MODULE.md`](CREW-MODULE.md) — people, team tiers, roles and access (the single home for the role/capability model).
-- [`EVENT-MODEL.md`](EVENT-MODEL.md) — **the canonical data model: one event + capability packs (tickets, tour, conference, exhibition …), listings/filters, embeds, migration.**
+- [`EVENT-MODEL.md`](EVENT-MODEL.md) — **the canonical data model: one event + capability packs (tickets, tour, conference, exhibition, volunteers, staff), listings/filters, embeds, migration.**
+- [`FIELD-MAPPING.md`](FIELD-MAPPING.md) — confirmed pack field sets + JetEngine→plugin migration map + data cleanup (source captures in [`reference/`](reference/)).
 - [`TOURS-RATIONALIZATION.md`](TOURS-RATIONALIZATION.md) — detail for the **tour** pack: the tours↔festival integration map and cross-site embeds.
 
 **Track B — productization**

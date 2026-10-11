@@ -1,0 +1,155 @@
+{
+  "_meta": {
+    "source": "architecturetours.us",
+    "builder": "JetEngine (Crocoblock) custom post types",
+    "captured": "2026-10-11",
+    "note": "Reconstructed from the JetEngine REST endpoint /wp-json/jet-engine/v2/get-post-type/{id}. JetEngine has no native post type export, so this is a hand-rebuilt spec rather than an importable JetEngine file. Field order matches the admin UI.",
+    "warning": "The post type registered as 'Tours' has the post type key 'events', not 'tours'. All queries, templates and REST calls must use 'events'.",
+    "also_on_install": "JetEngine ID 2 holds meta for a 'Tour Locations' post type with key 'portfolio'. JetEngine ID 3 holds meta attached to the built-in 'post' type. Neither is a JetEngine-created CPT and neither was captured here. A third JetEngine CPT, 'Volunteer' (slug 'volunteer', rewrite 'v'), also exists and was not requested.",
+    "not_included": "Taxonomies, relations, listings, meta boxes, query builder items, and post content. CPT definitions only."
+  },
+
+  "directory": {
+    "general_settings": {
+      "name": "Directory",
+      "slug": "directory",
+      "jetengine_id": 7,
+      "custom_storage": false,
+      "show_edit_link": true,
+      "hide_field_names": false,
+      "delete_metadata": false
+    },
+    "labels": {
+      "singular_name": "Directory Listing",
+      "menu_name": "Directory",
+      "name_admin_bar": "Directory Listing",
+      "add_new": "Add New Directory Listing",
+      "add_new_item": "Add New Directory Listing",
+      "new_item": "New Directory Listing",
+      "edit_item": "Edit Directory Listing",
+      "view_item": "View Directory Listing",
+      "all_items": "All Directory",
+      "search_items": "Search for Directory",
+      "parent_item_colon": "Parent Directory Listing",
+      "not_found": "Parent Directory",
+      "not_found_in_trash": "No Directory found in trash",
+      "featured_image": "Featured Image",
+      "set_featured_image": "Set featured image",
+      "remove_featured_image": "Remove featured image",
+      "use_featured_image": "Use featured image",
+      "archives": "Directory",
+      "insert_into_item": "Insert into Directory Listing",
+      "uploaded_to_this_item": "Uploaded to this Directory Listing"
+    },
+    "advanced_settings": {
+      "public": true,
+      "publicly_queryable": true,
+      "show_ui": true,
+      "show_in_menu": true,
+      "show_in_nav_menus": true,
+      "show_in_rest": true,
+      "query_var": true,
+      "rewrite": true,
+      "rewrite_slug": "directory",
+      "with_front": false,
+      "map_meta_cap": true,
+      "has_archive": true,
+      "hierarchical": false,
+      "exclude_from_search": false,
+      "capability_type": "post",
+      "menu_position": 4,
+      "menu_icon": "dashicons-archive",
+      "supports": ["title", "thumbnail"]
+    },
+    "admin_columns": [],
+    "admin_filters": [],
+    "meta_fields": [
+      { "title": "Description", "name": "_description", "type": "wysiwyg", "note": "Leading underscore marks this as protected meta. Hidden from the default custom fields UI and skipped by some search and export tools." },
+      { "title": "Quote", "name": "quote", "type": "text" },
+      { "title": "Website", "name": "website", "type": "text" },
+      { "title": "Address", "name": "address", "type": "wysiwyg" },
+      { "title": "Email Address", "name": "email-address", "type": "text" },
+      { "title": "Instagram", "name": "instagram", "type": "text" },
+      { "title": "Facebook", "name": "facebook", "type": "text" },
+      { "title": "Pinterest", "name": "pinterest", "type": "text" },
+      { "title": "Houzz", "name": "houzz", "type": "text" },
+      { "title": "Gallery", "name": "gallery", "type": "gallery" }
+    ]
+  },
+
+  "tours": {
+    "general_settings": {
+      "name": "Tours",
+      "slug": "events",
+      "jetengine_id": 1,
+      "custom_storage": false,
+      "show_edit_link": false,
+      "hide_field_names": false,
+      "delete_metadata": false
+    },
+    "labels": {
+      "singular_name": "Tours",
+      "menu_name": "Tours",
+      "add_new": "Add New Tour"
+    },
+    "advanced_settings": {
+      "public": true,
+      "publicly_queryable": true,
+      "show_ui": true,
+      "show_in_menu": true,
+      "show_in_nav_menus": true,
+      "show_in_rest": true,
+      "query_var": true,
+      "rewrite": true,
+      "rewrite_slug": "e",
+      "with_front": true,
+      "map_meta_cap": true,
+      "has_archive": false,
+      "hierarchical": true,
+      "exclude_from_search": false,
+      "capability_type": "post",
+      "menu_position": 4,
+      "menu_icon": "dashicons-location",
+      "supports": ["title", "thumbnail", "custom-fields", "post-formats"]
+    },
+    "admin_columns": [],
+    "admin_filters": [],
+    "meta_fields": [
+      { "title": "Details", "name": "details", "object_type": "tab" },
+      {
+        "title": "City", "name": "city", "type": "select",
+        "options": ["Atlanta GA", "Serenbe GA", " Austin TX", " Boston MA", " Chicago IL", " Dallas-Fort Worth TX", "Denver CO", "Houston TX", "Los Angeles CA", "Miami FL", "New York City NY", "Philadelphia PA", "Phoenix AZ", "Portland OR", "San Diego CA", "San Francisco CA", " Seattle WA", " Washington DC"],
+        "note": "Six option values carry a leading space, reproduced exactly above. Those spaces are stored in post meta and will break equality comparisons."
+      },
+      { "title": "Registration Link", "name": "registration-link", "type": "text" },
+      { "title": "Registration Link Button Text", "name": "registration-link-button-text", "type": "text" },
+      { "title": "YouTube", "name": "youtube", "type": "text" },
+      { "title": "Event Details", "name": "event-details", "type": "wysiwyg" },
+      { "title": "Price(s)", "name": "event-price", "type": "text" },
+      { "title": "Dates & Times", "name": "date-time", "type": "wysiwyg", "description": "October 9, 2022 10:00 am-4:00 pm EST / October 10, 2022 10:00 am-4:00 pm EST" },
+      { "title": "Start Date (for calendar listing only)", "name": "start-date", "type": "date", "is_timestamp": true },
+      { "title": "Start Time", "name": "start-time", "type": "time" },
+      { "title": "End Date (if applicable, for calendar listing only)", "name": "end-date", "type": "date", "is_timestamp": true },
+      { "title": "End Time", "name": "end-time", "type": "time" },
+      { "title": "Gallery", "name": "gallery", "type": "gallery" },
+      { "title": "More Information", "name": "external-url", "type": "text" },
+      { "title": "Download Tour Locations PDF", "name": "download-tour-locations-pdf", "type": "text" },
+      { "title": "Tour Locations Google Map", "name": "tour-locations-google-map", "type": "text" },
+      { "title": "Tour Locations Google Map (Embed)", "name": "tour_locations_google_map_embed", "type": "text" },
+      { "title": "Company", "name": "company", "type": "text" },
+      { "title": "Company Logo Switcher", "name": "company-logo-switcher", "type": "switcher", "options": ["Yes", "No"] },
+      { "title": "Company Logo #1", "name": "company-logo-1", "type": "media" },
+      { "title": "Company Logo #2", "name": "company-logo-2", "type": "media" },
+      { "title": "Company Logo #3", "name": "company-logo-3", "type": "media" },
+      { "title": "Accommodation", "name": "accommodation", "type": "wysiwyg" },
+      { "title": "Accommodation Photo", "name": "accommodation_photo", "type": "media" },
+
+      { "title": "Archived", "name": "archived", "object_type": "tab" },
+      { "title": "Price - Early Bird", "name": "price_early_bird", "type": "text" },
+      { "title": "Price - Early Bird (Description)", "name": "price_early_bird_end_date", "type": "text", "note": "Label says Description, meta key says end date" },
+      { "title": "Price - Single ticket (Description)", "name": "price_single_ticket_desc", "type": "text" },
+      { "title": "Price - Group Ticket", "name": "price_group_ticket", "type": "text" },
+      { "title": "Price - Group Ticket ( (Description))", "name": "price_group_ticket_desc", "type": "text", "note": "Doubled bracket in the label" }
+    ]
+  }
+}
