@@ -57,7 +57,8 @@ Read this brief first, then the canonical doc for the topic you're working on.
 - [`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md) — one codebase, many tenants: the operating rulebook + flag-hardening.
 - [`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md) — make the plugin self-contained (no Jet/Crocoblock). **Engineering priority one.**
 - [`CREW-MODULE.md`](CREW-MODULE.md) — people, team tiers, roles and access (the single home for the role/capability model).
-- [`TOURS-RATIONALIZATION.md`](TOURS-RATIONALIZATION.md) — one event model with a tour capability, the tours↔festival integration map, and cross-site embeds.
+- [`EVENT-MODEL.md`](EVENT-MODEL.md) — **the canonical data model: one event + capability packs (tickets, tour, conference, exhibition …), listings/filters, embeds, migration.**
+- [`TOURS-RATIONALIZATION.md`](TOURS-RATIONALIZATION.md) — detail for the **tour** pack: the tours↔festival integration map and cross-site embeds.
 
 **Track B — productization**
 - [`SELF-SERVE-PLATFORM-2027.md`](SELF-SERVE-PLATFORM-2027.md) — the self-serve organizer feature spec.
@@ -208,7 +209,9 @@ gets its own spec.
   **managed-service add-on** for managed clients and a recommended/optional tool
   for self-serve customers; **never a product dependency**. A light connector
   (plugin → the tenant's Nextcloud via its API) is possible later if demand
-  appears.
+  appears. The reference tenant uses Nextcloud (it may live on the repurposed
+  `platform.` subdomain, since it covers more than PM); two logins is the accepted
+  tradeoff, SSO a later nicety.
 - **CRM, ticketing, invoices, books, email**: separate per entity. No merged
   cross-entity store.
 - **Retire the festival staff SPA** (`dev/october-platform`, served at
@@ -259,20 +262,27 @@ gets its own spec.
 - Add-on prices + managed-free handling fee shape + edit-after-publish (§11 of the self-serve spec)
 - Three named prospect festivals (the standing validation gap)
 
-**Product model (proposed — needs sign-off; see [`TOURS-RATIONALIZATION.md`](TOURS-RATIONALIZATION.md))**
-- **Unify tours and events as one "multi-location event."** One plugin-owned
-  `event` CPT + a **locations** relation + capability flags (`check_in_mode:
-  qr|list`, `booking_mode: ticket|rsvp|gated-slots`). A tour = a multi-location
-  event with the `gated-slots` capability on; the Guided Tours booking engine
-  becomes that capability, not a separate type. The listing collapses cleanly
-  (~30-40%); the slot/reservation/pass engine stays as the extension (~60-70%).
-  (Routes/maps/docents are not features today, despite the name.) Reshapes
-  de-Jet Phase A/B and the Guided Tours module, so hold for the owner's decision.
+**Product model (DECIDED: universal event + capability packs; see [`EVENT-MODEL.md`](EVENT-MODEL.md))**
+- **One `event` CPT + capability packs you switch on per event** (tickets, tour /
+  multi-location, conference, exhibition, …). No separate CPT per type; "tour" is
+  a pack, not a special thing. Build the framework + the built packs (tickets,
+  tour) + native filtering with de-Jet Phases A–D; conference/exhibition packs
+  are later, when a real event needs them (their field sets are owner input).
+- **Native listings / filters / archives** (replace JetSmartFilters): filter by
+  category/type/year/city/past|upcoming; a filterable past archive; scoped
+  placements (a city tour page shows only that city's current-year locations).
+  Each is a shortcode/block dropped into an Elementor page, and the same engine
+  feeds cross-site embeds.
+- **Migration:** ~200 past events + ~80 tour locations (and later conference/
+  exhibition content) from the JetEngine CPTs into the plugin model; idempotent,
+  dry-runnable, opt-in (de-Jet Phase A).
 - **Separate tours onto their own site** (independent of the legal entity split):
   the code already assumes this; the one blocker is the ticket gate reading the
   **local** orders/tickets tables. Decide: the tours site **sells its own
   tickets**, or **federate eligibility** to the selling site (shared-token REST,
-  the `volunteer-check` pattern).
+  the `volunteer-check` pattern). On separation, drop the tours↔festival
+  **volunteer partner-feed** link but **keep the `oc-ad-manager` cross-site ad
+  syndication** (separate feed, wanted for connecting multiple sites to host ads).
 - **Cross-site embeds:** generalize the existing volunteer partner-feed into
   scoped public read endpoints (`oe/v1/embed/{volunteers|events|tours}`) + a
   loader (iframe for booking, JS/HTML for listings). Serves both the tours↔festival
