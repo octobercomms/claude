@@ -48,12 +48,17 @@ JSON; meta keys below are the migration anchors.
 - **Tour Locations (ATUS `portfolio`-keyed, theme-registered):** the per-location
   sub-items the slot engine books against. Fields: credits block (`architect`,
   `interior_designer`, `landscape_architect`, `developer`, `construction`,
-  `photographer`), `address`, `parking`, `google_maps`, `gallery`, `city`, `date`
-  (stored as **text** → migrate to a real date), `sat_only`/`sun_only` (two
-  switchers → one availability field), `alert` (textarea), `guided_tour` switcher
-  + `guided-tour-external-link`. **Plugin owning this type removes its current
-  theme dependency** (it orphans on a theme change today). DB prefix here is
-  `wp_rjrh_`.
+  `photographer`, **`realtor`** — new), `address`, `parking`, `google_maps`,
+  `gallery`, `city`, `date` (stored as **text** → real date), `sat_only`/`sun_only`
+  (two switchers → one availability field), `alert` (textarea), `guided_tour`
+  switcher + `guided-tour-external-link`. **Plugin owning this type removes its
+  current theme dependency** (it orphans on a theme change today). DB prefix here
+  is `wp_rjrh_`. Taxonomies on it: `tour-cities`, `tour-years` (these carry the
+  tour relation, see below) and **Portfolios Categories** (Residential /
+  Commercial / Hospitality / Public Space / Workplace — a building-type filter). A
+  **Volunteers** box already exists on the location editor ("needs volunteers",
+  slots, This-site / Partner-site host toggle), confirming volunteers-as-capability
+  + cross-site partner hosting.
 - **Directory (ATUS, already `oe_directory`):** `_description`, `quote`, `website`,
   `address`, `email-address`, `instagram`/`facebook`/`pinterest`/`houzz`, `gallery`.
 
@@ -90,14 +95,37 @@ JSON; meta keys below are the migration anchors.
 - **Directory `_description`** is protected meta (leading underscore) → map
   explicitly; it holds the listing body.
 
-## Outstanding input
+## The Tours ↔ Tour Locations relation (resolved)
 
-- **The Tours ↔ Tour Locations relation** — how a location attaches to a tour is
-  **not** in the CPT captures (it is a JetEngine Relation or a meta field, not a
-  post-type definition). Without it the two sets are unconnected, so every tour
-  page hardcodes its locations. This is the one piece still needed to migrate the
-  multi-location structure (capture the JetEngine Relations, or describe how a
-  location is linked to its tour today).
-- Taxonomy terms (e.g. city / year) for the native filters are not captured; grab
-  them when building the filter layer. Listings/meta boxes are intentionally not
-  needed (replaced natively).
+There is **no stored relation** (no JetEngine relation, meta box, reference field,
+or shared taxonomy; see `reference/atus-tours-locations-relation-addendum.md`).
+The link is made **at render time** in the Elementor templates by querying
+`portfolio` filtered on the location's **`tour-cities`** and **`tour-years`**
+taxonomy terms. A tour's own city lives in a meta select (the leading-space one);
+tours carry no taxonomy.
+
+**Migration consequence (good):** this matches the plugin's existing
+`tour_key = city|year`. The native model represents a tour as a (city, year) and
+gathers its locations by those two taxonomy terms, so the association **migrates
+without hand reconstruction** — the location terms already encode it. The native
+link is then a real, queryable relation instead of a template-only one. Also
+capture the `tour-cities` / `tour-years` / Portfolios-Categories terms for the
+filter layer.
+
+## Structured fields: stop storing HTML in content
+
+Today maintainers paste raw HTML into plain fields: an `<a style=…>` into a credit
+(Interior Designer), and a styled `<span style="background-color:…">` into Date to
+flag "RESCHEDULED" / "day only". That is fragile (breaks on redesign),
+inconsistent, and an injection surface. The model stores **data, not
+presentation**, and the plugin renders it:
+
+- **Link-aware credits** — each credit (architect, interior designer, realtor, …)
+  is a `{name, url}` pair. The template renders the styled link. No pasted `<a>`.
+- **Date / availability / status** — replace the HTML-in-Date pattern with: real
+  **date/time** fields; an **availability** choice (Saturday / Sunday / Both /
+  Specific date, retiring the ambiguous `sat_only`/`sun_only` pair); and an
+  optional **status badge** `{text, color or preset}` (Rescheduled, Cancelled,
+  Specific-day) the plugin renders as a styled pill.
+- **Product principle:** no October Events field should require pasting HTML;
+  presentation lives in the template so a redesign changes it everywhere at once.
