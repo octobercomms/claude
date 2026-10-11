@@ -42,10 +42,18 @@ JSON; meta keys below are the migration anchors.
   description/link.
 - **Exhibition:** `exhibition-page-switcher`; `exhibitor` repeater (photo/name/
   description/linkedin/instagram/website).
-- **Tour (ATUS `events`-keyed):** `city`, `tour-locations-google-map`,
+- **Tour event (ATUS `events`-keyed):** `city`, `tour-locations-google-map`,
   `tour_locations_google_map_embed`, `download-tour-locations-pdf`, `accommodation`
-  (+ photo), plus the `GuidedTours` slot engine, which books against the **Tour
-  Locations** CPT (see outstanding input).
+  (+ photo), plus the `GuidedTours` slot engine.
+- **Tour Locations (ATUS `portfolio`-keyed, theme-registered):** the per-location
+  sub-items the slot engine books against. Fields: credits block (`architect`,
+  `interior_designer`, `landscape_architect`, `developer`, `construction`,
+  `photographer`), `address`, `parking`, `google_maps`, `gallery`, `city`, `date`
+  (stored as **text** → migrate to a real date), `sat_only`/`sun_only` (two
+  switchers → one availability field), `alert` (textarea), `guided_tour` switcher
+  + `guided-tour-external-link`. **Plugin owning this type removes its current
+  theme dependency** (it orphans on a theme change today). DB prefix here is
+  `wp_rjrh_`.
 - **Directory (ATUS, already `oe_directory`):** `_description`, `quote`, `website`,
   `address`, `email-address`, `instagram`/`facebook`/`pinterest`/`houzz`, `gallery`.
 
@@ -84,9 +92,12 @@ JSON; meta keys below are the migration anchors.
 
 ## Outstanding input
 
-- **ATUS "Tour Locations" CPT** (JetEngine ID 2, keyed `portfolio`) not yet
-  captured — the individual tour buildings the slot engine books against. Needed
-  to migrate the tour pack fully (`/wp-json/jet-engine/v2/get-post-type/2`).
-- Taxonomies, relations, meta boxes and listings are not in these captures (CPT
-  definitions only); listings are being replaced natively, but taxonomy terms
-  (e.g. city/year) need capturing for the filters.
+- **The Tours ↔ Tour Locations relation** — how a location attaches to a tour is
+  **not** in the CPT captures (it is a JetEngine Relation or a meta field, not a
+  post-type definition). Without it the two sets are unconnected, so every tour
+  page hardcodes its locations. This is the one piece still needed to migrate the
+  multi-location structure (capture the JetEngine Relations, or describe how a
+  location is linked to its tour today).
+- Taxonomy terms (e.g. city / year) for the native filters are not captured; grab
+  them when building the filter layer. Listings/meta boxes are intentionally not
+  needed (replaced natively).
