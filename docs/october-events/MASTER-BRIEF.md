@@ -54,6 +54,8 @@ Read this brief first, then the canonical doc for the topic you're working on.
 - [`TICKETING-PARITY.md`](TICKETING-PARITY.md) — completed `oct_`→`oe_` migration record.
 
 **Multi-tenant / engineering direction**
+- [`BUILD-PLAN.md`](BUILD-PLAN.md) — **the single ordered build backlog (M0–M5): get the reference tenant fully native, then refine. Start here for "what do we build next."**
+- [`SCOPE-GAPS.md`](SCOPE-GAPS.md) — **PARKED** sell-to-others plumbing (migrator-as-tool, entitlements, ticketing hardening, provisioning, billing, deliverability). Not started until after M5.
 - [`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md) — one codebase, many tenants: the operating rulebook + flag-hardening.
 - [`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md) — make the plugin self-contained (no Jet/Crocoblock). **Engineering priority one.**
 - [`CREW-MODULE.md`](CREW-MODULE.md) — people, team tiers, roles and access (the single home for the role/capability model).
@@ -305,16 +307,13 @@ gets its own spec.
 
 ## Recommended next moves
 
-1. **Ship the cheap festival wins**: comp flag + reporting exclusion, then the
-   end-of-event report. Immediate value, no blockers.
-2. **De-Jet Phase 0 + event-details metabox** ([`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md)):
-   the tenant-aware, self-contained foundation; engineering priority one.
-3. **People hub + customer account dashboard** (Phase A): turns the profiles work
-   into a real CRM with zero compliance exposure.
-4. **Staff-SPA retire** cleanup (quick) once confirmed.
-5. **Dashboard access control**: unblocks letting directors/leads in safely, and
-   doubles as groundwork for SaaS organizer roles.
-6. Run **Track B** (self-serve signup → trust loop → add-ons) as the parallel
-   strategic build, each piece tenant-aware.
-7. Draft the **T&C clause + repeat-offender email**, and **scope ad-manager** once
-   the flavor is chosen.
+The ordered engineering backlog now lives in [`BUILD-PLAN.md`](BUILD-PLAN.md)
+(M0–M5: foundation → own the data → front end → Elementor bridge → cut ADF over →
+refine). Start there. Two things sit alongside it:
+
+- **Ship the cheap festival wins in parallel** (comp flag + reporting exclusion,
+  end-of-event report, customer dashboard) so near-term value never stalls behind
+  the refactor. Queue in [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.md).
+- **Sell-to-others plumbing is scoped and parked** in [`SCOPE-GAPS.md`](SCOPE-GAPS.md);
+  not started until after M5. The ADF build leaves cheap hooks in (entitlements
+  flag, branding hooks, per-tenant sending identity) so it is not a retrofit.
