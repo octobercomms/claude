@@ -124,8 +124,13 @@ presentation**, and the plugin renders it:
   is a `{name, url}` pair. The template renders the styled link. No pasted `<a>`.
 - **Date / availability / status** — replace the HTML-in-Date pattern with: real
   **date/time** fields; an **availability** choice (Saturday / Sunday / Both /
-  Specific date, retiring the ambiguous `sat_only`/`sun_only` pair); and an
-  optional **status badge** `{text, color or preset}` (Rescheduled, Cancelled,
-  Specific-day) the plugin renders as a styled pill.
+  Specific date, retiring the ambiguous `sat_only`/`sun_only` pair) that renders
+  its own badge automatically; and an optional **status badge** `{text, preset}`
+  for exceptions only (Rescheduled, Cancelled, Sold Out, New, …). The **preset
+  carries a brand-approved background and an auto-readable text color** — a dropdown,
+  not a raw color picker, so badges stay consistent and accessible. A custom
+  background is an escape hatch only, and even then the text color is chosen
+  automatically for contrast. Routine "day only" comes from availability, not a
+  hand-set status.
 - **Product principle:** no October Events field should require pasting HTML;
   presentation lives in the template so a redesign changes it everywhere at once.
