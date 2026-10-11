@@ -57,6 +57,7 @@ Read this brief first, then the canonical doc for the topic you're working on.
 - [`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md) — one codebase, many tenants: the operating rulebook + flag-hardening.
 - [`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md) — make the plugin self-contained (no Jet/Crocoblock). **Engineering priority one.**
 - [`CREW-MODULE.md`](CREW-MODULE.md) — people, team tiers, roles and access (the single home for the role/capability model).
+- [`TOURS-RATIONALIZATION.md`](TOURS-RATIONALIZATION.md) — one event model with a tour capability, the tours↔festival integration map, and cross-site embeds.
 
 **Track B — productization**
 - [`SELF-SERVE-PLATFORM-2027.md`](SELF-SERVE-PLATFORM-2027.md) — the self-serve organizer feature spec.
@@ -202,8 +203,12 @@ gets its own spec.
   product data model — see the proposed tours/events unification below.)
 - **Nextcloud** chosen for team PM + planning notes (Deck kanban, calendar, video
   via Talk, mail client). **One instance per entity.** This is team/ops
-  infrastructure, **not** a plugin feature; there is no code integration and none
-  is planned.
+  infrastructure, **not** a plugin feature. It **cannot be bundled** in a
+  WordPress plugin (separate server app, own stack/DB/hosting). Offer it as a
+  **managed-service add-on** for managed clients and a recommended/optional tool
+  for self-serve customers; **never a product dependency**. A light connector
+  (plugin → the tenant's Nextcloud via its API) is possible later if demand
+  appears.
 - **CRM, ticketing, invoices, books, email**: separate per entity. No merged
   cross-entity store.
 - **Retire the festival staff SPA** (`dev/october-platform`, served at
@@ -233,6 +238,12 @@ gets its own spec.
   collapsible **"Settings" accordion at the top of every admin screen** showing
   only that page's settings; truly **global** settings stay on the Settings page.
   Tenant-agnostic; improves every install. Backlog.
+- **Email log (retire Check & Log Email)** — the logging engine already exists
+  (`Mail/EmailLog.php`: table + record/recent/counts/prune) and logs the plugin's
+  own sends. To retire the Check & Log Email plugin, add a **global `wp_mail`
+  capture** (all site mail, not just the plugin's) and an admin **"Email log"**
+  screen (browse/search/resend). PII: keep retention/prune on and access-control
+  the screen.
 
 ---
 
@@ -248,16 +259,25 @@ gets its own spec.
 - Add-on prices + managed-free handling fee shape + edit-after-publish (§11 of the self-serve spec)
 - Three named prospect festivals (the standing validation gap)
 
-**Product model (proposed — needs sign-off)**
-- **Unify tours and events as one "multi-location event."** Stop modeling "tour"
-  as a separate type. Every event has one or more **locations**; a single-venue
-  talk has one, a tour/trail/open-studios has many. Tour-specific needs become
-  per-event capabilities: multiple located sub-items with their own times and
-  capacities (reuse the slot engine), route/map output, host/docent assignment,
-  and a **list-based arrival** check-in mode (name on a list) distinct from QR
-  scanning. One entity, one UI/UX/language for all. Reshapes the data model and
-  the Guided Tours module, so hold for the owner's decision. (Independent of the
-  legal entity split above.)
+**Product model (proposed — needs sign-off; see [`TOURS-RATIONALIZATION.md`](TOURS-RATIONALIZATION.md))**
+- **Unify tours and events as one "multi-location event."** One plugin-owned
+  `event` CPT + a **locations** relation + capability flags (`check_in_mode:
+  qr|list`, `booking_mode: ticket|rsvp|gated-slots`). A tour = a multi-location
+  event with the `gated-slots` capability on; the Guided Tours booking engine
+  becomes that capability, not a separate type. The listing collapses cleanly
+  (~30-40%); the slot/reservation/pass engine stays as the extension (~60-70%).
+  (Routes/maps/docents are not features today, despite the name.) Reshapes
+  de-Jet Phase A/B and the Guided Tours module, so hold for the owner's decision.
+- **Separate tours onto their own site** (independent of the legal entity split):
+  the code already assumes this; the one blocker is the ticket gate reading the
+  **local** orders/tickets tables. Decide: the tours site **sells its own
+  tickets**, or **federate eligibility** to the selling site (shared-token REST,
+  the `volunteer-check` pattern).
+- **Cross-site embeds:** generalize the existing volunteer partner-feed into
+  scoped public read endpoints (`oe/v1/embed/{volunteers|events|tours}`) + a
+  loader (iframe for booking, JS/HTML for listings). Serves both the tours↔festival
+  split and the SaaS "put it on your own site" story. CORS is already handled
+  (`Cors.php`).
 
 **Housekeeping / infra**
 - Confirm staff-SPA retire (and that OMI stays)
