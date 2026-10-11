@@ -1,9 +1,9 @@
 # October Events — master brief
 
-One place that ties every workstream together, across both the **Atlanta
-operations** track and the **SaaS productisation** track, with status and
-pointers to the detailed specs. Committed to the repo so any session (this one
-or "October Events SaaS") sees the same picture.
+The single front door for the October Events plugin. One place that ties every
+workstream together, across the **festival operations** track and the **SaaS
+productization** track, with status, the documentation map, and consolidated
+open decisions. Committed to the repo so any session sees the same picture.
 
 Current shipped plugin version: **1.201.1**.
 
@@ -13,26 +13,67 @@ Current shipped plugin version: **1.201.1**.
 
 Two tracks, one codebase. Do **not** fork a separate SaaS plugin.
 
-- **Track A — Atlanta operations.** Run this year's festival (and the tours)
-  well. Tactical, cheap, high near-term ROI. Captured in
-  [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.md).
-- **Track B — SaaS productisation.** Make October Events work for *other*
-  organisers, self-serve. Strategic, bigger lift. Captured in
-  [`SELF-SERVE-PLATFORM-2027.md`](SELF-SERVE-PLATFORM-2027.md) and
-  [`PRODUCTISATION-PLAN.md`](PRODUCTISATION-PLAN.md).
+- **Track A — festival operations** (reference tenant: Atlanta Design Festival and
+  its tours). Run this year's festival well. Tactical, cheap, high near-term ROI.
+  Detail in [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.md).
+- **Track B — SaaS productization.** Make October Events work for *other*
+  organizers, self-serve. Strategic, bigger lift. Detail in
+  [`SELF-SERVE-PLATFORM-2027.md`](SELF-SERVE-PLATFORM-2027.md),
+  [`PRODUCTISATION-PLAN.md`](PRODUCTISATION-PLAN.md) and
+  [`GO-TO-MARKET.md`](GO-TO-MARKET.md).
 
-**Productise in place.** The festival is the first (reference) tenant. Build new
-features **tenant-aware** so multi-tenancy isn't a retrofit later. This aligns
-with the entity-split decision (below): each tenant's / entity's data stays
-self-contained, which is both the sale-readiness rule and the multi-tenant rule.
+**Productize in place.** The festival is the first (reference) tenant. Build new
+features **tenant-aware** so multi-tenancy isn't a retrofit later. Each tenant's /
+entity's data stays self-contained, which is both the sale-readiness rule and the
+multi-tenant rule (operating rules in [`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md)).
 
-**Sequencing discipline.** Don't let productisation stall Atlanta ROI. Finish the
-high-value Atlanta fixes (most are cheap, several already shipped), run Track B
-in parallel.
+**Generalize.** Product and feature specs read for any festival; the reference
+tenant appears only as an example, never baked in as the product. US English
+throughout.
+
+**Sequencing discipline.** Don't let productization stall festival ROI. Finish the
+high-value Track A fixes (most are cheap, several already shipped), run Track B in
+parallel.
 
 ---
 
-## Track A — Atlanta operations (festival & tours)
+## Documentation map
+
+Read this brief first, then the canonical doc for the topic you're working on.
+
+**Start here / as-built**
+- [`README.md`](README.md) — what the plugin is and how it's built, installed, released.
+- [`SYSTEM-WALKTHROUGH.md`](SYSTEM-WALKTHROUGH.md) — page-by-page map of every surface.
+- [`GETTING-STARTED.md`](GETTING-STARTED.md) — team onboarding / how-to.
+
+**Track A — festival operations**
+- [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.md) — the Track A build queue (+ [`volunteer-pool.md`](volunteer-pool.md)).
+- [`HOST-COMMS-SPEC.md`](HOST-COMMS-SPEC.md) — host contacts and info-pack comms.
+- [`GUIDED-TOURS.md`](GUIDED-TOURS.md) — multi-location (tour) booking setup.
+- [`POST-EVENT-SURVEY-SPEC.md`](POST-EVENT-SURVEY-SPEC.md) — post-event survey (+ [`SURVEY-EMAIL-BEST-PRACTICES.md`](SURVEY-EMAIL-BEST-PRACTICES.md)).
+- [`TICKETING-PARITY.md`](TICKETING-PARITY.md) — completed `oct_`→`oe_` migration record.
+
+**Multi-tenant / engineering direction**
+- [`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md) — one codebase, many tenants: the operating rulebook + flag-hardening.
+- [`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md) — make the plugin self-contained (no Jet/Crocoblock). **Engineering priority one.**
+- [`CREW-MODULE.md`](CREW-MODULE.md) — people, team tiers, roles and access (the single home for the role/capability model).
+
+**Track B — productization**
+- [`SELF-SERVE-PLATFORM-2027.md`](SELF-SERVE-PLATFORM-2027.md) — the self-serve organizer feature spec.
+- [`PRODUCTISATION-PLAN.md`](PRODUCTISATION-PLAN.md) + [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — the earn model, pricing, positioning. **Merge into one Track B GTM doc is pending.**
+- [`PLATFORM-ARCHITECTURE.md`](PLATFORM-ARCHITECTURE.md) — **PARKED.** A standalone non-WordPress multi-tenant app + OMI merge; conflicts with productize-in-place. Reference only, not an active plan.
+
+**Security**
+- [`security-audit.md`](security-audit.md) — security / performance audit record.
+
+**Archive (history, do not treat as current)**
+- [`archive/BRIEF.md`](archive/BRIEF.md) — original build brief (superseded by README).
+- [`archive/EMAIL-PLATFORM.md`](archive/EMAIL-PLATFORM.md) — the 2026 SES/messaging proposal; core now shipped (see Messaging stack below).
+- [`CHANGELOG.md`](CHANGELOG.md) — as-built change record.
+
+---
+
+## Track A — festival operations
 
 Full detail and ordering in [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.md).
 
@@ -66,25 +107,27 @@ Full detail and ordering in [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.m
 - Repeat-offender "card on file" email copy
 
 ### Backlog / held
-- Batch / group check-in (multi-code scan)
-- Instant-scan speed-up (native BarcodeDetector; re-approach carefully)
+- Batch / group check-in (multi-code scan) — device-dependent, build and test on a real phone
+- Instant-scan speed-up (native `BarcodeDetector`) — **this broke the camera in 1.199.4; re-approach carefully and device-test before shipping**
 - Volunteer chat / community (per-tour, daily digest) — held
 - Volunteer move parts 2 & 3 (self-service change link; rebalancing broadcast)
 
 ---
 
-## Track B — SaaS productisation
+## Track B — SaaS productization
 
 Full detail in [`SELF-SERVE-PLATFORM-2027.md`](SELF-SERVE-PLATFORM-2027.md).
 Built natively in the plugin (not Crocoblock), reusing the existing
-`Submission` / `Account` / approval-queue engine.
+`Submission` / `Account` / approval-queue engine. The near-term earn model
+(managed WordPress install per client, client's own Stripe, pricing, legal) is in
+[`PRODUCTISATION-PLAN.md`](PRODUCTISATION-PLAN.md) / [`GO-TO-MARKET.md`](GO-TO-MARKET.md).
 
 ### Self-serve event management
 - **Shipped — Slice 1 (v1.188.0):** logged-in submit form `[oe_submit_event]`.
-  An organiser posts an event → runs through `Submission::create()` → lands as a
+  An organizer posts an event → runs through `Submission::create()` → lands as a
   **draft in the approval queue**; nothing publishes without review.
 - **Not built (sequenced):**
-  1. Public organiser **signup** with the `pending` user model + anti-abuse (§3)
+  1. Public organizer **signup** with the `pending` user model + anti-abuse (§3)
   2. "Approve the user once → auto-publish" **trust loop** + edit-own-events with
      the server-side ownership guard (§9)
   3. **Image quality gate** (§4a)
@@ -94,18 +137,18 @@ Built natively in the plugin (not Crocoblock), reusing the existing
 
 ### Add-ons / upsell (§6 of the self-serve spec)
 Newsletter slots, featured listing, boost, and the application fee on paid
-selling. **Not built.** Blocked on decisions that are the owner's:
+selling. **Not built.** Blocked on owner decisions:
 - Real **prices** ($ per newsletter slot, featured, boost, managed-free handling
   fee, paid-selling application fee %).
-- **Managed-free handling fee shape**: flat per-event (recommended) vs
-  per-registration.
+- **Managed-free handling fee shape**: flat per-event (recommended) vs per-registration.
 - Edit-after-publish: does changing date/price re-trigger review? (Rec: no.)
 
-### Multi-tenancy (the productisation backbone, to formalise)
+### Multi-tenancy (the productization backbone, to formalize)
 Making it work for others needs: per-tenant config/branding, tenant data
-isolation (same rule as the entity split), organiser roles/permissions (overlaps
-the per-user dashboard-access work below), billing, and support. Not yet a
-written spec of its own; the entity-split principle is the foundation.
+isolation (same rule as the entity split), organizer roles/permissions (overlaps
+the dashboard-access work below), billing, and support. Operating rules live in
+[`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md); the self-contained-plugin
+foundation is [`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md).
 
 ---
 
@@ -113,12 +156,26 @@ written spec of its own; the entity-split principle is the foundation.
 
 The CRM is emerging natively, not a separate purchase:
 - Volunteer profiles (shipped), customer profiles (§11, scoped), and the existing
-  Contacts surface unify into a **People hub**.
+  Contacts surface unify into a **People hub**. Roles/access model owned by
+  [`CREW-MODULE.md`](CREW-MODULE.md).
 - **Entity boundary (decided):** CRM is **per entity**, never merged across
   festival ↔ tours (sale-readiness + consent). Within an entity, sites may
   federate. See [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.md) §11.
 - Compliance: **GDPR as the global baseline**; honest/optional/skippable survey;
   pre-fill gated on authentication, not payment.
+
+---
+
+## Messaging stack
+
+Email is **built in the plugin on Amazon SES** with native contacts, campaigns
+and a Claude co-pilot (see README / SYSTEM-WALKTHROUGH). The original proposal is
+archived at [`archive/EMAIL-PLATFORM.md`](archive/EMAIL-PLATFORM.md). Still
+**unbuilt** from that proposal, carried here so nothing is lost:
+- **Live chat** — self-hosted **Chatwoot**, widget injected by a plugin setting
+  (hosted on the tenant's own infrastructure, never in the plugin).
+- **Dedicated sending subdomains** (e.g. `news.` marketing, `mail.` transactional)
+  with DKIM/SPF/DMARC, warm-up, and a per-stream from-name/from-address.
 
 ---
 
@@ -128,44 +185,54 @@ Not captured in any events doc yet. The only ad assets in the repo are the
 separate apps `dev/meta-ads` and `dev/oc-ad-manager`, which are not part of
 October Events. Needs scoping from scratch; likely one of:
 1. **Conversions** — push ticket-sale events to Meta/Google (pixel + Conversions
-   API) so ad spend optimises against real purchases.
+   API) so ad spend optimizes against real purchases.
 2. **Audiences** — export CRM segments for retargeting and lookalikes.
 3. **Wire in** the existing `oc-ad-manager` / `meta-ads` app to events data.
 
-The new customer profiles make 1 and 2 natural next steps. Pick the flavour and
-it gets its own spec.
+The new customer profiles make 1 and 2 natural next steps. Pick the flavor and it
+gets its own spec.
 
 ---
 
 ## Infrastructure & architecture decisions (DECIDED)
 
 - **Festival and tours become separate legal entities**, and the tours may be
-  **sold**. Sale-readiness governs everything: each entity's data
-  self-contained and transferable.
-- **Nextcloud** chosen for team PM + planning notes (Deck kanban, calendar,
-  video via Talk, mail client over existing email). **One instance per entity.**
-  Leantime was the lighter PM-only alternative; Nextcloud wins because it also
-  covers notes/files/calendar.
+  **sold**. Sale-readiness governs everything: each entity's data self-contained
+  and transferable. (This is a business/legal split; it is independent of the
+  product data model — see the proposed tours/events unification below.)
+- **Nextcloud** chosen for team PM + planning notes (Deck kanban, calendar, video
+  via Talk, mail client). **One instance per entity.** This is team/ops
+  infrastructure, **not** a plugin feature; there is no code integration and none
+  is planned.
 - **CRM, ticketing, invoices, books, email**: separate per entity. No merged
   cross-entity store.
-- **Retire `platform.atlantadesignfestival.net`** (OMI / `dev/platform`): the
-  plugin's own admin now does the job; the separate frontend is duplicated work.
-  See housekeeping.
+- **Retire the festival staff SPA** (`dev/october-platform`, served at
+  `platform.atlantadesignfestival.net`): the plugin's own admin now does the job,
+  so the separate front end is duplicated work. See housekeeping.
+- **Keep OMI** (`dev/platform`): it is a **separate, live product** with its own
+  users, deploy and biz-dev pipeline (`../../CLAUDE.md`, `docs/omi/agent-guide.md`).
+  OMI is **not** being retired and is **not** merged into the plugin.
 
 ---
 
 ## Housekeeping
 
-- **Retire the platform**: check for anything only it does; in the plugin remove
-  the dashboard **"Platform" link** (`platform_url`) and the **CORS origin**
-  (`platform_origins`); redirect the domain; **archive** `dev/platform` (don't
-  delete). Quick plugin-side cleanup once confirmed.
-- **Per-user dashboard access**: today every plugin admin page is gated on
-  `manage_options` (all-or-nothing). Build **section-level capabilities**
-  (`oe_tickets`, `oe_volunteers`, …) + an admin "User access" screen so people
-  see only their part of the menu (and can't reach hidden pages by URL).
-  Open: presets (Director / Lead / Door crew) vs per-user; who sees what. This
-  overlaps the SaaS organiser-roles need.
+- **Retire the staff SPA** (`dev/october-platform`): check for anything only it
+  does; in the plugin remove the dashboard **"Platform" link** (`platform_url`)
+  and the **CORS origin** (`platform_origins`); redirect the domain; **archive**
+  `dev/october-platform` (don't delete). Confirm nothing one-of-a-kind is lost
+  first. **Do not touch `dev/platform` (OMI).**
+- **Per-user dashboard access** (owned by [`CREW-MODULE.md`](CREW-MODULE.md)):
+  today every plugin admin page is gated on `manage_options` (all-or-nothing,
+  `includes/Access.php` stub). Build **section-level capabilities** (`oe_tickets`,
+  `oe_volunteers`, …) + an admin "User access" screen so people see only their
+  part of the menu (and can't reach hidden pages by URL). This is the same
+  capability system the crew/SaaS-organizer roles need. Open: presets (Director /
+  Lead / Door crew) vs per-user.
+- **Settings in context (UX)** — move each page's settings onto that page: a
+  collapsible **"Settings" accordion at the top of every admin screen** showing
+  only that page's settings; truly **global** settings stay on the Settings page.
+  Tenant-agnostic; improves every install. Backlog.
 
 ---
 
@@ -174,31 +241,49 @@ it gets its own spec.
 **Track A**
 - Map: one auto-fit map vs per-day; lead time fixed 7 days vs per-event (§6)
 - Customer profile field set (avoid special-category data) (§11)
-- Volunteer pool open questions (see `volunteer-pool.md`)
+- Volunteer reminder channel: email only vs email + SMS
+- Volunteer pool open questions (see [`volunteer-pool.md`](volunteer-pool.md))
 
 **Track B**
-- Add-on prices + managed-free handling fee shape + edit-after-publish (§11 of
-  the self-serve spec)
+- Add-on prices + managed-free handling fee shape + edit-after-publish (§11 of the self-serve spec)
+- Three named prospect festivals (the standing validation gap)
+
+**Product model (proposed — needs sign-off)**
+- **Unify tours and events as one "multi-location event."** Stop modeling "tour"
+  as a separate type. Every event has one or more **locations**; a single-venue
+  talk has one, a tour/trail/open-studios has many. Tour-specific needs become
+  per-event capabilities: multiple located sub-items with their own times and
+  capacities (reuse the slot engine), route/map output, host/docent assignment,
+  and a **list-based arrival** check-in mode (name on a list) distinct from QR
+  scanning. One entity, one UI/UX/language for all. Reshapes the data model and
+  the Guided Tours module, so hold for the owner's decision. (Independent of the
+  legal entity split above.)
 
 **Housekeeping / infra**
-- Confirm platform retire
+- Confirm staff-SPA retire (and that OMI stays)
 - Dashboard access: presets vs per-user, and who sees what
-- Ad manager integration: which flavour (conversions / audiences / wire-in)
-- Nextcloud hosting: managed (per entity) vs VPS; confirm the entity split
-  applies stack-wide
+- Ad manager integration: which flavor (conversions / audiences / wire-in)
+- Nextcloud hosting: managed (per entity) vs VPS; confirm the entity split applies stack-wide
+- Settings-in-context accordion: confirm the pattern
+
+**Docs tidy-up (in progress)**
+- Merge `PRODUCTISATION-PLAN.md` + `GO-TO-MARKET.md` into one Track B GTM doc
+- Generalize `SELF-SERVE-PLATFORM-2027.md` prose (board/brand/opt-in copy → generic)
 
 ---
 
 ## Recommended next moves
 
-1. **Ship the cheap Atlanta wins**: comp flag + reporting exclusion, then the
+1. **Ship the cheap festival wins**: comp flag + reporting exclusion, then the
    end-of-event report. Immediate value, no blockers.
-2. **People hub + customer account dashboard** (Phase A): turns the profiles
-   work into a real CRM with zero compliance exposure.
-3. **Platform retire** cleanup (quick) once confirmed.
-4. **Dashboard access control**: unblocks letting directors/leads in safely, and
-   doubles as groundwork for SaaS organiser roles.
-5. Run **Track B** (self-serve signup → trust loop → add-ons) as the parallel
+2. **De-Jet Phase 0 + event-details metabox** ([`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md)):
+   the tenant-aware, self-contained foundation; engineering priority one.
+3. **People hub + customer account dashboard** (Phase A): turns the profiles work
+   into a real CRM with zero compliance exposure.
+4. **Staff-SPA retire** cleanup (quick) once confirmed.
+5. **Dashboard access control**: unblocks letting directors/leads in safely, and
+   doubles as groundwork for SaaS organizer roles.
+6. Run **Track B** (self-serve signup → trust loop → add-ons) as the parallel
    strategic build, each piece tenant-aware.
-6. Draft the **T&C clause + repeat-offender email**, and **scope ad-manager**
-   once the flavour is chosen.
+7. Draft the **T&C clause + repeat-offender email**, and **scope ad-manager** once
+   the flavor is chosen.
