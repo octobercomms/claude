@@ -458,6 +458,45 @@ export const MOVES = [
 export const THRESHOLDS = { target: 8, marginal: 5, basis: 'distinct', provisional: true };
 
 /**
+ * The body split into paragraphs, each scored on its own.
+ *
+ * The whole-document number averages, and averaging hides the thing you need
+ * to act on. Measured on a release known to be AI-written throughout: the
+ * document scored 88 while its weakest paragraph scored 56, and the two
+ * paragraphs carrying no reporting at all were invisible behind the headline
+ * figure. A detector that segments is more useful than one that does not, and
+ * segmenting costs nothing here.
+ */
+export function paragraphScores(html, opts = {}) {
+  const text = stripBoilerplate(stripHtml(html));
+  const names = knownNames(text);
+  for (const n of opts.names || []) {
+    for (const tok of String(n || '').split(/\s+/)) {
+      const k = key(tok.replace(/^[^\w£$€]+/, '').replace(/[^\w%²]+$/, ''));
+      if (k && k.length > 1) names.add(k);
+    }
+  }
+  return text
+    .split(/\n{2,}/)
+    .map((para) => para.trim())
+    .filter((para) => para.split(/\s+/).filter(Boolean).length >= 20)
+    .map((para, i) => {
+      const w = para.split(/\s+/).filter(Boolean).length;
+      const items = checkableItems(para, names);
+      const distinct = new Set(items.map((it) => key(it.text)));
+      const density = w ? +((distinct.size / w) * 100).toFixed(1) : 0;
+      const spans = sentenceSpans(para, names);
+      const bareWords = spans.filter((sp) => sp.bare).reduce((n, sp) => n + sp.words, 0);
+      const tells = aiTells(para);
+      const { score } = humanScore({
+        text: para, words: w, tells, density, cv: null,
+        bare_pct: w ? Math.round((bareWords / w) * 100) : 0,
+      });
+      return { index: i, text: para, words: w, score, density, tells: tells.length };
+    });
+}
+
+/**
  * @param {string} html   the release body
  * @param {object} brief  the fact sheet, so filled slots can be credited
  * @param {object} opts   { names } — names the operator has already given us
@@ -546,7 +585,14 @@ export function analyse(html, brief = {}, opts = {}) {
     cv: styleMarkers(body, sents, names).sentence_length_cv.value, bare_pct: barePct,
   });
 
+  // Per paragraph, so the weakest passage can be named rather than averaged away.
+  const paragraphs = paragraphScores(html, opts);
+
   return {
+    paragraphs,
+    weakest: paragraphs.length
+      ? paragraphs.reduce((a, b) => (b.score < a.score ? b : a))
+      : null,
     tells,
     human_score: human.score,
     human_parts: human.parts,
@@ -571,4 +617,4 @@ export function analyse(html, brief = {}, opts = {}) {
   };
 }
 
-export default { analyse, checkableItems, knownNames, namedQuotes, sentenceSpans, aiTells, humanScore, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };
+export default { analyse, checkableItems, knownNames, paragraphScores, namedQuotes, sentenceSpans, aiTells, humanScore, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };
