@@ -78,6 +78,7 @@ final class Admin {
         if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story')); }
         if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
+        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteer pool', 'Volunteer pool', $cap, 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
         if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $cap, 'edit.php?post_type=' . PostTypes::slug('package')); }
         add_submenu_page('october-events', 'Countdown', 'Countdown', $cap, 'oe-countdown', [$this, 'page_countdown']);

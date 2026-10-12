@@ -36,6 +36,7 @@ final class Activator {
     public static function install_tables(): void {
         AuditLog::install();
         VolunteerSignups::install();
+        \OE\Volunteers\Pool\Schema::install();
         \OE\Ticketing\Schema::install();
         \OE\Tasks\Schema::install();
         \OE\Survey\Schema::install();

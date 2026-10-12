@@ -444,6 +444,7 @@ final class Settings {
                 ? (string) ($in['adoption_mode'] ?? 'auto') : 'auto',
             'entitlement_tier' => sanitize_key((string) ($in['entitlement_tier'] ?? 'full')) ?: 'full',
             'packages_wizard_page' => esc_url_raw(trim((string) ($in['packages_wizard_page'] ?? ''))),
+            'volunteer_windows'    => \OE\Volunteers\Pool\Windows::parse((string) ($in['volunteer_windows'] ?? '')),
             // Section theming tokens (M2). Short, free-text CSS token values; the
             // renderer sanitises again before emitting them, so this keeps them
             // tidy without constraining to a fixed unit.

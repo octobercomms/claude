@@ -55,6 +55,7 @@ final class Plugin {
         (new Cron())->init();
         Privacy::init();
         Access::init();
+        \OE\Volunteers\Pool\Signup::init();
         MapsConnector::init();
         Chat::init();
         \OE\GuidedTours\Shortcodes::init();
