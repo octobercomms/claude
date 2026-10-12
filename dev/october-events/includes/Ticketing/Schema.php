@@ -31,6 +31,7 @@ final class Schema {
         dbDelta("CREATE TABLE {$orders} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             event_id BIGINT UNSIGNED NOT NULL,
+            package_id BIGINT UNSIGNED NULL,
             email VARCHAR(190) NOT NULL,
             name VARCHAR(190) DEFAULT '',
             ticket_type_key VARCHAR(100) NOT NULL,
@@ -51,6 +52,7 @@ final class Schema {
             updated_at DATETIME NOT NULL,
             PRIMARY KEY  (id),
             KEY event_id (event_id),
+            KEY package_id (package_id),
             KEY email (email),
             KEY payment_id (payment_id),
             KEY status (status),

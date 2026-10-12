@@ -26,6 +26,7 @@ final class Features {
         'accounts'     => 'Accounts',
         'volunteers'   => 'Volunteers',
         'contacts'     => 'Contacts & email',
+        'packages'     => 'Partner packages',
     ];
 
     /** True unless explicitly switched off. Unknown keys default to on. */

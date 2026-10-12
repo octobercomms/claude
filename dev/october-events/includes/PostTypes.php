@@ -44,6 +44,10 @@ final class PostTypes {
         // Tickets/orders are relational tables (see OE\Ticketing), not a CPT.
         'account'     => ['slug' => 'oe_account',     'external' => false, 'listing' => false, 'label' => 'Account'],
         'volunteer'   => ['slug' => 'volunteer',       'external' => true,  'listing' => false, 'label' => 'Volunteer'],
+        // Partner / sponsorship packages (BUILD-PLAN Track F). Admin-editable
+        // records that feed the comparison matrix and purchase wizard — content,
+        // not code. Not a public listing; not in the approval pipeline.
+        'package'     => ['slug' => 'oe_package',     'external' => false, 'listing' => false, 'label' => 'Package'],
     ];
 
     public static function get_instance(): self {
@@ -107,6 +111,12 @@ final class PostTypes {
 
         // Supporting records: not publicly queryable.
         register_post_type(self::slug('account'), $this->args('Account', 'Accounts', 'dashicons-id', ['title', 'author'], false));
+
+        // Partner packages: editor-managed records, surfaced through the admin
+        // menu like events; the title is the package name, the body its long
+        // description. Not public (no standalone archive); rendered via the
+        // comparison matrix / purchase wizard shortcodes.
+        register_post_type(self::slug('package'), $this->args('Package', 'Packages', 'dashicons-tag', ['title', 'editor'], false));
     }
 
     /**

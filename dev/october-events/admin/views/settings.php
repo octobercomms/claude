@@ -59,6 +59,12 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <span class="description">&nbsp;<?php echo \OE\Settings::adoption_mode() ? esc_html__('currently: additive', 'october-events') : esc_html__('currently: native', 'october-events'); ?></span></p>
         </div></details>
 
+        <details class="oe-acc" id="packages"><summary><?php esc_html_e('Partner packages', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Packages are edited under October Events → Packages and shown with the [oe_packages] shortcode. Set the page the comparison matrix sends a chosen package to; blank links back to the matrix page itself.', 'october-events'); ?></p>
+        <p><label><?php esc_html_e('Purchase wizard page URL', 'october-events'); ?><br>
+            <input type="url" name="packages_wizard_page" value="<?php echo esc_attr((string) ($cfg['packages_wizard_page'] ?? '')); ?>" placeholder="https://&hellip;/packages/checkout" style="width:100%;max-width:520px"></label></p>
+        </div></details>
+
         <details class="oe-acc" id="section-styling"><summary><?php esc_html_e('Section styling', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('A small set of tokens so dropped sections and the native checkout feel like part of this site. Leave the accent blank to use the brand accent above. These also drive the Stripe card field appearance.', 'october-events'); ?></p>
         <?php $oe_tok = static fn(string $k, string $d = ''): string => (string) ($cfg[$k] ?? $d); ?>
