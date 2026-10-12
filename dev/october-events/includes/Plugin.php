@@ -57,6 +57,7 @@ final class Plugin {
         Chat::init();
         \OE\GuidedTours\Shortcodes::init();
         \OE\Members\Shortcodes::init();
+        \OE\Sections\Shortcodes::init();
         \OE\GuidedTours\Rest::init();
         // Social captions: metabox + save in admin, plus the publish-time autogen
         // hook (which also fires from cron), so register it unconditionally.
