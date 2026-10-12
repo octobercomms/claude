@@ -49,6 +49,9 @@ composes itself from whatever content exists. This is the capability-pack model
 - **One reusable right slide-in** for record detail and quick actions, used
   across Tickets, Accounts, CRM, Team, Volunteers, the listing editor.
 - **Light look only.** No dark-mode toggle; the admin is the light wp-admin UI.
+- **Full-width, responsive pages.** Admin screens use the full content width (no
+  fixed max-width) and reflow down to a narrow viewport, so wide tables and the
+  split-pane editor have room on large screens and stay usable on small ones.
 
 ---
 
@@ -89,9 +92,10 @@ One editor for every listing type.
   link-aware credits (architect…realtor), address/parking/maps, gallery, alert,
   guided-tour toggle + slots (+ add / generate a run), the **Volunteers box**
   (needs volunteers, slots, this-site/partner-site), post-event survey toggle.
-- **To build (not yet mocked):** a **live preview** pane on the right that
-  renders the public page via the same section renderers as fields are edited,
-  plus **example placeholders** per field for new organizers.
+- **Live preview** (mocked): a split pane on the right that renders the public
+  page via the same section renderers, updating as fields are edited (name, price,
+  availability, status badge, which packs are on). **Example placeholders** sit in
+  empty fields so a new organiser sees the shape of a finished listing.
 
 ### Tickets
 One page, actions on it; data analytics moved to the Dashboard.
@@ -149,6 +153,24 @@ House ad units + hub/partner syndication; `[oc_ad]` back-compat preserved.
 Section-level capabilities enforced on the API (not just hidden): role presets
 (Director / Lead / Door crew / Organizer) + a per-person capability grid. Non-owner
 roles never reach wp-admin (admin bar off, wp-admin redirects to the portal).
+
+### Taxonomies & filters
+Where the admin configures what the public archives filter by, **per listing
+type** (a tour's filters differ from a directory's). A table of taxonomies, each
+with its terms, a **per-term colour**, a **"show as filter"** toggle, a **control
+type** (chips / dropdown / checkboxes) and a display order. `Manage terms` opens a
+slide-in. This is what lets a site owner decide that tours filter by year /
+city / building-type while the directory filters by architect / builder / store,
+without touching code. Per-type CPTs make each type's taxonomies native WordPress
+registrations.
+
+### Import / export
+Data portability, both directions, no lock-in. An **export** card (pick type +
+format, download) and an **import** card (upload CSV/JSON, map columns to fields,
+**dry-run diff** before commit, duplicates merge on a chosen key). **Saved mapping
+templates** so a recurring source maps once and reruns. The owner's own migration
+is just one saved template, so getting data in from another platform and back out
+of this one use the same screen.
 
 ### Settings
 Global only (brand, payments/keys, adoption mode). Per-page settings moved into
@@ -231,6 +253,15 @@ Submission/approval pipeline. The work is to (a) remove product, (b) fold events
 and tour locations into the same listing abstraction, (c) build one shared
 template + archive + filters.
 
+**Storage decision (confirmed): one listing engine, per-type CPTs.** The shared
+engine (packs, sections, archive, template, filters, taxonomies) is one codebase;
+storage stays one native `register_post_type()` per type. "One engine" is not
+"one CPT". Per-type CPTs are plain WordPress registration the plugin already does
+(`PostTypes.php`), so this needs **no CPT-builder UI and no JetEngine** — the
+plugin registers the types itself, which is what lets it run on a simple
+WordPress install with no Crocoblock stack. Descriptive per-type URLs and
+per-type taxonomies fall out of this cleanly.
+
 **URL scheme (decided): descriptive per-type bases**, one engine, each base
 configurable, with 301 redirects from the old `/e/` and `/portfolio/`:
 `/events/`, `/tours/`, `/locations/`, `/directory/`, `/destinations/`.
@@ -283,4 +314,19 @@ object caching and lazy images. This is faster than the current render-then-hide
 - Shortcodes visible at all times in the editor (reference card + per section).
 - **Products removed.** Directory/Destinations fold into the listing model.
 - URL scheme: descriptive per-type bases with 301s.
+- **Storage: one engine, per-type CPTs** (native WP registration, no JetEngine, no
+  CPT-builder UI).
+- **Admin-configurable filters** via a Taxonomies & filters screen, per listing
+  type (per-term colour, show-as-filter, control type, order).
+- **Full-width responsive** admin pages (no fixed max-width).
+- **Live preview + example placeholders** now mocked in the listing editor.
+- **Import / export with saved mapping templates**, both directions, no lock-in;
+  the owner's migration is one saved template.
+- **Messaging completeness** (approved): emailed receipts + PDF invoices, dunning,
+  full membership lifecycle, transfer notice, rescheduled/cancelled auto-notice,
+  waitlist offer (+ fix `waitlist_spot` missing subject), removed-shift notice,
+  configurable double opt-in, GDPR confirmations, enable monthly digest, SMS
+  beyond volunteers on opt-in. Detail in [`BUILD-PLAN.md`](BUILD-PLAN.md) M6.
+- **Reporting & insight** phase (approved): end-of-event report, demographics,
+  survey, volunteer pool. [`BUILD-PLAN.md`](BUILD-PLAN.md) M7.
 - Add: audit/error/email logs, schema.org, tax/VAT, accessibility, GDPR.
