@@ -113,8 +113,13 @@ One page, actions on it; data analytics moved to the Dashboard.
 - Actions as slide-ins: **Add order**, **Message attendees** (compose, sends only
   on click — never auto-send).
 - Secondary modules as accordions: Guided tours, Waitlist, Promo codes.
-- **To build:** refund / cancel / delete **confirm steps** (amount + reason;
-  cancel asks "refund too?"; delete needs a typed confirm and is logged).
+- **Confirm flows** (mocked): refund (full / partial amount + internal reason,
+  void-tickets and email-customer toggles), cancel order (reason, "also refund?"
+  toggle, "email the holder?" toggle, releases seats to the waitlist), delete
+  (typed `DELETE` confirm, audit-logged, holder email off by default — steers to
+  refund/cancel for money taken). Event-level **reschedule / cancel** opens a
+  confirm that always asks **"notify N holders?"** (and, on cancel, "refund all
+  paid orders?") before any message to the whole holder list goes out.
 
 ### CRM (was People hub)
 The CRM. One record per person, unifying customers, volunteers, crew, contacts
@@ -289,12 +294,17 @@ object caching and lazy images. This is faster than the current render-then-hide
 - **Accessibility**: keyboard nav, screen-reader labels, and the orange-on-white
   contrast (borderline for small text — verify AA).
 - **GDPR**: consent capture + data export/erasure (subject requests) for the CRM.
-- **Empty states / owner first-run**: every screen's empty state and the
-  first-run path for a new install/tenant.
+- **Empty states / owner first-run** (mocked): a Dashboard first-run checklist
+  (brand → payments → first event → sending identity → first public page;
+  self-dismisses when done, always skippable), and a per-screen empty state that
+  names the thing, says in one line why it's worth doing, and gives the single
+  action that fills it (Events, Tickets, Volunteers, CRM, Email, and the
+  no-search-match state). Error and permission-denied states follow the same
+  shape.
 - **Transactional email lifecycle**: much exists (SES platform + confirmations);
   **audit what's built and fill gaps** rather than redesign.
-- **Confirm / validation / error states**: the refund/cancel/delete confirms and
-  form-failure states above.
+- **Confirm / validation / error states** (confirms mocked, above): form-failure
+  and inline-validation states still to mock.
 - **Live preview + example placeholders** in the listing editor.
 
 ---
@@ -329,4 +339,7 @@ object caching and lazy images. This is faster than the current render-then-hide
   beyond volunteers on opt-in. Detail in [`BUILD-PLAN.md`](BUILD-PLAN.md) M6.
 - **Reporting & insight** phase (approved): end-of-event report, demographics,
   survey, volunteer pool. [`BUILD-PLAN.md`](BUILD-PLAN.md) M7.
+- **Empty states + first-run checklist** and the **refund / cancel / delete +
+  event reschedule/cancel confirm flows** (with the "notify N holders?" step from
+  the email audit) now mocked in the admin artifact.
 - Add: audit/error/email logs, schema.org, tax/VAT, accessibility, GDPR.
