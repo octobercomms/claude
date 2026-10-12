@@ -148,12 +148,18 @@ final class Metabox {
         );
 
         // Payment link.
-        echo '<hr style="margin:14px 0">';
+        echo '<hr style="margin:14px 0"><p style="font-weight:700;margin:0 0 8px">' . esc_html__('Payment', 'october-events') . '</p>';
+        printf(
+            '<p><label>%s</label><input type="url" name="oe_pkg[buy_url]" value="%s" placeholder="https://buy.stripe.com/…"><span class="hint">%s</span></p>',
+            esc_html__('Buy link', 'october-events'),
+            esc_attr($v('buy_url')),
+            esc_html__('A Stripe Payment Link (handles VAT/tax in Stripe) or any checkout URL the buy button opens. Leave blank for an enquiry-only package.', 'october-events')
+        );
         printf(
             '<p><label>%s</label><input type="text" name="oe_pkg[stripe_price]" value="%s" placeholder="price_…"><span class="hint">%s</span></p>',
             esc_html__('Stripe price ID', 'october-events'),
             esc_attr($v('stripe_price')),
-            esc_html__('The wizard checks out against this price. Leave blank for a free / handling-fee-only package.', 'october-events')
+            esc_html__('Optional, for a future native wizard. The buy link above is what sells the package today.', 'october-events')
         );
 
         echo '</div>'; // .oe-pkg

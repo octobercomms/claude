@@ -63,6 +63,7 @@ final class Plugin {
         \OE\Sections\Archive::init();
         \OE\Elementor\Bridge::init();
         \OE\Packages\Matrix::init();
+        \OE\Packages\Single::init();
         \OE\GuidedTours\Rest::init();
         // Social captions: metabox + save in admin, plus the publish-time autogen
         // hook (which also fires from cron), so register it unconditionally.
