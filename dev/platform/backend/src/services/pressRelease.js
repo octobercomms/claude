@@ -490,13 +490,17 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
   // (embedded card, or just the hero when the AM turns embedding off).
   const releaseSection = embedFull && release.body_html ? embeddedBody : hero;
 
+  // The unsubscribe line sits ABOVE the embedded release, not after it.
+  // Gmail clips a message over ~102KB behind "View entire message", and an
+  // embedded release is easily that long, so a footer at the very bottom is
+  // invisible to exactly the person looking for it. It has to be findable.
   return emailShell(release.title, `
           ${greeting}
           ${pitchHtml}
           ${signOff}
           ${downloadBtn}
-          ${releaseSection}
-          ${unsubFooter}`);
+          ${unsubFooter}
+          ${releaseSection}`);
 }
 
 // One 600px-wide, centred shell for every press email. A head <style> forces

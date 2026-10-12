@@ -29,7 +29,13 @@ const UNSUB_PHRASES = [
  * matching the whole body would mark every single reply as an opt-out,
  * including "yes, send me the images".
  */
-function looksLikeUnsubscribe(body) {
+function looksLikeUnsubscribe(body, subject) {
+  // A mail client acting on List-Unsubscribe sends "unsubscribe" as the
+  // SUBJECT with an empty body. Reading only the body missed every one of
+  // those, which is how a journalist who pressed Unsubscribe in Gmail carried
+  // on receiving follow-ups.
+  const subj = String(subject || '').toLowerCase().trim();
+  if (subj && UNSUB_PHRASES.some((phrase) => subj.includes(phrase))) return true;
   const own = replyBodyOnly(body).toLowerCase();
   if (!own) return false;
   return UNSUB_PHRASES.some((phrase) => own.includes(phrase));
@@ -236,7 +242,8 @@ async function pollReplies() {
           // the classifier. The AI pass below still runs for the summary and
           // for the subtler cases, but the journalist's follow-ups stop here
           // even if it is unavailable, unfunded, or wrong.
-          if (rows.length && body && looksLikeUnsubscribe(body)) {
+          const subject = msg.envelope && msg.envelope.subject ? String(msg.envelope.subject) : '';
+          if (rows.length && looksLikeUnsubscribe(body, subject)) {
             try {
               const done = await suppressForCampaign(rows[0].campaign_id, rows[0].contact_id);
               if (done) {

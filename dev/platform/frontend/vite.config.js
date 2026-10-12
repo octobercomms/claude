@@ -1,9 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  // The humanity analyser lives in dev/platform/shared so the editor and the
+  // backend run the same code. It sits outside the Vite root, hence the alias
+  // and the fs.allow.
+  resolve: { alias: { '@shared': path.resolve(here, '../shared') } },
   server: {
+    fs: { allow: [path.resolve(here, '..')] },
     proxy: {
       '/api': 'http://localhost:3001',
       '/auth': 'http://localhost:3001',

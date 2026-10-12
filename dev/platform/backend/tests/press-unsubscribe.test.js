@@ -55,6 +55,61 @@ On Tue, 7 Oct 2026 at 08:00, Daniel Nelson <daniel@october.test> wrote:
     ok(replies.replyBodyOnly('Mine.\n> theirs\nOn Tue, 7 Oct 2026 at 08:00, X wrote:\n> more') === 'Mine.',
       'the quoted original is stripped before matching');
 
+    console.log('\nA one-click unsubscribe from the mail client');
+    {
+      // Gmail acting on List-Unsubscribe sends "unsubscribe" as the SUBJECT
+      // with an empty body. Reading only the body missed every one of those,
+      // which is how a journalist who pressed Unsubscribe kept getting
+      // follow-ups and was right to complain.
+      ok(replies.looksLikeUnsubscribe('', 'unsubscribe'), 'subject "unsubscribe" with an empty body is caught');
+      ok(replies.looksLikeUnsubscribe('', 'Unsubscribe'), 'and is case-insensitive');
+      ok(replies.looksLikeUnsubscribe('', 'Re: unsubscribe from October'), 'and survives a prefix');
+      ok(!replies.looksLikeUnsubscribe('Sounds good, send it over', 'Re: Indiewalls launched Hotel Art'),
+        'an ordinary reply subject is not an opt-out');
+    }
+
+    console.log('\nThe unsubscribe line is above the clip, not below it');
+    {
+      // Gmail hides anything past ~102KB behind "View entire message". An
+      // embedded release is easily that long, so a footer after it is
+      // invisible to the one person looking for it.
+      process.env.PLATFORM_URL = 'https://platform.example.test';
+      const pressRelease = require(path + 'src/services/pressRelease');
+      const html = pressRelease.buildEmailHtml({
+        release: { title: 'Probe', body_html: '<p>' + 'the release body. '.repeat(400) + '</p>' },
+        pitch: 'Here is the story.',
+        sender: { name: 'Daniel Nelson', company: 'October Communications' },
+        recipientName: 'Michael',
+        contactId: '00000000-0000-0000-0000-0000000000aa',
+        clientId: '00000000-0000-0000-0000-0000000000bb',
+        embedFull: true,
+      });
+      const unsubAt = html.indexOf('unsubscribe here');
+      const bodyAt = html.indexOf('the release body.');
+      ok(unsubAt > -1, 'the press email carries an unsubscribe link');
+      ok(bodyAt > -1, 'and embeds the release');
+      ok(unsubAt < bodyAt, 'the unsubscribe link comes BEFORE the embedded release, so a clip cannot hide it');
+    }
+
+    console.log('\nThe List-Unsubscribe header only offers routes that work');
+    {
+      const sender = require(path + 'src/services/outreachSender');
+      // The header is only built when a public base URL exists; without this
+      // the assertions below quietly pass on an empty object and prove nothing.
+      process.env.PLATFORM_URL = 'https://platform.example.test';
+      const cid = '00000000-0000-0000-0000-0000000000aa';
+      const h = await sender.listUnsubscribeHeaders(cid, 'press@octobercomms.com', '00000000-0000-0000-0000-0000000000bb');
+      if (h['List-Unsubscribe']) {
+        ok(!/mailto:press@octobercomms\.com/.test(h['List-Unsubscribe']),
+          'the From address is never offered as a mailto — nothing reads that inbox');
+        ok(/^<https?:/.test(h['List-Unsubscribe']) || /<https?:[^>]+>$/.test(h['List-Unsubscribe']),
+          'the one-click https route is offered');
+        ok(h['List-Unsubscribe-Post'] === 'List-Unsubscribe=One-Click', 'and declared as RFC 8058 one-click');
+      } else {
+        ok(false, 'the header should have been built — PLATFORM_URL and JWT_SECRET are both set');
+      }
+    }
+
     ({ rows: [{ id: clientId }] } = await pool.query('INSERT INTO clients (name,slug) VALUES ($1,$1) RETURNING id', [SLUG]));
     ({ rows: [{ id: otherId }] } = await pool.query('INSERT INTO clients (name,slug) VALUES ($1,$1) RETURNING id', [SLUG + '-o']));
     ({ rows: [{ id: campaignId }] } = await pool.query(

@@ -110,12 +110,31 @@ function htmlBody(textBody, trackingSendId, contactId, clientId) {
 }
 
 // List-Unsubscribe headers — required by Gmail / Yahoo for bulk senders.
-// `mailto:` + `https` lets clients pick the safer one; List-Unsubscribe-Post
-// signals we honour the RFC 8058 one-click flow.
-function listUnsubscribeHeaders(contactId, fromEmail, clientId) {
+//
+// The https URL is the one that works: it is RFC 8058 one-click, it hits our
+// own route, and it records the opt-out the moment it is pressed.
+//
+// A mailto: used to be offered alongside it, pointing at the campaign's own
+// From address. Mail clients are free to pick either, and the ones that picked
+// the mailto sent an unsubscribe email to a mailbox OMI does not read. Nothing
+// was recorded and the follow-ups kept going, while the journalist had pressed
+// Unsubscribe and was entirely right to think they were done. A journalist
+// reported exactly that.
+//
+// So the mailto is offered only when it goes to the inbox the reply poller
+// actually reads. No polled inbox, no mailto: one working route beats two
+// routes where one of them silently fails.
+async function listUnsubscribeHeaders(contactId, _fromEmail, clientId) {
   const unsub = unsubscribeUrl(contactId, clientId);
   if (!unsub) return {};
-  const mailto = fromEmail ? `mailto:${fromEmail}?subject=unsubscribe` : null;
+  let mailto = null;
+  try {
+    const polled = await getSetting('OUTREACH_IMAP_USER');
+    const [host, pass] = await Promise.all([
+      getSetting('OUTREACH_IMAP_HOST'), getSetting('OUTREACH_IMAP_PASSWORD'),
+    ]);
+    if (polled && host && pass) mailto = `mailto:${String(polled).trim()}?subject=unsubscribe`;
+  } catch { /* no polled inbox — the https route is enough on its own */ }
   const list = mailto ? `<${mailto}>, <${unsub}>` : `<${unsub}>`;
   return {
     'List-Unsubscribe': list,
@@ -281,7 +300,7 @@ async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   const subject = fillTemplate(step.subject, contact);
   const text = fillTemplate(step.body, contact);
   const html = htmlBody(text, send.id, contact.id, clientId);
-  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
+  const headers = await listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
 
   let result;
   try {
@@ -502,7 +521,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
       }
     }
   }
-  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
+  const headers = await listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
   return deliver({ from, to: contact.email, replyTo, subject, text, html, headers, contactId: contact.id });
 }
 
@@ -582,4 +601,4 @@ function previewStep(step, sample) {
   return { subject, text, html: htmlBody(text) };
 }
 
-module.exports = { sendOutreachEmail, sendTest, sendPressTest, previewStep, fillTemplate, unsubscribeUrl, resolveSender };
+module.exports = { sendOutreachEmail, sendTest, sendPressTest, previewStep, fillTemplate, unsubscribeUrl, resolveSender, listUnsubscribeHeaders };

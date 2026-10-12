@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
+import PressReleaseEditor from '../components/PressReleaseEditor';
 import { useToast } from '../context/ToastContext';
 import PageShell from '../components/shells/PageShell';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
@@ -171,7 +172,6 @@ export default function ClientPRPage() {
   }
   const [releases, setReleases] = useState([]);
   const [pr, setPr] = useState(null); // null | release row being edited
-  const [prDrafting, setPrDrafting] = useState(false);
   const [prSaving, setPrSaving] = useState(false);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error')); }, [id]);
@@ -194,7 +194,13 @@ export default function ClientPRPage() {
     if (!pr) return;
     setPrSaving(true);
     try {
-      const body = { title: pr.title, brand: pr.brand, angle: pr.angle, key_facts: pr.key_facts, body_html: pr.body_html, status: pr.status, url: pr.url, embargo_at: pr.embargo_at || null, ...(extra || {}) };
+      // status, embargo_at and url are no longer edited here: the client
+      // sign-off step is gone and the columns are left alone rather than
+      // overwritten with whatever the form last held.
+      const body = {
+        title: pr.title, brand: pr.brand, angle: pr.angle, key_facts: pr.key_facts,
+        body_html: pr.body_html, brief_json: pr.brief_json || null, ...(extra || {}),
+      };
       const row = await api.patch(`/pr/press-releases/${pr.id}`, body);
       setPr(row);
       if (!extra) { toast('Saved', 'success'); loadReleases(); }
@@ -202,32 +208,14 @@ export default function ClientPRPage() {
     } catch (e) { toast(e.message, 'error'); }
     finally { setPrSaving(false); }
   }
-  async function draftPR() {
-    if (!pr) return;
-    if (!pr.title) { toast('Add a headline first', 'error'); return; }
-    setPrDrafting(true);
-    try {
-      await savePR({}); // persist the brief before drafting
-      const r = await api.post(`/pr/press-releases/${pr.id}/draft`, {});
-      if (r.error) { toast(r.error, 'error'); return; }
-      setPr((p) => ({ ...p, body_html: r.body_html }));
-      toast('Draft written — review and edit', 'success');
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setPrDrafting(false); }
-  }
+  // The prose generator that used to live here is gone from the UI. A Claude
+  // draft was flagged 100% AI and flagged again after hand editing, so the
+  // only lever is where the sentences start. The backend /draft route is kept
+  // for releases written before this change.
   async function deletePR(row) {
     if (!window.confirm('Delete this press release?')) return;
     try { await api.delete(`/pr/press-releases/${row.id}`); if (pr && pr.id === row.id) setPr(null); loadReleases(); }
     catch (e) { toast(e.message, 'error'); }
-  }
-  function reviewUrl(token) { return `${window.location.origin}/press-release/${token}`; }
-  async function copyReviewLink() {
-    const row = await savePR({ status: pr.status === 'draft' ? 'in_review' : pr.status });
-    const token = row && row.review_token;
-    if (!token) { toast('Set status to In review to generate a link', 'error'); return; }
-    const url = reviewUrl(token);
-    try { await navigator.clipboard.writeText(url); toast('Client approval link copied', 'success'); }
-    catch { window.prompt('Client approval link:', url); }
   }
   async function createPitchCampaign() {
     if (!pr) return;
@@ -625,50 +613,25 @@ export default function ClientPRPage() {
   const renderReleases = () => (
         <div className="card">
           {pr ? (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
-                <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setPr(null); loadReleases(); }}>All releases</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
-                <label className="field"><span className="field-label">Headline / working title</span><input className="input" value={pr.title || ''} onChange={(e) => setPr((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Forgeworks unveils House of Wood Shingle" /></label>
-                <label className="field"><span className="field-label">Brand</span><input className="input" value={pr.brand || ''} onChange={(e) => setPr((p) => ({ ...p, brand: e.target.value }))} /></label>
-                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Angle / why it's newsworthy</span><textarea className="input" rows={2} value={pr.angle || ''} onChange={(e) => setPr((p) => ({ ...p, angle: e.target.value }))} placeholder="The hook a journalist would care about." /></label>
-                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Key facts</span><textarea className="input" rows={4} value={pr.key_facts || ''} onChange={(e) => setPr((p) => ({ ...p, key_facts: e.target.value }))} placeholder="Who, what, where, when, numbers, quotes…" /></label>
-              </div>
-              <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--s3) 0' }}>
-                <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftPR, disabled: prDrafting })}>{prDrafting ? 'Writing…' : '✍️ Draft with Claude'}</button>
-                <label className="field"><span className="field-label">Status</span><select className="input" value={pr.status || 'draft'} onChange={(e) => setPr((p) => ({ ...p, status: e.target.value }))}><option value="draft">Draft</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="sent">Sent</option></select></label>
-                <label className="field"><span className="field-label">Embargo until (optional)</span><input className="input" type="datetime-local" value={pr.embargo_at ? new Date(pr.embargo_at).toISOString().slice(0, 16) : ''} onChange={(e) => setPr((p) => ({ ...p, embargo_at: e.target.value }))} /></label>
-                <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
-              </div>
-              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s3)', alignItems: 'center' }}>
-                <button className="btn btn-secondary" onClick={copyReviewLink}>Client approval link</button>
-                {pr.approved_at && <span className="chip chip-accent">✓ Approved by {pr.approved_by || 'client'}</span>}
-                {['approved', 'sent'].includes(pr.status) && (
-                  <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createPitchCampaign, title: 'Pitch this release to journalists in the Email tab' })}>{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
-                )}
-              </div>
-              <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-body)' }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
-              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
-                <button className="btn btn-primary" disabled={prSaving} onClick={() => savePR()}>{prSaving ? 'Saving…' : 'Save'}</button>
-                <button className="btn btn-secondary" onClick={() => { setPr(null); loadReleases(); }}>Cancel</button>
-              </div>
-            </div>
+            <PressReleaseEditor
+              pr={pr} setPr={setPr} clientId={id} readOnly={readOnly} saving={prSaving}
+              onSave={() => savePR()}
+              onCancel={() => { setPr(null); loadReleases(); }}
+              onCreateCampaign={createPitchCampaign}
+            />
           ) : (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>Write a release from a brief, have Claude draft it, then send a client approval link for sign-off.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>Claude builds the fact sheet and the questions. You write the sentences.</p>
                 <button className="btn btn-primary" onClick={newRelease}>+ New press release</button>
               </div>
               <table className="table">
-                <thead><tr><th>Title</th><th>Brand</th><th>Status</th><th>Created</th><th></th></tr></thead>
+                <thead><tr><th>Title</th><th>Brand</th><th>Created</th><th></th></tr></thead>
                 <tbody>
                   {releases.map((r) => (
                     <tr key={r.id}>
                       <td><button className="row-trigger" onClick={() => openRelease(r.id)}>{r.title || '(untitled)'}</button></td>
                       <td>{r.brand || '—'}</td>
-                      <td><span className="chip">{({ draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' })[r.status] || r.status}</span></td>
                       <td>{fmtDate(r.created_at)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => openRelease(r.id)}>Edit</button>{' '}
@@ -676,7 +639,7 @@ export default function ClientPRPage() {
                       </td>
                     </tr>
                   ))}
-                  {!releases.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No press releases yet. Start from a brief and let Claude draft the release.</td></tr>}
+                  {!releases.length && <tr><td colSpan={4} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No press releases yet. Start one and build its fact sheet.</td></tr>}
                 </tbody>
               </table>
             </div>
