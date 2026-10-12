@@ -272,6 +272,10 @@ final class Settings {
             'section_spacing'        => '1.5rem',
             'section_control_height' => '44px',
             'section_font'           => '',
+            // Default single-listing template (Option A turnkey): compose an
+            // empty-bodied single event from its active sections in native mode.
+            // On by default; off for owners who build their own single layout.
+            'native_single_template' => true,
             // Social publishing (Meta + LinkedIn). Secrets live in SECRET_CONSTANTS;
             // these are the non-secret ids/URNs. Empty = that network stays off.
             'meta_app_id'            => '',
