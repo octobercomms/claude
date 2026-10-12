@@ -81,6 +81,7 @@ final class Plugin {
             \OE\Hosts\Metabox::init();
             \OE\Reports\ReportMetabox::init();
             \OE\Packages\Metabox::init();
+            \OE\Ticketing\EventNotices::init();
         }
         Dashboard::get_instance()->init();
         \OE\Frontend\Checkout::get_instance()->init();

@@ -31,6 +31,8 @@ final class Transactional {
         'volunteer_moved'            => 'Your volunteer shift has changed',
         'volunteer_reminder'         => 'Your volunteer shift is coming up',
         'event_reminder'             => 'Reminder: %2$s is coming up',
+        'event_rescheduled'          => 'Update: %2$s has been rescheduled',
+        'event_cancelled'            => 'Important: %2$s has been cancelled',
         'order_refunded'             => 'Your refund for %2$s',
         'order_cancelled'            => 'Your order has been cancelled',
         'sales_report'               => 'Daily ticket sales',
@@ -121,6 +123,32 @@ final class Transactional {
 
             case 'event_reminder':
                 return self::event_reminder_body($hi, $params);
+
+            case 'event_rescheduled': {
+                $ev = '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>';
+                $out = $hi . '<p>' . sprintf(esc_html__('We\'re writing to let you know that %s has been rescheduled. Your existing tickets remain valid for the new date — there\'s nothing you need to do.', 'october-events'), $ev) . '</p>';
+                $when = (string) ($params['when'] ?? '');
+                if ($when !== '') {
+                    $out .= '<p><strong>' . esc_html__('New date:', 'october-events') . '</strong> ' . esc_html($when) . '</p>';
+                }
+                if (! empty($params['note'])) {
+                    $out .= '<p>' . nl2br(esc_html((string) $params['note'])) . '</p>';
+                }
+                if (! empty($params['event_url'])) {
+                    $out .= self::button(__('View event details', 'october-events'), (string) $params['event_url']);
+                }
+                return $out . '<p>' . esc_html__('If the new date doesn\'t work for you, reply to this email and we\'ll help.', 'october-events') . '</p>';
+            }
+
+            case 'event_cancelled': {
+                $ev = '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>';
+                $out = $hi . '<p>' . sprintf(esc_html__('We\'re sorry to say that %s has been cancelled.', 'october-events'), $ev) . '</p>';
+                if (! empty($params['note'])) {
+                    $out .= '<p>' . nl2br(esc_html((string) $params['note'])) . '</p>';
+                }
+                $out .= '<p>' . esc_html__('If you bought tickets, a refund will follow to your original payment method. We\'re sorry for the disappointment and hope to see you at a future event.', 'october-events') . '</p>';
+                return $out;
+            }
 
             case 'order_refunded':
                 $ev = '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>';
