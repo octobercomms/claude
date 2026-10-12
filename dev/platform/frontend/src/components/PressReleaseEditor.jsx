@@ -425,6 +425,8 @@ export default function PressReleaseEditor({
   const [checking, setChecking] = useState(false);
   const [claims, setClaims] = useState(null);
   const [budget, setBudget] = useState(null);
+  const [detector, setDetector] = useState(null);   // { configured, words, cost_usd }
+  const [detecting, setDetecting] = useState(false);
   const [showStyle, setShowStyle] = useState(false);
   const [layerOn, setLayerOn] = useState(
     () => Object.fromEntries(LAYERS.map((l) => [l.key, l.on])),
@@ -474,6 +476,29 @@ export default function PressReleaseEditor({
   useEffect(() => {
     api.get('/pr/press-release-budget').then(setBudget).catch(() => {});
   }, []);
+
+  // The price is fetched, not guessed in the browser, and it is refreshed as the
+  // release grows so the button never quotes a figure for an older draft.
+  useEffect(() => {
+    if (!pr.id) return;
+    const t = setTimeout(() => {
+      api.get(`/pr/press-releases/${pr.id}/detect-quote`).then(setDetector).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [pr.id, pr.body_html]);
+
+  async function runDetector() {
+    if (!pr.id) { toast('Save the release first.', 'info'); return; }
+    setDetecting(true);
+    try {
+      const r = await api.post(`/pr/press-releases/${pr.id}/detect`, {});
+      if (r.error) { toast(r.error, 'error'); return; }
+      setPr((p) => ({ ...p, pangram_pct: r.pangram_pct, pangram_checked_at: r.pangram_checked_at || new Date().toISOString() }));
+      toast(r.cached
+        ? 'Unchanged since the last check, so nothing was spent.'
+        : `Detector says ${r.pangram_pct}% of this reads as machine-written.`, 'success');
+    } catch (e) { toast(e.message, 'error'); } finally { setDetecting(false); }
+  }
 
   async function buildBrief() {
     if (!pr.id) { toast('Save the release first.', 'info'); return; }
@@ -682,6 +707,48 @@ export default function PressReleaseEditor({
                   ))}
                 </div>
               )}
+
+              {/* The second reading.
+                  Deliberately below October's own and deliberately plainer: one
+                  number, no highlights, no ramp. The two measure different
+                  things — ours reads the visible tells and the specificity, a
+                  trained classifier reads a learned style space — and dressing
+                  the second to match the first would imply an agreement that
+                  one real release (94 here, 82% there) does not support. */}
+              <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+                <div className="row" style={{ gap: 'var(--s2)', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Pangram</span>
+                  <span style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>
+                    {pr.pangram_pct == null ? <span style={CAP}>not run</span> : `${pr.pangram_pct}%`}
+                  </span>
+                </div>
+                <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+                  {pr.pangram_pct == null
+                    ? 'A trained classifier, and the one a journalist is most likely to paste this into.'
+                    : 'of this reads as machine-written, by a trained classifier.'}
+                </div>
+                {!readOnly && (
+                  <div style={{ marginTop: 'var(--s2)' }}>
+                    <button className="btn btn-secondary btn-sm"
+                      {...roWrite(readOnly, {
+                        onClick: runDetector,
+                        disabled: detecting || !pr.id || !detector?.configured,
+                        title: detector?.configured
+                          ? 'One billable call. Unchanged text is served from the stored answer.'
+                          : 'No Pangram key configured',
+                      })}>
+                      {detecting ? 'Checking…' : pr.pangram_checked_at ? 'Check again' : 'Run the detector'}
+                    </button>
+                    <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+                      {detector?.configured
+                        ? <>About <strong>${detector.cost_usd?.toFixed(2)}</strong> for {detector.words} words.
+                          Re-checking text that has not changed costs nothing.</>
+                        : <>No key yet. Add one under{' '}
+                          <a href="/settings?tab=outreach">Settings → Keys → Outreach finders</a>.</>}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {reading.tells.length > 0 && (
                 <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>

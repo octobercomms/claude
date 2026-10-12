@@ -44,8 +44,20 @@ function fingerprint(text) {
   return crypto.createHash('sha256').update(String(text || '').trim()).digest('hex');
 }
 
+/**
+ * The key, from Settings → Keys first and the environment second.
+ *
+ * getSetting() reads the encrypted platform_settings row and falls back to
+ * process.env for the SAME name, so the setting has to be spelled exactly as
+ * the Settings page writes it. An earlier version asked for 'pangram_api_key'
+ * in lower case, which meant a key typed into Settings was stored, encrypted,
+ * and then never read by anything.
+ *
+ * Read per call rather than cached, so saving the key in Settings takes effect
+ * on the next press instead of on the next deploy.
+ */
 async function apiKey() {
-  return process.env.PANGRAM_API_KEY || (await getSetting('pangram_api_key')) || '';
+  return (await getSetting('PANGRAM_API_KEY')) || '';
 }
 
 async function configured() {
@@ -61,7 +73,7 @@ async function detect(text) {
   const key = await apiKey();
   if (!key) {
     const err = new Error(
-      'No Pangram API key. Add PANGRAM_API_KEY to the server environment, or set it in Settings → Integrations.'
+      'No Pangram API key. Add it in Settings → Keys → Outreach finders → AI detection (Pangram).'
     );
     err.code = 'PANGRAM_NOT_CONFIGURED';
     err.status = 400;

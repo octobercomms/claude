@@ -237,9 +237,9 @@ export default function CheckerBenchPage() {
               {configured
                 ? <>{quote.pending} specimen{quote.pending === 1 ? '' : 's'} unchecked, {quote.words} words.
                   Checking them all would cost about <strong>${quote.cost_usd}</strong>, one press at a time.</>
-                : <>No detector key configured, so the right-hand column stays empty. Add
-                  <code> PANGRAM_API_KEY</code> to the server environment. Everything else on this page works
-                  without it.</>}
+                : <>No detector key configured, so the right-hand column stays empty. Add one under{' '}
+                  <a href="/settings?tab=outreach">Settings → Keys → Outreach finders → AI detection (Pangram)</a>.
+                  Everything else on this page works without it.</>}
             </div>
           )}
         </div>

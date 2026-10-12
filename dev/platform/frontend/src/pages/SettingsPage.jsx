@@ -247,6 +247,14 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'AI detection (Pangram)',
+    category: 'Outreach',
+    hint: 'Optional. Pangram scores how much of a text reads as machine-written, and OMI stores its answer beside the release so the two readings sit together. Billed at $0.05 per 100 words, so about 34p for a 670-word release. It never runs on its own: one call per button press, nothing on save or on typing, a re-check of unchanged text is served from the stored answer, and the whole thing stops at the monthly allowance set under AI models → Task budgets. Leave it blank and every other part of the checker works exactly as before, with the detector column simply absent.',
+    keys: [
+      { key: 'PANGRAM_API_KEY', label: 'Pangram API Key', placeholder: 'pangram.com → Developer API → Get API Key', type: 'password' },
+    ],
+  },
+  {
     title: 'Outreach Reply Inbox',
     category: 'Outreach',
     hint: 'IMAP login for the inbox outreach replies land in. The platform polls it to detect replies, classify them with Claude, and stop follow-ups automatically.',

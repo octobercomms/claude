@@ -75,6 +75,11 @@ const SETTINGS_KEYS = [
   'SERPER_CREDITS',
   'REPLICATE_CREDITS', 'IDEOGRAM_CREDITS', 'ARCADS_CREDITS', 'ADOBE_CREDITS',
   'PEOPLEDATALABS_API_KEY', 'SERPAPI_API_KEY',
+  // Pangram — AI text detection, billed per 100 words. Used by the press
+  // release checker (and, while it exists, the checker bench) on an explicit
+  // button press only, under the detector_check task budget. Optional:
+  // without it the detector reading is simply absent.
+  'PANGRAM_API_KEY',
   'OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_PORT', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD',
   'N8N_WEBHOOK_BASE_URL',
   'EMAIL_PROVIDER',

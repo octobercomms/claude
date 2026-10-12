@@ -84,13 +84,34 @@ feature, so the monthly figure in Settings stays the whole truth.
 
 ## Configuration
 
-`PANGRAM_API_KEY` in the server environment, or the `pangram_api_key` setting.
-Without it the page works and the detector column stays empty.
+**Settings → Keys → Outreach finders → AI detection (Pangram)**, stored
+encrypted in `platform_settings` like every other API key. `PANGRAM_API_KEY` in
+the server environment also works, since `getSetting` falls back to the
+environment for the same name. Without a key the bench works and the detector
+column stays empty.
+
+The setting name is `PANGRAM_API_KEY` in capitals, exactly as the Settings page
+writes it. An earlier version of the service asked `getSetting` for
+`pangram_api_key` in lower case, which meant a key typed into Settings was
+stored, encrypted, and then never read by anything.
 
 `PANGRAM_API_URL` overrides the endpoint. The response parser tries several
 documented field names and stores the raw body whole, because the development
 environment cannot reach pangram.com and the field names have not been seen
 against a live response. A wrong guess costs a display value, never the data.
+
+## The ongoing use, which is not the bench
+
+The same detector runs from the Releases editor, as a second reading under
+October's own dial: one button, the price quoted beside it, the answer stored on
+the release with the OMI score at that moment. That part stays after the bench
+goes, and migration 196 (`pr_press_releases.pangram_*`) belongs to it rather
+than to the bench.
+
+The two readings are deliberately presented differently. October's is a dial
+with bands and inline highlighting. The detector's is one plain number with no
+ramp, because dressing it to match would imply an agreement that one real
+release (94 here, 82% there) does not support.
 
 ## Removal
 
