@@ -95,10 +95,17 @@ writes it. An earlier version of the service asked `getSetting` for
 `pangram_api_key` in lower case, which meant a key typed into Settings was
 stored, encrypted, and then never read by anything.
 
-`PANGRAM_API_URL` overrides the base URL. The default follows the naming of the
-documented file-upload host (`file-external.api.pangram.com`), because the
-detection host sits in a code block that did not survive the PDF the docs were
-read from.
+**The base URL has to be set by hand.** `PANGRAM_API_URL`, in Settings → Keys →
+Outreach finders. The docs give the detection host only inside a code block,
+which is an image in the exported PDF, so it cannot be read programmatically.
+The built-in default follows the naming of the documented file-upload host
+(`file-external.api.pangram.com`) and **does not resolve** — a call against it
+fails with "Could not reach …".
+
+Candidate hosts are deliberately never probed automatically. Discovery would
+mean sending the API key to a hostname nobody has verified, and a guessed host
+someone else owns is a leaked credential. The key only ever goes where an
+operator has pointed it.
 
 **Prove it with the free probe before spending anything.** `GET /models` is free
 and entitlement-aware, so the "Test the connection" button confirms the base

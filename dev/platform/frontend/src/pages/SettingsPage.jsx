@@ -249,9 +249,10 @@ const KEY_GROUPS = [
   {
     title: 'AI detection (Pangram)',
     category: 'Outreach',
-    hint: 'Optional. Pangram scores how much of a text reads as machine-written, and OMI stores its answer beside the release so the two readings sit together. Billed at $0.05 per 100 words, so about 34p for a 670-word release. It never runs on its own: one call per button press, nothing on save or on typing, a re-check of unchanged text is served from the stored answer, and the whole thing stops at the monthly allowance set under AI models → Task budgets. Leave it blank and every other part of the checker works exactly as before, with the detector column simply absent.',
+    hint: 'Optional. The base URL is documented only inside a code block, so it has to be read off docs.pangram.com → API Overview → Base URLs and pasted here; the built-in default is an inference and does not resolve. Press "Test the connection" in a release to confirm it, which is free. Pangram scores how much of a text reads as machine-written, and OMI stores its answer beside the release so the two readings sit together. Billed at $0.05 per 100 words, so about 34p for a 670-word release. It never runs on its own: one call per button press, nothing on save or on typing, a re-check of unchanged text is served from the stored answer, and the whole thing stops at the monthly allowance set under AI models → Task budgets. Leave it blank and every other part of the checker works exactly as before, with the detector column simply absent.',
     keys: [
       { key: 'PANGRAM_API_KEY', label: 'Pangram API Key', placeholder: 'pangram.com → Developer API → Get API Key', type: 'password' },
+      { key: 'PANGRAM_API_URL', label: 'Pangram API base URL', placeholder: 'From docs.pangram.com → API Overview → Base URLs. Leave blank only if the built-in default works.', type: 'text' },
     ],
   },
   {
