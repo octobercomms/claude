@@ -68,6 +68,29 @@ On Tue, 7 Oct 2026 at 08:00, Daniel Nelson <daniel@october.test> wrote:
         'an ordinary reply subject is not an opt-out');
     }
 
+    console.log('\nThe unsubscribe line is above the clip, not below it');
+    {
+      // Gmail hides anything past ~102KB behind "View entire message". An
+      // embedded release is easily that long, so a footer after it is
+      // invisible to the one person looking for it.
+      process.env.PLATFORM_URL = 'https://platform.example.test';
+      const pressRelease = require(path + 'src/services/pressRelease');
+      const html = pressRelease.buildEmailHtml({
+        release: { title: 'Probe', body_html: '<p>' + 'the release body. '.repeat(400) + '</p>' },
+        pitch: 'Here is the story.',
+        sender: { name: 'Daniel Nelson', company: 'October Communications' },
+        recipientName: 'Michael',
+        contactId: '00000000-0000-0000-0000-0000000000aa',
+        clientId: '00000000-0000-0000-0000-0000000000bb',
+        embedFull: true,
+      });
+      const unsubAt = html.indexOf('unsubscribe here');
+      const bodyAt = html.indexOf('the release body.');
+      ok(unsubAt > -1, 'the press email carries an unsubscribe link');
+      ok(bodyAt > -1, 'and embeds the release');
+      ok(unsubAt < bodyAt, 'the unsubscribe link comes BEFORE the embedded release, so a clip cannot hide it');
+    }
+
     console.log('\nThe List-Unsubscribe header only offers routes that work');
     {
       const sender = require(path + 'src/services/outreachSender');

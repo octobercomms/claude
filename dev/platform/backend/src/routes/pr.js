@@ -13,6 +13,9 @@ const prThanks = require('../services/prThanks');
 const prPress = require('../services/prPress');
 const pressRelease = require('../services/pressRelease');
 const prEnrich = require('../services/prEnrich');
+const pressBrief = require('../services/pressBrief');
+const humanity = require('../services/humanity');
+const budget = require('../services/budget');
 const prTarget = require('../services/prTarget');
 const prArchive = require('../services/prArchive');
 const { getSetting } = require('../utils/settings');
@@ -1362,12 +1365,27 @@ router.patch('/press-releases/:prId', async (req, res) => {
     if (typeof b.angle === 'string') set('angle', b.angle);
     if (typeof b.key_facts === 'string') set('key_facts', b.key_facts);
     if (typeof b.body_html === 'string') set('body_html', b.body_html);
+    if (b.brief_json && typeof b.brief_json === 'object') set('brief_json', JSON.stringify(b.brief_json));
     if (typeof b.url === 'string') set('url', b.url.slice(0, 1000));
     if ('embargo_at' in b) set('embargo_at', b.embargo_at || null);
     if (PR_STATUSES.includes(b.status)) set('status', b.status);
     if (!sets.length) return res.json({ updated: 0 });
     vals.push(req.params.prId);
     await db.query(`UPDATE pr_press_releases SET ${sets.join(', ')} WHERE id = $${n}`, vals);
+    // Re-read the release with the same analyser the editor runs live, so the
+    // stored figure is the server's own and not something a browser asserted.
+    if (typeof b.body_html === 'string' || b.brief_json) {
+      try {
+        const cur = (await db.query('SELECT body_html, brief_json FROM pr_press_releases WHERE id = $1', [req.params.prId])).rows[0];
+        const reading = await humanity.analyse(cur?.body_html, cur?.brief_json);
+        if (reading) {
+          await db.query(
+            'UPDATE pr_press_releases SET humanity_json = $1, humanity_checked_at = NOW() WHERE id = $2',
+            [JSON.stringify(reading), req.params.prId]
+          );
+        }
+      } catch (e) { console.warn('[pr] humanity re-read failed:', e.message); }
+    }
     // Going to review (or beyond) needs a token for the client approval link.
     if (['in_review', 'approved', 'sent'].includes(b.status)) await prPress.ensureReviewToken(req.params.prId);
     const { rows } = await db.query('SELECT * FROM pr_press_releases WHERE id = $1', [req.params.prId]);
@@ -1388,6 +1406,73 @@ router.post('/press-releases/:prId/draft', async (req, res) => {
     await db.query('UPDATE pr_press_releases SET body_html = $1 WHERE id = $2', [d.body_html, req.params.prId]);
     res.json({ body_html: d.body_html });
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// The editorial standard itself, as the designed PDF. Served from the repo
+// checkout the backend already runs from, so there is one copy of the file.
+router.get('/editorial-standard.pdf', async (_req, res) => {
+  const file = require('path').join(__dirname, '..', '..', '..', '..', '..',
+    'docs', 'editorial', 'october-human-writing-standard.pdf');
+  res.sendFile(file, {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'inline; filename="october-human-writing-standard.pdf"',
+    },
+  }, (err) => {
+    if (err && !res.headersSent) res.status(404).json({ error: 'Standard not found on this deploy.' });
+  });
+});
+
+// Build the reporting checklist. Replaces drafting the prose: it returns slots
+// and the questions that fill them, never sentences. One Claude call, on this
+// button only, billed to the "press_writing" task budget.
+router.post('/press-releases/:prId/brief', async (req, res) => {
+  try {
+    const p = (await db.query(
+      'SELECT p.*, cl.name AS client FROM pr_press_releases p JOIN clients cl ON cl.id = p.client_id WHERE p.id = $1',
+      [req.params.prId]
+    )).rows[0];
+    if (!p) return res.status(404).json({ error: 'Press release not found' });
+    const brief = await pressBrief.build({
+      clientId: p.client_id, title: p.title, brand: p.brand || p.client,
+      angle: p.angle, keyFacts: p.key_facts,
+    });
+    await db.query('UPDATE pr_press_releases SET brief_json = $1 WHERE id = $2',
+      [JSON.stringify(brief), req.params.prId]);
+    res.json(brief);
+  } catch (err) {
+    // A task budget that has run out is not an error in the code; say so plainly.
+    res.status(err.status || 400).json({ error: err.message, code: err.code || null });
+  }
+});
+
+// The one semantic pass: which claims are unsupported, which moves are unmade.
+// Explicit button, never on typing, and it never blocks a save.
+router.post('/press-releases/:prId/check-claims', async (req, res) => {
+  try {
+    const p = (await db.query('SELECT * FROM pr_press_releases WHERE id = $1', [req.params.prId])).rows[0];
+    if (!p) return res.status(404).json({ error: 'Press release not found' });
+    res.json(await pressBrief.checkClaims({
+      clientId: p.client_id, bodyHtml: p.body_html, brief: p.brief_json,
+    }));
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message, code: err.code || null });
+  }
+});
+
+// What the two AI buttons on this page have left to spend this month. Shown
+// next to them so the cost is never a surprise.
+router.get('/press-release-budget', async (req, res) => {
+  try {
+    const b = await budget.getTaskBudget(pressBrief.TASK);
+    if (!b) return res.json({ configured: false });
+    const spent = await budget.taskSpendUsd(pressBrief.TASK, { features: b.features });
+    res.json({
+      configured: true, label: b.label, enabled: b.enabled,
+      cap_usd: b.monthly_cap_usd, spent_usd: +spent.toFixed(2),
+      remaining_usd: b.monthly_cap_usd == null ? null : +(b.monthly_cap_usd - spent).toFixed(2),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Hand off an approved release to distribution: spin up the outreach
