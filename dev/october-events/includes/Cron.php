@@ -114,6 +114,13 @@ final class Cron {
         // AI Stories connector runs every day.
         $this->run_ai_stories();
 
+        // Refresh the unified people table (identity + rollups) from the source
+        // records; the per-person profile joins live, so this just keeps the
+        // searchable index current.
+        if (class_exists('\\OE\\People\\Repository')) {
+            \OE\People\Repository::rebuild();
+        }
+
         // Daily ticket sales report (if any sold today).
         $this->run_sales_report();
 
