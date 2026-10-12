@@ -36,6 +36,21 @@ const STOP = new Set([
   'Describing', 'Working', 'Following', 'Including', 'Using', 'Taking', 'Said', 'Says',
 ]);
 
+// Numbers written as words. Press style spells out the small ones, so a
+// digits-only counter misses "three years ago" and "five artists" entirely and
+// then marks the sentence as carrying nothing.
+//
+// "one" is deliberately absent: it is a pronoun at least as often as a count
+// ("one of a kind", "no one else"), and a fact counter that credits it would
+// reward writing around the subject rather than reporting it.
+const NUMBER_WORD = new Set([
+  'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy',
+  'eighty', 'ninety', 'dozen', 'dozens', 'hundred', 'hundreds', 'thousand',
+  'thousands', 'million', 'millions', 'billion', 'billions',
+  'first', 'second', 'third',
+]);
+
 const UNIT_RE = /(?:^|[\s(])(?:\d[\d,.]*)\s*(?:mm|cm|m|km|sq\s?ft|sqft|ft|m2|m²|kg|t|%)\b|[£$€]\s?\d/i;
 
 // Words that describe nothing checkable. Seed list from the standard; extend
@@ -112,6 +127,11 @@ export function checkableItems(text, known = null) {
     atSentenceStart = /[.!?]["'”’)]?$/.test(raw);
     if (!bare) continue;
     if (/\d/.test(bare)) { out.push({ text: bare, offset, length: raw.length, kind: 'number' }); continue; }
+    // Only a bare number word, never one inside a hyphenated compound, so
+    // "one-of-a-kind" and "two-tone" stay what they are: adjectives.
+    if (!raw.includes('-') && NUMBER_WORD.has(bare.toLowerCase())) {
+      out.push({ text: bare, offset, length: raw.length, kind: 'number' }); continue;
+    }
     if (UNIT_RE.test(raw)) { out.push({ text: bare, offset, length: raw.length, kind: 'measurement' }); continue; }
     if (!/^[A-Z]/.test(bare) || STOP.has(bare)) continue;
     // Mid-sentence capitals are proper nouns. At a sentence start the capital
@@ -166,7 +186,10 @@ function styleMarkers(body, sents, known) {
   const w = words(body).length || 1;
   const per100 = (n) => +(n / w * 100).toFixed(2);
 
-  const coordinate = body.match(/\b[\w'’-]+,\s+[\w'’-]+(?:,)?\s+and\s+[\w'’-]+/g) || [];
+  // Same guard as the tell above, so the diagnostic block and the dial cannot
+  // disagree about what is a flourish and what is a list of client names.
+  const coordinate = (body.match(/\b[\w'’-]+,\s+[\w'’-]+(?:,)?\s+and\s+[\w'’-]+/g) || [])
+    .filter((span) => !/[A-Z0-9]/.test(span.slice(1)) && !/^[A-Z]/.test(span));
   const gerundLists = (body.match(/\b\w+ing,\s+\w+ing,?\s+and\s+\w+ing\b/g) || []);
   const lens = sents.map((s) => words(s).length);
   const mean = lens.length ? lens.reduce((a, b) => a + b, 0) / lens.length : 0;
@@ -312,7 +335,14 @@ const TELL_PATTERNS = [
     label: '“in the realm of…”', note: 'Scene-setting that carries no fact.' },
   { key: 'rule_of_three', weight: 4,
     re: /\b[\w'’-]+,\s+[\w'’-]+,?\s+and\s+[\w'’-]+\b/g,
-    label: 'three-item coordinate list', note: 'The loudest single marker in October’s own samples.' },
+    label: 'three-item coordinate list', note: 'The loudest single marker in October’s own samples.',
+    // "Nike, SiriusXM, and Foot Locker" is a client list and "Confair, CEO and
+    // co-founder" is a job title. Both are reporting, and flagging them told
+    // the writer to delete facts. The rhetorical triple this marker is for —
+    // "craft, technology, and vision" — is made of abstractions, so a capital
+    // or a digit anywhere in the span is enough to tell them apart. It lets a
+    // triple that opens a sentence through, which is the safe direction to err.
+    guard: (span) => !/[A-Z0-9]/.test(span.slice(1)) && !/^[A-Z]/.test(span) },
 ];
 
 /** Every tell in the text, with offsets so the editor can mark them. */
@@ -322,9 +352,10 @@ export function aiTells(text) {
     const re = new RegExp(pat.re.source, pat.re.flags);
     let m;
     while ((m = re.exec(text))) {
+      if (m.index === re.lastIndex) re.lastIndex += 1;
+      if (pat.guard && !pat.guard(m[0].trim())) continue;
       hits.push({ kind: pat.key, label: pat.label, note: pat.note, weight: pat.weight,
         text: m[0].trim(), offset: m.index, length: m[0].length });
-      if (m.index === re.lastIndex) re.lastIndex += 1;
     }
   }
   for (const [list, weight, note] of [

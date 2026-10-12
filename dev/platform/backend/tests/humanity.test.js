@@ -63,6 +63,25 @@ const REPORTED = `Indiewalls has paid 10 million dollars to independent artists 
   ok(analyse('A short human line about the 28-metre wall.').human_score > 70,
     'a short factual extract is not punished for being short');
 
+  console.log('\nA list of named things is reporting, not a flourish');
+  // Both of these marked as rhetorical triples on a real release, which told
+  // the writer to go and delete a client list and a job title.
+  const named = aiTells('Confair has created work for Google, TikTok, Nike, SiriusXM, and Foot Locker.');
+  ok(!named.some((t) => t.kind === 'rule_of_three'), 'a list of client names is not flagged');
+  const title = aiTells('This year\u2019s artist is Marissa Confair, CEO and co-founder of eMCee Kicks.');
+  ok(!title.some((t) => t.kind === 'rule_of_three'), 'a name and a job title is not flagged');
+  ok(aiTells('The approach weaves together craft, technology, and vision.')
+    .some((t) => t.kind === 'rule_of_three'), 'a triple made of abstractions still is');
+
+  console.log('\nNumbers written as words count');
+  // Press style spells out the small ones, so a digits-only counter marked
+  // "What began three years ago..." as carrying nothing.
+  ok(!analyse('What began three years ago as a client gift has become the house approach.').spans[0].bare,
+    '\u201cthree years ago\u201d is a fact');
+  ok(analyse('Five artists worked the room.').density > 0, 'so is \u201cfive artists\u201d');
+  ok(analyse('It is one of a kind, and no one else has one.').spans[0].bare,
+    'but \u201cone\u201d is not, because it is a pronoun as often as a count');
+
   console.log('\nA name at the start of a sentence still counts as a fact');
   // Press releases open sentences with the client's name constantly. Counting
   // only mid-sentence capitals marked those sentences as carrying nothing.
