@@ -237,6 +237,19 @@ wiring templates and triggers, not new infrastructure.
   attempt); full sequence for membership renewals.
 - **Membership lifecycle.** Welcome, renewal reminder, renewed, payment-failed,
   lapsed/cancelled — the full set, not just the basics present today.
+- **De-festival the membership tiers (generalisation).** The membership engine is
+  already tenant-agnostic (`membership_enabled`, `membership_price_ids`,
+  `membership_join_*`, per-ticket `members_only`, and now a configurable
+  `membership_pitch`), so both offer modes work for any client: join → free
+  ticket (a £0 `members_only` tier) and join → member rate (a `members_only` tier
+  beside the public one). The one remaining ADF-specific piece is the **Friends /
+  Patrons** tier naming baked into settings keys (`friends_price_ids`,
+  `patrons_price_ids`) and shortcodes (`[oe_friends_list]`, `[oe_patrons_list]`),
+  which are the public supporter lists. Generalise these into **client-named
+  membership tiers**: keep Friends/Patrons as the ADF defaults, add back-compat
+  aliases on the old keys and shortcodes, and expose a generic
+  `[oe_members_list tier="…"]`. Touches public shortcodes, so it needs the
+  back-compat shims — do it here, not as a rushed patch.
 - **Ticket-transfer notice** to the original holder when an order is transferred.
 - **Event rescheduled / cancelled** auto-notice to ticket holders, behind a
   confirm step ("notify N holders?") so it never fires silently.

@@ -15,6 +15,15 @@ $has_paypal = \OE\Connectors\PayPalConnector::is_ready();
 $terms_url = (string) \OE\Settings::get('checkout_terms_url', '');
 $first_label = $types[0]['label'] ?? '';
 $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
+// Membership upsell heading. Client-set so it is never tied to one tenant's
+// wording ("festival"). Blank => a neutral default built from the brand name.
+$membership_pitch = (string) \OE\Settings::get('membership_pitch', '');
+if ($membership_pitch === '') {
+    $brand = (string) \OE\Settings::get('brand_name', '');
+    $membership_pitch = $brand !== ''
+        ? sprintf(__('Support %s all year round. As a member you’ll get:', 'october-events'), $brand)
+        : __('Become a member and you’ll get:', 'october-events');
+}
 ?>
 <div class="oct-checkout" id="oct-checkout-<?php echo esc_attr((string) $event_id); ?>" data-event-id="<?php echo esc_attr((string) $event_id); ?>" data-has-terms="<?php echo $terms_url ? '1' : '0'; ?>">
 
@@ -145,7 +154,7 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
           <span class="oct-membership-card__title" id="oct-join-title"></span>
           <span class="oct-membership-card__price" id="oct-join-price"></span>
         </div>
-        <p class="oct-membership-card__pitch"><?php esc_html_e('Support the festival all year round. As a member you’ll get:', 'october-events'); ?></p>
+        <p class="oct-membership-card__pitch"><?php echo esc_html($membership_pitch); ?></p>
         <ul class="oct-membership-card__benefits" id="oct-join-benefits"></ul>
         <label class="oct-membership-optin__row">
           <input type="checkbox" id="oct-join-toggle">

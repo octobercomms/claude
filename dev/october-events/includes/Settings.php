@@ -161,6 +161,10 @@ final class Settings {
             // A few key benefit lines (one per entry) shown in the checkout upsell
             // card, lifted from the membership page. Empty = no bullet list.
             'membership_benefits'      => [],
+            // Heading line above the benefit bullets in the checkout membership
+            // upsell card. Client-set so the copy is never tied to one tenant
+            // (e.g. "festival"). Blank => a neutral default built from brand_name.
+            'membership_pitch'         => '',
             // Rejection email copy per listing type (§3.3). Empty => default.
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).

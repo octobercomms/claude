@@ -570,6 +570,7 @@ final class Settings {
             'membership_join_price_id' => sanitize_text_field(trim((string) ($in['membership_join_price_id'] ?? ''))),
             'membership_join_amount'   => max(0, (int) ($in['membership_join_amount'] ?? 0)),
             'membership_info_url'      => esc_url_raw(trim((string) ($in['membership_info_url'] ?? ''))),
+            'membership_pitch'         => sanitize_text_field((string) ($in['membership_pitch'] ?? '')),
             'membership_benefits'      => array_values(array_filter(array_map(
                 static fn($b) => sanitize_text_field(trim((string) $b)),
                 preg_split('/\r\n|\r|\n/', (string) ($in['membership_benefits'] ?? ''))
