@@ -27,8 +27,12 @@ defined('ABSPATH') || exit;
 final class Shortcodes {
 
     public static function init(): void {
+        // Back-compat aliases — the ADF defaults. Kept so existing pages and the
+        // footer keep working unchanged.
         add_shortcode('oe_friends_list', [self::class, 'friends']);
         add_shortcode('oe_patrons_list', [self::class, 'patrons']);
+        // Generic, client-named tier list: [oe_members_list tier="founders"].
+        add_shortcode('oe_members_list', [self::class, 'members_list']);
         // Background warm for the footer lists (scheduled from a cold render or a
         // settings save), so the shortcodes never call Stripe in a page render.
         add_action('oe_warm_members', [StripeConnector::class, 'warm_members']);
@@ -36,23 +40,64 @@ final class Shortcodes {
 
     /** @param array<string,string>|string $atts */
     public static function friends($atts): string {
-        return self::render('friends_price_ids', 'oe-friends', (array) $atts);
+        return self::render_ids(self::tier_ids('friends'), 'oe-friends', (array) $atts);
     }
 
     /** @param array<string,string>|string $atts */
     public static function patrons($atts): string {
-        return self::render('patrons_price_ids', 'oe-patrons', (array) $atts);
+        return self::render_ids(self::tier_ids('patrons'), 'oe-patrons', (array) $atts);
     }
 
-    /** @param array<string,string> $atts */
-    private static function render(string $setting, string $base, array $atts): string {
+    /**
+     * Generic tier list. `tier` names a built-in tier (friends | patrons) or a
+     * client-defined one from the Membership tiers setting; a tier with no
+     * configured price ids renders nothing.
+     *
+     * @param array<string,string>|string $atts
+     */
+    public static function members_list($atts): string {
+        $atts = (array) $atts;
+        $tier = sanitize_key((string) ($atts['tier'] ?? ''));
+        if ($tier === '') {
+            return '';
+        }
+        // A single-token BEM prefix per tier; built-ins keep their long-standing
+        // oe-friends / oe-patrons classes, custom tiers get oe-members-<tier>.
+        $base = in_array($tier, ['friends', 'patrons'], true) ? 'oe-' . $tier : 'oe-members-' . $tier;
+        return self::render_ids(self::tier_ids($tier), $base, $atts);
+    }
+
+    /**
+     * Resolve a tier key to its configured Stripe price/product ids. Built-in
+     * friends/patrons read their own long-standing settings; any other key reads
+     * the `member_tiers` map (key => ['label'=>…, 'price_ids'=>[…]]).
+     *
+     * @return array<int,string>
+     */
+    private static function tier_ids(string $tier): array {
+        if ($tier === 'friends') {
+            $ids = (array) Settings::get('friends_price_ids', []);
+        } elseif ($tier === 'patrons') {
+            $ids = (array) Settings::get('patrons_price_ids', []);
+        } else {
+            $tiers = (array) Settings::get('member_tiers', []);
+            $ids   = (array) ($tiers[$tier]['price_ids'] ?? []);
+        }
+        return array_values(array_filter(array_map('strval', $ids)));
+    }
+
+    /**
+     * @param array<int,string>   $ids  resolved Stripe price/product ids
+     * @param array<string,string> $atts
+     */
+    private static function render_ids(array $ids, string $base, array $atts): string {
         $a = shortcode_atts([
             'separator' => ', ',
             'heading'   => '',
             'empty'     => '',
-        ], $atts, $base);
+            'tier'      => '',
+        ], $atts, 'oe_members_list');
 
-        $ids = array_values(array_filter(array_map('strval', (array) Settings::get($setting, []))));
         if (! $ids) {
             return ''; // tier not configured — render nothing
         }

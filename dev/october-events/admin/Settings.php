@@ -582,6 +582,7 @@ final class Settings {
                 static fn($p) => sanitize_text_field(trim((string) $p)),
                 preg_split('/[\r\n,\s]+/', (string) ($in['patrons_price_ids'] ?? ''))
             )))),
+            'member_tiers'      => self::parse_member_tiers((string) ($in['member_tiers'] ?? '')),
             'membership_join_url'      => esc_url_raw(trim((string) ($in['membership_join_url'] ?? ''))),
             'membership_join_label'    => sanitize_text_field((string) ($in['membership_join_label'] ?? '')),
             'membership_join_price_id' => sanitize_text_field(trim((string) ($in['membership_join_price_id'] ?? ''))),
@@ -616,6 +617,9 @@ final class Settings {
         // Editing a tier's price IDs should show in the footer lists at once.
         \OE\Connectors\StripeConnector::bust_members_list((array) Config::get('friends_price_ids', []));
         \OE\Connectors\StripeConnector::bust_members_list((array) Config::get('patrons_price_ids', []));
+        foreach ((array) Config::get('member_tiers', []) as $oe_tier) {
+            \OE\Connectors\StripeConnector::bust_members_list((array) ($oe_tier['price_ids'] ?? []));
+        }
 
         // On the site that sells the tickets, make sure this year's volunteer code
         // exists as soon as the feature is set up (a no-op elsewhere).
@@ -740,6 +744,38 @@ final class Settings {
         $out = [];
         foreach (['on_signup', 'reminder'] as $key) {
             $out[$key] = sanitize_textarea_field((string) ($in[$key] ?? ''));
+        }
+        return $out;
+    }
+
+    /**
+     * Parse the client-named membership tiers textarea into the stored map.
+     * One tier per line: `key | Label | price_id, price_id`. The key is
+     * slugified; `friends`/`patrons` are reserved (they have their own
+     * settings) and are skipped so they can't be shadowed.
+     *
+     * @return array<string,array{label:string,price_ids:array<int,string>}>
+     */
+    private static function parse_member_tiers(string $raw): array {
+        $out = [];
+        foreach (preg_split('/[\r\n]+/', $raw) ?: [] as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = array_map('trim', explode('|', $line));
+            $key   = sanitize_key((string) ($parts[0] ?? ''));
+            if ($key === '' || in_array($key, ['friends', 'patrons'], true)) {
+                continue;
+            }
+            $label = sanitize_text_field((string) ($parts[1] ?? ucfirst($key)));
+            $ids   = array_values(array_unique(array_filter(array_map(
+                static fn($p) => sanitize_text_field(trim((string) $p)),
+                preg_split('/[,\s]+/', (string) ($parts[2] ?? '')) ?: []
+            ))));
+            if ($ids) {
+                $out[$key] = ['label' => $label, 'price_ids' => $ids];
+            }
         }
         return $out;
     }
