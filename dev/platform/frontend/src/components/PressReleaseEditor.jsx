@@ -427,6 +427,7 @@ export default function PressReleaseEditor({
   const [budget, setBudget] = useState(null);
   const [detector, setDetector] = useState(null);   // { configured, words, cost_usd }
   const [detecting, setDetecting] = useState(false);
+  const [unparsed, setUnparsed] = useState(null);  // their response, when we could not read the number out of it
   const [showStyle, setShowStyle] = useState(false);
   const [layerOn, setLayerOn] = useState(
     () => Object.fromEntries(LAYERS.map((l) => [l.key, l.on])),
@@ -494,9 +495,13 @@ export default function PressReleaseEditor({
       const r = await api.post(`/pr/press-releases/${pr.id}/detect`, {});
       if (r.error) { toast(r.error, 'error'); return; }
       setPr((p) => ({ ...p, pangram_pct: r.pangram_pct, pangram_checked_at: r.pangram_checked_at || new Date().toISOString() }));
-      toast(r.cached
-        ? 'Unchanged since the last check, so nothing was spent.'
-        : `Detector says ${r.pangram_pct}% of this reads as machine-written.`, 'success');
+      setUnparsed(r.unparsed || null);
+      toast(r.unparsed
+        ? 'The call worked, but the percentage is not where it was expected. The response is below.'
+        : r.cached
+          ? 'Unchanged since the last check, so nothing was spent.'
+          : `Detector says ${r.pangram_pct}% of this reads as machine-written.`,
+      r.unparsed ? 'info' : 'success');
     } catch (e) { toast(e.message, 'error'); } finally { setDetecting(false); }
   }
 
@@ -746,6 +751,27 @@ export default function PressReleaseEditor({
                         : <>No key yet. Add one under{' '}
                           <a href="/settings?tab=outreach">Settings → Keys → Outreach finders</a>.</>}
                     </div>
+                    {unparsed && (
+                      <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: LINE, borderRadius: 'var(--r-sm)' }}>
+                        <div style={{ ...CAP, marginBottom: 'var(--s1)' }}>
+                          The call succeeded and was billed, and the whole response is stored on the release.
+                          The percentage is not under any of the field names this was built to expect, which
+                          were taken from published documentation rather than from a live response. Send this
+                          along and it is a one-line fix.
+                        </div>
+                        <pre style={{ margin: 0, maxHeight: 220, overflow: 'auto', fontSize: 'var(--fs-caption)',
+                          fontFamily: 'ui-monospace, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                          {JSON.stringify(unparsed, null, 2)}
+                        </pre>
+                        <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(JSON.stringify(unparsed, null, 2));
+                              toast('Copied.', 'success');
+                            } catch { toast('Select it and copy manually.', 'error'); }
+                          }}>Copy the response</button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

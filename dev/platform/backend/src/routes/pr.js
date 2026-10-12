@@ -1503,6 +1503,10 @@ router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
     const stored = {
       ...result.raw,
       pct: result.pct,
+      // Per-sentence scores if the response carries any, pulled out on the
+      // first call so the highlighting layer can be built later without
+      // paying for every release a second time.
+      segments: result.segments || null,
       fingerprint: fp,
       words: result.words,
       own_score: own?.human_score ?? null,
@@ -1514,7 +1518,18 @@ router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
         WHERE id = $3`,
       [result.pct, JSON.stringify(stored), row.id]
     );
-    res.json({ pangram_pct: result.pct, cost_usd: result.cost_usd, words: result.words, cached: false });
+    // When the percentage could not be located, hand the raw response back so it
+    // can be read on screen and sent on. The field names below were taken from
+    // the public pricing page, not from a live response, because this was built
+    // in an environment that cannot reach pangram.com. A blank number with the
+    // body attached is diagnosable in a minute; a blank number alone is not.
+    res.json({
+      pangram_pct: result.pct,
+      cost_usd: result.cost_usd,
+      words: result.words,
+      cached: false,
+      ...(result.pct == null ? { unparsed: result.raw } : {}),
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message, code: err.code });
   }

@@ -156,7 +156,10 @@ router.post('/samples/:id/detect', async (req, res) => {
 
   try {
     const result = await pangram.detect(text);
-    const stored = { ...result.raw, fingerprint: pangram.fingerprint(text), words: result.words };
+    const stored = {
+      ...result.raw, pct: result.pct, segments: result.segments || null,
+      fingerprint: pangram.fingerprint(text), words: result.words,
+    };
     const upd = await db.query(
       `UPDATE checker_samples
           SET pangram_pct = $1, pangram_json = $2, pangram_checked_at = NOW(),
@@ -164,7 +167,10 @@ router.post('/samples/:id/detect', async (req, res) => {
         WHERE id = $4 RETURNING *`,
       [result.pct, JSON.stringify(stored), result.cost_usd, row.id]
     );
-    res.json({ ...clean(upd.rows[0]), cached: false });
+    res.json({
+      ...clean(upd.rows[0]), cached: false,
+      ...(result.pct == null ? { unparsed: result.raw } : {}),
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message, code: err.code });
   }
