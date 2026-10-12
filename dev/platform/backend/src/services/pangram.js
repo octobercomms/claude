@@ -116,29 +116,84 @@ async function detect(text) {
     console.error('[pangram] cost log failed:', err.message);
   }
 
-  return { pct: readPercentage(body), words, cost_usd: costUsd, raw: body };
+  return { pct: readPercentage(body), segments: readSegments(body), words, cost_usd: costUsd, raw: body };
 }
 
 /**
  * Pull the AI percentage out of whatever shape the response has.
  *
- * Written defensively on purpose: this environment cannot reach pangram.com, so
- * the field names below are the documented ones and have NOT been seen against
- * a live response. Every candidate is tried and the raw body is stored whole,
- * so a wrong guess here costs a display value and never the data.
+ * Written defensively on purpose: this was built in an environment that cannot
+ * reach pangram.com, so the field names below come from the published pricing
+ * and product pages and have NOT been seen against a live response. Every
+ * candidate is tried, nested containers are searched, and the raw body is
+ * stored whole, so a wrong guess costs a display value and never the data.
+ *
+ * A value at or below 1 is read as a fraction and scaled; above 1 it is already
+ * a percentage. That rule breaks for a genuine 1% reading, which would show as
+ * 100%. The ambiguity is unavoidable without the documentation, and it fails in
+ * the direction that gets noticed rather than the one that quietly reassures.
  */
+const PCT_FIELDS = [
+  'ai_likelihood', 'aiLikelihood', 'fraction_ai_content', 'fractionAiContent',
+  'ai_fraction', 'max_ai_likelihood', 'avg_ai_likelihood', 'ai_probability',
+  'prediction_score', 'likelihood', 'score', 'ai_percentage', 'percent_ai',
+];
+
+/** The containers a provider might nest its payload inside. */
+function unwrap(body) {
+  const out = [body];
+  for (const k of ['result', 'results', 'data', 'prediction', 'response', 'document']) {
+    const v = body?.[k];
+    if (v && typeof v === 'object' && !Array.isArray(v)) out.push(v);
+  }
+  return out;
+}
+
 function readPercentage(body) {
   if (!body || typeof body !== 'object') return null;
-  const candidates = [
-    body.ai_likelihood, body.aiLikelihood, body.likelihood,
-    body.ai_probability, body.prediction_score, body.score,
-    body.fraction_ai_content, body.ai_fraction,
-  ];
-  for (const c of candidates) {
-    const n = Number(c);
-    if (Number.isFinite(n)) return n <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2);
+  for (const scope of unwrap(body)) {
+    for (const field of PCT_FIELDS) {
+      const n = Number(scope?.[field]);
+      if (Number.isFinite(n)) return n <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2);
+    }
   }
   return null;
 }
 
-module.exports = { detect, estimateUsd, fingerprint, configured, wordCount, USD_PER_100_WORDS };
+/**
+ * Any per-sentence or per-window scores the response carries.
+ *
+ * Pangram's own interface highlights sentence by sentence. Whether that reaches
+ * the API is unknown from here, so this looks for it and stores whatever it
+ * finds rather than making the operator pay for a second call later. If the
+ * array is there, the editor gets a fourth highlight layer and the writer sees
+ * which sentences to rewrite instead of inferring it from one number.
+ */
+function readSegments(body) {
+  if (!body || typeof body !== 'object') return null;
+  for (const scope of unwrap(body)) {
+    for (const key of ['windows', 'sentences', 'fragments', 'segments', 'spans', 'chunks']) {
+      const arr = scope?.[key];
+      if (!Array.isArray(arr) || !arr.length) continue;
+      const mapped = arr
+        .map((seg) => {
+          if (!seg || typeof seg !== 'object') return null;
+          const text = seg.text || seg.sentence || seg.content || seg.window || null;
+          let score = null;
+          for (const f of PCT_FIELDS) {
+            const n = Number(seg[f]);
+            if (Number.isFinite(n)) { score = n <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2); break; }
+          }
+          return text ? { text: String(text), score } : null;
+        })
+        .filter(Boolean);
+      if (mapped.length) return { key, items: mapped };
+    }
+  }
+  return null;
+}
+
+module.exports = {
+  detect, estimateUsd, fingerprint, configured, wordCount,
+  readPercentage, readSegments, USD_PER_100_WORDS,
+};
