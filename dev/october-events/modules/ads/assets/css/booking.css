@@ -1,0 +1,369 @@
+/* OC Ad Manager — Booking Form (frontend)
+   Lean, theme-inheriting styles. Fonts are inherited from the host theme
+   (font-family: inherit). Override the CSS custom properties below to retheme. */
+
+.ocad-booking {
+	--ocad-accent:    #C8441A;   /* brand highlight (button, focus rings, selected border) */
+	--ocad-text:      #1a1a1a;   /* primary text */
+	--ocad-border:    #1a1a1a;   /* package row dividers */
+	--ocad-row-hover: #f5f5f5;   /* hovered / selected row background */
+	--ocad-muted:     #888;      /* hints, secondary text */
+	--ocad-input:     #cbd5e0;   /* input borders */
+	--ocad-radius:    50px;      /* primary button corner radius */
+
+	width: 100%;
+	color: var(--ocad-text);
+	line-height: 1.5;
+}
+
+.ocad-booking-form {
+	margin: 0;
+}
+
+/* ---------- Sections ---------- */
+.ocad-section {
+	margin-bottom: 28px;
+}
+
+.ocad-section-title {
+	font-size: 1.5em;
+	font-weight: 700;
+	color: var(--ocad-text);
+	margin: 0 0 14px;
+	letter-spacing: -0.5px;
+	line-height: 1.1;
+}
+
+.ocad-section-note {
+	font-size: 14px;
+	color: var(--ocad-muted);
+	margin: 0 0 14px;
+}
+
+/* ---------- Package rows ---------- */
+.ocad-package-list {
+	border-top: 3px solid var(--ocad-border);
+}
+
+.ocad-package-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 18px 4px;
+	border-bottom: 3px solid var(--ocad-border);
+	cursor: pointer;
+	transition: background 0.1s;
+}
+
+.ocad-package-row:hover,
+.ocad-package-row--selected {
+	background: var(--ocad-row-hover);
+}
+
+.ocad-package-row input[type="radio"] {
+	margin: 0 4px 0 0;
+	accent-color: var(--ocad-accent);
+	flex-shrink: 0;
+}
+
+.ocad-package-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.ocad-package-name {
+	display: block;
+	font-size: 1.25em;
+	font-weight: 600;
+	line-height: 1.1;
+}
+
+.ocad-package-row--selected .ocad-package-name {
+	font-weight: 800;
+}
+
+.ocad-package-desc {
+	display: block;
+	font-size: 13px;
+	color: var(--ocad-muted);
+	margin-top: 3px;
+}
+
+.ocad-package-price {
+	font-size: 2em;
+	font-weight: 700;
+	flex-shrink: 0;
+}
+
+.ocad-package-price::before {
+	content: "$";
+	font-size: 0.6em;
+	vertical-align: 0.15em;
+	margin-right: 1px;
+}
+
+/* ---------- Labels & inputs (label left, field right) ---------- */
+.ocad-field-group {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+	margin-bottom: 14px;
+}
+
+.ocad-field-group:last-child {
+	margin-bottom: 0;
+}
+
+.ocad-label {
+	width: 40%;
+	max-width: 220px;
+	flex-shrink: 0;
+	font-size: 14px;
+	font-weight: 600;
+	padding-top: 11px;
+	color: var(--ocad-text);
+}
+
+.ocad-optional {
+	font-weight: 400;
+	color: var(--ocad-muted);
+	font-size: 13px;
+}
+
+.ocad-req {
+	color: var(--ocad-accent);
+}
+
+.ocad-field-input {
+	flex: 1;
+	min-width: 0;
+}
+
+.ocad-input {
+	width: 100%;
+	border: 1px solid var(--ocad-input);
+	border-radius: 2px;
+	padding: 10px 14px;
+	font-size: 15px;
+	font-family: inherit;
+	color: var(--ocad-text);
+	background: #fff;
+	box-sizing: border-box;
+	transition: border-color 0.15s, box-shadow 0.15s;
+	outline: none;
+}
+
+.ocad-input:focus {
+	border-color: var(--ocad-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ocad-accent) 20%, transparent);
+}
+
+.ocad-field-hint {
+	display: block;
+	font-size: 12px;
+	color: var(--ocad-muted);
+	margin-top: 4px;
+	line-height: 1.4;
+}
+
+input[type="file"] {
+	font-size: 14px;
+	font-family: inherit;
+	color: #4a5568;
+}
+
+/* ---------- Creative upload rows ---------- */
+.ocad-creative-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+	padding: 14px 0;
+	border-bottom: 1px solid #eee;
+}
+
+.ocad-creative-row:last-child {
+	border-bottom: none;
+}
+
+.ocad-creative-label {
+	width: 40%;
+	max-width: 220px;
+	flex-shrink: 0;
+	padding-top: 2px;
+}
+
+.ocad-creative-label strong {
+	display: block;
+	font-size: 15px;
+}
+
+.ocad-creative-spec {
+	font-size: 13px;
+	color: var(--ocad-muted);
+	font-family: monospace;
+}
+
+/* ---------- Order summary ---------- */
+.ocad-summary-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	padding: 8px 0;
+	font-size: 15px;
+	border-bottom: 1px solid #eee;
+}
+
+.ocad-summary-price {
+	font-weight: 600;
+}
+
+.ocad-discount-value {
+	color: #16a34a;
+	font-weight: 600;
+}
+
+.ocad-summary-total {
+	border-bottom: none;
+	border-top: 2px solid var(--ocad-border);
+	margin-top: 4px;
+	padding-top: 12px;
+	font-size: 1.25em;
+	font-weight: 700;
+}
+
+/* ---------- Promo code ---------- */
+.ocad-promo {
+	margin-top: 16px;
+}
+
+.ocad-promo-row {
+	display: flex;
+	gap: 8px;
+}
+
+.ocad-promo-row .ocad-input {
+	flex: 1;
+}
+
+.ocad-promo-message {
+	display: block;
+	margin-top: 6px;
+	font-size: 13px;
+	min-height: 1.2em;
+}
+
+/* ---------- Buttons ---------- */
+.ocad-btn {
+	font-family: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	border: 0;
+	transition: background 0.15s, color 0.15s;
+	line-height: 1.2;
+}
+
+.ocad-btn--primary {
+	background: var(--ocad-accent);
+	color: #fff;
+	border-radius: var(--ocad-radius);
+	font-size: 1.05em;
+	padding: 15px 30px;
+}
+
+.ocad-btn--primary:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--ocad-accent) 82%, #000);
+}
+
+.ocad-btn--primary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.ocad-btn--secondary {
+	background: #1a1a1a;
+	color: #fff;
+	border-radius: 2px;
+	padding: 10px 20px;
+	font-size: 14px;
+	white-space: nowrap;
+}
+
+.ocad-btn--secondary:hover {
+	background: var(--ocad-accent);
+}
+
+.ocad-btn--full {
+	width: 100%;
+}
+
+/* ---------- Actions ---------- */
+.ocad-booking-actions {
+	margin-top: 4px;
+}
+
+.ocad-booking-secure {
+	text-align: center;
+	font-size: 13px;
+	color: var(--ocad-muted);
+	margin: 10px 0 0;
+}
+
+/* ---------- Stripe card element ---------- */
+.ocad-card-element {
+	padding: 12px 14px;
+	border: 1px solid var(--ocad-input);
+	border-radius: 2px;
+	background: #fff;
+	transition: border-color 0.15s;
+}
+
+.ocad-card-element--focus,
+.ocad-card-element:focus-within {
+	border-color: var(--ocad-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ocad-accent) 20%, transparent);
+}
+
+.ocad-card-errors {
+	color: #dc2626;
+	font-size: 14px;
+	margin-top: 6px;
+	min-height: 1.2em;
+}
+
+/* ---------- Notices ---------- */
+.ocad-booking-notice {
+	padding: 14px 18px;
+	border-radius: 6px;
+	font-size: 15px;
+	margin-bottom: 20px;
+	line-height: 1.5;
+}
+
+.ocad-booking-notice--success {
+	background: #f0fdf4;
+	border: 1px solid #bbf7d0;
+	color: #15803d;
+}
+
+.ocad-booking-notice--error {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #dc2626;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+	.ocad-field-group,
+	.ocad-creative-row {
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.ocad-label,
+	.ocad-creative-label {
+		width: 100%;
+		max-width: none;
+		padding-top: 0;
+	}
+}

@@ -27,6 +27,7 @@ final class Features {
         'volunteers'   => 'Volunteers',
         'contacts'     => 'Contacts & email',
         'packages'     => 'Partner packages',
+        'ads'          => 'Ad manager',
     ];
 
     /** True unless explicitly switched off. Unknown keys default to on. */
