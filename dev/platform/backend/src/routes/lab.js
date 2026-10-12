@@ -135,6 +135,16 @@ router.get('/detector-quote', async (req, res) => {
   });
 });
 
+/** The same free connection probe the editor uses, for the bench. */
+router.get('/detector-connection', async (req, res) => {
+  try {
+    const r = await pangram.models();
+    res.json({ ok: true, base: r.base, models: r.models });
+  } catch (err) {
+    res.status(err.status || 500).json({ ok: false, error: err.message, code: err.code });
+  }
+});
+
 /**
  * Run the detector over ONE specimen. One row per press.
  *
@@ -157,7 +167,10 @@ router.post('/samples/:id/detect', async (req, res) => {
   try {
     const result = await pangram.detect(text);
     const stored = {
-      ...result.raw, pct: result.pct, segments: result.segments || null,
+      ...result.raw,
+      pct: result.pct, pct_assisted: result.pct_assisted, pct_human: result.pct_human,
+      headline: result.headline, verdict: result.verdict, version: result.version,
+      windows: result.windows, task_id: result.task_id, model: result.model,
       fingerprint: pangram.fingerprint(text), words: result.words,
     };
     const upd = await db.query(
@@ -169,6 +182,7 @@ router.post('/samples/:id/detect', async (req, res) => {
     );
     res.json({
       ...clean(upd.rows[0]), cached: false,
+      headline: result.headline, verdict: result.verdict,
       ...(result.pct == null ? { unparsed: result.raw } : {}),
     });
   } catch (err) {

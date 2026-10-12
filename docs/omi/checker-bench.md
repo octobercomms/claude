@@ -95,10 +95,26 @@ writes it. An earlier version of the service asked `getSetting` for
 `pangram_api_key` in lower case, which meant a key typed into Settings was
 stored, encrypted, and then never read by anything.
 
-`PANGRAM_API_URL` overrides the endpoint. The response parser tries several
-documented field names and stores the raw body whole, because the development
-environment cannot reach pangram.com and the field names have not been seen
-against a live response. A wrong guess costs a display value, never the data.
+`PANGRAM_API_URL` overrides the base URL. The default follows the naming of the
+documented file-upload host (`file-external.api.pangram.com`), because the
+detection host sits in a code block that did not survive the PDF the docs were
+read from.
+
+**Prove it with the free probe before spending anything.** `GET /models` is free
+and entitlement-aware, so the "Test the connection" button confirms the base
+URL, the key and the account in one call. It exists because the first
+integration went to a guessed host, `text.api.pangramlabs.com`, which answered
+confidently and wrongly for several rounds: 0.15% and "Unlikely AI" on a release
+written entirely by a model, which pangram.com scored 87% AI. A free probe would
+have caught that in one.
+
+The documented flow is asynchronous: `POST /task`, then poll `GET /task/{id}`
+until `stage` is `STAGE_SUCCESS` or `STAGE_FAILED`. The completed task carries
+`fraction_ai` (the figure the dashboard shows), `fraction_ai_assisted`,
+`fraction_human`, a `headline` such as "AI Detected", and `windows`: segment
+labels with character offsets, confidence and the humanizer score. The windows
+are what the dashboard highlights, and they are stored whole so a highlight
+layer can be built from them without paying twice.
 
 ## The ongoing use, which is not the bench
 

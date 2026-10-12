@@ -1503,15 +1503,21 @@ router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
     const own = await humanity.analyse(row.body_html, {}, { names: [row.brand] });
     const stored = {
       ...result.raw,
+      // The documented breakdown, read out so nothing downstream has to know
+      // the provider's field names.
       pct: result.pct,
-      // Their own verdict string. More honest than the number on its own, and
-      // on this release it read "Unlikely AI" while their web tool read
-      // "AI Detected" — so both get recorded.
-      verdict: result.raw?.prediction || null,
-      // Per-sentence scores if the response carries any, pulled out on the
-      // first call so the highlighting layer can be built later without
-      // paying for every release a second time.
-      segments: result.segments || null,
+      pct_assisted: result.pct_assisted,
+      pct_human: result.pct_human,
+      headline: result.headline,
+      verdict: result.verdict,
+      version: result.version,
+      // Segment labels with character offsets. This is what the dashboard
+      // highlights, and what a fourth layer over the document would paint.
+      windows: result.windows,
+      segments_ai: result.segments_ai,
+      segments_human: result.segments_human,
+      task_id: result.task_id,
+      model: result.model,
       fingerprint: fp,
       words: result.words,
       own_score: own?.human_score ?? null,
@@ -1530,6 +1536,9 @@ router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
     // body attached is diagnosable in a minute; a blank number alone is not.
     res.json({
       pangram_pct: result.pct,
+      headline: result.headline,
+      verdict: result.verdict,
+      windows: result.windows.length,
       cost_usd: result.cost_usd,
       words: result.words,
       cached: false,
@@ -1565,6 +1574,23 @@ router.get('/press-releases/:prId/detector-detail', requireAdmin, async (req, re
     segment_count: stored?.segments?.items?.length || 0,
     raw: stored,
   });
+});
+
+/**
+ * Prove the detector endpoint before spending anything on it.
+ *
+ * GET /models is free and entitlement-aware, so a 200 here confirms the base
+ * URL, the key and the account in one call. This exists because the first
+ * integration went to a guessed host that answered confidently and wrongly for
+ * several rounds, and a free probe would have caught it in one.
+ */
+router.get('/detector-connection', requireAdmin, async (req, res) => {
+  try {
+    const r = await pangram.models();
+    res.json({ ok: true, base: r.base, models: r.models });
+  } catch (err) {
+    res.status(err.status || 500).json({ ok: false, error: err.message, code: err.code });
+  }
 });
 
 /** What a detector run on this release would cost, before anything is pressed. */
