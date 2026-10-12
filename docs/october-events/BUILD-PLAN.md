@@ -249,8 +249,17 @@ wiring templates and triggers, not new infrastructure.
   the invoice PDF attached (invoice engine exists; wire it to the confirmation).
 - **Failed-payment / dunning.** Minimal for tickets (one retry nudge on a failed
   attempt); full sequence for membership renewals.
-- **Membership lifecycle.** Welcome, renewal reminder, renewed, payment-failed,
-  lapsed/cancelled — the full set, not just the basics present today.
+- **Membership lifecycle. Shipped (v1.206.0).** Welcome, renewed, payment-failed
+  (dunning) and cancelled emails now fire from the Stripe subscription webhook
+  (`OE\Membership\Lifecycle`): it routes `invoice.paid` /
+  `invoice.payment_succeeded` / `invoice.payment_failed` /
+  `customer.subscription.deleted`, acts only on a configured membership price
+  while membership is enabled, and is idempotent per (member, cycle) so retries
+  never double-send. Four tenant-generic triggers/bodies in `Transactional`; a
+  new `membership_manage_url` setting carries the dunning "update your card"
+  link. **Staging:** subscribe the endpoint to those event types in Stripe and
+  confirm the live sends. A renewal *reminder* (ahead of the charge) is still
+  open — the renewed/failed confirmations after the charge are done.
 - **De-festival the membership tiers (generalisation).** The membership engine is
   already tenant-agnostic (`membership_enabled`, `membership_price_ids`,
   `membership_join_*`, per-ticket `members_only`, and now a configurable
@@ -295,13 +304,16 @@ volunteer pool "sound like they are worth adding in to a phase"). Reads the data
 the plugin already owns; no new capture beyond the survey and consented
 demographics.
 
-- **End-of-event report.** One page per event: tickets sold vs comp, revenue net
-  of fees and refunds, check-in rate, channel/promo breakdown, waitlist
-  conversion. Also in the Track A queue; this is its home.
+- **End-of-event report. Shipped (v1.204.0).** A read-only "Event report"
+  metabox on the event editor (`OE\Reports\EventReport` + `ReportMetabox`):
+  tickets sold vs comp, revenue net of discounts, check-in rate, promo
+  breakdown, waitlist and cart conversion — and now (v1.205.1) the post-event
+  survey outcome (completed / started, response rate against tickets issued).
 - **Demographics.** Aggregate, consent-gated, from CRM fields — never per-person
-  without consent.
-- **Post-event survey.** The per-location survey toggle already on the tour
-  location editor, generalised to any listing, with results feeding the report.
+  without consent. *(Still open.)*
+- **Post-event survey.** The per-location survey toggle already generalises to
+  any listing via `Survey\Config::post_type()`; **its results now feed the
+  event report** (v1.205.1). The survey builder/sender were already in place.
 - **Volunteer pool.** A reusable pool across cycles (retention, no-show history,
   allocation), building on the volunteer profiles and the no-show/abuse flag.
 
@@ -317,7 +329,8 @@ work from a persistent volunteer pool rather than re-recruiting each cycle.
   slice already ships (`[oe_submit_event]`, v1.188.0). The edit-own-event guard is
   small and useful to ADF organizers; full public signup leans Track B.
   - **Editable partner packages** (new entity; backbone of the organizer portal).
-    **Entity + admin CRUD + comparison matrix shipped (v1.205.0).** `oe_package`
+    **Entity + admin CRUD + comparison matrix + single-package detail + a buy
+    path shipped (v1.205.0 → v1.207.0).** `oe_package`
     CPT (title = name, body = description) surfaced under October Events →
     Packages, behind a `packages` feature toggle. `OE\Packages\Package` holds the
     commercial fields in `_oe_pkg_*` meta: **price, +VAT flag, display order;
@@ -326,18 +339,23 @@ work from a persistent volunteer pool rather than re-recruiting each cycle.
     handling_fee); availability (stock, open/close dates, visible flag); Stripe
     price link; buy-more ceiling (max_qty); highlight flag.** `OE\Packages\Metabox`
     is the editor; `[oe_packages]` (`OE\Packages\Matrix`) renders the comparison
-    matrix — native-not-embed, on-sale/dated/stock-aware, honours +VAT and
-    subsidised free/handling-fee pricing. Orders carry a new nullable
-    `package_id` column (db v23) so paid-package stock maths reuses the ticketing
-    orders table. **Ties into the entitlement / gating primitive** (the
+    matrix and `[oe_package]` (`OE\Packages\Single`) the single-package detail
+    view the matrix links to (via `?oe_package=<id>`) — both native-not-embed,
+    on-sale/dated/stock-aware, honouring +VAT and subsidised free/handling-fee
+    pricing. The buy action opens the package's `buy_url` (a Stripe **Payment
+    Link**, which handles VAT/tax in Stripe) so a tenant wires a tax-correct
+    purchase with no developer and no bespoke charge code. Orders carry a new
+    nullable `package_id` column (db v23) so paid-package stock maths reuses the
+    ticketing orders table. **Ties into the entitlement / gating primitive** (the
     `entitlement_tier` stub added in M0): paying for a package unlocks the
     activities its `unlock_count` names, so packages and gating share one
     mechanism.
-    **Remaining:** the multi-step purchase wizard (Stripe checkout against each
-    package's `stripe_price`, writing `package_id` on the order) and enforcement
-    of the unlocked entitlements. The matrix CTA points at the
-    `packages_wizard_page` setting today. Off the ADF-native critical path; the
-    wizard lands with the organizer portal.
+    **Remaining:** the optional native in-house wizard (server-side Stripe
+    checkout against `stripe_price`, writing `package_id` on the order) and
+    enforcement of unlocked entitlements. Because the Payment Link path sells
+    off-site, package purchases are not yet captured in our DB — entitlement
+    gating on a bought package needs that native wizard (or a webhook that writes
+    the order) before it can resolve. Off the ADF-native critical path.
 - **G — Ads module** (de-Jet Phase G): fold `oc-ad-manager` in as a toggleable
   `ads` module, preserve the hub/partner syndication feed and `[oc_ad]`
   back-compat, then retire the standalone plugin. Independent; the integration
