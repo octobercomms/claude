@@ -45,6 +45,17 @@ final class ReportMetabox {
         if (! empty($r['carts']['started'])) {
             self::row(__('Cart conversion', 'october-events'), $r['carts']['recovered'] . ' / ' . $r['carts']['started'] . ' (' . $r['carts']['conversion'] . '%)');
         }
+        if (! empty($r['survey']['total'])) {
+            $s = $r['survey'];
+            $val = $s['complete'] . ' ' . esc_html__('completed', 'october-events');
+            if ($s['partial'] > 0) {
+                $val .= ' · ' . $s['partial'] . ' ' . esc_html__('started', 'october-events');
+            }
+            if ($s['response_rate'] > 0) {
+                $val .= ' (' . $s['response_rate'] . '%)';
+            }
+            self::row(__('Survey', 'october-events'), $val);
+        }
         if (! empty($r['promos'])) {
             echo '<p style="margin:10px 0 2px;font-weight:600">' . esc_html__('Promo codes', 'october-events') . '</p>';
             foreach ($r['promos'] as $p) {

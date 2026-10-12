@@ -160,6 +160,33 @@ final class StripeConnector {
     }
 
     /**
+     * Fetch a customer (for a name + email on a subscription event that carries
+     * only the customer id). Returns [] when not ready or not found.
+     *
+     * @return array<string,mixed>
+     */
+    public static function retrieve_customer(string $id): array {
+        if ($id === '' || ! self::is_ready()) {
+            return [];
+        }
+        return self::request('GET', '/customers/' . rawurlencode($id));
+    }
+
+    /**
+     * True when a price id OR product id is one of the configured membership
+     * prices (Settings → Membership). A pasted product id (prod_…) covers every
+     * price under it; a specific price id (price_…) matches just that one.
+     */
+    public static function is_membership_price(string $price_id, string $product_id = ''): bool {
+        $ids = array_values(array_filter(array_map('strval', (array) Settings::get('membership_price_ids', []))));
+        if (! $ids) {
+            return false;
+        }
+        return ($price_id !== '' && in_array($price_id, $ids, true))
+            || ($product_id !== '' && in_array($product_id, $ids, true));
+    }
+
+    /**
      * Create a PaymentIntent for a listing payment. Returns
      * ['id' => pi_x, 'client_secret' => ...] for client-side confirmation.
      *

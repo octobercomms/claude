@@ -35,6 +35,11 @@ final class Transactional {
         'order_cancelled'            => 'Your order has been cancelled',
         'sales_report'               => 'Daily ticket sales',
         'survey_invite'              => 'How was %2$s?',
+        // Membership lifecycle (M6). %1$s = brand.
+        'membership_welcome'         => 'Welcome to %1$s membership',
+        'membership_renewed'         => 'Your %1$s membership has renewed',
+        'membership_payment_failed'  => 'Your %1$s membership payment didn\'t go through',
+        'membership_cancelled'       => 'Your %1$s membership has been cancelled',
     ];
 
     /**
@@ -136,6 +141,36 @@ final class Transactional {
                 return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been cancelled, and the tickets are no longer valid.', 'october-events'),
                     '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>') . '</p>'
                     . '<p>' . esc_html__('If you believe this was a mistake, please get in touch and we\'ll be glad to help.', 'october-events') . '</p>';
+
+            case 'membership_welcome': {
+                $b = (string) Settings::get('brand_name', '');
+                $out = $hi . '<p>' . sprintf(esc_html__('Welcome — your %s membership is now active. Thank you for your support.', 'october-events'),
+                    '<strong>' . esc_html($b) . '</strong>') . '</p>';
+                if (! empty($params['renews_on'])) {
+                    $out .= '<p>' . sprintf(esc_html__('Your membership renews on %s. We\'ll email you each time it does.', 'october-events'), esc_html((string) $params['renews_on'])) . '</p>';
+                }
+                $info = (string) Settings::get('membership_info_url', '');
+                return $out . ($info !== '' ? self::button(__('See your benefits', 'october-events'), $info) : '');
+            }
+
+            case 'membership_renewed': {
+                $b = (string) Settings::get('brand_name', '');
+                $out = $hi . '<p>' . sprintf(esc_html__('Your %s membership has renewed — thank you for staying with us.', 'october-events'),
+                    '<strong>' . esc_html($b) . '</strong>') . '</p>';
+                if (! empty($params['renews_on'])) {
+                    $out .= '<p>' . sprintf(esc_html__('It\'s set to renew again on %s.', 'october-events'), esc_html((string) $params['renews_on'])) . '</p>';
+                }
+                return $out;
+            }
+
+            case 'membership_payment_failed':
+                return $hi . '<p>' . esc_html__('We tried to renew your membership but the payment didn\'t go through. This usually means the card on file has expired or was declined.', 'october-events') . '</p>'
+                    . '<p>' . esc_html__('Please update your payment details to keep your membership active — we\'ll try again automatically once you do.', 'october-events') . '</p>'
+                    . (! empty($params['update_url']) ? self::button(__('Update payment details', 'october-events'), (string) $params['update_url']) : '');
+
+            case 'membership_cancelled':
+                return $hi . '<p>' . esc_html__('Your membership has been cancelled and will not renew. We\'re sorry to see you go, and you\'re welcome back any time.', 'october-events') . '</p>'
+                    . (! empty($params['rejoin_url']) ? self::button(__('Rejoin', 'october-events'), (string) $params['rejoin_url']) : '');
         }
 
         // Generic fallback: greeting + any scalar params.
