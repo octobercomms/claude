@@ -73,6 +73,21 @@ const REPORTED = `Indiewalls has paid 10 million dollars to independent artists 
   ok(aiTells('The approach weaves together craft, technology, and vision.')
     .some((t) => t.kind === 'rule_of_three'), 'a triple made of abstractions still is');
 
+  console.log('\nThe rule of three is caught at phrase length, not only at word length');
+  // Pangram's own segmentation put its highest AI confidence on a passage built
+  // from a parallel participial triple, which the word-level pattern cannot see.
+  const triple = aiTells('The result is a piece made for one person, telling their story, '
+    + 'carrying the emotional weight of art, and creating a genuine connection.');
+  ok(triple.some((t) => t.kind === 'parallel_phrases'), 'three parallel clauses are a tell');
+  ok(!aiTells('Indiewalls will hand-paint a sneaker for every guest at Art & Sole, its client '
+    + 'event on Sunday, November 8, at Altair Bar in Arlo Midtown, New York.')
+    .some((t) => t.kind === 'parallel_phrases'),
+  'a reported lead with commas in it is not');
+  ok(!aiTells('The building holds three concrete bowls on its top floor, a bouldering wall '
+    + 'across two floors, and a boxing gym at street level.')
+    .some((t) => t.kind === 'parallel_phrases'),
+  'nor is a list of three real things');
+
   console.log('\nNumbers written as words count');
   // Press style spells out the small ones, so a digits-only counter marked
   // "What began three years ago..." as carrying nothing.

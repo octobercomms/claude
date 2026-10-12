@@ -38,4 +38,22 @@ async function thresholds() {
   try { return (await mod()).THRESHOLDS; } catch { return null; }
 }
 
-module.exports = { analyse, thresholds, MODULE_PATH };
+/**
+ * The shared HTML-to-text conversion, which decodes entities as well as
+ * stripping tags.
+ *
+ * Anything sent to a paid detector has to go through this rather than a local
+ * tag-strip. The first live call was billed on text still carrying literal
+ * "&amp;" and "&nbsp;", which is not the text anyone reads and not what we
+ * meant to pay to have analysed.
+ */
+async function toText(html) {
+  try {
+    const m = await mod();
+    return m.stripHtml(html || '');
+  } catch {
+    return String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+}
+
+module.exports = { analyse, toText, thresholds, MODULE_PATH };

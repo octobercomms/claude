@@ -754,12 +754,17 @@ export default function PressReleaseEditor({
                      wrongly reassuring is worse than no reading at all. */
                   <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: LINE,
                     borderRadius: 'var(--r-sm)', background: 'var(--warning-soft)' }}>
-                    <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Do not trust this number yet</div>
+                    <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
+                      Pangram&rsquo;s API and its web tool disagree
+                    </div>
                     <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                      Checked once against Pangram&rsquo;s own web tool on the same release: this read
-                      0.15%, the web tool read 87%. Which field of their response carries the figure the
-                      web tool shows has not been established, so this is probably reading the wrong one.
-                      Paste the text into pangram.com for an answer you can act on until it is fixed.
+                      On the same release, this API returned <strong>0.15%</strong> with its own verdict
+                      reading &ldquo;Unlikely AI&rdquo;, while pangram.com returned <strong>87% AI</strong>
+                      and split the text into four segments, calling three of them machine-written. The
+                      figure here is read correctly from the field their API returns; the two sides of
+                      Pangram simply do not agree, and the web tool is the one doing the segmented
+                      analysis. Until that is settled, treat this number as the weaker of the two and
+                      paste the text into pangram.com for the answer worth acting on.
                     </div>
                   </div>
                 )}
