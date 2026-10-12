@@ -63,6 +63,24 @@ const REPORTED = `Indiewalls has paid 10 million dollars to independent artists 
   ok(analyse('A short human line about the 28-metre wall.').human_score > 70,
     'a short factual extract is not punished for being short');
 
+  console.log('\nA name at the start of a sentence still counts as a fact');
+  // Press releases open sentences with the client's name constantly. Counting
+  // only mid-sentence capitals marked those sentences as carrying nothing.
+  const opener = analyse('Indiewalls paints sneakers at Arlo Midtown. BDNY is the industry\u2019s main trade show. Indiewalls holds the event there.');
+  ok(!opener.spans[1].bare, '\u201cBDNY is the industry\u2019s main trade show\u201d is not marked empty');
+  // The rule only credits a name the text has already used mid-sentence, so a
+  // client whose name only ever opens sentences needs the brand field.
+  ok(opener.spans[2].bare, 'a name the body never uses mid-sentence is not guessed at');
+  const withBrand = analyse(
+    'Indiewalls paints sneakers at Arlo Midtown. Indiewalls holds the event there.',
+    {}, { names: ['Indiewalls'] },
+  );
+  ok(withBrand.spans[1].facts > 0, 'and the brand field credits it');
+  // The rule only credits names the document has already proved are names.
+  const plain = analyse('Everyone agreed it looked good. Guests enjoyed the evening.');
+  ok(plain.spans.every((sp) => sp.bare),
+    'an ordinary capitalised first word is still not a fact');
+
   console.log('\nIt stays a heuristic');
   ok(typeof analyse('').human_score === 'number', 'empty text does not throw');
   ok(analyse(HUMAN).human_parts.every((p) => p.cost > 0),

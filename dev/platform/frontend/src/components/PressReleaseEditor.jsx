@@ -14,20 +14,51 @@ import { analyse, MOVES } from '@shared/humanity.mjs';
  *    Claude draft was flagged 100% AI, and flagged again after hand editing —
  *    the signal is structural, so the only lever is where the prose starts.
  *
- * 2. The live number is a FACT COUNT, not a humanity score. It rises when you
- *    add a checkable item and does not move when you reword a sentence, which
- *    is the truth: rewording does not shift a detector. A panel that appeared
- *    to reward rewriting would be lying and would train the exact habit the
- *    editorial standard bans.
+ * 2. The dial reads the visible tells and the specificity. It is a heuristic
+ *    and the panel says so at length. Two of its three layers move when you
+ *    edit: cutting a tell phrase is ordinary editing, and so is cutting a
+ *    sentence that says nothing. The third, specificity, only moves when you
+ *    go and get a fact, which is why it carries the most weight.
  *
- * 3. Style markers are reported without highlights and without fix buttons, and
- *    they do not feed the headline number. They say where the prose came from.
+ * 3. STRUCTURAL markers — sentence rhythm, parallelism — are reported without
+ *    highlights and do not feed the number. They say where the prose came from.
  *    Underlining a coordinate list would be an instruction to go and break it,
  *    and deliberately roughened prose is a category detectors are trained on.
  */
 
 const LINE = 'var(--border-w) solid var(--card-border)';
 const CAP = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' };
+
+/**
+ * The three things worth marking, and the only three.
+ *
+ * Each one earns its place by having a different fix. A layer you cannot act
+ * on is decoration, and a document where everything is highlighted says the
+ * same as a document where nothing is.
+ *
+ *   phrasing — a phrase. Cut it. Ordinary editing, costs nothing.
+ *   thin     — a whole sentence carrying no checkable fact. Give it a fact or
+ *              cut it. You cannot clear this one by rewording.
+ *   fact     — what is already earning the score. Nothing to do. Off by
+ *              default, because the useful default is "show me the problems".
+ *
+ * The treatments differ by more than hue: a solid underline, a dotted one, a
+ * tint. Colour alone never carries the meaning.
+ */
+const LAYERS = [
+  // In paint order, which is not negotiable: the sentence layer has to go down
+  // before the phrase layers, because once a tell has split a text node the
+  // sentence around it no longer matches as one string.
+  { key: 'thin', cls: 'oc-bare', label: 'No checkable fact', swatch: 'var(--warning)',
+    fix: 'give it a fact, or cut it', on: true },
+  { key: 'phrasing', cls: 'oc-tell', label: 'AI phrasing', swatch: 'var(--negative)',
+    fix: 'cut the phrase', on: true },
+  // The count is of DISTINCT facts, which is what the score uses, while the
+  // page marks every occurrence — so the label says so rather than leaving a
+  // reader to wonder why 21 facts produced 29 highlights.
+  { key: 'fact', cls: 'oc-fact', label: 'Checkable facts', swatch: 'var(--positive)',
+    fix: 'what is earning the score · marked wherever they repeat', on: false },
+];
 
 const EMPTY_BRIEF = {
   news_hook: '',
@@ -141,34 +172,76 @@ function markPass(doc, root, needles, cls) {
 }
 
 /**
- * Mark the factless sentences, then the AI tells inside them.
+ * The three layers, painted in this order: sentences first, then the phrases
+ * that sit inside them.
  *
- * Two passes, in that order, because almost every tell sits inside a sentence
- * that carries no fact: one pass with an outermost-wins rule swallowed every
- * underline. The sentence pass runs first and the tell pass then walks the
- * text again, including the text now inside those marks, so the two nest.
+ * Order matters and was learned the hard way. Almost every tell sits inside a
+ * sentence carrying no fact, so a single pass with an outermost-wins rule
+ * swallowed every underline. Each pass re-walks the text, including text now
+ * inside an earlier mark, so the layers nest instead of competing.
  *
  * Located by text match rather than character offset, so a miss degrades to
  * "not marked" instead of to a mark in the wrong place.
  *
- * Only these two are marked. The structural markers — sentence rhythm,
- * parallelism — are never highlighted, because the only way to act on a
- * highlight there is to rough the prose up on purpose, which is the category
- * detectors are trained to catch. A tell is a phrase: deleting it is editing.
+ * What is never marked: the structural tells — sentence rhythm, parallelism,
+ * even paragraph length. The only way to act on a highlight there is to rough
+ * the prose up on purpose, which is the one category detectors are trained to
+ * catch. They stay in the diagnostic block, where you read them and do nothing.
  */
-function highlightBare(html, spans, tells = []) {
+function highlightLayers(html, layers) {
   if (!html || typeof DOMParser === 'undefined') return html;
-  const bare = [...new Set(spans.filter((sp) => sp.bare).map((sp) => sp.text))].filter((t) => t.length > 12);
-  const tellText = [...new Set(tells.map((t) => t.text).filter((t) => t && t.length > 2))]
-    .sort((a, b) => b.length - a.length);
-  if (!bare.length && !tellText.length) return html;
+  const passes = layers.filter((l) => l.needles.length);
+  if (!passes.length) return html;
   try {
     const doc = new DOMParser().parseFromString(`<div id="oc-root">${html}</div>`, 'text/html');
     const root = doc.getElementById('oc-root');
-    markPass(doc, root, bare, 'oc-bare');
-    markPass(doc, root, tellText, 'oc-tell');
+    for (const layer of passes) markPass(doc, root, layer.needles, layer.cls);
     return root.innerHTML;
   } catch { return html; }
+}
+
+/**
+ * The legend, and the layer switches, in one control.
+ *
+ * Every row carries its live count, because a layer with nothing to mark and a
+ * layer switched off look identical on the page, and a count of zero is the
+ * most useful thing the panel ever says.
+ */
+function Legend({ layerOn, setLayerOn, marks, reading }) {
+  const counts = {
+    thin: reading.spans.filter((sp) => sp.bare && sp.words >= 6).length,
+    phrasing: reading.tells.length,
+    fact: reading.checkable,
+  };
+  const sample = {
+    thin: { borderBottom: '1px dotted var(--warning)', background: 'var(--warning-soft)' },
+    phrasing: { borderBottom: '2px solid var(--negative)', background: 'var(--negative-soft)' },
+    fact: { background: 'var(--positive-soft)', borderRadius: 2 },
+  };
+  return (
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)', alignItems: 'flex-start',
+      padding: 'var(--s2) var(--s3)', marginBottom: 'var(--s2)',
+      border: LINE, borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)',
+    }}>
+      {LAYERS.map((l) => (
+        <label key={l.key} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!layerOn[l.key]} style={{ marginTop: 3 }}
+            onChange={(e) => setLayerOn((m) => ({ ...m, [l.key]: e.target.checked }))} />
+          <span>
+            <span style={{ fontSize: 'var(--fs-body)' }}>
+              {/* The swatch is the mark itself, at the same weight it appears in
+                  the text, so the legend cannot drift from the page. */}
+              <span style={{ ...sample[l.key], padding: '0 4px', marginRight: 6 }}>Aa</span>
+              {l.label}
+              <strong style={{ marginLeft: 6 }}>{counts[l.key]}</strong>
+            </span>
+            <span style={{ ...CAP, display: 'block' }}>{l.fix}</span>
+          </span>
+        </label>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -177,11 +250,11 @@ function highlightBare(html, spans, tells = []) {
  */
 function Dial({ score }) {
   const R = 58, C = 2 * Math.PI * R, v = Math.max(0, Math.min(100, score));
-  const band = v >= 75 ? { hue: 'var(--success, #1a9d5a)', word: 'Reads as human' }
-    : v >= 45 ? { hue: 'var(--warn, #b8860b)', word: 'Mixed signals' }
-      : { hue: 'var(--danger, #c0392b)', word: 'Reads as generated' };
+  const band = v >= 75 ? { hue: 'var(--positive)', word: 'Reads as human' }
+    : v >= 45 ? { hue: 'var(--warning)', word: 'Mixed signals' }
+      : { hue: 'var(--negative)', word: 'Reads as generated' };
   return (
-    <div style={{ display: 'flex', gap: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexDirection: 'column', textAlign: 'center' }}>
       <svg width="148" height="148" viewBox="0 0 148 148" role="img"
         aria-label={`${v} out of 100. ${band.word}.`}>
         <circle cx="74" cy="74" r={R} fill="none" stroke="var(--card-border)" strokeWidth="13" />
@@ -193,7 +266,7 @@ function Dial({ score }) {
         <text x="74" y="96" textAnchor="middle" dominantBaseline="middle"
           style={{ fontSize: 11, fill: 'var(--text-subtle)' }}>out of 100</text>
       </svg>
-      <div style={{ minWidth: 220, flex: 1 }}>
+      <div>
         <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1.2 }}>{band.word}</div>
         <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
           Live, as you type. It rises when you remove a tell or add a checkable fact.
@@ -213,7 +286,9 @@ export default function PressReleaseEditor({
   const [claims, setClaims] = useState(null);
   const [budget, setBudget] = useState(null);
   const [showStyle, setShowStyle] = useState(false);
-  const [highlight, setHighlight] = useState(true);
+  const [layerOn, setLayerOn] = useState(
+    () => Object.fromEntries(LAYERS.map((l) => [l.key, l.on])),
+  );
 
   const brief = useMemo(() => merge(EMPTY_BRIEF, pr.brief_json), [pr.brief_json]);
   const setBrief = (next) => setPr((p) => ({ ...p, brief_json: next }));
@@ -225,7 +300,29 @@ export default function PressReleaseEditor({
   });
 
   // The live reading. Deterministic and local: no request, no cost, no delay.
-  const reading = useMemo(() => analyse(pr.body_html || '', brief), [pr.body_html, brief]);
+  const reading = useMemo(
+    () => analyse(pr.body_html || '', brief, { names: [pr.brand] }),
+    [pr.body_html, brief, pr.brand],
+  );
+
+  // What each layer marks, and how many of them there are. The legend shows the
+  // count because a layer with nothing in it has to say so: an empty highlight
+  // layer and a switched-off one look identical on the page.
+  const marks = useMemo(() => ({
+    // Long enough to locate unambiguously. A six-word connective sentence is
+    // not the problem and marking it only adds noise.
+    thin: [...new Set(reading.spans.filter((sp) => sp.bare && sp.words >= 6).map((sp) => sp.text))]
+      .filter((t) => t.length > 12),
+    phrasing: [...new Set(reading.tells.map((t) => t.text).filter((t) => t && t.length > 2))]
+      .sort((a, b) => b.length - a.length),
+    fact: [...new Set(reading.items.map((i) => i.text).filter((t) => t && t.length > 1))]
+      .sort((a, b) => b.length - a.length),
+  }), [reading]);
+
+  const html = useMemo(() => highlightLayers(
+    pr.body_html || '',
+    LAYERS.filter((l) => layerOn[l.key]).map((l) => ({ cls: l.cls, needles: marks[l.key] || [] })),
+  ), [pr.body_html, marks, layerOn]);
 
   // Where the density stood when this release was opened, so the panel can show
   // movement rather than an absolute number with no reference point.
@@ -272,15 +369,32 @@ export default function PressReleaseEditor({
   return (
     <div>
       <style>{`
-        mark.oc-bare {
-          background: color-mix(in srgb, var(--accent) 20%, transparent);
-          color: inherit; border-radius: 2px; padding: 0 1px;
+        mark.oc-bare, mark.oc-tell, mark.oc-fact {
+          color: inherit; background: transparent; padding: 0; border-radius: 0;
           box-decoration-break: clone; -webkit-box-decoration-break: clone;
         }
+        /* A whole sentence, so the quietest mark in the set: a dotted rule
+           under the line. A block fill at this length turns half the page
+           yellow and buries the phrase-level marks inside it. */
+        mark.oc-bare {
+          border-bottom: 1px dotted var(--warning);
+          background: var(--warning-soft);
+        }
+        /* A phrase, and the one thing you act on first, so it is the loudest. */
         mark.oc-tell {
-          background: transparent; color: inherit;
-          border-bottom: 2px solid var(--danger, #c0392b);
-          border-radius: 0; padding: 0;
+          border-bottom: 2px solid var(--negative);
+          background: var(--negative-soft);
+        }
+        mark.oc-fact {
+          background: var(--positive-soft);
+          border-radius: 2px;
+        }
+        .oc-release-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
+        @media (min-width: 1100px) {
+          .oc-release-grid { grid-template-columns: minmax(0, 1fr) 320px; }
+          /* The reading follows the sentence being edited down a long release
+             rather than sitting at the top of it. */
+          .oc-release-rail { position: sticky; top: var(--s4); align-self: start; }
         }
       `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
@@ -374,12 +488,6 @@ export default function PressReleaseEditor({
         <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
           <button className={`btn btn-sm ${tab === 'document' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('document')}>Document</button>
           <button className={`btn btn-sm ${tab === 'source' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('source')}>HTML source</button>
-          {tab === 'document' && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s1)', cursor: 'pointer', ...CAP }}>
-              <input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} />
-              Mark the sentences carrying no fact
-            </label>
-          )}
           <div style={{ flex: 1 }} />
           <button className="btn btn-secondary btn-sm" onClick={async () => {
             try { await navigator.clipboard.writeText(pr.body_html || ''); toast('HTML copied.', 'success'); }
@@ -387,68 +495,80 @@ export default function PressReleaseEditor({
           }}>Copy HTML</button>
         </div>
 
-        {tab === 'document' ? (
-          <div
-            style={{
-              border: LINE, borderRadius: 'var(--r-sm)', padding: 'var(--s5)', background: 'var(--surface)',
-              maxWidth: '46em', lineHeight: 1.65, fontSize: 'var(--fs-body)',
-            }}
-            // The operator's own release, rendered for reading, with the
-            // factless sentences marked. Same content the source view edits.
-            dangerouslySetInnerHTML={{ __html: pr.body_html
-              ? (highlight ? highlightBare(pr.body_html, reading.spans, reading.tells) : pr.body_html)
-              : '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>' }}
-          />
-        ) : (
-          <textarea className="input" rows={20} disabled={readOnly}
-            style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-caption)' }}
-            value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} />
-        )}
-        {tab === 'document' && !readOnly && (
-          <div style={{ ...CAP, marginTop: 'var(--s2)' }}>Switch to HTML source to edit.</div>
-        )}
+        {/* Document left, reading right. The dial sits beside the sentence you
+            are editing rather than a scroll away, so the number and the change
+            that moved it are in the same glance. */}
+        <div className="oc-release-grid">
+          <div style={{ minWidth: 0 }}>
+            {tab === 'document' ? (
+              <>
+                <Legend layerOn={layerOn} setLayerOn={setLayerOn} marks={marks} reading={reading} />
+                <div
+                  style={{
+                    border: LINE, borderRadius: 'var(--r-sm)', padding: 'var(--s5)', background: 'var(--surface)',
+                    lineHeight: 1.65, fontSize: 'var(--fs-body)',
+                  }}
+                  // The operator's own release, rendered for reading, with the
+                  // layers painted on. Same content the source view edits.
+                  dangerouslySetInnerHTML={{ __html: pr.body_html ? html
+                    : '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>' }}
+                />
+                {!readOnly && <div style={{ ...CAP, marginTop: 'var(--s2)' }}>Switch to HTML source to edit.</div>}
+              </>
+            ) : (
+              <textarea className="input" rows={24} disabled={readOnly}
+                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-caption)' }}
+                value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} />
+            )}
+          </div>
+
+          <aside className="oc-release-rail">
+            <div style={{ padding: 'var(--s3)', border: LINE, borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
+              <Dial score={reading.human_score} />
+
+              {reading.human_parts.length > 0 && (
+                <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+                  <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>What is costing points</div>
+                  {reading.human_parts.map((part) => (
+                    <div key={part.label} style={{ padding: '3px 0' }}>
+                      <div className="row" style={{ gap: 'var(--s2)', alignItems: 'baseline' }}>
+                        <span style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>−{part.cost}</span>
+                        <span style={{ fontSize: 'var(--fs-body)' }}>{part.label}</span>
+                      </div>
+                      <div style={CAP}>{part.detail}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {reading.tells.length > 0 && (
+                <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+                  <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>
+                    The phrases, underlined in red on the left. Cutting them is ordinary editing.
+                  </div>
+                  {Object.values(reading.tells.reduce((acc, t) => {
+                    const k = `${t.kind}:${t.label}`;
+                    acc[k] = acc[k] || { ...t, n: 0 };
+                    acc[k].n += 1;
+                    return acc;
+                  }, {})).sort((a, b) => b.weight * b.n - a.weight * a.n).slice(0, 14).map((t) => (
+                    <div key={`${t.kind}:${t.label}`} style={{ padding: '3px 0' }}>
+                      <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>{t.label}</span>
+                      {t.n > 1 && <span style={{ ...CAP, marginLeft: 6 }}>×{t.n}</span>}
+                      <div style={CAP}>{t.note}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
       </Section>
 
       {/* ── The check ──────────────────────────────────────────────────── */}
       <Section title="The check" hint="Live, free, and local. It counts facts, not style.">
         <div style={{ padding: 'var(--s4)', border: LINE, borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)', marginBottom: 'var(--s3)' }}>
-          <Dial score={reading.human_score} />
-
-          {reading.human_parts.length > 0 && (
-            <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
-              <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>What is costing points</div>
-              {reading.human_parts.map((part) => (
-                <div key={part.label} className="row" style={{ gap: 'var(--s2)', padding: '3px 0', alignItems: 'baseline' }}>
-                  <span style={{ width: 44, fontWeight: 700, fontSize: 'var(--fs-body)' }}>−{part.cost}</span>
-                  <span style={{ fontSize: 'var(--fs-body)' }}>{part.label}</span>
-                  <span style={CAP}>{part.detail}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {reading.tells.length > 0 && (
-            <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
-              <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>
-                Underlined in the document above. Deleting these is ordinary editing — they are
-                phrases, not rhythm, so cutting them costs nothing.
-              </div>
-              {Object.values(reading.tells.reduce((acc, t) => {
-                const k = `${t.kind}:${t.label}`;
-                acc[k] = acc[k] || { ...t, n: 0 };
-                acc[k].n += 1;
-                return acc;
-              }, {})).sort((a, b) => b.weight * b.n - a.weight * a.n).slice(0, 14).map((t) => (
-                <div key={`${t.kind}:${t.label}`} className="row" style={{ gap: 'var(--s2)', padding: '3px 0', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>{t.label}</span>
-                  {t.n > 1 && <span style={CAP}>×{t.n}</span>}
-                  <span style={CAP}>{t.note}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ ...CAP, marginTop: 'var(--s3)', paddingTop: 'var(--s2)', borderTop: LINE }}>
+          <div style={{ ...CAP, paddingTop: 0, borderTop: 0 }}>
             <strong>What this is.</strong> A heuristic, not a detector, and worth knowing the difference.
             Pangram maps text into a style space learned from paired human and AI writing, and weighs
             “hundreds of thousands” of signals, of which the visible tells are only one. This checks the
@@ -504,7 +624,7 @@ export default function PressReleaseEditor({
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18,
                   borderRadius: 'var(--r-md)', flexShrink: 0, marginTop: 2, fontSize: 11, fontWeight: 700, color: '#fff',
-                  background: g.severity === 'high' ? 'var(--danger, #c0392b)' : 'var(--text-subtle)',
+                  background: g.severity === 'high' ? 'var(--negative)' : 'var(--text-subtle)',
                 }}>{g.severity === 'high' ? '!' : '·'}</span>
                 <div>
                   <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>{g.label}</div>

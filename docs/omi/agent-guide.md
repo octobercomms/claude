@@ -158,6 +158,11 @@ And within OMI there are **two different "Leads" screens** — always disambigua
 ### Design tokens (`index.css :root`)
 - Type scale `--fs-*`, spacing `--s1..--s10`, radii `--r-sm/md/lg/pill`,
   colours, `--warm`/`--warm-soft`.
+- **Status colours are `--positive` / `--negative` / `--warning`**, each with a
+  `-soft` fill (`--positive-soft` etc.) for backgrounds. There is no `--success`,
+  `--danger` or `--warn`: write one of those and CSS silently falls through to
+  whatever fallback you typed, so the component stops following the palette and
+  nobody notices. The Releases editor shipped that way once.
 - Look: two-tone (white surfaces, black text, one **yellow accent**),
   thick 2px borders, chunky radii, soft depth on cards.
 - Buttons: a consolidated 9-style system — `.btn-primary/secondary/danger`,
