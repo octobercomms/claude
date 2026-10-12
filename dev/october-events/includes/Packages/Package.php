@@ -40,7 +40,8 @@ final class Package {
         'opens_at'       => 'text',   // YYYY-MM-DD; before this the package is not on sale
         'closes_at'      => 'text',   // YYYY-MM-DD; after this the package is not on sale
         'visible'        => 'bool',   // false = hidden from the matrix/wizard even if on sale
-        'stripe_price'   => 'text',   // Stripe price id (price_…) the wizard checks out with
+        'stripe_price'   => 'text',   // Stripe price id (price_…) a future native wizard checks out with
+        'buy_url'        => 'url',    // Stripe Payment Link / checkout URL the buy button opens today
         'max_qty'        => 'int',    // "buy more than one" ceiling (0/'' = single, 1 = single)
         'highlight'      => 'bool',   // feature this column in the comparison matrix
     ];
@@ -82,6 +83,8 @@ final class Package {
                 return $value ? '1' : '';
             case 'int':
                 return (string) $value === '' ? '' : (string) max(0, (int) $value);
+            case 'url':
+                return esc_url_raw(trim((string) $value));
             case 'tier':
                 $v = sanitize_key((string) $value);
                 return isset(self::TIER_TYPES[$v]) ? $v : 'standard';

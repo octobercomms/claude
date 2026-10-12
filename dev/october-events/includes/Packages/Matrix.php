@@ -165,23 +165,27 @@ final class Matrix {
         return '<ul class="oe-package__includes" style="margin:0;padding:0 0 0 1.1em">' . $li . '</ul>';
     }
 
-    /** The select CTA, pointing at the configured wizard page when set. */
+    /**
+     * The select CTA. A package's own buy link wins (a Stripe Payment Link that
+     * handles VAT/tax in Stripe, opened in a new tab); otherwise the configured
+     * wizard page; otherwise the matrix's own page with `?oe_package=<id>` so the
+     * single-package view can take over.
+     */
     private static function cta(int $id, string $name): string {
-        $page = (string) \OE\Settings::get('packages_wizard_page', '');
-        $label = sprintf(
-            /* translators: %s: package name */
-            __('Choose %s', 'october-events'),
-            $name
-        );
-        if ($page !== '') {
-            $href = add_query_arg('oe_package', $id, $page);
-        } else {
-            $href = add_query_arg('oe_package', $id, get_permalink() ?: home_url('/'));
+        $buy = (string) Package::get($id, 'buy_url', '');
+        if ($buy !== '') {
+            return sprintf(
+                '<a class="oe-btn oe-package__cta" href="%s" target="_blank" rel="noopener" style="margin-top:auto;align-self:flex-start">%s</a>',
+                esc_url($buy),
+                esc_html(sprintf(/* translators: %s: package name */ __('Choose %s', 'october-events'), $name))
+            );
         }
+        $page = (string) \OE\Settings::get('packages_wizard_page', '');
+        $base = $page !== '' ? $page : (get_permalink() ?: home_url('/'));
         return sprintf(
             '<a class="oe-btn oe-package__cta" href="%s" style="margin-top:auto;align-self:flex-start">%s</a>',
-            esc_url($href),
-            esc_html($label)
+            esc_url(add_query_arg('oe_package', $id, $base)),
+            esc_html(sprintf(/* translators: %s: package name */ __('Choose %s', 'october-events'), $name))
         );
     }
 }
