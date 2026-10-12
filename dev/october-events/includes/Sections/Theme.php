@@ -101,7 +101,18 @@ final class Theme {
             // accent too (two-class specificity wins over checkout.css without
             // !important). A raw [oe_event_checkout] placement keeps its own look.
             . '.oe-sec--tickets .oct-btn--primary{background:var(--oe-accent);border-color:var(--oe-accent);color:var(--oe-accent-on);border-radius:var(--oe-radius)}'
-            . '.oe-sec--tickets #oct-stripe-elements.focused{border-color:var(--oe-accent)}';
+            . '.oe-sec--tickets #oct-stripe-elements.focused{border-color:var(--oe-accent)}'
+            // Listing archive.
+            . '.oe-arch__filters{display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:var(--oe-space)}'
+            . '.oe-arch__filter{display:flex;flex-direction:column;gap:.25rem;font-size:.85em}'
+            . '.oe-arch__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--oe-space)}'
+            . '.oe-arch__card{display:block;text-decoration:none;color:inherit}'
+            . '.oe-arch__img{display:block;width:100%;height:auto;border-radius:var(--oe-radius);margin-bottom:.5rem}'
+            . '.oe-arch__title{display:block;font-weight:700}'
+            . '.oe-arch__meta{display:block;opacity:.7;font-size:.85em;margin-top:.15rem}'
+            . '.oe-arch__pager{display:flex;gap:.4rem;margin-top:var(--oe-space);flex-wrap:wrap}'
+            . '.oe-arch__page{padding:.2em .6em;border-radius:var(--oe-radius);text-decoration:none;color:inherit}'
+            . '.oe-arch__page.is-current{background:var(--oe-accent);color:var(--oe-accent-on)}';
 
         return $vars . $rules;
     }
