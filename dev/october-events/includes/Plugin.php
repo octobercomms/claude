@@ -77,6 +77,7 @@ final class Plugin {
             \OE\GuidedTours\Metabox::init();
             \OE\Survey\Metabox::init();
             \OE\Hosts\Metabox::init();
+            \OE\Reports\ReportMetabox::init();
         }
         Dashboard::get_instance()->init();
         \OE\Frontend\Checkout::get_instance()->init();
