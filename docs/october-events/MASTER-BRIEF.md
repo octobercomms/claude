@@ -55,6 +55,7 @@ Read this brief first, then the canonical doc for the topic you're working on.
 
 **Multi-tenant / engineering direction**
 - [`BUILD-PLAN.md`](BUILD-PLAN.md) — **the single ordered build backlog (M0–M5): get the reference tenant fully native, then refine. Start here for "what do we build next."**
+- [`UI-SPEC.md`](UI-SPEC.md) — **the UI spec for every admin and front-end screen, with decisions (one listing engine, section shortcodes, dynamic visibility, CRM, portals). The reference the build follows.**
 - [`SCOPE-GAPS.md`](SCOPE-GAPS.md) — **PARKED** sell-to-others plumbing (migrator-as-tool, entitlements, ticketing hardening, provisioning, billing, deliverability). Not started until after M5.
 - [`HOPE-SALONS-SCOPE.md`](HOPE-SALONS-SCOPE.md) — one codebase, many tenants: the operating rulebook + flag-hardening.
 - [`DE-JET-MIGRATION.md`](DE-JET-MIGRATION.md) — make the plugin self-contained (no Jet/Crocoblock). **Engineering priority one.**

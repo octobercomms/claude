@@ -6,6 +6,16 @@ builds toward. It supersedes any "tour is a separate type" framing;
 [`TOURS-RATIONALIZATION.md`](TOURS-RATIONALIZATION.md) becomes the detail for the
 **tour** pack below.
 
+> **Evolution (Oct 2026): event → listing.** This model now generalizes from
+> "event" to a single **listing** engine: event, tour, tour location, destination
+> and directory are all *listings*, and a listing's **type** is a preset of which
+> packs are on. One template, one archive, one filter layer, one URL engine serve
+> them all; sections render on demand and auto-hide (short-circuit) when empty.
+> **Products are removed** (store territory). URLs are descriptive per type
+> (`/events/`, `/tours/`, `/locations/`, `/directory/`, `/destinations/`) with
+> 301s from the old `/e/` and `/portfolio/`. The UI for all of this is specified
+> in [`UI-SPEC.md`](UI-SPEC.md), which is the companion to this data model.
+
 ## Principle
 
 **One `event` CPT. Base fields for every event. Everything else is a capability
