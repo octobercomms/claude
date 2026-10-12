@@ -428,6 +428,8 @@ export default function PressReleaseEditor({
   const [detector, setDetector] = useState(null);   // { configured, words, cost_usd }
   const [detecting, setDetecting] = useState(false);
   const [unparsed, setUnparsed] = useState(null);  // their response, when we could not read the number out of it
+  const [detail, setDetail] = useState(null);     // their response in full, whether or not we read it
+  const [showRaw, setShowRaw] = useState(false);
   const [showStyle, setShowStyle] = useState(false);
   const [layerOn, setLayerOn] = useState(
     () => Object.fromEntries(LAYERS.map((l) => [l.key, l.on])),
@@ -487,6 +489,16 @@ export default function PressReleaseEditor({
     }, 800);
     return () => clearTimeout(t);
   }, [pr.id, pr.body_html]);
+
+  // Their response in full, loaded alongside the release so it is there without
+  // spending anything. On the one release checked against their own web tool,
+  // the figure this panel read (0.15%) and the figure the web tool gave (87%)
+  // disagreed completely, which means the field being read is the wrong one.
+  // Until that is settled the raw body is the honest thing to show.
+  useEffect(() => {
+    if (!pr.id) return;
+    api.get(`/pr/press-releases/${pr.id}/detector-detail`).then(setDetail).catch(() => {});
+  }, [pr.id, pr.pangram_checked_at]);
 
   async function runDetector() {
     if (!pr.id) { toast('Save the release first.', 'info'); return; }
@@ -724,14 +736,33 @@ export default function PressReleaseEditor({
                 <div className="row" style={{ gap: 'var(--s2)', alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Pangram</span>
                   <span style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>
-                    {pr.pangram_pct == null ? <span style={CAP}>not run</span> : `${pr.pangram_pct}%`}
+                    {pr.pangram_pct == null
+                      ? <span style={CAP}>not run</span>
+                      : <span style={{ color: 'var(--text-subtle)' }}>{pr.pangram_pct}%</span>}
                   </span>
                 </div>
-                <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                  {pr.pangram_pct == null
-                    ? 'A trained classifier, and the one a journalist is most likely to paste this into.'
-                    : 'of this reads as machine-written, by a trained classifier.'}
-                </div>
+                {pr.pangram_pct == null ? (
+                  <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+                    A trained classifier, and the one a journalist is most likely to paste this into.
+                  </div>
+                ) : (
+                  /* Greyed, and labelled, because this figure has been measured
+                     against the provider's own web tool exactly once and the two
+                     disagreed completely: 0.15% here, 87% there, on the same
+                     release. Rather than quietly show a number that may be the
+                     wrong field, the panel says so. A detector reading that is
+                     wrongly reassuring is worse than no reading at all. */
+                  <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: LINE,
+                    borderRadius: 'var(--r-sm)', background: 'var(--warning-soft)' }}>
+                    <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Do not trust this number yet</div>
+                    <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+                      Checked once against Pangram&rsquo;s own web tool on the same release: this read
+                      0.15%, the web tool read 87%. Which field of their response carries the figure the
+                      web tool shows has not been established, so this is probably reading the wrong one.
+                      Paste the text into pangram.com for an answer you can act on until it is fixed.
+                    </div>
+                  </div>
+                )}
                 {!readOnly && (
                   <div style={{ marginTop: 'var(--s2)' }}>
                     <button className="btn btn-secondary btn-sm"
@@ -751,6 +782,32 @@ export default function PressReleaseEditor({
                         : <>No key yet. Add one under{' '}
                           <a href="/settings?tab=outreach">Settings → Keys → Outreach finders</a>.</>}
                     </div>
+                    {detail?.raw && (
+                      <div style={{ marginTop: 'var(--s2)' }}>
+                        <button type="button" onClick={() => setShowRaw((v) => !v)}
+                          style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', ...CAP, textDecoration: 'underline' }}>
+                          {showRaw ? 'Hide' : 'Show'} what Pangram returned
+                          {detail.has_segments ? ` · ${detail.segment_count} per-sentence scores` : ' · no per-sentence scores'}
+                        </button>
+                        {showRaw && (
+                          <>
+                            <pre style={{ margin: 'var(--s2) 0 0', maxHeight: 260, overflow: 'auto',
+                              fontSize: 'var(--fs-caption)', fontFamily: 'ui-monospace, monospace',
+                              whiteSpace: 'pre-wrap', wordBreak: 'break-all', border: LINE,
+                              borderRadius: 'var(--r-sm)', padding: 'var(--s2)' }}>
+                              {JSON.stringify(detail.raw, null, 2)}
+                            </pre>
+                            <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(JSON.stringify(detail.raw, null, 2));
+                                  toast('Copied.', 'success');
+                                } catch { toast('Select it and copy manually.', 'error'); }
+                              }}>Copy the response</button>
+                          </>
+                        )}
+                      </div>
+                    )}
                     {unparsed && (
                       <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: LINE, borderRadius: 'var(--r-sm)' }}>
                         <div style={{ ...CAP, marginBottom: 'var(--s1)' }}>
