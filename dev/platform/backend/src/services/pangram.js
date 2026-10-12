@@ -1,22 +1,29 @@
 /**
- * Pangram AI detection, called on demand and never on its own.
+ * Pangram AI detection, against the documented REST API.
  *
- * Why this exists at all, written down because it is easy to forget: October's
- * own checker reads the visible tells and the specificity. Pangram maps text
- * into a style space learned from paired human and AI writing. The two measure
- * different things, and a real release scored 94 here and 82% AI there. Until
- * the bench says whether the two numbers move together, this is the ground
- * truth and ours is the guess.
+ * Rewritten after the first live calls went to text.api.pangramlabs.com, a
+ * legacy host that answers with a different and much weaker shape: it returned
+ * ai_likelihood 0.0015 and "Unlikely AI" for a press release written entirely
+ * by a model, while pangram.com's own dashboard scored the same text 87% AI.
+ * That was never a parsing bug and never an inverted field. It was the wrong
+ * API.
  *
- * Three rules, each from a standing instruction:
+ * The real one (docs.pangram.com):
  *
- *   1. Never automatic. One call per button press. Nothing fires on save, on
- *      typing, or from a scheduler.
- *   2. Capped. It bills per 100 words, so it goes through the same per-task
- *      budget as the Claude features and refuses once the month's allowance is
- *      spent.
- *   3. Never re-bills for text it has already seen. The caller compares a hash
- *      of the body and serves the stored result when it matches.
+ *   GET  /models            the selectors this key may use. Free, and the only
+ *                           honest way to prove the base URL and key are right
+ *                           before spending anything.
+ *   POST /task              submit text, get a task id back
+ *   GET  /task/{id}         poll until stage is STAGE_SUCCESS or STAGE_FAILED
+ *
+ * The completed task carries fraction_ai / fraction_ai_assisted /
+ * fraction_human, a headline ("AI Detected" / "Human Written"), and `windows`:
+ * per-segment labels with character offsets, confidence, and the humanizer
+ * score. fraction_ai is the figure the dashboard shows as "% of this text is
+ * AI", and the windows are what it highlights.
+ *
+ * Three rules carried over unchanged, each from a standing instruction:
+ * never automatic, always capped, and never re-billed for unchanged text.
  */
 const crypto = require('crypto');
 const budget = require('./budget');
@@ -26,15 +33,23 @@ const { getSetting } = require('../utils/settings');
 const TASK = 'detector_check';
 const FEATURE = 'pangram_detect';
 
-// $0.05 per 100 words, from Pangram's own developer API pricing. Used to show
-// the operator the price BEFORE the call, and to log what was spent after it.
+// $0.05 per 100 words, from the developer pricing page.
 const USD_PER_100_WORDS = 0.05;
+
+// The docs give the file-upload host as file-external.api.pangram.com and the
+// detection host in a code block that did not survive the PDF. This is the
+// parallel name, and GET /models proves or disproves it for nothing — which is
+// why that probe exists rather than another guess.
+const DEFAULT_BASE = 'https://text-external.api.pangram.com';
+
+const POLL_INTERVAL_MS = 1500;
+const POLL_TIMEOUT_MS = 90_000;
 
 function wordCount(text) {
   return String(text || '').split(/\s+/).filter(Boolean).length;
 }
 
-/** What a check would cost, so the button says the price before it is pressed. */
+/** What a check would cost, so the button can say the price before it is pressed. */
 function estimateUsd(text) {
   return +((wordCount(text) / 100) * USD_PER_100_WORDS).toFixed(4);
 }
@@ -44,37 +59,128 @@ function fingerprint(text) {
   return crypto.createHash('sha256').update(String(text || '').trim()).digest('hex');
 }
 
-/**
- * The key, from Settings → Keys first and the environment second.
- *
- * getSetting() reads the encrypted platform_settings row and falls back to
- * process.env for the SAME name, so the setting has to be spelled exactly as
- * the Settings page writes it. An earlier version asked for 'pangram_api_key'
- * in lower case, which meant a key typed into Settings was stored, encrypted,
- * and then never read by anything.
- *
- * Read per call rather than cached, so saving the key in Settings takes effect
- * on the next press instead of on the next deploy.
- */
 async function apiKey() {
   return (await getSetting('PANGRAM_API_KEY')) || '';
+}
+
+async function baseUrl() {
+  return ((await getSetting('PANGRAM_API_URL')) || DEFAULT_BASE).replace(/\/+$/, '');
 }
 
 async function configured() {
   return !!(await apiKey());
 }
 
+/** The documented status codes, turned into something an operator can act on. */
+function describeStatus(status, body) {
+  switch (status) {
+    case 400: return 'Pangram rejected the request body.';
+    case 401: return 'Pangram rejected the API key. Check it in Settings → Keys.';
+    case 402: return 'The Pangram account is out of credits. Top it up at pangram.com.';
+    case 403: return 'That Pangram model is not enabled for this key, or the key does not own this task.';
+    case 404: return 'Pangram has no such task. The endpoint may be wrong — run the connection test.';
+    case 413: return 'The request is over Pangram’s size limit.';
+    case 422: return 'Pangram could not process that text or model selector.';
+    case 429: return 'Pangram rate limit reached. Wait a moment and try again.';
+    case 503: return 'That Pangram model is temporarily unavailable.';
+    default: return `Pangram returned ${status}: ${String(body).slice(0, 200)}`;
+  }
+}
+
+async function call(path, { method = 'GET', body, key, base } = {}) {
+  const res = await fetch(`${base}${path}`, {
+    method,
+    headers: { 'x-api-key': key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const raw = await res.text();
+  if (!res.ok) {
+    const err = new Error(describeStatus(res.status, raw));
+    err.status = res.status >= 500 ? 502 : 400;
+    err.upstream = res.status;
+    throw err;
+  }
+  try { return JSON.parse(raw); } catch {
+    const err = new Error(`Pangram sent something that is not JSON: ${raw.slice(0, 200)}`);
+    err.status = 502;
+    throw err;
+  }
+}
+
 /**
- * Run one check. Throws when unconfigured, capped, or the API refuses, because
- * a detector that silently returns nothing is worse than one that is plainly
- * switched off: a silent skip reads as "nothing to report".
+ * The selectors this key may use.
+ *
+ * Free, so it doubles as the connection test: a 200 here proves the base URL,
+ * the key and the account are all good before a single billable word is sent.
+ * The docs are explicit that the catalog varies by account and must not be
+ * hard-coded.
  */
-async function detect(text) {
+async function models() {
   const key = await apiKey();
   if (!key) {
-    const err = new Error(
-      'No Pangram API key. Add it in Settings → Keys → Outreach finders → AI detection (Pangram).'
-    );
+    const err = new Error('No Pangram API key. Add it in Settings → Keys → Outreach finders.');
+    err.code = 'PANGRAM_NOT_CONFIGURED';
+    err.status = 400;
+    throw err;
+  }
+  const base = await baseUrl();
+  const body = await call('/models', { key, base });
+  const list = Array.isArray(body) ? body
+    : Array.isArray(body?.models) ? body.models
+      : Array.isArray(body?.data) ? body.data : [];
+  return {
+    base,
+    models: list.map((m) => (typeof m === 'string' ? m : m?.selector || m?.id || m?.name)).filter(Boolean),
+    raw: body,
+  };
+}
+
+/** The authorship breakdown, read from the documented fields. */
+function readResult(body) {
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const fracAi = num(body?.fraction_ai);
+  const fracAssisted = num(body?.fraction_ai_assisted);
+  const fracHuman = num(body?.fraction_human);
+  return {
+    // The figure the dashboard shows as "% of this text is AI".
+    pct: fracAi == null ? null : +(fracAi * 100).toFixed(2),
+    pct_assisted: fracAssisted == null ? null : +(fracAssisted * 100).toFixed(2),
+    pct_human: fracHuman == null ? null : +(fracHuman * 100).toFixed(2),
+    headline: body?.headline || null,
+    verdict: body?.prediction || null,
+    verdict_short: body?.prediction_short || null,
+    version: body?.version || null,
+    segments_ai: num(body?.num_ai_segments),
+    segments_assisted: num(body?.num_ai_assisted_segments),
+    segments_human: num(body?.num_human_segments),
+    // Character offsets, so these can be painted straight onto the document.
+    windows: Array.isArray(body?.windows) ? body.windows.map((w) => ({
+      text: w?.text ?? '',
+      label: w?.label ?? null,
+      confidence: w?.confidence ?? null,
+      ai_assistance_score: num(w?.ai_assistance_score),
+      start_index: num(w?.start_index),
+      end_index: num(w?.end_index),
+      word_count: num(w?.word_count),
+      is_humanized: !!w?.is_humanized,
+      humanizer_score: num(w?.humanizer_score),
+    })) : [],
+    dashboard_url: body?.public_dashboard_link || body?.dashboard_link || null,
+  };
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Run one detection: submit, then poll to the terminal stage.
+ *
+ * Throws when unconfigured, capped, or refused, because a detector that
+ * silently returns nothing is worse than one that is plainly switched off.
+ */
+async function detect(text, opts = {}) {
+  const key = await apiKey();
+  if (!key) {
+    const err = new Error('No Pangram API key. Add it in Settings → Keys → Outreach finders.');
     err.code = 'PANGRAM_NOT_CONFIGURED';
     err.status = 400;
     throw err;
@@ -88,112 +194,55 @@ async function detect(text) {
   // Gate BEFORE billing, per the budget service's contract.
   await budget.assertUnderTaskCap(TASK);
 
-  const endpoint = process.env.PANGRAM_API_URL || 'https://text.api.pangramlabs.com/';
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': key },
-    body: JSON.stringify({ text: String(text) }),
-  });
-  const raw = await res.text();
-  if (!res.ok) {
-    const err = new Error(`Pangram returned ${res.status}: ${raw.slice(0, 300)}`);
-    err.status = res.status === 401 || res.status === 403 ? 400 : 502;
-    throw err;
+  const base = await baseUrl();
+  // The docs ask new integrations to send a selector explicitly, so the first
+  // one the account is entitled to is used unless the caller names another.
+  let model = opts.model || null;
+  if (!model) {
+    try { model = (await models()).models[0] || null; } catch { model = null; }
   }
-  let body;
-  try { body = JSON.parse(raw); } catch {
-    const err = new Error(`Pangram returned something that is not JSON: ${raw.slice(0, 200)}`);
+
+  const submitted = await call('/task', {
+    method: 'POST', key, base,
+    body: { text: String(text), ...(model ? { model } : {}), public_dashboard_link: true },
+  });
+  const taskId = submitted?.task_id || submitted?.id || submitted?.taskId;
+  if (!taskId) {
+    const err = new Error(`Pangram accepted the text but returned no task id: ${JSON.stringify(submitted).slice(0, 200)}`);
     err.status = 502;
     throw err;
   }
 
+  const until = Date.now() + POLL_TIMEOUT_MS;
+  let body;
+  for (;;) {
+    await sleep(POLL_INTERVAL_MS);
+    body = await call(`/task/${encodeURIComponent(taskId)}`, { key, base });
+    const stage = body?.stage;
+    if (stage === 'STAGE_SUCCESS') break;
+    if (stage === 'STAGE_FAILED') {
+      const err = new Error('Pangram could not analyse that text.');
+      err.status = 502;
+      throw err;
+    }
+    if (Date.now() > until) {
+      const err = new Error(`Pangram is still working after ${POLL_TIMEOUT_MS / 1000}s. Nothing is lost; try again shortly.`);
+      err.status = 504;
+      throw err;
+    }
+  }
+
   const costUsd = estimateUsd(text);
-  // Logged against the same cost table as everything else, so the monthly
-  // figure in Settings stays the whole truth rather than the Claude part of it.
   try {
-    await recordApiCost({ provider: 'pangram', feature: FEATURE, costUsd, meta: { words } });
+    await recordApiCost({ provider: 'pangram', feature: FEATURE, costUsd, meta: { words, model, task_id: taskId } });
   } catch (err) {
     console.error('[pangram] cost log failed:', err.message);
   }
 
-  return { pct: readPercentage(body), segments: readSegments(body), words, cost_usd: costUsd, raw: body };
-}
-
-/**
- * Pull the AI percentage out of whatever shape the response has.
- *
- * Written defensively on purpose: this was built in an environment that cannot
- * reach pangram.com, so the field names below come from the published pricing
- * and product pages and have NOT been seen against a live response. Every
- * candidate is tried, nested containers are searched, and the raw body is
- * stored whole, so a wrong guess costs a display value and never the data.
- *
- * A value at or below 1 is read as a fraction and scaled; above 1 it is already
- * a percentage. That rule breaks for a genuine 1% reading, which would show as
- * 100%. The ambiguity is unavoidable without the documentation, and it fails in
- * the direction that gets noticed rather than the one that quietly reassures.
- */
-const PCT_FIELDS = [
-  'ai_likelihood', 'aiLikelihood', 'fraction_ai_content', 'fractionAiContent',
-  'ai_fraction', 'max_ai_likelihood', 'avg_ai_likelihood', 'ai_probability',
-  'prediction_score', 'likelihood', 'score', 'ai_percentage', 'percent_ai',
-];
-
-/** The containers a provider might nest its payload inside. */
-function unwrap(body) {
-  const out = [body];
-  for (const k of ['result', 'results', 'data', 'prediction', 'response', 'document']) {
-    const v = body?.[k];
-    if (v && typeof v === 'object' && !Array.isArray(v)) out.push(v);
-  }
-  return out;
-}
-
-function readPercentage(body) {
-  if (!body || typeof body !== 'object') return null;
-  for (const scope of unwrap(body)) {
-    for (const field of PCT_FIELDS) {
-      const n = Number(scope?.[field]);
-      if (Number.isFinite(n)) return n <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2);
-    }
-  }
-  return null;
-}
-
-/**
- * Any per-sentence or per-window scores the response carries.
- *
- * Pangram's own interface highlights sentence by sentence. Whether that reaches
- * the API is unknown from here, so this looks for it and stores whatever it
- * finds rather than making the operator pay for a second call later. If the
- * array is there, the editor gets a fourth highlight layer and the writer sees
- * which sentences to rewrite instead of inferring it from one number.
- */
-function readSegments(body) {
-  if (!body || typeof body !== 'object') return null;
-  for (const scope of unwrap(body)) {
-    for (const key of ['windows', 'sentences', 'fragments', 'segments', 'spans', 'chunks']) {
-      const arr = scope?.[key];
-      if (!Array.isArray(arr) || !arr.length) continue;
-      const mapped = arr
-        .map((seg) => {
-          if (!seg || typeof seg !== 'object') return null;
-          const text = seg.text || seg.sentence || seg.content || seg.window || null;
-          let score = null;
-          for (const f of PCT_FIELDS) {
-            const n = Number(seg[f]);
-            if (Number.isFinite(n)) { score = n <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2); break; }
-          }
-          return text ? { text: String(text), score } : null;
-        })
-        .filter(Boolean);
-      if (mapped.length) return { key, items: mapped };
-    }
-  }
-  return null;
+  return { ...readResult(body), words, cost_usd: costUsd, task_id: taskId, model, raw: body };
 }
 
 module.exports = {
-  detect, estimateUsd, fingerprint, configured, wordCount,
-  readPercentage, readSegments, USD_PER_100_WORDS,
+  detect, models, estimateUsd, fingerprint, configured, wordCount,
+  readResult, describeStatus, USD_PER_100_WORDS, DEFAULT_BASE,
 };

@@ -430,6 +430,7 @@ export default function PressReleaseEditor({
   const [unparsed, setUnparsed] = useState(null);  // their response, when we could not read the number out of it
   const [detail, setDetail] = useState(null);     // their response in full, whether or not we read it
   const [showRaw, setShowRaw] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [showStyle, setShowStyle] = useState(false);
   const [layerOn, setLayerOn] = useState(
     () => Object.fromEntries(LAYERS.map((l) => [l.key, l.on])),
@@ -764,9 +765,13 @@ export default function PressReleaseEditor({
                       : <span style={{ color: 'var(--text-subtle)' }}>{pr.pangram_pct}%</span>}
                   </span>
                 </div>
-                {detail?.raw?.prediction && (
+                {(detail?.raw?.headline || detail?.raw?.prediction) && (
                   <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                    Their verdict: <strong>&ldquo;{String(detail.raw.prediction)}&rdquo;</strong>
+                    Their verdict: <strong>{String(detail.raw.headline || detail.raw.prediction)}</strong>
+                    {detail.raw.windows?.length
+                      ? ` · ${detail.raw.windows.length} segment${detail.raw.windows.length === 1 ? '' : 's'}`
+                      : ''}
+                    {detail.raw.pct_human != null ? ` · ${detail.raw.pct_human}% human` : ''}
                   </div>
                 )}
                 {pr.pangram_pct == null ? (
@@ -783,19 +788,15 @@ export default function PressReleaseEditor({
                   <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: LINE,
                     borderRadius: 'var(--r-sm)', background: 'var(--warning-soft)' }}>
                     <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
-                      This endpoint missed a release known to be AI-written
+                      Re-check anything scored before 12 October
                     </div>
                     <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                      Tested once with ground truth. On a release written entirely by a model, this API
-                      returned <strong>0.15%</strong> and a verdict of &ldquo;Unlikely AI&rdquo;, while
-                      pangram.com returned <strong>87% AI</strong> on the same text.
-                      {' '}One possibility is still open: if their field carries the probability the text
-                      is <em>human</em> rather than AI, the real answer is 1 − 0.0015, or{' '}
-                      <strong>99.85% AI</strong>, which would match both the truth and the web tool. Their
-                      own verdict string argues against that reading. A single check on text known to be
-                      human-written settles it, and costs about 5p.
-                      {' '}Either way, do not treat a low number here as a clearance. Paste the text into
-                      pangram.com, which got it right.
+                      The first integration went to a legacy host that answered with a different and much
+                      weaker model: it returned 0.15% and &ldquo;Unlikely AI&rdquo; for a release written
+                      entirely by a model, which pangram.com scored 87% AI. That was never an inverted
+                      field; it was the wrong API. This now uses the documented one, which reports the
+                      same breakdown the dashboard shows. Any figure stored before that change is from the
+                      old host and means nothing — press Check again.
                     </div>
                   </div>
                 )}
@@ -817,6 +818,26 @@ export default function PressReleaseEditor({
                           Re-checking text that has not changed costs nothing.</>
                         : <>No key yet. Add one under{' '}
                           <a href="/settings?tab=outreach">Settings → Keys → Outreach finders</a>.</>}
+                    </div>
+                    {/* Free: GET /models proves the base URL, the key and the
+                        account before a billable word is sent. It exists
+                        because the first integration went to a guessed host
+                        that answered confidently and wrongly for several
+                        rounds, and this would have caught it in one. */}
+                    <div style={{ marginTop: 'var(--s2)' }}>
+                      <button className="btn btn-secondary btn-sm" disabled={testing}
+                        onClick={async () => {
+                          setTesting(true);
+                          try {
+                            const r = await api.get('/pr/detector-connection');
+                            toast(r.ok
+                              ? `Connected to ${r.base}${r.models?.length ? ` · ${r.models.length} model(s): ${r.models.join(', ')}` : ''}`
+                              : r.error, r.ok ? 'success' : 'error');
+                          } catch (e) { toast(e.message, 'error'); } finally { setTesting(false); }
+                        }}>
+                        {testing ? 'Testing…' : 'Test the connection'}
+                      </button>
+                      <span style={{ ...CAP, marginLeft: 'var(--s2)' }}>Free. Proves the endpoint and key.</span>
                     </div>
                     {detail?.raw && (
                       <div style={{ marginTop: 'var(--s2)' }}>

@@ -30,26 +30,53 @@ ok(a === pangram.fingerprint('  The wall is 28 metres tall.  '),
 ok(a !== pangram.fingerprint('The wall is 29 metres tall.'),
   'an edited number does');
 
-console.log('\nThe percentage is found in the shapes it was built for');
-ok(pangram.readPercentage({ ai_likelihood: 0.82 }) === 82, 'a fraction is scaled');
-ok(pangram.readPercentage({ fraction_ai_content: 82 }) === 82, 'a percentage is not');
-ok(pangram.readPercentage({ result: { ai_likelihood: 0.82 } }) === 82, 'nested under result');
-ok(pangram.readPercentage({ data: { prediction_score: 0.06 } }) === 6, 'nested under data');
+console.log('\nThe documented response is read correctly');
+// Shape taken verbatim from docs.pangram.com/quickstart-rest.
+const DOC = {
+  stage: 'STAGE_SUCCESS', version: '4.0', headline: 'AI Detected',
+  prediction: 'We believe that this text is a mix of AI and human content.',
+  prediction_short: 'AI',
+  fraction_ai: 0.87, fraction_ai_assisted: 0.05, fraction_human: 0.08,
+  num_ai_segments: 3, num_ai_assisted_segments: 1, num_human_segments: 1,
+  windows: [{
+    text: 'Each pair is designed to the guest\u2019s own taste', label: 'AI',
+    ai_assistance_score: 0.98, confidence: 'High',
+    start_index: 0, end_index: 45, word_count: 9,
+    is_humanized: false, humanizer_score: 0.0,
+  }],
+};
+const read = pangram.readResult(DOC);
+ok(read.pct === 87, 'fraction_ai is the figure the dashboard shows as % AI');
+ok(read.pct_human === 8, 'and the human fraction comes through too');
+ok(read.headline === 'AI Detected', 'the headline is the summary classification');
+ok(read.segments_ai === 3, 'the segment counts are read');
 
-console.log('\nAnd an unreadable response is null, never a guess');
-ok(pangram.readPercentage({ prediction: 'Likely AI Generated' }) === null,
-  'a verdict with no number does not become one');
-ok(pangram.readPercentage(null) === null, 'null does not throw');
-ok(pangram.readPercentage('nonsense') === null, 'a string does not throw');
+console.log('\nSegment offsets survive, because they are what gets highlighted');
+ok(read.windows.length === 1, 'windows are read');
+ok(read.windows[0].start_index === 0 && read.windows[0].end_index === 45,
+  'with their character offsets intact');
+ok(read.windows[0].confidence === 'High' && read.windows[0].label === 'AI',
+  'and their label and confidence');
 
-console.log('\nPer-sentence scores are captured if they are there');
-const segs = pangram.readSegments({
-  windows: [{ text: 'A sentence.', ai_likelihood: 0.9 }, { text: 'Another.', ai_likelihood: 0.1 }],
+console.log('\nA human-written result reads the other way');
+const human = pangram.readResult({
+  stage: 'STAGE_SUCCESS', headline: 'Human Written', prediction_short: 'Human',
+  fraction_ai: 0.0, fraction_ai_assisted: 0.0, fraction_human: 1.0,
+  num_ai_segments: 0, num_human_segments: 1, windows: [],
 });
-ok(segs?.items?.length === 2, 'both windows are read');
-ok(segs.items[0].score === 90 && segs.items[1].score === 10, 'each carries its own score');
-ok(pangram.readSegments({ ai_likelihood: 0.8 }) === null,
-  'a response without them returns null rather than an empty array');
+ok(human.pct === 0 && human.pct_human === 100, 'nothing AI, all human');
+ok(human.headline === 'Human Written', 'and the headline says so');
+
+console.log('\nNothing is invented from a response that lacks the fields');
+ok(pangram.readResult({}).pct === null, 'a missing fraction_ai is null, never a guess');
+ok(pangram.readResult(null).pct === null, 'null does not throw');
+ok(pangram.readResult({ windows: 'nope' }).windows.length === 0, 'a bad windows field is empty');
+
+console.log('\nThe documented status codes say what to do about them');
+ok(/API key/i.test(pangram.describeStatus(401, '')), '401 names the key');
+ok(/credits/i.test(pangram.describeStatus(402, '')), '402 names the credits');
+ok(/not enabled/i.test(pangram.describeStatus(403, '')), '403 names the model entitlement');
+ok(/rate limit/i.test(pangram.describeStatus(429, '')), '429 names the rate limit');
 
 console.log(failures ? `\n${failures} FAILED` : '\nall passed');
 process.exit(failures ? 1 : 0);
