@@ -65,6 +65,12 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="url" name="packages_wizard_page" value="<?php echo esc_attr((string) ($cfg['packages_wizard_page'] ?? '')); ?>" placeholder="https://&hellip;/packages/checkout" style="width:100%;max-width:520px"></label></p>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-pool"><summary><?php esc_html_e('Volunteer pool', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Define this year\'s recruitment windows up front (before the homes/events exist). One per line as date | time | role | target. The target is your need plus contingency. Add the [oe_volunteer_pool_signup] shortcode to a page to collect registrations; track progress under October Events → Volunteer pool.', 'october-events'); ?></p>
+        <p><label>
+            <textarea name="volunteer_windows" rows="5" class="large-text code" placeholder="2026-10-04 | 10:00&ndash;13:00 | Docent | 20&#10;2026-10-04 | 13:00&ndash;16:00 | Docent | 20&#10;2026-10-05 | 10:00&ndash;13:00 | Greeter | 16"><?php echo esc_textarea(\OE\Volunteers\Pool\Windows::to_text((array) ($cfg['volunteer_windows'] ?? []))); ?></textarea></label></p>
+        </div></details>
+
         <details class="oe-acc" id="section-styling"><summary><?php esc_html_e('Section styling', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('A small set of tokens so dropped sections and the native checkout feel like part of this site. Leave the accent blank to use the brand accent above. These also drive the Stripe card field appearance.', 'october-events'); ?></p>
         <?php $oe_tok = static fn(string $k, string $d = ''): string => (string) ($cfg[$k] ?? $d); ?>

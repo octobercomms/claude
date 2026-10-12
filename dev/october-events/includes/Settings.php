@@ -60,6 +60,9 @@ final class Settings {
             // sends a chosen package to (the purchase wizard). Blank = the matrix
             // links back to its own page with ?oe_package=<id>.
             'packages_wizard_page' => '',
+            // Volunteer early-recruitment windows (date × time × role × target),
+            // for the pool registration form + board. See Volunteers\Pool\Windows.
+            'volunteer_windows'    => [],
             // Optional map: event field => an existing (e.g. JetEngine) meta key to
             // read when the plugin's own field is empty, so tickets/emails/reports
             // can resolve an event's date, price and location.
