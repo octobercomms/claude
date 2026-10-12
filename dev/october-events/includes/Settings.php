@@ -56,6 +56,10 @@ final class Settings {
             // entitlement work (SCOPE-GAPS A2) becoming a retrofit. 'full' = the
             // reference tenant / owner install.
             'entitlement_tier'   => 'full',
+            // Partner packages (Track F): the page URL the comparison matrix
+            // sends a chosen package to (the purchase wizard). Blank = the matrix
+            // links back to its own page with ?oe_package=<id>.
+            'packages_wizard_page' => '',
             // Optional map: event field => an existing (e.g. JetEngine) meta key to
             // read when the plugin's own field is empty, so tickets/emails/reports
             // can resolve an event's date, price and location.

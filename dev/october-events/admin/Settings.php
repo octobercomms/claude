@@ -443,6 +443,7 @@ final class Settings {
             'adoption_mode'    => in_array((string) ($in['adoption_mode'] ?? 'auto'), ['auto', 'on', 'off'], true)
                 ? (string) ($in['adoption_mode'] ?? 'auto') : 'auto',
             'entitlement_tier' => sanitize_key((string) ($in['entitlement_tier'] ?? 'full')) ?: 'full',
+            'packages_wizard_page' => esc_url_raw(trim((string) ($in['packages_wizard_page'] ?? ''))),
             // Section theming tokens (M2). Short, free-text CSS token values; the
             // renderer sanitises again before emitting them, so this keeps them
             // tidy without constraining to a fixed unit.

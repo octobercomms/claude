@@ -79,6 +79,7 @@ final class Admin {
         if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
+        if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $cap, 'edit.php?post_type=' . PostTypes::slug('package')); }
         add_submenu_page('october-events', 'Countdown', 'Countdown', $cap, 'oe-countdown', [$this, 'page_countdown']);
         // Reachable by URL from the Membership settings, not shown in the menu.
         add_submenu_page('', 'Membership repair', '', $cap, 'oe-membership-repair', [$this, 'page_membership_repair']);

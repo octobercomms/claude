@@ -62,6 +62,7 @@ final class Plugin {
         \OE\Sections\SingleTemplate::init();
         \OE\Sections\Archive::init();
         \OE\Elementor\Bridge::init();
+        \OE\Packages\Matrix::init();
         \OE\GuidedTours\Rest::init();
         // Social captions: metabox + save in admin, plus the publish-time autogen
         // hook (which also fires from cron), so register it unconditionally.
@@ -78,6 +79,7 @@ final class Plugin {
             \OE\Survey\Metabox::init();
             \OE\Hosts\Metabox::init();
             \OE\Reports\ReportMetabox::init();
+            \OE\Packages\Metabox::init();
         }
         Dashboard::get_instance()->init();
         \OE\Frontend\Checkout::get_instance()->init();
