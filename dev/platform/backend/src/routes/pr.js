@@ -15,6 +15,7 @@ const pressRelease = require('../services/pressRelease');
 const prEnrich = require('../services/prEnrich');
 const pressBrief = require('../services/pressBrief');
 const humanity = require('../services/humanity');
+const pangram = require('../services/pangram');
 const budget = require('../services/budget');
 const prTarget = require('../services/prTarget');
 const prArchive = require('../services/prArchive');
@@ -1462,6 +1463,75 @@ router.post('/press-releases/:prId/check-claims', async (req, res) => {
 
 // What the two AI buttons on this page have left to spend this month. Shown
 // next to them so the cost is never a surprise.
+/**
+ * Run the detector over one release, on an explicit press.
+ *
+ * The honest reason this exists, recorded so it is not re-litigated: OMI's own
+ * checker reads the visible tells and the specificity, and a trained classifier
+ * reads a learned style space. On one real release the two said 94 and 82% AI.
+ * Until the bench says whether they move together, the second number is worth
+ * having beside the first rather than instead of it.
+ *
+ * Never automatic, and never re-billed for text it has already seen.
+ */
+router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
+  const { rows } = await db.query(
+    'SELECT id, body_html, brand, pangram_json, pangram_checked_at FROM pr_press_releases WHERE id = $1',
+    [req.params.prId]
+  );
+  const row = rows[0];
+  if (!row) return res.status(404).json({ error: 'Release not found' });
+
+  const text = String(row.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return res.status(400).json({ error: 'Nothing written yet.' });
+  const fp = pangram.fingerprint(text);
+
+  if (row.pangram_checked_at && row.pangram_json?.fingerprint === fp) {
+    return res.json({
+      pangram_pct: row.pangram_json.pct ?? null,
+      pangram_checked_at: row.pangram_checked_at,
+      cached: true,
+    });
+  }
+
+  try {
+    const result = await pangram.detect(text);
+    // The OMI reading is stored alongside, so the pair is captured at the
+    // moment both were true rather than reconstructed later from a body that
+    // has since been edited.
+    const own = await humanity.analyse(row.body_html, {}, { names: [row.brand] });
+    const stored = {
+      ...result.raw,
+      pct: result.pct,
+      fingerprint: fp,
+      words: result.words,
+      own_score: own?.human_score ?? null,
+      own_density: own?.density ?? null,
+    };
+    await db.query(
+      `UPDATE pr_press_releases
+          SET pangram_pct = $1, pangram_json = $2, pangram_checked_at = NOW()
+        WHERE id = $3`,
+      [result.pct, JSON.stringify(stored), row.id]
+    );
+    res.json({ pangram_pct: result.pct, cost_usd: result.cost_usd, words: result.words, cached: false });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, code: err.code });
+  }
+});
+
+/** What a detector run on this release would cost, before anything is pressed. */
+router.get('/press-releases/:prId/detect-quote', requireAdmin, async (req, res) => {
+  const { rows } = await db.query('SELECT body_html FROM pr_press_releases WHERE id = $1', [req.params.prId]);
+  if (!rows[0]) return res.status(404).json({ error: 'Release not found' });
+  const text = String(rows[0].body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  res.json({
+    configured: await pangram.configured(),
+    words: pangram.wordCount(text),
+    cost_usd: pangram.estimateUsd(text),
+  });
+});
+
 router.get('/press-release-budget', async (req, res) => {
   try {
     const b = await budget.getTaskBudget(pressBrief.TASK);
