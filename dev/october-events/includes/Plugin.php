@@ -53,6 +53,7 @@ final class Plugin {
         \OE\AI\PublicRest::init();
         \OE\Reports\Rest::init();
         (new Cron())->init();
+        Privacy::init();
         MapsConnector::init();
         Chat::init();
         \OE\GuidedTours\Shortcodes::init();
