@@ -102,6 +102,7 @@ foreach ($opps as $mo) {
     <div class="oe-actionbar">
         <a class="button button-primary" href="<?php echo esc_url(admin_url('post-new.php?post_type=' . Volunteers::slug())); ?>"><?php esc_html_e('+ New opportunity', 'october-events'); ?></a>
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-volunteers&view=compose')); ?>"><?php esc_html_e('✉ Message volunteers', 'october-events'); ?></a>
+        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-volunteers&view=profiles')); ?>"><?php esc_html_e('👤 Volunteer profiles', 'october-events'); ?></a>
         <span class="description"><?php esc_html_e('Each opportunity has time shifts with limited slots. Green = full, amber = half, red = needs volunteers.', 'october-events'); ?></span>
     </div>
 

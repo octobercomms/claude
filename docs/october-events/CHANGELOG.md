@@ -5,6 +5,61 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.201.1 — Volunteer profiles: "name flagged before" watch
+
+- A serial no-shower can dodge the email-keyed flag by signing up with a new
+  address, but their **name** recurs. The profiles view now marks any volunteer
+  whose name matches someone you flagged under a **different email** with a
+  "⚠ name flagged before" badge (amber row), and floats them up the list.
+- It never blocks anyone automatically — it surfaces the name so a human can
+  look before confirming, matching the "we'll see that name sign up again"
+  workflow. Blocking a persistent offender stays a manual decision.
+
+## 1.201.0 — Volunteer profiles + manual no-show/abuse flag
+
+- New **Volunteers → Volunteer profiles** view: one row per volunteer (matched
+  by email) with years active, total signups, shifts worked, no-shows and
+  cancels, built live from signup history. Reliable volunteers rise by Worked
+  count; flagged people sit at the top.
+- **Manual abuse flag**: flag anyone who no-showed or cancelled yet still used
+  their free ticket (match the scanned-ticket list by hand for now). The flag is
+  keyed by email, carries a note, and follows the person into future years —
+  the "we saw you" marker. One-click clear for genuine cases.
+- **No-show rate and cancel rate** for the current year shown up top, so next
+  year's volunteer over-subscription can be sized on real numbers.
+- Works retrospectively for 2026 from existing data (no-shows were already being
+  marked in the system). No schema change — flags live in one option.
+- Groundwork for 2027: automatic no-show detection via shift check-in, and
+  gating a flagged returner on a card on file, build on this.
+
+## 1.200.1 — Keep the admin bill-to box off the printed invoice
+
+- The admin-only "Bill to" editor used an inline `display:flex`, which overrode
+  the print stylesheet's `.noprint` rule, so the box showed up when saving the
+  invoice to PDF. The print-hide now uses `!important` and wins. The customer's
+  PDF is clean; the editor still shows on screen for admins.
+
+## 1.200.0 — Invoices / receipts for ticket orders
+
+- Buyers can now download an invoice / paid receipt for their order. The
+  confirmation email gains a **Download invoice / receipt** link (paid orders
+  only), and admins get an **Invoice** button on every charged row in
+  Tickets → Transactions.
+- The invoice is a branded, print-first page (browser "Save as PDF") covering
+  the whole Stripe payment: seller block, buyer, line items per ticket type,
+  any promo discount, total, a PAID mark and the payment reference. Resolves
+  the recurring "I can't find an invoice" request without manual work.
+- New **Settings → Checkout → Invoicing** section (fill once): business name,
+  address, email, phone, optional tax label + number, invoice-number prefix
+  (`PREFIX-YEAR-0000`, fixed once issued), footer notes, and a shared **paper
+  size** choice (US Letter / A4) for printable output.
+- **Bill to**: admins can set a company/billing name on a transaction's invoice
+  (e.g. "Savannah College of Art and Design") from the invoice page itself; it
+  shows on the customer's copy, the editor does not.
+- Works on past orders: an existing paid order produces its invoice as soon as
+  the business details are filled in. Buyers reach it with their own ticket
+  token; admins by transaction. No schema change.
+
 ## 1.199.6 — Fix false "already checked in" from holding the QR
 
 - The scanner's same-code repeat guard didn't extend while a QR stayed in view.

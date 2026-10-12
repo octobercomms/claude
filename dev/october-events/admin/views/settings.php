@@ -514,6 +514,52 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
+        <details class="oe-acc" id="invoicing"><summary><?php esc_html_e('Invoicing', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description" style="max-width:820px"><?php esc_html_e('Your business details for invoices / receipts. Buyers get a “Download invoice” link on their confirmation email and ticket page; you can also open any transaction’s invoice from Tickets → Transactions. Fill this in once.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Business name', 'october-events'); ?></label></th>
+                <td><input type="text" name="invoice_business_name" class="regular-text" value="<?php echo esc_attr((string) ($cfg['invoice_business_name'] ?? '')); ?>" placeholder="<?php echo esc_attr((string) ($cfg['brand_name'] ?? 'October Communications Ltd')); ?>">
+                    <p class="description"><?php esc_html_e('The legal/trading name that appears as the seller. Falls back to the brand name if left blank.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Business address', 'october-events'); ?></label></th>
+                <td><textarea name="invoice_business_address" rows="3" class="large-text" placeholder="123 Example St&#10;London&#10;EC1A 1BB"><?php echo esc_textarea((string) ($cfg['invoice_business_address'] ?? '')); ?></textarea></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Billing email', 'october-events'); ?></label></th>
+                <td><input type="email" name="invoice_business_email" class="regular-text" value="<?php echo esc_attr((string) ($cfg['invoice_business_email'] ?? '')); ?>" placeholder="accounts@octobercomms.com"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Phone', 'october-events'); ?></label></th>
+                <td><input type="text" name="invoice_business_phone" class="regular-text" value="<?php echo esc_attr((string) ($cfg['invoice_business_phone'] ?? '')); ?>"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Tax label', 'october-events'); ?></label></th>
+                <td><input type="text" name="invoice_tax_label" value="<?php echo esc_attr((string) ($cfg['invoice_tax_label'] ?? '')); ?>" placeholder="VAT" style="width:120px">
+                    <input type="text" name="invoice_tax_number" value="<?php echo esc_attr((string) ($cfg['invoice_tax_number'] ?? '')); ?>" placeholder="<?php esc_attr_e('Tax / VAT number', 'october-events'); ?>" class="regular-text" style="margin-left:8px">
+                    <p class="description"><?php esc_html_e('Optional. Leave both blank if you are not tax registered — nothing tax-related is shown. Prices are treated as the amount charged (tax inclusive).', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Invoice number prefix', 'october-events'); ?></label></th>
+                <td><input type="text" name="invoice_prefix" value="<?php echo esc_attr((string) ($cfg['invoice_prefix'] ?? 'INV')); ?>" placeholder="INV" style="width:120px">
+                    <p class="description"><?php esc_html_e('Numbers run as PREFIX-YEAR-0000 and never change once issued.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Footer notes', 'october-events'); ?></label></th>
+                <td><textarea name="invoice_notes" rows="2" class="large-text" placeholder="<?php esc_attr_e('Payment terms, thank-you, company registration line…', 'october-events'); ?>"><?php echo esc_textarea((string) ($cfg['invoice_notes'] ?? '')); ?></textarea></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Print paper size', 'october-events'); ?></th>
+                <td>
+                    <label style="margin-right:14px"><input type="radio" name="paper_size" value="letter" <?php checked(($cfg['paper_size'] ?? 'letter'), 'letter'); ?>> <?php esc_html_e('US Letter', 'october-events'); ?></label>
+                    <label><input type="radio" name="paper_size" value="a4" <?php checked(($cfg['paper_size'] ?? 'letter'), 'a4'); ?>> <?php esc_html_e('A4', 'october-events'); ?></label>
+                    <p class="description"><?php esc_html_e('Used for printable invoices (and other printable outputs).', 'october-events'); ?></p>
+                </td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
         <details class="oe-acc" id="recovery-email"><summary><?php esc_html_e('Abandoned-cart recovery email', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description" style="max-width:820px"><?php esc_html_e('The email sent when you press “Send recovery” on an abandoned cart (Tickets → Transactions), or automatically by Autopilot below. Edit the wording below. Tokens: {event} = event name, {code} = the promo code, {offer} = the discount that code gives (e.g. “10% off”). The greeting, the list of tickets they had, the button link back to their cart and the footer are added automatically. Save before previewing to see your changes.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>

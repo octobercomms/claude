@@ -1,8 +1,16 @@
 # Unified festival platform — architecture and build spec
 
-Status: scoping. Owner: Daniel. Supersedes the delivery-model question in
-`PRODUCTISATION-PLAN.md` (that doc's managed-install model remains the way to
-earn now; this doc scopes the platform to build alongside and after it).
+> **PARKED (2026-10-11).** This describes a standalone, non-WordPress,
+> multi-tenant application that also merges OMI. Both premises now conflict with
+> the committed direction: **productize in place, do not fork** (the plugin is
+> the product, the festival is tenant one), and **OMI stays a separate live
+> product** (no merge, per `../../CLAUDE.md` and the owner's decision). Kept for
+> reference as a future aspiration only. It is **not** an active plan. The live
+> productization path is `PRODUCTISATION-PLAN.md` / `GO-TO-MARKET.md`, tenant
+> isolation via `HOPE-SALONS-SCOPE.md`, and the self-contained-plugin work in
+> `DE-JET-MIGRATION.md`.
+
+Status: parked. Owner: Daniel.
 
 ## 1. Product principle: one app, not a suite
 
