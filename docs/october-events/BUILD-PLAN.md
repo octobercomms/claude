@@ -316,6 +316,21 @@ work from a persistent volunteer pool rather than re-recruiting each cycle.
   with a server-side ownership guard, approval-gated publish. The logged-in submit
   slice already ships (`[oe_submit_event]`, v1.188.0). The edit-own-event guard is
   small and useful to ADF organizers; full public signup leans Track B.
+  - **Editable partner packages** (new entity; backbone of the organizer portal).
+    The LDF-style partner journey (comparison matrix + purchase wizard) in the
+    front-end mockup is placeholder data today; no `package` entity exists in the
+    plugin. Build it as a managed, admin-editable record so packages are content,
+    not code. Fields per package: **name, description, price, +VAT flag, display
+    order; what it includes (entitlements: how many activities/listings it
+    unlocks, which gated sections, briefing access); tier type (standard vs
+    subsidised — Charities / Launch Pad / managed-free-with-handling-fee that must
+    still unlock activities); availability (limit/stock, open–close dates,
+    visible/hidden); Stripe price link; "buy more than one" rules.** One editor
+    feeds both the comparison matrix and the multi-step purchase wizard, exactly
+    as ticket tiers already drive the checkout. **Ties into the entitlement /
+    gating primitive** (the `entitlement_tier` stub added in M0): paying for a
+    package unlocks its activities, so packages and gating share one mechanism.
+    Off the ADF-native critical path; lands with the organizer portal.
 - **G — Ads module** (de-Jet Phase G): fold `oc-ad-manager` in as a toggleable
   `ads` module, preserve the hub/partner syndication feed and `[oc_ad]`
   back-compat, then retire the standalone plugin. Independent; the integration

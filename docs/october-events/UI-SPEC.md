@@ -257,7 +257,12 @@ Door crew sees only the scanner. Capabilities enforced on the API.
 - **Packages**: a **comparison matrix** of tiers (incl. subsidised Charities /
   Launch Pad), +VAT, "buy more than one", information-pack download. Choose opens
   a **multi-step purchase wizard** (Package → Company → Contact → T&Cs → Payment).
-  Paying unlocks activities.
+  Paying unlocks activities. Packages are an **admin-editable entity**, not
+  hardcoded: name/price/+VAT/order, what each includes (entitlements), tier type
+  (standard vs subsidised), availability, Stripe price, "buy more than one". One
+  editor feeds both the matrix and the wizard, like ticket tiers drive checkout;
+  it ties into the entitlement/gating primitive. Spec in
+  [`BUILD-PLAN.md`](BUILD-PLAN.md) Track F.
 - **Activities**: their listings (submit / edit-own with ownership guard /
   signups). Gated until a package is paid; a **managed-free / handling-fee tier**
   must still unlock activities so small studios and charities aren't blocked.
