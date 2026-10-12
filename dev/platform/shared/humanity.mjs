@@ -333,6 +333,16 @@ const TELL_PATTERNS = [
   { key: 'in_the_realm', weight: 5,
     re: /\b(?:in|across) the (?:realm|world|landscape|space) of\b/gi,
     label: '“in the realm of…”', note: 'Scene-setting that carries no fact.' },
+  // The triple as it actually appears in generated prose: three parallel
+  // PHRASES, not three words. Added after Pangram's own segmentation put its
+  // highest AI confidence on a passage built from one — "telling their story,
+  // carrying the emotional weight of art, and creating a genuine connection" —
+  // which the word-level pattern below cannot see at all. Tested against the
+  // reported passages of the same release and two control texts without firing.
+  { key: 'parallel_phrases', weight: 7,
+    re: /\b\w+ing\b[^,;.!?]{3,70},\s+\w+ing\b[^,;.!?]{3,70},\s+and\s+\w+ing\b/gi,
+    label: 'three parallel clauses',
+    note: 'The rule of three at phrase length. The loudest construction in the passages a trained detector scored highest.' },
   { key: 'rule_of_three', weight: 4,
     re: /\b[\w'’-]+,\s+[\w'’-]+,?\s+and\s+[\w'’-]+\b/g,
     label: 'three-item coordinate list', note: 'The loudest single marker in October’s own samples.',

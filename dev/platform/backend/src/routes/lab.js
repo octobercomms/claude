@@ -146,7 +146,7 @@ router.post('/samples/:id/detect', async (req, res) => {
   const { rows } = await db.query('SELECT * FROM checker_samples WHERE id = $1', [req.params.id]);
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Not found' });
-  const text = String(row.body_html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = await humanity.toText(row.body_html);
 
   // Already checked, and the text has not moved since: serve the stored result
   // rather than paying for the same answer twice.

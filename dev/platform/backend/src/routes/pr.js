@@ -1482,7 +1482,8 @@ router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Release not found' });
 
-  const text = String(row.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  // Entities decoded, not just tags stripped — see humanity.toText().
+  const text = await humanity.toText(row.body_html);
   if (!text) return res.status(400).json({ error: 'Nothing written yet.' });
   const fp = pangram.fingerprint(text);
 
@@ -1503,6 +1504,10 @@ router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
     const stored = {
       ...result.raw,
       pct: result.pct,
+      // Their own verdict string. More honest than the number on its own, and
+      // on this release it read "Unlikely AI" while their web tool read
+      // "AI Detected" — so both get recorded.
+      verdict: result.raw?.prediction || null,
       // Per-sentence scores if the response carries any, pulled out on the
       // first call so the highlighting layer can be built later without
       // paying for every release a second time.
@@ -1566,7 +1571,7 @@ router.get('/press-releases/:prId/detector-detail', requireAdmin, async (req, re
 router.get('/press-releases/:prId/detect-quote', requireAdmin, async (req, res) => {
   const { rows } = await db.query('SELECT body_html FROM pr_press_releases WHERE id = $1', [req.params.prId]);
   if (!rows[0]) return res.status(404).json({ error: 'Release not found' });
-  const text = String(rows[0].body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = await humanity.toText(rows[0].body_html);
   res.json({
     configured: await pangram.configured(),
     words: pangram.wordCount(text),
