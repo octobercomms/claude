@@ -58,6 +58,7 @@ final class Plugin {
         \OE\GuidedTours\Shortcodes::init();
         \OE\Members\Shortcodes::init();
         \OE\Sections\Shortcodes::init();
+        \OE\Sections\Theme::init();
         \OE\GuidedTours\Rest::init();
         // Social captions: metabox + save in admin, plus the publish-time autogen
         // hook (which also fires from cron), so register it unconditionally.

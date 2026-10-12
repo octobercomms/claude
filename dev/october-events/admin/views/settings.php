@@ -59,6 +59,31 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <span class="description">&nbsp;<?php echo \OE\Settings::adoption_mode() ? esc_html__('currently: additive', 'october-events') : esc_html__('currently: native', 'october-events'); ?></span></p>
         </div></details>
 
+        <details class="oe-acc" id="section-styling"><summary><?php esc_html_e('Section styling', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('A small set of tokens so dropped sections and the native checkout feel like part of this site. Leave the accent blank to use the brand accent above. These also drive the Stripe card field appearance.', 'october-events'); ?></p>
+        <?php $oe_tok = static fn(string $k, string $d = ''): string => (string) ($cfg[$k] ?? $d); ?>
+        <p><label><?php esc_html_e('Accent colour', 'october-events'); ?><br>
+            <input type="text" name="section_accent" class="regular-text" value="<?php echo esc_attr($oe_tok('section_accent')); ?>" placeholder="#1a1a1a (blank = brand accent)"></label></p>
+        <p><label><?php esc_html_e('Accent text colour', 'october-events'); ?><br>
+            <input type="text" name="section_accent_on" class="regular-text" value="<?php echo esc_attr($oe_tok('section_accent_on')); ?>" placeholder="#ffffff"></label></p>
+        <p><label><?php esc_html_e('Button style', 'october-events'); ?><br>
+            <select name="section_button_style">
+                <?php foreach (['filled' => 'Filled', 'outline' => 'Outline', 'ghost' => 'Ghost'] as $k => $l) : ?>
+                <option value="<?php echo esc_attr($k); ?>" <?php selected($oe_tok('section_button_style', 'filled'), $k); ?>><?php echo esc_html($l); ?></option>
+                <?php endforeach; ?>
+            </select></label></p>
+        <p><label><?php esc_html_e('Corner radius', 'october-events'); ?>
+            <input type="text" name="section_radius" value="<?php echo esc_attr($oe_tok('section_radius', '6px')); ?>" placeholder="6px" style="max-width:100px"></label>
+           &nbsp;<label><?php esc_html_e('Border width', 'october-events'); ?>
+            <input type="text" name="section_border_width" value="<?php echo esc_attr($oe_tok('section_border_width', '1px')); ?>" placeholder="1px" style="max-width:100px"></label></p>
+        <p><label><?php esc_html_e('Section spacing', 'october-events'); ?>
+            <input type="text" name="section_spacing" value="<?php echo esc_attr($oe_tok('section_spacing', '1.5rem')); ?>" placeholder="1.5rem" style="max-width:100px"></label>
+           &nbsp;<label><?php esc_html_e('Control height', 'october-events'); ?>
+            <input type="text" name="section_control_height" value="<?php echo esc_attr($oe_tok('section_control_height', '44px')); ?>" placeholder="44px" style="max-width:100px"></label></p>
+        <p><label><?php esc_html_e('Font family (optional)', 'october-events'); ?><br>
+            <input type="text" name="section_font" class="regular-text" value="<?php echo esc_attr($oe_tok('section_font')); ?>" placeholder="<?php esc_attr_e('blank = inherit the theme', 'october-events'); ?>"></label></p>
+        </div></details>
+
         </section>
         <section class="oe-set-panel" data-tab="events">
         <details class="oe-acc" id="field-mapping"><summary><?php esc_html_e('Event field mapping', 'october-events'); ?></summary><div class="oe-acc-body">

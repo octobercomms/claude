@@ -260,6 +260,18 @@ final class Settings {
             // the built-in October defaults (Brockmann + brand yellow).
             'theme_accent'      => '', // e.g. #E7CD41
             'theme_accent_on'   => '', // text colour on the accent, e.g. #1a1a1a
+            // Section theming tokens (M2 — the "native, not an embed" styling).
+            // Drive the public section output (ticket button, spacing, controls)
+            // and, in M3, the Stripe Elements appearance. Blank accent falls back
+            // to theme_accent / theme_accent_on. See OE\Sections\Theme.
+            'section_accent'         => '',
+            'section_accent_on'      => '',
+            'section_radius'         => '6px',
+            'section_border_width'   => '1px',
+            'section_button_style'   => 'filled', // filled | outline | ghost
+            'section_spacing'        => '1.5rem',
+            'section_control_height' => '44px',
+            'section_font'           => '',
             // Social publishing (Meta + LinkedIn). Secrets live in SECRET_CONSTANTS;
             // these are the non-secret ids/URNs. Empty = that network stays off.
             'meta_app_id'            => '',
