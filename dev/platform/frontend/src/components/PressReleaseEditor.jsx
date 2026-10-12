@@ -45,6 +45,11 @@ const CAP = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' };
  * The treatments differ by more than hue: a solid underline, a dotted one, a
  * tint. Colour alone never carries the meaning.
  */
+const DOC_STYLE = {
+  border: LINE, borderRadius: 'var(--r-sm)', padding: 'var(--s5)', background: 'var(--surface)',
+  lineHeight: 1.65, fontSize: 'var(--fs-body)', minHeight: '18em',
+};
+
 const LAYERS = [
   // In paint order, which is not negotiable: the sentence layer has to go down
   // before the phrase layers, because once a tell has split a text node the
@@ -200,6 +205,134 @@ function highlightLayers(html, layers) {
   } catch { return html; }
 }
 
+/** Strip our own marks back out, so what is stored is the operator's HTML. */
+function unmark(html) {
+  if (typeof DOMParser === 'undefined') return html;
+  try {
+    const doc = new DOMParser().parseFromString(`<div id="oc-root">${html}</div>`, 'text/html');
+    const root = doc.getElementById('oc-root');
+    for (const m of [...root.querySelectorAll('mark.oc-bare, mark.oc-tell, mark.oc-fact')]) {
+      m.replaceWith(...m.childNodes);
+    }
+    root.normalize();
+    return root.innerHTML;
+  } catch { return html; }
+}
+
+/** Where the caret sits, counted in characters from the start of the element. */
+function caretOffset(root) {
+  const sel = typeof window !== 'undefined' && window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  if (!root.contains(range.endContainer)) return null;
+  const pre = range.cloneRange();
+  pre.selectNodeContents(root);
+  pre.setEnd(range.endContainer, range.endOffset);
+  return pre.toString().length;
+}
+
+/** Put it back there after the marks have been repainted underneath it. */
+function restoreCaret(root, offset) {
+  if (offset == null) return;
+  const walker = document.createTreeWalker(root, 4 /* SHOW_TEXT */);
+  let seen = 0;
+  let node;
+  while ((node = walker.nextNode())) {
+    const len = node.nodeValue.length;
+    if (seen + len >= offset) {
+      const range = document.createRange();
+      range.setStart(node, Math.max(0, offset - seen));
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    seen += len;
+  }
+}
+
+/**
+ * The document, written in directly.
+ *
+ * The hard part is that the marks live in the same DOM you are typing into, so
+ * repainting them on every keystroke destroys the caret. The split that makes
+ * it work: the DIAL updates on every keystroke, because it reads the text and
+ * touches nothing; the MARKS are repainted only once you stop, after which the
+ * caret is put back by character offset.
+ *
+ * React never owns this subtree. It is set imperatively, or every repaint would
+ * fight the browser for the cursor.
+ */
+function DocumentSurface({ html, onChange, readOnly, paintKey }) {
+  const ref = useRef(null);
+  const typing = useRef(false);
+  const timer = useRef(null);
+  // The freshly painted markup, readable from inside the settle timeout, which
+  // closes over the render that scheduled it and would otherwise repaint stale
+  // marks over newer text.
+  const painted = useRef(html);
+  useEffect(() => { painted.current = html; }, [html]);
+
+  // Repaint when the marks change underneath us — a new release, a layer
+  // toggled — but never while the operator is mid-word.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typing.current) return;
+    if (el.innerHTML === html) return;
+    const at = document.activeElement === el ? caretOffset(el) : null;
+    el.innerHTML = html;
+    if (at != null) restoreCaret(el, at);
+  }, [html, paintKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  if (readOnly) {
+    return (
+      <div ref={ref} style={DOC_STYLE} dangerouslySetInnerHTML={{ __html: html }} />
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck
+      role="textbox"
+      aria-multiline="true"
+      aria-label="The release"
+      style={{ ...DOC_STYLE, outline: 'none' }}
+      onInput={() => {
+        typing.current = true;
+        clearTimeout(timer.current);
+        const el = ref.current;
+        // Store the operator's own HTML, never ours.
+        onChange(unmark(el.innerHTML));
+        // Settle: repaint the marks once the typing stops, and put the caret
+        // back where it was.
+        timer.current = setTimeout(() => {
+          typing.current = false;
+          const at = document.activeElement === el ? caretOffset(el) : null;
+          el.innerHTML = painted.current || el.innerHTML;
+          if (at != null) restoreCaret(el, at);
+        }, 700);
+      }}
+      onBlur={() => {
+        clearTimeout(timer.current);
+        typing.current = false;
+      }}
+      // Paste as plain text. A paste out of Word carries a tag soup that the
+      // HTML view then has to be opened to clean up.
+      onPaste={(e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        document.execCommand('insertText', false, text);
+      }}
+    />
+  );
+}
+
 /**
  * The legend, and the layer switches, in one control.
  *
@@ -250,8 +383,14 @@ function Legend({ layerOn, setLayerOn, marks, reading }) {
  */
 function Dial({ score }) {
   const R = 58, C = 2 * Math.PI * R, v = Math.max(0, Math.min(100, score));
-  const band = v >= 75 ? { hue: 'var(--positive)', word: 'Reads as human' }
-    : v >= 45 ? { hue: 'var(--warning)', word: 'Mixed signals' }
+  // The words name what was measured, not what a reader would conclude.
+  //
+  // "Reads as human" was an overclaim and a real release proved it: this scored
+  // it 94 while Pangram scored the same text 82% AI. The two are not measuring
+  // the same thing, and a dial that says "human" where a trained classifier
+  // says "machine" gives false confidence at the exact moment it matters.
+  const band = v >= 75 ? { hue: 'var(--positive)', word: 'Well reported, no tells' }
+    : v >= 45 ? { hue: 'var(--warning)', word: 'Thin in places' }
       : { hue: 'var(--negative)', word: 'Reads as generated' };
   return (
     <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexDirection: 'column', textAlign: 'center' }}>
@@ -270,6 +409,7 @@ function Dial({ score }) {
         <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1.2 }}>{band.word}</div>
         <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
           Live, as you type. It rises when you remove a tell or add a checkable fact.
+          {v >= 75 ? ' A clean score here is not a detector verdict — see below.' : ''}
         </div>
       </div>
     </div>
@@ -503,17 +643,19 @@ export default function PressReleaseEditor({
             {tab === 'document' ? (
               <>
                 <Legend layerOn={layerOn} setLayerOn={setLayerOn} marks={marks} reading={reading} />
-                <div
-                  style={{
-                    border: LINE, borderRadius: 'var(--r-sm)', padding: 'var(--s5)', background: 'var(--surface)',
-                    lineHeight: 1.65, fontSize: 'var(--fs-body)',
-                  }}
-                  // The operator's own release, rendered for reading, with the
-                  // layers painted on. Same content the source view edits.
-                  dangerouslySetInnerHTML={{ __html: pr.body_html ? html
-                    : '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>' }}
+                <DocumentSurface
+                  html={pr.body_html ? html
+                    : '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>'}
+                  onChange={(v) => setPr((p) => ({ ...p, body_html: v }))}
+                  readOnly={readOnly}
+                  paintKey={`${pr.id || 'new'}:${LAYERS.map((l) => (layerOn[l.key] ? 1 : 0)).join('')}`}
                 />
-                {!readOnly && <div style={{ ...CAP, marginTop: 'var(--s2)' }}>Switch to HTML source to edit.</div>}
+                {!readOnly && (
+                  <div style={{ ...CAP, marginTop: 'var(--s2)' }}>
+                    Type straight into it. The dial moves as you type; the marks settle a moment after
+                    you stop, so they are not repainted under the cursor.
+                  </div>
+                )}
               </>
             ) : (
               <textarea className="input" rows={24} disabled={readOnly}
@@ -582,7 +724,12 @@ export default function PressReleaseEditor({
             detectors it replaced, bypassed by swapping words for rarer synonyms — so swapping
             “delve” for something unusual lifts this score and improves nothing. The part that cannot be
             gamed that way is the specificity, which is why it carries the most weight.
-            {' '}Use it to make a good start. Put the finished text through Pangram when the answer matters.
+            {' '}<strong>Measured, on one real release:</strong> this scored it 94 while Pangram scored the
+            same 678 words 82% AI and GPTZero called it human-written and AI-polished, with ZeroGPT at
+            29% and QuillBot at 0%. Four trained detectors spanning 0% to 82% on one text, and this
+            panel agreeing with the two most generous. Treat a clean score here as “the obvious tells
+            are gone and the reporting is in”, which is worth having and is all it is.
+            {' '}Put the finished text through Pangram when the answer matters.
           </div>
         </div>
 
