@@ -18,6 +18,7 @@ final class Contacts {
 
     public const STATUS_SUBSCRIBED   = 'subscribed';
     public const STATUS_UNSUBSCRIBED = 'unsubscribed';
+    public const STATUS_PENDING      = 'pending'; // double opt-in: awaiting email confirmation
 
     public static function table(): string {
         global $wpdb;
@@ -40,13 +41,15 @@ final class Contacts {
             company VARCHAR(190) NOT NULL DEFAULT '',
             tags VARCHAR(255) NOT NULL DEFAULT '',
             enriched TINYINT(1) NOT NULL DEFAULT 0,
+            confirm_token VARCHAR(40) NOT NULL DEFAULT '',
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             PRIMARY KEY  (id),
             UNIQUE KEY email (email),
             KEY status (status),
             KEY source (source),
-            KEY enriched (enriched)
+            KEY enriched (enriched),
+            KEY confirm_token (confirm_token)
         ) {$charset};");
     }
 
@@ -115,6 +118,70 @@ final class Contacts {
             'updated_at' => $now,
         ]);
         return (int) $wpdb->insert_id;
+    }
+
+    /**
+     * Begin double opt-in for a marketing subscribe. Upserts the contact and,
+     * unless they are already subscribed, marks them `pending` with a fresh
+     * confirmation token. Never touches the transactional capture() path.
+     *
+     * @param array<string,mixed> $data name, phone, source
+     * @return array{id:int,token:string,already:bool}
+     */
+    public static function start_confirmation(string $email, array $data = []): array {
+        $email = strtolower(trim($email));
+        if (! is_email($email)) {
+            return ['id' => 0, 'token' => '', 'already' => false];
+        }
+        global $wpdb;
+        $now   = current_time('mysql', true);
+        $name  = sanitize_text_field((string) ($data['name'] ?? ''));
+        $src   = sanitize_key((string) ($data['source'] ?? 'subscribe')) ?: 'subscribe';
+        $token = substr(wp_generate_password(40, false), 0, 40);
+
+        $existing = self::get($email);
+        if ($existing && (string) $existing->status === self::STATUS_SUBSCRIBED) {
+            return ['id' => (int) $existing->id, 'token' => '', 'already' => true];
+        }
+        if ($existing) {
+            $update = ['status' => self::STATUS_PENDING, 'confirm_token' => $token, 'updated_at' => $now];
+            if ($name !== '' && (string) $existing->name === '') { $update['name'] = $name; }
+            $wpdb->update(self::table(), $update, ['id' => (int) $existing->id]);
+            return ['id' => (int) $existing->id, 'token' => $token, 'already' => false];
+        }
+        $wpdb->insert(self::table(), [
+            'email'         => $email,
+            'name'          => $name,
+            'source'        => $src,
+            'status'        => self::STATUS_PENDING,
+            'confirm_token' => $token,
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ]);
+        return ['id' => (int) $wpdb->insert_id, 'token' => $token, 'already' => false];
+    }
+
+    /**
+     * Complete double opt-in: flip a pending contact to subscribed and clear the
+     * token. Returns the contact on success, null for an unknown/spent token.
+     */
+    public static function confirm(string $token): ?object {
+        $token = preg_replace('/[^A-Za-z0-9]/', '', $token) ?? '';
+        if (strlen($token) < 20) {
+            return null;
+        }
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE confirm_token = %s', $token));
+        if (! $row) {
+            return null;
+        }
+        $wpdb->update(
+            self::table(),
+            ['status' => self::STATUS_SUBSCRIBED, 'confirm_token' => '', 'updated_at' => current_time('mysql', true)],
+            ['id' => (int) $row->id]
+        );
+        $row->status = self::STATUS_SUBSCRIBED;
+        return $row;
     }
 
     public static function unsubscribe(string $email): void {

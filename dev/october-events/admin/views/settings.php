@@ -739,6 +739,11 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </section>
 
         <section class="oe-set-panel" data-tab="emailsms">
+        <details class="oe-acc" id="subscribe"><summary><?php esc_html_e('Marketing signup', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('The public [oe_subscribe] signup form adds people to your marketing lists. With double opt-in on, a new signup must click a confirmation link before they are subscribed (recommended for deliverability and consent). This applies to the marketing form only, not to ticket buyers or volunteers.', 'october-events'); ?></p>
+        <p><label><input type="checkbox" name="double_optin" value="1" <?php checked((bool) ($cfg['double_optin'] ?? true)); ?>> <?php esc_html_e('Require email confirmation (double opt-in)', 'october-events'); ?></label></p>
+        </div></details>
+
         <details class="oe-acc" id="email"><summary><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
         <?php $ses_active = \OE\Mail\Mailer::ses_active(); $mc = \OE\Mail\EmailLog::counts(); ?>

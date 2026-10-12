@@ -46,6 +46,7 @@ final class Plugin {
         \OE\Volunteers\DailyDigest::register();
         \OE\Brand\Rest::init();
         \OE\Mail\Mailer::init();
+        \OE\Mail\Subscribe::init();
         \OE\Mail\SnsController::init();
         \OE\Mail\CampaignsRest::init();
         \OE\Mail\ContactsRest::init();
