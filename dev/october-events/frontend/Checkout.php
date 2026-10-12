@@ -106,11 +106,27 @@ final class Checkout {
             'membershipJoinAmount' => (int) Settings::get('membership_join_amount', 0),
             'membershipInfoUrl'    => (string) Settings::get('membership_info_url', ''),
             'membershipBenefits'   => array_values((array) Settings::get('membership_benefits', [])),
+            // Section theming tokens forwarded to the Stripe card field (which
+            // site CSS cannot reach) so the card matches the rest of the page.
+            'appearance'        => self::card_appearance(),
             'types'             => $types,
         ]);
 
         ob_start();
         require OE_DIR . 'frontend/templates/checkout.php';
         return (string) ob_get_clean();
+    }
+
+    /**
+     * Card-field appearance derived from the section theming tokens. Passed to
+     * Stripe Elements' style API in checkout.js. Only a font family is forwarded
+     * (the one clear "match" signal for the card iframe); blank keeps Stripe's /
+     * the stylesheet's default.
+     *
+     * @return array{font:string}
+     */
+    private static function card_appearance(): array {
+        $font = trim((string) Settings::get('section_font', ''));
+        return ['font' => $font];
     }
 }
