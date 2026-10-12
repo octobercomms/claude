@@ -120,6 +120,8 @@ final class Schema {
             ticket_type_label VARCHAR(190) NOT NULL DEFAULT '',
             email VARCHAR(190) NOT NULL,
             name VARCHAR(190) DEFAULT '',
+            phone VARCHAR(40) NOT NULL DEFAULT '',
+            sms_opt_in TINYINT(1) NOT NULL DEFAULT 0,
             qty SMALLINT UNSIGNED DEFAULT 1,
             status VARCHAR(20) NOT NULL DEFAULT 'waiting',
             created_at DATETIME NOT NULL,

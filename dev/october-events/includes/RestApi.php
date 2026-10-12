@@ -744,10 +744,12 @@ final class RestApi {
         $type_key = sanitize_key((string) $req->get_param('type_key'));
         $email    = sanitize_email((string) $req->get_param('email'));
         $name     = sanitize_text_field((string) $req->get_param('name'));
+        $phone    = sanitize_text_field((string) $req->get_param('phone'));
+        $sms      = ! empty($req->get_param('sms_opt_in'));
         if (! $event_id || ! is_email($email)) {
             return new \WP_REST_Response(['error' => 'Enter a valid email address.'], 400);
         }
-        $id = \OE\Ticketing\Waitlist::join($event_id, $type_key, $email, $name);
+        $id = \OE\Ticketing\Waitlist::join($event_id, $type_key, $email, $name, $phone, $sms);
         if (! $id) {
             return new \WP_REST_Response(['error' => 'Could not join the waitlist.'], 400);
         }

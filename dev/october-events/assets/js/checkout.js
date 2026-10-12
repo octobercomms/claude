@@ -709,15 +709,18 @@
       $('#oct-waitlist-ticket-label').text(curLabel);
       $('#oct-waitlist-email').val($('#oct-email').val());
       $('#oct-waitlist-name').val($('#oct-name').val());
+      $('#oct-waitlist-phone').val('');
+      $('#oct-waitlist-sms').prop('checked', false);
       $('#oct-waitlist-message').hide().removeClass('success error');
       $modal.show();
     });
     $('#oct-waitlist-cancel, .oct-waitlist-modal__backdrop').on('click', function () { $modal.hide(); });
     $('#oct-waitlist-submit').on('click', function () {
       var email = $('#oct-waitlist-email').val().trim(), name = $('#oct-waitlist-name').val().trim(), $msg = $('#oct-waitlist-message');
+      var phone = $('#oct-waitlist-phone').val().trim(), sms = $('#oct-waitlist-sms').is(':checked') ? 1 : 0;
       if (!email || !isValidEmail(email)) { $msg.removeClass('success').addClass('error').text('Please enter a valid email address.').show(); return; }
       var $btn = $(this); $btn.prop('disabled', true).text('Joining…');
-      rest('/waitlist-join', { event_id: state.eventId, type_key: curKey, email: email, name: name }).then(function (res) {
+      rest('/waitlist-join', { event_id: state.eventId, type_key: curKey, email: email, name: name, phone: phone, sms_opt_in: sms }).then(function (res) {
         $btn.prop('disabled', false).text('Join Waitlist');
         if (res.ok) { $msg.removeClass('error').addClass('success').text('You\'re on the list — we\'ll email you if a spot opens up.').show(); setTimeout(function () { $modal.hide(); }, 3000); }
         else { $msg.removeClass('success').addClass('error').text(res.body.error || 'Could not join waitlist.').show(); }
