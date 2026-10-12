@@ -10,6 +10,20 @@ The one ordered engineering backlog. It unifies the de-Jet phases
 brief into a single sequence. Those docs hold the detail; this one holds the
 order and the "done" line.
 
+## Sequencing decision (build kick-off)
+
+M0 and the M1 core (pack framework + event-details metabox + the second-tenant
+base fields) are the shared spine, built first. **After M1 the build runs two
+tracks in parallel** (owner decision): push ADF toward the native cutover
+(M2 → M4) while standing up the Concrete Communities checkout slice (brand colour
++ external-link / native checkout + section tokens + Elementor dynamic tags) for
+new-client value sooner. Keep each track's PRs self-contained so the parallelism
+does not muddy either.
+
+**Status:** M0 started — `adoption_mode` and the `entitlement_tier` stub added to
+Settings (read, not enforced); per-site feature flags already existed in
+`Features.php`.
+
 ## The goal of this build
 
 The reference tenant (the festival and its tours) running **natively on the

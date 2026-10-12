@@ -42,6 +42,20 @@ final class Settings {
             // Per-site brand shown in the admin menu / UI (this plugin runs on
             // multiple sites — e.g. "Atlanta Design Festival", "Architecture Tours").
             'brand_name' => 'October Events',
+            // Adoption mode (M0). While a site still renders events through a
+            // legacy stack (JetEngine/Crocoblock), the plugin runs ADDITIVE: it
+            // never overwrites foreign meta or hijacks templates, so it is safe
+            // to switch on over a live site. 'auto' resolves from whether a
+            // legacy events source is present (see Settings::adoption_mode());
+            // 'on'/'off' force it. Nothing enforces this yet in M0 — it is the
+            // single flag the migration (M1+) and templates (M2) read so the
+            // cutover never becomes a retrofit.
+            'adoption_mode'      => 'auto',
+            // Entitlement tier (M0 stub). A per-install record the plugin can
+            // read; NOT enforced yet. The cheap hook that stops the sell-to-others
+            // entitlement work (SCOPE-GAPS A2) becoming a retrofit. 'full' = the
+            // reference tenant / owner install.
+            'entitlement_tier'   => 'full',
             // Optional map: event field => an existing (e.g. JetEngine) meta key to
             // read when the plugin's own field is empty, so tickets/emails/reports
             // can resolve an event's date, price and location.
@@ -348,6 +362,34 @@ final class Settings {
     /** Map of secret key => constant name (for the settings UI). */
     public static function secret_keys(): array {
         return self::SECRET_CONSTANTS;
+    }
+
+    /**
+     * Adoption mode (M0): true while the site still renders events through a
+     * legacy stack, so the plugin must stay additive (never overwrite foreign
+     * meta, never hijack templates). 'on'/'off' force it; 'auto' (the default)
+     * detects a legacy source — JetEngine active, or the `events` post type
+     * registered by something other than this plugin. Read-only in M0; consumed
+     * by the migrator (M1) and templates (M2).
+     */
+    public static function adoption_mode(): bool {
+        $mode = (string) self::get('adoption_mode', 'auto');
+        if ($mode === 'on')  { return true; }
+        if ($mode === 'off') { return false; }
+        // auto: JetEngine present means the legacy stack still owns the data
+        // (PostTypes flags `event`/`volunteer` as external for exactly this), so
+        // the plugin stays additive until the site is deliberately cut over.
+        return defined('JET_ENGINE_VERSION') || class_exists('\\Jet_Engine');
+    }
+
+    /**
+     * Entitlement tier (M0 stub): a per-install record the plugin can read but
+     * does NOT enforce yet. Keeps the sell-to-others entitlement work from
+     * becoming a retrofit (SCOPE-GAPS A2). 'full' = the reference tenant / owner.
+     */
+    public static function entitlement_tier(): string {
+        $t = (string) self::get('entitlement_tier', 'full');
+        return $t !== '' ? $t : 'full';
     }
 
     public static function all(): array {

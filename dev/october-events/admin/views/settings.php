@@ -47,6 +47,18 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="text" name="brand_name" class="regular-text" value="<?php echo esc_attr((string) ($cfg['brand_name'] ?? 'October Events')); ?>"></label></p>
         </div></details>
 
+        <?php $oe_adopt = (string) ($cfg['adoption_mode'] ?? 'auto'); ?>
+        <details class="oe-acc" id="migration"><summary><?php esc_html_e('Migration', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Adoption mode keeps the plugin additive while a legacy stack (e.g. JetEngine) still renders this site, so it is safe to run over a live site. Leave on Auto until you deliberately cut over.', 'october-events'); ?></p>
+        <p><label><?php esc_html_e('Adoption mode', 'october-events'); ?>
+            <select name="adoption_mode">
+                <option value="auto" <?php selected($oe_adopt, 'auto'); ?>><?php esc_html_e('Auto — detect a legacy source', 'october-events'); ?></option>
+                <option value="on" <?php selected($oe_adopt, 'on'); ?>><?php esc_html_e('On — stay additive', 'october-events'); ?></option>
+                <option value="off" <?php selected($oe_adopt, 'off'); ?>><?php esc_html_e('Off — this plugin owns the data', 'october-events'); ?></option>
+            </select></label>
+            <span class="description">&nbsp;<?php echo \OE\Settings::adoption_mode() ? esc_html__('currently: additive', 'october-events') : esc_html__('currently: native', 'october-events'); ?></span></p>
+        </div></details>
+
         </section>
         <section class="oe-set-panel" data-tab="events">
         <details class="oe-acc" id="field-mapping"><summary><?php esc_html_e('Event field mapping', 'october-events'); ?></summary><div class="oe-acc-body">
