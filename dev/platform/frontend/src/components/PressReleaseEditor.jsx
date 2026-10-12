@@ -92,6 +92,78 @@ function Field({ label, hint, value, onChange, rows, placeholder, ro }) {
   );
 }
 
+/**
+ * Wrap every sentence that carries no checkable fact.
+ *
+ * Located by text match rather than character offset: a sentence is long and
+ * distinctive enough to find, and a miss degrades to "not highlighted" instead
+ * of to a wrongly placed highlight.
+ */
+function highlightBare(html, spans) {
+  if (!html || typeof DOMParser === 'undefined') return html;
+  const bare = spans.filter((sp) => sp.bare).map((sp) => sp.text).filter((t) => t.length > 12);
+  if (!bare.length) return html;
+  try {
+    const doc = new DOMParser().parseFromString(`<div id="oc-root">${html}</div>`, 'text/html');
+    const root = doc.getElementById('oc-root');
+    const walker = doc.createTreeWalker(root, 4 /* SHOW_TEXT */);
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    for (const node of nodes) {
+      const text = node.nodeValue;
+      const hits = [];
+      for (const b of bare) {
+        const i = text.indexOf(b);
+        if (i >= 0) hits.push([i, i + b.length]);
+      }
+      if (!hits.length) continue;
+      hits.sort((a, b) => a[0] - b[0]);
+      const frag = doc.createDocumentFragment();
+      let cur = 0;
+      for (const [from, to] of hits) {
+        if (from < cur) continue;
+        if (from > cur) frag.appendChild(doc.createTextNode(text.slice(cur, from)));
+        const mark = doc.createElement('mark');
+        mark.setAttribute('class', 'oc-bare');
+        mark.textContent = text.slice(from, to);
+        frag.appendChild(mark);
+        cur = to;
+      }
+      if (cur < text.length) frag.appendChild(doc.createTextNode(text.slice(cur)));
+      node.parentNode.replaceChild(frag, node);
+    }
+    return root.innerHTML;
+  } catch { return html; }
+}
+
+/**
+ * A meter: one ratio against a limit, on a same-ramp track. One hue, the number
+ * in ink rather than in the hue, and a label saying what it measures — the
+ * figure never carries meaning by colour alone.
+ */
+function Meter({ pct, label, sub }) {
+  const R = 52, C = 2 * Math.PI * R, v = Math.max(0, Math.min(100, pct));
+  return (
+    <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center' }}>
+      <svg width="128" height="128" viewBox="0 0 128 128" role="img" aria-label={`${v}% ${label}`}>
+        <circle cx="64" cy="64" r={R} fill="none" stroke="var(--card-border)" strokeWidth="12" />
+        <circle cx="64" cy="64" r={R} fill="none" stroke="var(--accent)" strokeWidth="12"
+          strokeLinecap="round" strokeDasharray={`${(v / 100) * C} ${C}`}
+          transform="rotate(-90 64 64)" style={{ transition: 'stroke-dasharray 220ms ease' }} />
+        <text x="64" y="62" textAnchor="middle" dominantBaseline="middle"
+          style={{ fontSize: 30, fontWeight: 700, fill: 'var(--text)' }}>{v}</text>
+        <text x="64" y="84" textAnchor="middle" dominantBaseline="middle"
+          style={{ fontSize: 11, fill: 'var(--text-subtle)' }}>per cent</text>
+      </svg>
+      <div style={{ maxWidth: 260 }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{label}</div>
+        <div style={CAP}>{sub}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function PressReleaseEditor({
   pr, setPr, clientId, readOnly, saving, onSave, onCancel, onCreateCampaign,
 }) {
@@ -102,6 +174,7 @@ export default function PressReleaseEditor({
   const [claims, setClaims] = useState(null);
   const [budget, setBudget] = useState(null);
   const [showStyle, setShowStyle] = useState(false);
+  const [highlight, setHighlight] = useState(true);
 
   const brief = useMemo(() => merge(EMPTY_BRIEF, pr.brief_json), [pr.brief_json]);
   const setBrief = (next) => setPr((p) => ({ ...p, brief_json: next }));
@@ -159,6 +232,16 @@ export default function PressReleaseEditor({
 
   return (
     <div>
+      <style>{`
+        mark.oc-bare {
+          background: color-mix(in srgb, var(--accent) 22%, transparent);
+          color: inherit;
+          border-radius: 2px;
+          padding: 0 1px;
+          box-decoration-break: clone;
+          -webkit-box-decoration-break: clone;
+        }
+      `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
         <div style={{ display: 'flex', gap: 'var(--s2)' }}>
@@ -250,6 +333,12 @@ export default function PressReleaseEditor({
         <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
           <button className={`btn btn-sm ${tab === 'document' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('document')}>Document</button>
           <button className={`btn btn-sm ${tab === 'source' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('source')}>HTML source</button>
+          {tab === 'document' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s1)', cursor: 'pointer', ...CAP }}>
+              <input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} />
+              Mark the sentences carrying no fact
+            </label>
+          )}
           <div style={{ flex: 1 }} />
           <button className="btn btn-secondary btn-sm" onClick={async () => {
             try { await navigator.clipboard.writeText(pr.body_html || ''); toast('HTML copied.', 'success'); }
@@ -263,9 +352,11 @@ export default function PressReleaseEditor({
               border: LINE, borderRadius: 'var(--r-sm)', padding: 'var(--s5)', background: 'var(--surface)',
               maxWidth: '46em', lineHeight: 1.65, fontSize: 'var(--fs-body)',
             }}
-            // The operator's own release, rendered for reading. Same content the
-            // source view edits; this is the "how it will look" half.
-            dangerouslySetInnerHTML={{ __html: pr.body_html || '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>' }}
+            // The operator's own release, rendered for reading, with the
+            // factless sentences marked. Same content the source view edits.
+            dangerouslySetInnerHTML={{ __html: pr.body_html
+              ? (highlight ? highlightBare(pr.body_html, reading.spans) : pr.body_html)
+              : '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>' }}
           />
         ) : (
           <textarea className="input" rows={20} disabled={readOnly}
@@ -279,6 +370,22 @@ export default function PressReleaseEditor({
 
       {/* ── The check ──────────────────────────────────────────────────── */}
       <Section title="The check" hint="Live, free, and local. It counts facts, not style.">
+        <div style={{ padding: 'var(--s4)', border: LINE, borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)', marginBottom: 'var(--s3)' }}>
+          <Meter
+            pct={reading.bare_pct}
+            label="of the writing carries no checkable fact"
+            sub={reading.bare_sentences
+              ? `${reading.bare_sentences} of ${reading.sentence_count} sentences say nothing a journalist could verify, marked in the document above. Give one a fact, or cut it, and this falls. Rewording it at the same length changes nothing — which is also what a detector does with a rewrite.`
+              : 'Every sentence carries something checkable.'}
+          />
+          <div style={{ ...CAP, marginTop: 'var(--s3)', paddingTop: 'var(--s2)', borderTop: LINE }}>
+            This is a count of your own text, not a detector verdict. It measures the share of your words
+            that nobody could check, which is both what a journalist skims past and what a detector reads
+            as generated. A real AI-detection percentage needs a trained classifier such as Pangram; this
+            does not pretend to be one.
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: 'var(--s5)', flexWrap: 'wrap', alignItems: 'baseline', padding: 'var(--s3)', border: LINE, borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
           <div>
             <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>{reading.checkable}</div>

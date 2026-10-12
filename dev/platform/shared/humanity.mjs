@@ -160,6 +160,42 @@ function styleMarkers(body, sents) {
   };
 }
 
+/**
+ * The body split into sentences, each with its character offsets and the
+ * checkable facts it carries.
+ *
+ * This is what the editor highlights. It highlights SENTENCES THAT CARRY NO
+ * CHECKABLE FACT — not "AI sentences", which this cannot know, and not the
+ * style markers, which must never be highlighted because the fix for those is
+ * to rough up the prose and that is the one move the standard forbids.
+ *
+ * A factless sentence is the honest target. It is what a journalist skims past
+ * and it is what a detector reads as generated, and the fix for it is the same
+ * in both cases: go and get a fact. You cannot clear it by rewording.
+ */
+export function sentenceSpans(text) {
+  const out = [];
+  const re = /[^.!?]+[.!?]*["'”’)\]]?\s*/g;
+  let m;
+  while ((m = re.exec(text))) {
+    const raw = m[0];
+    const trimmed = raw.trim();
+    if (trimmed.length < 2) continue;
+    const start = m.index + (raw.length - raw.trimStart().length);
+    const items = checkableItems(trimmed);
+    const distinct = new Set(items.map((i) => key(i.text)));
+    out.push({
+      text: trimmed,
+      start,
+      end: start + trimmed.length,
+      words: trimmed.split(/\s+/).filter(Boolean).length,
+      facts: distinct.size,
+      bare: distinct.size === 0,
+    });
+  }
+  return out;
+}
+
 export const MOVES = [
   { key: 'hook', label: 'Hook phrase', hint: 'a line someone actually said' },
   { key: 'scope', label: 'Scope', hint: 'number, size, first or largest' },
@@ -250,7 +286,18 @@ export function analyse(html, brief = {}) {
   const verdict = density >= THRESHOLDS.target ? 'ready'
     : density >= THRESHOLDS.marginal ? 'marginal' : 'not_ready';
 
+  // Sentence-level view, for the meter and the inline highlighting.
+  const spans = sentenceSpans(body);
+  const bareWords = spans.filter((sp) => sp.bare).reduce((n, sp) => n + sp.words, 0);
+  // Measured by WORDS rather than by sentence count, so one long factless
+  // paragraph is not scored the same as one short factless aside.
+  const barePct = wordCount ? Math.round((bareWords / wordCount) * 100) : 0;
+
   return {
+    spans,
+    bare_pct: barePct,
+    bare_sentences: spans.filter((sp) => sp.bare).length,
+    sentence_count: spans.length,
     word_count: wordCount,
     density,
     density_raw: densityRaw,
@@ -268,4 +315,4 @@ export function analyse(html, brief = {}) {
   };
 }
 
-export default { analyse, checkableItems, namedQuotes, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };
+export default { analyse, checkableItems, namedQuotes, sentenceSpans, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };
