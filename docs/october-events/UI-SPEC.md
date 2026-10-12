@@ -203,6 +203,32 @@ widget and Gutenberg block, and **renders nothing when empty**.
 - Both ship. Styling ladder: inherit theme → default styling → brand tokens
   (accent/font/radius) → Elementor widget styling → template override.
 
+**The "native, not an embed" contract.** The goal is that a dropped section reads
+as part of the client's site, not a third-party plugin. On a bespoke site (e.g.
+Concrete Communities: huge CC logo, per-event pastel chrome, Neue Haas Unica,
+editorial table) Option B is the only sane choice; Option A would flatten the
+identity. The output must honour:
+- **Semantic, inheriting markup.** Text and colour inherit from the theme by
+  default; no wrapper that resets type/colour, no fixed widths.
+- **No plugin chrome on the front end.** No "powered by", no October styling, no
+  forced card/box. The admin is October-branded; the front end is the client's.
+- **Each section is an Elementor widget**, so its frame (padding, width, heading
+  type) is styled in Elementor, the tool the client already uses.
+- **Design tokens drive the functional parts** (ticket rows, pay button), and the
+  **same tokens feed the Stripe Elements appearance API** so the card iframe
+  matches too (site CSS cannot reach inside that iframe; tokens can). Tokens are a
+  small set (accent + accent-text, font source, radius, border width, button
+  style/shape, control height, spacing), set per-site and overridable per section.
+- **Part-classes as the escape hatch** (`.oe-ticket-row`, `.oe-checkout__pay`, …)
+  for the last 10% via Elementor custom CSS.
+- **Explicitly not** a per-element CSS editor in settings — that rebuilds Elementor
+  inside wp-admin and loses to it. Tokens + Elementor + part-classes cover it.
+
+**Checkout styling.** The native Stripe checkout is a section like any other:
+inherits the theme, styled by tokens + the Stripe appearance API, framed in
+Elementor. This is how a site keeps native payments feeling like its own page
+rather than an EventBrite-style embed, without a fully bespoke build.
+
 ### Public listing page
 Composed from the sections. A tour is simply a listing with the Tour pack on, so
 it gets the standard sections (header, about, tickets) **plus** Locations and Map.
@@ -276,6 +302,21 @@ descriptive slugs win on SEO and clarity.
 **Categories:** the category taxonomy carries a per-term colour and drives the
 archive filter chips, colour-coded.
 
+**Second reference tenant (Concrete Communities).** CC runs the same ACF field
+shape as ADF (`event_number`, `event_colour` + `event_colour_image`,
+`event_ticket_link` + text, `event_date`, `event_location`) under a radically
+different skin, which validates "productise in place, don't fork" and surfaces
+three fields the single-tenant model missed. All three are M1/M2 work:
+- **Per-listing brand colour + image** as optional base fields, exposed as an
+  **Elementor dynamic tag** (CC paints the whole page from `event_colour`; today
+  a JetEngine/Crocoblock binding, which must be reproduced as a plugin dynamic tag
+  or the page goes grey on de-Jet). This is distinct from the category colour and
+  the status-badge preset.
+- **Ticketing external-link mode**: the Tickets pack must degrade to a button to
+  an external URL (`ticket_link` + text) as a first-class alternative to native
+  checkout, so a site can list without selling natively, or move to native later.
+- **Reference number / light custom fields** (`event_number`, "013").
+
 **Performance:** sections render on demand and short-circuit when empty, so an
 unused section costs a cheap meta check, not a query or markup. Add per-section
 object caching and lazy images. This is faster than the current render-then-hide
@@ -342,4 +383,11 @@ object caching and lazy images. This is faster than the current render-then-hide
 - **Empty states + first-run checklist** and the **refund / cancel / delete +
   event reschedule/cancel confirm flows** (with the "notify N holders?" step from
   the email audit) now mocked in the admin artifact.
+- **Native, not an embed** (front-end contract): Option B for bespoke sites;
+  presentation-light plugin; sections inherit the theme, carry no plugin chrome,
+  are Elementor widgets, and are themed by a small token set (which also feeds the
+  Stripe appearance API) plus part-classes. No per-element CSS editor in settings.
+- **Concrete Communities = second reference tenant**, adding three model fields:
+  per-listing brand colour/image (+ Elementor dynamic tag), ticketing
+  external-link mode, and a reference number / light custom field.
 - Add: audit/error/email logs, schema.org, tax/VAT, accessibility, GDPR.
