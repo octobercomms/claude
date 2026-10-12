@@ -153,6 +153,17 @@ And within OMI there are **two different "Leads" screens** — always disambigua
   (`LeadsPage` → `SnapshotStudioPage`). *This is a plain table → full page and
   should stay that way* (its detail is itself a big two-column workspace).
 
+### Temporary: the checker bench
+
+`/lab/checker` (Settings → Checker bench, admin only) is a calibration bench for
+the humanity checker, built to be deleted. It has its own table
+(`checker_samples`, migration 195), its own route (`routes/lab.js`) and its own
+page, and it touches nothing in the Releases editor. See
+`docs/omi/checker-bench.md` for what it is for and how to remove it. If you are
+reading this long after October 2026 and the thresholds in
+`shared/humanity.mjs` are no longer marked provisional, the bench has outlived
+its purpose and should go.
+
 ## 5. The design system + the 6 shells
 
 ### Design tokens (`index.css :root`)

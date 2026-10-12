@@ -131,6 +131,10 @@ export default function Layout() {
           {user?.role === 'admin' && (
             <li>
               <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
+              {/* Temporary: the checker calibration bench. Remove this link, the
+                  route, the page and migration 195's table together when the
+                  thresholds are set. */}
+              <NavLink to="/lab/checker" style={({ isActive }) => subLinkStyle(isActive)}>Checker bench</NavLink>
             </li>
           )}
           <li>
