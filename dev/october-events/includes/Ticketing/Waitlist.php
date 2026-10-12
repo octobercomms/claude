@@ -19,7 +19,7 @@ final class Waitlist {
      * Add someone to an event's waitlist. De-duplicated on event + type + email
      * while still waiting. Returns the row id (0 on invalid input).
      */
-    public static function join(int $event_id, string $type_key, string $email, string $name = ''): int {
+    public static function join(int $event_id, string $type_key, string $email, string $name = '', string $phone = '', bool $sms_opt_in = false): int {
         global $wpdb;
         $email = strtolower(trim($email));
         if ($event_id <= 0 || ! is_email($email)) {
@@ -33,6 +33,10 @@ final class Waitlist {
             $event_id, $type_key, $email
         ));
         if ($existing) {
+            // Let a repeat join add the SMS detail they didn't give the first time.
+            if ($sms_opt_in && $phone !== '') {
+                $wpdb->update($t, ['phone' => sanitize_text_field($phone), 'sms_opt_in' => 1], ['id' => $existing]);
+            }
             return $existing;
         }
         $wpdb->insert($t, [
@@ -41,6 +45,8 @@ final class Waitlist {
             'ticket_type_label' => (string) ($type['label'] ?? ''),
             'email'             => $email,
             'name'              => sanitize_text_field($name),
+            'phone'             => sanitize_text_field($phone),
+            'sms_opt_in'        => ($sms_opt_in && $phone !== '') ? 1 : 0,
             'qty'              => 1,
             'status'            => 'waiting',
             'created_at'        => current_time('mysql', true),
@@ -86,11 +92,23 @@ final class Waitlist {
         }
         global $wpdb;
         $wpdb->update(Schema::waitlist(), ['status' => 'notified', 'notified_at' => current_time('mysql', true)], ['id' => $id]);
+        $event_name = get_the_title((int) $row->event_id) ?: '';
+        $checkout   = (string) get_permalink((int) $row->event_id);
         \OE\Mail\Transactional::send('waitlist_spot', ['email' => (string) $row->email, 'name' => (string) $row->name], [
-            'event_name'   => get_the_title((int) $row->event_id) ?: '',
+            'event_name'   => $event_name,
             'ticket_type'  => (string) $row->ticket_type_label,
-            'checkout_url' => (string) get_permalink((int) $row->event_id),
+            'checkout_url' => $checkout,
         ]);
+        // Opt-in SMS alongside the email, when they gave a number and ticked it.
+        if ((int) ($row->sms_opt_in ?? 0) === 1 && (string) ($row->phone ?? '') !== '') {
+            $sms = sprintf(
+                /* translators: 1: event name, 2: checkout URL */
+                __('A spot has opened for %1$s. Tickets are first-come — book here: %2$s', 'october-events'),
+                $event_name,
+                $checkout
+            );
+            \OE\Mail\Transactional::send_sms((string) $row->phone, $sms);
+        }
         AuditLog::record('waitlist_promoted', $id, 'waitlist', (string) $row->email);
         return true;
     }

@@ -63,6 +63,10 @@ final class Settings {
             // Volunteer early-recruitment windows (date × time × role × target),
             // for the pool registration form + board. See Volunteers\Pool\Windows.
             'volunteer_windows'    => [],
+            // Double opt-in on the public marketing signup form ([oe_subscribe]).
+            // On = send a confirm-link email before subscribing. Marketing path
+            // only; transactional captures (tickets, volunteers) are unaffected.
+            'double_optin'         => true,
             // Optional map: event field => an existing (e.g. JetEngine) meta key to
             // read when the plugin's own field is empty, so tickets/emails/reports
             // can resolve an event's date, price and location.

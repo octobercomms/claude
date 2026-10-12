@@ -37,6 +37,7 @@ final class Transactional {
         'order_cancelled'            => 'Your order has been cancelled',
         'sales_report'               => 'Daily ticket sales',
         'survey_invite'              => 'How was %2$s?',
+        'subscribe_confirm'          => 'Confirm your subscription to %1$s',
         // Membership lifecycle (M6). %1$s = brand.
         'membership_welcome'         => 'Welcome to %1$s membership',
         'membership_renewed'         => 'Your %1$s membership has renewed',
@@ -199,6 +200,14 @@ final class Transactional {
             case 'membership_cancelled':
                 return $hi . '<p>' . esc_html__('Your membership has been cancelled and will not renew. We\'re sorry to see you go, and you\'re welcome back any time.', 'october-events') . '</p>'
                     . (! empty($params['rejoin_url']) ? self::button(__('Rejoin', 'october-events'), (string) $params['rejoin_url']) : '');
+
+            case 'subscribe_confirm': {
+                $b = (string) Settings::get('brand_name', '');
+                return $hi . '<p>' . sprintf(esc_html__('Please confirm you\'d like to hear from %s. One click and you\'re on the list.', 'october-events'),
+                    '<strong>' . esc_html($b) . '</strong>') . '</p>'
+                    . (! empty($params['confirm_url']) ? self::button(__('Confirm subscription', 'october-events'), (string) $params['confirm_url']) : '')
+                    . '<p style="font-size:13px;color:#777">' . esc_html__('If you didn\'t request this, just ignore this email — nothing will happen.', 'october-events') . '</p>';
+            }
         }
 
         // Generic fallback: greeting + any scalar params.

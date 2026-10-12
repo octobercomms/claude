@@ -110,6 +110,13 @@ if ($membership_pitch === '') {
           <label for="oct-waitlist-email" class="oct-label"><?php esc_html_e('Email', 'october-events'); ?> <span class="oct-required">*</span></label>
           <input type="email" id="oct-waitlist-email" class="oct-input" placeholder="<?php esc_attr_e('you@example.com', 'october-events'); ?>">
         </div>
+        <div class="oct-field-group">
+          <label for="oct-waitlist-phone" class="oct-label"><?php esc_html_e('Mobile', 'october-events'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-events'); ?></span></label>
+          <input type="tel" id="oct-waitlist-phone" class="oct-input" placeholder="<?php esc_attr_e('For a text if a spot opens', 'october-events'); ?>">
+        </div>
+        <div class="oct-field-group">
+          <label class="oct-label" style="font-weight:400"><input type="checkbox" id="oct-waitlist-sms"> <?php esc_html_e('Text me if a spot opens (as well as email)', 'october-events'); ?></label>
+        </div>
         <div id="oct-waitlist-message" class="oct-promo-message" style="display:none"></div>
         <div style="display:flex;gap:10px;margin-top:12px;">
           <button type="button" id="oct-waitlist-submit" class="oct-btn oct-btn--primary" style="flex:1"><?php esc_html_e('Join Waitlist', 'october-events'); ?></button>
