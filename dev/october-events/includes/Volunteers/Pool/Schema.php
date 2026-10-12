@@ -37,6 +37,7 @@ final class Schema {
             travel VARCHAR(40) NOT NULL DEFAULT '',
             notes TEXT NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'registered',
+            signup_id BIGINT UNSIGNED NULL,
             token VARCHAR(40) NOT NULL DEFAULT '',
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,

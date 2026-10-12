@@ -445,6 +445,7 @@ final class Settings {
             'entitlement_tier' => sanitize_key((string) ($in['entitlement_tier'] ?? 'full')) ?: 'full',
             'packages_wizard_page' => esc_url_raw(trim((string) ($in['packages_wizard_page'] ?? ''))),
             'volunteer_windows'    => \OE\Volunteers\Pool\Windows::parse((string) ($in['volunteer_windows'] ?? '')),
+            'volunteer_pick_page'  => esc_url_raw(trim((string) ($in['volunteer_pick_page'] ?? ''))),
             'double_optin'         => ! empty($in['double_optin']),
             'section_access'       => SectionAccess::sanitize_map($in['section_access'] ?? []),
             // Section theming tokens (M2). Short, free-text CSS token values; the

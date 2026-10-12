@@ -86,6 +86,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('Define this year\'s recruitment windows up front (before the homes/events exist). One per line as date | time | role | target. The target is your need plus contingency. Add the [oe_volunteer_pool_signup] shortcode to a page to collect registrations; track progress under October Events → Volunteer pool.', 'october-events'); ?></p>
         <p><label>
             <textarea name="volunteer_windows" rows="5" class="large-text code" placeholder="2026-10-04 | 10:00&ndash;13:00 | Docent | 20&#10;2026-10-04 | 13:00&ndash;16:00 | Docent | 20&#10;2026-10-05 | 10:00&ndash;13:00 | Greeter | 16"><?php echo esc_textarea(\OE\Volunteers\Pool\Windows::to_text((array) ($cfg['volunteer_windows'] ?? []))); ?></textarea></label></p>
+        <p class="description"><?php esc_html_e('When the homes/events are confirmed, tag each opportunity\'s shifts with the window they fill (on the opportunity editor), put [oe_volunteer_pick] on a page, set it here, then use “Invite the pool to pick” on the Volunteer pool screen.', 'october-events'); ?></p>
+        <p><label><?php esc_html_e('Pick page URL', 'october-events'); ?><br>
+            <input type="url" name="volunteer_pick_page" value="<?php echo esc_attr((string) ($cfg['volunteer_pick_page'] ?? '')); ?>" placeholder="https://&hellip;/volunteer/choose" style="width:100%;max-width:520px"></label></p>
         </div></details>
 
         <details class="oe-acc" id="section-styling"><summary><?php esc_html_e('Section styling', 'october-events'); ?></summary><div class="oe-acc-body">

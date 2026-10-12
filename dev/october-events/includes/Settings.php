@@ -63,6 +63,8 @@ final class Settings {
             // Volunteer early-recruitment windows (date × time × role × target),
             // for the pool registration form + board. See Volunteers\Pool\Windows.
             'volunteer_windows'    => [],
+            // The page carrying [oe_volunteer_pick] that the pool invite links to.
+            'volunteer_pick_page'  => '',
             // Double opt-in on the public marketing signup form ([oe_subscribe]).
             // On = send a confirm-link email before subscribing. Marketing path
             // only; transactional captures (tickets, volunteers) are unaffected.
