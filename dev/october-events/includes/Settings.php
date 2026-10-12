@@ -140,6 +140,10 @@ final class Settings {
             // methods in the Stripe Dashboard first, then turn this on. The card
             // checkout is unchanged either way.
             'bnpl_enabled'     => false,
+            // Waitlist timed offers (M6). 0 = notify everyone waiting at once
+            // (first-come). >0 = offer the front of the queue only, holding each
+            // seat this many hours before it passes to the next in line.
+            'waitlist_offer_window' => 0,
             // Abandoned-cart recovery email copy. {event} and {code} are replaced
             // when sent; blank falls back to these defaults. The greeting, the
             // cart list, the button link and the footer are added automatically.
