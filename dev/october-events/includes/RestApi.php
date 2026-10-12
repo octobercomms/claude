@@ -1437,6 +1437,11 @@ final class RestApi {
             if ($post) {
                 Invoice::mark_refunded($post);
             }
+        } elseif (in_array($type, ['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'customer.subscription.deleted'], true)) {
+            // Membership lifecycle emails (M6): welcome / renewal / dunning /
+            // cancellation. The handler ignores non-membership subscriptions and
+            // is idempotent, so webhook retries never double-send.
+            \OE\Membership\Lifecycle::handle_event($type, is_array($object) ? $object : []);
         }
         // payment_intent.payment_failed: nothing to advance; the draft stays
         // in pending_payment for the user to retry.

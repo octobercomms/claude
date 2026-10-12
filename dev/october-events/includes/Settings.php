@@ -176,6 +176,9 @@ final class Settings {
             // is added at checkout, e.g. https://…/membership/. Shown as
             // "Read about Membership Benefits and Terms".
             'membership_info_url'      => '',
+            // Where a member updates a failed card / manages their plan — linked
+            // in the dunning email (M6 membership lifecycle). Blank = no button.
+            'membership_manage_url'    => '',
             // A few key benefit lines (one per entry) shown in the checkout upsell
             // card, lifted from the membership page. Empty = no bullet list.
             'membership_benefits'      => [],
