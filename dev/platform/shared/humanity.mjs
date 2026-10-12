@@ -196,6 +196,173 @@ export function sentenceSpans(text) {
   return out;
 }
 
+// ─── Reads-as-human scoring ──────────────────────────────────────────────────
+//
+// A heuristic, and it says so on screen. It is not a classifier and it cannot
+// read a watermark: Claude's SynthID-Text watermark needs Anthropic's key and
+// their detection API is in private preview for regulators, media and
+// fact-checkers, not agencies.
+//
+// What it does is what the commercial detectors do WITHOUT the key, in
+// Anthropic's own description of them: look for the tells that show up in AI
+// phrasing. Three sources feed the list:
+//
+//   1. Anthropic, naming two directly: a fondness for "this isn't X, it's Y",
+//      and "quietly" used more than you would expect.
+//   2. The excess-vocabulary literature. Kobak et al. (Science Advances, 2025)
+//      found an abrupt post-ChatGPT rise in a specific set of style words
+//      across 15M PubMed abstracts; a companion medRxiv study verified 74 such
+//      terms, led by delve, underscore, meticulous, commendable, showcase.
+//   3. October's own eight markers, from the three Pangram samples.
+//
+// The honest limit, stated plainly because it governs how much weight the
+// number deserves. Pangram's own account of its method is the clearest
+// statement of the gap: it maps text into a high-dimensional style space built
+// from human/AI pairs, and "visible LLM-isms are only one signal among hundreds
+// of thousands" it weighs. This checks the visible LLM-isms. That is one thin
+// slice of what a trained classifier does.
+//
+// Two consequences worth holding on to:
+//
+//   - Those vocabulary studies measure population-level frequency and do not
+//     establish markers for judging a single document. A high score here means
+//     "none of the usual tells are present", which is weaker than "a human
+//     wrote this".
+//   - A word list is, in Pangram's words about its own predecessors, "trivially
+//     bypassed by swapping words for less common synonyms". Swapping "delve"
+//     for something rarer raises this score and improves nothing. The component
+//     that cannot be gamed that way is specificity, which is why it carries the
+//     most weight and why it is the one the gap list acts on.
+//
+// The weights below are judgement, not derived from a labelled corpus. They
+// are in one table so they can be recalibrated against October's own archive.
+
+// Verified excess vocabulary, in two tiers.
+//
+// STRONG are words that rarely turn up in plain reporting and whose post-2022
+// rise is well documented. SOFT are on the same lists but have ordinary
+// everyday uses, so a single hit is weak evidence and they are priced at less
+// than half. "Landscape" sits in SOFT for exactly this reason: "transformed the
+// landscape of Folkestone" is reporting, while "in the landscape of
+// hospitality" is the tell, and only the second is caught, by pattern.
+const TELL_STRONG = [
+  'delve', 'delves', 'delving', 'underscore', 'underscores', 'underscoring',
+  'meticulous', 'meticulously', 'commendable', 'showcase', 'showcases', 'showcasing',
+  'tapestry', 'intricate', 'intricacies', 'unwavering', 'myriad', 'seamless',
+  'seamlessly', 'holistic', 'synergy', 'game-changer', 'cutting-edge',
+  'state-of-the-art', 'reimagine', 'reimagines', 'reimagining', 'redefine',
+  'redefines', 'redefining', 'transformative', 'testament',
+  // Anthropic names this one directly.
+  'quietly',
+];
+const TELL_SOFT = [
+  'realm', 'pivotal', 'robust', 'crucial', 'vital', 'navigate', 'navigating',
+  'landscape', 'leverage', 'leveraging', 'curated', 'bespoke', 'elevate',
+  'elevates', 'elevating', 'empower', 'empowers', 'innovative', 'noteworthy',
+  'furthermore', 'moreover', 'notably', 'remarkable', 'remarkably',
+];
+
+// Constructions, which are stronger signal than any single word.
+const TELL_PATTERNS = [
+  { key: 'not_x_but_y', weight: 9,
+    re: /\b(?:it|this|that)(?:'s| is| was)\s+not\s+(?:just\s+)?[^.,;]{2,60}[,;]?\s+(?:it|this|that)(?:'s| is| was)\s+/gi,
+    label: '“it’s not X, it’s Y”', note: 'Anthropic names this construction as a favourite of AI models.' },
+  { key: 'not_only', weight: 7,
+    re: /\bnot (?:only|just)\b[^.]{2,80}?\bbut (?:also )?\b/gi,
+    label: '“not only X but also Y”', note: 'The same reframe in its other dress.' },
+  { key: 'closing_flourish', weight: 8,
+    re: /,\s+(?:giving|allowing|ensuring|providing|creating|offering|delivering|enabling|cementing|solidifying)\b[^.]{0,120}\.(?:\s*$|\s*\n)/gi,
+    label: 'participial benefit clause', note: 'A closing flourish that interprets rather than reports.' },
+  { key: 'isnt_about', weight: 6,
+    re: /\b(?:is|was)(?:n'?t| not)\s+(?:merely|simply|just)?\s*about\b/gi,
+    label: '“isn’t just about…”', note: 'The elevation move.' },
+  { key: 'stands_as', weight: 5,
+    re: /\b(?:stands|serves|acts) as a\b/gi,
+    label: '“stands as a…”', note: 'Usually followed by testament, reminder or symbol.' },
+  { key: 'in_the_realm', weight: 5,
+    re: /\b(?:in|across) the (?:realm|world|landscape|space) of\b/gi,
+    label: '“in the realm of…”', note: 'Scene-setting that carries no fact.' },
+  { key: 'rule_of_three', weight: 4,
+    re: /\b[\w'’-]+,\s+[\w'’-]+,?\s+and\s+[\w'’-]+\b/g,
+    label: 'three-item coordinate list', note: 'The loudest single marker in October’s own samples.' },
+];
+
+/** Every tell in the text, with offsets so the editor can mark them. */
+export function aiTells(text) {
+  const hits = [];
+  for (const pat of TELL_PATTERNS) {
+    const re = new RegExp(pat.re.source, pat.re.flags);
+    let m;
+    while ((m = re.exec(text))) {
+      hits.push({ kind: pat.key, label: pat.label, note: pat.note, weight: pat.weight,
+        text: m[0].trim(), offset: m.index, length: m[0].length });
+      if (m.index === re.lastIndex) re.lastIndex += 1;
+    }
+  }
+  for (const [list, weight, note] of [
+    [TELL_STRONG, 5, 'On the verified excess-vocabulary list, and rare in plain reporting.'],
+    [TELL_SOFT, 2, 'On the excess-vocabulary list, but it has ordinary uses — weak on its own.'],
+  ]) {
+    for (const w of list) {
+      const re = new RegExp(`\\b${w.replace(/-/g, '\\-')}\\b`, 'gi');
+      let m;
+      while ((m = re.exec(text))) {
+        hits.push({ kind: 'word', label: `“${m[0]}”`, note, weight, text: m[0],
+          offset: m.index, length: m[0].length });
+      }
+    }
+  }
+  return hits.sort((a, b) => a.offset - b.offset);
+}
+
+/**
+ * 0 to 100, higher meaning fewer of the usual tells and more of the things
+ * human copy carries. Starts at 100 and spends it.
+ */
+export function humanScore({ text, words: wordCount, tells, density, cv, bare_pct }) {
+  const parts = [];
+  const spend = (label, amount, detail) => {
+    if (amount > 0) parts.push({ label, cost: Math.round(amount), detail });
+    return amount;
+  };
+  let score = 100;
+
+  // Normalised per 1000 words so a long release is not penalised for length —
+  // but against a floor of 150 words, because without one a single tell in a
+  // 70-word extract reads as a document full of them.
+  const effective = Math.max(wordCount, 150);
+  const weighted = tells.reduce((n, t) => n + t.weight, 0);
+  const tellCost = Math.min(50, (weighted / effective) * 1000 * 0.4);
+  score -= spend('AI phrasing', tellCost,
+    `${tells.length} tell${tells.length === 1 ? '' : 's'} in ${wordCount} words`);
+
+  // Thin specificity. The strongest human signal in October's own samples, and
+  // the only one you fix by reporting rather than by editing.
+  const specCost = density >= THRESHOLDS.target ? 0
+    : Math.min(34, (THRESHOLDS.target - density) * 3.6);
+  score -= spend('Thin on checkable fact', specCost,
+    `${density} checkable facts per 100 words, against a target of ${THRESHOLDS.target}`);
+
+  // Even information density: a high share of sentences saying nothing.
+  const bareCost = Math.min(15, Math.max(0, (bare_pct - 20)) * 0.3);
+  score -= spend('Sentences carrying nothing', bareCost, `${bare_pct}% of the words`);
+
+  // Burstiness is deliberately NOT scored.
+  //
+  // Sentence-length variance is the signal the first generation of detectors
+  // leaned on, and Pangram's own account of why they abandoned it applies
+  // exactly here: "highly formulaic or technical human writing often triggers
+  // false flags under those criteria". A press release is formulaic structured
+  // writing by design, so penalising even rhythm would mark good human copy as
+  // machine-written, and the only way to answer the penalty is to vary sentence
+  // length on purpose, which is the roughening the editorial standard forbids.
+  //
+  // It is still computed, and still shown in the diagnostic block, where it
+  // describes the text without costing anything.
+
+  return { score: Math.max(0, Math.min(100, Math.round(score))), parts, burstiness: cv };
+}
+
 export const MOVES = [
   { key: 'hook', label: 'Hook phrase', hint: 'a line someone actually said' },
   { key: 'scope', label: 'Scope', hint: 'number, size, first or largest' },
@@ -293,7 +460,16 @@ export function analyse(html, brief = {}) {
   // paragraph is not scored the same as one short factless aside.
   const barePct = wordCount ? Math.round((bareWords / wordCount) * 100) : 0;
 
+  const tells = aiTells(body);
+  const human = humanScore({
+    text: body, words: wordCount, tells, density,
+    cv: styleMarkers(body, sents).sentence_length_cv.value, bare_pct: barePct,
+  });
+
   return {
+    tells,
+    human_score: human.score,
+    human_parts: human.parts,
     spans,
     bare_pct: barePct,
     bare_sentences: spans.filter((sp) => sp.bare).length,
@@ -315,4 +491,4 @@ export function analyse(html, brief = {}) {
   };
 }
 
-export default { analyse, checkableItems, namedQuotes, sentenceSpans, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };
+export default { analyse, checkableItems, namedQuotes, sentenceSpans, aiTells, humanScore, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };

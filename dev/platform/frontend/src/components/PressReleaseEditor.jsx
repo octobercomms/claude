@@ -99,66 +99,105 @@ function Field({ label, hint, value, onChange, rows, placeholder, ro }) {
  * distinctive enough to find, and a miss degrades to "not highlighted" instead
  * of to a wrongly placed highlight.
  */
-function highlightBare(html, spans) {
+function markPass(doc, root, needles, cls) {
+  if (!needles.length) return;
+  const walker = doc.createTreeWalker(root, 4 /* SHOW_TEXT */);
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  for (const node of nodes) {
+    if (node.parentNode && node.parentNode.nodeName === 'MARK'
+        && node.parentNode.getAttribute('class') === cls) continue;
+    const text = node.nodeValue;
+    const hits = [];
+    for (const needle of needles) {
+      let from = 0;
+      for (;;) {
+        const i = text.indexOf(needle, from);
+        if (i < 0) break;
+        // Whole words only, so "realm" does not fire inside "realms of".
+        const before = i === 0 ? '' : text[i - 1];
+        const after = text[i + needle.length] || '';
+        if (!/[\w'’]/.test(before) && !/[\w'’]/.test(after)) hits.push([i, i + needle.length]);
+        from = i + needle.length;
+      }
+    }
+    if (!hits.length) continue;
+    hits.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+    const frag = doc.createDocumentFragment();
+    let cur = 0;
+    for (const [from, to] of hits) {
+      if (from < cur) continue;
+      if (from > cur) frag.appendChild(doc.createTextNode(text.slice(cur, from)));
+      const mark = doc.createElement('mark');
+      mark.setAttribute('class', cls);
+      mark.textContent = text.slice(from, to);
+      frag.appendChild(mark);
+      cur = to;
+    }
+    if (cur < text.length) frag.appendChild(doc.createTextNode(text.slice(cur)));
+    node.parentNode.replaceChild(frag, node);
+  }
+}
+
+/**
+ * Mark the factless sentences, then the AI tells inside them.
+ *
+ * Two passes, in that order, because almost every tell sits inside a sentence
+ * that carries no fact: one pass with an outermost-wins rule swallowed every
+ * underline. The sentence pass runs first and the tell pass then walks the
+ * text again, including the text now inside those marks, so the two nest.
+ *
+ * Located by text match rather than character offset, so a miss degrades to
+ * "not marked" instead of to a mark in the wrong place.
+ *
+ * Only these two are marked. The structural markers — sentence rhythm,
+ * parallelism — are never highlighted, because the only way to act on a
+ * highlight there is to rough the prose up on purpose, which is the category
+ * detectors are trained to catch. A tell is a phrase: deleting it is editing.
+ */
+function highlightBare(html, spans, tells = []) {
   if (!html || typeof DOMParser === 'undefined') return html;
-  const bare = spans.filter((sp) => sp.bare).map((sp) => sp.text).filter((t) => t.length > 12);
-  if (!bare.length) return html;
+  const bare = [...new Set(spans.filter((sp) => sp.bare).map((sp) => sp.text))].filter((t) => t.length > 12);
+  const tellText = [...new Set(tells.map((t) => t.text).filter((t) => t && t.length > 2))]
+    .sort((a, b) => b.length - a.length);
+  if (!bare.length && !tellText.length) return html;
   try {
     const doc = new DOMParser().parseFromString(`<div id="oc-root">${html}</div>`, 'text/html');
     const root = doc.getElementById('oc-root');
-    const walker = doc.createTreeWalker(root, 4 /* SHOW_TEXT */);
-    const nodes = [];
-    let n;
-    while ((n = walker.nextNode())) nodes.push(n);
-    for (const node of nodes) {
-      const text = node.nodeValue;
-      const hits = [];
-      for (const b of bare) {
-        const i = text.indexOf(b);
-        if (i >= 0) hits.push([i, i + b.length]);
-      }
-      if (!hits.length) continue;
-      hits.sort((a, b) => a[0] - b[0]);
-      const frag = doc.createDocumentFragment();
-      let cur = 0;
-      for (const [from, to] of hits) {
-        if (from < cur) continue;
-        if (from > cur) frag.appendChild(doc.createTextNode(text.slice(cur, from)));
-        const mark = doc.createElement('mark');
-        mark.setAttribute('class', 'oc-bare');
-        mark.textContent = text.slice(from, to);
-        frag.appendChild(mark);
-        cur = to;
-      }
-      if (cur < text.length) frag.appendChild(doc.createTextNode(text.slice(cur)));
-      node.parentNode.replaceChild(frag, node);
-    }
+    markPass(doc, root, bare, 'oc-bare');
+    markPass(doc, root, tellText, 'oc-tell');
     return root.innerHTML;
   } catch { return html; }
 }
 
 /**
- * A meter: one ratio against a limit, on a same-ramp track. One hue, the number
- * in ink rather than in the hue, and a label saying what it measures — the
- * figure never carries meaning by colour alone.
+ * The dial. One ratio on a same-ramp track, and the state is carried by the
+ * word as well as the hue — colour alone never says anything here.
  */
-function Meter({ pct, label, sub }) {
-  const R = 52, C = 2 * Math.PI * R, v = Math.max(0, Math.min(100, pct));
+function Dial({ score }) {
+  const R = 58, C = 2 * Math.PI * R, v = Math.max(0, Math.min(100, score));
+  const band = v >= 75 ? { hue: 'var(--success, #1a9d5a)', word: 'Reads as human' }
+    : v >= 45 ? { hue: 'var(--warn, #b8860b)', word: 'Mixed signals' }
+      : { hue: 'var(--danger, #c0392b)', word: 'Reads as generated' };
   return (
-    <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center' }}>
-      <svg width="128" height="128" viewBox="0 0 128 128" role="img" aria-label={`${v}% ${label}`}>
-        <circle cx="64" cy="64" r={R} fill="none" stroke="var(--card-border)" strokeWidth="12" />
-        <circle cx="64" cy="64" r={R} fill="none" stroke="var(--accent)" strokeWidth="12"
+    <div style={{ display: 'flex', gap: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
+      <svg width="148" height="148" viewBox="0 0 148 148" role="img"
+        aria-label={`${v} out of 100. ${band.word}.`}>
+        <circle cx="74" cy="74" r={R} fill="none" stroke="var(--card-border)" strokeWidth="13" />
+        <circle cx="74" cy="74" r={R} fill="none" stroke={band.hue} strokeWidth="13"
           strokeLinecap="round" strokeDasharray={`${(v / 100) * C} ${C}`}
-          transform="rotate(-90 64 64)" style={{ transition: 'stroke-dasharray 220ms ease' }} />
-        <text x="64" y="62" textAnchor="middle" dominantBaseline="middle"
-          style={{ fontSize: 30, fontWeight: 700, fill: 'var(--text)' }}>{v}</text>
-        <text x="64" y="84" textAnchor="middle" dominantBaseline="middle"
-          style={{ fontSize: 11, fill: 'var(--text-subtle)' }}>per cent</text>
+          transform="rotate(-90 74 74)" style={{ transition: 'stroke-dasharray 260ms ease, stroke 260ms ease' }} />
+        <text x="74" y="70" textAnchor="middle" dominantBaseline="middle"
+          style={{ fontSize: 36, fontWeight: 700, fill: 'var(--text)' }}>{v}</text>
+        <text x="74" y="96" textAnchor="middle" dominantBaseline="middle"
+          style={{ fontSize: 11, fill: 'var(--text-subtle)' }}>out of 100</text>
       </svg>
-      <div style={{ maxWidth: 260 }}>
-        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{label}</div>
-        <div style={CAP}>{sub}</div>
+      <div style={{ minWidth: 220, flex: 1 }}>
+        <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1.2 }}>{band.word}</div>
+        <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+          Live, as you type. It rises when you remove a tell or add a checkable fact.
+        </div>
       </div>
     </div>
   );
@@ -234,12 +273,14 @@ export default function PressReleaseEditor({
     <div>
       <style>{`
         mark.oc-bare {
-          background: color-mix(in srgb, var(--accent) 22%, transparent);
-          color: inherit;
-          border-radius: 2px;
-          padding: 0 1px;
-          box-decoration-break: clone;
-          -webkit-box-decoration-break: clone;
+          background: color-mix(in srgb, var(--accent) 20%, transparent);
+          color: inherit; border-radius: 2px; padding: 0 1px;
+          box-decoration-break: clone; -webkit-box-decoration-break: clone;
+        }
+        mark.oc-tell {
+          background: transparent; color: inherit;
+          border-bottom: 2px solid var(--danger, #c0392b);
+          border-radius: 0; padding: 0;
         }
       `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
@@ -355,7 +396,7 @@ export default function PressReleaseEditor({
             // The operator's own release, rendered for reading, with the
             // factless sentences marked. Same content the source view edits.
             dangerouslySetInnerHTML={{ __html: pr.body_html
-              ? (highlight ? highlightBare(pr.body_html, reading.spans) : pr.body_html)
+              ? (highlight ? highlightBare(pr.body_html, reading.spans, reading.tells) : pr.body_html)
               : '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>' }}
           />
         ) : (
@@ -371,18 +412,57 @@ export default function PressReleaseEditor({
       {/* ── The check ──────────────────────────────────────────────────── */}
       <Section title="The check" hint="Live, free, and local. It counts facts, not style.">
         <div style={{ padding: 'var(--s4)', border: LINE, borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)', marginBottom: 'var(--s3)' }}>
-          <Meter
-            pct={reading.bare_pct}
-            label="of the writing carries no checkable fact"
-            sub={reading.bare_sentences
-              ? `${reading.bare_sentences} of ${reading.sentence_count} sentences say nothing a journalist could verify, marked in the document above. Give one a fact, or cut it, and this falls. Rewording it at the same length changes nothing — which is also what a detector does with a rewrite.`
-              : 'Every sentence carries something checkable.'}
-          />
+          <Dial score={reading.human_score} />
+
+          {reading.human_parts.length > 0 && (
+            <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+              <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>What is costing points</div>
+              {reading.human_parts.map((part) => (
+                <div key={part.label} className="row" style={{ gap: 'var(--s2)', padding: '3px 0', alignItems: 'baseline' }}>
+                  <span style={{ width: 44, fontWeight: 700, fontSize: 'var(--fs-body)' }}>−{part.cost}</span>
+                  <span style={{ fontSize: 'var(--fs-body)' }}>{part.label}</span>
+                  <span style={CAP}>{part.detail}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {reading.tells.length > 0 && (
+            <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+              <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>
+                Underlined in the document above. Deleting these is ordinary editing — they are
+                phrases, not rhythm, so cutting them costs nothing.
+              </div>
+              {Object.values(reading.tells.reduce((acc, t) => {
+                const k = `${t.kind}:${t.label}`;
+                acc[k] = acc[k] || { ...t, n: 0 };
+                acc[k].n += 1;
+                return acc;
+              }, {})).sort((a, b) => b.weight * b.n - a.weight * a.n).slice(0, 14).map((t) => (
+                <div key={`${t.kind}:${t.label}`} className="row" style={{ gap: 'var(--s2)', padding: '3px 0', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>{t.label}</span>
+                  {t.n > 1 && <span style={CAP}>×{t.n}</span>}
+                  <span style={CAP}>{t.note}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ ...CAP, marginTop: 'var(--s3)', paddingTop: 'var(--s2)', borderTop: LINE }}>
-            This is a count of your own text, not a detector verdict. It measures the share of your words
-            that nobody could check, which is both what a journalist skims past and what a detector reads
-            as generated. A real AI-detection percentage needs a trained classifier such as Pangram; this
-            does not pretend to be one.
+            <strong>What this is.</strong> A heuristic, not a detector, and worth knowing the difference.
+            Pangram maps text into a style space learned from paired human and AI writing, and weighs
+            “hundreds of thousands” of signals, of which the visible tells are only one. This checks the
+            visible tells: the phrasing Anthropic names as a favourite of its own models, the excess
+            vocabulary documented across 15 million papers by Kobak et al. in Science Advances, and
+            October&rsquo;s own eight markers. One thin slice of what a trained classifier does.
+            {' '}Claude now watermarks its text, but reading that needs Anthropic&rsquo;s key and the
+            detection API is limited to regulators, media and fact-checkers.
+            {' '}Two things follow. A high score means “none of the usual tells are present”, which is
+            weaker than “a human wrote this”. And a word list is, in Pangram&rsquo;s own words about the
+            detectors it replaced, bypassed by swapping words for rarer synonyms — so swapping
+            “delve” for something unusual lifts this score and improves nothing. The part that cannot be
+            gamed that way is the specificity, which is why it carries the most weight.
+            {' '}Use it to make a good start. Put the finished text through Pangram when the answer matters.
           </div>
         </div>
 
