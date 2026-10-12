@@ -764,6 +764,11 @@ export default function PressReleaseEditor({
                       : <span style={{ color: 'var(--text-subtle)' }}>{pr.pangram_pct}%</span>}
                   </span>
                 </div>
+                {detail?.raw?.prediction && (
+                  <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+                    Their verdict: <strong>&ldquo;{String(detail.raw.prediction)}&rdquo;</strong>
+                  </div>
+                )}
                 {pr.pangram_pct == null ? (
                   <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
                     A trained classifier, and the one a journalist is most likely to paste this into.
@@ -783,10 +788,14 @@ export default function PressReleaseEditor({
                     <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
                       Tested once with ground truth. On a release written entirely by a model, this API
                       returned <strong>0.15%</strong> and a verdict of &ldquo;Unlikely AI&rdquo;, while
-                      pangram.com returned <strong>87% AI</strong> on the same text. The figure is read
-                      correctly from the field their API sends; the endpoint itself produced a false
-                      negative on known-AI copy. Do not treat this number as a clearance. Paste the text
-                      into pangram.com, which got it right.
+                      pangram.com returned <strong>87% AI</strong> on the same text.
+                      {' '}One possibility is still open: if their field carries the probability the text
+                      is <em>human</em> rather than AI, the real answer is 1 − 0.0015, or{' '}
+                      <strong>99.85% AI</strong>, which would match both the truth and the web tool. Their
+                      own verdict string argues against that reading. A single check on text known to be
+                      human-written settles it, and costs about 5p.
+                      {' '}Either way, do not treat a low number here as a clearance. Paste the text into
+                      pangram.com, which got it right.
                     </div>
                   </div>
                 )}
