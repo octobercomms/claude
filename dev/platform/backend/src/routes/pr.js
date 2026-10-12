@@ -1535,6 +1535,33 @@ router.post('/press-releases/:prId/detect', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * What the detector actually sent back, in full.
+ *
+ * Worth having on screen permanently rather than only when parsing fails. The
+ * percentage on the panel is one field out of a response that may also carry a
+ * verdict, a composition breakdown, and per-sentence scores — and a single
+ * number with no provenance is exactly the kind of figure that gets trusted
+ * further than it deserves.
+ */
+router.get('/press-releases/:prId/detector-detail', requireAdmin, async (req, res) => {
+  const { rows } = await db.query(
+    'SELECT pangram_json, pangram_pct, pangram_checked_at FROM pr_press_releases WHERE id = $1',
+    [req.params.prId]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Release not found' });
+  const stored = rows[0].pangram_json || null;
+  res.json({
+    pct: rows[0].pangram_pct == null ? null : Number(rows[0].pangram_pct),
+    checked_at: rows[0].pangram_checked_at,
+    // Named separately because it decides whether the document can be
+    // highlighted sentence by sentence or only scored as a whole.
+    has_segments: !!(stored?.segments?.items?.length),
+    segment_count: stored?.segments?.items?.length || 0,
+    raw: stored,
+  });
+});
+
 /** What a detector run on this release would cost, before anything is pressed. */
 router.get('/press-releases/:prId/detect-quote', requireAdmin, async (req, res) => {
   const { rows } = await db.query('SELECT body_html FROM pr_press_releases WHERE id = $1', [req.params.prId]);
