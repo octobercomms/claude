@@ -67,6 +67,8 @@ final class EventReport {
         $comp    = (int) ($paid->comp ?? 0);
         $started = (int) ($carts->started ?? 0);
 
+        $survey = self::survey($event_id, $issued);
+
         return [
             'event_id'      => $event_id,
             'orders'        => (int) ($paid->orders ?? 0),
@@ -93,6 +95,31 @@ final class EventReport {
                 'recovered'  => (int) ($carts->recovered ?? 0),
                 'conversion' => $started > 0 ? round((int) ($carts->recovered ?? 0) / $started * 100, 1) : 0.0,
             ],
+            'survey'        => $survey,
+        ];
+    }
+
+    /**
+     * Post-event survey summary (BUILD-PLAN M7 extension): completed / started
+     * counts and the response rate against tickets issued. Read-only; returns
+     * zeros when the survey table is absent (survey never installed) so the
+     * report never fatals on a site that does not run surveys.
+     *
+     * @return array{complete:int,partial:int,total:int,response_rate:float}
+     */
+    private static function survey(int $event_id, int $issued): array {
+        global $wpdb;
+        $t = \OE\Survey\Schema::table();
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $t)) !== $t) {
+            return ['complete' => 0, 'partial' => 0, 'total' => 0, 'response_rate' => 0.0];
+        }
+        $complete = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$t} WHERE event_id = %d AND status = 'complete'", $event_id));
+        $partial  = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$t} WHERE event_id = %d AND status = 'partial'", $event_id));
+        return [
+            'complete'      => $complete,
+            'partial'       => $partial,
+            'total'         => $complete + $partial,
+            'response_rate' => $issued > 0 ? round($complete / $issued * 100, 1) : 0.0,
         ];
     }
 }
