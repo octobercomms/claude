@@ -36,6 +36,8 @@ Two rules hold throughout, because they are cheap now and expensive to retrofit:
 | 3 | Elementor bridge | de-Jet Phase E | ADF's bespoke pages render without JetEngine, so JetEngine can actually come off | Yes (widgets load only with Elementor) |
 | 4 | Cut ADF over | migrators + adoption_mode off + retirements | ADF is fully native; Check & Log Email and the staff SPA retired | The cutover itself; staged + reversible |
 | 5 | Refine | Track A wins + housekeeping UX + CRM/access | The "iron out the detail" pass across a live cycle | Yes |
+| 6 | Messaging completeness | transactional email/SMS gap-fill | Every money/membership/schedule/waitlist/privacy event has a message | Yes (additive templates) |
+| 7 | Reporting & insight | end-of-event report + demographics + survey + pool | Organiser reads one report, surveys, keeps a volunteer pool | Yes |
 | F | Self-serve forms | de-Jet Phase F | Organizer signup / edit-own-event (leans Track B) | Parallel, not required for ADF native |
 | G | Ads module | de-Jet Phase G | Folds `oc-ad-manager` in; independent track | Parallel |
 
@@ -195,6 +197,68 @@ Across a live cycle, in any order as issues surface:
 Done when: the reference tenant has run a full cycle on the native stack with the
 rough edges filed off. This is the gate to opening the parked
 [`SCOPE-GAPS.md`](SCOPE-GAPS.md) sell-to-others project.
+
+---
+
+## M6 — Messaging completeness
+
+Approved (owner: "emails/sms — yes add"). The transactional email/SMS lifecycle
+was audited against the code: ~28 messages exist (order confirmations, volunteer
+flow, submission approve/reject, password/account, membership basics). These are
+the gaps to fill. All route through the existing engine
+(`OE\Mail\Transactional::send()` → `wp_mail()` → `OE\Mail\Mailer`, SES → Brevo →
+default; SMS via `Transactional::send_sms()` → `OE\Connectors\Sms`), so this is
+wiring templates and triggers, not new infrastructure.
+
+- **Paid-order receipt + PDF invoice.** Emailed receipt on every paid order, with
+  the invoice PDF attached (invoice engine exists; wire it to the confirmation).
+- **Failed-payment / dunning.** Minimal for tickets (one retry nudge on a failed
+  attempt); full sequence for membership renewals.
+- **Membership lifecycle.** Welcome, renewal reminder, renewed, payment-failed,
+  lapsed/cancelled — the full set, not just the basics present today.
+- **Ticket-transfer notice** to the original holder when an order is transferred.
+- **Event rescheduled / cancelled** auto-notice to ticket holders, behind a
+  confirm step ("notify N holders?") so it never fires silently.
+- **Waitlist offer.** Personalised, time-limited "a spot opened" offer, and fix
+  the `waitlist_spot` message shipping with **no subject line** (live bug).
+- **Admin-removed volunteer shift** notice to the volunteer when a shift they
+  signed up for is pulled.
+- **Crew / staff provisioning** emails (agreement, login, role email, renewal /
+  offboarding) — tracked in [`CREW-MODULE.md`](CREW-MODULE.md), listed here for
+  completeness.
+- **Configurable double opt-in** on list sign-up.
+- **GDPR confirmations.** Data-export-ready and erasure-complete emails, wired to
+  the WP privacy hooks (pairs with the GDPR work in UI-SPEC §6).
+- **Monthly digest.** Finish and enable it (`Cron::DIGEST_ENABLED` is `false`
+  today).
+- **SMS beyond volunteers.** Extend SMS to order/waitlist events, gated on an
+  explicit checkout opt-in.
+
+Done when: every money, membership, transfer, schedule-change, waitlist and
+privacy event has a message, the `waitlist_spot` subject bug is fixed, and SMS is
+opt-in beyond the volunteer flow.
+
+---
+
+## M7 — Reporting & insight
+
+Approved as a phase (owner: end-of-event report / demographics / survey /
+volunteer pool "sound like they are worth adding in to a phase"). Reads the data
+the plugin already owns; no new capture beyond the survey and consented
+demographics.
+
+- **End-of-event report.** One page per event: tickets sold vs comp, revenue net
+  of fees and refunds, check-in rate, channel/promo breakdown, waitlist
+  conversion. Also in the Track A queue; this is its home.
+- **Demographics.** Aggregate, consent-gated, from CRM fields — never per-person
+  without consent.
+- **Post-event survey.** The per-location survey toggle already on the tour
+  location editor, generalised to any listing, with results feeding the report.
+- **Volunteer pool.** A reusable pool across cycles (retention, no-show history,
+  allocation), building on the volunteer profiles and the no-show/abuse flag.
+
+Done when: an organiser can read a single post-event report, send a survey, and
+work from a persistent volunteer pool rather than re-recruiting each cycle.
 
 ---
 
