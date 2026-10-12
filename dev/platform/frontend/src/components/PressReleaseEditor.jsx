@@ -725,6 +725,29 @@ export default function PressReleaseEditor({
                 </div>
               )}
 
+              {reading.weakest && reading.paragraphs.length > 1
+                && reading.weakest.score < reading.human_score - 8 && (
+                /* The headline number averages, and averaging hides what to act
+                   on. Measured on a release later confirmed AI-written
+                   throughout: the document scored 88 while this paragraph
+                   scored 56. Naming the weakest passage is the difference
+                   between a score and an instruction. */
+                <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+                  <div style={{ ...CAP, marginBottom: 'var(--s1)' }}>
+                    Weakest paragraph · scores <strong>{reading.weakest.score}</strong> against
+                    {' '}{reading.human_score} for the whole release
+                  </div>
+                  <div style={{ fontSize: 'var(--fs-caption)', lineHeight: 1.5, fontStyle: 'italic' }}>
+                    &ldquo;{reading.weakest.text.slice(0, 160)}
+                    {reading.weakest.text.length > 160 ? '…' : ''}&rdquo;
+                  </div>
+                  <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+                    {reading.weakest.density} checkable facts per 100 words here, against
+                    {' '}{reading.density} across the release.
+                  </div>
+                </div>
+              )}
+
               {/* The second reading.
                   Deliberately below October's own and deliberately plainer: one
                   number, no highlights, no ramp. The two measure different
@@ -755,16 +778,15 @@ export default function PressReleaseEditor({
                   <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: LINE,
                     borderRadius: 'var(--r-sm)', background: 'var(--warning-soft)' }}>
                     <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
-                      Pangram&rsquo;s API and its web tool disagree
+                      This endpoint missed a release known to be AI-written
                     </div>
                     <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                      On the same release, this API returned <strong>0.15%</strong> with its own verdict
-                      reading &ldquo;Unlikely AI&rdquo;, while pangram.com returned <strong>87% AI</strong>
-                      and split the text into four segments, calling three of them machine-written. The
-                      figure here is read correctly from the field their API returns; the two sides of
-                      Pangram simply do not agree, and the web tool is the one doing the segmented
-                      analysis. Until that is settled, treat this number as the weaker of the two and
-                      paste the text into pangram.com for the answer worth acting on.
+                      Tested once with ground truth. On a release written entirely by a model, this API
+                      returned <strong>0.15%</strong> and a verdict of &ldquo;Unlikely AI&rdquo;, while
+                      pangram.com returned <strong>87% AI</strong> on the same text. The figure is read
+                      correctly from the field their API sends; the endpoint itself produced a false
+                      negative on known-AI copy. Do not treat this number as a clearance. Paste the text
+                      into pangram.com, which got it right.
                     </div>
                   </div>
                 )}
@@ -879,11 +901,13 @@ export default function PressReleaseEditor({
             detectors it replaced, bypassed by swapping words for rarer synonyms — so swapping
             “delve” for something unusual lifts this score and improves nothing. The part that cannot be
             gamed that way is the specificity, which is why it carries the most weight.
-            {' '}<strong>Measured, on one real release:</strong> this scored it 94 while Pangram scored the
-            same 678 words 82% AI and GPTZero called it human-written and AI-polished, with ZeroGPT at
-            29% and QuillBot at 0%. Four trained detectors spanning 0% to 82% on one text, and this
-            panel agreeing with the two most generous. Treat a clean score here as “the obvious tells
-            are gone and the reporting is in”, which is worth having and is all it is.
+            {' '}<strong>Measured, with ground truth.</strong> A release written entirely by a model
+            scored <strong>96</strong> here, with no tells and no factless sentences. Pangram&rsquo;s web
+            tool caught it at 87% AI; this panel did not, and neither did Pangram&rsquo;s own API. So a
+            high score here means the obvious tells are gone and the reporting is in. It does not mean a
+            person wrote it, and on the one case tested against the truth it did not even hint at it.
+            Earlier on the same release: 94 here against 82% AI at Pangram, human-written-and-polished at
+            GPTZero, 29% at ZeroGPT and 0% at QuillBot.
             {' '}Put the finished text through Pangram when the answer matters.
           </div>
         </div>

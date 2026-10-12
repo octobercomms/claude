@@ -115,6 +115,26 @@ const REPORTED = `Indiewalls has paid 10 million dollars to independent artists 
   ok(plain.spans.every((sp) => sp.bare),
     'an ordinary capitalised first word is still not a fact');
 
+  console.log('\nParagraphs are scored on their own, because averaging hides the problem');
+  // Ground truth: a release written entirely by a model scored 96 as a whole.
+  // Its weakest paragraph scored 56. The headline number buried it.
+  const mixed = analyse(
+    '<p>Art always creates a connection, and a wearable piece takes that further. Art is '
+    + 'something you hold in your hands, wear every day, and get complimented on, more '
+    + 'interactive than a piece on a wall, whatever the setting.</p>'
+    + '<p>Indiewalls will hand-paint a sneaker for every guest at Art &amp; Sole, its client '
+    + 'event on the morning of Sunday, November 8, at Altair Bar in Arlo Midtown, New York, '
+    + 'held during Boutique Design New York (BDNY) weekend.</p>', {}, { names: ['Indiewalls'] },
+  );
+  ok(mixed.paragraphs.length === 2, 'both paragraphs are scored');
+  ok(mixed.weakest.score < mixed.human_score,
+    `the weakest paragraph scores below the document (${mixed.weakest.score} vs ${mixed.human_score})`);
+  ok(/Art always creates a connection/.test(mixed.weakest.text),
+    'and it is the one carrying no reporting');
+  // A short caption is not a paragraph worth scoring on its own.
+  ok(analyse('<p>Photography by Oscar Duarte.</p>').paragraphs.length === 0,
+    'fragments under twenty words are not scored as paragraphs');
+
   console.log('\nIt stays a heuristic');
   ok(typeof analyse('').human_score === 'number', 'empty text does not throw');
   ok(analyse(HUMAN).human_parts.every((p) => p.cost > 0),
