@@ -356,11 +356,24 @@ work from a persistent volunteer pool rather than re-recruiting each cycle.
     off-site, package purchases are not yet captured in our DB — entitlement
     gating on a bought package needs that native wizard (or a webhook that writes
     the order) before it can resolve. Off the ADF-native critical path.
-- **G — Ads module** (de-Jet Phase G): fold `oc-ad-manager` in as a toggleable
-  `ads` module, preserve the hub/partner syndication feed and `[oc_ad]`
-  back-compat, then retire the standalone plugin. Independent; the integration
-  flavor (conversions / audiences / wire-in) is still an owner decision in the
-  brief.
+- **G — Ads module** (de-Jet Phase G): **folded in (v1.213.0).** `oc-ad-manager`
+  is vendored verbatim under `dev/october-events/modules/ads/` and booted by
+  `OE\Ads\Module` behind the `ads` feature toggle. It preserves everything —
+  campaigns/rotation, click/impression tracking, the booking form + Stripe, the
+  hub/partner syndication feed and the `[oc_ad]` shortcodes — because the code is
+  unchanged; only the load path moves. The loader **stands down while the
+  standalone plugin is active** (`class_exists('OCAD_Campaign')`), so a site
+  running both never double-registers; it ensures the ad tables itself
+  (idempotent, gated on `ocad_version`) since the plugin activation hook doesn't
+  fire for a required module.
+  **Staging + retirement:** on ADF production the standalone is still active, so
+  the module stays dormant until someone deactivates it, at which point the
+  folded module takes over seamlessly (same tables, same `ocad_version` option,
+  same `[oc_ad]`). Verify ad rendering, the booking flow and the partner feed on
+  staging, then deactivate and remove the standalone (`dev/oc-ad-manager`). Until
+  retired, edit the vendored copy under `modules/ads/`, not `dev/oc-ad-manager`.
+  The integration-flavour enhancement (conversions / audiences / wire-in) remains
+  a separate owner decision, independent of this fold-in.
 
 ---
 
