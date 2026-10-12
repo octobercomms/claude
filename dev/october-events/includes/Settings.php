@@ -158,6 +158,10 @@ final class Settings {
             // exact one. Independent of membership_price_ids above.
             'friends_price_ids'     => [],
             'patrons_price_ids'     => [],
+            // Client-named membership tiers beyond Friends/Patrons, for the
+            // generic [oe_members_list tier="key"] list. A map keyed by tier key:
+            //   [ 'founders' => ['label' => 'Founders', 'price_ids' => ['prod_…']] ]
+            'member_tiers'          => [],
             // The Stripe Payment Link (or any join URL) for the membership we
             // offer non-members at checkout — e.g. the Friend monthly plan. Shown
             // as the "Join to unlock this rate" button next to member-only tickets.

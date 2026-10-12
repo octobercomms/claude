@@ -667,6 +667,14 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <textarea name="friends_price_ids" rows="3" class="large-text code" placeholder="prod_Friend&#10;price_1RA8GK…"><?php echo esc_textarea(implode("\n", (array) ($cfg['friends_price_ids'] ?? []))); ?></textarea></label></p>
         <p><label><strong><?php esc_html_e('Patrons tier — product / price IDs', 'october-events'); ?></strong><br>
             <textarea name="patrons_price_ids" rows="3" class="large-text code" placeholder="prod_Patron&#10;price_1RA8GK…"><?php echo esc_textarea(implode("\n", (array) ($cfg['patrons_price_ids'] ?? []))); ?></textarea></label></p>
+        <?php
+        $oe_tiers_lines = [];
+        foreach ((array) ($cfg['member_tiers'] ?? []) as $oe_k => $oe_t) {
+            $oe_tiers_lines[] = $oe_k . ' | ' . (string) ($oe_t['label'] ?? '') . ' | ' . implode(', ', (array) ($oe_t['price_ids'] ?? []));
+        }
+        ?>
+        <p><label><strong><?php esc_html_e('Other named tiers', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line as key | Label | price/product IDs. Show each with', 'october-events'); ?> <code>[oe_members_list tier="key"]</code>.</span><br>
+            <textarea name="member_tiers" rows="3" class="large-text code" placeholder="founders | Founders | prod_Founder&#10;sustainers | Sustainers | price_1AbC…, price_1DeF…"><?php echo esc_textarea(implode("\n", $oe_tiers_lines)); ?></textarea></label></p>
 
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Join offer (for member-only ticket rates)', 'october-events'); ?></h4>
         <p class="description"><?php esc_html_e('When a ticket type is marked "Members" and a non-member tries to buy it, the checkout offers them the chance to join. Two ways to run the offer:', 'october-events'); ?></p>
