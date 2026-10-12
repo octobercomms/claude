@@ -41,6 +41,23 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('Dashboard, Events and Settings are always available.', 'october-events'); ?></p>
         </div></details>
 
+        <?php $oe_roles = \OE\Admin\SectionAccess::assignable_roles(); if ($oe_roles) : $oe_sa = \OE\Admin\SectionAccess::map(); ?>
+        <details class="oe-acc" id="user-access"><summary><?php esc_html_e('User access', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Give a WordPress role access to only some screens. Administrators always see everything. A role with nothing ticked keeps whatever WordPress access it already had — tick a box to grant that role the October Events screen (and it will then see only what you tick). Access is enforced on the menu and on direct links.', 'october-events'); ?></p>
+        <div style="overflow:auto"><table class="widefat striped" style="max-width:900px"><thead><tr><th><?php esc_html_e('Role', 'october-events'); ?></th>
+        <?php foreach (\OE\Admin\SectionAccess::SECTIONS as $oe_sk => $oe_sl) : ?><th style="text-align:center;font-weight:600;font-size:11px"><?php echo esc_html($oe_sl); ?></th><?php endforeach; ?>
+        </tr></thead><tbody>
+        <?php foreach ($oe_roles as $oe_role_slug => $oe_role_name) : $oe_have = (array) ($oe_sa[$oe_role_slug] ?? []); ?>
+            <tr><td><strong><?php echo esc_html($oe_role_name); ?></strong></td>
+            <?php foreach (\OE\Admin\SectionAccess::SECTIONS as $oe_sk => $oe_sl) : ?>
+                <td style="text-align:center"><input type="checkbox" name="section_access[<?php echo esc_attr($oe_role_slug); ?>][]" value="<?php echo esc_attr($oe_sk); ?>" <?php checked(in_array($oe_sk, $oe_have, true)); ?>></td>
+            <?php endforeach; ?>
+            </tr>
+        <?php endforeach; ?>
+        </tbody></table></div>
+        </div></details>
+        <?php endif; ?>
+
         <details class="oe-acc" id="brand"><summary><?php esc_html_e('Brand', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Shown as this site\'s menu name and in the UI (this plugin runs on multiple sites).', 'october-events'); ?></p>
         <p><label><?php esc_html_e('Brand / site name', 'october-events'); ?>

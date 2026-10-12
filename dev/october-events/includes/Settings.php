@@ -67,6 +67,9 @@ final class Settings {
             // On = send a confirm-link email before subscribing. Marketing path
             // only; transactional captures (tickets, volunteers) are unaffected.
             'double_optin'         => true,
+            // Section-level dashboard access (M5): role slug => [section keys the
+            // role may see]. Empty = admin-only, as before. See Admin\SectionAccess.
+            'section_access'       => [],
             // Optional map: event field => an existing (e.g. JetEngine) meta key to
             // read when the plugin's own field is empty, so tickets/emails/reports
             // can resolve an event's date, price and location.
