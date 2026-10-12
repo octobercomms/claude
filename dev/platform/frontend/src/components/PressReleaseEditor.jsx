@@ -334,6 +334,153 @@ function DocumentSurface({ html, onChange, readOnly, paintKey }) {
 }
 
 /**
+ * Pangram's reading, in the detail its own dashboard gives.
+ *
+ * A percentage on its own is a verdict you cannot act on. The useful part of
+ * their response is the segmentation: which passages it believes a person wrote,
+ * which it believes a model wrote, and how sure it is about each. That is what
+ * tells a writer where to go back in.
+ *
+ * Read in the opposite direction to October's dial. Here LOW is good, because
+ * the number is the share of the text that reads as machine-written. The two
+ * are deliberately not styled alike: they measure different things, and a
+ * release has already scored 92 here and 86.56% AI there.
+ */
+const SEG_STYLE = {
+  'Human Written': { hue: 'var(--positive)', soft: 'var(--positive-soft)', short: 'Human' },
+  'AI-Assisted': { hue: 'var(--warning)', soft: 'var(--warning-soft)', short: 'Assisted' },
+  'AI-Generated': { hue: 'var(--negative)', soft: 'var(--negative-soft)', short: 'AI' },
+};
+const segStyle = (label) => SEG_STYLE[label]
+  || { hue: 'var(--text-subtle)', soft: 'var(--surface-raised)', short: label || '—' };
+
+function PangramDial({ pct }) {
+  const R = 46, C = 2 * Math.PI * R, v = Math.max(0, Math.min(100, pct));
+  // Inverted against October's: the number is how much reads as machine-written.
+  const band = v >= 60 ? { hue: 'var(--negative)', word: 'Reads as machine-written' }
+    : v >= 25 ? { hue: 'var(--warning)', word: 'Mixed authorship' }
+      : { hue: 'var(--positive)', word: 'Reads as human' };
+  return (
+    <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center' }}>
+      <svg width="112" height="112" viewBox="0 0 112 112" role="img"
+        aria-label={`Pangram: ${v}% of this text reads as machine-written. ${band.word}.`}>
+        <circle cx="56" cy="56" r={R} fill="none" stroke="var(--card-border)" strokeWidth="11" />
+        <circle cx="56" cy="56" r={R} fill="none" stroke={band.hue} strokeWidth="11"
+          strokeLinecap="round" strokeDasharray={`${(v / 100) * C} ${C}`}
+          transform="rotate(-90 56 56)" style={{ transition: 'stroke-dasharray 260ms ease' }} />
+        <text x="56" y="53" textAnchor="middle" dominantBaseline="middle"
+          style={{ fontSize: 23, fontWeight: 700, fill: 'var(--text)' }}>{Math.round(v)}%</text>
+        <text x="56" y="73" textAnchor="middle" dominantBaseline="middle"
+          style={{ fontSize: 9, fill: 'var(--text-subtle)' }}>machine</text>
+      </svg>
+      {/* The state is in the words as well as the hue, so the chart is readable
+          without colour vision. */}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, lineHeight: 1.2 }}>{band.word}</div>
+      </div>
+    </div>
+  );
+}
+
+/** The authorship split, word-weighted, labelled rather than colour-coded. */
+function AuthorshipBar({ ai, assisted, human }) {
+  const parts = [
+    ['AI-Generated', ai], ['AI-Assisted', assisted], ['Human Written', human],
+  ].filter(([, v]) => Number(v) > 0);
+  if (!parts.length) return null;
+  return (
+    <div style={{ marginTop: 'var(--s3)' }}>
+      {/* 2px gaps between fills, so adjacent segments stay separable. */}
+      <div style={{ display: 'flex', gap: 2, height: 10, borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
+        {parts.map(([label, v]) => (
+          <div key={label} style={{ width: `${v}%`, background: segStyle(label).hue }} title={`${label}: ${v}%`} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)', marginTop: 'var(--s1)' }}>
+        {parts.map(([label, v]) => (
+          <span key={label} style={{ ...CAP, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: segStyle(label).hue, display: 'inline-block' }} />
+            {segStyle(label).short} {v}%
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PangramPanel({ raw }) {
+  const windows = Array.isArray(raw?.windows) ? raw.windows : [];
+  const total = windows.reduce((n, w) => n + (w.word_count || 0), 0) || 1;
+  return (
+    <div style={{ marginTop: 'var(--s3)' }}>
+      <PangramDial pct={Number(raw.pct ?? raw.fraction_ai * 100) || 0} />
+
+      {raw.headline && (
+        <div style={{ marginTop: 'var(--s2)' }}>
+          <span className="chip" style={{
+            background: segStyle(raw.headline === 'Human Written' ? 'Human Written' : 'AI-Generated').soft,
+            fontWeight: 700,
+          }}>{raw.headline}</span>
+          {raw.version ? <span style={{ ...CAP, marginLeft: 'var(--s2)' }}>Pangram {raw.version}</span> : null}
+        </div>
+      )}
+
+      {raw.prediction && (
+        <div style={{ ...CAP, marginTop: 'var(--s2)', lineHeight: 1.5 }}>{raw.prediction}</div>
+      )}
+
+      <AuthorshipBar
+        ai={raw.pct ?? null} assisted={raw.pct_assisted ?? null} human={raw.pct_human ?? null} />
+
+      {windows.length > 0 && (
+        <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+          <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>
+            {windows.length} segment{windows.length === 1 ? '' : 's'}, in order. This is the part worth
+            acting on: it names which passages to go back into.
+          </div>
+          {windows.map((w, i) => {
+            const st = segStyle(w.label);
+            const share = Math.round(((w.word_count || 0) / total) * 100);
+            return (
+              <div key={i} style={{
+                borderLeft: `3px solid ${st.hue}`, paddingLeft: 'var(--s2)', marginBottom: 'var(--s2)',
+              }}>
+                <div className="row" style={{ gap: 'var(--s2)', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: st.hue }}>{w.label}</span>
+                  <span style={CAP}>{w.confidence} confidence</span>
+                  <span style={CAP}>{w.word_count} words · {share}%</span>
+                </div>
+                <div style={{ fontSize: 'var(--fs-caption)', lineHeight: 1.45, marginTop: 2, fontStyle: 'italic' }}>
+                  &ldquo;{String(w.text || '').trim().slice(0, 110)}
+                  {String(w.text || '').trim().length > 110 ? '…' : ''}&rdquo;
+                </div>
+                {/* Their humanizer head: whether the passage looks like AI text
+                    that has been run through a tool to disguise it. Worth
+                    surfacing, because that is a different problem from AI prose
+                    and a worse one to be caught doing. */}
+                {w.is_humanized && (
+                  <div style={{ ...CAP, color: 'var(--negative)', fontWeight: 700 }}>
+                    flagged as humanised
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {raw.dashboard_link && (
+        <div style={{ marginTop: 'var(--s2)' }}>
+          <a className="btn btn-secondary btn-sm" href={raw.dashboard_link} target="_blank" rel="noreferrer">
+            Open on pangram.com →
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * The legend, and the layer switches, in one control.
  *
  * Every row carries its live count, because a layer with nothing to mark and a
@@ -749,57 +896,26 @@ export default function PressReleaseEditor({
                 </div>
               )}
 
-              {/* The second reading.
-                  Deliberately below October's own and deliberately plainer: one
-                  number, no highlights, no ramp. The two measure different
-                  things — ours reads the visible tells and the specificity, a
-                  trained classifier reads a learned style space — and dressing
-                  the second to match the first would imply an agreement that
-                  one real release (94 here, 82% there) does not support. */}
-              <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+              {/* The second reading, read in the opposite direction: here a LOW
+                  number is the good one, because it is the share of the text
+                  that reads as machine-written. The two dials are deliberately
+                  not styled alike, because they measure different things and a
+                  release has already scored 92 here and 86.56% there. */}
+              <div style={{ marginTop: 'var(--s4)', paddingTop: 'var(--s3)', borderTop: LINE }}>
                 <div className="row" style={{ gap: 'var(--s2)', alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Pangram</span>
-                  <span style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>
-                    {pr.pangram_pct == null
-                      ? <span style={CAP}>not run</span>
-                      : <span style={{ color: 'var(--text-subtle)' }}>{pr.pangram_pct}%</span>}
-                  </span>
+                  {pr.pangram_checked_at && (
+                    <span style={CAP}>{new Date(pr.pangram_checked_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                  )}
                 </div>
-                {(detail?.raw?.headline || detail?.raw?.prediction) && (
-                  <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                    Their verdict: <strong>{String(detail.raw.headline || detail.raw.prediction)}</strong>
-                    {detail.raw.windows?.length
-                      ? ` · ${detail.raw.windows.length} segment${detail.raw.windows.length === 1 ? '' : 's'}`
-                      : ''}
-                    {detail.raw.pct_human != null ? ` · ${detail.raw.pct_human}% human` : ''}
-                  </div>
-                )}
-                {pr.pangram_pct == null ? (
-                  <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                    A trained classifier, and the one a journalist is most likely to paste this into.
-                  </div>
-                ) : (
-                  /* Greyed, and labelled, because this figure has been measured
-                     against the provider's own web tool exactly once and the two
-                     disagreed completely: 0.15% here, 87% there, on the same
-                     release. Rather than quietly show a number that may be the
-                     wrong field, the panel says so. A detector reading that is
-                     wrongly reassuring is worse than no reading at all. */
-                  <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: LINE,
-                    borderRadius: 'var(--r-sm)', background: 'var(--warning-soft)' }}>
-                    <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
-                      Re-check anything scored before 12 October
-                    </div>
+                {detail?.raw?.windows || detail?.raw?.headline
+                  ? <PangramPanel raw={detail.raw} />
+                  : (
                     <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
-                      The first integration went to a legacy host that answered with a different and much
-                      weaker model: it returned 0.15% and &ldquo;Unlikely AI&rdquo; for a release written
-                      entirely by a model, which pangram.com scored 87% AI. That was never an inverted
-                      field; it was the wrong API. This now uses the documented one, which reports the
-                      same breakdown the dashboard shows. Any figure stored before that change is from the
-                      old host and means nothing — press Check again.
+                      A trained classifier, and the one a journalist is most likely to paste this into.
+                      It reports which passages read as written by a person and which by a model.
                     </div>
-                  </div>
-                )}
+                  )}
                 {!readOnly && (
                   <div style={{ marginTop: 'var(--s2)' }}>
                     <button className="btn btn-secondary btn-sm"
@@ -843,8 +959,8 @@ export default function PressReleaseEditor({
                       <div style={{ marginTop: 'var(--s2)' }}>
                         <button type="button" onClick={() => setShowRaw((v) => !v)}
                           style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', ...CAP, textDecoration: 'underline' }}>
-                          {showRaw ? 'Hide' : 'Show'} what Pangram returned
-                          {detail.has_segments ? ` · ${detail.segment_count} per-sentence scores` : ' · no per-sentence scores'}
+                          {showRaw ? 'Hide' : 'Show'} the raw response
+                          {detail.has_segments ? ` · ${detail.segment_count} segments` : ''}
                         </button>
                         {showRaw && (
                           <>
