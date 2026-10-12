@@ -96,7 +96,12 @@ final class Theme {
             . '.oe-sec--header .oe-event__meta{opacity:.75;margin:.4em 0 0}'
             . '.oe-sec .oe-event__image{display:block;max-width:100%;height:auto;border-radius:var(--oe-radius)}'
             . '.oe-sec .oe-btn{display:inline-block;padding:0 1.25em;height:var(--oe-control-h);line-height:var(--oe-control-h);border-radius:var(--oe-radius);font-weight:600;text-decoration:none;cursor:pointer;transition:filter .15s,background .15s,color .15s,border-color .15s;' . $btn . '}'
-            . '.oe-sec .oe-btn:hover{' . $btn_hover . '}';
+            . '.oe-sec .oe-btn:hover{' . $btn_hover . '}'
+            // Native checkout rendered through the tickets section picks up the
+            // accent too (two-class specificity wins over checkout.css without
+            // !important). A raw [oe_event_checkout] placement keeps its own look.
+            . '.oe-sec--tickets .oct-btn--primary{background:var(--oe-accent);border-color:var(--oe-accent);color:var(--oe-accent-on);border-radius:var(--oe-radius)}'
+            . '.oe-sec--tickets #oct-stripe-elements.focused{border-color:var(--oe-accent)}';
 
         return $vars . $rules;
     }

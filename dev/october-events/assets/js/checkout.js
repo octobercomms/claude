@@ -474,8 +474,13 @@
   function initStripe() {
     if (!stripeKey || typeof Stripe === 'undefined') { return; }
     state.stripe = Stripe(stripeKey);
+    // Section theming forwards a font family so the card field matches the page
+    // (site CSS can't reach inside the Stripe iframe; this style option can).
+    var appearance = cfg.appearance || {};
+    var cardFont = appearance.font ? (appearance.font + ', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif')
+                                   : '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
     state.cardElement = state.stripe.elements().create('card', {
-      style: { base: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif', fontSize: '15px', color: '#1a1a1a', '::placeholder': { color: '#aab7c4' } }, invalid: { color: '#e53935', iconColor: '#e53935' } },
+      style: { base: { fontFamily: cardFont, fontSize: '15px', color: '#1a1a1a', '::placeholder': { color: '#aab7c4' } }, invalid: { color: '#e53935', iconColor: '#e53935' } },
     });
     state.cardElement.mount('#oct-stripe-elements');
     state.cardElement.on('focus', function () { $('#oct-stripe-elements').addClass('focused'); });
