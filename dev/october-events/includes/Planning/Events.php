@@ -38,6 +38,16 @@ final class Events {
         'organiser'       => 'text',
         'ticket_required' => 'bool',
         'notes'           => 'textarea', // internal only, never published
+        // Second-tenant base fields (BUILD-PLAN M1, Concrete Communities parity).
+        // A reference number, a per-listing brand colour + image (CC paints the
+        // whole page from this; distinct from a category colour or status badge),
+        // and an external ticket link so a listing can link out (EventBrite)
+        // instead of selling natively. All optional and additive.
+        'event_number'       => 'text',
+        'brand_colour'       => 'color', // #rrggbb; exposed as an Elementor dynamic tag in M3
+        'brand_colour_image' => 'int',   // attachment ID for the colour/hero image
+        'ticket_link'        => 'url',   // external ticketing URL (blank = native checkout)
+        'ticket_link_text'   => 'text',  // button label for the external link
     ];
 
     public static function slug(): string {
@@ -90,6 +100,64 @@ final class Events {
             case 'end_time':       return ['end-time', 'end_time'];
             case 'schedule_text':  return ['date-time', 'date_time', 'dates-times'];
             default:               return [];
+        }
+    }
+
+    /**
+     * Sanitise a field value by its declared type (see FIELDS). Returns a string
+     * ('' when empty / invalid), or '' / '1' for a bool.
+     */
+    public static function sanitise(string $field, $value): string {
+        $type = self::FIELDS[$field] ?? 'text';
+        switch ($type) {
+            case 'textarea':
+                return sanitize_textarea_field((string) $value);
+            case 'bool':
+                return $value ? '1' : '';
+            case 'color':
+                return (string) (sanitize_hex_color((string) $value) ?: '');
+            case 'url':
+                return esc_url_raw(trim((string) $value));
+            case 'int':
+                return (string) $value === '' ? '' : (string) max(0, (int) $value);
+            default:
+                return sanitize_text_field((string) $value);
+        }
+    }
+
+    /**
+     * Write one field to `_oe_plan_*`. An empty value removes the row, so an
+     * unset field leaves nothing behind. Never touches foreign (JetEngine) meta,
+     * so it is safe in adoption mode.
+     */
+    public static function set(int $event_id, string $field, $value): void {
+        if (! array_key_exists($field, self::FIELDS)) {
+            return;
+        }
+        $clean = self::sanitise($field, $value);
+        if ($clean === '') {
+            delete_post_meta($event_id, self::key($field));
+        } else {
+            update_post_meta($event_id, self::key($field), $clean);
+        }
+    }
+
+    /**
+     * Save a posted field map (only keys present in the input are written; the
+     * bool `ticket_required` is read by presence). Each value is sanitised by
+     * its type before storage.
+     *
+     * @param array<string,mixed> $input
+     */
+    public static function save_fields(int $event_id, array $input): void {
+        foreach (array_keys(self::FIELDS) as $field) {
+            if ($field === 'ticket_required') {
+                self::set($event_id, 'ticket_required', ! empty($input['ticket_required']));
+                continue;
+            }
+            if (array_key_exists($field, $input)) {
+                self::set($event_id, $field, $input[$field]);
+            }
         }
     }
 
