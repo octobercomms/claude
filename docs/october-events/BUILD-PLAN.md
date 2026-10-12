@@ -215,22 +215,24 @@ Across a live cycle, in any order as issues surface.
 
 **Access-control primitive shipped (v1.211.0).** `OE\Access` + `[oe_gate]` give
 one default-open entitlement check (any membership, a named tier, or
-guest-only) that packages, member sections and supporter perks all gate
-through. A full section-level dashboard-capabilities system and the CRM /
-settings-in-context items below are still open.
+guest-only) that packages, member sections and supporter perks all gate through.
 
 - **Track A cheap wins** (if not already shipped in parallel): comp flag +
   reporting exclusion, end-of-event report, customer account dashboard, the rest
   of the [`POST-FESTIVAL-ROADMAP.md`](POST-FESTIVAL-ROADMAP.md) queue.
-- **People hub / CRM**: unify volunteer + customer + contacts profiles, per
-  entity (never merged across festival ↔ tours).
-- **Dashboard access control**: section-level capabilities (`oe_tickets`,
-  `oe_volunteers`, …) + a "User access" admin screen, so directors/leads see only
-  their part. Same capability system the crew roles need
-  ([`CREW-MODULE.md`](CREW-MODULE.md)). Open: presets vs per-user.
-- **Settings in context**: a collapsible "Settings" accordion at the top of each
-  admin page showing only that page's settings; truly global settings stay on the
-  Settings page.
+- **People hub / CRM. Shipped (v1.218.0).** `OE\People` — a merged `oe_people`
+  table keyed on email, from orders/tickets/volunteer/pool/contacts, with a
+  "People" admin screen (search + live profile) and a Rebuild action + daily
+  refresh. Per-install (each tenant a separate DB), so never merged across
+  festival ↔ tours.
+- **Dashboard access control. Shipped (v1.211.0).** `OE\Admin\SectionAccess` —
+  one `oe_sec_*` capability per section, a "User access" grid mapping WordPress
+  roles to sections, enforced on the menu and direct URLs. Administrators always
+  see everything. (Chosen: per-role, not presets.)
+- **Settings in context. Shipped (v1.217.0).** `OE\Admin\ContextSettings` — a
+  collapsible per-page panel of that screen's own settings, saved merge-safe;
+  complex settings stay on the Settings page. Starter registry covers
+  Tickets/Volunteers/Contacts, extensible.
 - **QR / scanner backlog**: batch/group check-in and the native `BarcodeDetector`
   speed-up are device-dependent and previously broke the camera (1.199.4) — build
   and test on a real phone before shipping.
@@ -266,30 +268,26 @@ wiring templates and triggers, not new infrastructure.
   link. **Staging:** subscribe the endpoint to those event types in Stripe and
   confirm the live sends. A renewal *reminder* (ahead of the charge) is still
   open — the renewed/failed confirmations after the charge are done.
-- **De-festival the membership tiers (generalisation).** The membership engine is
-  already tenant-agnostic (`membership_enabled`, `membership_price_ids`,
-  `membership_join_*`, per-ticket `members_only`, and now a configurable
-  `membership_pitch`), so both offer modes work for any client: join → free
-  ticket (a £0 `members_only` tier) and join → member rate (a `members_only` tier
-  beside the public one). The one remaining ADF-specific piece is the **Friends /
-  Patrons** tier naming baked into settings keys (`friends_price_ids`,
-  `patrons_price_ids`) and shortcodes (`[oe_friends_list]`, `[oe_patrons_list]`),
-  which are the public supporter lists. Generalise these into **client-named
-  membership tiers**: keep Friends/Patrons as the ADF defaults, add back-compat
-  aliases on the old keys and shortcodes, and expose a generic
-  `[oe_members_list tier="…"]`. Touches public shortcodes, so it needs the
-  back-compat shims — do it here, not as a rushed patch.
+- **De-festival the membership tiers (generalisation). Shipped (v1.209.0).**
+  `[oe_members_list tier="…"]` renders any client-named tier; `[oe_friends_list]`
+  / `[oe_patrons_list]` stay as back-compat aliases; a `member_tiers` setting
+  defines custom tiers. The membership engine was already tenant-agnostic.
 - **Ticket-transfer notice** to the original holder when an order is transferred.
-- **Event rescheduled / cancelled** auto-notice to ticket holders, behind a
-  confirm step ("notify N holders?") so it never fires silently.
-- **Waitlist offer.** Personalised, time-limited "a spot opened" offer, and fix
-  the `waitlist_spot` message shipping with **no subject line** (live bug).
+  *(Still open — small.)*
+- **Event rescheduled / cancelled. Shipped (v1.208.0).** `OE\Ticketing\EventNotices`
+  — a confirm-gated admin action on the event editor that emails all holders,
+  never silently (`event_rescheduled` / `event_cancelled` triggers).
+- **Waitlist offer.** The `waitlist_spot` subject bug is fixed; an opt-in
+  waitlist-spot **SMS** ships alongside the email (v1.215.0). The personalised
+  time-limited offer refinement is still open.
 - **Admin-removed volunteer shift** notice to the volunteer when a shift they
   signed up for is pulled.
 - **Crew / staff provisioning** emails (agreement, login, role email, renewal /
   offboarding) — tracked in [`CREW-MODULE.md`](CREW-MODULE.md), listed here for
   completeness.
-- **Configurable double opt-in** on list sign-up.
+- **Configurable double opt-in. Shipped (v1.214.0).** `[oe_subscribe]` marketing
+  signup with list selection and a `double_optin` setting (confirm-link email);
+  transactional captures are untouched.
 - **GDPR. Shipped (v1.210.0).** `OE\Privacy` registers personal-data exporters
   and erasers with WP core (Tools → Export/Erase Personal Data): export returns
   the subject's orders, tickets, waitlist and marketing contact; erase
@@ -298,8 +296,8 @@ wiring templates and triggers, not new infrastructure.
 - **Monthly digest.** Still off: `Cron::DIGEST_ENABLED` is deliberately `false`
   pending finalised newsletter content/design (an owner decision, not a code
   gap). Flip it once the newsletter is ready.
-- **SMS beyond volunteers.** Extend SMS to order/waitlist events, gated on an
-  explicit checkout opt-in.
+- **SMS beyond volunteers. Waitlist-spot shipped (v1.215.0)**, opt-in. Order-
+  confirmation SMS deliberately not added (owner decision); no other SMS.
 
 Done when: every money, membership, transfer, schedule-change, waitlist and
 privacy event has a message, the `waitlist_spot` subject bug is fixed, and SMS is
@@ -324,12 +322,14 @@ demographics.
 - **Post-event survey.** The per-location survey toggle already generalises to
   any listing via `Survey\Config::post_type()`; **its results now feed the
   event report** (v1.205.1). The survey builder/sender were already in place.
-- **Volunteer pool.** Early-recruitment backbone shipped (v1.212.0):
-  `OE\Volunteers\Pool` — recruitment windows (date × time × role × target), the
-  public `[oe_volunteer_pool_signup]` form, and an admin board of target vs
-  signed-up. The distance-sorted slot picker (needs a ZIP→lat/long table) and
-  invite-to-pick / cover / auto-match (steps 1, 3, 4 of `volunteer-pool.md`)
-  remain.
+- **Volunteer pool. Shipped (v1.212.0 + v1.219.0).** `OE\Volunteers\Pool` —
+  recruitment windows (date × time × role × target), the public
+  `[oe_volunteer_pool_signup]` form, and the admin board (step 2); plus
+  **invite-to-pick + switch** (v1.219.0): opportunity shifts are window-tagged,
+  `[oe_volunteer_pick]` lets the invited pool choose an open slot in their
+  windows (ordered most-need-first for an even spread) or switch homes via
+  `Volunteers::move()`. Per owner decision, the distance-sorted picker (step 1),
+  cover pool and auto-match (step 4) are dropped — people always choose.
 
 Done when: an organiser can read a single post-event report, send a survey, and
 work from a persistent volunteer pool rather than re-recruiting each cycle.
