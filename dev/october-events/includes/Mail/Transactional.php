@@ -38,6 +38,7 @@ final class Transactional {
         'sales_report'               => 'Daily ticket sales',
         'survey_invite'              => 'How was %2$s?',
         'subscribe_confirm'          => 'Confirm your subscription to %1$s',
+        'volunteer_pick_invite'      => 'The homes are live — choose your volunteer slot',
         // Membership lifecycle (M6). %1$s = brand.
         'membership_welcome'         => 'Welcome to %1$s membership',
         'membership_renewed'         => 'Your %1$s membership has renewed',
@@ -200,6 +201,11 @@ final class Transactional {
             case 'membership_cancelled':
                 return $hi . '<p>' . esc_html__('Your membership has been cancelled and will not renew. We\'re sorry to see you go, and you\'re welcome back any time.', 'october-events') . '</p>'
                     . (! empty($params['rejoin_url']) ? self::button(__('Rejoin', 'october-events'), (string) $params['rejoin_url']) : '');
+
+            case 'volunteer_pick_invite':
+                return $hi . '<p>' . esc_html__('The homes and events for this year are confirmed. Choose the one you\'d like to help at — the slots you told us you could do are ready to pick from.', 'october-events') . '</p>'
+                    . (! empty($params['pick_url']) ? self::button(__('Choose your slot', 'october-events'), (string) $params['pick_url']) : '')
+                    . '<p>' . esc_html__('Pick early for the best choice — popular homes fill up.', 'october-events') . '</p>';
 
             case 'subscribe_confirm': {
                 $b = (string) Settings::get('brand_name', '');

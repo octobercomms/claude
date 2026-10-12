@@ -33,6 +33,23 @@ final class Board {
             return;
         }
 
+        // Invite-to-pick: once homes/events are confirmed and their shifts are
+        // window-tagged, email the pool their no-login pick links.
+        if (isset($_GET['oe_pool_invited'])) {
+            echo '<div class="notice notice-success inline" style="margin:0 0 10px"><p>' . esc_html(sprintf(
+                /* translators: %d: number emailed */
+                _n('Invited %d volunteer to pick.', 'Invited %d volunteers to pick.', (int) $_GET['oe_pool_invited'], 'october-events'),
+                (int) $_GET['oe_pool_invited']
+            )) . '</p></div>';
+        }
+        $pick_page = (string) \OE\Settings::get('volunteer_pick_page', '');
+        if ($pick_page !== '' && $total > 0) {
+            $url = wp_nonce_url(admin_url('admin-post.php?action=oe_vol_pool_invite'), 'oe_vol_pool_invite');
+            echo '<p><a href="' . esc_url($url) . '" class="button" onclick="return confirm(\'' . esc_js(sprintf(__('Email all %d pool volunteers a link to choose their home?', 'october-events'), $total)) . '\')">' . esc_html__('Invite the pool to pick', 'october-events') . '</a> <span class="description">' . esc_html__('Sends each a no-login link to the pick page.', 'october-events') . '</span></p>';
+        } else {
+            echo '<p class="description">' . esc_html__('To invite the pool to pick their home, add the [oe_volunteer_pick] shortcode to a page and set that page under Settings → Volunteer pool.', 'october-events') . '</p>';
+        }
+
         echo '<table class="widefat striped" style="max-width:760px;margin-top:12px"><thead><tr>';
         echo '<th>' . esc_html__('Window', 'october-events') . '</th>';
         echo '<th>' . esc_html__('Role', 'october-events') . '</th>';

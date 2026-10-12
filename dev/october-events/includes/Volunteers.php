@@ -145,6 +145,7 @@ final class Volunteers {
                 <th><?php esc_html_e('Start', 'october-events'); ?></th>
                 <th><?php esc_html_e('End', 'october-events'); ?></th>
                 <th style="width:80px"><?php esc_html_e('Capacity', 'october-events'); ?></th>
+                <?php if (\OE\Volunteers\Pool\Windows::all()) : ?><th style="width:150px"><?php esc_html_e('Recruitment window', 'october-events'); ?></th><?php endif; ?>
                 <th></th>
             </tr></thead>
             <tbody>
@@ -362,6 +363,11 @@ final class Volunteers {
             <td><input type="datetime-local" name="oe_shift[<?php echo $i; ?>][start]" value="<?php echo esc_attr($to_input((string) ($s['start'] ?? ''))); ?>"></td>
             <td><input type="datetime-local" name="oe_shift[<?php echo $i; ?>][end]" value="<?php echo esc_attr($to_input((string) ($s['end'] ?? ''))); ?>"></td>
             <td><input type="number" min="0" name="oe_shift[<?php echo $i; ?>][capacity]" value="<?php echo esc_attr((string) ($s['capacity'] ?? '')); ?>" style="width:70px"></td>
+            <?php $oe_windows = \OE\Volunteers\Pool\Windows::all(); if ($oe_windows) : $oe_cur = (string) ($s['window'] ?? ''); ?>
+            <td><select name="oe_shift[<?php echo $i; ?>][window]"><option value=""><?php esc_html_e('—', 'october-events'); ?></option>
+                <?php foreach ($oe_windows as $oe_w) : ?><option value="<?php echo esc_attr((string) $oe_w['id']); ?>" <?php selected($oe_cur, (string) $oe_w['id']); ?>><?php echo esc_html((string) $oe_w['label']); ?></option><?php endforeach; ?>
+            </select></td>
+            <?php endif; ?>
             <td><button type="button" class="button-link oe-shift-del" title="<?php esc_attr_e('Remove', 'october-events'); ?>">✕</button></td>
         </tr>
         <?php
@@ -427,6 +433,7 @@ final class Volunteers {
                 'start'    => str_replace('T', ' ', sanitize_text_field((string) ($r['start'] ?? ''))),
                 'end'      => str_replace('T', ' ', sanitize_text_field((string) ($r['end'] ?? ''))),
                 'capacity' => max(0, (int) ($r['capacity'] ?? 0)),
+                'window'   => sanitize_text_field((string) ($r['window'] ?? '')),
             ];
         }
         self::set_shifts($post_id, $shifts);
@@ -779,6 +786,9 @@ final class Volunteers {
                 'start'    => sanitize_text_field((string) ($s['start'] ?? '')),
                 'end'      => sanitize_text_field((string) ($s['end'] ?? '')),
                 'capacity' => max(0, (int) ($s['capacity'] ?? 0)),
+                // Optional recruitment-window id (Pool\Windows) this shift fills,
+                // so the early-recruitment pool can invite the right people to it.
+                'window'   => sanitize_text_field((string) ($s['window'] ?? '')),
             ];
         }
         update_post_meta($opportunity_id, '_oe_shifts', $clean);

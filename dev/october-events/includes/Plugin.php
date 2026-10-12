@@ -57,6 +57,7 @@ final class Plugin {
         Privacy::init();
         Access::init();
         \OE\Volunteers\Pool\Signup::init();
+        \OE\Volunteers\Pool\Allocate::init();
         \OE\Ads\Module::init();
         MapsConnector::init();
         Chat::init();
