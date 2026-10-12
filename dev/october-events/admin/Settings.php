@@ -487,6 +487,7 @@ final class Settings {
             'card_fee_percent' => max(0, min(20, (float) ($in['card_fee_percent'] ?? 2.9))),
             'card_fee_fixed'   => max(0, (float) ($in['card_fee_fixed'] ?? 0.30)),
             'bnpl_enabled'     => ! empty($in['bnpl_enabled']),
+            'waitlist_offer_window' => max(0, (int) ($in['waitlist_offer_window'] ?? 0)),
             'rejection_copy'   => $rejection,
             'ai_source_urls'   => array_values($sources),
             'ai_model'         => sanitize_text_field((string) ($in['ai_model'] ?? 'claude-sonnet-5')),

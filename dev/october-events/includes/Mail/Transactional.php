@@ -33,6 +33,7 @@ final class Transactional {
         'event_reminder'             => 'Reminder: %2$s is coming up',
         'event_rescheduled'          => 'Update: %2$s has been rescheduled',
         'event_cancelled'            => 'Important: %2$s has been cancelled',
+        'ticket_transferred'         => 'Your ticket for %2$s has been transferred',
         'order_refunded'             => 'Your refund for %2$s',
         'order_cancelled'            => 'Your order has been cancelled',
         'sales_report'               => 'Daily ticket sales',
@@ -111,12 +112,16 @@ final class Transactional {
             // ticket_delivery is sent as a full self-styled document via
             // ticket_email_html() + send(..., $wrap=false); no body() case needed.
 
-            case 'waitlist_spot':
-                return $hi . '<p>' . sprintf(esc_html__('Good news — a spot has opened up for %s.', 'october-events'),
+            case 'waitlist_spot': {
+                $hours = (int) ($params['offer_hours'] ?? 0);
+                $out = $hi . '<p>' . sprintf(esc_html__('Good news — a spot has opened up for %s.', 'october-events'),
                     '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>')
-                    . ($params['ticket_type'] ? ' (' . esc_html((string) $params['ticket_type']) . ')' : '') . '</p>'
-                    . '<p>' . esc_html__('Tickets are limited and offered first-come — grab yours now:', 'october-events') . '</p>'
-                    . self::button(__('Get your tickets', 'october-events'), (string) ($params['checkout_url'] ?? ''));
+                    . ($params['ticket_type'] ? ' (' . esc_html((string) $params['ticket_type']) . ')' : '') . '</p>';
+                $out .= $hours > 0
+                    ? '<p>' . sprintf(esc_html(_n('We\'re holding it for you for %d hour — book within that and it\'s yours. After that it passes to the next person waiting.', 'We\'re holding it for you for %d hours — book within that and it\'s yours. After that it passes to the next person waiting.', $hours, 'october-events')), $hours) . '</p>'
+                    : '<p>' . esc_html__('Tickets are limited and offered first-come — grab yours now:', 'october-events') . '</p>';
+                return $out . self::button(__('Get your tickets', 'october-events'), (string) ($params['checkout_url'] ?? ''));
+            }
 
             case 'volunteer_confirmed':
             case 'volunteer_declined':
@@ -150,6 +155,15 @@ final class Transactional {
                 }
                 $out .= '<p>' . esc_html__('If you bought tickets, a refund will follow to your original payment method. We\'re sorry for the disappointment and hope to see you at a future event.', 'october-events') . '</p>';
                 return $out;
+            }
+
+            case 'ticket_transferred': {
+                $ev = '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>';
+                $to = trim((string) ($params['new_holder'] ?? ''));
+                $out = $hi . '<p>' . sprintf(esc_html__('Your ticket for %s has been transferred%s, so it is no longer on your account and the previous QR code won\'t admit you.', 'october-events'),
+                    $ev,
+                    $to !== '' ? ' ' . sprintf(esc_html__('to %s', 'october-events'), '<strong>' . esc_html($to) . '</strong>') : '') . '</p>';
+                return $out . '<p>' . esc_html__('If you didn\'t request this, please get in touch straight away and we\'ll put it right.', 'october-events') . '</p>';
             }
 
             case 'order_refunded':

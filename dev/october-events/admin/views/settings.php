@@ -582,6 +582,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                     <p class="description"><?php esc_html_e('Adds a “Pay over time” button that sends the buyer to Stripe’s secure page for installments. Card checkout is unchanged. Prerequisite: enable Klarna/Afterpay/Affirm in your Stripe Dashboard (Settings → Payment methods). Options only show when the cart clears each provider’s minimum (Affirm ~$50), and carry a higher fee (~6% + 0.30). Test in Stripe test mode before enabling.', 'october-events'); ?></p>
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Waitlist offers', 'october-events'); ?></th>
+                <td>
+                    <label><input type="number" min="0" name="waitlist_offer_window" value="<?php echo esc_attr((string) ($cfg['waitlist_offer_window'] ?? 0)); ?>" style="width:80px"> <?php esc_html_e('hours to hold a freed spot for the next person in line', 'october-events'); ?></label>
+                    <p class="description"><?php esc_html_e('0 = when a spot opens, everyone waiting is emailed at once (first-come). Set a number of hours to instead offer the front of the queue only — each person gets a personal, time-limited hold, and if they don’t book in time the spot passes to the next in line (checked hourly).', 'october-events'); ?></p>
+                </td>
+            </tr>
         </tbody></table>
         </div></details>
 

@@ -94,31 +94,48 @@ final class Waitlist {
         $wpdb->update(Schema::waitlist(), ['status' => 'notified', 'notified_at' => current_time('mysql', true)], ['id' => $id]);
         $event_name = get_the_title((int) $row->event_id) ?: '';
         $checkout   = (string) get_permalink((int) $row->event_id);
+        $hours      = self::window_hours();
         \OE\Mail\Transactional::send('waitlist_spot', ['email' => (string) $row->email, 'name' => (string) $row->name], [
             'event_name'   => $event_name,
             'ticket_type'  => (string) $row->ticket_type_label,
             'checkout_url' => $checkout,
+            'offer_hours'  => $hours, // >0 = a personalised, time-limited hold
         ]);
         // Opt-in SMS alongside the email, when they gave a number and ticked it.
         if ((int) ($row->sms_opt_in ?? 0) === 1 && (string) ($row->phone ?? '') !== '') {
-            $sms = sprintf(
-                /* translators: 1: event name, 2: checkout URL */
-                __('A spot has opened for %1$s. Tickets are first-come — book here: %2$s', 'october-events'),
-                $event_name,
-                $checkout
-            );
+            $sms = $hours > 0
+                ? sprintf(
+                    /* translators: 1: event name, 2: hours, 3: checkout URL */
+                    __('A spot has opened for %1$s — it\'s held for you for %2$d hours. Book here: %3$s', 'october-events'),
+                    $event_name, $hours, $checkout
+                )
+                : sprintf(
+                    /* translators: 1: event name, 2: checkout URL */
+                    __('A spot has opened for %1$s. Tickets are first-come — book here: %2$s', 'october-events'),
+                    $event_name, $checkout
+                );
             \OE\Mail\Transactional::send_sms((string) $row->phone, $sms);
         }
         AuditLog::record('waitlist_promoted', $id, 'waitlist', (string) $row->email);
         return true;
     }
 
+    /** The timed-offer window in hours (Settings → Checkout). 0 = notify-all. */
+    public static function window_hours(): int {
+        return max(0, (int) \OE\Settings::get('waitlist_offer_window', 0));
+    }
+
     /**
-     * Notify everyone still waiting for an event that a spot opened — first come,
-     * first served. Each is emailed a checkout link and marked notified (so a
-     * later opening won't email them twice). Returns how many were notified.
+     * A spot opened for an event. In the default mode everyone still waiting is
+     * emailed at once (first come, first served). When a timed-offer window is
+     * set (Settings → Checkout), only the front of the queue is offered — up to
+     * the number of spots actually free — each with a claim deadline; the hourly
+     * cron expires unclaimed offers and advances to the next in line.
      */
     public static function notify_all_for_event(int $event_id): int {
+        if (self::window_hours() > 0) {
+            return self::offer_round($event_id);
+        }
         global $wpdb;
         $ids = $wpdb->get_col($wpdb->prepare(
             "SELECT id FROM " . Schema::waitlist() . " WHERE event_id = %d AND status = 'waiting' ORDER BY id ASC",
@@ -131,6 +148,81 @@ final class Waitlist {
             }
         }
         return $n;
+    }
+
+    /**
+     * Spots genuinely free to offer right now: event capacity minus what's sold
+     * minus the offers still outstanding (so a pending offer reserves its seat).
+     * Returns a large number when the event is uncapped.
+     */
+    public static function available_spots(int $event_id): int {
+        $cap = TicketTypes::event_capacity($event_id);
+        if ($cap === null) {
+            return 1000; // uncapped — never the limiting factor
+        }
+        global $wpdb;
+        $outstanding = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM " . Schema::waitlist() . " WHERE event_id = %d AND status = 'notified'",
+            $event_id
+        ));
+        $sold = TicketTypes::event_sold_count($event_id);
+        return max(0, $cap - $sold - $outstanding);
+    }
+
+    /**
+     * Offer the freed seats to the front of the queue (timed mode). Promotes up
+     * to `available_spots` waiters in order; each is marked notified with a
+     * deadline. Returns how many were offered this round.
+     */
+    public static function offer_round(int $event_id): int {
+        $free = self::available_spots($event_id);
+        if ($free <= 0) {
+            return 0;
+        }
+        global $wpdb;
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM " . Schema::waitlist() . " WHERE event_id = %d AND status = 'waiting' ORDER BY id ASC LIMIT %d",
+            $event_id, $free
+        )) ?: [];
+        $n = 0;
+        foreach ($ids as $id) {
+            if (self::promote((int) $id)) {
+                $n++;
+            }
+        }
+        return $n;
+    }
+
+    /**
+     * Hourly (timed mode only): mark offers claimed when the person has since
+     * bought, expire offers past the window, then advance to the next in line.
+     */
+    public static function expire_and_advance(): void {
+        if (self::window_hours() <= 0) {
+            return;
+        }
+        global $wpdb;
+        $t = Schema::waitlist();
+        $events = $wpdb->get_col("SELECT DISTINCT event_id FROM {$t} WHERE status = 'notified'") ?: [];
+        $cutoff = gmdate('Y-m-d H:i:s', time() - self::window_hours() * HOUR_IN_SECONDS);
+        $orders = Schema::orders();
+        foreach ($events as $eid) {
+            $eid  = (int) $eid;
+            $rows = $wpdb->get_results($wpdb->prepare("SELECT id, email, notified_at FROM {$t} WHERE event_id = %d AND status = 'notified'", $eid)) ?: [];
+            foreach ($rows as $r) {
+                $bought = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$orders} WHERE event_id = %d AND email = %s AND status = 'paid' AND created_at >= %s",
+                    $eid, (string) $r->email, (string) $r->notified_at
+                ));
+                if ($bought > 0) {
+                    $wpdb->update($t, ['status' => 'converted'], ['id' => (int) $r->id]);
+                } elseif ((string) $r->notified_at !== '' && (string) $r->notified_at < $cutoff) {
+                    $wpdb->update($t, ['status' => 'expired'], ['id' => (int) $r->id]);
+                }
+            }
+            // Refill any seats freed by expiries / conversions this pass.
+            self::offer_round($eid);
+        }
     }
 
     /**

@@ -98,6 +98,9 @@ final class Cron {
         // Abandoned-cart recovery autopilot (no-op unless switched on) — mails
         // carts abandoned since it was enabled; the backlog stays manual.
         \OE\Ticketing\Recovery::run_autopilot();
+        // Waitlist timed offers: expire unclaimed holds and advance the queue
+        // (no-op unless a waitlist_offer_window is set).
+        \OE\Ticketing\Waitlist::expire_and_advance();
         // Chip away at contact CleanUp (names + company) for any new contacts.
         \OE\Mail\Enrich::backfill(1000);
         // Keep the public Friends/Patrons footer lists warm so no visitor ever

@@ -161,6 +161,10 @@ final class Orders {
         if ((string) $ticket->status !== 'active') {
             return new \WP_Error('oe_transfer_inactive', __('Only an active ticket can be transferred.', 'october-events'));
         }
+        // Remember the original holder (before the row is overwritten) so we can
+        // let them know the ticket is no longer theirs.
+        $old_name  = (string) $ticket->attendee_name;
+        $old_email = (string) $ticket->attendee_email;
         $saved = $wpdb->update(Schema::tickets(), [
             'attendee_name'  => $new_name,
             'attendee_email' => $new_email,
@@ -177,6 +181,14 @@ final class Orders {
 
         AuditLog::record('ticket_transferred', $ticket_id, 'ticket', $new_email);
         self::email_ticket_to_holder($ticket, $new_name, $new_email);
+        // Notice to the original holder that their ticket now belongs to someone
+        // else — only when it was really a different person's valid address.
+        if (is_email($old_email) && strcasecmp($old_email, $new_email) !== 0) {
+            \OE\Mail\Transactional::send('ticket_transferred', ['email' => $old_email, 'name' => $old_name], [
+                'event_name'   => get_the_title((int) $ticket->event_id),
+                'new_holder'   => $new_name,
+            ]);
+        }
         return true;
     }
 
