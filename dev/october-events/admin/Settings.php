@@ -440,6 +440,9 @@ final class Settings {
 
         Config::update([
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
+            'adoption_mode'    => in_array((string) ($in['adoption_mode'] ?? 'auto'), ['auto', 'on', 'off'], true)
+                ? (string) ($in['adoption_mode'] ?? 'auto') : 'auto',
+            'entitlement_tier' => sanitize_key((string) ($in['entitlement_tier'] ?? 'full')) ?: 'full',
             'event_field_map'  => $event_field_map,
             'guided_enabled'   => ! empty($in['guided_enabled']),
             'guided_require_names' => ! empty($in['guided_require_names']),
