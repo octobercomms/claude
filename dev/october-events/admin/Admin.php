@@ -170,6 +170,9 @@ final class Admin {
     }
 
     public static function bento(string $key): void {
+        // Settings-in-context: a collapsible panel of this screen's own settings,
+        // rendered above the intro bento (no-op for screens with none registered).
+        ContextSettings::panel($key);
         $b = self::BENTOS[$key] ?? null;
         if (! $b) {
             return;
