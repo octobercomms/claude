@@ -82,6 +82,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="text" name="section_control_height" value="<?php echo esc_attr($oe_tok('section_control_height', '44px')); ?>" placeholder="44px" style="max-width:100px"></label></p>
         <p><label><?php esc_html_e('Font family (optional)', 'october-events'); ?><br>
             <input type="text" name="section_font" class="regular-text" value="<?php echo esc_attr($oe_tok('section_font')); ?>" placeholder="<?php esc_attr_e('blank = inherit the theme', 'october-events'); ?>"></label></p>
+        <p><label><input type="checkbox" name="native_single_template" value="1" <?php checked(! empty($cfg['native_single_template'])); ?>> <strong><?php esc_html_e('Default single-listing template', 'october-events'); ?></strong></label><br>
+            <span class="description"><?php esc_html_e('Compose a single event from its sections when its body is empty (native mode only). Turn off if you build your own single layout.', 'october-events'); ?></span></p>
         </div></details>
 
         </section>

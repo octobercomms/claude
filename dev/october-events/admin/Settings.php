@@ -455,6 +455,7 @@ final class Settings {
             'section_spacing'        => sanitize_text_field((string) ($in['section_spacing'] ?? '1.5rem')),
             'section_control_height' => sanitize_text_field((string) ($in['section_control_height'] ?? '44px')),
             'section_font'           => sanitize_text_field((string) ($in['section_font'] ?? '')),
+            'native_single_template' => ! empty($in['native_single_template']),
             'event_field_map'  => $event_field_map,
             'guided_enabled'   => ! empty($in['guided_enabled']),
             'guided_require_names' => ! empty($in['guided_require_names']),
