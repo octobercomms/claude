@@ -67,6 +67,7 @@ final class Plugin {
         // Interfaces.
         if (is_admin()) {
             Admin::get_instance()->init();
+            \OE\Planning\Metabox::init();
             \OE\Packs\Metabox::init();
             \OE\GuidedTours\Metabox::init();
             \OE\Survey\Metabox::init();
