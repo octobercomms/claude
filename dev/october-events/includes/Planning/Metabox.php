@@ -90,6 +90,23 @@ final class Metabox {
         self::text('ticket_link_text', __('External link button text', 'october-events'), $v('ticket_link_text'), 'e.g. Book tickets');
         echo '</div>';
 
+        // Structured: availability + preset status badge (no pasted HTML).
+        echo '<div class="oe-ed-grid" style="margin-top:12px">';
+        echo '<p><label>' . esc_html__('Availability', 'october-events') . '</label>';
+        echo '<select name="oe_event[availability]"><option value="">' . esc_html__('Not specified', 'october-events') . '</option>';
+        foreach (Events::AVAILABILITY as $k => $lbl) {
+            printf('<option value="%s"%s>%s</option>', esc_attr($k), selected($v('availability'), $k, false), esc_html($lbl));
+        }
+        echo '</select></p>';
+        echo '<p><label>' . esc_html__('Status badge (exceptions only)', 'october-events') . '</label>';
+        echo '<select name="oe_event[status_preset]"><option value="">' . esc_html__('None (routine)', 'october-events') . '</option>';
+        foreach (Events::STATUS_PRESETS as $k => $preset) {
+            printf('<option value="%s"%s>%s</option>', esc_attr($k), selected($v('status_preset'), $k, false), esc_html($preset[0]));
+        }
+        echo '</select></p>';
+        echo '</div>';
+        echo '<p class="description" style="margin:4px 0 0">' . esc_html__('The preset carries a brand colour and readable text — no pasted HTML. Leave the status as None for a routine listing; availability renders its own note.', 'october-events') . '</p>';
+
         // Brand colour image.
         $img_id  = (int) $v('brand_colour_image');
         $img_src = $img_id ? wp_get_attachment_image_url($img_id, 'thumbnail') : '';

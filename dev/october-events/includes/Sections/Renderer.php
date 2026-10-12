@@ -55,6 +55,25 @@ final class Renderer {
         return trim((string) Events::get($id, $f, ''));
     }
 
+    /** A preset status badge (brand colour + readable text), or '' when routine. */
+    private static function status_badge(int $id): string {
+        $preset = self::field($id, 'status_preset');
+        if ($preset === '' || ! isset(Events::STATUS_PRESETS[$preset])) {
+            return '';
+        }
+        [$label, $bg, $fg] = Events::STATUS_PRESETS[$preset];
+        $custom = self::field($id, 'status_text');
+        if ($custom !== '') {
+            $label = $custom;
+        }
+        return sprintf(
+            '<span class="oe-event__badge" style="display:inline-block;padding:.15em .6em;border-radius:var(--oe-radius,6px);font-weight:700;font-size:.8em;background:%s;color:%s">%s</span>',
+            esc_attr($bg),
+            esc_attr($fg),
+            esc_html($label)
+        );
+    }
+
     /* ---------------------------------------------------------------- *
      * Base sections (always available)
      * ---------------------------------------------------------------- */
@@ -81,8 +100,16 @@ final class Renderer {
             $inner .= '<p class="oe-event__number">' . esc_html($num) . '</p>';
         }
         $inner .= '<h1 class="oe-event__title">' . esc_html($name) . '</h1>';
+        $badge = self::status_badge($id);
+        if ($badge !== '') {
+            $inner .= $badge;
+        }
         if ($meta) {
             $inner .= '<p class="oe-event__meta">' . esc_html(implode(' · ', $meta)) . '</p>';
+        }
+        $avail = self::field($id, 'availability');
+        if ($avail !== '' && isset(Events::AVAILABILITY[$avail])) {
+            $inner .= '<p class="oe-event__avail">' . esc_html(Events::AVAILABILITY[$avail]) . '</p>';
         }
         // Expose the per-listing brand colour as a CSS custom property so the
         // theme / Elementor template can paint from it (CC's per-event chrome).
