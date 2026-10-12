@@ -17,11 +17,17 @@ async function mod() {
   return _mod;
 }
 
-/** Analyse a release body against its fact sheet. Never throws on bad input. */
-async function analyse(bodyHtml, brief) {
+/**
+ * Analyse a release body against its fact sheet. Never throws on bad input.
+ *
+ * `opts` has to carry the same names the editor passes — the brand above all.
+ * Without it the stored score and the one on screen come out different for the
+ * same text, which is the worst of both.
+ */
+async function analyse(bodyHtml, brief, opts) {
   try {
     const m = await mod();
-    return m.analyse(bodyHtml || '', brief || {});
+    return m.analyse(bodyHtml || '', brief || {}, opts || {});
   } catch (err) {
     console.error('[humanity] analyse failed:', err.message);
     return null;

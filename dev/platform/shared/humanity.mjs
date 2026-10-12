@@ -99,7 +99,7 @@ function key(token) {
  * occurrences of 11 distinct facts. Both are returned so the calibration run
  * has the raw figure too.
  */
-export function checkableItems(text) {
+export function checkableItems(text, known = null) {
   const out = [];
   const re = /\S+/g;
   let m;
@@ -113,11 +113,38 @@ export function checkableItems(text) {
     if (!bare) continue;
     if (/\d/.test(bare)) { out.push({ text: bare, offset, length: raw.length, kind: 'number' }); continue; }
     if (UNIT_RE.test(raw)) { out.push({ text: bare, offset, length: raw.length, kind: 'measurement' }); continue; }
-    if (/^[A-Z]/.test(bare) && !starts && !STOP.has(bare)) {
-      out.push({ text: bare, offset, length: raw.length, kind: 'proper noun' });
-    }
+    if (!/^[A-Z]/.test(bare) || STOP.has(bare)) continue;
+    // Mid-sentence capitals are proper nouns. At a sentence start the capital
+    // means nothing on its own, so one is only counted when the document proves
+    // it is a name: an acronym, or the same word used capitalised mid-sentence
+    // somewhere else. Without this a release that opens sentences with the
+    // client's name — which is most of them — reads as carrying no facts, and
+    // "BDNY is the industry's main trade show" marks as empty.
+    if (starts && !(known && known.has(key(bare)))) continue;
+    out.push({ text: bare, offset, length: raw.length, kind: 'proper noun' });
   }
   return out;
+}
+
+/**
+ * The names this document has proved are names, for the sentence-start rule
+ * above: every capitalised word used mid-sentence, plus any acronym.
+ */
+export function knownNames(text) {
+  const set = new Set();
+  const re = /\S+/g;
+  let m;
+  let atSentenceStart = true;
+  while ((m = re.exec(text))) {
+    const raw = m[0];
+    const bare = raw.replace(/^[^\w£$€]+/, '').replace(/[^\w%²]+$/, '');
+    const starts = atSentenceStart;
+    atSentenceStart = /[.!?]["'”’)]?$/.test(raw);
+    if (!bare || STOP.has(bare)) continue;
+    if (/^[A-Z]{2,}$/.test(bare)) { set.add(key(bare)); continue; }
+    if (!starts && /^[A-Z]/.test(bare)) set.add(key(bare));
+  }
+  return set;
 }
 
 /** Quotations carrying an attribution within a sentence of them. */
@@ -135,7 +162,7 @@ export function namedQuotes(text) {
 }
 
 /** Style markers. Diagnostic only — see the header. */
-function styleMarkers(body, sents) {
+function styleMarkers(body, sents, known) {
   const w = words(body).length || 1;
   const per100 = (n) => +(n / w * 100).toFixed(2);
 
@@ -149,7 +176,7 @@ function styleMarkers(body, sents) {
   const abstraction = ABSTRACTION.filter((a) => new RegExp(`\\b${a}\\b`, 'i').test(body));
   const last = sents[sents.length - 1] || '';
   const flourish = /,\s+(?:giving|allowing|ensuring|providing|creating|offering|delivering|enabling)\b[^.]*\.?$/i.test(last)
-    || (!!last && !/\d/.test(last) && !checkableItems(last).length);
+    || (!!last && !/\d/.test(last) && !checkableItems(last, known).length);
 
   return {
     coordinate_lists: { per_100: per100(coordinate.length), count: coordinate.length, flagged: per100(coordinate.length) >= 2 },
@@ -173,8 +200,9 @@ function styleMarkers(body, sents) {
  * and it is what a detector reads as generated, and the fix for it is the same
  * in both cases: go and get a fact. You cannot clear it by rewording.
  */
-export function sentenceSpans(text) {
+export function sentenceSpans(text, known = null) {
   const out = [];
+  const names = known || knownNames(text);
   const re = /[^.!?]+[.!?]*["'”’)\]]?\s*/g;
   let m;
   while ((m = re.exec(text))) {
@@ -182,7 +210,7 @@ export function sentenceSpans(text) {
     const trimmed = raw.trim();
     if (trimmed.length < 2) continue;
     const start = m.index + (raw.length - raw.trimStart().length);
-    const items = checkableItems(trimmed);
+    const items = checkableItems(trimmed, names);
     const distinct = new Set(items.map((i) => key(i.text)));
     out.push({
       text: trimmed,
@@ -391,15 +419,26 @@ export const THRESHOLDS = { target: 8, marginal: 5, basis: 'distinct', provision
 /**
  * @param {string} html   the release body
  * @param {object} brief  the fact sheet, so filled slots can be credited
+ * @param {object} opts   { names } — names the operator has already given us
  */
-export function analyse(html, brief = {}) {
+export function analyse(html, brief = {}, opts = {}) {
   const full = stripHtml(html);
   const body = stripBoilerplate(full);
   const w = words(body);
   const wordCount = w.length;
   const sents = sentences(body);
 
-  const items = checkableItems(body);
+  // Names the document proves, plus any the operator has already typed — the
+  // brand field is the one that matters, because a release whose client name
+  // only ever opens sentences has no mid-sentence use to learn from.
+  const names = knownNames(body);
+  for (const n of opts.names || []) {
+    for (const tok of String(n || '').split(/\s+/)) {
+      const k = key(tok.replace(/^[^\w£$€]+/, '').replace(/[^\w%²]+$/, ''));
+      if (k && k.length > 1) names.add(k);
+    }
+  }
+  const items = checkableItems(body, names);
   const distinctMap = new Map();
   for (const it of items) if (!distinctMap.has(key(it.text))) distinctMap.set(key(it.text), it);
   const distinct = [...distinctMap.values()];
@@ -454,7 +493,7 @@ export function analyse(html, brief = {}) {
     : density >= THRESHOLDS.marginal ? 'marginal' : 'not_ready';
 
   // Sentence-level view, for the meter and the inline highlighting.
-  const spans = sentenceSpans(body);
+  const spans = sentenceSpans(body, names);
   const bareWords = spans.filter((sp) => sp.bare).reduce((n, sp) => n + sp.words, 0);
   // Measured by WORDS rather than by sentence count, so one long factless
   // paragraph is not scored the same as one short factless aside.
@@ -463,7 +502,7 @@ export function analyse(html, brief = {}) {
   const tells = aiTells(body);
   const human = humanScore({
     text: body, words: wordCount, tells, density,
-    cv: styleMarkers(body, sents).sentence_length_cv.value, bare_pct: barePct,
+    cv: styleMarkers(body, sents, names).sentence_length_cv.value, bare_pct: barePct,
   });
 
   return {
@@ -486,9 +525,9 @@ export function analyse(html, brief = {}) {
     moves_filled: moves.filter((m) => m.filled).length,
     gaps,
     verdict,
-    style: styleMarkers(body, sents),
+    style: styleMarkers(body, sents, names),
     thresholds: THRESHOLDS,
   };
 }
 
-export default { analyse, checkableItems, namedQuotes, sentenceSpans, aiTells, humanScore, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };
+export default { analyse, checkableItems, knownNames, namedQuotes, sentenceSpans, aiTells, humanScore, stripHtml, stripBoilerplate, MOVES, THRESHOLDS };

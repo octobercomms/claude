@@ -1376,8 +1376,8 @@ router.patch('/press-releases/:prId', async (req, res) => {
     // stored figure is the server's own and not something a browser asserted.
     if (typeof b.body_html === 'string' || b.brief_json) {
       try {
-        const cur = (await db.query('SELECT body_html, brief_json FROM pr_press_releases WHERE id = $1', [req.params.prId])).rows[0];
-        const reading = await humanity.analyse(cur?.body_html, cur?.brief_json);
+        const cur = (await db.query('SELECT body_html, brief_json, brand FROM pr_press_releases WHERE id = $1', [req.params.prId])).rows[0];
+        const reading = await humanity.analyse(cur?.body_html, cur?.brief_json, { names: [cur?.brand] });
         if (reading) {
           await db.query(
             'UPDATE pr_press_releases SET humanity_json = $1, humanity_checked_at = NOW() WHERE id = $2',
