@@ -37,6 +37,7 @@ final class Activator {
         AuditLog::install();
         VolunteerSignups::install();
         \OE\Volunteers\Pool\Schema::install();
+        \OE\People\Schema::install();
         \OE\Ticketing\Schema::install();
         \OE\Tasks\Schema::install();
         \OE\Survey\Schema::install();

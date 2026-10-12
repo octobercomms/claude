@@ -82,6 +82,7 @@ final class Admin {
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $sc('volunteers'), 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
+        if ($f('contacts'))     { add_submenu_page('october-events', 'People', 'People', $sc('contacts'), 'oe-people', [\OE\Admin\PeopleScreen::class, 'render']); }
         if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
         add_submenu_page('october-events', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
         // Reachable by URL from the Membership settings, not shown in the menu.

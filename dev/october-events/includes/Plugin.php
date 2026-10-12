@@ -81,6 +81,7 @@ final class Plugin {
             Admin::get_instance()->init();
             \OE\Admin\SectionAccess::init();
             \OE\Admin\ContextSettings::init();
+            \OE\Admin\PeopleScreen::init();
             // Ensure roles carry their section caps (idempotent; runs once per
             // version marker so admins always have them before the menu builds).
             if (get_option('oe_secaccess_v') !== '1') {
