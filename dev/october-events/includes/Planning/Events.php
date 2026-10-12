@@ -48,6 +48,29 @@ final class Events {
         'brand_colour_image' => 'int',   // attachment ID for the colour/hero image
         'ticket_link'        => 'url',   // external ticketing URL (blank = native checkout)
         'ticket_link_text'   => 'text',  // button label for the external link
+        // Structured fields (FIELD-MAPPING §structured): replace the old
+        // HTML-in-a-field patterns with data the template renders. Availability
+        // retires the sat_only/sun_only switcher pair; the status badge is a
+        // preset (dropdown, brand colour + readable text) for exceptions only.
+        'availability'       => 'text',  // saturday | sunday | both | specific | ''
+        'status_preset'      => 'text',  // new | rescheduled | soldout | cancelled | ''
+        'status_text'        => 'text',  // optional custom label; else derived from preset
+    ];
+
+    /** Availability choice => label. '' (default) shows no availability note. */
+    public const AVAILABILITY = [
+        'saturday' => 'Saturday',
+        'sunday'   => 'Sunday',
+        'both'     => 'Saturday & Sunday',
+        'specific' => 'Specific date',
+    ];
+
+    /** Status preset => [label, background, text colour]. Brand-approved, accessible. */
+    public const STATUS_PRESETS = [
+        'new'         => ['New', '#2e7d32', '#ffffff'],
+        'rescheduled' => ['Rescheduled', '#b86e00', '#ffffff'],
+        'soldout'     => ['Sold out', '#c62828', '#ffffff'],
+        'cancelled'   => ['Cancelled', '#555555', '#ffffff'],
     ];
 
     public static function slug(): string {
