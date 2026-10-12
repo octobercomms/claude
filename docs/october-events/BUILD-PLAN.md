@@ -89,6 +89,14 @@ and never overwrites JetEngine meta.
   retiring `sat_only` / `sun_only`), and the **preset-first status badge**
   (`{text, preset}`, dropdown not raw color picker, custom color as escape hatch
   only). No pasted HTML in any field.
+- **Second-tenant base fields (Concrete Communities parity).** Add the three
+  fields CC/ADF already run in ACF that the single-tenant model missed: a
+  **per-listing brand colour + image** (distinct from the category colour and the
+  status preset; CC paints the whole page from it), a **reference number**
+  (`event_number`), and a **ticketing external-link mode** on the Tickets pack
+  (`ticket_link` + link text) so a listing can link out (EventBrite today) instead
+  of selling natively, and switch to native later. Exposed as Elementor dynamic
+  tags in M3 so bespoke templates bind to them.
 
 ### 1.3 Own CPT + migrator (de-Jet Phase A)
 - Mode-aware own registration for `events` / `volunteer` (reuse
@@ -130,6 +138,15 @@ fields, and the migrator can dry-run ADF's and the tours' content into the model
   rendering. **Leave settings-driven branding hooks in** (brand color, logo, type)
   even though only the reference tenant's values are set, so A4 in SCOPE-GAPS is
   not a retrofit.
+- **Section theming tokens (the "native, not an embed" contract).** Sections
+  render presentation-light and inherit the theme (type, colour) with no plugin
+  chrome. A small token set (accent + accent-text, font source, radius, border
+  width, button style/shape, control height, spacing), set per-site and
+  overridable per section, drives the functional parts (ticket rows, pay button)
+  and **feeds the Stripe Elements appearance API** so the card iframe matches too.
+  Part-classes (`.oe-ticket-row`, `.oe-checkout__pay`, …) are the Elementor-custom-
+  CSS escape hatch. **No per-element CSS editor** in settings — Elementor owns the
+  frame. Detail in [`UI-SPEC.md`](UI-SPEC.md) §4.
 - de-Jet **Phase D**: own filtering / facets over the listing REST endpoints,
   replacing JetSmartFilters. Filter by category / type / year / city /
   past|upcoming; a filterable past archive (the ~200-event and past-tours case);
@@ -145,10 +162,14 @@ reads plugin data, and the archives filter at the real content volume.
 ## M3 — Elementor bridge
 
 - de-Jet **Phase E**: Elementor-compatible widgets + dynamic tags exposing plugin
-  data, loaded only when Elementor is active, never requiring JetEngine.
+  data, loaded only when Elementor is active, never requiring JetEngine. The
+  dynamic tags must include the second-tenant fields (brand colour/image, ticket
+  link, reference number) so a bespoke template like Concrete Communities' can
+  paint the page and wire the ticket button without JetEngine.
 
-Done when: ADF's bespoke Elementor pages can be rebuilt against plugin data with
-no JetEngine present. This is the technical precondition for the cutover.
+Done when: ADF's bespoke Elementor pages — and a second bespoke tenant like CC —
+can be rebuilt against plugin data with no JetEngine present. This is the
+technical precondition for the cutover.
 
 ---
 
