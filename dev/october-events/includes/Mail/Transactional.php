@@ -25,6 +25,7 @@ final class Transactional {
         'submission_rejected_refund' => 'About your submission (refunded)',
         'payment_confirmed'          => 'Payment received',
         'ticket_delivery'            => 'Your tickets',
+        'waitlist_spot'              => 'A spot has opened for %2$s',
         'volunteer_confirmed'        => 'Your volunteer shift is confirmed',
         'volunteer_declined'         => 'About your volunteer signup',
         'volunteer_moved'            => 'Your volunteer shift has changed',
