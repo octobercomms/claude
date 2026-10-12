@@ -80,6 +80,10 @@ const SETTINGS_KEYS = [
   // button press only, under the detector_check task budget. Optional:
   // without it the detector reading is simply absent.
   'PANGRAM_API_KEY',
+  // The detection base URL. Documented only inside a code block, so it is a
+  // setting rather than a constant: read it off docs.pangram.com and paste it
+  // here, then press "Test the connection".
+  'PANGRAM_API_URL',
   'OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_PORT', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD',
   'N8N_WEBHOOK_BASE_URL',
   'EMAIL_PROVIDER',

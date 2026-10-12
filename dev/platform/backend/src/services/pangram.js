@@ -36,10 +36,18 @@ const FEATURE = 'pangram_detect';
 // $0.05 per 100 words, from the developer pricing page.
 const USD_PER_100_WORDS = 0.05;
 
+// INFERRED, and known to be unreachable as of 12 October 2026.
+//
 // The docs give the file-upload host as file-external.api.pangram.com and the
-// detection host in a code block that did not survive the PDF. This is the
-// parallel name, and GET /models proves or disproves it for nothing — which is
-// why that probe exists rather than another guess.
+// detection host only inside a code block, which is an image in the PDF the
+// docs were read from. This is the parallel name and it does not resolve, so
+// the real host has to be read off the documentation and set as
+// PANGRAM_API_URL in Settings.
+//
+// No candidate hosts are probed automatically. Discovery would mean sending the
+// API key to a hostname nobody has verified, and a guessed host someone else
+// owns is a leaked credential. The key only ever goes where an operator has
+// pointed it.
 const DEFAULT_BASE = 'https://text-external.api.pangram.com';
 
 const POLL_INTERVAL_MS = 1500;
@@ -88,11 +96,24 @@ function describeStatus(status, body) {
 }
 
 async function call(path, { method = 'GET', body, key, base } = {}) {
-  const res = await fetch(`${base}${path}`, {
-    method,
-    headers: { 'x-api-key': key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  let res;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method,
+      headers: { 'x-api-key': key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch (cause) {
+    // Node's fetch says only "fetch failed" when a host does not resolve, which
+    // tells an operator nothing. Name the host that was tried and what to do.
+    const err = new Error(
+      `Could not reach ${base} — ${cause.message}. `
+      + 'If that host is wrong, set the correct one as PANGRAM_API_URL in Settings → Keys.'
+    );
+    err.status = 502;
+    err.code = 'PANGRAM_UNREACHABLE';
+    throw err;
+  }
   const raw = await res.text();
   if (!res.ok) {
     const err = new Error(describeStatus(res.status, raw));
