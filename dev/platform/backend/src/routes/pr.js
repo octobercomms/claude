@@ -1569,9 +1569,11 @@ router.get('/press-releases/:prId/detector-detail', requireAdmin, async (req, re
     pct: rows[0].pangram_pct == null ? null : Number(rows[0].pangram_pct),
     checked_at: rows[0].pangram_checked_at,
     // Named separately because it decides whether the document can be
-    // highlighted sentence by sentence or only scored as a whole.
-    has_segments: !!(stored?.segments?.items?.length),
-    segment_count: stored?.segments?.items?.length || 0,
+    // highlighted segment by segment or only scored as a whole. The field is
+    // `windows` on the documented API; an earlier `segments` shape came from the
+    // legacy host and never carried any.
+    has_segments: !!(stored?.windows?.length),
+    segment_count: stored?.windows?.length || 0,
     raw: stored,
   });
 });
