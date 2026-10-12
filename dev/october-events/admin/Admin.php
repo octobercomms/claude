@@ -60,31 +60,33 @@ final class Admin {
     }
 
     public function register_menu(): void {
-        $cap = 'manage_options';
+        // Each section is gated by its own capability (see Admin\SectionAccess).
+        // Administrators hold them all, so this is identical to the old
+        // manage_options gate until sections are assigned to other roles.
+        $sc = static fn(string $section): string => SectionAccess::cap($section);
 
         $brand = (string) \OE\Settings::get('brand_name', 'October Events');
-        add_menu_page($brand, $brand, $cap, 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
-        add_submenu_page('october-events', 'Dashboard', 'Dashboard', $cap, 'october-events', [$this, 'page_dashboard']);
+        add_menu_page($brand, $brand, $sc('dashboard'), 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
+        add_submenu_page('october-events', 'Dashboard', 'Dashboard', $sc('dashboard'), 'october-events', [$this, 'page_dashboard']);
         // Events: the native CPT list (managed in WordPress / JetEngine).
-        add_submenu_page('october-events', 'Events', 'Events', $cap, 'edit.php?post_type=' . PostTypes::slug('event'));
-        // Tickets: registrations + promo codes live here as tabs.
+        add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'edit.php?post_type=' . PostTypes::slug('event'));
         // Per-site feature toggles (Settings → Features) hide the modules a site
-        // doesn't use. Dashboard, Events and Settings are always available.
+        // doesn't use; section capabilities hide the ones a user isn't granted.
         $f = static fn(string $key): bool => \OE\Features::enabled($key);
-        if ($f('tickets'))      { add_submenu_page('october-events', 'Tickets', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']); }
-        if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $cap, 'oe-directory', fn() => $this->page_listing('directory')); }
-        if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $cap, 'oe-destinations', fn() => $this->page_listing('destination')); }
-        if ($f('products'))     { add_submenu_page('october-events', 'Products', 'Products', $cap, 'oe-products', fn() => $this->page_listing('product')); }
-        if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story')); }
-        if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']); }
-        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
-        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteer pool', 'Volunteer pool', $cap, 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
-        if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
-        if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $cap, 'edit.php?post_type=' . PostTypes::slug('package')); }
-        add_submenu_page('october-events', 'Countdown', 'Countdown', $cap, 'oe-countdown', [$this, 'page_countdown']);
+        if ($f('tickets'))      { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
+        if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $sc('directory'), 'oe-directory', fn() => $this->page_listing('directory')); }
+        if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $sc('destinations'), 'oe-destinations', fn() => $this->page_listing('destination')); }
+        if ($f('products'))     { add_submenu_page('october-events', 'Products', 'Products', $sc('products'), 'oe-products', fn() => $this->page_listing('product')); }
+        if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
+        if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $sc('accounts'), 'oe-accounts', [$this, 'page_accounts']); }
+        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $sc('volunteers'), 'oe-volunteers', [$this, 'page_volunteers']); }
+        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
+        if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
+        if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
+        add_submenu_page('october-events', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
         // Reachable by URL from the Membership settings, not shown in the menu.
-        add_submenu_page('', 'Membership repair', '', $cap, 'oe-membership-repair', [$this, 'page_membership_repair']);
-        add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
+        add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
+        add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
     }
 
     /* ----------------------------------------------------------------- *

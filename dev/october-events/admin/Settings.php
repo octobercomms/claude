@@ -446,6 +446,7 @@ final class Settings {
             'packages_wizard_page' => esc_url_raw(trim((string) ($in['packages_wizard_page'] ?? ''))),
             'volunteer_windows'    => \OE\Volunteers\Pool\Windows::parse((string) ($in['volunteer_windows'] ?? '')),
             'double_optin'         => ! empty($in['double_optin']),
+            'section_access'       => SectionAccess::sanitize_map($in['section_access'] ?? []),
             // Section theming tokens (M2). Short, free-text CSS token values; the
             // renderer sanitises again before emitting them, so this keeps them
             // tidy without constraining to a fixed unit.
@@ -622,6 +623,9 @@ final class Settings {
         foreach ((array) Config::get('member_tiers', []) as $oe_tier) {
             \OE\Connectors\StripeConnector::bust_members_list((array) ($oe_tier['price_ids'] ?? []));
         }
+
+        // Push the section-access map onto the WordPress roles.
+        SectionAccess::sync();
 
         // On the site that sells the tickets, make sure this year's volunteer code
         // exists as soon as the feature is set up (a no-op elsewhere).

@@ -79,6 +79,13 @@ final class Plugin {
         // Interfaces.
         if (is_admin()) {
             Admin::get_instance()->init();
+            \OE\Admin\SectionAccess::init();
+            // Ensure roles carry their section caps (idempotent; runs once per
+            // version marker so admins always have them before the menu builds).
+            if (get_option('oe_secaccess_v') !== '1') {
+                \OE\Admin\SectionAccess::sync();
+                update_option('oe_secaccess_v', '1', false);
+            }
             \OE\Planning\Metabox::init();
             \OE\Packs\Metabox::init();
             \OE\GuidedTours\Metabox::init();

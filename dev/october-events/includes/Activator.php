@@ -46,6 +46,7 @@ final class Activator {
         \OE\Mail\Lists::install();
         \OE\Mail\Campaigns::install();
         self::fix_option_autoload();
+        \OE\Admin\SectionAccess::sync();
         update_option('oe_db_version', OE_DB_VERSION);
     }
 
