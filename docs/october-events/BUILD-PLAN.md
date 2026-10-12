@@ -211,7 +211,13 @@ the two retirements are complete. **This is "working for ADF."**
 
 ## M5 — Refine (the iron-out-the-detail pass)
 
-Across a live cycle, in any order as issues surface:
+Across a live cycle, in any order as issues surface.
+
+**Access-control primitive shipped (v1.211.0).** `OE\Access` + `[oe_gate]` give
+one default-open entitlement check (any membership, a named tier, or
+guest-only) that packages, member sections and supporter perks all gate
+through. A full section-level dashboard-capabilities system and the CRM /
+settings-in-context items below are still open.
 
 - **Track A cheap wins** (if not already shipped in parallel): comp flag +
   reporting exclusion, end-of-event report, customer account dashboard, the rest
@@ -284,10 +290,14 @@ wiring templates and triggers, not new infrastructure.
   offboarding) — tracked in [`CREW-MODULE.md`](CREW-MODULE.md), listed here for
   completeness.
 - **Configurable double opt-in** on list sign-up.
-- **GDPR confirmations.** Data-export-ready and erasure-complete emails, wired to
-  the WP privacy hooks (pairs with the GDPR work in UI-SPEC §6).
-- **Monthly digest.** Finish and enable it (`Cron::DIGEST_ENABLED` is `false`
-  today).
+- **GDPR. Shipped (v1.210.0).** `OE\Privacy` registers personal-data exporters
+  and erasers with WP core (Tools → Export/Erase Personal Data): export returns
+  the subject's orders, tickets, waitlist and marketing contact; erase
+  anonymises the transactional records and deletes the rest. Core sends the
+  confirmation emails. Survey responses are excluded (HMAC token, no PII).
+- **Monthly digest.** Still off: `Cron::DIGEST_ENABLED` is deliberately `false`
+  pending finalised newsletter content/design (an owner decision, not a code
+  gap). Flip it once the newsletter is ready.
 - **SMS beyond volunteers.** Extend SMS to order/waitlist events, gated on an
   explicit checkout opt-in.
 
@@ -314,8 +324,12 @@ demographics.
 - **Post-event survey.** The per-location survey toggle already generalises to
   any listing via `Survey\Config::post_type()`; **its results now feed the
   event report** (v1.205.1). The survey builder/sender were already in place.
-- **Volunteer pool.** A reusable pool across cycles (retention, no-show history,
-  allocation), building on the volunteer profiles and the no-show/abuse flag.
+- **Volunteer pool.** Early-recruitment backbone shipped (v1.212.0):
+  `OE\Volunteers\Pool` — recruitment windows (date × time × role × target), the
+  public `[oe_volunteer_pool_signup]` form, and an admin board of target vs
+  signed-up. The distance-sorted slot picker (needs a ZIP→lat/long table) and
+  invite-to-pick / cover / auto-match (steps 1, 3, 4 of `volunteer-pool.md`)
+  remain.
 
 Done when: an organiser can read a single post-event report, send a survey, and
 work from a persistent volunteer pool rather than re-recruiting each cycle.
