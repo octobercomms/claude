@@ -20,6 +20,8 @@ import ClientBrandPage from './pages/ClientBrandPage';
 import ApprovePage from './pages/ApprovePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
+// Temporary: the checker calibration bench. Goes when the thresholds are set.
+import CheckerBenchPage from './pages/CheckerBenchPage';
 import SnapshotStudioPage from './pages/SnapshotStudioPage';
 import TenderWorkspacePage from './pages/TenderWorkspacePage';
 import SettingsPage from './pages/SettingsPage';
@@ -121,6 +123,7 @@ export default function App() {
             <Route path="proposals" element={<Navigate to="/settings?tab=proposals" replace />} />
             <Route path="proposals/:id" element={<ProposalEditorPage />} />
             <Route path="guide" element={<GuidePage />} />
+            <Route path="lab/checker" element={<CheckerBenchPage />} />
             <Route path="design" element={<DesignSystemPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="contacts/cleanup" element={<ContactCleanupPage />} />
