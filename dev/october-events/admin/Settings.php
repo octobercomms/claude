@@ -443,6 +443,18 @@ final class Settings {
             'adoption_mode'    => in_array((string) ($in['adoption_mode'] ?? 'auto'), ['auto', 'on', 'off'], true)
                 ? (string) ($in['adoption_mode'] ?? 'auto') : 'auto',
             'entitlement_tier' => sanitize_key((string) ($in['entitlement_tier'] ?? 'full')) ?: 'full',
+            // Section theming tokens (M2). Short, free-text CSS token values; the
+            // renderer sanitises again before emitting them, so this keeps them
+            // tidy without constraining to a fixed unit.
+            'section_accent'         => sanitize_text_field((string) ($in['section_accent'] ?? '')),
+            'section_accent_on'      => sanitize_text_field((string) ($in['section_accent_on'] ?? '')),
+            'section_radius'         => sanitize_text_field((string) ($in['section_radius'] ?? '6px')),
+            'section_border_width'   => sanitize_text_field((string) ($in['section_border_width'] ?? '1px')),
+            'section_button_style'   => in_array((string) ($in['section_button_style'] ?? 'filled'), ['filled', 'outline', 'ghost'], true)
+                ? (string) ($in['section_button_style'] ?? 'filled') : 'filled',
+            'section_spacing'        => sanitize_text_field((string) ($in['section_spacing'] ?? '1.5rem')),
+            'section_control_height' => sanitize_text_field((string) ($in['section_control_height'] ?? '44px')),
+            'section_font'           => sanitize_text_field((string) ($in['section_font'] ?? '')),
             'event_field_map'  => $event_field_map,
             'guided_enabled'   => ! empty($in['guided_enabled']),
             'guided_require_names' => ! empty($in['guided_require_names']),
