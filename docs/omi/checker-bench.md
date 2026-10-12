@@ -7,6 +7,13 @@ Temporary. Built to answer one question, and deleted when it has.
 Does October's deterministic humanity checker predict anything a trained
 detector agrees with, on October's own writing?
 
+**First verified pair, 12 October 2026.** A release confirmed by its author as
+written entirely by a model: October **92**, Pangram **86.56%** AI. The
+dashboard gave 87% on the same text, so the integration reads the detector
+correctly. One pair is not a correlation, and the corpus needs human-written
+specimens before it can say anything at all — "always say human" scores 87% on a
+corpus of twenty cold and three AI.
+
 The evidence that prompted it: one 678-word Indiewalls release, run through four
 detectors on 12 October 2026.
 
@@ -95,12 +102,15 @@ writes it. An earlier version of the service asked `getSetting` for
 `pangram_api_key` in lower case, which meant a key typed into Settings was
 stored, encrypted, and then never read by anything.
 
-**The base URL has to be set by hand.** `PANGRAM_API_URL`, in Settings → Keys →
-Outreach finders. The docs give the detection host only inside a code block,
-which is an image in the exported PDF, so it cannot be read programmatically.
-The built-in default follows the naming of the documented file-upload host
-(`file-external.api.pangram.com`) and **does not resolve** — a call against it
-fails with "Could not reach …".
+**Base URL:** `https://text.external-api.pangram.com`, confirmed against the live
+API on 12 October 2026. `PANGRAM_API_URL` in Settings → Keys → Outreach finders
+overrides it.
+
+Mind the shape of that hostname. File uploads go to
+`file-external.api.pangram.com`, so the obvious parallel for detection is
+`text-external.api.pangram.com` — which was tried, and does not resolve. The
+dots and hyphens fall in different places between the two hosts. The
+documentation is the only authority here; symmetry is not.
 
 Candidate hosts are deliberately never probed automatically. Discovery would
 mean sending the API key to a hostname nobody has verified, and a guessed host

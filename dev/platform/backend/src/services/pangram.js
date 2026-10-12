@@ -36,19 +36,20 @@ const FEATURE = 'pangram_detect';
 // $0.05 per 100 words, from the developer pricing page.
 const USD_PER_100_WORDS = 0.05;
 
-// INFERRED, and known to be unreachable as of 12 October 2026.
+// Confirmed against the live API on 12 October 2026: a release this scored 92
+// came back 86.56% AI here and 87% on pangram.com's dashboard.
 //
-// The docs give the file-upload host as file-external.api.pangram.com and the
-// detection host only inside a code block, which is an image in the PDF the
-// docs were read from. This is the parallel name and it does not resolve, so
-// the real host has to be read off the documentation and set as
-// PANGRAM_API_URL in Settings.
+// Note the shape. The file-upload host is file-external.api.pangram.com, so the
+// obvious parallel for detection is text-external.api.pangram.com — and that
+// was tried, and does not resolve. The dots and hyphens fall in different
+// places between the two. Symmetry was a bad guess and the documentation is the
+// only authority; PANGRAM_API_URL overrides this if it ever moves.
 //
 // No candidate hosts are probed automatically. Discovery would mean sending the
 // API key to a hostname nobody has verified, and a guessed host someone else
 // owns is a leaked credential. The key only ever goes where an operator has
 // pointed it.
-const DEFAULT_BASE = 'https://text-external.api.pangram.com';
+const DEFAULT_BASE = 'https://text.external-api.pangram.com';
 
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 90_000;
