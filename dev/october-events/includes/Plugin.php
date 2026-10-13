@@ -95,6 +95,7 @@ final class Plugin {
             }
             \OE\Planning\Metabox::init();
             \OE\Packs\Metabox::init();
+            \OE\Packs\SectionReference::init();
             \OE\Packs\Content\ConferenceMeta::init();
             \OE\Packs\Content\ExhibitionMeta::init();
             \OE\Packs\Content\TourMeta::init();
