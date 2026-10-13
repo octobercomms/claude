@@ -84,6 +84,8 @@ final class Plugin {
         \OE\Admin\Social::get_instance()->init();
         // Social scheduler: CPT + cron publisher + OAuth/schedule handlers.
         \OE\Social\Scheduler::get_instance()->init();
+        // schema.org JSON-LD on single listing pages (wp_head, front end only).
+        \OE\Seo\Schema::init();
 
         // Interfaces.
         if (is_admin()) {
