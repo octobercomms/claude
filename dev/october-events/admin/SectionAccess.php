@@ -65,6 +65,31 @@ final class SectionAccess {
         // Block direct access to the two CPT list screens (events, packages)
         // whose menu cap WordPress doesn't enforce on edit.php itself.
         add_action('current_screen', [self::class, 'guard_cpt_screens']);
+        // Portal-only roles (Door crew, Organizer): no wp-admin, no admin bar.
+        add_action('admin_init', [self::class, 'enforce_portal'], 1);
+        add_filter('show_admin_bar', [self::class, 'filter_admin_bar']);
+    }
+
+    /** Redirect portal-only users out of wp-admin to the front-end portal. */
+    public static function enforce_portal(): void {
+        if (wp_doing_ajax() || (defined('DOING_CRON') && DOING_CRON)) {
+            return;
+        }
+        // Leave the form/async endpoints the portal itself may post to.
+        $script = isset($_SERVER['PHP_SELF']) ? basename((string) $_SERVER['PHP_SELF']) : '';
+        if (in_array($script, ['admin-post.php', 'admin-ajax.php', 'async-upload.php'], true)) {
+            return;
+        }
+        if (! self::current_user_is_portal_only()) {
+            return;
+        }
+        wp_safe_redirect(self::portal_url());
+        exit;
+    }
+
+    /** Hide the admin bar on the front end for portal-only users. */
+    public static function filter_admin_bar($show) {
+        return self::current_user_is_portal_only() ? false : $show;
     }
 
     /** wp_die on a gated CPT list screen the current user wasn't granted. */
@@ -103,18 +128,87 @@ final class SectionAccess {
     }
 
     /**
-     * Preset section bundles, for one-click assignment on the access screen.
+     * Named role presets, for one-click assignment on the access screen.
      *
-     * @return array<string,array{label:string,sections:array<int,string>}>
+     * `portal` marks a preset whose people work from the front-end portal and
+     * never need wp-admin (Door crew, Organizer): applying it ticks the
+     * "portal only" box so those users are redirected out of wp-admin.
+     *
+     * @return array<string,array{label:string,sections:array<int,string>,portal:bool}>
      */
     public static function presets(): array {
         return [
-            'none'  => ['label' => __('No access', 'october-events'), 'sections' => []],
-            'front' => ['label' => __('Front of house', 'october-events'), 'sections' => ['tickets', 'volunteers', 'team']],
-            'content' => ['label' => __('Content', 'october-events'), 'sections' => ['events', 'directory', 'destinations', 'stories', 'packages']],
-            'marketing' => ['label' => __('Marketing', 'october-events'), 'sections' => ['contacts', 'ads', 'accounts']],
-            'all'   => ['label' => __('Everything', 'october-events'), 'sections' => array_keys(self::SECTIONS)],
+            'director'  => ['label' => __('Director', 'october-events'),  'sections' => array_keys(self::SECTIONS), 'portal' => false],
+            'lead'      => ['label' => __('Lead', 'october-events'),      'sections' => ['dashboard', 'events', 'tickets', 'volunteers', 'team', 'contacts', 'accounts'], 'portal' => false],
+            'door'      => ['label' => __('Door crew', 'october-events'), 'sections' => ['tickets'], 'portal' => true],
+            'organizer' => ['label' => __('Organizer', 'october-events'), 'sections' => ['events', 'packages'], 'portal' => true],
+            'none'      => ['label' => __('No access', 'october-events'),  'sections' => [], 'portal' => false],
         ];
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Portal-only roles: blocked from wp-admin, sent to the front-end portal
+     * ------------------------------------------------------------------ */
+
+    /** Role slugs whose users work from the portal and never reach wp-admin. */
+    public static function portal_only_roles(): array {
+        $r = Settings::get('section_portal_only', []);
+        return is_array($r) ? array_values(array_filter(array_map('strval', $r))) : [];
+    }
+
+    /** Persist the portal-only role list (sanitised to assignable roles). */
+    public static function save_portal_only(array $roles): void {
+        $valid = array_keys(self::assignable_roles());
+        $clean = array_values(array_intersect($valid, array_map('sanitize_key', $roles)));
+        Settings::update(['section_portal_only' => $clean]);
+        delete_transient('oe_portal_url');
+    }
+
+    /** Is the current user confined to the portal (never an administrator)? */
+    public static function current_user_is_portal_only(): bool {
+        if (! is_user_logged_in() || current_user_can('manage_options')) {
+            return false;
+        }
+        $portal = self::portal_only_roles();
+        if (! $portal) {
+            return false;
+        }
+        $roles = (array) (wp_get_current_user()->roles ?? []);
+        return (bool) array_intersect($roles, $portal);
+    }
+
+    /**
+     * Where portal-only users are sent: the configured page, else a page that
+     * hosts a portal shortcode, else the site root. Never a wp-admin URL (that
+     * would loop against the redirect below).
+     */
+    public static function portal_url(): string {
+        $set = (string) Settings::get('portal_page_url', '');
+        $url = $set !== '' ? esc_url_raw($set) : self::detect_portal_url();
+        $path = (string) wp_parse_url((string) $url, PHP_URL_PATH);
+        if ($url === '' || strpos($path, '/wp-admin') !== false) {
+            $url = home_url('/');
+        }
+        return (string) $url;
+    }
+
+    /** Find (and cache for a day) a published page that hosts a portal shortcode. */
+    private static function detect_portal_url(): string {
+        $cached = get_transient('oe_portal_url');
+        if ($cached !== false) {
+            return (string) $cached;
+        }
+        $url   = '';
+        $pages = get_posts(['post_type' => 'page', 'post_status' => 'publish', 'numberposts' => 200, 'fields' => 'ids']);
+        foreach ($pages as $pid) {
+            $content = (string) get_post_field('post_content', (int) $pid);
+            if (has_shortcode($content, 'oe_team_portal') || has_shortcode($content, 'oe_organizer_portal')) {
+                $url = (string) get_permalink((int) $pid);
+                break;
+            }
+        }
+        set_transient('oe_portal_url', $url, DAY_IN_SECONDS);
+        return $url;
     }
 
     /**

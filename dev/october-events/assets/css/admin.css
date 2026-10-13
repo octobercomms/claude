@@ -311,6 +311,9 @@
 .oe-admin .oe-access-grid th.oe-access-col{ text-align:center; vertical-align:bottom; height:120px; padding:6px 4px; }
 .oe-admin .oe-access-grid th.oe-access-col span{ writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; font-size:11px; font-weight:700; color:#555; }
 .oe-admin .oe-access-cell{ text-align:center; }
+.oe-admin .oe-access-grid th.oe-access-portalcol{ text-align:center; vertical-align:bottom; padding:6px 8px; }
+.oe-admin .oe-access-grid th.oe-access-portalcol span{ writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; font-size:11px; font-weight:700; color:#b8450f; }
+.oe-admin .oe-access-portalcell{ background:rgba(221,75,20,.05); }
 .oe-admin .oe-access-presets{ margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; }
 .oe-admin .oe-access-presets .button{ font-size:11px; height:auto; padding:1px 8px; line-height:1.8; }
 
