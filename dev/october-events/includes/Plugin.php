@@ -94,6 +94,8 @@ final class Plugin {
             \OE\Admin\TaxonomyScreen::init();
             \OE\Admin\PorterScreen::init();
             \OE\Admin\FirstRun::init();
+            \OE\Locations\Meta::init();
+            \OE\Admin\LocationsScreen::init();
             // Ensure roles carry their section caps (idempotent; runs once per
             // version marker so admins always have them before the menu builds).
             if (get_option('oe_secaccess_v') !== '1') {

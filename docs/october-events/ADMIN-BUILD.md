@@ -46,7 +46,7 @@ explicitly commissioned.
 
 | # | Item | Build | Status |
 |---|------|-------|--------|
-| R1 | Tour locations CPT | Promote per-event locations repeater to a native `oe_location` type; migrate the JetEngine `portfolio` entries; credits/availability/gallery/guided slots/own volunteers | todo |
+| R1 | Tour locations CPT | Native `oe_location` type + metabox + dry-runnable promotion migrator from the Tour repeater | shipped v1.246.0 |
 | R2 | Demographics | Consent-gated demographic capture + aggregate reporting | todo |
 | R3 | Monthly digest | Finalise the digest content hooks and enable `Cron::DIGEST_ENABLED` | todo |
 | R4 | Organizer briefings + checklist | The partner-portal briefings list + checklist data model | todo |
