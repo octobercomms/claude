@@ -66,8 +66,7 @@ final class PeopleScreen {
         $people = Segments::query($rules, $term, 200);
 
         echo '<div class="wrap oe-admin oe-crm">';
-        echo '<h1 style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span>' . esc_html__('People', 'october-events') . '</span>'
-            . '<span class="oe-crm-total">' . esc_html(number_format_i18n((int) Repository::count())) . '</span></h1>';
+        \OE\Admin\Admin::people_header('crm', '<a class="button" href="' . esc_url(admin_url('admin.php?page=oe-contacts')) . '">' . esc_html__('Contacts &amp; lists', 'october-events') . '</a> <span class="oe-crm-total">' . esc_html(number_format_i18n((int) Repository::count())) . '</span>');
         \OE\Admin\Admin::bento('contacts');
 
         self::notices();

@@ -406,3 +406,14 @@
 .oe-admin .oe-tix-morelink span{ font-size:12px; color:#888; }
 @media (max-width:1100px){ .oe-admin .oe-tix-morelinks{ grid-template-columns:1fr; } }
 @media (max-width:782px){ .oe-admin .oe-tix-lsearch{ min-width:0; width:100%; } }
+
+/* ---- People hub header (Accounts / Volunteers / Team / CRM) ---------- */
+.oe-admin .oe-people-h1{ margin:6px 0 10px; }
+.oe-admin .oe-people-bar{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:0 0 18px; }
+.oe-admin .oe-people-tabs{ display:inline-flex; background:#f3f3f3; border:2px solid #e3e2db; border-radius:999px; padding:3px; gap:2px; }
+.oe-admin .oe-people-tab{ text-decoration:none; font-size:13px; font-weight:700; color:#555; padding:7px 18px; border-radius:999px; line-height:1.2; }
+.oe-admin .oe-people-tab:hover{ color:#1a1a1a; }
+.oe-admin .oe-people-tab.is-on{ background:#1a1a1a; color:#fff; }
+.oe-admin .oe-people-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.oe-admin .oe-people-actions .oe-crm-total{ font-size:12px; font-weight:700; color:#888; }
+@media (max-width:782px){ .oe-admin .oe-people-bar{ gap:10px; } .oe-admin .oe-people-tabs{ width:100%; justify-content:space-between; } .oe-admin .oe-people-tab{ padding:7px 12px; } }
