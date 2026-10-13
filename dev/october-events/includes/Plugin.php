@@ -96,6 +96,7 @@ final class Plugin {
             \OE\Admin\FirstRun::init();
             \OE\Locations\Meta::init();
             \OE\Admin\LocationsScreen::init();
+            \OE\Admin\BriefingsScreen::init();
             // Ensure roles carry their section caps (idempotent; runs once per
             // version marker so admins always have them before the menu builds).
             if (get_option('oe_secaccess_v') !== '1') {
