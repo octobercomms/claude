@@ -35,7 +35,7 @@ explicitly commissioned.
 | AD8 | CRM (new) | Group chips, smart-group rule builder, people table, unified person record slide-in | shipped v1.237.0 |
 | AD9 | Email | Stat strip, campaigns table, accordions | shipped v1.238.0 |
 | AD10 | Ad Manager | Stat strip + ad-units table over the folded-in ads module | shipped v1.239.0 |
-| AD11 | User access | Role presets + people×capability grid over SectionAccess | todo |
+| AD11 | User access | Role presets + people×capability grid over SectionAccess | shipped v1.240.0 |
 | AD12 | Taxonomies & filters (new) | Attach taxonomy to listing type, terms with colours, show-as-filter flag; drives `[oe_listings]` facets | todo |
 | AD13 | Import / export (new) | Export any entity (CSV/JSON); CSV import with saved mapping templates, dry-run, dedupe-on-key; JetEngine migrator as one template | todo |
 | AD14 | Settings | Global-only; settings-in-context accordions on each page | todo |

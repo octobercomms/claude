@@ -89,6 +89,7 @@ final class Admin {
         if ($f('ads'))          { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
         if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
         add_submenu_page('october-events', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
+        add_submenu_page('october-events', 'User access', 'User access', 'manage_options', 'oe-access', [\OE\Admin\AccessScreen::class, 'render']);
         // Reachable by URL from the Membership settings, not shown in the menu.
         add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
         add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
