@@ -91,6 +91,7 @@ final class Plugin {
             }
             \OE\Planning\Metabox::init();
             \OE\Packs\Metabox::init();
+            \OE\Packs\Content\ConferenceMeta::init();
             \OE\GuidedTours\Metabox::init();
             \OE\Survey\Metabox::init();
             \OE\Hosts\Metabox::init();

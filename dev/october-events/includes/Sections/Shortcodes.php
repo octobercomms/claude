@@ -23,13 +23,15 @@ final class Shortcodes {
         add_shortcode('oe_event_tickets',  [Renderer::class, 'tickets']);
         add_shortcode('oe_event_map',      [Renderer::class, 'map']);
 
+        // Conference pack sections (storage + renderers built, FRONTEND-BUILD B).
+        add_shortcode('oe_event_speakers',      [\OE\Packs\Content\ConferenceRender::class, 'speakers']);
+        add_shortcode('oe_event_past_speakers', [\OE\Packs\Content\ConferenceRender::class, 'past_speakers']);
+        add_shortcode('oe_event_schedule',      [\OE\Packs\Content\ConferenceRender::class, 'schedule']);
+        add_shortcode('oe_event_accommodation', [\OE\Packs\Content\ConferenceRender::class, 'accommodation']);
+
         // Pack sections whose field storage lands with their pack. Registered
         // now so a page can hold them; they render nothing until built.
         $pending = [
-            'oe_event_speakers'      => 'conference',
-            'oe_event_past_speakers' => 'conference',
-            'oe_event_schedule'      => 'conference',
-            'oe_event_accommodation' => 'conference',
             'oe_event_exhibitors'    => 'exhibition',
             'oe_tour_locations'      => 'tour',
             'oe_event_staff'         => 'staff',
