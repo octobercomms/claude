@@ -287,3 +287,22 @@
 .oe-admin .oe-crm-ministat .v{ font-size:17px; font-weight:800; color:#1a1a1a; margin-top:2px; }
 .oe-admin .oe-crm-slide h3{ margin:18px 0 6px; font-size:14px; }
 @media (max-width:782px){ .oe-admin .oe-crm-slide{ top:46px; } .oe-admin .oe-crm-slide-stats{ grid-template-columns:repeat(2,1fr); } }
+
+/* ---- Email screen (ADMIN-BUILD AD9) ---------------------------------- */
+.oe-admin .oe-email-health{ margin-top:16px; }
+.oe-admin .oe-email-health-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.oe-admin .oe-email-h{ margin:26px 0 10px; font-size:16px; }
+.oe-admin .oe-email-campaigns{ display:flex; flex-direction:column; gap:10px; }
+.oe-admin .oe-email-camp{ padding:0; }
+.oe-admin .oe-email-camp > summary{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; cursor:pointer; list-style:none; flex-wrap:wrap; }
+.oe-admin .oe-email-camp > summary::-webkit-details-marker{ display:none; }
+.oe-admin .oe-email-camp-name .description{ display:block; color:#888; font-weight:400; }
+.oe-admin .oe-email-camp-meta{ display:flex; align-items:center; gap:12px; }
+.oe-admin .oe-email-camp-sent{ color:#555; font-size:13px; font-weight:600; }
+.oe-admin .oe-email-camp-body{ padding:0 16px 16px; border-top:1px solid #e3e2db; }
+.oe-admin .oe-email-metrics{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-top:14px; }
+.oe-admin .oe-email-metrics .m .l{ font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#888; }
+.oe-admin .oe-email-metrics .m .v{ font-size:16px; font-weight:800; color:#1a1a1a; margin-top:2px; }
+.oe-admin .oe-email-metrics .m .pc{ font-size:12px; font-weight:700; color:#c2410c; }
+@media (max-width:1100px){ .oe-admin .oe-email-metrics{ grid-template-columns:repeat(3,1fr); } }
+@media (max-width:782px){ .oe-admin .oe-email-metrics{ grid-template-columns:repeat(2,1fr); } }
