@@ -181,6 +181,30 @@ final class Admin {
         echo '</div>';
     }
 
+    /**
+     * Lens toggle for the Volunteers screen: Opportunities / Signups / Profiles,
+     * three views over the same roster. $current is the active lens key. Each
+     * links to the same oe-volunteers slug with a view param, so handlers and
+     * nonces are unchanged.
+     */
+    public static function volunteer_lens(string $current): void {
+        $lenses = [
+            'opportunities' => [__('Opportunities', 'october-events'), admin_url('admin.php?page=oe-volunteers')],
+            'signups'       => [__('Signups', 'october-events'),       admin_url('admin.php?page=oe-volunteers&view=signups')],
+            'profiles'      => [__('Profiles', 'october-events'),       admin_url('admin.php?page=oe-volunteers&view=profiles')],
+        ];
+        echo '<nav class="oe-seg oe-vol-lens">';
+        foreach ($lenses as $key => [$label, $url]) {
+            printf(
+                '<a class="oe-seg-btn%s" href="%s">%s</a>',
+                $key === $current ? ' is-on' : '',
+                esc_url($url),
+                esc_html($label)
+            );
+        }
+        echo '</nav>';
+    }
+
     /** Keep the "People" item highlighted on the hidden hub sub-screens. */
     public function highlight_people_menu($submenu_file) {
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -572,6 +596,13 @@ final class Admin {
             $year     = gmdate('Y');
             $rates    = \OE\Volunteers\Profiles::rates($year);
             require OE_DIR . 'admin/views/volunteer-profiles.php';
+            return;
+        }
+
+        // Signups lens: every signup across all opportunities in one flat table.
+        if (isset($_GET['view']) && $_GET['view'] === 'signups') {
+            $dash = Volunteers::dashboard($ids);
+            require OE_DIR . 'admin/views/volunteer-signups.php';
             return;
         }
 
