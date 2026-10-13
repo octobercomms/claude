@@ -613,6 +613,7 @@ final class Settings {
             'invoice_business_phone'   => sanitize_text_field((string) ($in['invoice_business_phone'] ?? '')),
             'invoice_tax_label'        => sanitize_text_field((string) ($in['invoice_tax_label'] ?? '')),
             'invoice_tax_number'       => sanitize_text_field((string) ($in['invoice_tax_number'] ?? '')),
+            'invoice_tax_rate'         => (static function ($v) { $v = (float) $v; return $v > 0 ? (string) min(100, max(0, $v)) : ''; })($in['invoice_tax_rate'] ?? ''),
             'invoice_prefix'           => strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', (string) ($in['invoice_prefix'] ?? 'INV'))) ?: 'INV',
             'invoice_notes'            => sanitize_textarea_field((string) ($in['invoice_notes'] ?? '')),
             'paper_size'               => (($in['paper_size'] ?? 'letter') === 'a4') ? 'a4' : 'letter',

@@ -144,6 +144,18 @@ final class OrderInvoice {
         $date     = (string) $first->created_at;
         $rec      = self::record($payment_id, $date);
 
+        // Tax breakdown. Prices are tax-inclusive, so when a rate and label are
+        // set the tax portion is backed out of the total (the total — what was
+        // actually charged — never changes).
+        $rate      = (float) Settings::get('invoice_tax_rate', '');
+        $tax_label = (string) Settings::get('invoice_tax_label', '');
+        $net       = $total;
+        $tax       = 0.0;
+        if ($rate > 0 && $tax_label !== '') {
+            $net = $total / (1 + ($rate / 100));
+            $tax = $total - $net;
+        }
+
         return [
             'number'     => $rec['number'],
             'date'       => $date,
@@ -158,6 +170,9 @@ final class OrderInvoice {
             'subtotal'   => $subtotal,
             'discount'   => $discount,
             'total'      => $total,
+            'tax'        => $tax,
+            'net'        => $net,
+            'tax_rate'   => $rate,
             'promos'     => array_keys($promos),
         ];
     }
@@ -307,8 +322,18 @@ final class OrderInvoice {
             <td class="r">−<?php echo esc_html(self::money((float) $inv['discount'], $cur)); ?></td>
           </tr>
         <?php endif; ?>
+        <?php if ((float) ($inv['tax'] ?? 0) > 0 && $tax_label !== '') : ?>
+          <tr>
+            <td colspan="3" class="r"><?php echo esc_html(sprintf(__('Net of %s', 'october-events'), $tax_label)); ?></td>
+            <td class="r"><?php echo esc_html(self::money((float) $inv['net'], $cur)); ?></td>
+          </tr>
+          <tr>
+            <td colspan="3" class="r"><?php echo esc_html((float) ($inv['tax_rate'] ?? 0) > 0 ? sprintf(__('%1$s (%2$s%%)', 'october-events'), $tax_label, rtrim(rtrim(number_format((float) $inv['tax_rate'], 2), '0'), '.')) : $tax_label); ?></td>
+            <td class="r"><?php echo esc_html(self::money((float) $inv['tax'], $cur)); ?></td>
+          </tr>
+        <?php endif; ?>
         <tr class="tot">
-          <td colspan="3" class="r"><?php echo esc_html($tax_label !== '' ? sprintf(__('Total (incl. %s)', 'october-events'), $tax_label) : __('Total', 'october-events')); ?></td>
+          <td colspan="3" class="r"><?php echo esc_html(($tax_label !== '' && (float) ($inv['tax'] ?? 0) > 0) ? sprintf(__('Total (incl. %s)', 'october-events'), $tax_label) : __('Total', 'october-events')); ?></td>
           <td class="r"><?php echo esc_html(self::money((float) $inv['total'], $cur)); ?></td>
         </tr>
       </tfoot>

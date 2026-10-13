@@ -86,6 +86,8 @@ final class Plugin {
         \OE\Social\Scheduler::get_instance()->init();
         // schema.org JSON-LD on single listing pages (wp_head, front end only).
         \OE\Seo\Schema::init();
+        // GDPR export / erasure via WordPress core privacy tools.
+        \OE\Privacy\Personal::init();
 
         // Interfaces.
         if (is_admin()) {

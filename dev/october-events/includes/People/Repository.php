@@ -168,6 +168,16 @@ final class Repository {
         return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id=%d', $id)) ?: null;
     }
 
+    /** Remove a person's rollup row by email (GDPR erasure). Returns rows deleted. */
+    public static function forget(string $email): int {
+        global $wpdb;
+        $email = strtolower(trim($email));
+        if ($email === '') {
+            return 0;
+        }
+        return (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . self::table() . ' WHERE email=%s', $email));
+    }
+
     /** The CRM person id for an email, or 0 — used to deep-link into the record. */
     public static function id_by_email(string $email): int {
         global $wpdb;
