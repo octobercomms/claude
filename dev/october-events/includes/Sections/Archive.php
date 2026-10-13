@@ -44,8 +44,21 @@ final class Archive {
             return '';
         }
 
-        $selects  = array_values(array_filter(array_map('trim', explode(',', (string) $atts['filters']))));
-        $chips_tax = trim((string) $atts['chips']);
+        // "auto" pulls the taxonomies flagged as filters for this type (AD12).
+        $auto = \class_exists('\\OE\\Taxonomies\\Registry')
+            ? \OE\Taxonomies\Registry::filters_for((string) $atts['type'])
+            : ['chips' => [], 'dropdown' => []];
+
+        if (trim((string) $atts['filters']) === 'auto') {
+            $selects = $auto['dropdown'];
+        } else {
+            $selects = array_values(array_filter(array_map('trim', explode(',', (string) $atts['filters']))));
+        }
+        if (trim((string) $atts['chips']) === 'auto') {
+            $chips_tax = (string) ($auto['chips'][0] ?? '');
+        } else {
+            $chips_tax = trim((string) $atts['chips']);
+        }
         $per_page = max(1, (int) $atts['per_page']);
         $paged    = max(1, (int) get_query_var('paged', 1));
         if ($paged === 1 && isset($_GET['oe_page'])) {
@@ -156,9 +169,12 @@ final class Archive {
         $all  = '<a class="oe-loc-filter' . ($active === '' ? ' is-active' : '') . '" href="' . esc_url($base) . '">'
             . esc_html__('All', 'october-events') . '</a>';
         $chips = $all;
+        $has_color = class_exists('\\OE\\Taxonomies\\Registry');
         foreach ($terms as $term) {
             $url = add_query_arg($key, $term->slug, $base);
-            $chips .= '<a class="oe-loc-filter' . ($active === $term->slug ? ' is-active' : '') . '" href="' . esc_url($url) . '">'
+            $color = $has_color ? \OE\Taxonomies\Registry::term_color((int) $term->term_id) : '';
+            $style = $color !== '' ? ' style="--oe-chip:' . esc_attr($color) . '"' : '';
+            $chips .= '<a class="oe-loc-filter' . ($active === $term->slug ? ' is-active' : '') . '"' . $style . ' href="' . esc_url($url) . '">'
                 . esc_html($term->name) . '</a>';
         }
         return '<div class="oe-arch__chips">' . $chips . '</div>';

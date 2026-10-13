@@ -73,6 +73,7 @@ final class Plugin {
         \OE\Sections\Theme::init();
         \OE\Sections\SingleTemplate::init();
         \OE\Sections\Archive::init();
+        \OE\Taxonomies\Registry::init();
         \OE\Elementor\Bridge::init();
         \OE\Packages\Matrix::init();
         \OE\Packages\Single::init();
@@ -90,6 +91,7 @@ final class Plugin {
             \OE\Admin\ContextSettings::init();
             \OE\Admin\PeopleScreen::init();
             \OE\Admin\AccessScreen::init();
+            \OE\Admin\TaxonomyScreen::init();
             // Ensure roles carry their section caps (idempotent; runs once per
             // version marker so admins always have them before the menu builds).
             if (get_option('oe_secaccess_v') !== '1') {
