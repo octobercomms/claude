@@ -65,6 +65,7 @@ final class Plugin {
         \OE\Members\Shortcodes::init();
         \OE\Sections\Shortcodes::init();
         \OE\Packs\Content\StaffApply::init();
+        \OE\Frontend\TeamPortal::init();
         \OE\Sections\Theme::init();
         \OE\Sections\SingleTemplate::init();
         \OE\Sections\Archive::init();
