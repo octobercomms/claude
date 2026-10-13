@@ -37,7 +37,7 @@ explicitly commissioned.
 | AD10 | Ad Manager | Stat strip + ad-units table over the folded-in ads module | shipped v1.239.0 |
 | AD11 | User access | Role presets + people×capability grid over SectionAccess | shipped v1.240.0 |
 | AD12 | Taxonomies & filters (new) | Attach taxonomy to listing type, terms with colours, show-as-filter flag; drives `[oe_listings]` facets | shipped v1.241.0 |
-| AD13 | Import / export (new) | Export any entity (CSV/JSON); CSV import with saved mapping templates, dry-run, dedupe-on-key; JetEngine migrator as one template | todo |
+| AD13 | Import / export (new) | Export any entity (CSV/JSON); CSV import with saved mapping templates, dry-run, dedupe-on-key | shipped v1.242.0 |
 | AD14 | Settings | Global-only; settings-in-context accordions on each page | todo |
 | AD15 | First run & empty states | First-run checklist on dashboard; rich empty states on every screen | todo |
 | AD16 | Slide-in panels | Shared right slide-in: add order, message attendees, person record, campaign, countdown, import mapping, new group, add person, location editor | todo |

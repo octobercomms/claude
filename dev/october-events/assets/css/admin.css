@@ -337,3 +337,12 @@
 .oe-admin .oe-tax-addterm input[type=color]{ width:40px; height:30px; padding:0; border:1px solid #e3e2db; border-radius:6px; }
 @media (max-width:1100px){ .oe-admin .oe-tax-grid{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:782px){ .oe-admin .oe-tax-grid{ grid-template-columns:1fr; } }
+
+/* ---- Import / export screen (ADMIN-BUILD AD13) ----------------------- */
+.oe-admin .oe-porter-export{ display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-top:10px; }
+.oe-admin .oe-porter-field{ display:flex; flex-direction:column; gap:4px; font-weight:600; font-size:12px; }
+.oe-admin .oe-porter-field select, .oe-admin .oe-porter-field input[type=file]{ min-width:220px; }
+.oe-admin .oe-porter-map{ max-width:640px; margin-top:12px; }
+.oe-admin .oe-porter-map td{ vertical-align:middle; }
+.oe-admin .oe-porter-templates{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0 12px; font-size:13px; }
+.oe-admin .oe-porter-preview{ margin-top:16px; }
