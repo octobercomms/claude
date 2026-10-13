@@ -18,6 +18,8 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
 
     <?php Admin::kpis(); ?>
 
+    <?php \OE\Admin\FirstRun::render(); ?>
+
     <div class="oe-actionbar">
         <a class="button button-primary" href="<?php echo esc_url($event_new); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets')); ?>"><?php esc_html_e('Tickets', 'october-events'); ?></a>
