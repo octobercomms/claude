@@ -4,37 +4,51 @@ declare(strict_types=1);
 namespace OE\Sections;
 
 use OE\Settings;
+use OE\Planning\Events;
 
 defined('ABSPATH') || exit;
 
 /**
- * Section theming tokens (BUILD-PLAN M2 — the "native, not an embed" styling).
+ * Section theming tokens (BUILD-PLAN M2 / FRONTEND-BUILD slice A).
  *
- * A small set of design tokens drives the functional parts of the sections
- * (the ticket button, spacing, controls) as CSS custom properties, so a dropped
- * section reads as part of the client's site. Defaults are neutral and every
- * token is a per-site setting; the accent falls back to the existing
- * `theme_accent` / `theme_accent_on` brand settings when the section-specific
- * one is blank, so one brand value covers both.
+ * The designed look lives in assets/css/sections.css (static, cacheable). This
+ * class resolves the per-site design tokens and emits them as CSS custom
+ * properties inline, so a tenant restyles every section from one accent. The
+ * accent falls back to the existing `theme_accent` / `theme_accent_on` brand
+ * settings when the section-specific one is blank, so one brand value covers all.
  *
  * These same token values are what M3 forwards to the Stripe Elements appearance
  * API (the card iframe can't be reached by site CSS, but the tokens can), so the
- * whole checkout matches. This slice emits the CSS; the Stripe wiring follows.
+ * whole checkout matches.
  *
  * @see docs/october-events/UI-SPEC.md  (§4)
+ * @see docs/october-events/FRONTEND-BUILD.md
  */
 final class Theme {
 
-    /** Token key => default. Neutral and overridable; accent falls back to brand. */
+    public const HANDLE = 'oe-sections';
+
+    /** Token key => default. Defaults match the mockup; every token is a setting. */
     public const DEFAULTS = [
-        'section_accent'         => '',        // '' => theme_accent, then #1a1a1a
+        'section_accent'         => '',        // '' => theme_accent, then #dd4b14
         'section_accent_on'      => '',        // '' => theme_accent_on, then #ffffff
-        'section_radius'         => '6px',
-        'section_border_width'   => '1px',
+        'section_accent_soft'    => 'rgba(221,75,20,.1)',
+        'section_accent_ink'     => '#c2410c',
+        'section_surface'        => '#ffffff',
+        'section_surface_2'      => '#f3f3f3',
+        'section_ink'            => '#1a1a1a',
+        'section_muted'          => '#555555',
+        'section_subtle'         => '#888888',
+        'section_line'           => '#e3e2db',
+        'section_radius'         => '14px',
+        'section_radius_sm'      => '8px',
+        'section_border_width'   => '2px',
         'section_button_style'   => 'filled',  // filled | outline | ghost
         'section_spacing'        => '1.5rem',
         'section_control_height' => '44px',
         'section_font'           => '',        // '' => inherit the theme
+        'section_shadow'         => '0 1px 2px rgba(20,20,20,.06),0 5px 14px rgba(20,20,20,.09)',
+        'section_shadow_md'      => '0 4px 10px rgba(20,20,20,.09),0 20px 46px rgba(20,20,20,.14)',
     ];
 
     public const BUTTON_STYLES = ['filled', 'outline', 'ghost'];
@@ -47,7 +61,7 @@ final class Theme {
             $t[$k] = $v !== '' ? $v : $def;
         }
         if ($t['section_accent'] === '') {
-            $t['section_accent'] = (string) Settings::get('theme_accent', '') ?: '#1a1a1a';
+            $t['section_accent'] = (string) Settings::get('theme_accent', '') ?: '#dd4b14';
         }
         if ($t['section_accent_on'] === '') {
             $t['section_accent_on'] = (string) Settings::get('theme_accent_on', '') ?: '#ffffff';
@@ -58,75 +72,100 @@ final class Theme {
         return $t;
     }
 
-    /** The stylesheet: token custom properties + the structural rules that read them. */
+    /** The inline token block: custom properties the static sheet reads. */
     public static function css(): string {
-        $t      = self::tokens();
-        $accent = $t['section_accent'];
-        $on     = $t['section_accent_on'];
-        $style  = $t['section_button_style'];
+        $t     = self::tokens();
+        $style = $t['section_button_style'];
 
-        // Button look derives from the accent + chosen style.
+        // Button look from the accent + chosen style, exposed as vars the sheet uses.
         if ($style === 'outline') {
-            $btn = "background:transparent;color:var(--oe-accent);border:var(--oe-border-w) solid var(--oe-accent);";
-            $btn_hover = "background:var(--oe-accent);color:var(--oe-accent-on);";
+            [$bg, $color, $border] = ['transparent', 'var(--oe-accent)', 'var(--oe-accent)'];
         } elseif ($style === 'ghost') {
-            $btn = "background:transparent;color:var(--oe-accent);border:var(--oe-border-w) solid transparent;";
-            $btn_hover = "border-color:var(--oe-accent);";
+            [$bg, $color, $border] = ['transparent', 'var(--oe-accent)', 'transparent'];
         } else { // filled
-            $btn = "background:var(--oe-accent);color:var(--oe-accent-on);border:var(--oe-border-w) solid var(--oe-accent);";
-            $btn_hover = "filter:brightness(.92);";
+            [$bg, $color, $border] = ['var(--oe-accent)', 'var(--oe-accent-on)', 'var(--oe-accent)'];
         }
 
-        $font = $t['section_font'] !== '' ? 'font-family:' . self::safe_font($t['section_font']) . ';' : '';
+        $font = $t['section_font'] !== '' ? self::safe_font($t['section_font']) : '';
 
         $vars = ':root{'
-            . '--oe-accent:' . self::safe($accent) . ';'
-            . '--oe-accent-on:' . self::safe($on) . ';'
+            . '--oe-accent:' . self::safe($t['section_accent']) . ';'
+            . '--oe-accent-on:' . self::safe($t['section_accent_on']) . ';'
+            . '--oe-accent-soft:' . self::safe($t['section_accent_soft']) . ';'
+            . '--oe-accent-ink:' . self::safe($t['section_accent_ink']) . ';'
+            . '--oe-surface:' . self::safe($t['section_surface']) . ';'
+            . '--oe-surface-2:' . self::safe($t['section_surface_2']) . ';'
+            . '--oe-ink:' . self::safe($t['section_ink']) . ';'
+            . '--oe-muted:' . self::safe($t['section_muted']) . ';'
+            . '--oe-subtle:' . self::safe($t['section_subtle']) . ';'
+            . '--oe-line:' . self::safe($t['section_line']) . ';'
             . '--oe-radius:' . self::safe($t['section_radius']) . ';'
+            . '--oe-radius-sm:' . self::safe($t['section_radius_sm']) . ';'
             . '--oe-border-w:' . self::safe($t['section_border_width']) . ';'
             . '--oe-space:' . self::safe($t['section_spacing']) . ';'
             . '--oe-control-h:' . self::safe($t['section_control_height']) . ';'
-            . '}';
+            . '--oe-shadow:' . self::safe($t['section_shadow']) . ';'
+            . '--oe-shadow-md:' . self::safe($t['section_shadow_md']) . ';'
+            . '--oe-btn-bg:' . $bg . ';'
+            . '--oe-btn-color:' . $color . ';'
+            . '--oe-btn-border:' . $border . ';'
+            . ($font !== '' ? '--oe-font:' . $font . ';' : '')
+            . '}'
+            . ($font !== '' ? '.oe-sec{font-family:var(--oe-font)}' : '');
 
-        // Presentation-light: inherit the theme, only style what the theme won't
-        // reach (the button, section rhythm, the colour-painted header).
-        $rules = '.oe-sec{margin-block:var(--oe-space);' . $font . '}'
-            . '.oe-sec--header .oe-event__number{font-weight:700;opacity:.6;margin:0 0 .25em}'
-            . '.oe-sec--header .oe-event__title{margin:0}'
-            . '.oe-sec--header .oe-event__meta{opacity:.75;margin:.4em 0 0}'
-            . '.oe-sec .oe-event__image{display:block;max-width:100%;height:auto;border-radius:var(--oe-radius)}'
-            . '.oe-sec .oe-btn{display:inline-block;padding:0 1.25em;height:var(--oe-control-h);line-height:var(--oe-control-h);border-radius:var(--oe-radius);font-weight:600;text-decoration:none;cursor:pointer;transition:filter .15s,background .15s,color .15s,border-color .15s;' . $btn . '}'
-            . '.oe-sec .oe-btn:hover{' . $btn_hover . '}'
-            // Native checkout rendered through the tickets section picks up the
-            // accent too (two-class specificity wins over checkout.css without
-            // !important). A raw [oe_event_checkout] placement keeps its own look.
-            . '.oe-sec--tickets .oct-btn--primary{background:var(--oe-accent);border-color:var(--oe-accent);color:var(--oe-accent-on);border-radius:var(--oe-radius)}'
-            . '.oe-sec--tickets #oct-stripe-elements.focused{border-color:var(--oe-accent)}'
-            // Listing archive.
-            . '.oe-arch__filters{display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:var(--oe-space)}'
-            . '.oe-arch__filter{display:flex;flex-direction:column;gap:.25rem;font-size:.85em}'
-            . '.oe-arch__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--oe-space)}'
-            . '.oe-arch__card{display:block;text-decoration:none;color:inherit}'
-            . '.oe-arch__img{display:block;width:100%;height:auto;border-radius:var(--oe-radius);margin-bottom:.5rem}'
-            . '.oe-arch__title{display:block;font-weight:700}'
-            . '.oe-arch__meta{display:block;opacity:.7;font-size:.85em;margin-top:.15rem}'
-            . '.oe-arch__pager{display:flex;gap:.4rem;margin-top:var(--oe-space);flex-wrap:wrap}'
-            . '.oe-arch__page{padding:.2em .6em;border-radius:var(--oe-radius);text-decoration:none;color:inherit}'
-            . '.oe-arch__page.is-current{background:var(--oe-accent);color:var(--oe-accent-on)}';
-
-        return $vars . $rules;
+        return $vars;
     }
 
-    /** Emit the section CSS in the document head (front end only, cheap). */
     public static function init(): void {
-        add_action('wp_head', [self::class, 'print_css'], 20);
+        add_action('wp_enqueue_scripts', [self::class, 'register'], 1);
+        add_action('wp_enqueue_scripts', [self::class, 'maybe_enqueue']);
     }
 
-    public static function print_css(): void {
-        echo "\n<style id=\"oe-sections\">" . self::css() . "</style>\n";
+    /** Register early so a late (shortcode-time) enqueue can still attach. */
+    public static function register(): void {
+        if (wp_style_is(self::HANDLE, 'registered')) {
+            return;
+        }
+        wp_register_style(self::HANDLE, OE_URL . 'assets/css/sections.css', [], OE_VERSION);
+        wp_add_inline_style(self::HANDLE, self::css());
     }
 
-    /** Allow only a safe CSS token value (colours, lengths, keywords). */
+    /** Enqueue in head for the common cases (avoids a flash); render-time is the fallback. */
+    public static function maybe_enqueue(): void {
+        if (self::needed()) {
+            self::enqueue();
+        }
+    }
+
+    /** Enqueue the section sheet now. Safe to call repeatedly / at render time. */
+    public static function enqueue(): void {
+        self::register();
+        wp_enqueue_style(self::HANDLE);
+    }
+
+    private static function needed(): bool {
+        $slug = Events::slug();
+        if ($slug !== '' && is_singular($slug)) {
+            return true;
+        }
+        $post = get_post();
+        if ($post instanceof \WP_Post) {
+            $content = (string) $post->post_content;
+            foreach ([
+                'oe_event_header', 'oe_event_about', 'oe_event_gallery', 'oe_event_register',
+                'oe_event_tickets', 'oe_event_map', 'oe_event_speakers', 'oe_event_past_speakers',
+                'oe_event_schedule', 'oe_event_accommodation', 'oe_event_exhibitors',
+                'oe_tour_locations', 'oe_event_staff', 'oe_listings',
+            ] as $sc) {
+                if (has_shortcode($content, $sc)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Allow only a safe CSS token value (colours, lengths, keywords, shadows). */
     private static function safe(string $v): string {
         return preg_replace('/[^a-zA-Z0-9#%.,()\\- ]/', '', $v) ?? '';
     }
