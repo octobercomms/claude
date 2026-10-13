@@ -113,12 +113,11 @@ final class Admin {
         // Public content types stay top-level alongside Events.
         if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $sc('directory'), 'oe-directory', fn() => $this->page_listing('directory')); }
         if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $sc('destinations'), 'oe-destinations', fn() => $this->page_listing('destination')); }
+        if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
 
         // ---- Comms ---------------------------------------------------------
         if ($f('contacts')) { add_submenu_page('october-events', 'Email', 'Email', $sc('contacts'), 'oe-email', [$this, 'page_email']); }
-        if ($f('stories'))  { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
         if ($f('contacts')) { add_submenu_page('october-events', 'Demographics', 'Demographics', $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']); }
-        add_submenu_page('october-events', 'Briefings & checklist', 'Briefings', 'manage_options', 'oe-briefings', [\OE\Admin\BriefingsScreen::class, 'render']);
 
         // ---- Growth --------------------------------------------------------
         if ($f('ads'))      { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
@@ -128,6 +127,7 @@ final class Admin {
         add_submenu_page('october-events', 'User access', 'User access', 'manage_options', 'oe-access', [\OE\Admin\AccessScreen::class, 'render']);
         add_submenu_page('october-events', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
         add_submenu_page('october-events', 'Import & export', 'Import / export', 'manage_options', 'oe-porter', [\OE\Admin\PorterScreen::class, 'render']);
+        add_submenu_page('october-events', 'Briefings & checklist', 'Briefings', 'manage_options', 'oe-briefings', [\OE\Admin\BriefingsScreen::class, 'render']);
         add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
         add_submenu_page('october-events', 'First run & empty states', 'First run & empty states', $sc('dashboard'), 'oe-first-run', [\OE\Admin\FirstRun::class, 'render']);
 
@@ -211,9 +211,9 @@ final class Admin {
         // so a group with everything toggled off shows no stray header. The top
         // cluster (Dashboard … Destinations) has no header by design.
         $groups = [
-            __('Comms', 'october-events')  => ['oe-email', 'oe-stories', 'oe-demographics', 'oe-briefings'],
+            __('Comms', 'october-events')  => ['oe-email', 'oe-demographics'],
             __('Growth', 'october-events') => ['oe-ads', 'edit.php?post_type=' . PostTypes::slug('package')],
-            __('Admin', 'october-events')  => ['oe-access', 'oe-taxonomies', 'oe-porter', 'oe-settings', 'oe-first-run'],
+            __('Admin', 'october-events')  => ['oe-access', 'oe-taxonomies', 'oe-porter', 'oe-briefings', 'oe-settings', 'oe-first-run'],
         ];
         $present = array_column($submenu['october-events'], 2);
         $anchors = []; // first-present slug => header label
