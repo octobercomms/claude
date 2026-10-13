@@ -97,6 +97,27 @@ final class SectionAccess {
         return is_array($m) ? $m : [];
     }
 
+    /** Persist a role => [sections] map and re-sync the caps onto the roles. */
+    public static function save_map(array $map): void {
+        Settings::update(['section_access' => self::sanitize_map($map)]);
+        self::sync();
+    }
+
+    /**
+     * Preset section bundles, for one-click assignment on the access screen.
+     *
+     * @return array<string,array{label:string,sections:array<int,string>}>
+     */
+    public static function presets(): array {
+        return [
+            'none'  => ['label' => __('No access', 'october-events'), 'sections' => []],
+            'front' => ['label' => __('Front of house', 'october-events'), 'sections' => ['tickets', 'volunteers', 'team']],
+            'content' => ['label' => __('Content', 'october-events'), 'sections' => ['events', 'directory', 'destinations', 'products', 'stories', 'packages']],
+            'marketing' => ['label' => __('Marketing', 'october-events'), 'sections' => ['contacts', 'ads', 'accounts']],
+            'all'   => ['label' => __('Everything', 'october-events'), 'sections' => array_keys(self::SECTIONS)],
+        ];
+    }
+
     /**
      * Sync every role's `oe_sec_*` caps to match the stored map. Administrators
      * always get all; a role granted any section also gets `dashboard`. Roles
