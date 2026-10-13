@@ -78,8 +78,9 @@ $status_label = [
     'private' => [__('Private', 'october-events'), 'neu'],
 ];
 
-$new_url   = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
-$base_url  = admin_url('admin.php?page=oe-events');
+$new_url    = admin_url('admin.php?page=oe-event-studio');
+$new_classic = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
+$base_url   = admin_url('admin.php?page=oe-events');
 ?>
 <div class="wrap oe-admin">
     <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
@@ -117,7 +118,7 @@ $base_url  = admin_url('admin.php?page=oe-events');
                     continue;
                 }
                 $shown++;
-                $edit = get_edit_post_link($r['id']);
+                $edit   = admin_url('admin.php?page=oe-event-studio&event=' . (int) $r['id']);
                 [$slabel, $stone] = $status_label[$r['status']] ?? [$r['status'], 'neu'];
                 ?>
                 <tr>
