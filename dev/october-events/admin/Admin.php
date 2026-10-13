@@ -93,6 +93,7 @@ final class Admin {
         add_submenu_page('october-events', 'Import & export', 'Import / export', 'manage_options', 'oe-porter', [\OE\Admin\PorterScreen::class, 'render']);
         add_submenu_page('october-events', 'Tour locations', 'Tour locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
         add_submenu_page('october-events', 'Briefings & checklist', 'Briefings', 'manage_options', 'oe-briefings', [\OE\Admin\BriefingsScreen::class, 'render']);
+        if ($f('contacts')) { add_submenu_page('october-events', 'Demographics', 'Demographics', $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']); }
         add_submenu_page('october-events', 'User access', 'User access', 'manage_options', 'oe-access', [\OE\Admin\AccessScreen::class, 'render']);
         // Reachable by URL from the Membership settings, not shown in the menu.
         add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);

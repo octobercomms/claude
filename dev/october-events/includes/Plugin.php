@@ -70,6 +70,7 @@ final class Plugin {
         \OE\Frontend\TeamPortal::init();
         \OE\Frontend\OrganizerPortal::init();
         \OE\Frontend\EmailPreferences::init();
+        \OE\Frontend\Demographics::init();
         \OE\Sections\Theme::init();
         \OE\Sections\SingleTemplate::init();
         \OE\Sections\Archive::init();

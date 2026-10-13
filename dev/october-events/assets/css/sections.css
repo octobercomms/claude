@@ -283,3 +283,13 @@
 /* Coloured taxonomy chips on listing archives (AD12) */
 .oe-arch__chips .oe-loc-filter[style*="--oe-chip"]{ border-color: var(--oe-chip); }
 .oe-arch__chips .oe-loc-filter[style*="--oe-chip"].is-active{ background: var(--oe-chip); border-color: var(--oe-chip); color:#fff; }
+
+/* ---- Demographics capture form  [oe_demographics]  (ROADMAP R2) ------ */
+.oe-demo__intro { color: var(--oe-muted, #555); margin: 0 0 1rem; }
+.oe-demo__ok { color: #2e7d32; font-weight: 600; }
+.oe-demo__form { display: flex; flex-direction: column; gap: .9rem; max-width: 460px; }
+.oe-demo__field { display: flex; flex-direction: column; gap: .3rem; font-weight: 600; }
+.oe-demo__field select { padding: .5rem .6rem; border: var(--oe-border-w,2px) solid var(--oe-line,#e3e2db); border-radius: var(--oe-radius-sm,8px); }
+.oe-demo__consent { display: flex; gap: .5rem; align-items: flex-start; font-weight: 400; color: var(--oe-muted,#555); font-size: .9rem; }
+.oe-demo__actions { display: flex; gap: 1rem; align-items: center; }
+.oe-demo__skip { background: none; border: 0; color: var(--oe-subtle,#888); text-decoration: underline; cursor: pointer; font: inherit; }
