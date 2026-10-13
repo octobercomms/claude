@@ -13,6 +13,12 @@
 defined('ABSPATH') || exit;
 
 use OE\Planning\Events;
+use OE\Packs\Registry;
+use OE\Packs\SectionReference;
+use OE\Packs\Content\TourMeta;
+use OE\Admin\SlideIn;
+
+$packs_state = Registry::all_for($id);
 
 $v = static fn(string $f): string => (string) ($values[$f] ?? '');
 $field = static function (string $name, string $label, string $value, string $type = 'text', string $ph = '') {
@@ -46,7 +52,7 @@ $field = static function (string $name, string $label, string $value, string $ty
                 <div class="oe-section-label"><?php esc_html_e('The basics', 'october-events'); ?></div>
                 <?php
                 $field('name', __('Event name', 'october-events'), $v('name'), 'text', 'e.g. Creative Futures Conference');
-                $field('organiser', __('Organiser', 'october-events'), $v('organiser'), 'text', '');
+                $field('organiser', __('Organiser', 'october-events'), $v('organiser'), 'text', 'e.g. Atlanta Design Festival');
                 ?>
                 <label class="oe-es-f"><span><?php esc_html_e('Description', 'october-events'); ?></span>
                     <textarea name="oe_event[description]" data-live rows="4"><?php echo esc_textarea($v('description')); ?></textarea>
@@ -121,6 +127,35 @@ $field = static function (string $name, string $label, string $value, string $ty
                     <textarea name="oe_event[notes]" rows="2"><?php echo esc_textarea($v('notes')); ?></textarea>
                 </label>
             </div>
+
+            <div class="oe-ad-card">
+                <div class="oe-section-label"><?php esc_html_e('Capabilities', 'october-events'); ?></div>
+                <p class="description" style="margin:0 0 10px"><?php esc_html_e('Switch on what this event needs. Each one reveals its own fields and its sections on the page.', 'october-events'); ?></p>
+                <?php wp_nonce_field('oe_packs_save', 'oe_packs_save'); ?>
+                <?php foreach (Registry::PACKS as $pack_id => $pack) : ?>
+                    <label class="oe-es-cap">
+                        <input type="checkbox" name="oe_packs[<?php echo esc_attr($pack_id); ?>]" value="1" data-live data-pack="<?php echo esc_attr($pack_id); ?>" <?php checked(! empty($packs_state[$pack_id])); ?>>
+                        <span class="oe-es-cap-t"><?php echo esc_html($pack['icon']); ?> <strong><?php echo esc_html($pack['label']); ?></strong></span>
+                        <span class="oe-es-cap-d description"><?php echo esc_html($pack['desc']); ?></span>
+                    </label>
+                <?php endforeach; ?>
+                <?php if ($id > 0) : ?>
+                    <p style="margin:12px 0 0"><?php echo SlideIn::trigger('oe-es-tour', __('Edit tour locations', 'october-events'), 'button button-small'); ?> <span class="description"><?php esc_html_e('Stops, images and design credits for the Tour pack.', 'october-events'); ?></span></p>
+                <?php else : ?>
+                    <p class="description" style="margin:12px 0 0"><?php esc_html_e('Tour locations become editable once the event is saved as a draft.', 'october-events'); ?></p>
+                <?php endif; ?>
+            </div>
+
+            <div class="oe-ad-card">
+                <div class="oe-section-label"><?php esc_html_e('Page sections & shortcodes', 'october-events'); ?></div>
+                <?php echo SectionReference::card($id, 'oe-es-secref'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+            </div>
+
+            <?php if ($id > 0 && $post instanceof WP_Post) : ?>
+                <?php SlideIn::open('oe-es-tour', __('Tour locations', 'october-events'), false, 'oe-slide-xwide'); ?>
+                    <?php TourMeta::render($post); ?>
+                <?php SlideIn::close(); ?>
+            <?php endif; ?>
 
             <div class="oe-es-actions oe-ad-card">
                 <label class="oe-es-f"><span><?php esc_html_e('Status', 'october-events'); ?></span>
@@ -227,6 +262,25 @@ $field = static function (string $name, string $label, string $value, string $ty
     form.querySelectorAll('[data-live]').forEach(function (el) {
         el.addEventListener('input', schedule);
         el.addEventListener('change', schedule);
+    });
+
+    // Live-reflect capability toggles in the section reference card, so the
+    // on/off state tracks the checkboxes before the autosave round-trips.
+    var ON = <?php echo wp_json_encode(__('on', 'october-events')); ?>,
+        OFF = <?php echo wp_json_encode(__('off', 'october-events')); ?>;
+    function syncSections() {
+        form.querySelectorAll('input[type=checkbox][data-pack]').forEach(function (cb) {
+            var on = cb.checked;
+            form.querySelectorAll('.oe-secref tr[data-pack="' + cb.getAttribute('data-pack') + '"]').forEach(function (tr) {
+                tr.classList.toggle('off', !on);
+                tr.classList.toggle('onrow', on);
+                var st = tr.querySelector('.oe-secref-state .st');
+                if (st) { st.className = 'st ' + (on ? 'on' : 'off'); st.textContent = on ? ON : OFF; }
+            });
+        });
+    }
+    form.querySelectorAll('input[type=checkbox][data-pack]').forEach(function (cb) {
+        cb.addEventListener('change', syncSections);
     });
 })();
 </script>
