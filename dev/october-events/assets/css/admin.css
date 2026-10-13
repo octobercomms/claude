@@ -340,6 +340,9 @@
 .oe-admin .oe-tax-addterm input[type=color]{ width:40px; height:30px; padding:0; border:1px solid #e3e2db; border-radius:6px; }
 @media (max-width:1100px){ .oe-admin .oe-tax-grid{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:782px){ .oe-admin .oe-tax-grid{ grid-template-columns:1fr; } }
+/* In the manage slide-in the grid lives in a ~520px panel, so keep it to two columns whatever the viewport. */
+.oe-slide .oe-tax-grid{ grid-template-columns:repeat(2,1fr); }
+@media (max-width:600px){ .oe-slide .oe-tax-grid{ grid-template-columns:1fr; } }
 
 /* ---- Import / export screen (ADMIN-BUILD AD13) ----------------------- */
 .oe-admin .oe-porter-export{ display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-top:10px; }
