@@ -969,7 +969,9 @@ final class Admin {
             'test_to' => sanitize_textarea_field(wp_unslash((string) ($_POST['test_to'] ?? ''))),
         ];
 
-        $back = admin_url('admin.php?page=oe-tickets&tab=message' . ($event_id ? '&event=' . $event_id : ''));
+        // Return to the main Tickets page; the compose slide-in re-opens there
+        // with the flash result (the standalone message page still works too).
+        $back = admin_url('admin.php?page=oe-tickets' . ($event_id ? '&event=' . $event_id : ''));
         $fail = static function (string $msg) use ($back, $draft): void {
             set_transient('oe_evt_msg_' . get_current_user_id(), ['error' => $msg, 'draft' => $draft], 60);
             wp_safe_redirect($back);

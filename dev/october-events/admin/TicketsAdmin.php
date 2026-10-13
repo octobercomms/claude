@@ -587,6 +587,26 @@ final class TicketsAdmin {
             $event_titles[(int) $ev->ID] = get_the_title($ev) ?: ('#' . (int) $ev->ID);
         }
 
+        // Message-attendees compose slide-in: ticketed events + recipient counts,
+        // and the flash result from a just-completed send (so the slide-in can
+        // re-open showing it after the broadcast handler redirects back here).
+        $msg_events = [];
+        foreach (\OE\Ticketing\CheckIn::events() as $e) {
+            if ((int) $e['id'] === \OE\Ticketing\CheckIn::TEST_EVENT_ID) {
+                continue;
+            }
+            $msg_events[] = ['id' => (int) $e['id'], 'title' => (string) $e['title']];
+        }
+        $msg_counts = Orders::event_recipient_counts(array_column($msg_events, 'id'));
+        foreach ($msg_events as &$me) {
+            $me['count'] = (int) ($msg_counts[$me['id']] ?? 0);
+        }
+        unset($me);
+        $msg_result = get_transient('oe_evt_msg_' . get_current_user_id());
+        if ($msg_result !== false) {
+            delete_transient('oe_evt_msg_' . get_current_user_id());
+        }
+
         require OE_DIR . 'admin/views/registrations.php';
     }
 

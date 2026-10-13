@@ -491,3 +491,8 @@
 .oe-tixp-xfer > summary{ list-style:none; display:inline-block; }
 .oe-tixp-xfer > summary::-webkit-details-marker{ display:none; }
 @media (max-width:600px){ .oe-tixp-actions{ grid-template-columns:1fr; } }
+
+/* ---- Tickets "More" secondary modules as accordions ------------------ */
+.oe-admin .oe-tix-moreacc{ margin:0 0 10px; }
+.oe-admin .oe-tix-moresum{ display:flex; flex-direction:column; gap:2px; }
+.oe-admin .oe-tix-moresum .description{ font-weight:400; font-size:12.5px; }

@@ -55,7 +55,7 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
         <span><?php esc_html_e('Tickets', 'october-events'); ?></span>
         <span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <?php echo SlideIn::trigger('oe-add-order', __('+ Add order', 'october-events'), 'button button-primary'); ?>
-            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets&tab=message')); ?>"><?php esc_html_e('Message attendees', 'october-events'); ?></a>
+            <?php echo SlideIn::trigger('oe-message-attendees', __('Message attendees', 'october-events')); ?>
             <a class="button" href="<?php echo esc_url($export_attendee); ?>" id="oe-export-att"><?php esc_html_e('Export CSV', 'october-events'); ?></a>
             <a class="button" href="<?php echo esc_url($export_att_pdf); ?>" id="oe-export-att-pdf" target="_blank" rel="noopener"><?php esc_html_e('Attendee list (PDF)', 'october-events'); ?></a>
             <a class="button" href="<?php echo esc_url($export_orders); ?>" id="oe-export-ord"><?php esc_html_e('Export orders', 'october-events'); ?></a>
@@ -349,23 +349,26 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
     </div><!-- /card -->
 
     <div class="oe-section-label"><?php esc_html_e('More', 'october-events'); ?></div>
-    <div class="oe-tix-more">
-        <?php
-        $more = [
-            ['guided-tours', __('Guided tours', 'october-events'), __('Per-building guided-tour reservations.', 'october-events')],
-            ['waitlist', __('Waitlist', 'october-events'), __('Sold-out waitlist; promote people when seats free up.', 'october-events')],
-            ['promos', __('Promo codes', 'october-events'), __('Percentage or fixed discounts for checkout.', 'october-events')],
-        ];
-        foreach ($more as $mrow) :
-            $murl = admin_url('admin.php?page=oe-tickets&tab=' . $mrow[0]);
-        ?>
-            <a class="oe-ad-card oe-tix-morecard" href="<?php echo esc_url($murl); ?>">
-                <strong><?php echo esc_html($mrow[1]); ?></strong>
-                <span class="description"><?php echo esc_html($mrow[2]); ?></span>
-                <span class="oe-tix-morearrow">→</span>
-            </a>
-        <?php endforeach; ?>
-    </div>
+    <?php
+    $more = [
+        ['guided-tours', __('Guided tours', 'october-events'), __('Per-building guided-tour reservations.', 'october-events')],
+        ['waitlist', __('Waitlist', 'october-events'), __('Sold-out waitlist; promote people when seats free up.', 'october-events')],
+        ['promos', __('Promo codes', 'october-events'), __('Percentage or fixed discounts for checkout.', 'october-events')],
+    ];
+    foreach ($more as $mrow) :
+        $murl = admin_url('admin.php?page=oe-tickets&tab=' . $mrow[0]);
+    ?>
+        <details class="oe-acc oe-tix-moreacc">
+            <summary>
+                <span class="oe-tix-moresum"><strong><?php echo esc_html($mrow[1]); ?></strong>
+                    <span class="description"><?php echo esc_html($mrow[2]); ?></span></span>
+            </summary>
+            <div class="oe-acc-body">
+                <p style="margin:0 0 12px"><?php echo esc_html($mrow[2]); ?></p>
+                <a class="button button-primary" href="<?php echo esc_url($murl); ?>"><?php echo esc_html(sprintf(__('Manage %s', 'october-events'), strtolower($mrow[1]))); ?></a>
+            </div>
+        </details>
+    <?php endforeach; ?>
 
     <?php // ===== Add-order slide-in (the manual issue form) ===== ?>
     <?php SlideIn::open('oe-add-order', __('Add an order', 'october-events')); ?>
@@ -403,6 +406,16 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
             <p id="oe-mo-hint" class="description" style="margin:0;color:#b32d2e;display:none"></p>
             <div><button class="button button-primary" id="oe-mo-submit"><?php esc_html_e('Issue tickets', 'october-events'); ?></button></div>
         </form>
+    <?php SlideIn::close(); ?>
+
+    <?php // ===== Message-attendees slide-in (compose; sends only on click) ===== ?>
+    <?php SlideIn::open('oe-message-attendees', __('Message attendees', 'october-events'), is_array($msg_result)); ?>
+        <?php
+        $events   = $msg_events;   // for the shared compose partial
+        $result   = $msg_result;
+        $selected = $event_filter;
+        require OE_DIR . 'admin/views/_message-compose.php';
+        ?>
     <?php SlideIn::close(); ?>
 
     <script>
