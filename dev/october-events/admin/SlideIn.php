@@ -54,10 +54,11 @@ final class SlideIn {
      * Open the panel wrapper (echoes). Pass $open_now = true to have it open on
      * page load (e.g. when re-rendering after a validation error).
      */
-    public static function open(string $panel_id, string $title, bool $open_now = false): void {
+    public static function open(string $panel_id, string $title, bool $open_now = false, string $classes = ''): void {
         self::enqueue();
         printf(
-            '<aside class="oe-slide%s" id="%s" role="dialog" aria-label="%s"%s>',
+            '<aside class="oe-slide%s%s" id="%s" role="dialog" aria-label="%s"%s>',
+            $classes !== '' ? ' ' . esc_attr($classes) : '',
             $open_now ? ' is-open' : '',
             esc_attr($panel_id),
             esc_attr($title),
