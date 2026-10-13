@@ -18,6 +18,16 @@ export default function Layout() {
     if (mainRef.current) mainRef.current.scrollTop = 0;
     window.scrollTo(0, 0);
   }, [location.pathname]);
+  // The internal tools October runs beside the platform — a project tracker and
+  // a wiki, on their own subdomains. Fetched rather than hard-coded so the
+  // hostnames can change without a deploy, and each item only appears once its
+  // URL is set, so there is never a menu entry pointing at nothing.
+  const [tools, setTools] = useState({ projects: '', docs: '' });
+  useEffect(() => {
+    if (user?.role !== 'admin') return;
+    api.get('/settings/workspace-links').then(setTools).catch(() => {});
+  }, [user?.role]);
+
   const clientMatch = useMatch('/clients/:id');
   const clientSeoMatch = useMatch('/clients/:id/seo');
   const clientChatMatch = useMatch('/clients/:id/chat');
@@ -126,6 +136,22 @@ export default function Layout() {
               </div>
             )}
           </li>
+          {/* The internal tools, for the agency only. They live on their own
+              origins with their own logins, so this is a signpost rather than
+              a gate: hiding the link protects nothing and is not meant to.
+              External, hence the arrow and the new tab. */}
+          {user?.role === 'admin' && (tools.projects || tools.docs) && (
+            <li>
+              {tools.projects && (
+                <a href={tools.projects} target="_blank" rel="noopener noreferrer"
+                  style={linkStyle(false)}>Projects ↗</a>
+              )}
+              {tools.docs && (
+                <a href={tools.docs} target="_blank" rel="noopener noreferrer"
+                  style={linkStyle(false)}>Docs ↗</a>
+              )}
+            </li>
+          )}
           {/* Admin-only: Leads (Snapshot Studio) + Settings; Guide sits at the
               bottom of the rail for everyone. */}
           {user?.role === 'admin' && (
