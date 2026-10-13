@@ -50,6 +50,78 @@ final class TicketsAdmin {
         add_action('admin_post_oe_send_recovery', [$this, 'handle_send_recovery']);
         add_action('admin_post_oe_send_recovery_bulk', [$this, 'handle_send_recovery_bulk']);
         add_action('admin_init', [$this, 'maybe_export_orders']);
+        // Row-click detail slide-ins (attendee / order), loaded over AJAX so the
+        // panel opens without a page load. Read-only render; the action buttons
+        // inside each panel post to the existing money handlers above.
+        add_action('wp_ajax_oe_tix_detail', [$this, 'ajax_detail']);
+    }
+
+    /**
+     * Render the attendee or order detail panel for the Tickets slide-in.
+     * Read-only + nonce + tickets-section cap. The panel's own action forms reuse
+     * the existing handlers (check-in, transfer, resend, refund, cancel, delete),
+     * so no money path is duplicated here.
+     */
+    public function ajax_detail(): void {
+        if (! current_user_can(SectionAccess::cap('tickets'))) {
+            wp_send_json_error(['message' => __('You do not have access to tickets.', 'october-events')], 403);
+        }
+        if (! check_ajax_referer('oe_tix_detail', 'nonce', false)) {
+            wp_send_json_error(['message' => __('This page expired — reload and try again.', 'october-events')], 403);
+        }
+        $type = isset($_GET['type']) ? sanitize_key((string) $_GET['type']) : 'attendee';
+        $id   = isset($_GET['id']) ? absint($_GET['id']) : 0;
+        ob_start();
+        if ($type === 'order') {
+            $this->render_order_panel($id);
+        } else {
+            $this->render_attendee_panel($id);
+        }
+        wp_send_json_success(['html' => ob_get_clean()]);
+    }
+
+    /** Attendee slide-in: one ticket's detail, check-in history and quick actions. */
+    private function render_attendee_panel(int $ticket_id): void {
+        $t = $ticket_id ? Orders::ticket_get($ticket_id) : null;
+        if (! $t) {
+            $this->panel_not_found(__('Ticket not found', 'october-events'));
+            return;
+        }
+        $order        = Orders::get((int) $t->order_id);
+        $currency     = strtoupper((string) ($order->currency ?? \OE\Settings::get('currency', 'usd')));
+        $order_ticket_count = max(1, count(Orders::tickets((int) $t->order_id)));
+        $price        = $order ? round((float) $order->total / $order_ticket_count, 2) : 0.0;
+        $event_title  = get_the_title((int) $t->event_id) ?: ('#' . (int) $t->event_id);
+        global $wpdb;
+        $ck = \OE\Ticketing\Schema::checkins();
+        $scans = $wpdb->get_results($wpdb->prepare(
+            "SELECT venue_name, scanned_at FROM {$ck} WHERE ticket_id = %d ORDER BY scanned_at ASC, id ASC",
+            $ticket_id
+        )) ?: [];
+        require OE_DIR . 'admin/views/_tix-attendee-panel.php';
+    }
+
+    /** Order control-centre slide-in: summary, payment, tickets, history, actions. */
+    private function render_order_panel(int $order_id): void {
+        $order = $order_id ? Orders::get($order_id) : null;
+        if (! $order) {
+            $this->panel_not_found(__('Order not found', 'october-events'));
+            return;
+        }
+        $currency    = strtoupper((string) ($order->currency ?: \OE\Settings::get('currency', 'usd')));
+        $pid         = (string) $order->payment_id;
+        $inv         = $pid !== '' ? \OE\Ticketing\OrderInvoice::for_payment($pid) : null;
+        $tickets     = $pid !== '' ? (Orders::active_tickets_for_payments([$pid])[$pid] ?? Orders::tickets($order_id)) : Orders::tickets($order_id);
+        $event_title = get_the_title((int) $order->event_id) ?: ('#' . (int) $order->event_id);
+        $invoice_url = $pid !== '' ? home_url('/?oe_invoice_txn=' . rawurlencode($pid)) : '';
+        $is_stripe   = in_array((string) $order->payment_method, ['stripe', 'public'], true);
+        require OE_DIR . 'admin/views/_tix-order-panel.php';
+    }
+
+    private function panel_not_found(string $title): void {
+        echo '<div class="oe-slide-head"><h2>' . esc_html($title) . '</h2>'
+            . '<button type="button" class="oe-slide-x" data-oe-slide-close aria-label="' . esc_attr__('Close', 'october-events') . '">×</button></div>'
+            . '<div class="oe-slide-body"><p class="description">' . esc_html__('It may have been deleted. Reload the page.', 'october-events') . '</p></div>';
     }
 
     /* ------------------------------------------------------------------ *
