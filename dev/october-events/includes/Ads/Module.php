@@ -51,5 +51,19 @@ final class Module {
         if (class_exists('OCAD_Activator') && get_option('ocad_version') !== (defined('OCAD_VERSION') ? OCAD_VERSION : '')) {
             \OCAD_Activator::activate();
         }
+
+        // Folded in, ads belong under the October Events menu like every other
+        // module, not as their own top-level item. The vendored module registers
+        // a top-level "Ad Manager" menu (admin_menu @10); drop it here (@999) so
+        // only the October-styled overview under October Events → Ad manager
+        // shows. The module's own screens (ocad-add-campaign / ocad-report /
+        // ocad-bookings) stay reachable by URL — removing a menu does not
+        // unregister its pages — and the overview links to them.
+        add_action('admin_menu', [self::class, 'dedupe_menu'], 999);
+    }
+
+    /** Remove the vendored module's own top-level menu when folded in. */
+    public static function dedupe_menu(): void {
+        remove_menu_page('oc-ad-manager');
     }
 }

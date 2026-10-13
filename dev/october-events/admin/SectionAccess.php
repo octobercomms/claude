@@ -37,7 +37,6 @@ final class SectionAccess {
         'tickets'      => 'Tickets',
         'directory'    => 'Directory',
         'destinations' => 'Destinations',
-        'products'     => 'Products',
         'stories'      => 'Stories',
         'accounts'     => 'Accounts',
         'volunteers'   => 'Volunteers',
@@ -112,7 +111,7 @@ final class SectionAccess {
         return [
             'none'  => ['label' => __('No access', 'october-events'), 'sections' => []],
             'front' => ['label' => __('Front of house', 'october-events'), 'sections' => ['tickets', 'volunteers', 'team']],
-            'content' => ['label' => __('Content', 'october-events'), 'sections' => ['events', 'directory', 'destinations', 'products', 'stories', 'packages']],
+            'content' => ['label' => __('Content', 'october-events'), 'sections' => ['events', 'directory', 'destinations', 'stories', 'packages']],
             'marketing' => ['label' => __('Marketing', 'october-events'), 'sections' => ['contacts', 'ads', 'accounts']],
             'all'   => ['label' => __('Everything', 'october-events'), 'sections' => array_keys(self::SECTIONS)],
         ];

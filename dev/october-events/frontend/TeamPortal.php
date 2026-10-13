@@ -46,7 +46,6 @@ final class TeamPortal {
             'packages'     => [__('Packages', 'october-events'), __('Partner packages and pricing.', 'october-events'), '🏷', $cpt('package')],
             'directory'    => [__('Directory', 'october-events'), __('Directory listings.', 'october-events'), '📇', $pg('oe-directory')],
             'destinations' => [__('Destinations', 'october-events'), __('Destination listings.', 'october-events'), '📍', $pg('oe-destinations')],
-            'products'     => [__('Products', 'october-events'), __('Product listings.', 'october-events'), '📦', $pg('oe-products')],
             'stories'      => [__('Stories', 'october-events'), __('Editorial stories.', 'october-events'), '📝', $pg('oe-stories')],
             'accounts'     => [__('Accounts', 'october-events'), __('Member and partner accounts.', 'october-events'), '🪪', $pg('oe-accounts')],
             'countdown'    => [__('Countdown', 'october-events'), __('The event countdown.', 'october-events'), '⏱', $pg('oe-countdown')],
