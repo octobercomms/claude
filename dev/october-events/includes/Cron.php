@@ -23,12 +23,14 @@ final class Cron {
     public const HOOK_DISPATCH = 'oe_mail_dispatch'; // campaign send queue (per minute)
 
     /**
-     * Master switch for the subscriber newsletter digest. It is an early-concept
-     * feature — the content, design and subject aren't finalised — so it is HARD
-     * OFF: it cannot send (auto or manual) and its settings are hidden. Flip this
-     * to true once the newsletter is ready to go live.
+     * Master switch for the subscriber newsletter digest (ROADMAP R3). The
+     * content, design and subject are finalised (a branded "what's on" newsletter
+     * built from upcoming events, featured listings and recent stories), so the
+     * feature is available. It still only sends when a site opts in
+     * (`digest_enabled` setting, default off), on the first Monday, at most once
+     * per calendar month — so enabling this never sends anything by surprise.
      */
-    public const DIGEST_ENABLED = false;
+    public const DIGEST_ENABLED = true;
 
     public static function schedule(): void {
         if (! wp_next_scheduled(self::HOOK_DAILY)) {
@@ -224,9 +226,27 @@ final class Cron {
             }
             return '<h2 style="font-size:18px;margin:24px 0 10px">' . esc_html($title) . '</h2>' . $rows;
         };
-        return $section(__('Upcoming events', 'october-events'), $events)
+        $inner = $section(__('Upcoming events', 'october-events'), $events)
             . $section(__('Featured', 'october-events'), $featured)
             . $section(__('Latest stories', 'october-events'), $stories);
+
+        if ($inner === '') {
+            return '';
+        }
+
+        // Branded newsletter wrapper (the campaign sender adds tracking + the
+        // unsubscribe footer; this gives the digest its header and frame).
+        $brand = esc_html((string) Settings::get('brand_name', 'October Events'));
+        $month = esc_html(wp_date('F Y'));
+        $accent = '#dd4b14';
+        return '<div style="max-width:600px;margin:0 auto;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a">'
+            . '<div style="border-bottom:2px solid ' . $accent . ';padding-bottom:10px;margin-bottom:8px">'
+            . '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:' . $accent . ';font-weight:700">' . $brand . '</div>'
+            . '<div style="font-size:22px;font-weight:800;margin-top:2px">' . esc_html__('This month', 'october-events') . ' · ' . $month . '</div>'
+            . '</div>'
+            . '<p style="color:#555;font-size:15px;margin:0 0 8px">' . esc_html__('What’s on and what’s new.', 'october-events') . '</p>'
+            . $inner
+            . '</div>';
     }
 
     /** @return \WP_Post[] */
