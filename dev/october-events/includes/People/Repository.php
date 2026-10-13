@@ -168,6 +168,16 @@ final class Repository {
         return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id=%d', $id)) ?: null;
     }
 
+    /** The CRM person id for an email, or 0 — used to deep-link into the record. */
+    public static function id_by_email(string $email): int {
+        global $wpdb;
+        $email = strtolower(trim($email));
+        if ($email === '') {
+            return 0;
+        }
+        return (int) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . self::table() . ' WHERE email=%s LIMIT 1', $email));
+    }
+
     /**
      * Live detail for one person: their orders and volunteer signups, joined
      * fresh from the source tables by email (never stale).

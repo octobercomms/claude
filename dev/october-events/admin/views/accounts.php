@@ -32,16 +32,23 @@ use OE\PostTypes;
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($accounts as $acc) :
+            <?php
+            $oe_crm_on = \OE\Features::enabled('contacts');
+            foreach ($accounts as $acc) :
                 $auto  = get_post_meta($acc->ID, '_oe_auto_approve', true) ? __('On', 'october-events') : __('Off', 'october-events');
                 $types = (array) get_post_meta($acc->ID, '_oe_auto_approve_types', true);
+                $acc_email = (string) get_post_meta($acc->ID, '_oe_email', true);
+                $record = ($oe_crm_on && $acc_email !== '') ? admin_url('admin.php?page=oe-people&person_email=' . rawurlencode($acc_email)) : '';
             ?>
                 <tr>
-                    <td><strong><?php echo esc_html(get_the_title($acc)); ?></strong></td>
-                    <td><?php echo esc_html((string) get_post_meta($acc->ID, '_oe_email', true)); ?></td>
+                    <td><strong><?php if ($record !== '') : ?><a href="<?php echo esc_url($record); ?>"><?php echo esc_html(get_the_title($acc)); ?></a><?php else : ?><?php echo esc_html(get_the_title($acc)); ?><?php endif; ?></strong></td>
+                    <td><?php echo esc_html($acc_email); ?></td>
                     <td><?php echo esc_html((string) get_post_meta($acc->ID, '_oe_account_status', true) ?: 'active'); ?></td>
                     <td><?php echo esc_html($auto); ?><?php echo $types ? ' (' . esc_html(implode(', ', $types)) . ')' : ''; ?></td>
-                    <td class="oe-ad-num"><a class="button button-small" href="<?php echo esc_url(get_edit_post_link($acc->ID)); ?>"><?php esc_html_e('Edit', 'october-events'); ?></a></td>
+                    <td class="oe-ad-num" style="white-space:nowrap">
+                        <?php if ($record !== '') : ?><a class="button button-small" href="<?php echo esc_url($record); ?>"><?php esc_html_e('Record', 'october-events'); ?></a> <?php endif; ?>
+                        <a class="button button-small" href="<?php echo esc_url(get_edit_post_link($acc->ID)); ?>"><?php esc_html_e('Edit', 'october-events'); ?></a>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
