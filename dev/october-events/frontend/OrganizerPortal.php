@@ -20,14 +20,16 @@ defined('ABSPATH') || exit;
  */
 final class OrganizerPortal {
 
-    private const SAVE_EVENT   = 'oe_org_save_event';
-    private const SAVE_ACCOUNT = 'oe_org_save_account';
-    private const TABS = ['overview', 'packages', 'activities', 'account'];
+    private const SAVE_EVENT     = 'oe_org_save_event';
+    private const SAVE_ACCOUNT   = 'oe_org_save_account';
+    private const SAVE_CHECKLIST = 'oe_org_save_checklist';
+    private const TABS = ['overview', 'packages', 'activities', 'briefings', 'account'];
 
     public static function init(): void {
         add_shortcode('oe_organizer_portal', [self::class, 'render']);
         add_action('admin_post_' . self::SAVE_EVENT, [self::class, 'save_event']);
         add_action('admin_post_' . self::SAVE_ACCOUNT, [self::class, 'save_account']);
+        add_action('admin_post_' . self::SAVE_CHECKLIST, [self::class, 'save_checklist']);
     }
 
     public static function render(): string {
@@ -59,6 +61,7 @@ final class OrganizerPortal {
             'overview'   => __('Overview', 'october-events'),
             'packages'   => __('Packages', 'october-events'),
             'activities' => __('Activities', 'october-events'),
+            'briefings'  => __('Briefings', 'october-events'),
             'account'    => __('Account', 'october-events'),
         ] as $key => $label) {
             $url = esc_url(add_query_arg('oe_tab', $key, $base));
@@ -72,6 +75,9 @@ final class OrganizerPortal {
                 break;
             case 'activities':
                 $body = self::tab_activities($user);
+                break;
+            case 'briefings':
+                $body = self::tab_briefings($user);
                 break;
             case 'account':
                 $body = self::tab_account($user);
@@ -115,6 +121,81 @@ final class OrganizerPortal {
             return '<div class="oe-card"><p>' . esc_html__('No packages are available yet.', 'october-events') . '</p></div>';
         }
         return $matrix;
+    }
+
+    /** Briefings + the onboarding checklist (ROADMAP R4). */
+    private static function tab_briefings(\WP_User $user): string {
+        $uid       = (int) $user->ID;
+        $briefings = \OE\Briefings\Briefings::briefings();
+        $checklist = \OE\Briefings\Briefings::checklist();
+        $state     = \OE\Briefings\Briefings::state($uid);
+        $prog      = \OE\Briefings\Briefings::progress($uid);
+
+        $out = '';
+        if (isset($_GET['oe_saved']) && $_GET['oe_saved'] === 'checklist') {
+            $out .= self::flash(__('Your checklist is saved.', 'october-events'));
+        }
+
+        // Checklist.
+        if ($checklist) {
+            $action = esc_url(admin_url('admin-post.php'));
+            $nonce  = wp_create_nonce(self::SAVE_CHECKLIST);
+            $out .= '<div class="oe-card oe-briefings-check">'
+                . '<h2>' . esc_html__('Your onboarding checklist', 'october-events') . '</h2>'
+                . '<p class="oe-portal__sub">' . esc_html(sprintf(__('%1$d of %2$d done (%3$d%%)', 'october-events'), $prog['done'], $prog['total'], $prog['pct'])) . '</p>'
+                . '<div class="oe-check-bar"><span style="width:' . (int) $prog['pct'] . '%"></span></div>'
+                . '<form method="post" action="' . $action . '">'
+                . '<input type="hidden" name="action" value="' . esc_attr(self::SAVE_CHECKLIST) . '">'
+                . '<input type="hidden" name="_oe_nonce" value="' . esc_attr($nonce) . '">'
+                . '<ul class="oe-check-list">';
+            foreach ($checklist as $c) {
+                $done = ! empty($state[$c['id']]);
+                $out .= '<li><label><input type="checkbox" name="done[]" value="' . esc_attr($c['id']) . '"' . checked($done, true, false) . '> '
+                    . '<span><strong>' . esc_html($c['label']) . '</strong>'
+                    . ($c['desc'] !== '' ? '<span class="oe-check-desc">' . esc_html($c['desc']) . '</span>' : '')
+                    . '</span></label></li>';
+            }
+            $out .= '</ul><p><button type="submit" class="oe-btn">' . esc_html__('Save checklist', 'october-events') . '</button></p></form></div>';
+        }
+
+        // Briefings.
+        if ($briefings) {
+            $out .= '<div class="oe-card oe-briefings-list"><h2>' . esc_html__('Briefings', 'october-events') . '</h2>';
+            foreach ($briefings as $b) {
+                $out .= '<div class="oe-brief"><h3>' . esc_html($b['title']) . '</h3>';
+                if ($b['body'] !== '') {
+                    $out .= '<p>' . nl2br(esc_html($b['body'])) . '</p>';
+                }
+                if ($b['link'] !== '') {
+                    $out .= '<p><a class="oe-btn oe-btn--ghost" href="' . esc_url($b['link']) . '" target="_blank" rel="noopener">' . esc_html__('Open', 'october-events') . '</a></p>';
+                }
+                $out .= '</div>';
+            }
+            $out .= '</div>';
+        }
+
+        if ($out === '') {
+            $out = '<div class="oe-card"><p>' . esc_html__('No briefings yet. Your coordinator will add them here.', 'october-events') . '</p></div>';
+        }
+        return $out;
+    }
+
+    public static function save_checklist(): void {
+        if (! is_user_logged_in()) {
+            wp_safe_redirect(home_url('/'));
+            exit;
+        }
+        $nonce = isset($_POST['_oe_nonce']) ? sanitize_text_field(wp_unslash((string) $_POST['_oe_nonce'])) : '';
+        $uid   = get_current_user_id();
+        if ($nonce === '' || ! wp_verify_nonce($nonce, self::SAVE_CHECKLIST) || ! $uid) {
+            wp_safe_redirect(wp_get_referer() ?: home_url('/'));
+            exit;
+        }
+        $done = isset($_POST['done']) && is_array($_POST['done']) ? array_map('strval', (array) wp_unslash($_POST['done'])) : [];
+        \OE\Briefings\Briefings::set_all((int) $uid, $done);
+        $back = add_query_arg(['oe_tab' => 'briefings', 'oe_saved' => 'checklist'], wp_get_referer() ?: home_url('/'));
+        wp_safe_redirect($back);
+        exit;
     }
 
     private static function tab_activities(\WP_User $user): string {
