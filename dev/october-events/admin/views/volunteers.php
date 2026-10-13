@@ -99,6 +99,24 @@ foreach ($opps as $mo) {
         </div>
     </div>
 
+    <?php
+    $pool_count   = (int) ($pool_count ?? 0);
+    $pool_flagged = (int) ($pool_flagged ?? 0);
+    $profiles_url = admin_url('admin.php?page=oe-volunteers&view=profiles');
+    ?>
+    <div class="oe-ad-strip" style="margin-top:12px;">
+        <a class="oe-ad-stat" href="<?php echo esc_url($profiles_url); ?>" style="text-decoration:none;color:inherit;">
+            <div class="l"><?php esc_html_e('In the pool', 'october-events'); ?></div>
+            <div class="v"><?php echo esc_html(number_format_i18n($pool_count)); ?></div>
+            <div class="s"><?php esc_html_e('distinct volunteers, all years', 'october-events'); ?></div>
+        </a>
+        <a class="oe-ad-stat" href="<?php echo esc_url($profiles_url); ?>" style="text-decoration:none;color:inherit;">
+            <div class="l"><?php esc_html_e('No-show flags', 'october-events'); ?></div>
+            <div class="v"><?php echo esc_html(number_format_i18n($pool_flagged)); ?></div>
+            <div class="s"><?php echo $pool_flagged > 0 ? esc_html__('review before approving', 'october-events') : esc_html__('none raised', 'october-events'); ?></div>
+        </a>
+    </div>
+
     <div class="oe-actionbar">
         <a class="button button-primary" href="<?php echo esc_url(admin_url('post-new.php?post_type=' . Volunteers::slug())); ?>"><?php esc_html_e('+ New opportunity', 'october-events'); ?></a>
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-volunteers&view=compose')); ?>"><?php esc_html_e('✉ Message volunteers', 'october-events'); ?></a>

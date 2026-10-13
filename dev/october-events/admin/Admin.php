@@ -458,6 +458,18 @@ final class Admin {
             return;
         }
 
+        // Pool snapshot for the headline strip: distinct volunteers across all
+        // signup history, and how many carry a manual no-show flag. Both link
+        // through to the full profiles sub-view.
+        $pool_people = \OE\Volunteers\Profiles::all();
+        $pool_count  = count($pool_people);
+        $pool_flagged = 0;
+        foreach ($pool_people as $pp) {
+            if (! empty($pp['flagged'])) {
+                $pool_flagged++;
+            }
+        }
+
         $dash = Volunteers::dashboard($ids);
         require OE_DIR . 'admin/views/volunteers.php';
     }
