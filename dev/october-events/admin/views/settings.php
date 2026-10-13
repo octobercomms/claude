@@ -612,7 +612,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 <th scope="row"><label><?php esc_html_e('Tax label', 'october-events'); ?></label></th>
                 <td><input type="text" name="invoice_tax_label" value="<?php echo esc_attr((string) ($cfg['invoice_tax_label'] ?? '')); ?>" placeholder="VAT" style="width:120px">
                     <input type="text" name="invoice_tax_number" value="<?php echo esc_attr((string) ($cfg['invoice_tax_number'] ?? '')); ?>" placeholder="<?php esc_attr_e('Tax / VAT number', 'october-events'); ?>" class="regular-text" style="margin-left:8px">
-                    <p class="description"><?php esc_html_e('Optional. Leave both blank if you are not tax registered — nothing tax-related is shown. Prices are treated as the amount charged (tax inclusive).', 'october-events'); ?></p></td>
+                    <label style="margin-left:8px"><input type="number" name="invoice_tax_rate" value="<?php echo esc_attr((string) ($cfg['invoice_tax_rate'] ?? '')); ?>" placeholder="0" min="0" max="100" step="0.01" style="width:90px"> %</label>
+                    <p class="description"><?php esc_html_e('Optional. Leave blank if you are not tax registered — nothing tax-related is shown. Prices are treated as the amount charged (tax inclusive); set a rate and label to show the tax portion broken out on invoices.', 'october-events'); ?></p></td>
             </tr>
             <tr>
                 <th scope="row"><label><?php esc_html_e('Invoice number prefix', 'october-events'); ?></label></th>

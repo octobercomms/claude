@@ -330,6 +330,7 @@ final class Settings {
             'invoice_business_phone'   => '',
             'invoice_tax_label'        => '', // e.g. "VAT" or "Sales tax" (blank = none shown)
             'invoice_tax_number'       => '', // VAT/registration number (blank = not shown)
+            'invoice_tax_rate'         => '', // percentage, e.g. "20" — blank/0 shows no breakdown; prices are tax-inclusive
             'invoice_prefix'           => 'INV', // invoice number prefix → INV-YYYY-NNNN
             'invoice_notes'            => '', // footer notes / payment terms
             'paper_size'               => 'letter', // printable output size: 'letter' | 'a4'
