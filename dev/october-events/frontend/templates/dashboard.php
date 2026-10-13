@@ -80,5 +80,6 @@ defined('ABSPATH') || exit;
             <button type="submit" class="oe-btn"><?php esc_html_e('Save', 'october-events'); ?></button>
             <div id="oe-account-result" class="oe-result"></div>
         </form>
+        <?php echo do_shortcode('[oe_email_preferences]'); ?>
     </section>
 </div>
