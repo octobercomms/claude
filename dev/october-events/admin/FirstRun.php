@@ -161,4 +161,38 @@ final class FirstRun {
         </div>
         <?php
     }
+
+    /**
+     * The First run & empty states reference screen (Admin hub tab). Unlike the
+     * dashboard widget, this always renders the checklist — even once dismissed
+     * or complete — so it stays a reference an owner can revisit.
+     */
+    public static function render_reference(): void {
+        $steps = self::steps();
+        $prog  = self::progress();
+        $pct   = $prog['total'] > 0 ? (int) round($prog['done'] / $prog['total'] * 100) : 0;
+        ?>
+        <div class="oe-ad-card oe-firstrun">
+            <div class="oe-firstrun-head">
+                <div>
+                    <div class="oe-firstrun-kicker"><?php esc_html_e('Get set up', 'october-events'); ?></div>
+                    <h2><?php echo esc_html(sprintf(__('%1$d of %2$d steps done', 'october-events'), $prog['done'], $prog['total'])); ?></h2>
+                </div>
+            </div>
+            <div class="oe-firstrun-bar"><span style="width:<?php echo (int) $pct; ?>%"></span></div>
+            <ul class="oe-firstrun-steps">
+                <?php foreach ($steps as $s) : ?>
+                    <li class="<?php echo $s['done'] ? 'is-done' : ''; ?>">
+                        <span class="oe-firstrun-check" aria-hidden="true"><?php echo $s['done'] ? '✓' : ''; ?></span>
+                        <span class="oe-firstrun-body">
+                            <strong><?php echo esc_html($s['label']); ?></strong>
+                            <span class="oe-firstrun-desc"><?php echo esc_html($s['desc']); ?></span>
+                        </span>
+                        <a class="button button-small" href="<?php echo esc_url($s['url']); ?>"><?php echo esc_html($s['done'] ? __('Review', 'october-events') : $s['cta']); ?></a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php
+    }
 }

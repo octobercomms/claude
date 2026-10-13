@@ -30,7 +30,7 @@ $total_sent = 0;
 foreach ($campaigns as $c) { $total_sent += (int) ($c['stats']['sent'] ?? 0); }
 ?>
 <div class="wrap oe-admin oe-email">
-    <h1><?php esc_html_e('Email', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::hub_tabs('comms', 'email'); ?>
     <?php \OE\Admin\Admin::bento('email'); ?>
 
     <div class="oe-ad-strip">

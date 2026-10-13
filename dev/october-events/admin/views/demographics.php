@@ -9,7 +9,7 @@ defined('ABSPATH') || exit;
 $profiles = (int) ($agg['profiles'] ?? 0);
 ?>
 <div class="wrap oe-admin oe-demographics">
-    <h1><?php esc_html_e('Demographics', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::hub_tabs('comms', 'demographics'); ?>
 
     <div class="oe-ad-strip">
         <div class="oe-ad-stat oe-ad-stat--feature">

@@ -18,13 +18,10 @@ $notices = [
 ];
 ?>
 <div class="wrap oe-admin oe-tax">
-    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-        <span><?php esc_html_e('Taxonomies & filters', 'october-events'); ?></span>
-        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-locations')); ?>"><?php esc_html_e('Locations & venues', 'october-events'); ?></a>
-            <button type="button" class="button button-primary" onclick="document.getElementById('oe-tax-new').open=true;"><?php esc_html_e('+ New taxonomy', 'october-events'); ?></button>
-        </span>
-    </h1>
+    <?php \OE\Admin\Admin::hub_tabs('admin', 'taxonomies',
+        '<a class="button" href="' . esc_url(admin_url('admin.php?page=oe-locations')) . '">' . esc_html__('Locations & venues', 'october-events') . '</a> '
+        . '<button type="button" class="button button-primary" onclick="document.getElementById(\'oe-tax-new\').open=true;">' . esc_html__('+ New taxonomy', 'october-events') . '</button>'
+    ); ?>
 
     <?php if (isset($_GET['oe_msg'], $notices[$_GET['oe_msg']])) : // phpcs:ignore WordPress.Security.NonceVerification ?>
         <div class="notice notice-<?php echo $_GET['oe_msg'] === 'error' ? 'error' : 'success'; ?> is-dismissible inline"><p><?php echo esc_html($notices[sanitize_key((string) $_GET['oe_msg'])]); ?></p></div>

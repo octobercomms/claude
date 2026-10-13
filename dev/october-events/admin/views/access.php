@@ -13,7 +13,7 @@
 defined('ABSPATH') || exit;
 ?>
 <div class="wrap oe-admin oe-access">
-    <h1><?php esc_html_e('User access', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::hub_tabs('admin', 'access'); ?>
 
     <?php if (isset($_GET['oe_msg']) && $_GET['oe_msg'] === 'saved') : // phpcs:ignore WordPress.Security.NonceVerification ?>
         <div class="notice notice-success is-dismissible inline"><p><?php esc_html_e('Access saved and applied to the roles.', 'october-events'); ?></p></div>
