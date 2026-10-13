@@ -86,6 +86,7 @@ final class Admin {
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'People', 'People', $sc('contacts'), 'oe-people', [\OE\Admin\PeopleScreen::class, 'render']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Email', 'Email', $sc('contacts'), 'oe-email', [$this, 'page_email']); }
+        if ($f('ads'))          { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
         if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
         add_submenu_page('october-events', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
         // Reachable by URL from the Membership settings, not shown in the menu.
@@ -616,6 +617,22 @@ final class Admin {
 
     public function page_countdown(): void {
         require OE_DIR . 'admin/views/countdown.php';
+    }
+
+    /** Ad manager overview (ADMIN-BUILD AD10): stat strip + campaigns table
+     * over the folded-in ads module. Read-only; the module's own screens edit. */
+    public function page_ads(): void {
+        if (! current_user_can(SectionAccess::cap('ads'))) {
+            wp_die(esc_html__('You do not have access to this section.', 'october-events'), '', ['response' => 403]);
+        }
+        $available = class_exists('OCAD_Campaign');
+        $campaigns = [];
+        $stats     = [];
+        if ($available) {
+            $campaigns = (array) \OCAD_Campaign::get_all();
+            $stats     = (array) \OCAD_Campaign::get_stats_for_all();
+        }
+        require OE_DIR . 'admin/views/ad-manager.php';
     }
 
     /** Email overview (ADMIN-BUILD AD9): sending health, stat strip, campaigns. */
