@@ -48,6 +48,11 @@ final class PostTypes {
         // records that feed the comparison matrix and purchase wizard — content,
         // not code. Not a public listing; not in the approval pipeline.
         'package'     => ['slug' => 'oe_package',     'external' => false, 'listing' => false, 'label' => 'Package'],
+        // Tour locations (ROADMAP R1): native home for the per-event tour
+        // locations repeater, promoted to first-class records with credits,
+        // availability and a gallery. Public (its own page); not in the
+        // approval pipeline.
+        'location'    => ['slug' => 'oe_location',    'external' => false, 'listing' => false, 'label' => 'Location'],
     ];
 
     public static function get_instance(): self {
@@ -117,6 +122,10 @@ final class PostTypes {
         // description. Not public (no standalone archive); rendered via the
         // comparison matrix / purchase wizard shortcodes.
         register_post_type(self::slug('package'), $this->args('Package', 'Packages', 'dashicons-tag', ['title', 'editor'], false));
+
+        // Tour locations: a public record with title, description, featured
+        // image (the hero) and gallery/credits in meta (ROADMAP R1).
+        register_post_type(self::slug('location'), $this->args('Location', 'Locations', 'dashicons-location-alt', ['title', 'editor', 'thumbnail', 'author']));
     }
 
     /**
