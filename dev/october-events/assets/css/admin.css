@@ -389,3 +389,20 @@
 .oe-admin .oe-demo-barfill{ display:block; height:100%; background:#dd4b14; border-radius:4px; }
 .oe-admin .oe-demo-barval{ text-align:right; font-weight:700; font-size:12px; }
 @media (max-width:782px){ .oe-admin .oe-demo-barrow{ grid-template-columns:100px 1fr 40px; } }
+
+/* ---- Tickets: three-lens table (Attendees / Orders / Check-in) ------- */
+.oe-admin .oe-section-label{ font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:#555; margin:0 0 10px; }
+.oe-admin .oe-tix-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.oe-admin .oe-tix-seg{ display:inline-flex; background:#f3f3f3; border:2px solid #e3e2db; border-radius:999px; padding:3px; gap:2px; }
+.oe-admin .oe-tix-seg button{ border:0; background:none; cursor:pointer; font-size:12.5px; font-weight:700; color:#555; padding:6px 16px; border-radius:999px; line-height:1.2; }
+.oe-admin .oe-tix-seg button.is-on{ background:#1a1a1a; color:#fff; }
+.oe-admin .oe-tix-lsearch{ border:2px solid #e3e2db; border-radius:10px; padding:7px 12px; font-size:13px; min-width:220px; }
+.oe-admin .oe-tix-lens[hidden]{ display:none; }
+.oe-admin .oe-tix-morecard{ margin-top:16px; }
+.oe-admin .oe-tix-morelinks{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.oe-admin .oe-tix-morelink{ display:block; text-decoration:none; color:#1a1a1a; background:#fff; border:2px solid #e3e2db; border-radius:12px; padding:14px 16px; transition:border-color .12s,box-shadow .12s; }
+.oe-admin .oe-tix-morelink:hover{ border-color:#dd4b14; box-shadow:0 4px 12px rgba(20,20,20,.08); }
+.oe-admin .oe-tix-morelink strong{ display:block; font-size:14px; margin-bottom:3px; }
+.oe-admin .oe-tix-morelink span{ font-size:12px; color:#888; }
+@media (max-width:1100px){ .oe-admin .oe-tix-morelinks{ grid-template-columns:1fr; } }
+@media (max-width:782px){ .oe-admin .oe-tix-lsearch{ min-width:0; width:100%; } }
