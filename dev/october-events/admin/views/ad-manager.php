@@ -33,16 +33,15 @@ $status_pill = static function (string $s): array {
 };
 ?>
 <div class="wrap oe-admin oe-ads">
-    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-        <span><?php esc_html_e('Ad manager', 'october-events'); ?></span>
-        <?php if ($available) : ?>
-            <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=ocad-bookings')); ?>"><?php esc_html_e('Bookings', 'october-events'); ?></a>
-                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=ocad-report')); ?>"><?php esc_html_e('Reports', 'october-events'); ?></a>
-                <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=ocad-add-campaign')); ?>"><?php esc_html_e('+ New campaign', 'october-events'); ?></a>
-            </span>
-        <?php endif; ?>
-    </h1>
+    <?php
+    $oe_ads_actions = '';
+    if ($available) {
+        $oe_ads_actions = '<a class="button" href="' . esc_url(admin_url('admin.php?page=ocad-bookings')) . '">' . esc_html__('Bookings', 'october-events') . '</a> '
+            . '<a class="button" href="' . esc_url(admin_url('admin.php?page=ocad-report')) . '">' . esc_html__('Reports', 'october-events') . '</a> '
+            . '<a class="button button-primary" href="' . esc_url(admin_url('admin.php?page=ocad-add-campaign')) . '">' . esc_html__('+ New campaign', 'october-events') . '</a>';
+    }
+    \OE\Admin\Admin::hub_tabs('growth', 'ads', $oe_ads_actions);
+    ?>
 
     <?php if (! $available) : ?>
         <div class="oe-ad-card">

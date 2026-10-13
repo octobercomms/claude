@@ -17,7 +17,7 @@ use OE\Porter\Importer;
 $page = admin_url('admin.php?page=oe-porter');
 ?>
 <div class="wrap oe-admin oe-porter">
-    <h1><?php esc_html_e('Import & export', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::hub_tabs('admin', 'porter'); ?>
 
     <?php if ($notice !== '') : ?>
         <div class="notice notice-success is-dismissible inline"><p><?php echo esc_html($notice); ?></p></div>

@@ -9,7 +9,7 @@ defined('ABSPATH') || exit;
 $post = admin_url('admin-post.php');
 ?>
 <div class="wrap oe-admin oe-briefings">
-    <h1><?php esc_html_e('Briefings & checklist', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::hub_tabs('admin', 'briefings'); ?>
 
     <?php if (isset($_GET['oe_msg'])) : // phpcs:ignore WordPress.Security.NonceVerification ?>
         <div class="notice notice-success is-dismissible inline"><p><?php esc_html_e('Saved.', 'october-events'); ?></p></div>

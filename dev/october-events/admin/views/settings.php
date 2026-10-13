@@ -6,7 +6,7 @@ use OE\PostTypes;
 $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 ?>
 <div class="wrap oe-admin">
-    <h1><?php esc_html_e('Settings', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::hub_tabs('admin', 'settings'); ?>
     <?php \OE\Admin\Admin::bento('settings'); ?>
     <p class="description" style="max-width:720px;margin:0 0 12px;"><?php esc_html_e('These are the site-wide settings. Settings that belong to one screen (ticketing, volunteers, signups, the planning team) live in a “Settings for this page” panel at the top of that screen, so they sit next to the thing they affect.', 'october-events'); ?></p>
     <?php if (! empty($_GET['updated'])) : ?>

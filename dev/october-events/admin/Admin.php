@@ -21,8 +21,14 @@ final class Admin {
 
     private static ?Admin $instance = null;
 
-    /** @var string[] People-hub screen slugs, set in register_menu(). */
-    private array $people_slugs = [];
+    /** @var array<string,array<int,array{0:string,1:string,2:string}>> hub key => [[memberKey,label,slug],…]. */
+    private static array $hub_nav = [];
+
+    /** @var array<string,string> member page slug => the hub's visible page slug (for highlighting). */
+    private static array $hub_highlight = [];
+
+    /** @var string the package CPT list submenu slug, when Growth's Packages tab is a CPT link. */
+    private string $pkg_cpt_slug = '';
 
     public static function get_instance(): self {
         return self::$instance ??= new self();
@@ -30,10 +36,9 @@ final class Admin {
 
     public function init(): void {
         add_action('admin_menu', [$this, 'register_menu']);
-        add_action('admin_menu', [$this, 'inject_menu_sections'], 100);
-        add_action('admin_head', [$this, 'menu_section_css']);
         add_filter('submenu_file', [$this, 'highlight_people_menu']);
         add_filter('parent_file', [$this, 'keep_people_parent']);
+        add_action('all_admin_notices', [$this, 'maybe_hub_tabs_for_cpt']);
         add_action('admin_post_oe_approve', [$this, 'handle_approve']);
         add_action('admin_post_oe_reject', [$this, 'handle_reject']);
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
@@ -80,32 +85,24 @@ final class Admin {
         $brand = (string) \OE\Settings::get('brand_name', 'October Events');
         add_menu_page($brand, $brand, $sc('dashboard'), 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
 
-        // ---- Top level (no section label) ----------------------------------
+        // ---- Top-level individual pages ------------------------------------
         add_submenu_page('october-events', 'Dashboard', 'Dashboard', $sc('dashboard'), 'october-events', [$this, 'page_dashboard']);
         // Events: the native CPT list (managed in WordPress / JetEngine).
         add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'oe-events', [$this, 'page_events']);
         if ($f('tickets')) { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
 
-        // People hub — one visible menu item. Accounts / Volunteers / Team / CRM
-        // share an in-page tab switcher (Admin::people_header); each screen keeps
-        // its own page slug and handlers, so no money or CRM form target moves.
-        // The first available screen carries the visible "People" label; the rest
-        // are registered URL-reachable but hidden from the sidebar, and the People
-        // item is kept highlighted across them (highlight_people_menu).
-        $people = [];
-        if ($f('accounts'))   { $people['oe-accounts']   = ['Accounts',   $sc('accounts'),   [$this, 'page_accounts']]; }
-        if ($f('volunteers')) { $people['oe-volunteers'] = ['Volunteers', $sc('volunteers'), [$this, 'page_volunteers']]; }
-        if ($f('team'))       { $people['oe-team']       = ['Team',       $sc('team'),       [TeamAdmin::get_instance(), 'render']]; }
-        if ($f('contacts'))   { $people['oe-people']     = ['CRM',        $sc('contacts'),   [\OE\Admin\PeopleScreen::class, 'render']]; }
-        $this->people_slugs = array_keys($people);
-        $first = array_key_first($people);
-        foreach ($people as $slug => [$label, $cap, $cb]) {
-            if ($slug === $first) {
-                add_submenu_page('october-events', 'People', 'People', $cap, $slug, $cb);
-            } else {
-                add_submenu_page('', 'People — ' . $label, $label, $cap, $slug, $cb);
-            }
-        }
+        // ---- People hub ----------------------------------------------------
+        // Each hub is one visible menu item; its members share an in-page tab
+        // switcher (Admin::hub_tabs). Members keep their own page slug + handlers,
+        // so no form target moves. The first available member carries the visible
+        // hub label; the rest are URL-reachable but hidden from the sidebar, and
+        // the hub item stays highlighted across them (highlight_people_menu).
+        $this->register_hub('people', __('People', 'october-events'), array_values(array_filter([
+            $f('accounts')   ? ['accounts',   __('Accounts', 'october-events'),   $sc('accounts'),   'oe-accounts',   [$this, 'page_accounts']] : null,
+            $f('volunteers') ? ['volunteers', __('Volunteers', 'october-events'), $sc('volunteers'), 'oe-volunteers', [$this, 'page_volunteers']] : null,
+            $f('team')       ? ['team',       __('Team', 'october-events'),       $sc('team'),       'oe-team',       [TeamAdmin::get_instance(), 'render']] : null,
+            $f('contacts')   ? ['crm',        __('CRM', 'october-events'),        $sc('contacts'),   'oe-people',     [\OE\Admin\PeopleScreen::class, 'render']] : null,
+        ])));
         // Folded into the People hub — reachable by URL, off the sidebar.
         if ($f('volunteers')) { add_submenu_page('', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
         if ($f('contacts'))   { add_submenu_page('', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
@@ -115,66 +112,110 @@ final class Admin {
         if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $sc('destinations'), 'oe-destinations', fn() => $this->page_listing('destination')); }
         if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
 
-        // ---- Comms ---------------------------------------------------------
-        if ($f('contacts')) { add_submenu_page('october-events', 'Email', 'Email', $sc('contacts'), 'oe-email', [$this, 'page_email']); }
-        if ($f('contacts')) { add_submenu_page('october-events', 'Demographics', 'Demographics', $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']); }
+        // ---- Comms hub -----------------------------------------------------
+        $this->register_hub('comms', __('Comms', 'october-events'), array_values(array_filter([
+            $f('contacts') ? ['email',        __('Email', 'october-events'),        $sc('contacts'), 'oe-email',        [$this, 'page_email']] : null,
+            $f('contacts') ? ['demographics', __('Demographics', 'october-events'), $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']] : null,
+        ])));
 
-        // ---- Growth --------------------------------------------------------
-        if ($f('ads'))      { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
-        if ($f('packages')) { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
+        // ---- Growth hub (Packages is a CPT list — cb null = link to the CPT) -
+        $this->pkg_cpt_slug = 'edit.php?post_type=' . PostTypes::slug('package');
+        $this->register_hub('growth', __('Growth', 'october-events'), array_values(array_filter([
+            $f('ads')      ? ['ads',      __('Ad manager', 'october-events'), $sc('ads'),      'oe-ads',             [$this, 'page_ads']] : null,
+            $f('packages') ? ['packages', __('Packages', 'october-events'),   $sc('packages'), $this->pkg_cpt_slug,  null] : null,
+        ])));
 
-        // ---- Admin ---------------------------------------------------------
-        add_submenu_page('october-events', 'User access', 'User access', 'manage_options', 'oe-access', [\OE\Admin\AccessScreen::class, 'render']);
-        add_submenu_page('october-events', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
-        add_submenu_page('october-events', 'Import & export', 'Import / export', 'manage_options', 'oe-porter', [\OE\Admin\PorterScreen::class, 'render']);
-        add_submenu_page('october-events', 'Briefings & checklist', 'Briefings', 'manage_options', 'oe-briefings', [\OE\Admin\BriefingsScreen::class, 'render']);
-        add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
-        add_submenu_page('october-events', 'First run & empty states', 'First run & empty states', $sc('dashboard'), 'oe-first-run', [\OE\Admin\FirstRun::class, 'render']);
+        // ---- Admin hub -----------------------------------------------------
+        $this->register_hub('admin', __('Admin', 'october-events'), [
+            ['access',     __('User access', 'october-events'),          'manage_options', 'oe-access',     [\OE\Admin\AccessScreen::class, 'render']],
+            ['taxonomies', __('Taxonomies & filters', 'october-events'), 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']],
+            ['porter',     __('Import / export', 'october-events'),      'manage_options', 'oe-porter',     [\OE\Admin\PorterScreen::class, 'render']],
+            ['briefings',  __('Briefings', 'october-events'),            'manage_options', 'oe-briefings',  [\OE\Admin\BriefingsScreen::class, 'render']],
+            ['settings',   __('Settings', 'october-events'),             $sc('settings'),  'oe-settings',   [Settings::get_instance(), 'render']],
+            ['firstrun',   __('First run', 'october-events'),            $sc('dashboard'), 'oe-first-run',  [$this, 'page_first_run']],
+        ]);
 
-        // Event Studio: the split-pane event editor, opened from the Events
-        // list. URL-reachable, off the sidebar; the Events item stays highlighted.
+        // Hidden, URL-only screens (opened from within a page, not the sidebar).
         add_submenu_page('', 'Event studio', 'Event studio', $sc('events'), 'oe-event-studio', [\OE\Admin\EventStudio::class, 'render']);
-
-        // Countdown + Tour locations: folded into Events / Taxonomies in a
-        // follow-up; reachable by URL for now, off the sidebar.
         add_submenu_page('', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
         add_submenu_page('', 'Tour locations', 'Tour locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
-
-        // Section-header rows (see inject_menu_sections) land on Dashboard if
-        // ever activated; normally they're inert via pointer-events:none.
-        add_submenu_page('', '', '', 'read', 'oe-section', static function (): void {
-            wp_safe_redirect(admin_url('admin.php?page=october-events'));
-            exit;
-        });
-        // Reachable by URL from the Membership settings, not shown in the menu.
         add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
     }
 
     /**
-     * Shared header for the People hub (Accounts / Volunteers / Team / CRM).
+     * Register a tabbed hub: one visible menu item (the hub label on its first
+     * available member), the rest URL-reachable but hidden. Records the nav for
+     * Admin::hub_tabs() and the slug→visible map for highlighting.
      *
-     * One H1 plus a tab switcher linking between the four people screens. Each
-     * screen keeps its own slug and handlers, so the switcher changes nothing
-     * about how forms post or redirect. $current is the active tab key
-     * (accounts|volunteers|team|crm); $actions_html is the screen's own primary
-     * action, placed on the right (trusted, built by the calling view).
+     * @param array<int,array{0:string,1:string,2:string,3:string,4:?callable}> $members
+     *        [memberKey, label, capability, page-slug (or edit.php? for a CPT), callback|null]
      */
-    public static function people_header(string $current, string $actions_html = ''): void {
-        $f = static fn(string $k): bool => \OE\Features::enabled($k);
-        $tabs = [];
-        if ($f('accounts'))   { $tabs['accounts']   = [__('Accounts', 'october-events'),   'oe-accounts']; }
-        if ($f('volunteers')) { $tabs['volunteers'] = [__('Volunteers', 'october-events'), 'oe-volunteers']; }
-        if ($f('team'))       { $tabs['team']       = [__('Team', 'october-events'),       'oe-team']; }
-        if ($f('contacts'))   { $tabs['crm']        = [__('CRM', 'october-events'),        'oe-people']; }
+    private function register_hub(string $hub, string $label, array $members): void {
+        $members = array_values($members);
+        if (! $members) {
+            return;
+        }
+        $visible = (string) $members[0][3];
+        $nav     = [];
+        foreach ($members as $i => [$mkey, $mlabel, $cap, $slug, $cb]) {
+            $nav[] = [$mkey, $mlabel, $slug];
+            $is_cpt = strpos($slug, 'edit.php') === 0;
+            if ($i === 0) {
+                // First member carries the visible hub label.
+                if ($is_cpt) {
+                    add_submenu_page('october-events', $label, $label, $cap, $slug);
+                } else {
+                    add_submenu_page('october-events', $label, $label, $cap, $slug, $cb);
+                }
+            } elseif (! $is_cpt) {
+                // Hidden member: URL-reachable, off the sidebar.
+                add_submenu_page('', $label . ' — ' . $mlabel, $mlabel, $cap, $slug, $cb);
+            }
+            // A non-first CPT member isn't registered as a submenu (the CPT list
+            // is reachable natively); the hub tab links to it and its screen gets
+            // the tab bar + highlight via maybe_hub_tabs_for_cpt / the filters.
+            self::$hub_highlight[$slug] = $visible;
+        }
+        self::$hub_nav[$hub] = $nav;
+    }
 
-        echo '<h1 class="oe-people-h1">' . esc_html__('People', 'october-events') . '</h1>';
+    /** The First run & empty states screen as an Admin-hub page (always renders). */
+    public function page_first_run(): void {
+        echo '<div class="wrap oe-admin oe-first-run-page">';
+        self::hub_tabs('admin', 'firstrun');
+        \OE\Admin\FirstRun::render_reference();
+        echo '</div>';
+    }
+
+    /** Hub label by key (fallback: capitalise the key). */
+    private static function hub_label(string $hub): string {
+        $labels = [
+            'people' => __('People', 'october-events'),
+            'comms'  => __('Comms', 'october-events'),
+            'growth' => __('Growth', 'october-events'),
+            'admin'  => __('Admin', 'october-events'),
+        ];
+        return $labels[$hub] ?? ucfirst($hub);
+    }
+
+    /**
+     * Hub header: the hub's H1 plus a tab switcher across its member screens,
+     * one reusable device for People / Comms / Growth / Admin. Each member keeps
+     * its own page slug and handlers; the switcher only links between them.
+     * $current is the active member key; $actions_html is the screen's own
+     * primary action, shown on the right (trusted, built by the calling view).
+     */
+    public static function hub_tabs(string $hub, string $current, string $actions_html = ''): void {
+        $members = self::$hub_nav[$hub] ?? [];
+        echo '<h1 class="oe-people-h1">' . esc_html(self::hub_label($hub)) . '</h1>';
         echo '<div class="oe-people-bar">';
         echo '<nav class="oe-people-tabs">';
-        foreach ($tabs as $key => [$label, $slug]) {
+        foreach ($members as [$key, $label, $slug]) {
+            $url = strpos($slug, 'edit.php') === 0 ? admin_url($slug) : admin_url('admin.php?page=' . $slug);
             printf(
                 '<a class="oe-people-tab%s" href="%s">%s</a>',
                 $key === $current ? ' is-on' : '',
-                esc_url(admin_url('admin.php?page=' . $slug)),
+                esc_url($url),
                 esc_html($label)
             );
         }
@@ -183,6 +224,11 @@ final class Admin {
             echo '<div class="oe-people-actions">' . $actions_html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- trusted markup built by the view
         }
         echo '</div>';
+    }
+
+    /** Back-compat alias for the People-hub views: delegates to hub_tabs('people'). */
+    public static function people_header(string $current, string $actions_html = ''): void {
+        self::hub_tabs('people', $current, $actions_html);
     }
 
     /**
@@ -209,78 +255,66 @@ final class Admin {
         echo '</nav>';
     }
 
-    /** Keep the "People" item highlighted on the hidden hub sub-screens. */
+    /** Highlight the owning hub item on a hidden hub member or the package CPT. */
     public function highlight_people_menu($submenu_file) {
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         // Event Studio lives under Events in spirit; keep Events highlighted.
         if ($page === 'oe-event-studio') {
             return 'oe-events';
         }
-        $hidden = array_merge($this->people_slugs, ['oe-volunteer-pool', 'oe-contacts']);
-        if ($this->people_slugs && in_array($page, $hidden, true)) {
-            return $this->people_slugs[0];
+        if ($page !== '' && isset(self::$hub_highlight[$page])) {
+            return self::$hub_highlight[$page];
+        }
+        // Folded people sub-screens highlight the People hub (oe-accounts first).
+        if (in_array($page, ['oe-volunteer-pool', 'oe-contacts'], true) && isset(self::$hub_highlight['oe-accounts'])) {
+            return self::$hub_highlight['oe-accounts'];
+        }
+        // On the package CPT list, highlight the Growth hub's visible item.
+        if ($page === '' && $this->pkg_cpt_slug !== '' && isset(self::$hub_highlight[$this->pkg_cpt_slug]) && $this->on_pkg_cpt_screen()) {
+            return self::$hub_highlight[$this->pkg_cpt_slug];
         }
         return $submenu_file;
     }
 
     /**
-     * Keep the October Events menu expanded on every plugin screen, including
-     * the hidden URL-only ones (People sub-screens, Event Studio, Countdown,
-     * etc.). WordPress can't associate a page registered with an empty parent,
-     * so the submenu collapses; forcing the parent to the top-level slug keeps
-     * it open across the whole plugin.
+     * Keep the October Events menu expanded on every plugin screen, including the
+     * hidden URL-only ones (hub members, Event Studio, Countdown) and the package
+     * CPT list. WordPress can't associate a page registered with an empty parent,
+     * so the submenu collapses; forcing the parent to the top-level slug keeps it
+     * open across the whole plugin.
      */
     public function keep_people_parent($parent_file) {
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         if ($page === 'october-events' || strpos($page, 'oe-') === 0) {
             return 'october-events';
         }
+        if ($this->on_pkg_cpt_screen()) {
+            return 'october-events';
+        }
         return $parent_file;
     }
 
-    /** Non-clickable section-header rows spliced into the submenu (@100). */
-    public function inject_menu_sections(): void {
-        global $submenu;
-        if (empty($submenu['october-events'])) {
+    /** True on the Packages CPT list/edit screen (a Growth hub member). */
+    private function on_pkg_cpt_screen(): bool {
+        if ($this->pkg_cpt_slug === '') {
+            return false;
+        }
+        $pt = PostTypes::slug('package');
+        $typenow = $GLOBALS['typenow'] ?? '';
+        if ($typenow === $pt) {
+            return true;
+        }
+        return isset($_GET['post_type']) && $_GET['post_type'] === $pt; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    }
+
+    /** Render the Growth hub tab bar atop the package CPT list, for consistency. */
+    public function maybe_hub_tabs_for_cpt(): void {
+        if (! $this->on_pkg_cpt_screen() || ($GLOBALS['pagenow'] ?? '') !== 'edit.php') {
             return;
         }
-        // Each group's header goes before the first of its members that exists,
-        // so a group with everything toggled off shows no stray header. The top
-        // cluster (Dashboard … Destinations) has no header by design.
-        $groups = [
-            __('Comms', 'october-events')  => ['oe-email', 'oe-demographics'],
-            __('Growth', 'october-events') => ['oe-ads', 'edit.php?post_type=' . PostTypes::slug('package')],
-            __('Admin', 'october-events')  => ['oe-access', 'oe-taxonomies', 'oe-porter', 'oe-briefings', 'oe-settings', 'oe-first-run'],
-        ];
-        $present = array_column($submenu['october-events'], 2);
-        $anchors = []; // first-present slug => header label
-        foreach ($groups as $label => $members) {
-            foreach ($members as $slug) {
-                if (in_array($slug, $present, true)) { $anchors[$slug] = $label; break; }
-            }
-        }
-
-        $out = [];
-        foreach ($submenu['october-events'] as $item) {
-            $slug = $item[2] ?? '';
-            if (isset($anchors[$slug])) { $out[] = $this->sect_row($anchors[$slug]); }
-            $out[] = $item;
-        }
-        $submenu['october-events'] = $out;
-    }
-
-    /** One section-header submenu row. Inert: styled + pointer-events:none. */
-    private function sect_row(string $label): array {
-        return ['<span class="oe-ms">' . esc_html($label) . '</span>', 'read', 'oe-section'];
-    }
-
-    /** Sidebar section-label styling — global, since the menu shows everywhere. */
-    public function menu_section_css(): void {
-        echo '<style id="oe-menu-sections">'
-            . '#adminmenu .wp-submenu li a .oe-ms{display:block;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:#8f98a3;font-weight:700;padding:13px 0 3px;line-height:1;pointer-events:none}'
-            . '#adminmenu .wp-submenu li a:has(.oe-ms){pointer-events:none;cursor:default;background:transparent}'
-            . '#adminmenu .wp-submenu li a:has(.oe-ms):hover,#adminmenu .wp-submenu li.current a:has(.oe-ms){color:#8f98a3;background:transparent}'
-            . '</style>';
+        echo '<div class="wrap oe-admin oe-hub-cpt" style="margin-bottom:0">';
+        self::hub_tabs('growth', 'packages');
+        echo '</div>';
     }
 
     /**

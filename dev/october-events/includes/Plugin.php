@@ -183,7 +183,10 @@ final class Plugin {
         // edit/list screens (hook contains oe_).
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : '';
         $is_oe_page = ($page === 'october-events' || strpos($page, 'oe-') === 0);
-        if (! $is_oe_page && strpos($hook, 'oe_') === false) {
+        // The Packages CPT list is a Growth-hub member (Admin::maybe_hub_tabs_for_cpt
+        // renders the hub tabs there), so it needs the admin stylesheet too.
+        $is_pkg = isset($_GET['post_type']) && $_GET['post_type'] === \OE\PostTypes::slug('package');
+        if (! $is_oe_page && ! $is_pkg && strpos($hook, 'oe_') === false) {
             return;
         }
         wp_enqueue_style('oe-admin', OE_URL . 'assets/css/admin.css', [], OE_VERSION);
