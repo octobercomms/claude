@@ -69,6 +69,12 @@ final class Settings {
             // On = send a confirm-link email before subscribing. Marketing path
             // only; transactional captures (tickets, volunteers) are unaffected.
             'double_optin'         => true,
+            // Planning-team renewal reminders (AD14 / CREW-MODULE §3). Read by
+            // Crew\Renewals: send a reminder this many days before a term ends,
+            // unless disabled. Blank/0 for a reminder disables that stage.
+            'crew_renewal_enabled'     => true,
+            'crew_renewal_days_first'  => 60,
+            'crew_renewal_days_second' => 30,
             // Section-level dashboard access (M5): role slug => [section keys the
             // role may see]. Empty = admin-only, as before. See Admin\SectionAccess.
             'section_access'       => [],

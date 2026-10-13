@@ -48,6 +48,14 @@ final class ContextSettings {
                 ['key' => 'double_optin', 'label' => 'Require email confirmation on the public signup form (double opt-in)', 'type' => 'bool'],
             ],
         ],
+        'team' => [
+            'heading' => 'Planning-team settings',
+            'fields'  => [
+                ['key' => 'crew_renewal_enabled', 'label' => 'Send automatic renewal reminders before a term ends', 'type' => 'bool', 'hint' => 'When off, you can still send a renewal prompt by hand from the Team screen.'],
+                ['key' => 'crew_renewal_days_first', 'label' => 'First reminder (days before term end)', 'type' => 'text', 'hint' => 'Default 60.'],
+                ['key' => 'crew_renewal_days_second', 'label' => 'Second reminder (days before term end)', 'type' => 'text', 'hint' => 'Default 30.'],
+            ],
+        ],
     ];
 
     private const NONCE = 'oe_ctx_settings';

@@ -22,6 +22,13 @@ final class Renewals {
         if (! class_exists('\\OE\\Crew\\Schema')) {
             return;
         }
+        $enabled = (bool) \OE\Settings::get('crew_renewal_enabled', true);
+        $first   = max(0, (int) \OE\Settings::get('crew_renewal_days_first', 60));
+        $second  = max(0, (int) \OE\Settings::get('crew_renewal_days_second', 30));
+        // Keep the two stages ordered (first is the earlier/larger window).
+        if ($second > $first) {
+            [$first, $second] = [$second, $first];
+        }
         $now = current_time('timestamp');
 
         foreach (Crew::all(['tier' => Crew::TIER_PLANNING]) as $row) {
@@ -35,25 +42,30 @@ final class Renewals {
             $days = (int) floor(($end - $now) / DAY_IN_SECONDS);
             $status = (string) $row->status;
 
-            // Term ended and still not renewed -> offboard + reopen.
+            // Term ended and still not renewed -> offboard + reopen. This runs
+            // even when reminders are disabled: a lapsed term must lose access.
             if ($days < 0 && in_array($status, [Crew::STATUS_ACTIVE, Crew::STATUS_RENEWING], true)) {
                 Lifecycle::offboard((int) $row->id);
                 continue;
             }
 
-            // 60-day prompt: active, within 60 days, not yet prompted.
-            if ($status === Crew::STATUS_ACTIVE && $days <= 60 && $days > 30) {
-                Lifecycle::send_renewal((int) $row->id, '60');
+            if (! $enabled) {
                 continue;
             }
 
-            // 30-day nudge: within 30 days and either never prompted or only the
-            // 60-day prompt was sent.
-            if ($days <= 30 && $days >= 0) {
+            // First reminder: active, within the first window but before the second.
+            if ($status === Crew::STATUS_ACTIVE && $first > 0 && $days <= $first && $days > $second) {
+                Lifecycle::send_renewal((int) $row->id, (string) $first);
+                continue;
+            }
+
+            // Second reminder: within the second window, either never prompted or
+            // only the first reminder was sent.
+            if ($second > 0 && $days <= $second && $days >= 0) {
                 if ($status === Crew::STATUS_ACTIVE) {
-                    Lifecycle::send_renewal((int) $row->id, '30');
-                } elseif ($status === Crew::STATUS_RENEWING && (string) $row->renewal_stage === '60') {
-                    Lifecycle::send_renewal((int) $row->id, '30');
+                    Lifecycle::send_renewal((int) $row->id, (string) $second);
+                } elseif ($status === Crew::STATUS_RENEWING && (string) $row->renewal_stage === (string) $first) {
+                    Lifecycle::send_renewal((int) $row->id, (string) $second);
                 }
             }
         }
