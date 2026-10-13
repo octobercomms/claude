@@ -84,7 +84,10 @@ $base_url  = admin_url('admin.php?page=oe-events');
 <div class="wrap oe-admin">
     <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <span><?php esc_html_e('Events', 'october-events'); ?></span>
-        <a class="button button-primary" href="<?php echo esc_url($new_url); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
+        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-countdown')); ?>"><?php esc_html_e('Countdown image', 'october-events'); ?></a>
+            <a class="button button-primary" href="<?php echo esc_url($new_url); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
+        </span>
     </h1>
     <?php Admin::bento('listing'); ?>
 
