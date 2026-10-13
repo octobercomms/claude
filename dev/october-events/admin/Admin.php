@@ -80,7 +80,7 @@ final class Admin {
         $brand = (string) \OE\Settings::get('brand_name', 'October Events');
         add_menu_page($brand, $brand, $sc('dashboard'), 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
 
-        // ---- Festival ------------------------------------------------------
+        // ---- Top level (no section label) ----------------------------------
         add_submenu_page('october-events', 'Dashboard', 'Dashboard', $sc('dashboard'), 'october-events', [$this, 'page_dashboard']);
         // Events: the native CPT list (managed in WordPress / JetEngine).
         add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'oe-events', [$this, 'page_events']);
@@ -110,28 +110,26 @@ final class Admin {
         if ($f('volunteers')) { add_submenu_page('', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
         if ($f('contacts'))   { add_submenu_page('', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
 
+        // Public content types stay top-level alongside Events.
+        if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $sc('directory'), 'oe-directory', fn() => $this->page_listing('directory')); }
+        if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $sc('destinations'), 'oe-destinations', fn() => $this->page_listing('destination')); }
+
         // ---- Comms ---------------------------------------------------------
         if ($f('contacts')) { add_submenu_page('october-events', 'Email', 'Email', $sc('contacts'), 'oe-email', [$this, 'page_email']); }
+        if ($f('stories'))  { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
+        if ($f('contacts')) { add_submenu_page('october-events', 'Demographics', 'Demographics', $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']); }
+        add_submenu_page('october-events', 'Briefings & checklist', 'Briefings', 'manage_options', 'oe-briefings', [\OE\Admin\BriefingsScreen::class, 'render']);
 
         // ---- Growth --------------------------------------------------------
-        if ($f('ads')) { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
+        if ($f('ads'))      { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
+        if ($f('packages')) { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
 
         // ---- Admin ---------------------------------------------------------
         add_submenu_page('october-events', 'User access', 'User access', 'manage_options', 'oe-access', [\OE\Admin\AccessScreen::class, 'render']);
         add_submenu_page('october-events', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
         add_submenu_page('october-events', 'Import & export', 'Import / export', 'manage_options', 'oe-porter', [\OE\Admin\PorterScreen::class, 'render']);
         add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
-
-        // ---- Reference -----------------------------------------------------
         add_submenu_page('october-events', 'First run & empty states', 'First run & empty states', $sc('dashboard'), 'oe-first-run', [\OE\Admin\FirstRun::class, 'render']);
-
-        // ---- More (parked; to be folded into their parents in a follow-up) -
-        if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $sc('directory'), 'oe-directory', fn() => $this->page_listing('directory')); }
-        if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $sc('destinations'), 'oe-destinations', fn() => $this->page_listing('destination')); }
-        if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
-        if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
-        if ($f('contacts'))     { add_submenu_page('october-events', 'Demographics', 'Demographics', $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']); }
-        add_submenu_page('october-events', 'Briefings & checklist', 'Briefings', 'manage_options', 'oe-briefings', [\OE\Admin\BriefingsScreen::class, 'render']);
 
         // Countdown + Tour locations: folded into Events / Taxonomies in a
         // follow-up; reachable by URL for now, off the sidebar.
@@ -209,28 +207,26 @@ final class Admin {
         if (empty($submenu['october-events'])) {
             return;
         }
-        // A header is placed BEFORE the row whose slug matches the key.
-        $before = [
-            'oe-email'     => __('Comms', 'october-events'),
-            'oe-ads'       => __('Growth', 'october-events'),
-            'oe-access'    => __('Admin', 'october-events'),
-            'oe-first-run' => __('Reference', 'october-events'),
+        // Each group's header goes before the first of its members that exists,
+        // so a group with everything toggled off shows no stray header. The top
+        // cluster (Dashboard … Destinations) has no header by design.
+        $groups = [
+            __('Comms', 'october-events')  => ['oe-email', 'oe-stories', 'oe-demographics', 'oe-briefings'],
+            __('Growth', 'october-events') => ['oe-ads', 'edit.php?post_type=' . PostTypes::slug('package')],
+            __('Admin', 'october-events')  => ['oe-access', 'oe-taxonomies', 'oe-porter', 'oe-settings', 'oe-first-run'],
         ];
-        // "More" goes before the first parked item that is actually present.
-        $more_order = ['oe-directory', 'oe-destinations', 'oe-stories', 'edit.php?post_type=' . PostTypes::slug('package'), 'oe-demographics', 'oe-briefings'];
-        $present    = array_column($submenu['october-events'], 2);
-        $more_anchor = '';
-        foreach ($more_order as $cand) {
-            if (in_array($cand, $present, true)) { $more_anchor = $cand; break; }
+        $present = array_column($submenu['october-events'], 2);
+        $anchors = []; // first-present slug => header label
+        foreach ($groups as $label => $members) {
+            foreach ($members as $slug) {
+                if (in_array($slug, $present, true)) { $anchors[$slug] = $label; break; }
+            }
         }
 
-        $out   = [];
-        $first = true;
+        $out = [];
         foreach ($submenu['october-events'] as $item) {
             $slug = $item[2] ?? '';
-            if ($first) { $out[] = $this->sect_row(__('Festival', 'october-events')); $first = false; }
-            if (isset($before[$slug]))       { $out[] = $this->sect_row($before[$slug]); }
-            if ($more_anchor !== '' && $slug === $more_anchor) { $out[] = $this->sect_row(__('More', 'october-events')); }
+            if (isset($anchors[$slug])) { $out[] = $this->sect_row($anchors[$slug]); }
             $out[] = $item;
         }
         $submenu['october-events'] = $out;
