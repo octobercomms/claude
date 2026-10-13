@@ -144,19 +144,16 @@ $export_att_pdf  = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
     </div>
     <?php endif; ?>
 
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:10px 0 12px">
-        <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:10px 16px">
-            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Tickets', 'october-events'); ?></div>
-            <div style="font-size:20px;font-weight:800" id="oe-chip-total"><?php echo esc_html(number_format_i18n($att_total)); ?></div>
-        </div>
-        <div style="background:#eaf7ec;border:1px solid #cde9d2;border-radius:12px;padding:10px 16px">
-            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Checked in', 'october-events'); ?></div>
-            <div style="font-size:20px;font-weight:800" id="oe-chip-in"><?php echo esc_html(number_format_i18n($att_in) . ' · ' . $att_pct . '%'); ?></div>
-        </div>
-        <div style="background:#fdeceb;border:1px solid #f4c7c3;border-radius:12px;padding:10px 16px">
-            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Not checked in', 'october-events'); ?></div>
-            <div style="font-size:20px;font-weight:800" id="oe-chip-out"><?php echo esc_html(number_format_i18n($att_out)); ?></div>
-        </div>
+    <?php
+    $oe_sym = ['usd' => '$', 'gbp' => '£', 'eur' => '€'][strtolower((string) ($currency ?? 'usd'))] ?? '';
+    $oe_rev = isset($revenue) ? (float) $revenue : 0.0;
+    $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_format($oe_rev) . ' ' . (string) ($currency ?? '');
+    ?>
+    <div class="oe-ad-strip">
+        <div class="oe-ad-stat oe-ad-stat--feature"><div class="l"><?php esc_html_e('Tickets', 'october-events'); ?></div><div class="v" id="oe-chip-total"><?php echo esc_html(number_format_i18n($att_total)); ?></div><div class="s"><?php esc_html_e('across events', 'october-events'); ?></div></div>
+        <div class="oe-ad-stat"><div class="l"><?php esc_html_e('Checked in', 'october-events'); ?></div><div class="v" id="oe-chip-in"><?php echo esc_html(number_format_i18n($att_in) . ' · ' . $att_pct . '%'); ?></div><div class="s"><?php esc_html_e('at the door', 'october-events'); ?></div></div>
+        <div class="oe-ad-stat"><div class="l"><?php esc_html_e('Not in', 'october-events'); ?></div><div class="v" id="oe-chip-out"><?php echo esc_html(number_format_i18n($att_out)); ?></div><div class="s"><?php esc_html_e('yet to arrive', 'october-events'); ?></div></div>
+        <div class="oe-ad-stat"><div class="l"><?php esc_html_e('Revenue', 'october-events'); ?></div><div class="v"><?php echo esc_html($oe_rev_display); ?></div><div class="s"><?php esc_html_e('paid orders', 'october-events'); ?></div></div>
     </div>
 
     <?php if (! $attendees) : ?>
