@@ -58,6 +58,10 @@ final class PeopleScreen {
             wp_die(esc_html__('You do not have access to this section.', 'october-events'), '', ['response' => 403]);
         }
         $view = isset($_GET['person']) ? (int) $_GET['person'] : 0; // phpcs:ignore WordPress.Security.NonceVerification
+        // Deep link by email (e.g. from the Accounts list → the shared record).
+        if (! $view && isset($_GET['person_email'])) { // phpcs:ignore WordPress.Security.NonceVerification
+            $view = Repository::id_by_email(sanitize_email((string) wp_unslash($_GET['person_email']))); // phpcs:ignore WordPress.Security.NonceVerification
+        }
         $term = isset($_GET['s']) ? sanitize_text_field((string) wp_unslash($_GET['s'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
         $state  = self::active_rules();
