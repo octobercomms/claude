@@ -279,3 +279,7 @@
 .oe-team .oe-team__name { font-weight: 800; font-size: 1.05rem; color: var(--oe-ink, #1a1a1a); }
 .oe-team .oe-team__role { color: var(--oe-accent-ink, #c2410c); font-weight: 600; font-size: .85rem; margin-top: .15rem; }
 .oe-team .oe-team__bio { color: var(--oe-muted, #555); font-size: .9rem; margin: .6rem 0 0; line-height: 1.5; }
+
+/* Coloured taxonomy chips on listing archives (AD12) */
+.oe-arch__chips .oe-loc-filter[style*="--oe-chip"]{ border-color: var(--oe-chip); }
+.oe-arch__chips .oe-loc-filter[style*="--oe-chip"].is-active{ background: var(--oe-chip); border-color: var(--oe-chip); color:#fff; }

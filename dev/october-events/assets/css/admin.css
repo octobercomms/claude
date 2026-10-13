@@ -313,3 +313,27 @@
 .oe-admin .oe-access-cell{ text-align:center; }
 .oe-admin .oe-access-presets{ margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; }
 .oe-admin .oe-access-presets .button{ font-size:11px; height:auto; padding:1px 8px; line-height:1.8; }
+
+/* ---- Taxonomies & filters screen (ADMIN-BUILD AD12) ------------------ */
+.oe-admin .oe-tax-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px 16px; align-items:start; }
+.oe-admin .oe-tax-grid > label{ display:flex; flex-direction:column; gap:4px; font-weight:600; font-size:12px; }
+.oe-admin .oe-tax-grid input, .oe-admin .oe-tax-grid select{ width:100%; }
+.oe-admin .oe-tax-types{ grid-column:1 / -1; border:1px solid #e3e2db; border-radius:8px; padding:8px 12px; }
+.oe-admin .oe-tax-types legend{ font-size:11px; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:.04em; }
+.oe-admin .oe-tax-type{ display:inline-flex; align-items:center; gap:4px; margin-right:16px; font-size:13px; font-weight:400; }
+.oe-admin .oe-tax-flags{ grid-column:1 / -1; display:flex; gap:20px; flex-wrap:wrap; font-size:13px; }
+.oe-admin .oe-tax-item > summary{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; cursor:pointer; list-style:none; flex-wrap:wrap; }
+.oe-admin .oe-tax-item > summary::-webkit-details-marker{ display:none; }
+.oe-admin .oe-tax-sum-name code{ margin-left:6px; font-size:12px; background:#f3f3f3; padding:1px 6px; border-radius:4px; }
+.oe-admin .oe-tax-sum-meta{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.oe-admin .oe-tax-body{ padding:0 16px 16px; border-top:1px solid #e3e2db; margin-top:2px; }
+.oe-admin .oe-tax-terms-h{ margin:16px 0 8px; font-size:13px; }
+.oe-admin .oe-tax-terms{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.oe-admin .oe-tax-term{ display:inline-flex; align-items:center; gap:6px; background:#f7f7f5; border:1px solid #e3e2db; border-radius:16px; padding:3px 10px; font-size:13px; }
+.oe-admin .oe-tax-swatch{ width:12px; height:12px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.12); }
+.oe-admin .oe-tax-term-x{ color:#888; text-decoration:none; font-size:15px; line-height:1; }
+.oe-admin .oe-tax-term-x:hover{ color:#c2410c; }
+.oe-admin .oe-tax-addterm{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.oe-admin .oe-tax-addterm input[type=color]{ width:40px; height:30px; padding:0; border:1px solid #e3e2db; border-radius:6px; }
+@media (max-width:1100px){ .oe-admin .oe-tax-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:782px){ .oe-admin .oe-tax-grid{ grid-template-columns:1fr; } }
