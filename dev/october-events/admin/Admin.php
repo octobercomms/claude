@@ -131,6 +131,10 @@ final class Admin {
         add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
         add_submenu_page('october-events', 'First run & empty states', 'First run & empty states', $sc('dashboard'), 'oe-first-run', [\OE\Admin\FirstRun::class, 'render']);
 
+        // Event Studio: the split-pane event editor, opened from the Events
+        // list. URL-reachable, off the sidebar; the Events item stays highlighted.
+        add_submenu_page('', 'Event studio', 'Event studio', $sc('events'), 'oe-event-studio', [\OE\Admin\EventStudio::class, 'render']);
+
         // Countdown + Tour locations: folded into Events / Taxonomies in a
         // follow-up; reachable by URL for now, off the sidebar.
         add_submenu_page('', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
@@ -208,6 +212,10 @@ final class Admin {
     /** Keep the "People" item highlighted on the hidden hub sub-screens. */
     public function highlight_people_menu($submenu_file) {
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        // Event Studio lives under Events in spirit; keep Events highlighted.
+        if ($page === 'oe-event-studio') {
+            return 'oe-events';
+        }
         $hidden = array_merge($this->people_slugs, ['oe-volunteer-pool', 'oe-contacts']);
         if ($this->people_slugs && in_array($page, $hidden, true)) {
             return $this->people_slugs[0];
@@ -218,7 +226,7 @@ final class Admin {
     /** Keep the October Events menu open on the hidden, URL-only sub-screens. */
     public function keep_people_parent($parent_file) {
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $hidden = array_merge($this->people_slugs, ['oe-volunteer-pool', 'oe-contacts', 'oe-countdown', 'oe-locations']);
+        $hidden = array_merge($this->people_slugs, ['oe-volunteer-pool', 'oe-contacts', 'oe-countdown', 'oe-locations', 'oe-event-studio']);
         if (in_array($page, $hidden, true)) {
             return 'october-events';
         }

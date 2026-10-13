@@ -92,6 +92,7 @@ final class Plugin {
             \OE\Admin\ContextSettings::init();
             \OE\Admin\PeopleScreen::init();
             \OE\Admin\AccessScreen::init();
+            \OE\Admin\EventStudio::init();
             \OE\Admin\TaxonomyScreen::init();
             \OE\Admin\PorterScreen::init();
             \OE\Admin\FirstRun::init();
