@@ -97,6 +97,7 @@ final class Archive {
             return '';
         }
 
+        Theme::enqueue();
         $out  = '<section class="oe-sec oe-sec--archive oe-arch">';
         $out .= self::filter_form($filters, $selected);
         $out .= '<div class="oe-arch__grid">';
@@ -125,7 +126,7 @@ final class Archive {
         $brand = trim((string) Events::get($id, 'brand_colour', ''));
         $style = $brand !== '' ? ' style="--oe-brand:' . esc_attr($brand) . '"' : '';
         return sprintf(
-            '<a class="oe-arch__card"%s href="%s">%s<span class="oe-arch__title">%s</span>%s</a>',
+            '<a class="oe-arch__card"%s href="%s">%s<span class="oe-arch__body"><span class="oe-arch__title">%s</span>%s</span></a>',
             $style,
             esc_url(get_permalink($id)),
             $img,

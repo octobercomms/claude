@@ -43,6 +43,9 @@ final class Renderer {
         if (trim($inner) === '') {
             return '';
         }
+        // Something is rendering — make sure the designed section sheet is present
+        // (covers a section dropped on any page, not just a native single view).
+        Theme::enqueue();
         return sprintf(
             '<section class="oe-sec oe-sec--%s"%s>%s</section>',
             esc_attr($section),
@@ -126,7 +129,9 @@ final class Renderer {
         if ($desc === '') {
             return '';
         }
-        return self::wrap('about', '<div class="oe-event__about">' . wpautop(esc_html($desc)) . '</div>');
+        $inner = '<h2>' . esc_html__('About', 'october-events') . '</h2>'
+            . '<div class="oe-event__about">' . wpautop(esc_html($desc)) . '</div>';
+        return self::wrap('about', $inner);
     }
 
     public static function gallery(array $atts = []): string {
