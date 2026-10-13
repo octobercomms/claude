@@ -95,6 +95,7 @@ final class Plugin {
             \OE\Admin\EventStudio::init();
             \OE\Admin\TaxonomyScreen::init();
             \OE\Admin\PorterScreen::init();
+            \OE\Admin\LogsScreen::init();
             \OE\Admin\FirstRun::init();
             \OE\Locations\Meta::init();
             \OE\Admin\LocationsScreen::init();

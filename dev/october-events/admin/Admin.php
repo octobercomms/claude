@@ -131,6 +131,7 @@ final class Admin {
             ['taxonomies', __('Taxonomies & filters', 'october-events'), 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']],
             ['porter',     __('Import / export', 'october-events'),      'manage_options', 'oe-porter',     [\OE\Admin\PorterScreen::class, 'render']],
             ['briefings',  __('Briefings', 'october-events'),            'manage_options', 'oe-briefings',  [\OE\Admin\BriefingsScreen::class, 'render']],
+            ['logs',       __('Logs', 'october-events'),                'manage_options', 'oe-logs',       [\OE\Admin\LogsScreen::class, 'render']],
             ['settings',   __('Settings', 'october-events'),             $sc('settings'),  'oe-settings',   [Settings::get_instance(), 'render']],
             ['firstrun',   __('First run', 'october-events'),            $sc('dashboard'), 'oe-first-run',  [$this, 'page_first_run']],
         ]);
