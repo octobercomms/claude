@@ -67,6 +67,7 @@ final class Plugin {
         \OE\Packs\Content\StaffApply::init();
         \OE\Frontend\TeamPortal::init();
         \OE\Frontend\OrganizerPortal::init();
+        \OE\Frontend\EmailPreferences::init();
         \OE\Sections\Theme::init();
         \OE\Sections\SingleTemplate::init();
         \OE\Sections\Archive::init();
