@@ -56,6 +56,14 @@ final class ContextSettings {
                 ['key' => 'crew_renewal_days_second', 'label' => 'Second reminder (days before term end)', 'type' => 'text', 'hint' => 'Default 30.'],
             ],
         ],
+        'email' => [
+            'heading' => 'Email settings',
+            'fields'  => [
+                ['key' => 'mail_from_name', 'label' => 'From name', 'type' => 'text', 'hint' => 'Shown as the sender on every email you send.'],
+                ['key' => 'mail_from_email', 'label' => 'From email', 'type' => 'text', 'hint' => 'Use an address on a domain you have authenticated for sending.'],
+                ['key' => 'mail_footer_address', 'label' => 'Footer postal address', 'type' => 'textarea', 'hint' => 'Shown in the footer of bulk emails; a postal address is required by anti-spam law.'],
+            ],
+        ],
     ];
 
     private const NONCE = 'oe_ctx_settings';
