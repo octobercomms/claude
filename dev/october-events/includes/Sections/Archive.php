@@ -9,22 +9,19 @@ use OE\Planning\Events;
 defined('ABSPATH') || exit;
 
 /**
- * Listing archive + filters (BUILD-PLAN M2, native filtering replacing
- * JetSmartFilters). A droppable shortcode scoped to one listing type:
+ * Listing archive + filters (BUILD-PLAN M2 / FRONTEND-BUILD slice F).
  *
- *   [oe_listings type="event" show="upcoming" filters="event-category" per_page="12"]
+ * A droppable shortcode scoped to one listing type:
  *
- * The archive is scoped to a single type (no "type" filter), so a site that has
- * only tours or only events never shows a type chooser. Filters are driven by
- * whichever taxonomies the `filters` attribute names; each becomes a dropdown of
- * its terms, applied server-side from the query string. `show` does a best-effort
- * upcoming/past split on the stored start date. Renders nothing when the type has
- * no posts.
+ *   [oe_listings type="event" show="upcoming" chips="building-type"
+ *                filters="tour-cities,tour-years" search="1" per_page="12"]
  *
- * This is presentation-light (the native-not-embed contract): a cards grid and a
- * GET filter form that inherit the theme, with `oe-sec`/`oe-arch` classes to
- * target. Cards link to the permalink; the slide-in quick-view is a later JS
- * enhancement.
+ * The archive is scoped to one type (no "type" chooser). `chips` names one
+ * taxonomy rendered as a chip row (e.g. building type); `filters` names taxonomies
+ * rendered as dropdowns (e.g. city, year); `search` adds a free-text box. All
+ * three apply server-side from the query string and compose together, preserving
+ * each other's state. `show` does a best-effort upcoming/past split on the stored
+ * start date. Designed by assets/css/sections.css via the oe-sec/oe-arch classes.
  */
 final class Archive {
 
@@ -36,7 +33,9 @@ final class Archive {
         $atts = shortcode_atts([
             'type'     => 'event',
             'show'     => 'all',      // all | upcoming | past
-            'filters'  => '',         // comma-separated taxonomy slugs
+            'chips'    => '',         // one taxonomy slug, rendered as a chip row
+            'filters'  => '',         // comma-separated taxonomy slugs, as dropdowns
+            'search'   => '1',        // 1 to show a free-text search box
             'per_page' => '12',
         ], is_array($atts) ? $atts : [], 'oe_listings');
 
@@ -45,12 +44,16 @@ final class Archive {
             return '';
         }
 
-        $filters  = array_values(array_filter(array_map('trim', explode(',', (string) $atts['filters']))));
+        $selects  = array_values(array_filter(array_map('trim', explode(',', (string) $atts['filters']))));
+        $chips_tax = trim((string) $atts['chips']);
         $per_page = max(1, (int) $atts['per_page']);
         $paged    = max(1, (int) get_query_var('paged', 1));
         if ($paged === 1 && isset($_GET['oe_page'])) {
             $paged = max(1, (int) $_GET['oe_page']);
         }
+        $search = ((string) $atts['search'] === '1' && isset($_GET['oe_q']))
+            ? sanitize_text_field(wp_unslash((string) $_GET['oe_q']))
+            : '';
 
         $query_args = [
             'post_type'      => $pt,
@@ -60,8 +63,10 @@ final class Archive {
             'orderby'        => 'date',
             'order'          => 'DESC',
         ];
+        if ($search !== '') {
+            $query_args['s'] = $search;
+        }
 
-        // Upcoming / past: best-effort on the stored start date (native data).
         $show = (string) $atts['show'];
         if ($show === 'upcoming' || $show === 'past') {
             $query_args['meta_query'] = [[
@@ -70,15 +75,15 @@ final class Archive {
                 'compare' => $show === 'upcoming' ? '>=' : '<',
                 'type'    => 'CHAR',
             ]];
-            $query_args['orderby'] = 'meta_value';
+            $query_args['orderby']  = 'meta_value';
             $query_args['meta_key'] = Events::key('start_datetime');
-            $query_args['order']   = $show === 'upcoming' ? 'ASC' : 'DESC';
+            $query_args['order']    = $show === 'upcoming' ? 'ASC' : 'DESC';
         }
 
-        // Taxonomy filters from the query string.
+        // Taxonomy filters (chips + selects) from the query string.
         $tax_query = [];
         $selected  = [];
-        foreach ($filters as $tax) {
+        foreach (array_filter(array_merge($selects, [$chips_tax])) as $tax) {
             if (! taxonomy_exists($tax)) {
                 continue;
             }
@@ -92,14 +97,19 @@ final class Archive {
             $query_args['tax_query'] = $tax_query;
         }
 
+        $has_filter = $search !== '' || (bool) array_filter($selected);
+
         $q = new \WP_Query($query_args);
-        if (! $q->have_posts() && empty($selected)) {
+        if (! $q->have_posts() && ! $has_filter) {
             return '';
         }
 
         Theme::enqueue();
         $out  = '<section class="oe-sec oe-sec--archive oe-arch">';
-        $out .= self::filter_form($filters, $selected);
+        if ($chips_tax !== '' && taxonomy_exists($chips_tax)) {
+            $out .= self::chips_row($chips_tax, $selected[$chips_tax] ?? '');
+        }
+        $out .= self::filter_form($selects, $selected, $search, (string) $atts['search'] === '1', $chips_tax);
         $out .= '<div class="oe-arch__grid">';
         if ($q->have_posts()) {
             while ($q->have_posts()) {
@@ -135,11 +145,30 @@ final class Archive {
         );
     }
 
+    /** A chip row for one taxonomy: All + each term, as links that preserve state. */
+    private static function chips_row(string $tax, string $active): string {
+        $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => true]);
+        if (is_wp_error($terms) || ! $terms) {
+            return '';
+        }
+        $key  = 'oe_' . $tax;
+        $base = remove_query_arg([$key, 'oe_page']);
+        $all  = '<a class="oe-loc-filter' . ($active === '' ? ' is-active' : '') . '" href="' . esc_url($base) . '">'
+            . esc_html__('All', 'october-events') . '</a>';
+        $chips = $all;
+        foreach ($terms as $term) {
+            $url = add_query_arg($key, $term->slug, $base);
+            $chips .= '<a class="oe-loc-filter' . ($active === $term->slug ? ' is-active' : '') . '" href="' . esc_url($url) . '">'
+                . esc_html($term->name) . '</a>';
+        }
+        return '<div class="oe-arch__chips">' . $chips . '</div>';
+    }
+
     /**
-     * @param string[] $filters
-     * @param array<string,string> $selected
+     * @param string[]             $filters  select taxonomies
+     * @param array<string,string> $selected tax => slug
      */
-    private static function filter_form(array $filters, array $selected): string {
+    private static function filter_form(array $filters, array $selected, string $search, bool $show_search, string $chips_tax): string {
         $controls = '';
         foreach ($filters as $tax) {
             if (! taxonomy_exists($tax)) {
@@ -167,10 +196,20 @@ final class Archive {
                 $opts
             );
         }
+        if ($show_search) {
+            $controls .= '<label class="oe-arch__filter"><span>' . esc_html__('Search', 'october-events') . '</span>'
+                . '<input type="search" class="oe-arch__search" name="oe_q" value="' . esc_attr($search) . '" placeholder="'
+                . esc_attr__('Search…', 'october-events') . '"></label>';
+        }
         if ($controls === '') {
             return '';
         }
-        return '<form class="oe-arch__filters" method="get">' . $controls
+        // Keep the active chip selection across a filter submit.
+        $hidden = '';
+        if ($chips_tax !== '' && ! empty($selected[$chips_tax])) {
+            $hidden = '<input type="hidden" name="oe_' . esc_attr($chips_tax) . '" value="' . esc_attr($selected[$chips_tax]) . '">';
+        }
+        return '<form class="oe-arch__filters" method="get">' . $controls . $hidden
             . '<button type="submit" class="oe-btn oe-arch__apply">' . esc_html__('Filter', 'october-events') . '</button></form>';
     }
 
