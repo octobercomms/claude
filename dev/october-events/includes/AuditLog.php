@@ -68,4 +68,51 @@ final class AuditLog {
             $limit
         )) ?: [];
     }
+
+    /**
+     * Recent entries across every object, newest first, optionally filtered to
+     * one action. For the Admin → Logs read screen.
+     *
+     * @return array<int,object>
+     */
+    public static function recent(int $limit = 100, int $offset = 0, string $action = ''): array {
+        global $wpdb;
+        $t = self::table();
+        $limit = max(1, min(500, $limit));
+        $offset = max(0, $offset);
+        if ($action !== '') {
+            return $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$t} WHERE action = %s ORDER BY id DESC LIMIT %d OFFSET %d",
+                $action,
+                $limit,
+                $offset
+            )) ?: [];
+        }
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$t} ORDER BY id DESC LIMIT %d OFFSET %d",
+            $limit,
+            $offset
+        )) ?: [];
+    }
+
+    /** Total entries, optionally for one action. */
+    public static function count(string $action = ''): int {
+        global $wpdb;
+        $t = self::table();
+        if ($action !== '') {
+            return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$t} WHERE action = %s", $action));
+        }
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t}");
+    }
+
+    /**
+     * Distinct action names present in the log, for the filter dropdown.
+     *
+     * @return array<int,string>
+     */
+    public static function actions(): array {
+        global $wpdb;
+        $rows = $wpdb->get_col("SELECT DISTINCT action FROM " . self::table() . " ORDER BY action ASC");
+        return array_map('strval', $rows ?: []);
+    }
 }
