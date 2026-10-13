@@ -65,6 +65,8 @@ final class Plugin {
         \OE\Members\Shortcodes::init();
         \OE\Sections\Shortcodes::init();
         \OE\Packs\Content\StaffApply::init();
+        \OE\Crew\Lifecycle::init();
+        \OE\Crew\Render::init();
         \OE\Frontend\TeamPortal::init();
         \OE\Frontend\OrganizerPortal::init();
         \OE\Frontend\EmailPreferences::init();

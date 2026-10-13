@@ -138,6 +138,12 @@ final class Cron {
         // site (creates it if the year rolled over; a no-op on other sites).
         \OE\Volunteers\TicketCode::maybe_ensure();
 
+        // Planning-team renewal loop: prompt roles nearing term end, offboard
+        // those whose term has lapsed with no reply (CREW-MODULE §3, R5).
+        if (class_exists('\\OE\\Crew\\Renewals')) {
+            \OE\Crew\Renewals::run();
+        }
+
         // Monthly digest: hard-disabled for now (DIGEST_ENABLED). When re-enabled
         // it will run only when opted in, on the first Monday, once per month.
         if (self::DIGEST_ENABLED && (bool) Settings::get('digest_enabled', false) && self::is_first_monday()) {

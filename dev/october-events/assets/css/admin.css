@@ -240,3 +240,17 @@
 .oe-admin .oe-ad-stat--feature .l, .oe-admin .oe-ad-stat--feature .s{ color:rgba(255,255,255,.6); }
 .oe-admin .oe-ad-stat--feature .v{ color:#dd4b14; }
 @media (max-width:1100px){ .oe-admin .oe-ad-strip{ grid-template-columns:repeat(2,1fr); } }
+
+/* ---- Team / crew screen (ADMIN-BUILD AD7) ---------------------------- */
+.oe-admin .oe-team-form summary{ list-style:none; }
+.oe-admin .oe-team-form summary::-webkit-details-marker{ display:none; }
+.oe-admin .oe-team-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px 16px; }
+.oe-admin .oe-team-grid label{ display:flex; flex-direction:column; gap:4px; font-weight:600; font-size:12px; color:#1a1a1a; }
+.oe-admin .oe-team-grid input, .oe-admin .oe-team-grid select, .oe-admin .oe-team-grid textarea{ width:100%; }
+.oe-admin .oe-team-grid .oe-team-wide{ grid-column:1 / -1; }
+.oe-admin .oe-team-photo-field{ grid-column:1 / -1; display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; }
+.oe-admin .oe-team-photo-field img{ border-radius:6px; object-fit:cover; }
+.oe-admin .oe-team-tier-h{ display:flex; align-items:center; gap:10px; margin:26px 0 10px; font-size:16px; }
+.oe-admin .oe-team-count{ display:inline-flex; min-width:22px; height:22px; align-items:center; justify-content:center; padding:0 7px; border-radius:11px; background:#f3f3f3; color:#555; font-size:12px; font-weight:700; }
+@media (max-width:1100px){ .oe-admin .oe-team-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:782px){ .oe-admin .oe-team-grid{ grid-template-columns:1fr; } }
