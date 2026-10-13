@@ -30,6 +30,95 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
         <?php endif; ?>
     </div>
 
+    <?php
+    // AD1 — sales analytics (real data from the ticketing tables).
+    $oe_series  = \OE\Reports\DashboardStats::chart_series();
+    $oe_byEvent = \OE\Reports\DashboardStats::sales_by_event();
+    $oe_price   = \OE\Reports\DashboardStats::price();
+    ?>
+    <div class="oe-ad-card">
+        <div class="oe-ad-card-title"><span><?php esc_html_e('Sales over time', 'october-events'); ?></span>
+            <span class="oe-ad-rangebar" id="oe-ad-range">
+                <button class="oe-ad-rchip" data-r="7"><?php esc_html_e('7 days', 'october-events'); ?></button>
+                <button class="oe-ad-rchip is-active" data-r="30"><?php esc_html_e('30 days', 'october-events'); ?></button>
+                <button class="oe-ad-rchip" data-r="90"><?php esc_html_e('90 days', 'october-events'); ?></button>
+                <button class="oe-ad-rchip" data-r="ytd"><?php esc_html_e('Year to date', 'october-events'); ?></button>
+                <button class="oe-ad-rchip" data-r="all"><?php esc_html_e('All time', 'october-events'); ?></button>
+            </span>
+        </div>
+        <div class="oe-ad-chart" id="oe-ad-chart"></div>
+        <div class="oe-ad-chartbase"></div>
+        <p class="oe-ad-note" id="oe-ad-chartnote"></p>
+    </div>
+
+    <div class="oe-ad-grid2">
+        <div class="oe-ad-card">
+            <div class="oe-ad-card-title"><?php esc_html_e('Sales by event', 'october-events'); ?></div>
+            <?php if ($oe_byEvent) : ?>
+            <table class="oe-ad-table">
+                <thead><tr><th><?php esc_html_e('Event', 'october-events'); ?></th><th class="oe-ad-num"><?php esc_html_e('Tickets', 'october-events'); ?></th><th class="oe-ad-num"><?php esc_html_e('Revenue', 'october-events'); ?></th></tr></thead>
+                <tbody>
+                <?php foreach ($oe_byEvent as $row) : ?>
+                    <tr><td><strong><?php echo esc_html($row['name']); ?></strong></td><td class="oe-ad-num"><?php echo esc_html(number_format_i18n($row['tickets'])); ?></td><td class="oe-ad-num">$<?php echo esc_html(number_format($row['revenue'])); ?></td></tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php else : ?>
+                <p class="oe-ad-note"><?php esc_html_e('No sales yet.', 'october-events'); ?></p>
+            <?php endif; ?>
+        </div>
+        <div class="oe-ad-card">
+            <div class="oe-ad-card-title"><?php esc_html_e('Price paid per ticket', 'october-events'); ?></div>
+            <div class="oe-ad-donutwrap">
+                <div class="oe-ad-donut" style="background:<?php echo esc_attr($oe_price['donut']); ?>"></div>
+                <div class="oe-ad-legend">
+                    <?php foreach ($oe_price['buckets'] as $b) : ?>
+                        <div class="oe-ad-lrow"><span class="oe-ad-sw" style="background:<?php echo esc_attr($b['color']); ?>"></span><span><?php echo esc_html($b['label']); ?></span><span class="oe-ad-num" style="font-weight:700"><?php echo esc_html(number_format_i18n($b['count'])); ?></span><span class="oe-ad-num subtle"><?php echo (int) $b['pct']; ?>%</span></div>
+                    <?php endforeach; ?>
+                    <?php if (empty($oe_price['buckets'])) : ?><p class="oe-ad-note"><?php esc_html_e('No tickets yet.', 'october-events'); ?></p><?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="oe-ad-minrow">
+        <?php foreach ($oe_price['summary'] as $s) : ?>
+            <div class="oe-ad-ministat"><div class="l"><?php echo esc_html($s[0]); ?></div><div class="v"><?php echo esc_html($s[1]); ?></div><div class="s"><?php echo esc_html($s[2]); ?></div></div>
+        <?php endforeach; ?>
+    </div>
+
+    <?php if ($oe_price['free_pct'] >= 60) : ?>
+        <div class="oe-ad-heads"><strong><?php esc_html_e('Heads up:', 'october-events'); ?></strong>
+            <?php echo esc_html(sprintf(__('%d%% of tickets are free. If that is higher than intended, tighten which ticket types are comped or add a paid tier.', 'october-events'), (int) $oe_price['free_pct'])); ?>
+        </div>
+    <?php endif; ?>
+
+    <script>
+    (function(){
+        var S = <?php echo wp_json_encode($oe_series['series']); ?>;
+        var L = <?php echo wp_json_encode($oe_series['labels']); ?>;
+        var chart = document.getElementById('oe-ad-chart');
+        var note  = document.getElementById('oe-ad-chartnote');
+        var bar   = document.getElementById('oe-ad-range');
+        if (!chart || !bar) { return; }
+        function render(r){
+            var a = S[r] || [];
+            var max = 1; for (var i=0;i<a.length;i++){ if (a[i]>max) max=a[i]; }
+            chart.innerHTML = a.map(function(v,i){
+                return '<span class="oe-ad-col'+(i===a.length-1?' last':'')+'" style="height:'+Math.round(v/max*100)+'%" title="'+v+'"></span>';
+            }).join('');
+            var total = a.reduce(function(x,y){return x+y;},0);
+            note.textContent = total + ' ' + <?php echo wp_json_encode(__('tickets in', 'october-events')); ?> + ' ' + (L[r]||'') + '. ' + <?php echo wp_json_encode(__('Hover a bar.', 'october-events')); ?>;
+        }
+        bar.addEventListener('click', function(e){
+            var b = e.target.closest('.oe-ad-rchip'); if (!b) return;
+            bar.querySelectorAll('.oe-ad-rchip').forEach(function(c){ c.classList.toggle('is-active', c===b); });
+            render(b.getAttribute('data-r'));
+        });
+        render('30');
+    })();
+    </script>
+
     <div class="oe-panel-label"><?php echo esc_html(sprintf(__('Approval queue (%d)', 'october-events'), number_format_i18n(count($pending)))); ?></div>
     <?php if (empty($pending)) : ?>
         <table class="widefat"><tbody><tr><td style="padding:24px 16px"><strong><?php esc_html_e('Nothing awaiting review.', 'october-events'); ?> 🎉</strong> <span class="description"><?php esc_html_e('New submissions will appear here to approve or reject.', 'october-events'); ?></span></td></tr></tbody></table>
