@@ -85,6 +85,7 @@ final class Admin {
         if ($f('team'))         { add_submenu_page('october-events', 'Team', 'Team', $sc('team'), 'oe-team', [TeamAdmin::get_instance(), 'render']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'People', 'People', $sc('contacts'), 'oe-people', [\OE\Admin\PeopleScreen::class, 'render']); }
+        if ($f('contacts'))     { add_submenu_page('october-events', 'Email', 'Email', $sc('contacts'), 'oe-email', [$this, 'page_email']); }
         if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
         add_submenu_page('october-events', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
         // Reachable by URL from the Membership settings, not shown in the menu.
@@ -615,6 +616,18 @@ final class Admin {
 
     public function page_countdown(): void {
         require OE_DIR . 'admin/views/countdown.php';
+    }
+
+    /** Email overview (ADMIN-BUILD AD9): sending health, stat strip, campaigns. */
+    public function page_email(): void {
+        if (! current_user_can(SectionAccess::cap('contacts'))) {
+            wp_die(esc_html__('You do not have access to this section.', 'october-events'), '', ['response' => 403]);
+        }
+        $contacts  = \OE\Mail\Contacts::counts();
+        $log       = \OE\Mail\EmailLog::counts();
+        $campaigns = array_map(['\OE\Mail\Campaigns', 'dto'], \OE\Mail\Campaigns::all());
+        $driver    = \OE\Mail\Mailer::ses_active() ? 'ses' : (\OE\Mail\Mailer::brevo_active() ? 'brevo' : 'default');
+        require OE_DIR . 'admin/views/email.php';
     }
 
     /** Guided-tour signups: list per building, add/remove people, export CSV. */
