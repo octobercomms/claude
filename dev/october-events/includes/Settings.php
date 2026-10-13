@@ -286,9 +286,6 @@ final class Settings {
                 'https://october-platform.pages.dev',
                 'https://platform.atlantadesignfestival.net',
             ],
-            // The staff platform's URL, for the "Open the platform" button in
-            // wp-admin. Blank = use the first non-preview origin above.
-            'platform_url' => '',
             // The front-end page where the [oe_checkin] scanner shortcode lives,
             // so staff can jump to it from the dashboard. Blank = no button.
             'checkin_page_url' => '',

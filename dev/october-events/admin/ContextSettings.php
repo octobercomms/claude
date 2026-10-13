@@ -82,7 +82,7 @@ final class ContextSettings {
 
         echo '<details class="oe-acc oe-ctx-settings"' . ($saved ? ' open' : '') . ' style="margin:0 0 16px">';
         echo '<summary style="cursor:pointer;font-weight:600">' . esc_html__('Settings for this page', 'october-events') . '</summary>';
-        echo '<div class="oe-acc-body" style="padding:12px 0">';
+        echo '<div class="oe-acc-body">';
         if ($saved) {
             echo '<div class="notice notice-success inline" style="margin:0 0 10px"><p>' . esc_html__('Saved.', 'october-events') . '</p></div>';
         }

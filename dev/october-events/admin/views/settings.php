@@ -460,11 +460,6 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
         <table class="form-table" role="presentation"><tbody>
             <tr>
-                <th scope="row"><label><?php esc_html_e('Platform URL', 'october-events'); ?></label></th>
-                <td><input type="url" name="platform_url" value="<?php echo esc_attr((string) ($cfg['platform_url'] ?? '')); ?>" placeholder="https://platform.atlantadesignfestival.net" class="regular-text">
-                    <p class="description"><?php esc_html_e('Used for the “Open the platform” button in wp-admin. Blank = the first non-pages.dev origin above.', 'october-events'); ?></p></td>
-            </tr>
-            <tr>
                 <th scope="row"><label><?php esc_html_e('Check-in scanner page', 'october-events'); ?></label></th>
                 <td><input type="url" name="checkin_page_url" value="<?php echo esc_attr((string) ($cfg['checkin_page_url'] ?? '')); ?>" placeholder="https://your-site.com/check-in/" class="regular-text">
                     <p class="description"><?php esc_html_e('The page where you placed the [oe_checkin] shortcode. When set, a “Scan tickets” button appears on the Dashboard and Tickets screens.', 'october-events'); ?></p></td>

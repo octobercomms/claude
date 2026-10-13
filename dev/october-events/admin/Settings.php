@@ -563,8 +563,7 @@ final class Settings {
             // SMS — Brevo.
             'brevo_api_key'         => self::keep_secret($in['brevo_api_key'] ?? '', $existing['brevo_api_key'] ?? ''),
             'brevo_sms_sender'      => sanitize_text_field((string) ($in['brevo_sms_sender'] ?? '')),
-            // Platform + check-in links surfaced in wp-admin.
-            'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
+            // Check-in link surfaced in wp-admin.
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
             'checkout_terms_url' => esc_url_raw(trim((string) ($in['checkout_terms_url'] ?? ''))),
             // Per-site feature toggles (Settings → Features).
