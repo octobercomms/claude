@@ -1083,27 +1083,95 @@ router.post('/clients/:clientId/contacts/:contactId/unsubscribe', async (req, re
   }
 });
 
-// ── MailFlow out-of-office suggestions — the review queue (authenticated) ──
-// Ingest is the public token-gated /api/ooo route; these are the AM-facing
-// review/apply/dismiss endpoints. OMI owns the queue and the apply decision.
+// ── Out-of-office contact updates — the review queue (authenticated) ──
+// Three doors feed the queue: MailFlow's token-gated POST (/api/ooo), a CSV
+// upload of a MailFlow export, and OMI's own IMAP reply poll. These are the
+// AM-facing endpoints: review, apply, undo, dismiss. OMI owns the apply
+// decision, and nothing below writes to a contact without an explicit call.
 const ooo = require('../services/oooSuggestions');
+const oooCsv = require('../services/oooCsv');
+const multer = require('multer');
+
+// Who pressed the button, for the audit trail on the suggestion. The auth
+// middleware puts {id, username, role} on req.user and nothing else, so
+// username is the readable field; falling through to the id prints a raw UUID
+// on the review card.
+function actor(req) { return req.user?.username || req.user?.id || null; }
+
 router.get('/ooo/suggestions', async (req, res) => {
   try {
     const status = req.query.status === 'all' ? null : (req.query.status || 'pending');
+    // 'known' = the sender is a contact OMI holds; 'unknown' = anyone else.
+    // The second list is the safety valve for the automatic feed, which reads
+    // all of October's mail rather than only press mail.
+    const bucket = ['known', 'unknown'].includes(req.query.bucket) ? req.query.bucket : 'all';
     const [items, counts] = await Promise.all([
-      ooo.listSuggestions({ status, limit: parseInt(req.query.limit, 10) || 300 }),
+      ooo.listSuggestions({ status, bucket, limit: parseInt(req.query.limit, 10) || 300 }),
       ooo.counts(),
     ]);
-    res.json({ suggestions: items, counts });
+    res.json({ suggestions: items, counts, bucket });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 router.post('/ooo/suggestions/:id/apply', async (req, res) => {
-  try { res.json(await ooo.applySuggestion(req.params.id, { altIndexes: req.body?.alt_indexes })); }
+  try { res.json(await ooo.applySuggestion(req.params.id, { altIndexes: req.body?.alt_indexes, user: actor(req) })); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
-router.post('/ooo/suggestions/:id/dismiss', async (req, res) => {
-  try { res.json(await ooo.dismissSuggestion(req.params.id)); }
+
+// Put back what an apply changed, from the before-state it recorded. The reason
+// this exists: the automatic feed makes a wrong apply a question of when.
+router.post('/ooo/suggestions/:id/undo', async (req, res) => {
+  try { res.json(await ooo.undoSuggestion(req.params.id, { user: actor(req) })); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/ooo/suggestions/:id/dismiss', async (req, res) => {
+  try { res.json(await ooo.dismissSuggestion(req.params.id, { user: actor(req) })); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Apply a reviewed set in one press. Only ids the reviewer ticked arrive here;
+// the server does not select the set, because "apply everything pending" is the
+// one operation this queue must never offer.
+router.post('/ooo/suggestions/apply-batch', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
+    if (!ids || !ids.length) return res.status(400).json({ error: 'Tick at least one suggestion to apply.' });
+    res.json(await ooo.applyBatch(ids, { user: actor(req) }));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// CSV upload of a MailFlow export. Queues suggestions and returns the tally;
+// applies nothing.
+const oooCsvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /csv|text\/plain|excel|spreadsheet/i.test(file.mimetype || '')
+      || /\.csv$/i.test(file.originalname || '');
+    if (ok) return cb(null, true);
+    cb(new Error(`Expected a .csv export, got ${file.mimetype || 'an unknown type'}.`));
+  },
+});
+router.post('/ooo/import', oooCsvUpload.single('file'), async (req, res) => {
+  try {
+    const text = req.file?.buffer ? req.file.buffer.toString('utf8') : (req.body?.csv || '');
+    if (!text.trim()) return res.status(400).json({ error: 'Attach the CSV export, or post its text as `csv`.' });
+    const staleMonths = req.body?.stale_months ? parseInt(req.body.stale_months, 10) : undefined;
+    res.json(await oooCsv.importCsv(text, { user: actor(req), staleMonths }));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Read further back than the three-day reply poll, for out-of-office content
+// only. Marks no sends replied and actions no unsubscribes — see backfillOoo.
+router.post('/ooo/backfill', async (req, res) => {
+  try {
+    const outreachReplies = require('../services/outreachReplies');
+    res.json(await outreachReplies.backfillOoo({
+      days: parseInt(req.body?.days, 10) || 90,
+      limit: parseInt(req.body?.limit, 10) || 2000,
+    }));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Clear a hard bounce on a contact. Use when the AM has confirmed the

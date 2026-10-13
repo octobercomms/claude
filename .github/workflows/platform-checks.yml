@@ -9,7 +9,9 @@
 # Deliberately fast and narrow: the checks that catch a crash, not a style gate.
 #   - rules-of-hooks, which is the one lint rule whose violation always crashes
 #   - the frontend build
-#   - the backend suites that need no database
+#   - the backend suites that need no database, out-of-office extraction
+#     among them: it decides which contacts reach the press list, and its
+#     failure mode is a plausible wrong name rather than a crash
 #
 # The database-backed suites (press-segments, press-audience-routes,
 # contact-country) are not here yet: migration 001 creates schema_migrations,
@@ -61,6 +63,8 @@ jobs:
         run: node tests/budget-gating.test.js
       - name: Guard — the paste importer cannot silently import nothing
         run: node tests/press-import.test.js
+      - name: Guard — out-of-office extraction reads the right name
+        run: node src/services/oooExtract.test.js
       - name: Syntax check every service and route
         run: |
           set -e

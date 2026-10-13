@@ -369,6 +369,40 @@ progress is obvious on `platform.octobercomms.com`.
   threshold built on `open_count` fires on machines: a 3-open "warm journalist"
   rule produced hundreds of false alerts on one release. Clicks and replies are
   evidence; opens are not. See `docs/omi/press-warm-alerts.md`.
+- **MailFlow is a window, not a warehouse — so OMI reads the mailbox itself.**
+  `dev/oc-mail` is deploy tooling plus a branding patch for upstream AGPL
+  MailFlow consumed as Docker images; the app source is not in this repo. The
+  out-of-office contact feed therefore extracts inside OMI's own IMAP reply
+  poll (`services/outreachReplies.js`), which had been reading those replies and
+  discarding the body all along. Before designing anything that needs MailFlow
+  to push data to OMI, check whether OMI can just read it. See
+  `docs/omi/ooo-contact-updates.md`.
+- **An automatic feed into the contact list needs an undo, not just a review
+  step.** `ooo_suggestions.before_state` records the prior value of every field
+  an apply overwrites, in the same transaction as the write, and
+  `undoSuggestion()` replays it. Contacts created by an apply are deleted on
+  undo only when nothing has been sent to them since; deleting one with an
+  `outreach_sends` row would take the send history with it. Do not remove that
+  column to simplify the apply.
+- **The nearest capitalised word before an address is usually not the person.**
+  "Hannah Wintle for Sleeper / Starboard at h.wintle@mondiale.co.uk" yields
+  *Starboard*, a magazine, and writing it into a contact's name field produces a
+  plausible-looking row with nothing to signal it is wrong. The extractor makes
+  the address arbitrate: take the capitalised run the local part corroborates,
+  and leave the name blank when none does. Related: `Auto-Submitted` must be
+  read by value, because a negative lookahead after `\s*` backtracks to zero
+  width and `Auto-Submitted: no` then reads as an auto-reply, qualifying every
+  message. Both are covered in `oooExtract.test.js`.
+- **Confidence scores from an upstream extractor are a sort key, not a gate.**
+  In October's own MailFlow export, 109 of 128 rows sat at 0.95, including 36
+  whose address never appeared in its own quote and 22 department mailboxes.
+  Gate on evidence (is the address in the sentence? does it match the name?),
+  not on the number.
+- **`getSetting` was never imported into `routes/settings.js`**, and both call
+  sites sat inside catch blocks, so the `ReferenceError` was swallowed and the
+  setting silently fell back to its default. `AI_DAILY_ALERT_USD` and
+  `PRESS_WARM_ALERTS` had therefore never been read from the database. Fixed in
+  the workspace-links change; worth re-checking their stored values.
 - **Filtering a state out of a selection query is not enforcement.** Only the
   dispatch gate in `scheduler.js runOutreachSends()` is, because only it runs
   after the state can change. `do_not_contact` was excluded by every audience
