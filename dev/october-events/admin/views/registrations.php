@@ -5,10 +5,11 @@
  * modules (guided tours, waitlist, promos) are accordions linking to their
  * screens. Add order and the manual-issue form live in a right slide-in.
  *
- * The Attendees lens (markup + JS) is the existing, working operational hub with
- * its inline check-in, transfer and order actions kept verbatim; the Orders and
- * Check-in lenses are read views over Orders::transactions() and
- * CheckIn::log_grouped(). The rich order control-centre slide-in is a follow-up.
+ * Every lens is click-to-open: an attendee or check-in row opens the attendee
+ * slide-in (detail, check-in history, transfer / resend / check-in), an order
+ * row opens the order control-centre slide-in (summary, payment, tickets,
+ * history, and the resend / invoice / refund / cancel / delete actions). The
+ * panels load over AJAX (no page load) and reuse the existing money handlers.
  *
  * @var object[]   $attendees      one row per active admission (order fields inline)
  * @var array      $attendee_stats {tickets:int, checked_in:int}
@@ -142,17 +143,10 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
             <?php foreach ($attendees as $a) :
                 $when = $a->checked_in && $a->first_scan ? get_date_from_gmt((string) $a->first_scan, 'g:i a') : '';
                 $search = strtolower(trim($a->attendee . ' ' . $a->email . ' ' . $a->type . ' ' . $a->buyer));
-                $view_url = Orders::ticket_url((string) $a->token);
-                $oid       = (int) $a->order_id;
-                $resend    = wp_nonce_url(admin_url('admin-post.php?action=oe_resend_confirmation&id=' . $oid), 'oe_resend_confirmation');
-                $cancel    = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&id=' . $oid), 'oe_cancel_order');
-                $refund    = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&refund=1&id=' . $oid), 'oe_cancel_order');
-                $delete    = wp_nonce_url(admin_url('admin-post.php?action=oe_delete_order&id=' . $oid), 'oe_delete_order');
-                $is_stripe = in_array((string) $a->payment_method, ['stripe', 'public'], true);
-                $ord_tk    = $txn_tickets[(string) $a->payment_id] ?? [];
-                $placed    = $a->created_at ? (strtotime((string) $a->created_at . ' UTC') ?: 0) : 0;
+                $view_url  = Orders::ticket_url((string) $a->token);
             ?>
-                <tr class="<?php echo $a->checked_in ? 'oe-att-in' : 'oe-att-out'; ?>"
+                <tr class="oe-tix-click <?php echo $a->checked_in ? 'oe-att-in' : 'oe-att-out'; ?>"
+                    data-oe-detail="attendee" data-id="<?php echo (int) $a->id; ?>"
                     data-status="<?php echo $a->checked_in ? 'in' : 'out'; ?>"
                     data-event="<?php echo (int) $a->event_id; ?>"
                     data-name="<?php echo esc_attr(strtolower($a->attendee)); ?>"
@@ -182,59 +176,6 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                             </form>
                         <?php endif; ?>
                         <a class="button button-small" href="<?php echo esc_url($view_url); ?>" target="_blank" rel="noopener"><?php esc_html_e('View', 'october-events'); ?></a>
-                        <a href="#" class="button button-small oe-att-toggle" data-target="oe-attx-<?php echo (int) $a->id; ?>"><?php esc_html_e('Transfer', 'october-events'); ?></a>
-                        <a href="#" class="button button-small oe-att-toggle" data-target="oe-attord-<?php echo (int) $a->id; ?>"><?php esc_html_e('Order ▾', 'october-events'); ?></a>
-                    </td>
-                </tr>
-                <tr id="oe-attord-<?php echo (int) $a->id; ?>" class="oe-att-skip" style="display:none">
-                    <td colspan="5" style="background:#faf9f5">
-                        <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;padding:8px 4px 10px">
-                            <div style="min-width:220px">
-                                <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Order', 'october-events'); ?></div>
-                                <div><strong>#<?php echo (int) $a->order_id; ?></strong> · <?php echo esc_html($a->buyer ?: '—'); ?></div>
-                                <?php if ($a->buyer_email !== '') : ?><div class="description"><?php echo esc_html($a->buyer_email); ?></div><?php endif; ?>
-                                <?php if ($placed) : ?><div class="description"><?php echo esc_html(sprintf(__('Placed %s', 'october-events'), wp_date('M j, Y g:i A', $placed))); ?></div><?php endif; ?>
-                                <div class="description"><?php echo esc_html(sprintf(__('Source: %s', 'october-events'), $a->source ?: '—')); ?></div>
-                            </div>
-                            <div style="min-width:200px">
-                                <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Payment', 'october-events'); ?></div>
-                                <div><?php echo esc_html(ucfirst((string) $a->payment_method ?: '—') . ' · ' . number_format((float) $a->order_total, 2) . ' ' . $a->currency); ?></div>
-                                <div><span class="oe-status oe-status-<?php echo esc_attr($a->order_status); ?>"><?php echo esc_html($a->order_status); ?></span></div>
-                                <?php if ($a->payment_id !== '') : ?><div class="description" style="word-break:break-all"><?php echo esc_html((string) $a->payment_id); ?></div><?php endif; ?>
-                            </div>
-                            <div style="flex:1;min-width:220px">
-                                <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:6px"><?php esc_html_e('Order actions', 'october-events'); ?></div>
-                                <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start">
-                                    <?php if ($a->buyer_email !== '') : ?>
-                                        <a class="button button-small" href="<?php echo esc_url($resend); ?>" title="<?php esc_attr_e('Email the buyer every ticket in this order again, in one email', 'october-events'); ?>"><?php esc_html_e('Resend all tickets', 'october-events'); ?></a>
-                                    <?php endif; ?>
-                                    <a class="button button-small" href="<?php echo esc_url($cancel); ?>" onclick="return confirm('<?php echo esc_js(__('Cancel this order and void its tickets? The customer will be emailed.', 'october-events')); ?>')"><?php esc_html_e('Cancel order', 'october-events'); ?></a>
-                                    <?php if ($a->payment_id !== '' && $is_stripe && $ord_tk) :
-                                        $panel_order_id = (int) $a->order_id;
-                                        $panel_tickets  = $ord_tk;
-                                        $panel_label    = __('Refund…', 'october-events');
-                                        include OE_DIR . 'admin/views/_refund-panel.php';
-                                    elseif ($a->payment_id !== '') : ?>
-                                        <a class="button button-small" href="<?php echo esc_url($refund); ?>" onclick="return confirm('<?php echo esc_js(__('Refund this order in full and void its tickets? The customer will be emailed their refund.', 'october-events')); ?>')"><?php esc_html_e('Refund', 'october-events'); ?></a>
-                                    <?php endif; ?>
-                                    <a class="button button-small button-link-delete" href="<?php echo esc_url($delete); ?>" title="<?php esc_attr_e('Permanently delete (for test data)', 'october-events'); ?>" onclick="return confirm('<?php echo esc_js(__('Permanently delete this order, its tickets and any check-in scans? This cannot be undone, and no refund is issued.', 'october-events')); ?>')"><?php esc_html_e('Delete', 'october-events'); ?></a>
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                <tr id="oe-attx-<?php echo (int) $a->id; ?>" class="oe-att-skip" style="display:none">
-                    <td colspan="5" style="background:#faf9f5">
-                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:8px 4px">
-                            <input type="hidden" name="action" value="oe_transfer_ticket">
-                            <input type="hidden" name="ticket_id" value="<?php echo (int) $a->id; ?>">
-                            <?php wp_nonce_field('oe_transfer_ticket'); ?>
-                            <label style="font-size:12px"><?php esc_html_e('New attendee name', 'october-events'); ?><br>
-                                <input type="text" name="attendee_name" value="<?php echo esc_attr($a->attendee); ?>" required style="min-width:180px"></label>
-                            <label style="font-size:12px"><?php esc_html_e('New email', 'october-events'); ?><br>
-                                <input type="email" name="attendee_email" placeholder="<?php echo esc_attr($a->email); ?>" required style="min-width:200px"></label>
-                            <button type="submit" class="button button-primary" onclick="return confirm('<?php echo esc_js(__('Transfer this ticket and email the new attendee their ticket? The QR code stays the same, so any earlier copy now belongs to the new person.', 'october-events')); ?>');"><?php esc_html_e('Transfer & email ticket', 'october-events'); ?></button>
-                        </form>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -325,14 +266,6 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                 });
             });
             updateChips(); apply();
-            table.querySelectorAll('.oe-att-toggle').forEach(function(link){
-                link.addEventListener('click', function(e){
-                    e.preventDefault();
-                    var target = document.getElementById(link.getAttribute('data-target')); if (!target) { return; }
-                    var open = target.style.display !== 'none'; target.style.display = open ? 'none' : 'table-row';
-                    if (!open) { var input = target.querySelector('input[name="attendee_name"]'); if (input) { input.focus(); input.select(); } }
-                });
-            });
         })();
         </script>
         <?php endif; ?>
@@ -358,7 +291,7 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                     $when = $o->created_at ? (strtotime((string) $o->created_at . ' UTC') ?: 0) : 0;
                     $srch = strtolower(trim((string) $o->name . ' ' . (string) $o->email . ' ' . $ev_t));
                 ?>
-                    <tr data-event="<?php echo (int) $o->event_id; ?>" data-search="<?php echo esc_attr($srch); ?>">
+                    <tr class="oe-tix-click" data-oe-detail="order" data-id="<?php echo (int) $o->order_id; ?>" data-event="<?php echo (int) $o->event_id; ?>" data-search="<?php echo esc_attr($srch); ?>">
                         <td><strong><?php echo esc_html((string) $o->name ?: '—'); ?></strong>
                             <?php if ((string) $o->email !== '') : ?><br><span class="description"><?php echo esc_html((string) $o->email); ?></span><?php endif; ?>
                         </td>
@@ -370,7 +303,7 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                 <?php endforeach; ?>
                 </tbody>
             </table>
-            <p class="oe-ad-note"><?php esc_html_e('One row per payment. Per-order actions (resend, refund, cancel, delete) are on the Attendees lens for now; the full order control-centre slide-in is coming next.', 'october-events'); ?></p>
+            <p class="oe-ad-note"><?php esc_html_e('One row per order. Click to open the control centre — payment, tickets and the resend / invoice / refund / cancel / delete actions.', 'october-events'); ?></p>
             <?php endif; ?>
         </div><!-- /orders lens -->
 
@@ -397,7 +330,7 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                     $srch = strtolower(trim((string) $c->attendee_name . ' ' . $ev_t . ' ' . $venue));
                     $undo = wp_nonce_url(admin_url('admin-post.php?action=oe_checkin_undo&ticket_id=' . (int) $c->ticket_id . '&event_id=' . (int) $c->event_id . '&venue=' . rawurlencode($venue)), 'oe_checkin_undo');
                 ?>
-                    <tr data-event="<?php echo (int) $c->event_id; ?>" data-search="<?php echo esc_attr($srch); ?>">
+                    <tr class="oe-tix-click" data-oe-detail="attendee" data-id="<?php echo (int) $c->ticket_id; ?>" data-event="<?php echo (int) $c->event_id; ?>" data-search="<?php echo esc_attr($srch); ?>">
                         <td><strong><?php echo esc_html((string) $c->attendee_name ?: '—'); ?></strong>
                             <?php if ((string) $c->ticket_type_label !== '') : ?><br><span class="description"><?php echo esc_html((string) $c->ticket_type_label); ?></span><?php endif; ?>
                         </td>
@@ -518,6 +451,38 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
         }
         document.querySelectorAll('.oe-tix-lsearch').forEach(function(inp){ inp.addEventListener('input', lensApply); });
         lensApply();
+    })();
+    </script>
+
+    <?php // ===== Shared record slide-in (attendee / order), loaded over AJAX ===== ?>
+    <aside class="oe-slide oe-slide-wide" id="oe-tix-detail" role="dialog" aria-label="<?php esc_attr_e('Record detail', 'october-events'); ?>">
+        <div id="oe-tix-detail-body"><div class="oe-tixp-loading description" style="padding:28px 24px"><?php esc_html_e('Loading…', 'october-events'); ?></div></div>
+    </aside>
+    <script>
+    (function(){
+        var nonce = <?php echo wp_json_encode(wp_create_nonce('oe_tix_detail')); ?>;
+        var ajax  = (typeof ajaxurl !== 'undefined') ? ajaxurl : <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+        var panel = document.getElementById('oe-tix-detail');
+        var body  = document.getElementById('oe-tix-detail-body');
+        if (!panel || !body) { return; }
+        function openDetail(type, id){
+            body.innerHTML = <?php echo wp_json_encode('<div class="oe-tixp-loading description" style="padding:28px 24px">' . esc_html__('Loading…', 'october-events') . '</div>'); ?>;
+            if (window.oeSlide) { window.oeSlide.open(panel); }
+            var url = ajax + '?action=oe_tix_detail&nonce=' + encodeURIComponent(nonce) + '&type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(id);
+            fetch(url, { credentials: 'same-origin' })
+                .then(function(r){ return r.json(); })
+                .then(function(res){ body.innerHTML = (res && res.success && res.data && res.data.html) ? res.data.html : '<div style="padding:24px"><p>' + ((res && res.data && res.data.message) ? res.data.message : 'Could not load.') + '</p></div>'; })
+                .catch(function(){ body.innerHTML = '<div style="padding:24px"><p>Could not load.</p></div>'; });
+        }
+        // One delegate covers all three lenses and the cross-links inside panels.
+        document.addEventListener('click', function(e){
+            var row = e.target.closest ? e.target.closest('[data-oe-detail]') : null;
+            if (!row) { return; }
+            // Let real controls inside a row (check-in, view, forms) work normally.
+            if (e.target.closest('form, button, input, select, label') || (e.target.closest('a') && !e.target.closest('[data-oe-detail]'))) { return; }
+            e.preventDefault();
+            openDetail(row.getAttribute('data-oe-detail'), row.getAttribute('data-id'));
+        });
     })();
     </script>
 </div>

@@ -56,4 +56,8 @@
         var auto = document.querySelector('.oe-slide[data-oe-open="1"]');
         if (auto) { open(auto); }
     });
+
+    // Expose open/close so screens can drive an AJAX-loaded detail panel
+    // (fetch the body, inject it, then open) without a page load.
+    window.oeSlide = { open: open, close: closeAll };
 })();
