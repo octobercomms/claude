@@ -20,7 +20,10 @@ $notices = [
 <div class="wrap oe-admin oe-tax">
     <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <span><?php esc_html_e('Taxonomies & filters', 'october-events'); ?></span>
-        <button type="button" class="button button-primary" onclick="document.getElementById('oe-tax-new').open=true;"><?php esc_html_e('+ New taxonomy', 'october-events'); ?></button>
+        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-locations')); ?>"><?php esc_html_e('Locations & venues', 'october-events'); ?></a>
+            <button type="button" class="button button-primary" onclick="document.getElementById('oe-tax-new').open=true;"><?php esc_html_e('+ New taxonomy', 'october-events'); ?></button>
+        </span>
     </h1>
 
     <?php if (isset($_GET['oe_msg'], $notices[$_GET['oe_msg']])) : // phpcs:ignore WordPress.Security.NonceVerification ?>
