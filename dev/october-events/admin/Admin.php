@@ -69,7 +69,7 @@ final class Admin {
         add_menu_page($brand, $brand, $sc('dashboard'), 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
         add_submenu_page('october-events', 'Dashboard', 'Dashboard', $sc('dashboard'), 'october-events', [$this, 'page_dashboard']);
         // Events: the native CPT list (managed in WordPress / JetEngine).
-        add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'edit.php?post_type=' . PostTypes::slug('event'));
+        add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'oe-events', [$this, 'page_events']);
         // Per-site feature toggles (Settings → Features) hide the modules a site
         // doesn't use; section capabilities hide the ones a user isn't granted.
         $f = static fn(string $key): bool => \OE\Features::enabled($key);
@@ -208,6 +208,30 @@ final class Admin {
             'order'          => 'ASC',
         ]);
         require OE_DIR . 'admin/views/dashboard.php';
+    }
+
+    /** ADMIN-BUILD AD2 — the bespoke Events overview list. */
+    public function page_events(): void {
+        $slug   = PostTypes::slug('event');
+        $filter = isset($_GET['oe_evf']) ? sanitize_key((string) $_GET['oe_evf']) : 'all';
+        $events = $slug !== '' ? get_posts([
+            'post_type'      => $slug,
+            'post_status'    => ['publish', 'pending', 'draft', 'future', 'private'],
+            'posts_per_page' => 300,
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+        ]) : [];
+
+        // Tickets sold per event, one grouped query.
+        global $wpdb;
+        $tickets = \OE\Ticketing\Schema::tickets();
+        $sold    = [];
+        if ((string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $tickets)) === $tickets) {
+            foreach ($wpdb->get_results("SELECT event_id, COUNT(*) c FROM {$tickets} WHERE status='active' GROUP BY event_id") ?: [] as $r) {
+                $sold[(int) $r->event_id] = (int) $r->c;
+            }
+        }
+        require OE_DIR . 'admin/views/events-overview.php';
     }
 
     public function page_accounts(): void {
