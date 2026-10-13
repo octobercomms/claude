@@ -64,6 +64,7 @@ final class Plugin {
         \OE\GuidedTours\Shortcodes::init();
         \OE\Members\Shortcodes::init();
         \OE\Sections\Shortcodes::init();
+        \OE\Packs\Content\StaffApply::init();
         \OE\Sections\Theme::init();
         \OE\Sections\SingleTemplate::init();
         \OE\Sections\Archive::init();
@@ -94,6 +95,7 @@ final class Plugin {
             \OE\Packs\Content\ConferenceMeta::init();
             \OE\Packs\Content\ExhibitionMeta::init();
             \OE\Packs\Content\TourMeta::init();
+            \OE\Packs\Content\StaffMeta::init();
             \OE\GuidedTours\Metabox::init();
             \OE\Survey\Metabox::init();
             \OE\Hosts\Metabox::init();

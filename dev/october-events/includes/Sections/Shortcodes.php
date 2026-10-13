@@ -35,15 +35,7 @@ final class Shortcodes {
         // Tour pack locations (FRONTEND-BUILD D).
         add_shortcode('oe_tour_locations', [\OE\Packs\Content\TourRender::class, 'locations']);
 
-        // Pack sections whose field storage lands with their pack. Registered
-        // now so a page can hold them; they render nothing until built.
-        $pending = [
-            'oe_event_staff'         => 'staff',
-        ];
-        foreach ($pending as $tag => $pack) {
-            add_shortcode($tag, static function ($atts) use ($tag, $pack): string {
-                return Renderer::pack_pending(is_array($atts) ? $atts : [], $tag, $pack);
-            });
-        }
+        // Staff pack (FRONTEND-BUILD E).
+        add_shortcode('oe_event_staff', [\OE\Packs\Content\StaffRender::class, 'staff']);
     }
 }
