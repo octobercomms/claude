@@ -223,11 +223,16 @@ final class Admin {
         return $submenu_file;
     }
 
-    /** Keep the October Events menu open on the hidden, URL-only sub-screens. */
+    /**
+     * Keep the October Events menu expanded on every plugin screen, including
+     * the hidden URL-only ones (People sub-screens, Event Studio, Countdown,
+     * etc.). WordPress can't associate a page registered with an empty parent,
+     * so the submenu collapses; forcing the parent to the top-level slug keeps
+     * it open across the whole plugin.
+     */
     public function keep_people_parent($parent_file) {
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $hidden = array_merge($this->people_slugs, ['oe-volunteer-pool', 'oe-contacts', 'oe-countdown', 'oe-locations', 'oe-event-studio']);
-        if (in_array($page, $hidden, true)) {
+        if ($page === 'october-events' || strpos($page, 'oe-') === 0) {
             return 'october-events';
         }
         return $parent_file;
@@ -307,25 +312,6 @@ final class Admin {
                 . '</div>';
         }
         echo '</div>';
-    }
-
-    /** The staff platform URL (Settings → platform_url, else first non-preview origin). */
-    public static function platform_url(): string {
-        $url = trim((string) \OE\Settings::get('platform_url', ''));
-        if ($url === '') {
-            $origins = array_values(array_filter((array) \OE\Settings::get('platform_origins', [])));
-            // Prefer a real custom domain over the *.pages.dev build/preview host.
-            foreach ($origins as $o) {
-                if (strpos((string) $o, '.pages.dev') === false) {
-                    $url = (string) $o;
-                    break;
-                }
-            }
-            if ($url === '') {
-                $url = (string) ($origins[0] ?? '');
-            }
-        }
-        return $url !== '' ? untrailingslashit($url) : '';
     }
 
     public static function bento(string $key): void {
