@@ -34,7 +34,7 @@ explicitly commissioned.
 | AD7 | Team (new) | Planning-team lifecycle table + governance; the crew module (agreement, login, role email, renewal) | shipped v1.236.0 |
 | AD8 | CRM (new) | Group chips, smart-group rule builder, people table, unified person record slide-in | shipped v1.237.0 |
 | AD9 | Email | Stat strip, campaigns table, accordions | shipped v1.238.0 |
-| AD10 | Ad Manager | Stat strip + ad-units table over the folded-in ads module | todo |
+| AD10 | Ad Manager | Stat strip + ad-units table over the folded-in ads module | shipped v1.239.0 |
 | AD11 | User access | Role presets + people×capability grid over SectionAccess | todo |
 | AD12 | Taxonomies & filters (new) | Attach taxonomy to listing type, terms with colours, show-as-filter flag; drives `[oe_listings]` facets | todo |
 | AD13 | Import / export (new) | Export any entity (CSV/JSON); CSV import with saved mapping templates, dry-run, dedupe-on-key; JetEngine migrator as one template | todo |

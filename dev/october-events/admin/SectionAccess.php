@@ -43,6 +43,7 @@ final class SectionAccess {
         'volunteers'   => 'Volunteers',
         'team'         => 'Team',
         'contacts'     => 'Contacts',
+        'ads'          => 'Ad manager',
         'packages'     => 'Packages',
         'countdown'    => 'Countdown',
         'settings'     => 'Settings',
