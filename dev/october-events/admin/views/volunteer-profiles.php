@@ -13,8 +13,9 @@ defined('ABSPATH') || exit;
 
 $back = admin_url('admin.php?page=oe-volunteers');
 ?>
-<div class="wrap oe-admin">
-    <h1><?php esc_html_e('Volunteer profiles', 'october-events'); ?></h1>
+<div class="wrap oe-admin oe-vol">
+    <?php \OE\Admin\Admin::people_header('volunteers'); ?>
+    <?php \OE\Admin\Admin::volunteer_lens('profiles'); ?>
 
     <?php if (! empty($_GET['oe_msg'])) :
         $m = sanitize_key((string) $_GET['oe_msg']);
@@ -27,7 +28,6 @@ $back = admin_url('admin.php?page=oe-volunteers');
         <?php endif; ?>
     <?php endif; ?>
 
-    <p style="margin:12px 0"><a class="button" href="<?php echo esc_url($back); ?>">&larr; <?php esc_html_e('Back to volunteers', 'october-events'); ?></a></p>
 
     <?php /* Festival rates — size next year's over-subscription from real numbers. */ ?>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin:0 0 18px">

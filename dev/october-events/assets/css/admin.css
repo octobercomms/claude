@@ -420,3 +420,11 @@
 .oe-admin .oe-people-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .oe-admin .oe-people-actions .oe-crm-total{ font-size:12px; font-weight:700; color:#888; }
 @media (max-width:782px){ .oe-admin .oe-people-bar{ gap:10px; } .oe-admin .oe-people-tabs{ width:100%; justify-content:space-between; } .oe-admin .oe-people-tab{ padding:7px 12px; } }
+
+/* ---- Generic segmented nav (link-based), used by the Volunteers lens -- */
+.oe-admin .oe-seg{ display:inline-flex; background:#f3f3f3; border:2px solid #e3e2db; border-radius:999px; padding:3px; gap:2px; margin:0 0 16px; }
+.oe-admin .oe-seg-btn{ text-decoration:none; font-size:12.5px; font-weight:700; color:#555; padding:7px 16px; border-radius:999px; line-height:1.2; }
+.oe-admin .oe-seg-btn:hover{ color:#1a1a1a; }
+.oe-admin .oe-seg-btn.is-on{ background:#1a1a1a; color:#fff; }
+.oe-admin .oe-vol-signups .oe-status{ font-size:11px; }
+@media (max-width:782px){ .oe-admin .oe-seg{ width:100%; justify-content:space-between; } .oe-admin .oe-seg-btn{ padding:7px 12px; } }
