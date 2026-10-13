@@ -240,6 +240,20 @@ final class Admin {
             'post_status'    => 'any',
             'posts_per_page' => 200,
         ]);
+
+        // ADMIN-BUILD AD5 — real stat-strip figures.
+        global $wpdb;
+        $orders      = \OE\Ticketing\Schema::orders();
+        $with_orders = 0;
+        if ((string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $orders)) === $orders) {
+            $with_orders = (int) $wpdb->get_var("SELECT COUNT(DISTINCT email) FROM {$orders} WHERE status='paid' AND email<>''");
+        }
+        $event_slug = PostTypes::slug('event');
+        $organizers = $event_slug !== '' ? (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT post_author) FROM {$wpdb->posts} WHERE post_type=%s AND post_status NOT IN ('trash','auto-draft')",
+            $event_slug
+        )) : 0;
+
         require OE_DIR . 'admin/views/accounts.php';
     }
 
