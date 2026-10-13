@@ -1,0 +1,186 @@
+<?php
+/**
+ * Countdown image generator — shared tool body (form, preview, URL/HTML,
+ * download) used both by the standalone Countdown page and the Events
+ * slide-in. Self-contained: the inline script is server-rendered here, so it
+ * runs whether the markup is on a page or inside a slide-in panel.
+ *
+ * No outer wrapper, heading or bento — the caller supplies those.
+ */
+defined('ABSPATH') || exit;
+
+$base = home_url('/');
+$tz   = wp_timezone_string();
+// A sensible default deadline: 5 days out at 10:00, in the site's timezone,
+// formatted for <input type="datetime-local"> (no offset — the endpoint reads
+// a bare datetime in the site timezone, DST-correct for the chosen date).
+$default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->format('Y-m-d\TH:i');
+// Unique id prefix so two instances (page + slide-in) never collide on the
+// same DOM ids if both render.
+$cd = 'oe-cd-' . wp_generate_password(6, false, false);
+?>
+<p class="description" style="max-width:640px">
+    <?php echo esc_html(sprintf(
+        /* translators: %s: timezone name */
+        __('Set a deadline and copy the image URL into your email as an <img>, or download the GIF. The deadline is read in the timezone you pick below (defaults to the site’s, %s).', 'october-events'),
+        $tz
+    )); ?>
+</p>
+
+<div class="oe-cd-wrap" style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;margin-top:12px">
+    <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:18px;min-width:300px">
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-deadline"><?php esc_html_e('Deadline', 'october-events'); ?></label></th>
+                <td><input type="datetime-local" id="<?php echo esc_attr($cd); ?>-deadline" value="<?php echo esc_attr($default); ?>"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-tz"><?php esc_html_e('Timezone', 'october-events'); ?></label></th>
+                <td><select id="<?php echo esc_attr($cd); ?>-tz">
+                    <?php
+                    $common = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'Europe/London', 'UTC'];
+                    foreach (array_values(array_unique(array_merge([$tz], $common))) as $z) {
+                        printf('<option value="%s"%s>%s</option>', esc_attr($z), selected($z, $tz, false), esc_html($z));
+                    }
+                    ?>
+                </select></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-units"><?php esc_html_e('Show', 'october-events'); ?></label></th>
+                <td><select id="<?php echo esc_attr($cd); ?>-units">
+                    <option value="dh"><?php esc_html_e('Days + hours', 'october-events'); ?></option>
+                    <option value="dhm"><?php esc_html_e('Days + hours + minutes', 'october-events'); ?></option>
+                    <option value="dhms"><?php esc_html_e('Days + hours + minutes + seconds', 'october-events'); ?></option>
+                </select></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-label"><?php esc_html_e('Label', 'october-events'); ?></label></th>
+                <td><input type="text" id="<?php echo esc_attr($cd); ?>-label" class="regular-text" placeholder="<?php esc_attr_e('none (optional, e.g. OFFER ENDS IN)', 'october-events'); ?>"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-accent"><?php esc_html_e('Accent colour', 'october-events'); ?></label></th>
+                <td><input type="color" id="<?php echo esc_attr($cd); ?>-accent" value="#C15A2C"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-bg"><?php esc_html_e('Background', 'october-events'); ?></label></th>
+                <td>
+                    <input type="color" id="<?php echo esc_attr($cd); ?>-bg" value="#17140F">
+                    <label style="margin-left:10px"><input type="checkbox" id="<?php echo esc_attr($cd); ?>-transparent"> <?php esc_html_e('Transparent', 'october-events'); ?></label>
+                    <p class="description" style="margin-top:6px;max-width:340px"><?php esc_html_e('Set this to your email section colour for a seamless fit. Transparent works too, but 1-bit GIF edges can fringe on a different colour, so a matched solid colour reads cleanest.', 'october-events'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Style', 'october-events'); ?></th>
+                <td>
+                    <label><input type="radio" name="<?php echo esc_attr($cd); ?>-style" value="static" checked> <?php esc_html_e('Static numbers', 'october-events'); ?></label><br>
+                    <label><input type="radio" name="<?php echo esc_attr($cd); ?>-style" value="anim"> <?php esc_html_e('Animated clock', 'october-events'); ?></label>
+                </td>
+            </tr>
+        </tbody></table>
+    </div>
+
+    <div style="flex:1;min-width:300px">
+        <p><strong><?php esc_html_e('Preview', 'october-events'); ?></strong></p>
+        <div style="background:#f3eee1;border:1px solid #e3ded3;border-radius:12px;padding:16px;display:inline-block">
+            <img id="<?php echo esc_attr($cd); ?>-preview" alt="<?php esc_attr_e('Countdown preview', 'october-events'); ?>" style="display:block;max-width:100%;width:560px;height:auto">
+        </div>
+
+        <p style="margin-top:16px"><strong><?php esc_html_e('Image URL', 'october-events'); ?></strong> <span class="description"><?php esc_html_e('(the raw endpoint — the Email HTML below wraps it for you)', 'october-events'); ?></span></p>
+        <div style="display:flex;gap:8px;align-items:center;max-width:640px">
+            <input type="text" id="<?php echo esc_attr($cd); ?>-url" readonly onfocus="this.select()" style="flex:1;font-size:12px" aria-label="<?php esc_attr_e('Countdown image URL', 'october-events'); ?>">
+            <button type="button" class="button" id="<?php echo esc_attr($cd); ?>-copy"><?php esc_html_e('Copy', 'october-events'); ?></button>
+            <a class="button button-primary" id="<?php echo esc_attr($cd); ?>-download" download="countdown.gif" href="#"><?php esc_html_e('Download GIF', 'october-events'); ?></a>
+        </div>
+
+        <p style="margin-top:16px"><strong><?php esc_html_e('Email HTML', 'october-events'); ?></strong> <span class="description"><?php esc_html_e('(paste into an HTML block — Brevo, Mailchimp, etc. — not the image block)', 'october-events'); ?></span></p>
+        <div style="display:flex;gap:8px;align-items:flex-start;max-width:640px">
+            <textarea id="<?php echo esc_attr($cd); ?>-html" readonly rows="3" onfocus="this.select()" style="flex:1;font-size:12px;font-family:monospace;white-space:pre;overflow:auto" aria-label="<?php esc_attr_e('Countdown email HTML', 'october-events'); ?>"></textarea>
+            <button type="button" class="button" id="<?php echo esc_attr($cd); ?>-copy-html"><?php esc_html_e('Copy', 'october-events'); ?></button>
+        </div>
+        <p class="description" style="max-width:640px;margin-top:8px">
+            <?php esc_html_e('Use the HTML block so the live URL is kept — the image block re-hosts a frozen copy. Note: Gmail and Apple Mail cache the image at delivery, so the numbers show the time at send and don’t tick live for most recipients. Send close to the deadline; the moving clock carries the “live” feel.', 'october-events'); ?>
+        </p>
+    </div>
+</div>
+
+<script>
+(function () {
+    var BASE = <?php echo wp_json_encode($base); ?>;
+    var P = <?php echo wp_json_encode($cd); ?>;
+    var el = function (suffix) { return document.getElementById(P + suffix); };
+    var deadline = el('-deadline'), units = el('-units'), label = el('-label'),
+        accent = el('-accent'), tz = el('-tz'), bg = el('-bg'), transparent = el('-transparent'),
+        img = el('-preview'), urlBox = el('-url'), htmlBox = el('-html'),
+        dl = el('-download'), copy = el('-copy'), copyHtml = el('-copy-html');
+    if (!deadline) { return; }
+    var COPIED = '<?php echo esc_js(__('Copied', 'october-events')); ?>';
+    // A checkerboard behind the preview so a transparent image is legible.
+    var CHECKER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\'%3E%3Crect width=\'20\' height=\'20\' fill=\'%23fff\'/%3E%3Crect width=\'10\' height=\'10\' fill=\'%23e0e0e0\'/%3E%3Crect x=\'10\' y=\'10\' width=\'10\' height=\'10\' fill=\'%23e0e0e0\'/%3E%3C/svg%3E")';
+
+    function style() {
+        var r = document.querySelector('input[name="' + P + '-style"]:checked');
+        return r ? r.value : 'static';
+    }
+    // Build the endpoint URL from the form. Bare datetime (no offset) — the
+    // endpoint reads it in the site timezone.
+    function build(bust) {
+        if (!deadline.value) { return ''; }
+        var dt = deadline.value.length === 16 ? deadline.value + ':00' : deadline.value;
+        var p = new URLSearchParams();
+        p.set('oe_countdown', '1');
+        p.set('deadline', dt);
+        if (units.value) { p.set('units', units.value); }
+        if (tz.value) { p.set('tz', tz.value); }
+        if (label.value.trim()) { p.set('label', label.value.trim()); }
+        if (accent.value) { p.set('accent', accent.value); }
+        // Background: transparent knocks it out (blending edges toward the
+        // chosen colour); otherwise a solid fill of that colour.
+        if (transparent.checked) { p.set('transparent', '1'); }
+        if (bg.value) { p.set('bg', bg.value); }
+        if (style() === 'anim') { p.set('anim', '1'); }
+        if (bust) { p.set('_', String(Date.now())); }
+        return BASE + '?' + p.toString();
+    }
+    // Escape a value for an HTML attribute (the URL joins params with &).
+    function escAttr(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    // A ready-to-paste <img> for an email HTML block, referencing the live URL.
+    function snippet(url) {
+        if (!url) { return ''; }
+        var alt = label.value.trim() || 'Countdown';
+        return '<img src="' + escAttr(url) + '" width="560" alt="' + escAttr(alt) + '"'
+             + ' style="display:block;border:0;width:100%;max-width:560px;height:auto">';
+    }
+    function refresh() {
+        var clean = build(false);
+        urlBox.value = clean;
+        htmlBox.value = snippet(clean);
+        var bust = build(true);
+        img.src = bust;
+        dl.href = bust; // fresh render on download
+        // Show the checkerboard only when the image is transparent.
+        var box = img.parentNode;
+        if (box) { box.style.background = transparent.checked ? CHECKER : '#f3eee1'; }
+    }
+    [deadline, units, label, accent, tz, bg, transparent].forEach(function (n) {
+        n.addEventListener('input', refresh);
+        n.addEventListener('change', refresh);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="' + P + '-style"]'), function (n) {
+        n.addEventListener('change', refresh);
+    });
+    function bindCopy(btn, src) {
+        btn.addEventListener('click', function () {
+            var t = src.value; if (!t) { return; }
+            var done = function () { var o = btn.textContent; btn.textContent = COPIED; setTimeout(function () { btn.textContent = o; }, 1200); };
+            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(done).catch(function () {}); }
+            else { src.focus(); src.select(); try { document.execCommand('copy'); } catch (e) {} done(); }
+        });
+    }
+    bindCopy(copy, urlBox);
+    bindCopy(copyHtml, htmlBox);
+    refresh();
+})();
+</script>

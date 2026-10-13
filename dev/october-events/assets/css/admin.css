@@ -459,6 +459,7 @@
 
 /* ---- Tickets record slide-ins (attendee / order control-centre) ------ */
 .oe-slide.oe-slide-wide{ width:min(540px,96vw); }
+.oe-slide.oe-slide-xwide{ width:min(860px,96vw); }
 .oe-admin .oe-tix-click{ cursor:pointer; }
 .oe-admin .oe-tix-click:hover > td{ background:rgba(221,75,20,.06) !important; }
 .oe-tixp-sub{ margin:2px 0 0; color:#888; font-size:13px; }

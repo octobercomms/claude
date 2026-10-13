@@ -9,6 +9,7 @@
 defined('ABSPATH') || exit;
 
 use OE\Admin\Admin;
+use OE\Admin\SlideIn;
 use OE\PostTypes;
 use OE\Packs\Registry;
 use OE\Planning\Events;
@@ -86,7 +87,7 @@ $base_url   = admin_url('admin.php?page=oe-events');
     <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <span><?php esc_html_e('Events', 'october-events'); ?></span>
         <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-countdown')); ?>"><?php esc_html_e('Countdown image', 'october-events'); ?></a>
+            <?php echo SlideIn::trigger('oe-countdown', __('Countdown image', 'october-events'), 'button'); ?>
             <a class="button button-primary" href="<?php echo esc_url($new_url); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
         </span>
     </h1>
@@ -142,4 +143,9 @@ $base_url   = admin_url('admin.php?page=oe-events');
         </table>
     </div>
     <p class="oe-ad-note"><?php esc_html_e('Capability badges show which packs are on. Click a row to edit the event.', 'october-events'); ?></p>
+
+    <?php // Countdown image generator in a slide-in — no page load. ?>
+    <?php SlideIn::open('oe-countdown', __('Countdown image', 'october-events'), false, 'oe-slide-xwide'); ?>
+        <?php require __DIR__ . '/_countdown-tool.php'; ?>
+    <?php SlideIn::close(); ?>
 </div>
