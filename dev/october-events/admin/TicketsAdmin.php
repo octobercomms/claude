@@ -502,6 +502,9 @@ final class TicketsAdmin {
         $pids = array_values(array_unique(array_filter(array_map(static fn($a) => (string) $a->payment_id, $attendees))));
         $txn_tickets = $pids ? Orders::active_tickets_for_payments($pids) : [];
 
+        // Revenue for the header stat strip (paid orders, all events).
+        $revenue = (float) (Orders::stats()['revenue'] ?? 0);
+
         require OE_DIR . 'admin/views/registrations.php';
     }
 
