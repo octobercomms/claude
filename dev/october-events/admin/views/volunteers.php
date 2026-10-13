@@ -54,9 +54,9 @@ foreach ($opps as $mo) {
 }
 ?>
 <div class="wrap oe-admin oe-vol">
-    <h1><?php esc_html_e('Volunteers', 'october-events'); ?>
-        <a href="<?php echo esc_url($export); ?>" class="page-title-action"><?php esc_html_e('Export CSV', 'october-events'); ?></a>
-    </h1>
+    <?php \OE\Admin\Admin::people_header('volunteers',
+        '<a class="button" href="' . esc_url($export) . '">' . esc_html__('Export CSV', 'october-events') . '</a>'
+    ); ?>
 
     <?php if (isset($_GET['oe_msg'])) : // phpcs:ignore WordPress.Security.NonceVerification -- read-only notice
         $m = sanitize_key((string) $_GET['oe_msg']);

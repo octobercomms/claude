@@ -31,10 +31,7 @@ $act = static function (int $id, string $do) {
 };
 ?>
 <div class="wrap oe-admin oe-team-admin">
-    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-        <span><?php esc_html_e('Team', 'october-events'); ?></span>
-        <?php echo \OE\Admin\SlideIn::trigger('oe-team-add', __('+ Add to the team', 'october-events'), 'button button-primary'); ?>
-    </h1>
+    <?php \OE\Admin\Admin::people_header('team', \OE\Admin\SlideIn::trigger('oe-team-add', __('+ Add to the team', 'october-events'), 'button button-primary')); ?>
     <?php \OE\Admin\Admin::bento('team'); ?>
 
     <?php

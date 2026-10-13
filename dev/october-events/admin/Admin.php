@@ -21,12 +21,19 @@ final class Admin {
 
     private static ?Admin $instance = null;
 
+    /** @var string[] People-hub screen slugs, set in register_menu(). */
+    private array $people_slugs = [];
+
     public static function get_instance(): self {
         return self::$instance ??= new self();
     }
 
     public function init(): void {
         add_action('admin_menu', [$this, 'register_menu']);
+        add_action('admin_menu', [$this, 'inject_menu_sections'], 100);
+        add_action('admin_head', [$this, 'menu_section_css']);
+        add_filter('submenu_file', [$this, 'highlight_people_menu']);
+        add_filter('parent_file', [$this, 'keep_people_parent']);
         add_action('admin_post_oe_approve', [$this, 'handle_approve']);
         add_action('admin_post_oe_reject', [$this, 'handle_reject']);
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
@@ -66,37 +73,181 @@ final class Admin {
         // manage_options gate until sections are assigned to other roles.
         $sc = static fn(string $section): string => SectionAccess::cap($section);
 
-        $brand = (string) \OE\Settings::get('brand_name', 'October Events');
-        add_menu_page($brand, $brand, $sc('dashboard'), 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
-        add_submenu_page('october-events', 'Dashboard', 'Dashboard', $sc('dashboard'), 'october-events', [$this, 'page_dashboard']);
-        // Events: the native CPT list (managed in WordPress / JetEngine).
-        add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'oe-events', [$this, 'page_events']);
         // Per-site feature toggles (Settings → Features) hide the modules a site
         // doesn't use; section capabilities hide the ones a user isn't granted.
         $f = static fn(string $key): bool => \OE\Features::enabled($key);
-        if ($f('tickets'))      { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
+
+        $brand = (string) \OE\Settings::get('brand_name', 'October Events');
+        add_menu_page($brand, $brand, $sc('dashboard'), 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
+
+        // ---- Festival ------------------------------------------------------
+        add_submenu_page('october-events', 'Dashboard', 'Dashboard', $sc('dashboard'), 'october-events', [$this, 'page_dashboard']);
+        // Events: the native CPT list (managed in WordPress / JetEngine).
+        add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'oe-events', [$this, 'page_events']);
+        if ($f('tickets')) { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
+
+        // People hub — one visible menu item. Accounts / Volunteers / Team / CRM
+        // share an in-page tab switcher (Admin::people_header); each screen keeps
+        // its own page slug and handlers, so no money or CRM form target moves.
+        // The first available screen carries the visible "People" label; the rest
+        // are registered URL-reachable but hidden from the sidebar, and the People
+        // item is kept highlighted across them (highlight_people_menu).
+        $people = [];
+        if ($f('accounts'))   { $people['oe-accounts']   = ['Accounts',   $sc('accounts'),   [$this, 'page_accounts']]; }
+        if ($f('volunteers')) { $people['oe-volunteers'] = ['Volunteers', $sc('volunteers'), [$this, 'page_volunteers']]; }
+        if ($f('team'))       { $people['oe-team']       = ['Team',       $sc('team'),       [TeamAdmin::get_instance(), 'render']]; }
+        if ($f('contacts'))   { $people['oe-people']     = ['CRM',        $sc('contacts'),   [\OE\Admin\PeopleScreen::class, 'render']]; }
+        $this->people_slugs = array_keys($people);
+        $first = array_key_first($people);
+        foreach ($people as $slug => [$label, $cap, $cb]) {
+            if ($slug === $first) {
+                add_submenu_page('october-events', 'People', 'People', $cap, $slug, $cb);
+            } else {
+                add_submenu_page('', 'People — ' . $label, $label, $cap, $slug, $cb);
+            }
+        }
+        // Folded into the People hub — reachable by URL, off the sidebar.
+        if ($f('volunteers')) { add_submenu_page('', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
+        if ($f('contacts'))   { add_submenu_page('', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
+
+        // ---- Comms ---------------------------------------------------------
+        if ($f('contacts')) { add_submenu_page('october-events', 'Email', 'Email', $sc('contacts'), 'oe-email', [$this, 'page_email']); }
+
+        // ---- Growth --------------------------------------------------------
+        if ($f('ads')) { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
+
+        // ---- Admin ---------------------------------------------------------
+        add_submenu_page('october-events', 'User access', 'User access', 'manage_options', 'oe-access', [\OE\Admin\AccessScreen::class, 'render']);
+        add_submenu_page('october-events', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
+        add_submenu_page('october-events', 'Import & export', 'Import / export', 'manage_options', 'oe-porter', [\OE\Admin\PorterScreen::class, 'render']);
+        add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
+
+        // ---- Reference -----------------------------------------------------
+        add_submenu_page('october-events', 'First run & empty states', 'First run & empty states', $sc('dashboard'), 'oe-first-run', [\OE\Admin\FirstRun::class, 'render']);
+
+        // ---- More (parked; to be folded into their parents in a follow-up) -
         if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $sc('directory'), 'oe-directory', fn() => $this->page_listing('directory')); }
         if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $sc('destinations'), 'oe-destinations', fn() => $this->page_listing('destination')); }
         if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
-        if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $sc('accounts'), 'oe-accounts', [$this, 'page_accounts']); }
-        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $sc('volunteers'), 'oe-volunteers', [$this, 'page_volunteers']); }
-        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
-        if ($f('team'))         { add_submenu_page('october-events', 'Team', 'Team', $sc('team'), 'oe-team', [TeamAdmin::get_instance(), 'render']); }
-        if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
-        if ($f('contacts'))     { add_submenu_page('october-events', 'People', 'People', $sc('contacts'), 'oe-people', [\OE\Admin\PeopleScreen::class, 'render']); }
-        if ($f('contacts'))     { add_submenu_page('october-events', 'Email', 'Email', $sc('contacts'), 'oe-email', [$this, 'page_email']); }
-        if ($f('ads'))          { add_submenu_page('october-events', 'Ad manager', 'Ad manager', $sc('ads'), 'oe-ads', [$this, 'page_ads']); }
         if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
-        add_submenu_page('october-events', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
-        add_submenu_page('october-events', 'Taxonomies & filters', 'Taxonomies', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
-        add_submenu_page('october-events', 'Import & export', 'Import / export', 'manage_options', 'oe-porter', [\OE\Admin\PorterScreen::class, 'render']);
-        add_submenu_page('october-events', 'Tour locations', 'Tour locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
+        if ($f('contacts'))     { add_submenu_page('october-events', 'Demographics', 'Demographics', $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']); }
         add_submenu_page('october-events', 'Briefings & checklist', 'Briefings', 'manage_options', 'oe-briefings', [\OE\Admin\BriefingsScreen::class, 'render']);
-        if ($f('contacts')) { add_submenu_page('october-events', 'Demographics', 'Demographics', $sc('contacts'), 'oe-demographics', [\OE\Admin\DemographicsScreen::class, 'render']); }
-        add_submenu_page('october-events', 'User access', 'User access', 'manage_options', 'oe-access', [\OE\Admin\AccessScreen::class, 'render']);
+
+        // Countdown + Tour locations: folded into Events / Taxonomies in a
+        // follow-up; reachable by URL for now, off the sidebar.
+        add_submenu_page('', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
+        add_submenu_page('', 'Tour locations', 'Tour locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
+
+        // Section-header rows (see inject_menu_sections) land on Dashboard if
+        // ever activated; normally they're inert via pointer-events:none.
+        add_submenu_page('', '', '', 'read', 'oe-section', static function (): void {
+            wp_safe_redirect(admin_url('admin.php?page=october-events'));
+            exit;
+        });
         // Reachable by URL from the Membership settings, not shown in the menu.
         add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
-        add_submenu_page('october-events', 'Settings', 'Settings', $sc('settings'), 'oe-settings', [Settings::get_instance(), 'render']);
+    }
+
+    /**
+     * Shared header for the People hub (Accounts / Volunteers / Team / CRM).
+     *
+     * One H1 plus a tab switcher linking between the four people screens. Each
+     * screen keeps its own slug and handlers, so the switcher changes nothing
+     * about how forms post or redirect. $current is the active tab key
+     * (accounts|volunteers|team|crm); $actions_html is the screen's own primary
+     * action, placed on the right (trusted, built by the calling view).
+     */
+    public static function people_header(string $current, string $actions_html = ''): void {
+        $f = static fn(string $k): bool => \OE\Features::enabled($k);
+        $tabs = [];
+        if ($f('accounts'))   { $tabs['accounts']   = [__('Accounts', 'october-events'),   'oe-accounts']; }
+        if ($f('volunteers')) { $tabs['volunteers'] = [__('Volunteers', 'october-events'), 'oe-volunteers']; }
+        if ($f('team'))       { $tabs['team']       = [__('Team', 'october-events'),       'oe-team']; }
+        if ($f('contacts'))   { $tabs['crm']        = [__('CRM', 'october-events'),        'oe-people']; }
+
+        echo '<h1 class="oe-people-h1">' . esc_html__('People', 'october-events') . '</h1>';
+        echo '<div class="oe-people-bar">';
+        echo '<nav class="oe-people-tabs">';
+        foreach ($tabs as $key => [$label, $slug]) {
+            printf(
+                '<a class="oe-people-tab%s" href="%s">%s</a>',
+                $key === $current ? ' is-on' : '',
+                esc_url(admin_url('admin.php?page=' . $slug)),
+                esc_html($label)
+            );
+        }
+        echo '</nav>';
+        if ($actions_html !== '') {
+            echo '<div class="oe-people-actions">' . $actions_html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- trusted markup built by the view
+        }
+        echo '</div>';
+    }
+
+    /** Keep the "People" item highlighted on the hidden hub sub-screens. */
+    public function highlight_people_menu($submenu_file) {
+        $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $hidden = array_merge($this->people_slugs, ['oe-volunteer-pool', 'oe-contacts']);
+        if ($this->people_slugs && in_array($page, $hidden, true)) {
+            return $this->people_slugs[0];
+        }
+        return $submenu_file;
+    }
+
+    /** Keep the October Events menu open on the hidden, URL-only sub-screens. */
+    public function keep_people_parent($parent_file) {
+        $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $hidden = array_merge($this->people_slugs, ['oe-volunteer-pool', 'oe-contacts', 'oe-countdown', 'oe-locations']);
+        if (in_array($page, $hidden, true)) {
+            return 'october-events';
+        }
+        return $parent_file;
+    }
+
+    /** Non-clickable section-header rows spliced into the submenu (@100). */
+    public function inject_menu_sections(): void {
+        global $submenu;
+        if (empty($submenu['october-events'])) {
+            return;
+        }
+        // A header is placed BEFORE the row whose slug matches the key.
+        $before = [
+            'oe-email'     => __('Comms', 'october-events'),
+            'oe-ads'       => __('Growth', 'october-events'),
+            'oe-access'    => __('Admin', 'october-events'),
+            'oe-first-run' => __('Reference', 'october-events'),
+        ];
+        // "More" goes before the first parked item that is actually present.
+        $more_order = ['oe-directory', 'oe-destinations', 'oe-stories', 'edit.php?post_type=' . PostTypes::slug('package'), 'oe-demographics', 'oe-briefings'];
+        $present    = array_column($submenu['october-events'], 2);
+        $more_anchor = '';
+        foreach ($more_order as $cand) {
+            if (in_array($cand, $present, true)) { $more_anchor = $cand; break; }
+        }
+
+        $out   = [];
+        $first = true;
+        foreach ($submenu['october-events'] as $item) {
+            $slug = $item[2] ?? '';
+            if ($first) { $out[] = $this->sect_row(__('Festival', 'october-events')); $first = false; }
+            if (isset($before[$slug]))       { $out[] = $this->sect_row($before[$slug]); }
+            if ($more_anchor !== '' && $slug === $more_anchor) { $out[] = $this->sect_row(__('More', 'october-events')); }
+            $out[] = $item;
+        }
+        $submenu['october-events'] = $out;
+    }
+
+    /** One section-header submenu row. Inert: styled + pointer-events:none. */
+    private function sect_row(string $label): array {
+        return ['<span class="oe-ms">' . esc_html($label) . '</span>', 'read', 'oe-section'];
+    }
+
+    /** Sidebar section-label styling — global, since the menu shows everywhere. */
+    public function menu_section_css(): void {
+        echo '<style id="oe-menu-sections">'
+            . '#adminmenu .wp-submenu li a .oe-ms{display:block;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:#8f98a3;font-weight:700;padding:13px 0 3px;line-height:1;pointer-events:none}'
+            . '#adminmenu .wp-submenu li a:has(.oe-ms){pointer-events:none;cursor:default;background:transparent}'
+            . '#adminmenu .wp-submenu li a:has(.oe-ms):hover,#adminmenu .wp-submenu li.current a:has(.oe-ms){color:#8f98a3;background:transparent}'
+            . '</style>';
     }
 
     /**

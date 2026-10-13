@@ -4,10 +4,9 @@ defined('ABSPATH') || exit;
 use OE\PostTypes;
 ?>
 <div class="wrap oe-admin">
-    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-        <span><?php esc_html_e('Accounts', 'october-events'); ?></span>
-        <a class="button button-primary" href="<?php echo esc_url(admin_url('post-new.php?post_type=' . PostTypes::slug('account'))); ?>"><?php esc_html_e('+ Add account', 'october-events'); ?></a>
-    </h1>
+    <?php \OE\Admin\Admin::people_header('accounts',
+        '<a class="button button-primary" href="' . esc_url(admin_url('post-new.php?post_type=' . PostTypes::slug('account'))) . '">' . esc_html__('+ Add account', 'october-events') . '</a>'
+    ); ?>
     <?php \OE\Admin\Admin::bento('accounts'); ?>
 
     <div class="oe-ad-strip">
