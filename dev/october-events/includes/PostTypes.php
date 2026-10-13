@@ -36,7 +36,6 @@ final class PostTypes {
     public const TYPES = [
         'directory'   => ['slug' => 'oe_directory',   'external' => false, 'listing' => true,  'label' => 'Directory'],
         'destination' => ['slug' => 'oe_destination', 'external' => false, 'listing' => true,  'label' => 'Destination'],
-        'product'     => ['slug' => 'oe_product',     'external' => false, 'listing' => true,  'label' => 'Product'],
         'event'       => ['slug' => 'events',          'external' => true,  'listing' => true,  'label' => 'Event'],
         'story'       => ['slug' => 'oe_story',       'external' => false, 'listing' => true,  'label' => 'Story'],
         // Ads are handled by the standalone oc-ad-manager plugin, not here.
@@ -111,7 +110,6 @@ final class PostTypes {
 
         register_post_type(self::slug('directory'), $this->args('Directory', 'Directory Listings', 'dashicons-businessperson', $supports_default));
         register_post_type(self::slug('destination'), $this->args('Destination', 'Destinations', 'dashicons-location', $supports_default));
-        register_post_type(self::slug('product'), $this->args('Product', 'Products', 'dashicons-products', $supports_default));
         register_post_type(self::slug('story'), $this->args('Story', 'Stories', 'dashicons-edit-page', $supports_default));
 
         // Supporting records: not publicly queryable.

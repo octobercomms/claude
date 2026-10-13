@@ -130,7 +130,6 @@ final class Settings {
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],
                 'destination' => ['featured' => 9900,  'premium' => 19900],
-                'product'     => ['featured' => 7900,  'premium' => 14900],
                 'event'       => ['featured' => 4900,  'premium' => 9900],
                 'story'       => ['featured' => 0,     'premium' => 0],
                 'ad'          => ['featured' => 29900, 'premium' => 49900],

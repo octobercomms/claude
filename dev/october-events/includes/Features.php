@@ -21,7 +21,6 @@ final class Features {
         'tickets'      => 'Tickets & check-in',
         'directory'    => 'Directory',
         'destinations' => 'Destinations',
-        'products'     => 'Products',
         'stories'      => 'Stories',
         'accounts'     => 'Accounts',
         'volunteers'   => 'Volunteers',

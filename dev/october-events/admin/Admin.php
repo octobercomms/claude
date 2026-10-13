@@ -77,7 +77,6 @@ final class Admin {
         if ($f('tickets'))      { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
         if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $sc('directory'), 'oe-directory', fn() => $this->page_listing('directory')); }
         if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $sc('destinations'), 'oe-destinations', fn() => $this->page_listing('destination')); }
-        if ($f('products'))     { add_submenu_page('october-events', 'Products', 'Products', $sc('products'), 'oe-products', fn() => $this->page_listing('product')); }
         if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $sc('stories'), 'oe-stories', fn() => $this->page_listing('story')); }
         if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $sc('accounts'), 'oe-accounts', [$this, 'page_accounts']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $sc('volunteers'), 'oe-volunteers', [$this, 'page_volunteers']); }

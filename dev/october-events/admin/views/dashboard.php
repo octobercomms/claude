@@ -165,7 +165,7 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
         </thead>
         <tbody>
         <?php
-        $type_pages = ['directory' => 'oe-directory', 'destination' => 'oe-destinations', 'product' => 'oe-products', 'story' => 'oe-stories'];
+        $type_pages = ['directory' => 'oe-directory', 'destination' => 'oe-destinations', 'story' => 'oe-stories'];
         foreach ($counts as $type => $by_status) :
             $type_pending = (int) ($by_status['pending_review'] ?? 0);
             $manage = $type === 'event'

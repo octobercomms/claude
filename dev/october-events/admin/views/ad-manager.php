@@ -36,7 +36,11 @@ $status_pill = static function (string $s): array {
     <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <span><?php esc_html_e('Ad manager', 'october-events'); ?></span>
         <?php if ($available) : ?>
-            <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=ocad-add-campaign')); ?>"><?php esc_html_e('+ New campaign', 'october-events'); ?></a>
+            <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=ocad-bookings')); ?>"><?php esc_html_e('Bookings', 'october-events'); ?></a>
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=ocad-report')); ?>"><?php esc_html_e('Reports', 'october-events'); ?></a>
+                <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=ocad-add-campaign')); ?>"><?php esc_html_e('+ New campaign', 'october-events'); ?></a>
+            </span>
         <?php endif; ?>
     </h1>
 
