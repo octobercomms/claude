@@ -92,6 +92,7 @@ final class Plugin {
             \OE\Admin\PeopleScreen::init();
             \OE\Admin\AccessScreen::init();
             \OE\Admin\TaxonomyScreen::init();
+            \OE\Admin\PorterScreen::init();
             // Ensure roles carry their section caps (idempotent; runs once per
             // version marker so admins always have them before the menu builds).
             if (get_option('oe_secaccess_v') !== '1') {
