@@ -254,3 +254,36 @@
 .oe-admin .oe-team-count{ display:inline-flex; min-width:22px; height:22px; align-items:center; justify-content:center; padding:0 7px; border-radius:11px; background:#f3f3f3; color:#555; font-size:12px; font-weight:700; }
 @media (max-width:1100px){ .oe-admin .oe-team-grid{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:782px){ .oe-admin .oe-team-grid{ grid-template-columns:1fr; } }
+
+/* ---- People / CRM screen (ADMIN-BUILD AD8) --------------------------- */
+.oe-admin.oe-crm .oe-crm-total{ display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:12px; background:#1a1a1a; color:#fff; font-size:13px; font-weight:700; }
+.oe-admin .oe-crm-chips{ margin:6px 0 4px; }
+.oe-admin .oe-crm-chipwrap{ display:inline-flex; align-items:center; }
+.oe-admin .oe-ad-fchip b{ margin-left:4px; opacity:.7; font-weight:700; }
+.oe-admin .oe-ad-fchip.is-on b{ opacity:.85; }
+.oe-admin .oe-crm-chipdel{ margin:0 10px 0 2px; color:#888; text-decoration:none; font-size:15px; line-height:1; }
+.oe-admin .oe-crm-chipdel:hover{ color:#c2410c; }
+.oe-admin .oe-crm-rb{ margin-top:12px; }
+.oe-admin .oe-crm-rule{ display:flex; gap:8px; align-items:center; margin:0 0 8px; flex-wrap:wrap; }
+.oe-admin .oe-crm-delrule{ color:#888; text-decoration:none; font-size:18px; line-height:1; cursor:pointer; }
+.oe-admin .oe-crm-delrule:hover{ color:#c2410c; }
+.oe-admin .oe-ad-table tr.is-active > td{ background:rgba(221,75,20,.06); }
+
+/* Slide-in person record */
+.oe-admin .oe-crm-backdrop{ position:fixed; inset:0; background:rgba(26,26,26,.35); z-index:9998; display:block; }
+.oe-admin .oe-crm-slide{
+    position:fixed; top:32px; right:0; bottom:0; width:min(460px,92vw); z-index:9999;
+    background:#fff; border-left:2px solid #e3e2db; box-shadow:-8px 0 30px rgba(0,0,0,.14);
+    padding:26px 24px 40px; overflow-y:auto;
+    animation:oe-crm-in .18s ease-out;
+}
+@keyframes oe-crm-in{ from{ transform:translateX(24px); opacity:.4; } to{ transform:none; opacity:1; } }
+.oe-admin .oe-crm-slide-x{ position:absolute; top:14px; right:18px; font-size:24px; line-height:1; color:#888; text-decoration:none; }
+.oe-admin .oe-crm-slide-x:hover{ color:#1a1a1a; }
+.oe-admin .oe-crm-slide-head h2{ margin:0 0 2px; font-size:20px; }
+.oe-admin .oe-crm-slide-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:18px 0; }
+.oe-admin .oe-crm-ministat{ background:#f3f3f3; border-radius:8px; padding:10px 8px; text-align:center; }
+.oe-admin .oe-crm-ministat .l{ font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#888; }
+.oe-admin .oe-crm-ministat .v{ font-size:17px; font-weight:800; color:#1a1a1a; margin-top:2px; }
+.oe-admin .oe-crm-slide h3{ margin:18px 0 6px; font-size:14px; }
+@media (max-width:782px){ .oe-admin .oe-crm-slide{ top:46px; } .oe-admin .oe-crm-slide-stats{ grid-template-columns:repeat(2,1fr); } }
