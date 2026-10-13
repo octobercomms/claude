@@ -78,6 +78,11 @@ final class Settings {
             // Section-level dashboard access (M5): role slug => [section keys the
             // role may see]. Empty = admin-only, as before. See Admin\SectionAccess.
             'section_access'       => [],
+            // Role slugs confined to the front-end portal (no wp-admin), and the
+            // page they're sent to. Empty list = nobody blocked. Blank URL =
+            // auto-detect a page with a portal shortcode, else the site root.
+            'section_portal_only'  => [],
+            'portal_page_url'      => '',
             // Optional map: event field => an existing (e.g. JetEngine) meta key to
             // read when the plugin's own field is empty, so tickets/emails/reports
             // can resolve an event's date, price and location.

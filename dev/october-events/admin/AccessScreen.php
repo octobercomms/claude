@@ -23,10 +23,12 @@ final class AccessScreen {
         if (! current_user_can('manage_options')) {
             wp_die(esc_html__('You do not have access to this section.', 'october-events'), '', ['response' => 403]);
         }
-        $roles    = SectionAccess::assignable_roles();
-        $map      = SectionAccess::map();
-        $sections = SectionAccess::SECTIONS;
-        $presets  = SectionAccess::presets();
+        $roles        = SectionAccess::assignable_roles();
+        $map          = SectionAccess::map();
+        $sections     = SectionAccess::SECTIONS;
+        $presets      = SectionAccess::presets();
+        $portal_roles = SectionAccess::portal_only_roles();
+        $portal_url   = (string) \OE\Settings::get('portal_page_url', '');
 
         // Count users per role (for the "who this covers" column).
         $counts = count_users();
@@ -43,6 +45,15 @@ final class AccessScreen {
             ? wp_unslash($_POST['section_access'])
             : [];
         SectionAccess::save_map((array) $posted);
+
+        $portal = isset($_POST['portal_only']) && is_array($_POST['portal_only'])
+            ? array_map('sanitize_key', (array) wp_unslash($_POST['portal_only']))
+            : [];
+        SectionAccess::save_portal_only($portal);
+
+        $portal_url = isset($_POST['portal_page_url']) ? esc_url_raw(trim((string) wp_unslash($_POST['portal_page_url']))) : '';
+        \OE\Settings::update(['portal_page_url' => $portal_url]);
+
         wp_safe_redirect(add_query_arg(['page' => 'oe-access', 'oe_msg' => 'saved'], admin_url('admin.php')));
         exit;
     }
