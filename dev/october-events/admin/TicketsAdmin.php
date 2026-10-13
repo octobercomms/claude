@@ -505,6 +505,16 @@ final class TicketsAdmin {
         // Revenue for the header stat strip (paid orders, all events).
         $revenue = (float) (Orders::stats()['revenue'] ?? 0);
 
+        // The other two lenses of the one Tickets table (UI-SPEC §3): Orders (one
+        // row per payment) and the Check-in log (one row per ticket × door).
+        $orders   = Orders::transactions(0, 500);
+        $checkins = \OE\Ticketing\CheckIn::log_grouped(0, 200);
+        // Event titles for the Orders / Check-in rows (both carry event_id).
+        $event_titles = [];
+        foreach ($events as $ev) {
+            $event_titles[(int) $ev->ID] = get_the_title($ev) ?: ('#' . (int) $ev->ID);
+        }
+
         require OE_DIR . 'admin/views/registrations.php';
     }
 
