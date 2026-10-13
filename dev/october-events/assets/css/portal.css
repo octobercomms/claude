@@ -115,8 +115,20 @@
 .oe-pkg__list li { padding: .35rem 0; border-bottom: 1px solid var(--oe-line, #e3e2db); }
 .oe-pkg__list li:last-child { border-bottom: 0; }
 
+/* Portal forms (activity editor, account) */
+.oe-form { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem 1.1rem; }
+.oe-field { display: flex; flex-direction: column; gap: .3rem; font-size: .78rem; font-weight: 700; color: var(--oe-subtle, #888); }
+.oe-field--wide { grid-column: 1 / -1; }
+.oe-field input, .oe-field textarea {
+  width: 100%; font: inherit; font-weight: 400; color: var(--oe-ink, #1a1a1a);
+  padding: .55rem .7rem; border-radius: var(--oe-radius-sm, 8px);
+  border: var(--oe-border-w, 2px) solid var(--oe-line, #e3e2db); background: var(--oe-surface, #fff);
+}
+.oe-form__actions { grid-column: 1 / -1; }
+
 @media (max-width: 820px) {
   .oe-portal__tiles { grid-template-columns: repeat(2, 1fr); }
   .oe-portal__modules { grid-template-columns: 1fr; }
   .oe-pkgs { grid-template-columns: 1fr; }
+  .oe-form { grid-template-columns: 1fr; }
 }
