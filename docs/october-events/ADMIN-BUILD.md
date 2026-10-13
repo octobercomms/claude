@@ -47,7 +47,7 @@ explicitly commissioned.
 | # | Item | Build | Status |
 |---|------|-------|--------|
 | R1 | Tour locations CPT | Native `oe_location` type + metabox + dry-runnable promotion migrator from the Tour repeater | shipped v1.246.0 |
-| R2 | Demographics | Consent-gated demographic capture + aggregate reporting | todo |
+| R2 | Demographics | Consent-gated, account-backed capture ([oe_demographics]) + aggregate admin dashboard | shipped v1.248.0 |
 | R3 | Monthly digest | Finalise the digest content hooks and enable `Cron::DIGEST_ENABLED` | todo |
 | R4 | Organizer briefings + checklist | Admin-managed briefings + onboarding checklist; organizer-portal Briefings tab with per-partner progress | shipped v1.247.0 |
 | R5 | Crew module full lifecycle | Agreement → login → role email → renewal/offboarding emails (ties to AD7) | shipped v1.236.0 |
