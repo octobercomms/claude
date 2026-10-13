@@ -1,6 +1,7 @@
 const pool = require('../db');
 const { getSetting } = require('../utils/settings');
 const outreachAi = require('./outreachAi');
+const oooMailScan = require('./oooMailScan');
 
 // Statuses that should suppress the contact entirely going forward.
 const SUPPRESSING = new Set(['unsubscribe', 'not_relevant']);
@@ -178,7 +179,12 @@ async function pollReplies() {
   let matched = 0;
   let scanned = 0;
   let unsubscribed = 0;
+  let oooQueued = 0;
   let lastMatchAt = null;
+
+  // Our own sending domain, so an auto-reply quoting October's signature back
+  // at us does not turn our own footer into a proposed contact.
+  const sendingDomain = await getSetting('OUTREACH_SENDING_DOMAIN').catch(() => null);
   try {
     await client.connect();
   } catch (err) {
@@ -207,6 +213,25 @@ async function pollReplies() {
             .replace(/\s+/g, ' ')
             .trim()
             .slice(0, 4000);
+
+          // Read any lasting contact change out of the auto-reply. This runs
+          // for every message, not only the ones matching a contact we emailed:
+          // the whole point is to catch a stand-in named by someone we do not
+          // yet hold. It queues a suggestion for review and never writes to a
+          // contact, and it is wrapped because a malformed message must not be
+          // able to stop reply polling -- unsubscribes depend on this loop.
+          try {
+            const res = await oooMailScan.ingestMessage({
+              raw,
+              fromEmail: email,
+              subject: msg.envelope?.subject ? String(msg.envelope.subject) : '',
+              date: msg.envelope?.date || null,
+              ownDomains: sendingDomain ? [sendingDomain] : [],
+            });
+            if (res?.queued) oooQueued += 1;
+          } catch (oooErr) {
+            console.warn('[Outreach replies] out-of-office extraction failed:', oooErr.message);
+          }
 
           const { rows } = await pool.query(
             `UPDATE outreach_sends s SET replied_at = NOW(), reply_text = $2
@@ -305,7 +330,77 @@ async function pollReplies() {
     scanned, matched, unsubscribed,
     ...(lastMatchAt ? { last_match_at: lastMatchAt } : {}),
   });
-  return { matched, scanned, unsubscribed };
+  if (oooQueued) console.log(`[Outreach replies] queued ${oooQueued} contact-change suggestion(s) for review.`);
+  return { matched, scanned, unsubscribed, oooQueued };
 }
 
-module.exports = { pollReplies, pollState, looksLikeUnsubscribe, replyBodyOnly, suppressForCampaign };
+/**
+ * One-off backfill: scan further back than the reply poll does, for
+ * out-of-office content only.
+ *
+ * pollReplies looks at three days, which is right for catching a reply before
+ * the next follow-up goes out but useless for the months of auto-replies
+ * already sitting in the inbox. This reads a wider window, extracts contact
+ * changes, and touches nothing else -- no send is marked replied, no
+ * unsubscribe is actioned, because re-running those over a quarter of mail is
+ * not something a button should do quietly.
+ *
+ * The per-message watermark means re-running it is cheap and never duplicates.
+ */
+async function backfillOoo({ days = 90, limit = 2000 } = {}) {
+  const host = await getSetting('OUTREACH_IMAP_HOST');
+  const user = await getSetting('OUTREACH_IMAP_USER');
+  const pass = await getSetting('OUTREACH_IMAP_PASSWORD');
+  if (!host || !user || !pass) {
+    return { skipped: 'IMAP is not configured, so there is no inbox to read. Settings → Keys → Outreach inbox.' };
+  }
+  const port = Number(await getSetting('OUTREACH_IMAP_PORT')) || 993;
+  const sendingDomain = await getSetting('OUTREACH_SENDING_DOMAIN').catch(() => null);
+
+  const { ImapFlow } = require('imapflow');
+  const client = new ImapFlow({
+    host: host.trim(), port, secure: port === 993,
+    auth: { user: user.trim(), pass: pass.trim() }, logger: false,
+  });
+
+  const windowDays = Math.min(730, Math.max(1, Number(days) || 90));
+  const cap = Math.min(10000, Math.max(1, Number(limit) || 2000));
+  let scanned = 0; let queued = 0; let autoReplies = 0; let contacts = 0;
+
+  await client.connect();
+  try {
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+      const uids = await client.search({ since }, { uid: true });
+      // Newest first, so a capped run covers the most useful end of the window.
+      const slice = (uids || []).slice(-cap).reverse();
+      for await (const msg of client.fetch(slice, { envelope: true, source: true }, { uid: true })) {
+        scanned += 1;
+        const from = msg.envelope?.from?.[0];
+        const email = from?.address ? from.address.toLowerCase().trim() : '';
+        if (!email) continue;
+        try {
+          const res = await oooMailScan.ingestMessage({
+            raw: msg.source ? msg.source.toString('utf8') : '',
+            fromEmail: email,
+            subject: msg.envelope?.subject ? String(msg.envelope.subject) : '',
+            date: msg.envelope?.date || null,
+            ownDomains: sendingDomain ? [sendingDomain] : [],
+          });
+          if (res?.queued) { queued += 1; contacts += res.contacts || 0; }
+          if (res?.queued || res?.skipped === 'nothing_extracted') autoReplies += 1;
+        } catch (err) {
+          console.warn('[OOO backfill]', email, err.message);
+        }
+      }
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => {});
+  }
+  return { window_days: windowDays, scanned, auto_replies: autoReplies, suggestions_queued: queued, contacts_proposed: contacts };
+}
+
+module.exports = { pollReplies, pollState, looksLikeUnsubscribe, replyBodyOnly, suppressForCampaign, backfillOoo };

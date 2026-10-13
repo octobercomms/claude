@@ -96,6 +96,12 @@ const SETTINGS_KEYS = [
   // here, then press "Test the connection".
   'PANGRAM_API_URL',
   'OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_PORT', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD',
+  // Shared bearer token for MailFlow's push door into the out-of-office
+  // contact-update queue (POST /api/ooo/suggestions). It was readable from
+  // here all along but never writable, so the push route could only be set up
+  // by editing the server environment; a blank value leaves that door closed
+  // and the CSV upload and IMAP poll doors unaffected.
+  'MAILFLOW_INGEST_TOKEN',
   'N8N_WEBHOOK_BASE_URL',
   'EMAIL_PROVIDER',
   'GMAIL_USER', 'GMAIL_APP_PASSWORD',
