@@ -260,3 +260,22 @@
   .oe-locations { grid-template-columns: 1fr; }
   .oe-accom__item { grid-template-columns: 72px 1fr; }
 }
+
+/* ---- Public team directory  [oe_team]  (CREW-MODULE §1) -------------- */
+.oe-sec.oe-team .oe-team__heading { font-size: 1.6rem; font-weight: 800; margin: 0 0 1.25rem; }
+.oe-team .oe-team__group { margin: 0 0 2rem; }
+.oe-team .oe-team__tier {
+    font-size: .8rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--oe-accent-ink, #c2410c); font-weight: 700; margin: 0 0 1rem;
+    padding-bottom: .5rem; border-bottom: var(--oe-border-w, 2px) solid var(--oe-line, #e3e2db);
+}
+.oe-team .oe-team__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem; }
+.oe-team .oe-team__card {
+    background: var(--oe-surface, #fff); border: var(--oe-border-w, 2px) solid var(--oe-line, #e3e2db);
+    border-radius: var(--oe-radius, 14px); padding: 1.1rem; box-shadow: var(--oe-shadow);
+}
+.oe-team .oe-team__photo { margin: -.2rem 0 .8rem; }
+.oe-team .oe-team__photo img { width: 100%; height: 180px; object-fit: cover; border-radius: var(--oe-radius-sm, 8px); display: block; }
+.oe-team .oe-team__name { font-weight: 800; font-size: 1.05rem; color: var(--oe-ink, #1a1a1a); }
+.oe-team .oe-team__role { color: var(--oe-accent-ink, #c2410c); font-weight: 600; font-size: .85rem; margin-top: .15rem; }
+.oe-team .oe-team__bio { color: var(--oe-muted, #555); font-size: .9rem; margin: .6rem 0 0; line-height: 1.5; }

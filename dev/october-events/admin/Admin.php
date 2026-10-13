@@ -57,6 +57,7 @@ final class Admin {
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
         TasksAdmin::get_instance()->init();
+        TeamAdmin::get_instance()->init();
     }
 
     public function register_menu(): void {
@@ -81,6 +82,7 @@ final class Admin {
         if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $sc('accounts'), 'oe-accounts', [$this, 'page_accounts']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $sc('volunteers'), 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
+        if ($f('team'))         { add_submenu_page('october-events', 'Team', 'Team', $sc('team'), 'oe-team', [TeamAdmin::get_instance(), 'render']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'People', 'People', $sc('contacts'), 'oe-people', [\OE\Admin\PeopleScreen::class, 'render']); }
         if ($f('packages'))     { add_submenu_page('october-events', 'Packages', 'Packages', $sc('packages'), 'edit.php?post_type=' . PostTypes::slug('package')); }
@@ -110,6 +112,8 @@ final class Admin {
             'steps' => [['Create a code', 'Percent or fixed'], ['Scope it', 'To an event / window'], ['Cap uses', 'Max redemptions'], ['Track', 'How often it’s used']]],
         'volunteers' => ['title' => 'Staff every shift', 'text' => 'Each opportunity carries shifts with capacity; manage who’s confirmed and check them in.',
             'steps' => [['Pick an opportunity', 'See its shifts'], ['Decide on signups', 'Confirm / decline / no-show'], ['Remind', 'Email (SMS when on)'], ['Check in', 'On the day']]],
+        'team' => ['title' => 'Your planning team, year round', 'text' => 'Named roles with a lifecycle: invite, role agreement, a role-scoped login, and an automatic renewal cycle so nobody keeps access they shouldn’t.',
+            'steps' => [['Add a role', 'Planning, council or board'], ['Send the agreement', 'Click-to-accept, timestamped'], ['Provision a login', 'Set-password link, never a password'], ['Renew or offboard', 'Handled on a schedule']]],
         'tasks' => ['title' => 'The team’s shared task board', 'text' => 'Department-grouped work, the same board the platform shows.',
             'steps' => [['Add a task', 'Title + department'], ['Set status', 'To do → done'], ['Assign', 'Owner + due date'], ['Group', 'By department']]],
         'email' => ['title' => 'All your email in one place', 'text' => 'Native sending (SES), a unified contact list, campaigns and the monthly digest.',

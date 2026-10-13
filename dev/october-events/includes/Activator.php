@@ -38,6 +38,7 @@ final class Activator {
         VolunteerSignups::install();
         \OE\Volunteers\Pool\Schema::install();
         \OE\People\Schema::install();
+        \OE\Crew\Schema::install();
         \OE\Ticketing\Schema::install();
         \OE\Tasks\Schema::install();
         \OE\Survey\Schema::install();

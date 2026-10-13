@@ -25,6 +25,7 @@ final class Features {
         'stories'      => 'Stories',
         'accounts'     => 'Accounts',
         'volunteers'   => 'Volunteers',
+        'team'         => 'Planning team',
         'contacts'     => 'Contacts & email',
         'packages'     => 'Partner packages',
         'ads'          => 'Ad manager',

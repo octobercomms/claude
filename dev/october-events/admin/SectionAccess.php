@@ -41,6 +41,7 @@ final class SectionAccess {
         'stories'      => 'Stories',
         'accounts'     => 'Accounts',
         'volunteers'   => 'Volunteers',
+        'team'         => 'Team',
         'contacts'     => 'Contacts',
         'packages'     => 'Packages',
         'countdown'    => 'Countdown',

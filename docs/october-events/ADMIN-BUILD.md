@@ -31,7 +31,7 @@ explicitly commissioned.
 | AD4 | Tickets | Stat strip, filter-by-event chips, grain toggle (attendees/orders/check-in log), richer table, accordions, settings-in-context | todo |
 | AD5 | Accounts | Stat strip + accounts table → unified person record | todo |
 | AD6 | Volunteers | Stat strip, grain toggle (opps/signups/profiles), accordions | todo |
-| AD7 | Team (new) | Planning-team lifecycle table + governance; the crew module (agreement, login, role email, renewal) | todo |
+| AD7 | Team (new) | Planning-team lifecycle table + governance; the crew module (agreement, login, role email, renewal) | shipped v1.236.0 |
 | AD8 | CRM (new) | Group chips, smart-group rule builder, people table, unified person record slide-in | todo |
 | AD9 | Email | Stat strip, campaigns table, accordions | todo |
 | AD10 | Ad Manager | Stat strip + ad-units table over the folded-in ads module | todo |
@@ -50,7 +50,7 @@ explicitly commissioned.
 | R2 | Demographics | Consent-gated demographic capture + aggregate reporting | todo |
 | R3 | Monthly digest | Finalise the digest content hooks and enable `Cron::DIGEST_ENABLED` | todo |
 | R4 | Organizer briefings + checklist | The partner-portal briefings list + checklist data model | todo |
-| R5 | Crew module full lifecycle | Agreement → login → role email → renewal/offboarding emails (ties to AD7) | todo |
+| R5 | Crew module full lifecycle | Agreement → login → role email → renewal/offboarding emails (ties to AD7) | shipped v1.236.0 |
 
 ## Design tokens (from the mockup)
 
