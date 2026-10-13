@@ -364,3 +364,19 @@
 .oe-admin .oe-firstrun-body{ flex:1; display:flex; flex-direction:column; }
 .oe-admin .oe-firstrun-steps li.is-done .oe-firstrun-body strong{ color:#888; text-decoration:line-through; }
 .oe-admin .oe-firstrun-desc{ color:#777; font-size:12px; }
+
+/* ---- Shared slide-in panels (ADMIN-BUILD AD16) ----------------------- */
+.oe-slide-backdrop{ position:fixed; inset:0; background:rgba(26,26,26,.35); z-index:9998; display:none; }
+.oe-slide-backdrop.is-on{ display:block; }
+.oe-slide{
+    position:fixed; top:32px; right:0; bottom:0; width:min(520px,94vw); z-index:9999;
+    background:#fff; border-left:2px solid #e3e2db; box-shadow:-8px 0 30px rgba(0,0,0,.14);
+    transform:translateX(100%); transition:transform .2s ease-out; overflow-y:auto; visibility:hidden;
+}
+.oe-slide.is-open{ transform:none; visibility:visible; }
+.oe-slide-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:20px 24px 12px; border-bottom:1px solid #e3e2db; position:sticky; top:0; background:#fff; }
+.oe-slide-head h2{ margin:0; font-size:19px; }
+.oe-slide-x{ background:none; border:0; font-size:24px; line-height:1; color:#888; cursor:pointer; }
+.oe-slide-x:hover{ color:#1a1a1a; }
+.oe-slide-body{ padding:18px 24px 40px; }
+@media (max-width:782px){ .oe-slide{ top:46px; } }

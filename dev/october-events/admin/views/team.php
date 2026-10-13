@@ -33,7 +33,7 @@ $act = static function (int $id, string $do) {
 <div class="wrap oe-admin oe-team-admin">
     <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <span><?php esc_html_e('Team', 'october-events'); ?></span>
-        <a class="button button-primary" href="#oe-team-form" onclick="document.getElementById('oe-team-form').open=true;"><?php esc_html_e('+ Add to the team', 'october-events'); ?></a>
+        <?php echo \OE\Admin\SlideIn::trigger('oe-team-add', __('+ Add to the team', 'october-events'), 'button button-primary'); ?>
     </h1>
     <?php \OE\Admin\Admin::bento('team'); ?>
 
@@ -70,13 +70,12 @@ $act = static function (int $id, string $do) {
     </div>
 
     <?php
-    // ---- Add / edit form (a details panel, open when editing) ------------
+    // ---- Add / edit form (shared slide-in panel, open when editing) ------
     $e = $editing;
     $is_edit = (bool) $e;
+    \OE\Admin\SlideIn::open('oe-team-add', $is_edit ? __('Edit team member', 'october-events') : __('Add to the team', 'october-events'), $is_edit);
     ?>
-    <details class="oe-ad-card oe-team-form" id="oe-team-form"<?php echo $is_edit ? ' open' : ''; ?> style="margin-bottom:22px;">
-        <summary style="cursor:pointer;font-weight:700;"><?php echo $is_edit ? esc_html__('Edit team member', 'october-events') : esc_html__('Add to the team', 'october-events'); ?></summary>
-        <form method="post" action="<?php echo esc_url($action_url); ?>" class="oe-team-fields" style="margin-top:14px;">
+        <form method="post" action="<?php echo esc_url($action_url); ?>" class="oe-team-fields">
             <input type="hidden" name="action" value="oe_crew_save">
             <input type="hidden" name="id" value="<?php echo (int) ($e->id ?? 0); ?>">
             <?php wp_nonce_field('oe_crew_save'); ?>
@@ -144,10 +143,12 @@ $act = static function (int $id, string $do) {
                 <button type="submit" class="button button-primary"><?php echo $is_edit ? esc_html__('Save changes', 'october-events') : esc_html__('Add', 'october-events'); ?></button>
                 <?php if ($is_edit) : ?>
                     <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-team')); ?>"><?php esc_html_e('Cancel', 'october-events'); ?></a>
+                <?php else : ?>
+                    <button type="button" class="button" data-oe-slide-close><?php esc_html_e('Cancel', 'october-events'); ?></button>
                 <?php endif; ?>
             </p>
         </form>
-    </details>
+    <?php \OE\Admin\SlideIn::close(); ?>
 
     <?php
     // ---- Lifecycle tables, grouped by tier --------------------------------
