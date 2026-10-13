@@ -247,6 +247,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Internal tools',
+    category: 'Outreach',
+    hint: 'The project tracker and wiki October runs beside the platform, on their own subdomains and their own logins. Set a URL and the link appears in the sidebar for admin users; leave it blank and the item is hidden. These are signposts, not access control: the tools are protected by their own authentication, not by whether this menu item renders.',
+    keys: [
+      { key: 'PROJECTS_URL', label: 'Projects URL', placeholder: 'e.g. https://projects.octobercomms.com', type: 'text' },
+      { key: 'DOCS_URL', label: 'Docs URL', placeholder: 'e.g. https://docs.octobercomms.com', type: 'text' },
+    ],
+  },
+  {
     title: 'AI detection (Pangram)',
     category: 'Outreach',
     hint: 'Optional. The base URL is documented only inside a code block, so it has to be read off docs.pangram.com → API Overview → Base URLs and pasted here; the built-in default is an inference and does not resolve. Press "Test the connection" in a release to confirm it, which is free. Pangram scores how much of a text reads as machine-written, and OMI stores its answer beside the release so the two readings sit together. Billed at $0.05 per 100 words, so about 34p for a 670-word release. It never runs on its own: one call per button press, nothing on save or on typing, a re-check of unchanged text is served from the stored answer, and the whole thing stops at the monthly allowance set under AI models → Task budgets. Leave it blank and every other part of the checker works exactly as before, with the detector column simply absent.',

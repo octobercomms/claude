@@ -4,6 +4,12 @@ const db = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/clientAccess');
 const { encrypt, decrypt } = require('../utils/encryption');
+// Used by the spend-control, warm-alert and workspace-link endpoints below.
+// It was missing for the first two: both call sites sit inside catch blocks,
+// so the ReferenceError was swallowed and the setting silently fell back to
+// its default. A stored AI_DAILY_ALERT_USD or PRESS_WARM_ALERTS has therefore
+// never been read.
+const { getSetting } = require('../utils/settings');
 const nodemailer = require('nodemailer');
 const dataforseo = require('../connectors/dataforseo');
 const flaresolverr = require('../services/flaresolverr');
@@ -79,6 +85,11 @@ const SETTINGS_KEYS = [
   // release checker (and, while it exists, the checker bench) on an explicit
   // button press only, under the detector_check task budget. Optional:
   // without it the detector reading is simply absent.
+  // The internal tooling October runs beside the platform — a wiki and a
+  // project tracker on their own subdomains, same box, separate origins. They
+  // are URLs rather than secrets, and they live here so the nav can be pointed
+  // somewhere new without a deploy. Blank means the nav item is not shown.
+  'PROJECTS_URL', 'DOCS_URL',
   'PANGRAM_API_KEY',
   // The detection base URL. Documented only inside a code block, so it is a
   // setting rather than a constant: read it off docs.pangram.com and paste it
@@ -139,6 +150,31 @@ router.post('/pr-addon-key/regenerate', async (req, res) => {
       [JSON.stringify(encrypt(key))]
     );
     res.json({ key });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/**
+ * The two internal-tool links the sidebar needs, and nothing else.
+ *
+ * Deliberately NOT served from /platform-keys/values, which decrypts every
+ * stored secret in one response. The nav needs two URLs; fetching the whole
+ * key vault to render a menu would put every API key the platform holds into
+ * the browser on each page load.
+ *
+ * Admin-only, like the rest of this router. The links are decoration either
+ * way: the tools sit on their own origins with their own logins, so hiding or
+ * showing a menu item protects nothing and is not meant to.
+ */
+router.get('/workspace-links', async (req, res) => {
+  try {
+    const out = {};
+    for (const [field, key] of [['projects', 'PROJECTS_URL'], ['docs', 'DOCS_URL']]) {
+      const raw = (await getSetting(key)) || '';
+      // Only http(s), so a stored value can never become a javascript: URL in
+      // an href. The field is admin-only, but a typo should fail closed.
+      out[field] = /^https?:\/\//i.test(raw.trim()) ? raw.trim() : '';
+    }
+    res.json(out);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
