@@ -21,6 +21,27 @@ final class PeopleScreen {
         add_action('admin_post_oe_people_rebuild', [self::class, 'rebuild']);
         add_action('admin_post_oe_people_save_segment', [self::class, 'save_segment']);
         add_action('admin_post_oe_people_delete_segment', [self::class, 'delete_segment']);
+        add_action('wp_ajax_oe_people_detail', [self::class, 'ajax_detail']);
+    }
+
+    /**
+     * AJAX: return the shared person-record body as HTML, keyed by id or email,
+     * so any screen (Volunteers, Team, Accounts) can open the same record in the
+     * shared slide-in without a page load. Read-only; access gated on the
+     * contacts capability.
+     */
+    public static function ajax_detail(): void {
+        if (! current_user_can(self::cap()) || ! check_ajax_referer('oe_people_detail', 'nonce', false)) {
+            wp_send_json_error(['message' => __('Not allowed.', 'october-events')], 403);
+        }
+        $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+        if (! $id && isset($_POST['email'])) {
+            $id = Repository::id_by_email(sanitize_email((string) wp_unslash($_POST['email'])));
+        }
+        if (! $id) {
+            wp_send_json_error(['message' => __('Person not found.', 'october-events')], 404);
+        }
+        wp_send_json_success(['html' => self::record_html($id)]);
     }
 
     private static function cap(): string {
@@ -267,56 +288,165 @@ final class PeopleScreen {
         echo '</tbody></table>';
     }
 
-    /** The person record as a right-hand slide-in panel. */
+    /**
+     * Mount the shared person-record slide-in on a screen (Volunteers, Team,
+     * Accounts). Enqueues the opener, localizes the AJAX nonce, and prints an
+     * empty panel that {@see admin-person-record.js} fills on demand. A trigger
+     * is any element carrying data-oe-person with data-email or data-person-id,
+     * e.g. from {@see self::person_trigger()}.
+     */
+    public static function mount_record_slidein(): void {
+        if (! current_user_can(self::cap())) {
+            return;
+        }
+        SlideIn::enqueue();
+        wp_enqueue_script(
+            'oe-person-record',
+            OE_URL . 'assets/js/admin-person-record.js',
+            ['oe-slidein'],
+            OE_VERSION,
+            true
+        );
+        wp_localize_script('oe-person-record', 'oePersonRecord', [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce('oe_people_detail'),
+            'loading' => __('Loading…', 'october-events'),
+            'error'   => __('Could not load this record.', 'october-events'),
+        ]);
+        SlideIn::open('oe-person-record', __('Person record', 'october-events'));
+        SlideIn::close();
+    }
+
+    /**
+     * A clickable element that opens the shared person record for one email.
+     * The caller chooses the tag (e.g. a button or a link styled as text).
+     */
+    public static function person_trigger(string $email, string $label, string $tag = 'button', string $class = 'oe-person-link'): string {
+        return sprintf(
+            '<%1$s type="button" class="%2$s" data-oe-person data-email="%3$s">%4$s</%1$s>',
+            'button' === $tag ? 'button' : 'span',
+            esc_attr($class),
+            esc_attr($email),
+            esc_html($label)
+        );
+    }
+
+    /** The person record as a right-hand slide-in panel (page-navigated). */
     private static function slide_in(int $id): void {
         $back = remove_query_arg('person');
-        $p    = Repository::get($id);
         echo '<a class="oe-crm-backdrop" href="' . esc_url($back) . '" aria-label="' . esc_attr__('Close', 'october-events') . '"></a>';
         echo '<aside class="oe-crm-slide" role="dialog" aria-label="' . esc_attr__('Person record', 'october-events') . '">';
         echo '<a class="oe-crm-slide-x" href="' . esc_url($back) . '" aria-label="' . esc_attr__('Close', 'october-events') . '">×</a>';
+        echo self::record_html($id);
+        echo '</aside>';
+    }
+
+    /**
+     * The unified person record, returned as an HTML string so the CRM
+     * slide-in, the AJAX detail endpoint, and any screen that opens a person
+     * (Volunteers, Team, Accounts) all render the same thing. Shows who they
+     * are (Customer / Volunteer / Subscriber / Pool badges), their lifetime
+     * figures, orders, volunteer shifts and recent email, plus Compose and Edit
+     * actions.
+     */
+    public static function record_html(int $id): string {
+        $p = Repository::get($id);
         if (! $p) {
-            echo '<h2>' . esc_html__('Person not found', 'october-events') . '</h2></aside>';
-            return;
+            return '<div class="oe-crm-slide-head"><h2>' . esc_html__('Person not found', 'october-events') . '</h2></div>';
         }
         $detail = Repository::profile((string) $p->email);
         $cur = strtoupper((string) \OE\Settings::get('currency', 'usd'));
         $sym = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
 
-        echo '<div class="oe-crm-slide-head">';
-        echo '<h2>' . esc_html((string) ($p->name ?: $p->email)) . '</h2>';
-        echo '<p class="description">' . esc_html((string) $p->email) . ($p->phone ? ' · ' . esc_html((string) $p->phone) : '') . '</p>';
-        echo '</div>';
+        // Events touched: distinct events across paid orders and volunteer signups.
+        $event_ids = [];
+        foreach ($detail['orders'] as $o) {
+            if ((int) $o->event_id) { $event_ids[(int) $o->event_id] = true; }
+        }
+        foreach ($detail['volunteer'] as $v) {
+            if ((int) $v->opportunity_id) { $event_ids['v' . (int) $v->opportunity_id] = true; }
+        }
+        $events_count = count($event_ids);
+        $emails = \OE\Mail\EmailLog::for_email((string) $p->email, 20);
 
-        echo '<div class="oe-crm-slide-stats">';
-        foreach ([
-            [__('Orders', 'october-events'), number_format_i18n((int) $p->orders)],
-            [__('Tickets', 'october-events'), number_format_i18n((int) $p->tickets)],
-            [__('Spent', 'october-events'), $sym . number_format((float) $p->revenue, 0)],
-            [__('Volunteer', 'october-events'), number_format_i18n((int) $p->volunteer)],
-        ] as $s) {
-            echo '<div class="oe-crm-ministat"><div class="l">' . esc_html($s[0]) . '</div><div class="v">' . esc_html($s[1]) . '</div></div>';
-        }
-        echo '</div>';
+        $badges = [];
+        if ((int) $p->orders > 0)     { $badges[] = ['customer', __('Customer', 'october-events')]; }
+        if ((int) $p->volunteer > 0)  { $badges[] = ['volunteer', __('Volunteer', 'october-events')]; }
+        if (! empty($p->subscribed))  { $badges[] = ['subscriber', __('Subscriber', 'october-events')]; }
+        if (! empty($p->pool))        { $badges[] = ['pool', __('In pool', 'october-events')]; }
 
-        if (! empty($detail['orders'])) {
-            echo '<h3>' . esc_html__('Orders', 'october-events') . '</h3><table class="oe-ad-table"><tbody>';
-            foreach ($detail['orders'] as $o) {
-                echo '<tr><td>#' . (int) $o->id . '</td><td>' . esc_html((string) ($o->ticket_type_label ?: get_the_title((int) $o->event_id))) . '</td>'
-                    . '<td class="oe-ad-num">' . (int) $o->qty . '</td>'
-                    . '<td class="oe-ad-num">' . esc_html(strtoupper((string) $o->currency) . ' ' . number_format((float) $o->total, 2)) . '</td>'
-                    . '<td>' . esc_html((string) $o->status) . '</td></tr>';
-            }
-            echo '</tbody></table>';
-        }
-        if (! empty($detail['volunteer'])) {
-            echo '<h3>' . esc_html__('Volunteer signups', 'october-events') . '</h3><table class="oe-ad-table"><tbody>';
-            foreach ($detail['volunteer'] as $v) {
-                echo '<tr><td>' . esc_html((string) get_the_title((int) $v->opportunity_id)) . '</td><td>' . esc_html((string) $v->status) . '</td><td>' . esc_html((string) $v->created_at) . '</td></tr>';
-            }
-            echo '</tbody></table>';
-        }
-        echo '<p style="margin-top:16px"><a class="button" href="mailto:' . esc_attr((string) $p->email) . '">' . esc_html__('Email this person', 'october-events') . '</a></p>';
-        echo '</aside>';
+        ob_start();
+        ?>
+        <div class="oe-crm-slide-head">
+            <h2><?php echo esc_html((string) ($p->name ?: $p->email)); ?></h2>
+            <?php if ($badges) : ?>
+                <div class="oe-person-badges">
+                    <?php foreach ($badges as $b) : ?>
+                        <span class="oe-person-badge oe-person-badge--<?php echo esc_attr($b[0]); ?>"><?php echo esc_html($b[1]); ?></span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <p class="description"><a href="<?php echo esc_url('mailto:' . $p->email); ?>"><?php echo esc_html((string) $p->email); ?></a><?php echo $p->phone ? ' · ' . esc_html((string) $p->phone) : ''; ?></p>
+        </div>
+
+        <div class="oe-crm-slide-stats">
+            <?php foreach ([
+                [__('Events', 'october-events'), number_format_i18n($events_count)],
+                [__('Orders', 'october-events'), number_format_i18n((int) $p->orders)],
+                [__('Tickets', 'october-events'), number_format_i18n((int) $p->tickets)],
+                [__('Lifetime spend', 'october-events'), $sym . number_format((float) $p->revenue, 0)],
+            ] as $s) : ?>
+                <div class="oe-crm-ministat"><div class="l"><?php echo esc_html($s[0]); ?></div><div class="v"><?php echo esc_html($s[1]); ?></div></div>
+            <?php endforeach; ?>
+        </div>
+
+        <p class="oe-person-actions">
+            <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=oe-email&to=' . rawurlencode((string) $p->email))); ?>"><?php esc_html_e('Compose message', 'october-events'); ?></a>
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-people&person=' . (int) $p->id)); ?>"><?php esc_html_e('Edit', 'october-events'); ?></a>
+        </p>
+
+        <?php if (! empty($detail['orders'])) : ?>
+            <h3><?php esc_html_e('Orders', 'october-events'); ?></h3>
+            <table class="oe-ad-table"><tbody>
+            <?php foreach ($detail['orders'] as $o) : ?>
+                <tr>
+                    <td>#<?php echo (int) $o->id; ?></td>
+                    <td><?php echo esc_html((string) ($o->ticket_type_label ?: get_the_title((int) $o->event_id))); ?></td>
+                    <td class="oe-ad-num"><?php echo (int) $o->qty; ?></td>
+                    <td class="oe-ad-num"><?php echo esc_html(strtoupper((string) $o->currency) . ' ' . number_format((float) $o->total, 2)); ?></td>
+                    <td><?php echo esc_html((string) $o->status); ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody></table>
+        <?php endif; ?>
+
+        <?php if (! empty($detail['volunteer'])) : ?>
+            <h3><?php esc_html_e('Volunteer shifts', 'october-events'); ?></h3>
+            <table class="oe-ad-table"><tbody>
+            <?php foreach ($detail['volunteer'] as $v) : ?>
+                <tr>
+                    <td><?php echo esc_html((string) get_the_title((int) $v->opportunity_id)); ?></td>
+                    <td><?php echo esc_html((string) $v->status); ?></td>
+                    <td><?php echo esc_html((string) $v->created_at); ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody></table>
+        <?php endif; ?>
+
+        <?php if ($emails) : ?>
+            <h3><?php esc_html_e('Email history', 'october-events'); ?></h3>
+            <table class="oe-ad-table"><tbody>
+            <?php foreach ($emails as $e) : ?>
+                <tr>
+                    <td><?php echo esc_html((string) ($e->subject ?: __('(no subject)', 'october-events'))); ?></td>
+                    <td><?php echo esc_html((string) $e->status); ?></td>
+                    <td><?php echo esc_html((string) $e->created_at); ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody></table>
+        <?php endif; ?>
+        <?php
+        return (string) ob_get_clean();
     }
 
     /* ----------------------------------------------------------- handlers */

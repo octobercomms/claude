@@ -67,6 +67,27 @@ final class EmailLog {
         )) ?: [];
     }
 
+    /**
+     * Recent messages sent to one recipient. Recipients are stored as a
+     * comma-separated list, so match on the address with a bounded LIKE.
+     *
+     * @return array<int,object>
+     */
+    public static function for_email(string $email, int $limit = 20): array {
+        global $wpdb;
+        $email = trim($email);
+        if ($email === '') {
+            return [];
+        }
+        $limit = max(1, min(100, $limit));
+        $like = '%' . $wpdb->esc_like($email) . '%';
+        return $wpdb->get_results($wpdb->prepare(
+            'SELECT id, subject, status, driver, created_at FROM ' . self::table() . ' WHERE recipients LIKE %s ORDER BY id DESC LIMIT %d',
+            $like,
+            $limit
+        )) ?: [];
+    }
+
     /** @return array{sent:int,failed:int,suppressed:int} */
     public static function counts(): array {
         global $wpdb;
