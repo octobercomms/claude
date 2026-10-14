@@ -120,6 +120,16 @@ final class EventStudio {
             $status = $posted_status;
         }
 
+        // On autosave, mark the request as a WordPress autosave so the folded
+        // pack metaboxes (Tickets & check-in, Conference, Exhibition, Staff,
+        // Volunteers, Locations) skip their save_post handlers — their repeater
+        // and money-critical ticket-type writes happen only on an explicit Save,
+        // never on every keystroke. The structured fields and capability toggles
+        // below are persisted directly, so the live preview still tracks them.
+        if ($autosave && ! defined('DOING_AUTOSAVE')) {
+            define('DOING_AUTOSAVE', true);
+        }
+
         $postarr = [
             'post_type'    => Events::slug(),
             'post_title'   => $title,
@@ -148,6 +158,14 @@ final class EventStudio {
         }
 
         Events::save_fields($id, $input);
+
+        // Capability toggles, persisted directly so they save on autosave too
+        // (the classic Packs\Metabox::save only runs on an explicit save, which
+        // this duplicates harmlessly).
+        $posted_packs = isset($_POST['oe_packs']) && is_array($_POST['oe_packs']) ? (array) wp_unslash($_POST['oe_packs']) : [];
+        foreach (\OE\Packs\Registry::ids() as $pack_key) {
+            \OE\Packs\Registry::set($id, $pack_key, ! empty($posted_packs[$pack_key]));
+        }
 
         $thumb = isset($_POST['featured_image']) ? (int) $_POST['featured_image'] : 0;
         if ($thumb > 0) {
