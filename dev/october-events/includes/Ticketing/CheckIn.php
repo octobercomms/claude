@@ -303,7 +303,7 @@ final class CheckIn {
         ], $rows);
         // Tokens already scanned, paired with the door — so an offline device flags
         // a repeat only at the *same* door (a new door is a fresh valid check-in,
-        // matching the online behaviour). Token is shipped hashed, never raw.
+        // matching the online behavior). Token is shipped hashed, never raw.
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT DISTINCT t.token AS token, c.venue_name AS venue FROM {$c} c INNER JOIN {$t} t ON t.id = c.ticket_id WHERE c.event_id = %d",
             $event_id
@@ -575,7 +575,7 @@ final class CheckIn {
         $sql = "SELECT LEFT(scanned_at, 13) AS ymdh, FLOOR(MINUTE(scanned_at) / 15) AS q, COUNT(*) AS scans FROM {$c} ";
         // ORDER BY so the first-seen day is the earliest: MySQL 8+ no longer
         // implicitly sorts GROUP BY output, so without this the day_order (and
-        // therefore the stack order, colours and legend) would be arbitrary.
+        // therefore the stack order, colors and legend) would be arbitrary.
         if ($event_id > 0) {
             $rows = $wpdb->get_results($wpdb->prepare($sql . "WHERE event_id = %d GROUP BY ymdh, q ORDER BY ymdh, q", $event_id)) ?: [];
         } else {

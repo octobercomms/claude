@@ -1,7 +1,7 @@
 <?php
 /**
  * Printable ticket with a QR for check-in. Print-first design: square corners,
- * near-monochrome (the numbered circle is the only colour — the brand accent),
+ * near-monochrome (the numbered circle is the only color — the brand accent),
  * a per-event logo top-left and the QR top-right.
  *
  * @var object $ticket  Row from the oe_tickets table (resolved by token).
@@ -40,7 +40,7 @@ if ($event_id) {
 $sym       = $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$');
 $price_str = $price === null ? '' : $sym . number_format((float) $price, 2) . ' ' . $currency;
 
-// Accent for the number badge — the single touch of colour (configurable).
+// Accent for the number badge — the single touch of color (configurable).
 $accent    = (string) \OE\Settings::get('theme_accent', '') ?: '#1a1a1a';
 $accent_on = (string) \OE\Settings::get('theme_accent_on', '') ?: '#ffffff';
 ?><!doctype html>

@@ -145,7 +145,7 @@ final class DailyDigest {
                 foreach (VolunteerSignups::for_shift((int) $oid, (string) $shift['id']) as $s) {
                     // Everyone still expected on the shift — which includes a
                     // no-show (that's precisely who you'd chase). Only people who
-                    // pulled out (declined / cancelled) are left off.
+                    // pulled out (declined / canceled) are left off.
                     if (in_array((string) $s->status, [VolunteerSignups::STATUS_DECLINED, VolunteerSignups::STATUS_CANCELLED], true)) {
                         continue;
                     }

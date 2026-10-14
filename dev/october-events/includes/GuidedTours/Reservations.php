@@ -310,7 +310,7 @@ final class Reservations {
         return true;
     }
 
-    /** A caller cancelling their own booking from the page (by row + verified email). */
+    /** A caller canceling their own booking from the page (by row + verified email). */
     public static function cancel_for_email(int $id, string $email, string $tour_key): bool {
         $row = self::owned_active_row($id, strtolower(trim($email)), $tour_key);
         if (! $row) {
@@ -348,7 +348,7 @@ final class Reservations {
     /**
      * All reservations for the admin screen, optionally scoped to one building,
      * ordered by building then slot time. Includes every status; the screen shows
-     * the active ones and can reveal cancelled/released.
+     * the active ones and can reveal canceled/released.
      *
      * @return array<int,object>
      */
@@ -392,7 +392,7 @@ final class Reservations {
      * Re-send the booking confirmation for a reservation (the building details +
      * release link). Guided tours don't issue QR tickets; this confirmation is
      * the "ticket", so a resend is how a lost one is recovered. Returns false for
-     * an unknown or cancelled row.
+     * an unknown or canceled row.
      */
     public static function admin_resend(int $id): bool {
         global $wpdb;

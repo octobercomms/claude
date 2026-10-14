@@ -7,7 +7,7 @@
  *
  * Every lens is click-to-open: an attendee or check-in row opens the attendee
  * slide-in (detail, check-in history, transfer / resend / check-in), an order
- * row opens the order control-centre slide-in (summary, payment, tickets,
+ * row opens the order control-center slide-in (summary, payment, tickets,
  * history, and the resend / invoice / refund / cancel / delete actions). The
  * panels load over AJAX (no page load) and reuse the existing money handlers.
  *
@@ -304,7 +304,7 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                 <?php endforeach; ?>
                 </tbody>
             </table>
-            <p class="oe-ad-note"><?php esc_html_e('One row per order. Click to open the control centre — payment, tickets and the resend / invoice / refund / cancel / delete actions.', 'october-events'); ?></p>
+            <p class="oe-ad-note"><?php esc_html_e('One row per order. Click to open the control center — payment, tickets and the resend / invoice / refund / cancel / delete actions.', 'october-events'); ?></p>
             <?php endif; ?>
         </div><!-- /orders lens -->
 

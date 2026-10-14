@@ -58,10 +58,10 @@ final class Countdown {
         if ($units === '') { $units = 'dh'; }
 
         // Background. Defaults to the dark panel; set `bg` to your email's section
-        // colour for a seamless placement, or `bg=transparent` (or transparent=1)
+        // color for a seamless placement, or `bg=transparent` (or transparent=1)
         // to knock the background out. GIF transparency is 1-bit, so antialiased
-        // edges blend toward the fill colour — a solid `bg` matching the email
-        // reads cleanest; transparent may show a faint edge on a different colour.
+        // edges blend toward the fill color — a solid `bg` matching the email
+        // reads cleanest; transparent may show a faint edge on a different color.
         $transparent = ! empty($q['transparent']) && (string) $q['transparent'] !== '0';
         $bgraw       = isset($q['bg']) ? strtolower(trim((string) $q['bg'])) : '';
         if ($bgraw === 'transparent' || $bgraw === 'none') {
@@ -99,7 +99,7 @@ final class Countdown {
 
     /**
      * Emit a GD image as a GIF. When $transparent, flatten to a palette (no
-     * dither, so the fill stays one solid colour) and knock out the fill colour
+     * dither, so the fill stays one solid color) and knock out the fill color
      * as the transparent index. Destroys the image.
      */
     private static function output_gif($img, string $bgspec, bool $transparent): void {
@@ -122,7 +122,7 @@ final class Countdown {
         if ($has_label) {
             self::text($img, $font, 11, 28, 34, self::color($img, self::LABEL), $label, 3.0);
         }
-        // Sit lower when a label is present; otherwise centre the blocks vertically.
+        // Sit lower when a label is present; otherwise center the blocks vertically.
         $num_y  = $has_label ? 92 : 82;
         $unit_y = $has_label ? 112 : 104;
 
@@ -258,7 +258,7 @@ final class Countdown {
         return preg_match('/^[0-9a-fA-F]{6}$/', $h) ? '#' . $h : self::ACCENT;
     }
 
-    /** Background colour: a valid #rrggbb, else the default dark panel. */
+    /** Background color: a valid #rrggbb, else the default dark panel. */
     private static function sanitize_bg(string $h): string {
         $h = ltrim(trim($h), '#');
         return preg_match('/^[0-9a-fA-F]{6}$/', $h) ? '#' . $h : self::BG;
@@ -378,7 +378,7 @@ final class Countdown {
         imageline($img, $cx, $cy, (int) ($cx + $len * sin($a)), (int) ($cy - $len * cos($a)), $color);
     }
 
-    /** Draw left-aligned text vertically centred on $cy; returns its advance width. */
+    /** Draw left-aligned text vertically centered on $cy; returns its advance width. */
     private static function ttf_center($img, string $font, int $size, int $x, int $cy, int $color, string $text): int {
         $bb = imagettfbbox($size, 0, $font, $text);
         $y  = (int) round($cy - ($bb[7] + $bb[1]) / 2);
@@ -388,10 +388,10 @@ final class Countdown {
 
     /**
      * Stitch single-frame GIFs (from imagegif) into one looping GIF89a. Each
-     * frame keeps its own colour table as a local table; a Netscape 2.0 block
+     * frame keeps its own color table as a local table; a Netscape 2.0 block
      * sets the infinite loop. Minimal by design — inputs are our own GD frames.
      *
-     * $tindex[$k] >= 0 marks that frame's transparent colour index: the GCE then
+     * $tindex[$k] >= 0 marks that frame's transparent color index: the GCE then
      * flags transparency and uses disposal method 2 (restore to background) so
      * the moving hands don't leave a trail through the cleared pixels.
      *
@@ -400,7 +400,7 @@ final class Countdown {
     private static function assemble_gif(array $frames, int $delay_cs, array $tindex = []): string {
         if (! $frames) { return ''; }
         [$w, $h] = self::gif_size($frames[0]);
-        // Header + logical screen descriptor (no global colour table — per-frame).
+        // Header + logical screen descriptor (no global color table — per-frame).
         $out  = 'GIF89a';
         $out .= pack('v', $w) . pack('v', $h) . chr(0x00) . chr(0x00) . chr(0x00);
         // Netscape looping extension (0 = forever).
@@ -410,16 +410,16 @@ final class Countdown {
             if ($p === null) { continue; }
             $ti = isset($tindex[$k]) ? (int) $tindex[$k] : -1;
             if ($ti >= 0) {
-                // Disposal 2 (restore to background) + transparent colour flag.
+                // Disposal 2 (restore to background) + transparent color flag.
                 $out .= "\x21\xF9\x04" . chr(0x09) . pack('v', $delay_cs) . chr($ti & 0xFF) . chr(0x00);
             } else {
                 // Delay + disposal "do not dispose", no transparency.
                 $out .= "\x21\xF9\x04" . chr(0x04) . pack('v', $delay_cs) . chr(0x00) . chr(0x00);
             }
-            // Image descriptor with a local colour table flag/size.
+            // Image descriptor with a local color table flag/size.
             $out .= "\x2C" . pack('v', 0) . pack('v', 0) . pack('v', $p['w']) . pack('v', $p['h'])
                  . chr(0x80 | ($p['ctbits'] & 0x07));
-            $out .= $p['ct'];   // local colour table
+            $out .= $p['ct'];   // local color table
             $out .= $p['data']; // LZW min-code-size byte + image sub-blocks
         }
         return $out . "\x3B";
@@ -430,7 +430,7 @@ final class Countdown {
         return [ord($gif[6]) | (ord($gif[7]) << 8), ord($gif[8]) | (ord($gif[9]) << 8)];
     }
 
-    /** Pull the colour table + image data out of a single-frame GIF, or null. */
+    /** Pull the color table + image data out of a single-frame GIF, or null. */
     private static function frame_parts(string $gif): ?array {
         $len = strlen($gif);
         if ($len < 14 || substr($gif, 0, 3) !== 'GIF') { return null; }
@@ -477,7 +477,7 @@ final class Countdown {
         return ['w' => $iw, 'h' => $ih, 'ct' => $ct, 'ctbits' => $ctbits, 'data' => $data];
     }
 
-    /** Allocate a colour from #rrggbb on the image. */
+    /** Allocate a color from #rrggbb on the image. */
     private static function color($img, string $hex) {
         [$r, $g, $b] = self::rgb($hex);
         return imagecolorallocate($img, $r, $g, $b);

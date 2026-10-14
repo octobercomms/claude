@@ -99,7 +99,7 @@ final class Waitlist {
             'event_name'   => $event_name,
             'ticket_type'  => (string) $row->ticket_type_label,
             'checkout_url' => $checkout,
-            'offer_hours'  => $hours, // >0 = a personalised, time-limited hold
+            'offer_hours'  => $hours, // >0 = a personalized, time-limited hold
         ]);
         // Opt-in SMS alongside the email, when they gave a number and ticked it.
         if ((int) ($row->sms_opt_in ?? 0) === 1 && (string) ($row->phone ?? '') !== '') {

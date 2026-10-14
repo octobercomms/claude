@@ -24,7 +24,7 @@ final class Contacts {
         'architect' => 'Architect',
         'realtor'   => 'Realtor',
         'designer'  => 'Designer',
-        'organiser' => 'Organiser',
+        'organiser' => 'Organizer',
         'other'     => 'Other',
     ];
 

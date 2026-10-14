@@ -1125,7 +1125,7 @@ final class Admin {
         $ok = \OE\GuidedTours\Reservations::admin_resend($id);
         set_transient('oe_gt_notice_' . get_current_user_id(), $ok
             ? ['ok' => __('Re-sent the booking confirmation.', 'october-events')]
-            : ['error' => __('Couldn’t resend — the reservation may have been cancelled.', 'october-events')], 60);
+            : ['error' => __('Couldn’t resend — the reservation may have been canceled.', 'october-events')], 60);
         $this->redirect_back();
     }
 
@@ -1249,7 +1249,7 @@ final class Admin {
     /** Move a signup to another shift/opportunity. Target is "oppId:shiftId". */
     /**
      * Raise or clear the manual "abuse flag" on a volunteer (by email): someone
-     * who no-showed or cancelled yet still used their free ticket. Persists
+     * who no-showed or canceled yet still used their free ticket. Persists
      * across years and is checked on re-signup. A note records the detail.
      */
     public function handle_volunteer_flag(): void {

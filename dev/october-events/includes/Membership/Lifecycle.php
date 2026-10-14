@@ -93,7 +93,7 @@ final class Lifecycle {
         ]);
     }
 
-    /** A cancelled / ended subscription: the goodbye notice. */
+    /** A canceled / ended subscription: the goodbye notice. */
     private static function on_cancelled(array $subscription): bool {
         if (! self::subscription_is_membership($subscription)) {
             return false;

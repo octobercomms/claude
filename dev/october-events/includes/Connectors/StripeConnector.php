@@ -801,7 +801,7 @@ final class StripeConnector {
         }
 
         // SDK path — use the low-level client so we do not have to mirror every
-        // resource method, keeping behaviour identical to the REST fallback.
+        // resource method, keeping behavior identical to the REST fallback.
         if (self::use_sdk()) {
             try {
                 $client = new \Stripe\StripeClient(self::secret());

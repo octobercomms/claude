@@ -162,7 +162,7 @@
             ctx.fillStyle = cfg.accent;
             ctx.fillRect(pad, barTop, barW, barH);
 
-            // Date, in the accent colour.
+            // Date, in the accent color.
             if (cfg.date) {
                 ctx.textBaseline = 'top';
                 ctx.textAlign = 'left';

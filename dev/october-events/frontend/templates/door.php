@@ -110,7 +110,7 @@ $sym   = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
 
     <?php endif; ?>
 
-    <!-- Result overlays (paid / cancelled) — shown by JS from the return URL. -->
+    <!-- Result overlays (paid / canceled) — shown by JS from the return URL. -->
     <div class="door-result" id="oe-door-result" hidden>
         <div class="door-result-inner"></div>
     </div>

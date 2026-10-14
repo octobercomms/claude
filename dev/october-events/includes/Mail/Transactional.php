@@ -32,10 +32,10 @@ final class Transactional {
         'volunteer_reminder'         => 'Your volunteer shift is coming up',
         'event_reminder'             => 'Reminder: %2$s is coming up',
         'event_rescheduled'          => 'Update: %2$s has been rescheduled',
-        'event_cancelled'            => 'Important: %2$s has been cancelled',
+        'event_cancelled'            => 'Important: %2$s has been canceled',
         'ticket_transferred'         => 'Your ticket for %2$s has been transferred',
         'order_refunded'             => 'Your refund for %2$s',
-        'order_cancelled'            => 'Your order has been cancelled',
+        'order_cancelled'            => 'Your order has been canceled',
         'sales_report'               => 'Daily ticket sales',
         'survey_invite'              => 'How was %2$s?',
         'subscribe_confirm'          => 'Confirm your subscription to %1$s',
@@ -44,7 +44,7 @@ final class Transactional {
         'membership_welcome'         => 'Welcome to %1$s membership',
         'membership_renewed'         => 'Your %1$s membership has renewed',
         'membership_payment_failed'  => 'Your %1$s membership payment didn\'t go through',
-        'membership_cancelled'       => 'Your %1$s membership has been cancelled',
+        'membership_cancelled'       => 'Your %1$s membership has been canceled',
     ];
 
     /**
@@ -149,7 +149,7 @@ final class Transactional {
 
             case 'event_cancelled': {
                 $ev = '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>';
-                $out = $hi . '<p>' . sprintf(esc_html__('We\'re sorry to say that %s has been cancelled.', 'october-events'), $ev) . '</p>';
+                $out = $hi . '<p>' . sprintf(esc_html__('We\'re sorry to say that %s has been canceled.', 'october-events'), $ev) . '</p>';
                 if (! empty($params['note'])) {
                     $out .= '<p>' . nl2br(esc_html((string) $params['note'])) . '</p>';
                 }
@@ -177,12 +177,12 @@ final class Transactional {
                     ) . '</p>' . $amt_row
                     . '<p>' . esc_html__('The refund goes back to your original payment method and usually appears within 5–10 business days. Any tickets you kept are still valid.', 'october-events') . '</p>';
                 }
-                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been cancelled and refunded.', 'october-events'), $ev) . '</p>'
+                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been canceled and refunded.', 'october-events'), $ev) . '</p>'
                     . $amt_row
                     . '<p>' . esc_html__('The refund goes back to your original payment method and usually appears within 5–10 business days. Your tickets are no longer valid.', 'october-events') . '</p>';
 
             case 'order_cancelled':
-                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been cancelled, and the tickets are no longer valid.', 'october-events'),
+                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been canceled, and the tickets are no longer valid.', 'october-events'),
                     '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>') . '</p>'
                     . '<p>' . esc_html__('If you believe this was a mistake, please get in touch and we\'ll be glad to help.', 'october-events') . '</p>';
 
@@ -213,7 +213,7 @@ final class Transactional {
                     . (! empty($params['update_url']) ? self::button(__('Update payment details', 'october-events'), (string) $params['update_url']) : '');
 
             case 'membership_cancelled':
-                return $hi . '<p>' . esc_html__('Your membership has been cancelled and will not renew. We\'re sorry to see you go, and you\'re welcome back any time.', 'october-events') . '</p>'
+                return $hi . '<p>' . esc_html__('Your membership has been canceled and will not renew. We\'re sorry to see you go, and you\'re welcome back any time.', 'october-events') . '</p>'
                     . (! empty($params['rejoin_url']) ? self::button(__('Rejoin', 'october-events'), (string) $params['rejoin_url']) : '');
 
             case 'volunteer_pick_invite':

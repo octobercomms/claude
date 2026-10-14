@@ -34,7 +34,7 @@ $notices = [
     <?php endif; ?>
 
     <div class="oe-ad-card" style="margin-bottom:16px;">
-        <p style="margin:0;"><?php esc_html_e('Taxonomies group and filter your listing types. Attach one to a type, add terms with colours, and flag it to show as a filter — the listings archive (chips or dropdowns) picks it up. Use chips="auto" / filters="auto" on [oe_listings] to pull the flagged ones automatically.', 'october-events'); ?></p>
+        <p style="margin:0;"><?php esc_html_e('Taxonomies group and filter your listing types. Attach one to a type, add terms with colors, and flag it to show as a filter — the listings archive (chips or dropdowns) picks it up. Use chips="auto" / filters="auto" on [oe_listings] to pull the flagged ones automatically.', 'october-events'); ?></p>
     </div>
 
     <?php if (! $taxonomies) : ?>
@@ -140,7 +140,7 @@ $notices = [
         </p>
     </form>
 
-    <?php // Terms with colours. ?>
+    <?php // Terms with colors. ?>
     <h4 class="oe-tax-terms-h"><?php esc_html_e('Terms', 'october-events'); ?></h4>
     <div class="oe-tax-terms">
         <?php if (! $terms) : ?>
@@ -162,7 +162,7 @@ $notices = [
         <input type="hidden" name="taxonomy" value="<?php echo esc_attr($key); ?>">
         <?php wp_nonce_field('oe_term_add_' . $key); ?>
         <input type="text" name="term_name" placeholder="<?php esc_attr_e('New term', 'october-events'); ?>" required>
-        <input type="color" name="term_color" value="#dd4b14" title="<?php esc_attr_e('Term colour', 'october-events'); ?>">
+        <input type="color" name="term_color" value="#dd4b14" title="<?php esc_attr_e('Term color', 'october-events'); ?>">
         <button type="submit" class="button button-small"><?php esc_html_e('Add term', 'october-events'); ?></button>
     </form>
 <?php SlideIn::close(); ?>

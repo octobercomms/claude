@@ -593,7 +593,7 @@
       cleanBnplUrl();
     } else if (/[?&]oe_cancelled=1/.test(q)) {
       var $e = $('#oct-installments-errors');
-      if ($e.length) { $e.text('Payment cancelled — you can try again, or pay by card.').show(); }
+      if ($e.length) { $e.text('Payment canceled — you can try again, or pay by card.').show(); }
       cleanBnplUrl();
     }
   }

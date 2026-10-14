@@ -238,7 +238,7 @@ final class Ics {
     }
 
     /**
-     * The organiser's own "Dates & Times" prose, flattened to a single safe line
+     * The organizer's own "Dates & Times" prose, flattened to a single safe line
      * (block breaks become " · "). Used as the schedule for irregular events,
      * where the auto model can't be trusted. '' when the field is empty.
      */
@@ -279,7 +279,7 @@ final class Ics {
      * Formats the event's own calendar date, not a timezone-converted instant.
      * A date-only value is often stored as midnight UTC; formatting that in a
      * negative-offset zone (e.g. US Eastern) rolls it back to the previous day.
-     * We read the date the organiser entered and show that.
+     * We read the date the organizer entered and show that.
      */
     public static function date_label(int $event_id): string {
         return self::fmt_ymd(self::wall_ymd((string) Events::get($event_id, 'start_datetime', '')), 'F j, Y');
@@ -344,7 +344,7 @@ final class Ics {
 
     /**
      * Parse a start/end value to a UTC timestamp, but for a date-only value
-     * re-anchor it to LOCAL midnight of the date the organiser entered. A
+     * re-anchor it to LOCAL midnight of the date the organizer entered. A
      * save-as-timestamp date stored at midnight UTC otherwise reads as the
      * previous evening in a negative-offset zone (US Eastern), which is why a
      * date-only event showed "Sept 27 8:00 PM" instead of "September 28". A value

@@ -1,6 +1,6 @@
 <?php
 /**
- * Order control-centre slide-in (Tickets, UI-SPEC §3). Loaded over AJAX into the
+ * Order control-center slide-in (Tickets, UI-SPEC §3). Loaded over AJAX into the
  * shared right slide-in. Read view + the order actions, each posting to the
  * existing money handlers (resend, refund, cancel, delete); the refund dropdown
  * reuses admin/views/_refund-panel.php. No inline <script> (injected HTML won't

@@ -13,10 +13,10 @@ defined('ABSPATH') || exit;
 /**
  * Front-end self-serve event submission (self-serve platform, Phase 1 slice 1).
  *
- * A branded `[oe_submit_event]` page where a logged-in organiser posts an event.
+ * A branded `[oe_submit_event]` page where a logged-in organizer posts an event.
  * It runs through the existing Submission engine, so the event is saved as a
  * DRAFT and lands in October's approval queue — nothing publishes until it is
- * approved. Public organiser signup, the "approve the user once then trust"
+ * approved. Public organizer signup, the "approve the user once then trust"
  * loop, and image upload with the quality gate are later slices; here the form
  * requires a logged-in user and captures the core event fields only.
  *
@@ -85,7 +85,7 @@ final class SubmitEvent {
             $this->bounce($back, 'error');
         }
 
-        // Anti-abuse: cap how many still-unreviewed events one organiser can queue,
+        // Anti-abuse: cap how many still-unreviewed events one organizer can queue,
         // so a logged-in user can't flood the review queue. Approved (published)
         // events don't count. Managers are exempt.
         if (! current_user_can('manage_options')) {
@@ -98,7 +98,7 @@ final class SubmitEvent {
                 'no_found_rows'  => true,
                 // Only genuinely-unreviewed events count. Rejected and
                 // pending-payment listings are also WP drafts, so scope by the
-                // submission status meta or an organiser whose events keep being
+                // submission status meta or an organizer whose events keep being
                 // rejected would be permanently locked out of the form.
                 'meta_key'       => Fields::key('status'),
                 'meta_value'     => Fields::STATUS_PENDING_REVIEW,
@@ -129,7 +129,7 @@ final class SubmitEvent {
         // approval. (An account with the auto-approve flag set publishes inside
         // create() above; the live page still reads these once written here, but
         // wiring display fields into the pre-publish path is a job for the
-        // trust-loop slice — new organiser accounts are not auto-approve.)
+        // trust-loop slice — new organizer accounts are not auto-approve.)
         update_post_meta($post_id, Events::key('start_datetime'), $start);
         if ($loc !== '') {
             update_post_meta($post_id, Events::key('location'), $loc);

@@ -289,11 +289,11 @@ final class Settings {
             // The front-end page where the [oe_checkin] scanner shortcode lives,
             // so staff can jump to it from the dashboard. Blank = no button.
             'checkin_page_url' => '',
-            // Per-site theming (brand colours + logo) used by the ticket, the
+            // Per-site theming (brand colors + logo) used by the ticket, the
             // confirmation email and the public oe/v1/brand endpoint. Empty = use
             // the built-in October defaults (Brockmann + brand yellow).
             'theme_accent'      => '', // e.g. #E7CD41
-            'theme_accent_on'   => '', // text colour on the accent, e.g. #1a1a1a
+            'theme_accent_on'   => '', // text color on the accent, e.g. #1a1a1a
             // Section theming tokens (M2 — the "native, not an embed" styling).
             // Drive the public section output (ticket button, spacing, controls)
             // and, in M3, the Stripe Elements appearance. Blank accent falls back

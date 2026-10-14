@@ -1,7 +1,7 @@
 <?php
 /**
  * Volunteer profiles — year-over-year participation per person (by email), with
- * a manual "abuse flag" for anyone who no-showed or cancelled yet still used
+ * a manual "abuse flag" for anyone who no-showed or canceled yet still used
  * their free ticket. Reliable volunteers float by Worked count; flagged people
  * sit at the top.
  *
@@ -42,7 +42,7 @@ $back = admin_url('admin.php?page=oe-volunteers');
             <div class="description" style="font-size:12px"><?php echo esc_html(sprintf(__('%1$d of %2$d signups', 'october-events'), (int) $rates['cancelled'], (int) $rates['total'])); ?></div>
         </div>
         <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px 18px;flex:1;min-width:240px;display:flex;align-items:center">
-            <p class="description" style="margin:0"><?php esc_html_e('Add the no-show and cancel rates together to size how far to over-subscribe volunteers next year. Flag anyone who no-showed or cancelled but still used their free ticket — the flag follows their email into future years.', 'october-events'); ?></p>
+            <p class="description" style="margin:0"><?php esc_html_e('Add the no-show and cancel rates together to size how far to over-subscribe volunteers next year. Flag anyone who no-showed or canceled but still used their free ticket — the flag follows their email into future years.', 'october-events'); ?></p>
         </div>
     </div>
 

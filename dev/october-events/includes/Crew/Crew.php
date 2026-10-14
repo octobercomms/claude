@@ -63,7 +63,7 @@ final class Crew {
         return self::statuses()[$status] ?? ucwords($status);
     }
 
-    /** Pill colour class for a status (reuses .oe-ad-pill modifiers). */
+    /** Pill color class for a status (reuses .oe-ad-pill modifiers). */
     public static function status_pill(string $status): string {
         switch ($status) {
             case self::STATUS_ACTIVE:    return 'pos';

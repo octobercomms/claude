@@ -9,7 +9,7 @@ defined('ABSPATH') || exit;
 
 /**
  * Public branding endpoint (oe/v1/brand) — lets the planning platform theme
- * itself per-site: brand name, accent colours, sidebar/page colours, logos and
+ * itself per-site: brand name, accent colors, sidebar/page colors, logos and
  * an optional custom font. Only non-empty overrides are returned, so the
  * platform keeps its built-in October defaults for anything left blank.
  *

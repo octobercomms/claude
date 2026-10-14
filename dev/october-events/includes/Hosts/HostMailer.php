@@ -292,7 +292,7 @@ final class HostMailer {
 
         // What we handle, by kind.
         if ($kind === 'tour') {
-            $out .= '<p style="color:' . $dark . '">' . esc_html__('On the day: we provide the signage, and we organise and brief the volunteers who turn up to welcome guests and scan tickets. You do not need to arrange any of that.', 'october-events') . '</p>';
+            $out .= '<p style="color:' . $dark . '">' . esc_html__('On the day: we provide the signage, and we organize and brief the volunteers who turn up to welcome guests and scan tickets. You do not need to arrange any of that.', 'october-events') . '</p>';
             $out .= '<p style="color:' . $dark . '">' . esc_html__('Before the day: the attached pack covers how to prepare your home and what to expect. If anything is unclear, reply to this email.', 'october-events') . '</p>';
         } else {
             $out .= '<p style="color:' . $dark . '">' . esc_html__('Please make sure the venue is open and ready for the times in the pack. If you are recruiting your own volunteers, the pack explains how, and we can brief them before the day.', 'october-events') . '</p>';

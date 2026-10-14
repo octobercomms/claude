@@ -20,7 +20,7 @@ defined('ABSPATH') || exit;
  * section costs a cheap meta check, not a query.
  *
  * Markup is deliberately presentation-light: semantic elements that inherit the
- * theme's type and colour, a single `oe-sec oe-sec--{id}` class per section for
+ * theme's type and color, a single `oe-sec oe-sec--{id}` class per section for
  * the theme / Elementor to target, and no plugin chrome. The design-token layer
  * and the Stripe appearance wiring land in a follow-on M2 slice.
  *
@@ -58,7 +58,7 @@ final class Renderer {
         return trim((string) Events::get($id, $f, ''));
     }
 
-    /** A preset status badge (brand colour + readable text), or '' when routine. */
+    /** A preset status badge (brand color + readable text), or '' when routine. */
     private static function status_badge(int $id): string {
         $preset = self::field($id, 'status_preset');
         if ($preset === '' || ! isset(Events::STATUS_PRESETS[$preset])) {
@@ -114,7 +114,7 @@ final class Renderer {
         if ($avail !== '' && isset(Events::AVAILABILITY[$avail])) {
             $inner .= '<p class="oe-event__avail">' . esc_html(Events::AVAILABILITY[$avail]) . '</p>';
         }
-        // Expose the per-listing brand colour as a CSS custom property so the
+        // Expose the per-listing brand color as a CSS custom property so the
         // theme / Elementor template can paint from it (CC's per-event chrome).
         $style = $brand !== '' ? '--oe-brand:' . $brand : '';
         return self::wrap('header', $inner, $style);

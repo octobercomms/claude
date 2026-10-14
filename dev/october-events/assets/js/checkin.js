@@ -301,7 +301,7 @@
         if (scanning || !window.Html5Qrcode) { return; }
         scanner = new window.Html5Qrcode('oe-ci-reader');
         scanning = true;
-        // No qrbox: scan the whole camera frame. A fixed centred qrbox misaligns
+        // No qrbox: scan the whole camera frame. A fixed centered qrbox misaligns
         // with the CSS object-fit:cover view, so a QR aimed at the on-screen
         // frame can fall outside the scan region and never decode.
         scanner.start({ facingMode: 'environment' }, { fps: 10 }, onDecode, function () {})
@@ -479,7 +479,7 @@
                 overlay('wrong_venue', { type: t.type, offline: true }); return;
             }
             // Door-aware: a repeat is only "already" at the *same* door; a new
-            // door is a fresh valid check-in (matches the online behaviour).
+            // door is a fresh valid check-in (matches the online behavior).
             var key = h + '|' + state.venue;
             var already = !!manifest.checked[key];
             // Repeat at this door and the event blocks re-entry: reject, record
@@ -522,7 +522,7 @@
             blocked: ['bad', '✗ Already checked in — do not admit', (info.attendee || 'This ticket') + (seen ? ' · in at ' + seen : '') + off],
             wrong_event: ['bad', '✗ Wrong event', 'This ticket is for another event'],
             wrong_venue: ['warn', '✗ Not valid at this door', (info.type ? info.type + ' — ' : '') + 'valid at another door only'],
-            invalid: ['bad', '✗ Invalid', 'Ticket not recognised'],
+            invalid: ['bad', '✗ Invalid', 'Ticket not recognized'],
             offline: ['bad', '⚠ Offline — not ready', 'Connect once and re-enter the PIN to scan offline']
         };
         var m = map[status] || map.invalid;

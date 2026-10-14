@@ -58,7 +58,7 @@ $cd = 'oe-cd-' . wp_generate_password(6, false, false);
                 <td><input type="text" id="<?php echo esc_attr($cd); ?>-label" class="regular-text" placeholder="<?php esc_attr_e('none (optional, e.g. OFFER ENDS IN)', 'october-events'); ?>"></td>
             </tr>
             <tr>
-                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-accent"><?php esc_html_e('Accent colour', 'october-events'); ?></label></th>
+                <th scope="row"><label for="<?php echo esc_attr($cd); ?>-accent"><?php esc_html_e('Accent color', 'october-events'); ?></label></th>
                 <td><input type="color" id="<?php echo esc_attr($cd); ?>-accent" value="#C15A2C"></td>
             </tr>
             <tr>
@@ -66,7 +66,7 @@ $cd = 'oe-cd-' . wp_generate_password(6, false, false);
                 <td>
                     <input type="color" id="<?php echo esc_attr($cd); ?>-bg" value="#17140F">
                     <label style="margin-left:10px"><input type="checkbox" id="<?php echo esc_attr($cd); ?>-transparent"> <?php esc_html_e('Transparent', 'october-events'); ?></label>
-                    <p class="description" style="margin-top:6px;max-width:340px"><?php esc_html_e('Set this to your email section colour for a seamless fit. Transparent works too, but 1-bit GIF edges can fringe on a different colour, so a matched solid colour reads cleanest.', 'october-events'); ?></p>
+                    <p class="description" style="margin-top:6px;max-width:340px"><?php esc_html_e('Set this to your email section color for a seamless fit. Transparent works too, but 1-bit GIF edges can fringe on a different color, so a matched solid color reads cleanest.', 'october-events'); ?></p>
                 </td>
             </tr>
             <tr>
@@ -134,7 +134,7 @@ $cd = 'oe-cd-' . wp_generate_password(6, false, false);
         if (label.value.trim()) { p.set('label', label.value.trim()); }
         if (accent.value) { p.set('accent', accent.value); }
         // Background: transparent knocks it out (blending edges toward the
-        // chosen colour); otherwise a solid fill of that colour.
+        // chosen color); otherwise a solid fill of that color.
         if (transparent.checked) { p.set('transparent', '1'); }
         if (bg.value) { p.set('bg', bg.value); }
         if (style() === 'anim') { p.set('anim', '1'); }

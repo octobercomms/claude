@@ -57,7 +57,7 @@ $back      = admin_url('admin.php?page=oe-email');
                 </p>
                 <p>
                     <label for="oe-camp-pre" style="font-weight:600;display:block;margin-bottom:4px"><?php esc_html_e('Preview text (preheader)', 'october-events'); ?></label>
-                    <input type="text" id="oe-camp-pre" name="preheader" value="<?php echo esc_attr($preheader); ?>" class="widefat" placeholder="<?php esc_attr_e('The grey line shown after the subject in most inboxes.', 'october-events'); ?>">
+                    <input type="text" id="oe-camp-pre" name="preheader" value="<?php echo esc_attr($preheader); ?>" class="widefat" placeholder="<?php esc_attr_e('The gray line shown after the subject in most inboxes.', 'october-events'); ?>">
                 </p>
                 <p style="font-weight:600;margin:14px 0 4px"><?php esc_html_e('Email body', 'october-events'); ?></p>
                 <?php

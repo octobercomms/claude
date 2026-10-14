@@ -26,7 +26,7 @@ $promo_codes = $promo_codes ?? [];
 $sym   = $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$');
 $money = static fn(float $n, string $cur): string => number_format($n, 2) . ' ' . $cur;
 
-// Status presentation: label, text colour, chip background, row background, sort rank, filter group.
+// Status presentation: label, text color, chip background, row background, sort rank, filter group.
 $meta = [
     'paid'          => [__('Paid', 'october-events'),        '#1e7a33', '#eaf7ec', 0, 'paid'],
     'part_refunded' => [__('Part refunded', 'october-events'), '#8a5a00', '#fdf3e3', 1, 'paid'],

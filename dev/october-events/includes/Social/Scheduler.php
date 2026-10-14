@@ -135,7 +135,7 @@ final class Scheduler {
 
     public function publish_one(int $id): void {
         if (get_post_type($id) !== self::CPT || self::status($id) !== 'scheduled') {
-            return; // gone, already handled, or cancelled
+            return; // gone, already handled, or canceled
         }
         update_post_meta($id, '_status', 'publishing');
         $networks = (array) get_post_meta($id, '_networks', true);
@@ -274,7 +274,7 @@ final class Scheduler {
             'published' => __('Published', 'october-events'),
             'partial'   => __('Partly published', 'october-events'),
             'failed'    => __('Failed', 'october-events'),
-            'cancelled' => __('Cancelled', 'october-events'),
+            'cancelled' => __('Canceled', 'october-events'),
         ];
         $colors = ['published' => '#1a7f37', 'scheduled' => '#2271b1', 'partial' => '#8a6d3b', 'failed' => '#b32d2e', 'cancelled' => '#787c82', 'publishing' => '#2271b1'];
         $nonce  = wp_create_nonce('oe_social_schedule');

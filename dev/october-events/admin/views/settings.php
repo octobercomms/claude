@@ -95,9 +95,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <details class="oe-acc" id="section-styling"><summary><?php esc_html_e('Section styling', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('A small set of tokens so dropped sections and the native checkout feel like part of this site. Leave the accent blank to use the brand accent above. These also drive the Stripe card field appearance.', 'october-events'); ?></p>
         <?php $oe_tok = static fn(string $k, string $d = ''): string => (string) ($cfg[$k] ?? $d); ?>
-        <p><label><?php esc_html_e('Accent colour', 'october-events'); ?><br>
+        <p><label><?php esc_html_e('Accent color', 'october-events'); ?><br>
             <input type="text" name="section_accent" class="regular-text" value="<?php echo esc_attr($oe_tok('section_accent')); ?>" placeholder="#1a1a1a (blank = brand accent)"></label></p>
-        <p><label><?php esc_html_e('Accent text colour', 'october-events'); ?><br>
+        <p><label><?php esc_html_e('Accent text color', 'october-events'); ?><br>
             <input type="text" name="section_accent_on" class="regular-text" value="<?php echo esc_attr($oe_tok('section_accent_on')); ?>" placeholder="#ffffff"></label></p>
         <p><label><?php esc_html_e('Button style', 'october-events'); ?><br>
             <select name="section_button_style">
@@ -125,7 +125,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('Optional. If your events store their data in existing (e.g. JetEngine) custom fields, enter those meta keys here so tickets, emails and reports can read the event’s date, price and location. Leave blank if unsure.', 'october-events'); ?></p>
         <?php $fmap = (array) ($cfg['event_field_map'] ?? []); ?>
         <table class="form-table" role="presentation"><tbody>
-            <?php foreach (['start_datetime' => __('Start date', 'october-events'), 'end_datetime' => __('End date', 'october-events'), 'start_time' => __('Daily start time', 'october-events'), 'end_time' => __('Daily end time', 'october-events'), 'price' => __('Price', 'october-events'), 'location' => __('Location', 'october-events'), 'organiser' => __('Organiser', 'october-events'), 'description' => __('Description', 'october-events')] as $field => $label) : ?>
+            <?php foreach (['start_datetime' => __('Start date', 'october-events'), 'end_datetime' => __('End date', 'october-events'), 'start_time' => __('Daily start time', 'october-events'), 'end_time' => __('Daily end time', 'october-events'), 'price' => __('Price', 'october-events'), 'location' => __('Location', 'october-events'), 'organiser' => __('Organizer', 'october-events'), 'description' => __('Description', 'october-events')] as $field => $label) : ?>
                 <tr>
                     <th scope="row"><label><?php echo esc_html($label); ?></label></th>
                     <td><input type="text" name="event_field_map[<?php echo esc_attr($field); ?>]" value="<?php echo esc_attr((string) ($fmap[$field] ?? '')); ?>" placeholder="<?php esc_attr_e('existing meta key, e.g. event-date', 'october-events'); ?>" class="regular-text"></td>
@@ -185,7 +185,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <h3><?php esc_html_e('Tone of voice training', 'october-events'); ?></h3>
         <p class="description"><?php esc_html_e('This is how you "train" the AI. The style guide and examples below are sent to Claude with every story it writes, steering it to sound like ADF. Be specific about voice, rhythm, vocabulary, and what to avoid.', 'october-events'); ?></p>
         <p><label><strong><?php esc_html_e('House style guide', 'october-events'); ?></strong><br>
-            <textarea name="ai_voice_guide" rows="8" class="large-text" placeholder="<?php esc_attr_e('e.g. Write in third person. Lead with the design idea, not the event. Favour concrete nouns over adjectives. Never use words like “stunning”, “must-see”, “game-changing”. UK/US spelling: US. Reference Atlanta neighbourhoods by name where relevant…', 'october-events'); ?>"><?php echo esc_textarea((string) ($cfg['ai_voice_guide'] ?? '')); ?></textarea></label></p>
+            <textarea name="ai_voice_guide" rows="8" class="large-text" placeholder="<?php esc_attr_e('e.g. Write in third person. Lead with the design idea, not the event. Favor concrete nouns over adjectives. Never use words like “stunning”, “must-see”, “game-changing”. UK/US spelling: US. Reference Atlanta neighbourhoods by name where relevant…', 'october-events'); ?>"><?php echo esc_textarea((string) ($cfg['ai_voice_guide'] ?? '')); ?></textarea></label></p>
         <p><label><strong><?php esc_html_e('Example pieces', 'october-events'); ?></strong> — <?php esc_html_e('paste 1–4 published pieces that exemplify the voice, separated by a line containing only ---', 'october-events'); ?><br>
             <textarea name="ai_examples" rows="12" class="large-text" placeholder="<?php esc_attr_e("Headline of a great ADF piece\nFull body text in the ADF voice…\n---\nAnother example headline\nIts body text…", 'october-events'); ?>"><?php echo esc_textarea(implode("\n---\n", (array) ($cfg['ai_examples'] ?? []))); ?></textarea></label></p>
         <p class="description"><?php echo esc_html(sprintf(/* translators: %d: count */ __('Currently %d example(s) saved.', 'october-events'), count((array) ($cfg['ai_examples'] ?? [])))); ?></p>
@@ -206,10 +206,10 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </section>
         <section class="oe-set-panel" data-tab="theme">
         <details class="oe-acc" id="branding"><summary><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Brand colours and logo for this site’s tickets and confirmation emails. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Brand colors and logo for this site’s tickets and confirmation emails. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr>
-                <th scope="row"><label><?php esc_html_e('Accent colour', 'october-events'); ?></label></th>
+                <th scope="row"><label><?php esc_html_e('Accent color', 'october-events'); ?></label></th>
                 <td><input type="text" name="theme_accent" value="<?php echo esc_attr((string) ($cfg['theme_accent'] ?? '')); ?>" placeholder="#E7CD41" class="regular-text">
                     <p class="description"><?php esc_html_e('Buttons, active nav, highlights.', 'october-events'); ?></p></td>
             </tr>
@@ -218,7 +218,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 <td><input type="text" name="theme_accent_on" value="<?php echo esc_attr((string) ($cfg['theme_accent_on'] ?? '')); ?>" placeholder="#1a1a1a" class="regular-text"></td>
             </tr>
             <tr>
-                <th scope="row"><label><?php esc_html_e('Sidebar colour', 'october-events'); ?></label></th>
+                <th scope="row"><label><?php esc_html_e('Sidebar color', 'october-events'); ?></label></th>
                 <td><input type="text" name="theme_sidebar_bg" value="<?php echo esc_attr((string) ($cfg['theme_sidebar_bg'] ?? '')); ?>" placeholder="#0b0b0c" class="regular-text"></td>
             </tr>
             <tr>
@@ -1113,7 +1113,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </div></details>
 
         <details class="oe-acc" id="host-comms"><summary><?php esc_html_e('Host comms (events & tours)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('The info pack and reminders sent to the people hosting an event or tour (homeowner, architect, organiser…). Add the host contacts on each event/tour, then send the pack from there. Reminders go automatically 2 weeks and 2 days before. The master PDF below is attached unless an event/tour has its own.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('The info pack and reminders sent to the people hosting an event or tour (homeowner, architect, organizer…). Add the host contacts on each event/tour, then send the pack from there. Reminders go automatically 2 weeks and 2 days before. The master PDF below is attached unless an event/tour has its own.', 'october-events'); ?></p>
         <?php
         $tour_pdf_id  = (int) ($cfg['host_pack_tour_pdf'] ?? 0);
         $event_pdf_id = (int) ($cfg['host_pack_event_pdf'] ?? 0);

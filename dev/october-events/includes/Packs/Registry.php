@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
  * Capability-pack registry (BUILD-PLAN M1.1 / EVENT-MODEL).
  *
  * One `event` type; everything beyond the base event is a *pack* switched on
- * per event. A pack reveals extra fields/metaboxes, behaviour and public
+ * per event. A pack reveals extra fields/metaboxes, behavior and public
  * output (its section shortcodes). Adding a pack never adds a CPT — it is one
  * entry here plus the metabox(es) that already exist for it.
  *
