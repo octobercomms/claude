@@ -274,6 +274,26 @@ final class Admin {
         if ($page === '' && $this->pkg_cpt_slug !== '' && isset(self::$hub_highlight[$this->pkg_cpt_slug]) && $this->on_pkg_cpt_screen()) {
             return self::$hub_highlight[$this->pkg_cpt_slug];
         }
+        // Classic CPT edit/list screens (event, directory, destination, story,
+        // account, volunteer, location) — keep the nearest menu item highlighted
+        // so the sidebar shows where you are.
+        $cpt = $this->current_plugin_cpt();
+        if ($cpt !== '') {
+            $map = [
+                PostTypes::slug('event')       => 'oe-events',
+                PostTypes::slug('directory')   => 'oe-directory',
+                PostTypes::slug('destination') => 'oe-destinations',
+                PostTypes::slug('story')       => 'oe-stories',
+                PostTypes::slug('location')    => 'oe-events',
+            ];
+            if (isset($map[$cpt])) {
+                return $map[$cpt];
+            }
+            if (in_array($cpt, [PostTypes::slug('account'), PostTypes::slug('volunteer')], true) && isset(self::$hub_highlight['oe-accounts'])) {
+                return self::$hub_highlight['oe-accounts'];
+            }
+            return 'oe-events';
+        }
         return $submenu_file;
     }
 
@@ -289,10 +309,40 @@ final class Admin {
         if ($page === 'october-events' || strpos($page, 'oe-') === 0) {
             return 'october-events';
         }
-        if ($this->on_pkg_cpt_screen()) {
+        if ($this->on_pkg_cpt_screen() || $this->current_plugin_cpt() !== '') {
             return 'october-events';
         }
         return $parent_file;
+    }
+
+    /**
+     * The plugin post type for the current classic CPT screen (post.php /
+     * post-new.php / edit.php), or '' when the screen isn't one of ours. Lets
+     * the menu stay open and highlighted on every event/listing/location/… edit
+     * screen, not just the ?page= admin pages.
+     */
+    private function current_plugin_cpt(): string {
+        $pagenow = (string) ($GLOBALS['pagenow'] ?? '');
+        if (! in_array($pagenow, ['post.php', 'post-new.php', 'edit.php'], true)) {
+            return '';
+        }
+        $typenow = (string) ($GLOBALS['typenow'] ?? '');
+        if ($typenow === '') { // phpcs:disable WordPress.Security.NonceVerification.Recommended
+            if (isset($_GET['post_type'])) {
+                $typenow = sanitize_key((string) wp_unslash($_GET['post_type']));
+            } elseif ($pagenow === 'post.php' && isset($_GET['post'])) {
+                $typenow = (string) get_post_type((int) $_GET['post']);
+            }
+        } // phpcs:enable WordPress.Security.NonceVerification.Recommended
+        if ($typenow === '') {
+            return '';
+        }
+        foreach (['event', 'directory', 'destination', 'story', 'account', 'volunteer', 'package', 'location'] as $k) {
+            if (PostTypes::slug($k) === $typenow) {
+                return $typenow;
+            }
+        }
+        return '';
     }
 
     /** True on the Packages CPT list/edit screen (a Growth hub member). */
