@@ -57,6 +57,7 @@ $status_pill = ['paid' => 'pos', 'refunded' => 'warn', 'cancelled' => 'neu', 'co
         <?php endif; ?>
         <?php if ($pid !== '' && $is_stripe && $tickets) :
             $panel_order_id = $oid; $panel_tickets = $tickets; $panel_label = __('Refund…', 'october-events');
+            $panel_summary_class = 'button oe-tixp-act'; $panel_block = true;
             include OE_DIR . 'admin/views/_refund-panel.php';
         endif; ?>
         <details class="oe-tixp-confirm">
@@ -95,10 +96,29 @@ $status_pill = ['paid' => 'pos', 'refunded' => 'warn', 'cancelled' => 'neu', 'co
         <div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('Status', 'october-events'); ?></span><span class="oe-tixp-v"><span class="oe-ad-pill oe-ad-pill--<?php echo esc_attr($status_pill); ?>"><?php echo esc_html(ucfirst((string) $order->status)); ?></span></span></div>
     </div>
 
+    <?php
+    $card = isset($card) && is_array($card) ? $card : [];
+    $has_card = ($card['brand'] ?? '') !== '' || ($card['last4'] ?? '') !== '';
+    // Method line: "Visa •••• 4242" when we have the card, else the gateway name.
+    if ($has_card) {
+        $method_label = trim(($card['brand'] ?? '') . ' •••• ' . ($card['last4'] ?? ''));
+        if (($card['wallet'] ?? '') !== '') {
+            $method_label = ucfirst(str_replace('_', ' ', (string) $card['wallet'])) . ' · ' . $method_label;
+        }
+    } else {
+        $method_label = ucfirst((string) ($order->payment_method ?: '—'));
+    }
+    $risk = (string) ($card['risk'] ?? '');
+    $risk_pill = ['normal' => 'pos', 'elevated' => 'warn', 'highest' => 'warn'][$risk] ?? 'neu';
+    ?>
     <div class="oe-tixp-label"><?php esc_html_e('Payment', 'october-events'); ?></div>
     <div class="oe-tixp-group">
-        <div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('Method', 'october-events'); ?></span><span class="oe-tixp-v"><strong><?php echo esc_html(ucfirst((string) ($order->payment_method ?: '—'))); ?></strong></span></div>
+        <div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('Method', 'october-events'); ?></span><span class="oe-tixp-v"><strong><?php echo esc_html($method_label); ?></strong></span></div>
+        <?php if (($card['exp'] ?? '') !== '') : ?><div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('Expiry', 'october-events'); ?></span><span class="oe-tixp-v"><?php echo esc_html((string) $card['exp']); ?></span></div><?php endif; ?>
+        <?php if (($card['name'] ?? '') !== '') : ?><div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('Name on card', 'october-events'); ?></span><span class="oe-tixp-v"><?php echo esc_html((string) $card['name']); ?></span></div><?php endif; ?>
         <?php if ($pid !== '') : ?><div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('Stripe', 'october-events'); ?></span><span class="oe-tixp-v" style="word-break:break-all"><?php echo esc_html($pid); ?></span></div><?php endif; ?>
+        <?php if (($card['avs'] ?? '') !== '' || ($card['cvc'] ?? '') !== '') : ?><div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('AVS / CVC', 'october-events'); ?></span><span class="oe-tixp-v"><?php echo esc_html(trim((string) ($card['avs'] ?: '—')) . ' / ' . trim((string) ($card['cvc'] ?: '—'))); ?></span></div><?php endif; ?>
+        <?php if ($risk !== '') : ?><div class="oe-tixp-row"><span class="oe-tixp-k"><?php esc_html_e('Risk', 'october-events'); ?></span><span class="oe-tixp-v"><span class="oe-ad-pill oe-ad-pill--<?php echo esc_attr($risk_pill); ?>"><?php echo esc_html(ucfirst($risk)); ?></span></span></div><?php endif; ?>
     </div>
 
     <?php if ($promos) : ?>

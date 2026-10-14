@@ -115,6 +115,9 @@ final class TicketsAdmin {
         $event_title = get_the_title((int) $order->event_id) ?: ('#' . (int) $order->event_id);
         $invoice_url = $pid !== '' ? home_url('/?oe_invoice_txn=' . rawurlencode($pid)) : '';
         $is_stripe   = in_array((string) $order->payment_method, ['stripe', 'public'], true);
+        // Card / risk details pulled live from Stripe (cached), for the Payment
+        // section — brand, last4, expiry, name, AVS/CVC, risk.
+        $card = ($is_stripe && $pid !== '') ? \OE\Connectors\StripeConnector::payment_card_details($pid) : [];
         require OE_DIR . 'admin/views/_tix-order-panel.php';
     }
 

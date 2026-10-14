@@ -11,9 +11,11 @@
  */
 defined('ABSPATH') || exit;
 $panel_label = $panel_label ?? __('Refund…', 'october-events');
+$panel_summary_class = $panel_summary_class ?? 'button button-small';
+$panel_block = ! empty($panel_block);
 ?>
-<details class="oe-refund" style="display:inline-block;vertical-align:top">
-    <summary class="button button-small" style="cursor:pointer;list-style:none"><?php echo esc_html($panel_label); ?></summary>
+<details class="oe-refund" style="display:<?php echo $panel_block ? 'block' : 'inline-block'; ?>;vertical-align:top<?php echo $panel_block ? ';width:100%' : ''; ?>">
+    <summary class="<?php echo esc_attr($panel_summary_class); ?>" style="cursor:pointer;list-style:none<?php echo $panel_block ? ';width:100%;text-align:center' : ''; ?>"><?php echo esc_html($panel_label); ?></summary>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="position:absolute;z-index:10;margin-top:6px;background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:280px;text-align:left" onsubmit="return confirm('<?php echo esc_js(__('Refund the ticked tickets to the customer’s card? They’ll be emailed.', 'october-events')); ?>')">
         <?php wp_nonce_field('oe_refund_tickets'); ?>
         <input type="hidden" name="action" value="oe_refund_tickets">

@@ -269,6 +269,73 @@ final class StripeConnector {
     }
 
     /**
+     * Card / risk details for a PaymentIntent, for the admin order panel: card
+     * brand + last4, expiry, name on card, AVS and CVC check results, and the
+     * fraud risk level. Everything is pulled from the latest charge; nothing is
+     * stored. Cached for an hour per intent so reopening a panel is instant.
+     *
+     * @return array{brand:string,last4:string,exp:string,name:string,risk:string,avs:string,cvc:string,wallet:string}
+     */
+    public static function payment_card_details(string $intent_id): array {
+        $empty = ['brand' => '', 'last4' => '', 'exp' => '', 'name' => '', 'risk' => '', 'avs' => '', 'cvc' => '', 'wallet' => ''];
+        $intent_id = trim($intent_id);
+        if ($intent_id === '' || strpos($intent_id, 'pi_') !== 0 || ! self::is_ready()) {
+            return $empty;
+        }
+        $cache_key = 'oe_pi_card_' . md5($intent_id);
+        $cached = get_transient($cache_key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $pi = self::request('GET', '/payment_intents/' . rawurlencode($intent_id), ['expand' => ['latest_charge']]);
+        if (! is_array($pi) || isset($pi['error'])) {
+            return $empty;
+        }
+        $charge = is_array($pi['latest_charge'] ?? null) ? $pi['latest_charge'] : null;
+        if (! $charge && isset($pi['charges']['data'][0]) && is_array($pi['charges']['data'][0])) {
+            $charge = $pi['charges']['data'][0];
+        }
+        if (! $charge) {
+            return $empty;
+        }
+
+        $out = $empty;
+        $fmt = static function (string $c): string {
+            return $c === 'pass' ? __('Pass', 'october-events')
+                : ($c === 'fail' ? __('Fail', 'october-events')
+                : ($c === '' || $c === 'unavailable' || $c === 'unchecked' ? '—' : ucfirst($c)));
+        };
+
+        $pmd  = is_array($charge['payment_method_details'] ?? null) ? $charge['payment_method_details'] : [];
+        $card = is_array($pmd['card'] ?? null) ? $pmd['card'] : [];
+        if ($card) {
+            $out['brand'] = ucfirst((string) ($card['brand'] ?? ''));
+            $out['last4'] = (string) ($card['last4'] ?? '');
+            $mm = (int) ($card['exp_month'] ?? 0);
+            $yy = (int) ($card['exp_year'] ?? 0);
+            if ($mm && $yy) {
+                $out['exp'] = sprintf('%02d / %02d', $mm, $yy % 100);
+            }
+            $checks = is_array($card['checks'] ?? null) ? $card['checks'] : [];
+            $a1 = (string) ($checks['address_line1_check'] ?? '');
+            $pc = (string) ($checks['address_postal_code_check'] ?? '');
+            $out['avs'] = ($a1 === '' && $pc === '') ? '—' : $fmt($a1 !== '' ? $a1 : $pc);
+            $out['cvc'] = $fmt((string) ($checks['cvc_check'] ?? ''));
+            if (! empty($card['wallet']['type'])) {
+                $out['wallet'] = (string) $card['wallet']['type'];
+            }
+        }
+        $bd = is_array($charge['billing_details'] ?? null) ? $charge['billing_details'] : [];
+        $out['name'] = (string) ($bd['name'] ?? '');
+        $outcome = is_array($charge['outcome'] ?? null) ? $charge['outcome'] : [];
+        $out['risk'] = (string) ($outcome['risk_level'] ?? '');
+
+        set_transient($cache_key, $out, HOUR_IN_SECONDS);
+        return $out;
+    }
+
+    /**
      * Succeeded ticket PaymentIntents in the last $days — the buyers who paid.
      * Used by the order reconciliation (Settings → Keys & platform) to confirm
      * every paid checkout produced a ticket order, which is exactly the webhook's
