@@ -14,7 +14,7 @@ defined('ABSPATH') || exit;
 $post_url  = esc_url(admin_url('admin-post.php'));
 $has_price = \OE\Membership\Repair::join_price() !== '';
 ?>
-<div class="wrap">
+<div class="wrap oe-admin">
     <h1><?php esc_html_e('Repair memberships', 'october-events'); ?></h1>
     <p class="description" style="max-width:820px"><?php esc_html_e('People who bought a members-only ticket rate but have no active membership — the one-click join didn’t complete at checkout. Creating a membership here charges the $5 first month to the card they saved on their ticket order and starts their subscription. Anyone already a member is skipped automatically.', 'october-events'); ?></p>
 

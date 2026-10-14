@@ -30,6 +30,21 @@ final class Admin {
     /** @var string the package CPT list submenu slug, when Growth's Packages tab is a CPT link. */
     private string $pkg_cpt_slug = '';
 
+    /** @var array<int,string> URL-only page slugs registered under the plugin menu then hidden. */
+    private array $hidden_slugs = [];
+
+    /**
+     * Register a plugin page that is reachable by URL but hidden from the sidebar.
+     * It is added under the plugin's top-level menu and then removed from the
+     * visible submenu, so WordPress still treats october-events as its parent and
+     * keeps the menu expanded + highlighted on it — which a bare empty-parent page
+     * does not do.
+     */
+    private function add_hidden_page(string $title, string $cap, string $slug, callable $cb): void {
+        add_submenu_page('october-events', $title, $title, $cap, $slug, $cb);
+        $this->hidden_slugs[] = $slug;
+    }
+
     public static function get_instance(): self {
         return self::$instance ??= new self();
     }
@@ -92,7 +107,7 @@ final class Admin {
         if ($f('tickets')) { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
         // Taxonomies & filters and Multiple locations are tabs on the Events
         // screen (events_lens), not sidebar items — registered URL-only.
-        add_submenu_page('', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
+        $this->add_hidden_page('Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
 
         // ---- People hub ----------------------------------------------------
         // Each hub is one visible menu item; its members share an in-page tab
@@ -107,8 +122,8 @@ final class Admin {
             $f('contacts')   ? ['crm',        __('CRM', 'october-events'),        $sc('contacts'),   'oe-people',     [\OE\Admin\PeopleScreen::class, 'render']] : null,
         ])));
         // Folded into the People hub — reachable by URL, off the sidebar.
-        if ($f('volunteers')) { add_submenu_page('', 'Volunteer pool', 'Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
-        if ($f('contacts'))   { add_submenu_page('', 'Contacts', 'Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
+        if ($f('volunteers')) { $this->add_hidden_page('Volunteer pool', $sc('volunteers'), 'oe-volunteer-pool', [\OE\Volunteers\Pool\Board::class, 'render']); }
+        if ($f('contacts'))   { $this->add_hidden_page('Contacts', $sc('contacts'), 'oe-contacts', [$this, 'page_contacts']); }
 
         // Public content types stay top-level alongside Events.
         if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $sc('directory'), 'oe-directory', fn() => $this->page_listing('directory')); }
@@ -139,11 +154,17 @@ final class Admin {
         ]);
 
         // Hidden, URL-only screens (opened from within a page, not the sidebar).
-        add_submenu_page('', 'Event studio', 'Event studio', $sc('events'), 'oe-event-studio', [\OE\Admin\EventStudio::class, 'render']);
-        add_submenu_page('', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
-        add_submenu_page('', 'Multiple locations', 'Multiple locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
-        if ($f('contacts')) { add_submenu_page('', 'Compose campaign', 'Compose campaign', $sc('contacts'), 'oe-email-compose', [\OE\Admin\CampaignAdmin::class, 'render']); }
-        add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
+        $this->add_hidden_page('Event studio', $sc('events'), 'oe-event-studio', [\OE\Admin\EventStudio::class, 'render']);
+        $this->add_hidden_page('Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
+        $this->add_hidden_page('Multiple locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
+        if ($f('contacts')) { $this->add_hidden_page('Compose campaign', $sc('contacts'), 'oe-email-compose', [\OE\Admin\CampaignAdmin::class, 'render']); }
+        $this->add_hidden_page('Membership repair', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
+
+        // Hide the URL-only pages from the sidebar. They stay children of the
+        // plugin menu, so WordPress keeps it expanded + highlighted on them.
+        foreach ($this->hidden_slugs as $hidden_slug) {
+            remove_submenu_page('october-events', $hidden_slug);
+        }
     }
 
     /**
@@ -173,7 +194,7 @@ final class Admin {
                 }
             } elseif (! $is_cpt) {
                 // Hidden member: URL-reachable, off the sidebar.
-                add_submenu_page('', $label . ' — ' . $mlabel, $mlabel, $cap, $slug, $cb);
+                $this->add_hidden_page($label . ' — ' . $mlabel, $cap, $slug, $cb);
             }
             // A non-first CPT member isn't registered as a submenu (the CPT list
             // is reachable natively); the hub tab links to it and its screen gets
@@ -625,20 +646,6 @@ final class Admin {
             printf('<a class="oe-seg-btn%s" href="%s">%s</a>', $active_primary === $key ? ' is-on' : '', esc_url($url), esc_html($label));
         }
         echo '</nav>';
-
-        // Secondary: reporting + messaging, always reachable, lighter weight.
-        $secondary = [
-            'sales'    => [__('Sales', 'october-events'), ['sales', 'prices', 'analytics']],
-            'payments' => [__('Transactions', 'october-events'), ['payments', 'transactions', 'failed', 'abandoned']],
-            'checkin'  => [__('Check-in log', 'october-events'), ['checkin']],
-            'message'  => [__('Message attendees', 'october-events'), ['message']],
-        ];
-        echo '<div class="oe-tickets-subnav">';
-        foreach ($secondary as $key => [$label, $slugs]) {
-            $on = in_array($norm, $slugs, true);
-            printf('<a class="oe-tickets-sublink%s" href="%s">%s</a>', $on ? ' is-on' : '', esc_url(admin_url('admin.php?page=oe-tickets&tab=' . $key)), esc_html($label));
-        }
-        echo '</div>';
     }
 
     /**
