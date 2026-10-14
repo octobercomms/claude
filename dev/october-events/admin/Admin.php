@@ -254,6 +254,8 @@ final class Admin {
             );
         }
         echo '</nav>';
+        // Volunteer settings in context (reminders, alerts, roster, thank-you).
+        ContextSettings::panel('volunteers');
     }
 
     /** Highlight the owning hub item on a hidden hub member or the package CPT. */
