@@ -15,8 +15,6 @@ defined('ABSPATH') || exit;
 use OE\Planning\Events;
 use OE\Packs\Registry;
 use OE\Packs\SectionReference;
-use OE\Packs\Content\TourMeta;
-use OE\Admin\SlideIn;
 
 $packs_state = Registry::all_for($id);
 $site_name   = (string) get_bloginfo('name');
@@ -168,12 +166,46 @@ $reg_mode = $v('ticket_required') !== '1' ? 'none' : ($v('ticket_link') !== '' ?
                         <span class="oe-es-cap-d description"><?php echo esc_html($pack['desc']); ?></span>
                     </label>
                 <?php endforeach; ?>
-                <?php if ($id > 0) : ?>
-                    <p style="margin:12px 0 0"><?php echo SlideIn::trigger('oe-es-tour', __('Edit locations', 'october-events'), 'button button-small'); ?> <span class="description"><?php esc_html_e('Stops, images and design credits for a multi-location event.', 'october-events'); ?></span></p>
-                <?php else : ?>
-                    <p class="description" style="margin:12px 0 0"><?php esc_html_e('Locations become editable once the event is saved as a draft.', 'october-events'); ?></p>
+                <?php if ($id === 0) : ?>
+                    <p class="description" style="margin:12px 0 0"><?php esc_html_e('Each capability’s fields appear below once the event is saved as a draft.', 'october-events'); ?></p>
                 <?php endif; ?>
             </div>
+
+            <?php
+            // Fold every capability's field editor inline, reusing the existing
+            // metaboxes (they emit their own nonce and save on save_post, which
+            // the studio's create/update fires — same path as the classic
+            // editor). Each section shows only when its capability is on, and
+            // the capability toggle reveals/hides it live.
+            if ($id > 0 && $post instanceof WP_Post) :
+                // Repeater-based packs render their field editor inline (their
+                // inline scripts are self-contained and save on an explicit Save).
+                $pack_renderers = [
+                    'conference' => [\OE\Packs\Content\ConferenceMeta::class, 'render'],
+                    'exhibition' => [\OE\Packs\Content\ExhibitionMeta::class, 'render'],
+                    'tour'       => [\OE\Packs\Content\TourMeta::class, 'render'],
+                    'volunteers' => static function (\WP_Post $p): void { \OE\Volunteers::get_instance()->render_event_meta_box($p); },
+                    'staff'      => [\OE\Packs\Content\StaffMeta::class, 'render'],
+                ];
+                $classic_edit = (string) get_edit_post_link($id);
+                foreach (Registry::PACKS as $pack_id => $pack) :
+                    $on = ! empty($packs_state[$pack_id]);
+                    ?>
+                    <div class="oe-ad-card oe-es-pack" data-pack-section="<?php echo esc_attr($pack_id); ?>"<?php echo $on ? '' : ' style="display:none"'; ?>>
+                        <div class="oe-section-label"><?php echo esc_html($pack['icon'] . ' ' . $pack['label']); ?></div>
+                        <?php if (isset($pack_renderers[$pack_id])) : ?>
+                            <?php call_user_func($pack_renderers[$pack_id], $post); ?>
+                        <?php elseif ($pack_id === 'tickets') : ?>
+                            <p class="description" style="margin:0 0 10px"><?php esc_html_e('Ticket types, prices, capacity, check-in venues and the scanner PIN.', 'october-events'); ?></p>
+                            <?php if ($classic_edit !== '') : ?>
+                                <a class="button button-primary" href="<?php echo esc_url($classic_edit); ?>#oe_ticket_types"><?php esc_html_e('Edit ticket types & check-in', 'october-events'); ?></a>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                    <?php
+                endforeach;
+            endif;
+            ?>
 
             <details class="oe-ad-card oe-es-secref-acc">
                 <summary class="oe-section-label" style="cursor:pointer;margin:0"><?php esc_html_e('Page sections & shortcodes', 'october-events'); ?></summary>
@@ -206,12 +238,6 @@ $reg_mode = $v('ticket_required') !== '1' ? 'none' : ($v('ticket_link') !== '' ?
                     </label>
                 </div>
             </details>
-
-            <?php if ($id > 0 && $post instanceof WP_Post) : ?>
-                <?php SlideIn::open('oe-es-tour', __('Locations', 'october-events'), false, 'oe-slide-xwide'); ?>
-                    <?php TourMeta::render($post); ?>
-                <?php SlideIn::close(); ?>
-            <?php endif; ?>
 
             <div class="oe-es-actions oe-ad-card">
                 <label class="oe-es-f"><span><?php esc_html_e('Status', 'october-events'); ?></span>
@@ -380,8 +406,15 @@ $reg_mode = $v('ticket_required') !== '1' ? 'none' : ($v('ticket_link') !== '' ?
             });
         });
     }
+    // Reveal/hide each capability's inline field section as it's toggled.
+    function syncPackSections() {
+        form.querySelectorAll('input[type=checkbox][data-pack]').forEach(function (cb) {
+            var card = document.querySelector('.oe-es-pack[data-pack-section="' + cb.getAttribute('data-pack') + '"]');
+            if (card) { card.style.display = cb.checked ? '' : 'none'; }
+        });
+    }
     form.querySelectorAll('input[type=checkbox][data-pack]').forEach(function (cb) {
-        cb.addEventListener('change', syncSections);
+        cb.addEventListener('change', function () { syncSections(); syncPackSections(); });
     });
 })();
 </script>
