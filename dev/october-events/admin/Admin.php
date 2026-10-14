@@ -581,42 +581,45 @@ final class Admin {
     }
 
     /** Tab nav shared by the Tickets sub-screens (highlights the parent of a sub-tab). */
+    /**
+     * Tickets nav — a People-style segmented control for the four primary
+     * management views, plus a lighter secondary row for the reporting ones.
+     * Called by every Tickets sub-view with the active tab slug.
+     */
     public static function tickets_tabs(string $active): void {
-        $parent = self::tickets_parent($active);
-        echo '<h2 class="nav-tab-wrapper">';
-        foreach (self::tickets_tab_labels() as $key => $label) {
+        $norm = self::TICKETS_LEGACY[$active] ?? $active;
+
+        // Primary: the day-to-day management tabs.
+        $primary = ['orders' => __('Registrations', 'october-events')];
+        if (self::guided_enabled()) {
+            $primary['guided'] = __('Timed tickets', 'october-events');
+        }
+        $primary['waitlist'] = __('Waitlist', 'october-events');
+        $primary['promos']   = __('Promo codes', 'october-events');
+        $active_primary = in_array($norm, ['orders', 'guided', 'waitlist', 'promos'], true) ? $norm : '';
+
+        echo '<nav class="oe-seg oe-tickets-lens">';
+        foreach ($primary as $key => $label) {
             $url = $key === 'orders'
                 ? admin_url('admin.php?page=oe-tickets')
                 : admin_url('admin.php?page=oe-tickets&tab=' . $key);
-            printf(
-                '<a href="%s" class="nav-tab%s">%s</a>',
-                esc_url($url),
-                $parent === $key ? ' nav-tab-active' : '',
-                esc_html($label)
-            );
+            printf('<a class="oe-seg-btn%s" href="%s">%s</a>', $active_primary === $key ? ' is-on' : '', esc_url($url), esc_html($label));
         }
-        echo '</h2>';
-        // Render the sub-nav for this group, if the active tab is in one.
-        $groups = self::tickets_subgroups();
-        if (isset($groups[$parent])) {
-            // Resolve legacy slugs (e.g. transactions -> payments) to the current key.
-            $active_norm  = self::TICKETS_LEGACY[$active] ?? $active;
-            $active_child = isset($groups[$parent][$active_norm]) ? $active_norm : $parent;
-            echo '<div class="oe-subtabs" style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">';
-            foreach ($groups[$parent] as $ckey => $clabel) {
-                $curl = admin_url('admin.php?page=oe-tickets&tab=' . $ckey);
-                $on   = $active_child === $ckey;
-                printf(
-                    '<a href="%s" style="text-decoration:none;font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid %s;background:%s;color:%s">%s</a>',
-                    esc_url($curl),
-                    $on ? '#2271b1' : '#dcdcde',
-                    $on ? '#2271b1' : '#fff',
-                    $on ? '#fff' : '#2c3338',
-                    esc_html($clabel)
-                );
-            }
-            echo '</div>';
+        echo '</nav>';
+
+        // Secondary: reporting + messaging, always reachable, lighter weight.
+        $secondary = [
+            'sales'    => [__('Sales', 'october-events'), ['sales', 'prices', 'analytics']],
+            'payments' => [__('Transactions', 'october-events'), ['payments', 'transactions', 'failed', 'abandoned']],
+            'checkin'  => [__('Check-in log', 'october-events'), ['checkin']],
+            'message'  => [__('Message attendees', 'october-events'), ['message']],
+        ];
+        echo '<div class="oe-tickets-subnav">';
+        foreach ($secondary as $key => [$label, $slugs]) {
+            $on = in_array($norm, $slugs, true);
+            printf('<a class="oe-tickets-sublink%s" href="%s">%s</a>', $on ? ' is-on' : '', esc_url(admin_url('admin.php?page=oe-tickets&tab=' . $key)), esc_html($label));
         }
+        echo '</div>';
     }
 
     /**
