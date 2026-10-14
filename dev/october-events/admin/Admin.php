@@ -51,6 +51,7 @@ final class Admin {
 
     public function init(): void {
         add_action('admin_menu', [$this, 'register_menu']);
+        add_action('admin_head', [$this, 'hide_hidden_submenus']);
         add_filter('submenu_file', [$this, 'highlight_people_menu']);
         add_filter('parent_file', [$this, 'keep_people_parent']);
         add_action('all_admin_notices', [$this, 'maybe_hub_tabs_for_cpt']);
@@ -160,11 +161,24 @@ final class Admin {
         if ($f('contacts')) { $this->add_hidden_page('Compose campaign', $sc('contacts'), 'oe-email-compose', [\OE\Admin\CampaignAdmin::class, 'render']); }
         $this->add_hidden_page('Membership repair', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
 
-        // Hide the URL-only pages from the sidebar. They stay children of the
-        // plugin menu, so WordPress keeps it expanded + highlighted on them.
-        foreach ($this->hidden_slugs as $hidden_slug) {
-            remove_submenu_page('october-events', $hidden_slug);
+        // The URL-only pages stay registered children of the plugin menu — so
+        // WordPress can still resolve their capability (access works) and keeps
+        // the menu expanded + highlighted on them. They are hidden from the
+        // sidebar with CSS (hide_hidden_submenus), NOT remove_submenu_page,
+        // which would break the capability lookup and 403 the page.
+    }
+
+    /** Hide the URL-only submenu items from the sidebar without unregistering them. */
+    public function hide_hidden_submenus(): void {
+        if (! $this->hidden_slugs) {
+            return;
         }
+        $sel = [];
+        foreach (array_unique($this->hidden_slugs) as $slug) {
+            $sel[] = '#adminmenu .wp-submenu a[href$="page=' . esc_attr($slug) . '"]';
+            $sel[] = '#adminmenu .wp-submenu li:has(> a[href$="page=' . esc_attr($slug) . '"])';
+        }
+        echo '<style id="oe-hidden-submenus">' . implode(',', $sel) . '{display:none!important;}</style>';
     }
 
     /**
