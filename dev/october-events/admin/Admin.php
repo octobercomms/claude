@@ -90,9 +90,9 @@ final class Admin {
         // Events: the native CPT list (managed in WordPress / JetEngine).
         add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'oe-events', [$this, 'page_events']);
         if ($f('tickets')) { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
-        // Taxonomies & filters classify the event (and other listing) content, so
-        // they live beside Events rather than off in the Admin hub.
-        add_submenu_page('october-events', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
+        // Taxonomies & filters and Multiple locations are tabs on the Events
+        // screen (events_lens), not sidebar items — registered URL-only.
+        add_submenu_page('', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
 
         // ---- People hub ----------------------------------------------------
         // Each hub is one visible menu item; its members share an in-page tab
@@ -141,7 +141,7 @@ final class Admin {
         // Hidden, URL-only screens (opened from within a page, not the sidebar).
         add_submenu_page('', 'Event studio', 'Event studio', $sc('events'), 'oe-event-studio', [\OE\Admin\EventStudio::class, 'render']);
         add_submenu_page('', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
-        add_submenu_page('', 'Tour locations', 'Tour locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
+        add_submenu_page('', 'Multiple locations', 'Multiple locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
         if ($f('contacts')) { add_submenu_page('', 'Compose campaign', 'Compose campaign', $sc('contacts'), 'oe-email-compose', [\OE\Admin\CampaignAdmin::class, 'render']); }
         add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
     }
@@ -261,11 +261,30 @@ final class Admin {
         ContextSettings::panel('volunteers');
     }
 
+    /**
+     * Events-area segmented nav. Events, its taxonomies/filters and its
+     * multiple-location records are one area, so they read as tabs on the
+     * Events screen rather than scattered sidebar items.
+     */
+    public static function events_lens(string $current): void {
+        $tabs = [
+            'events'     => [__('All events', 'october-events'), admin_url('admin.php?page=oe-events')],
+            'taxonomies' => [__('Taxonomies & filters', 'october-events'), admin_url('admin.php?page=oe-taxonomies')],
+            'locations'  => [__('Multiple locations', 'october-events'), admin_url('admin.php?page=oe-locations')],
+        ];
+        echo '<nav class="oe-seg oe-events-lens">';
+        foreach ($tabs as $key => [$label, $url]) {
+            printf('<a class="oe-seg-btn%s" href="%s">%s</a>', $key === $current ? ' is-on' : '', esc_url($url), esc_html($label));
+        }
+        echo '</nav>';
+    }
+
     /** Highlight the owning hub item on a hidden hub member or the package CPT. */
     public function highlight_people_menu($submenu_file) {
         $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        // Event Studio lives under Events in spirit; keep Events highlighted.
-        if ($page === 'oe-event-studio') {
+        // Event Studio, Taxonomies & filters and Multiple locations are all part
+        // of the Events area; keep Events highlighted on them.
+        if (in_array($page, ['oe-event-studio', 'oe-taxonomies', 'oe-locations'], true)) {
             return 'oe-events';
         }
         // The campaign composer belongs to the Email screen (Comms hub).

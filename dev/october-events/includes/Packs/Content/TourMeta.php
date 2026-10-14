@@ -20,7 +20,7 @@ final class TourMeta extends RepeaterMetabox {
     }
 
     protected static function box_title(): string {
-        return __('Tour locations', 'october-events');
+        return __('Multiple locations', 'october-events');
     }
 
     protected static function pack(): string {
@@ -29,8 +29,8 @@ final class TourMeta extends RepeaterMetabox {
 
     protected static function intro(bool $enabled): string {
         return $enabled
-            ? (string) __('The Tour pack is on, so these locations show on the event page with a day filter.', 'october-events')
-            : (string) __('Fill this in now; it shows once the Tour pack is switched on under Capabilities.', 'october-events');
+            ? (string) __('Multiple locations is on, so these show on the event page with a day filter.', 'october-events')
+            : (string) __('Fill this in now; it shows once Multiple locations is switched on under Capabilities.', 'october-events');
     }
 
     protected static function repeaters(): array {

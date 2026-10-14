@@ -978,7 +978,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             );
         ?></p>
         <details class="oe-acc" id="linked-site" open><summary><?php esc_html_e('Linked site', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description" style="max-width:820px"><?php esc_html_e('One connection between the two sites. The festival site pulls tour locations, thank-you codes and buy links from here; the ticket site verifies volunteers against it. The feed, the tour sync and the volunteer-check URL are all derived from the partner site below, so there is nothing else to keep matching.', 'october-events'); ?></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('One connection between the two sites. The festival site pulls locations, thank-you codes and buy links from here; the ticket site verifies volunteers against it. The feed, the location sync and the volunteer-check URL are all derived from the partner site below, so there is nothing else to keep matching.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr><th scope="row"><?php esc_html_e('Partner site URL', 'october-events'); ?></th>
                 <td><input type="url" name="volunteer_partner_url" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_partner_url'] ?? '')); ?>" placeholder="https://architecturetours.us">
@@ -1002,13 +1002,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 echo '<div class="notice notice-error inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Sync failed: %s', 'october-events'), $sync['error'])) . '</p></div>';
             } else {
                 $n = (int) ($sync['locations'] ?? 0);
-                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(_n('Synced — %d tour location available to pick.', 'Synced — %d tour locations available to pick.', $n, 'october-events'), $n)) . '</p></div>';
+                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(_n('Synced — %d location available to pick.', 'Synced — %d locations available to pick.', $n, 'october-events'), $n)) . '</p></div>';
             }
         }
         ?>
         <p>
             <button type="submit" name="oe_sync_after_save" value="1" class="button button-secondary"><?php esc_html_e('Save & sync now', 'october-events'); ?></button>
-            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last refreshed %s ago. Saves your changes first, then pulls tour locations and thank-you codes; also auto-refreshes daily.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls the tour locations and thank-you codes. Also runs automatically once a day.', 'october-events'); ?></span>
+            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last refreshed %s ago. Saves your changes first, then pulls locations and thank-you codes; also auto-refreshes daily.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls the locations and thank-you codes. Also runs automatically once a day.', 'october-events'); ?></span>
         </p>
         <script>
         (function(){

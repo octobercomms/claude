@@ -16,12 +16,13 @@ $outstanding = max(0, $total_rows - $total_promoted);
 ?>
 <div class="wrap oe-admin oe-locations">
     <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-        <span><?php esc_html_e('Tour locations', 'october-events'); ?></span>
+        <span><?php esc_html_e('Multiple locations', 'october-events'); ?></span>
         <span>
             <a class="button" href="<?php echo esc_url($loc_list); ?>"><?php esc_html_e('All locations', 'october-events'); ?></a>
             <a class="button button-primary" href="<?php echo esc_url($new_loc); ?>"><?php esc_html_e('+ New location', 'october-events'); ?></a>
         </span>
     </h1>
+    <?php \OE\Admin\Admin::events_lens('locations'); ?>
 
     <?php if (is_array($preview)) : ?>
         <div class="notice notice-<?php echo ! empty($preview['dry']) ? 'info' : 'success'; ?> is-dismissible inline"><p>
@@ -40,7 +41,7 @@ $outstanding = max(0, $total_rows - $total_promoted);
     </div>
 
     <div class="oe-ad-card">
-        <p><?php esc_html_e('This promotes the per-event Tour locations (the repeater on each event) into native Location records you can manage, feature and reuse. It is safe to run repeatedly: already-promoted rows are skipped, and the original repeater is left untouched.', 'october-events'); ?></p>
+        <p><?php esc_html_e('This promotes the per-event location rows (the repeater on each event) into native Location records you can manage, feature and reuse. It is safe to run repeatedly: already-promoted rows are skipped, and the original repeater is left untouched.', 'october-events'); ?></p>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <input type="hidden" name="action" value="oe_locations_promote">
             <?php wp_nonce_field('oe_locations_promote'); ?>
@@ -70,8 +71,8 @@ $outstanding = max(0, $total_rows - $total_promoted);
         </table>
     </div>
     <?php else : ?>
-        <div class="oe-ad-card"><strong><?php esc_html_e('No tour locations found.', 'october-events'); ?></strong><br>
-            <span class="description"><?php esc_html_e('Add locations to an event with the Tour pack, or create native Location records directly.', 'october-events'); ?></span>
+        <div class="oe-ad-card"><strong><?php esc_html_e('No locations found.', 'october-events'); ?></strong><br>
+            <span class="description"><?php esc_html_e('Add locations to an event with the Multiple locations capability, or create native Location records directly.', 'october-events'); ?></span>
         </div>
     <?php endif; ?>
 </div>
