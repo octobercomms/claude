@@ -22,7 +22,7 @@ $sym   = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
         <?php if ($tpl_venue !== '') : ?>
             <div class="poster-venue"><?php echo esc_html($tpl_venue); ?></div>
         <?php endif; ?>
-        <div class="poster-cta"><?php esc_html_e('Scan to buy a tour ticket', 'october-events'); ?></div>
+        <div class="poster-cta"><?php esc_html_e('Scan to buy a ticket', 'october-events'); ?></div>
         <div class="poster-qr" id="oe-door-qr"></div>
         <div class="poster-steps"><?php esc_html_e('Point your phone camera at the code, pick your tickets and pay. Your ticket is emailed to you.', 'october-events'); ?></div>
         <button type="button" class="poster-print" id="oe-door-print" onclick="window.print()"><?php esc_html_e('Print this sign', 'october-events'); ?></button>

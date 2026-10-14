@@ -91,6 +91,7 @@ $base_url   = admin_url('admin.php?page=oe-events');
             <a class="button button-primary" href="<?php echo esc_url($new_url); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
         </span>
     </h1>
+    <?php Admin::events_lens('events'); ?>
     <?php Admin::bento('listing'); ?>
 
     <div class="oe-ad-fchiprow">

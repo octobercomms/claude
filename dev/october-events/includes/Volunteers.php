@@ -122,13 +122,13 @@ final class Volunteers {
                     <?php endforeach; ?>
                 </optgroup>
                 <?php endif; ?>
-                <optgroup id="oe-loc-optgroup" label="<?php echo esc_attr(sprintf(__('Tour locations (%s)', 'october-events'), $feed_label)); ?>">
+                <optgroup id="oe-loc-optgroup" label="<?php echo esc_attr(sprintf(__('Locations (%s)', 'october-events'), $feed_label)); ?>">
                     <?php foreach ($feed_locs as $fl) : $rv = 'loc:' . (string) ($fl['ref'] ?? ''); ?>
                         <option value="<?php echo esc_attr($rv); ?>" <?php selected('loc:' . $linked_ref, $rv); ?>><?php echo esc_html((string) ($fl['title'] ?? '')); ?></option>
                     <?php endforeach; ?>
                 </optgroup>
             </select></label>
-            <button type="button" class="button button-small" id="oe-loc-refresh" style="margin-top:6px"><?php esc_html_e('↻ Refresh tour locations', 'october-events'); ?></button>
+            <button type="button" class="button button-small" id="oe-loc-refresh" style="margin-top:6px"><?php esc_html_e('↻ Refresh locations', 'october-events'); ?></button>
             <span class="description" id="oe-loc-refresh-msg" style="margin-left:6px"></span></p>
         <p><label><strong><?php esc_html_e('Role', 'october-events'); ?></strong><br>
             <input type="text" name="oe_role" class="widefat" value="<?php echo esc_attr($role); ?>" placeholder="e.g. Meet &amp; Greet Host"></label></p>
