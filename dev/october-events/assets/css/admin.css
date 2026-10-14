@@ -182,6 +182,11 @@
 .oe-admin .oe-vol-table{ max-width:100%; }
 .oe-admin .oe-vol-move{ display:inline-flex; gap:4px; align-items:center; margin-top:4px; }
 .oe-admin .oe-vol-move select{ max-width:220px; font-size:12px; }
+/* Opportunities list is a table; each row opens its detail in a slide-in. */
+.oe-admin .oe-vol-opps{ margin-top:14px; }
+.oe-admin .oe-vol-opps td{ vertical-align:middle; }
+.oe-admin .oe-vol-opps .oe-fillbar{ width:110px; }
+.oe-admin .oe-vol-opp-body{ padding-top:4px; }
 .oe-admin .oe-clash{ display:inline-block; margin-left:8px; font-size:11px; font-weight:800; color:var(--oe-red); white-space:nowrap; }
 .oe-admin .oe-clash-box{ margin:0 0 16px; padding:10px 14px; }
 .oe-admin .oe-clash-box ul{ margin:6px 0; }
