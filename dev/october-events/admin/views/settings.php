@@ -541,6 +541,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 
         </section>
         <section class="oe-set-panel" data-tab="checkout">
+        <p class="description" style="max-width:760px;margin:0 0 14px"><?php
+            printf(
+                /* translators: %s: link to the Tickets screen */
+                esc_html__('The everyday ticketing settings here (currency, fees, checkout, invoicing, timed tickets) also appear in “Settings for this page” on the %s screen. This page keeps the full configuration, including payment keys.', 'october-events'),
+                '<a href="' . esc_url(admin_url('admin.php?page=oe-tickets')) . '">' . esc_html__('Tickets', 'october-events') . '</a>'
+            );
+        ?></p>
         <details class="oe-acc" id="checkout" open><summary><?php esc_html_e('Checkout & tickets', 'october-events'); ?></summary><div class="oe-acc-body">
         <table class="form-table" role="presentation"><tbody>
             <tr>
@@ -763,6 +770,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </section>
 
         <section class="oe-set-panel" data-tab="emailsms">
+        <p class="description" style="max-width:760px;margin:0 0 14px"><?php
+            printf(
+                /* translators: %s: link to the Email screen */
+                esc_html__('The everyday email, SMS and chat settings here (sender, SES/Brevo, reports, SMS provider, live chat) also appear in “Settings for this page” on the %s screen. This page keeps the full configuration, including the encrypted keys.', 'october-events'),
+                '<a href="' . esc_url(admin_url('admin.php?page=oe-email')) . '">' . esc_html__('Email', 'october-events') . '</a>'
+            );
+        ?></p>
         <details class="oe-acc" id="subscribe"><summary><?php esc_html_e('Marketing signup', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('The public [oe_subscribe] signup form adds people to your marketing lists. With double opt-in on, a new signup must click a confirmation link before they are subscribed (recommended for deliverability and consent). This applies to the marketing form only, not to ticket buyers or volunteers.', 'october-events'); ?></p>
         <p><label><input type="checkbox" name="double_optin" value="1" <?php checked((bool) ($cfg['double_optin'] ?? true)); ?>> <?php esc_html_e('Require email confirmation (double opt-in)', 'october-events'); ?></label></p>
@@ -956,6 +970,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 
         </section>
         <section class="oe-set-panel" data-tab="volunteers">
+        <p class="description" style="max-width:760px;margin:0 0 14px"><?php
+            printf(
+                /* translators: %s: link to the Volunteers screen */
+                esc_html__('The everyday volunteer settings (signups, staff alerts, the daily roster, thank-you tickets) also appear in “Settings for this page” on the %s screen. This page keeps the full configuration, including the linked-site connection, email and SMS templates, and per-event reward codes.', 'october-events'),
+                '<a href="' . esc_url(admin_url('admin.php?page=oe-volunteers')) . '">' . esc_html__('Volunteers', 'october-events') . '</a>'
+            );
+        ?></p>
         <details class="oe-acc" id="linked-site" open><summary><?php esc_html_e('Linked site', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description" style="max-width:820px"><?php esc_html_e('One connection between the two sites. The festival site pulls tour locations, thank-you codes and buy links from here; the ticket site verifies volunteers against it. The feed, the tour sync and the volunteer-check URL are all derived from the partner site below, so there is nothing else to keep matching.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
