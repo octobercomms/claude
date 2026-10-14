@@ -173,12 +173,20 @@ final class Admin {
         if (! $this->hidden_slugs) {
             return;
         }
-        $sel = [];
+        // Two separate rules on purpose: the `a` rule works in every browser
+        // (hiding the link collapses the row), and the `:has` rule removes the
+        // empty <li> where supported. Keeping them apart means a browser without
+        // :has still applies the `a` rule rather than dropping the whole thing.
+        $a = [];
+        $li = [];
         foreach (array_unique($this->hidden_slugs) as $slug) {
-            $sel[] = '#adminmenu .wp-submenu a[href$="page=' . esc_attr($slug) . '"]';
-            $sel[] = '#adminmenu .wp-submenu li:has(> a[href$="page=' . esc_attr($slug) . '"])';
+            $a[]  = '#adminmenu .wp-submenu a[href$="page=' . esc_attr($slug) . '"]';
+            $li[] = '#adminmenu .wp-submenu li:has(> a[href$="page=' . esc_attr($slug) . '"])';
         }
-        echo '<style id="oe-hidden-submenus">' . implode(',', $sel) . '{display:none!important;}</style>';
+        echo '<style id="oe-hidden-submenus">'
+            . implode(',', $a) . '{display:none!important;}'
+            . implode(',', $li) . '{display:none!important;}'
+            . '</style>';
     }
 
     /**
