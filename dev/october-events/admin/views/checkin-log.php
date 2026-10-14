@@ -94,7 +94,7 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
         if ($att_pct >= 100 && $attended < $issued) { $att_pct = 99; }
         if ($att_pct <= 0   && $attended > 0)       { $att_pct = 1;  }
         $ns_pct   = $issued ? 100 - $att_pct : 0;
-        // Attendance pie (conic-gradient): attended (accent) vs no-show (grey).
+        // Attendance pie (conic-gradient): attended (accent) vs no-show (gray).
         // Keep the degree an integer: a float concatenated into CSS renders with
         // the LC_NUMERIC decimal separator on PHP 7.4 (a supported version), so a
         // comma locale would emit "129,6deg" and break the gradient. Sub-degree
@@ -174,7 +174,7 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
         $tod_multi = ! empty($slots_tod['multi_day']);
         $tod_max   = 0;
         foreach ($tod_slots as $ts) { $tod_max = max($tod_max, array_sum((array) $ts['counts'])); }
-        // Day colours for the stack: accent first, then a few distinct tones, cycled.
+        // Day colors for the stack: accent first, then a few distinct tones, cycled.
         $day_palette = [$accent, '#5b7b7a', '#b23b2a', '#8a6d3b', '#6b7280', '#2f6f4f'];
         ?>
         <div class="oe-panel oe-ci-times" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px 16px">

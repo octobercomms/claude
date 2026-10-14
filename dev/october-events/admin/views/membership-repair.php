@@ -91,6 +91,6 @@ $has_price = \OE\Membership\Repair::join_price() !== '';
                 <?php endforeach; ?>
             </tbody>
         </table>
-        <p class="description" style="margin-top:10px;max-width:820px"><?php esc_html_e('If a card won’t authorise the off-session charge, that person is left untouched and flagged above — send them the join link instead.', 'october-events'); ?></p>
+        <p class="description" style="margin-top:10px;max-width:820px"><?php esc_html_e('If a card won’t authorize the off-session charge, that person is left untouched and flagged above — send them the join link instead.', 'october-events'); ?></p>
     <?php endif; ?>
 </div>

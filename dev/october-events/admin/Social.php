@@ -206,7 +206,7 @@ final class Social {
         if (! $post_id || get_post_type($post_id) !== PostTypes::slug('event')) {
             wp_send_json_error(['message' => __('Save the event first, then generate.', 'october-events')]);
         }
-        // Authorise against THIS event, not "can edit posts in general" — otherwise
+        // Authorize against THIS event, not "can edit posts in general" — otherwise
         // any contributor could spend Claude credits on (and read captions derived
         // from) another author's private draft event.
         if (! current_user_can('edit_post', $post_id)) {

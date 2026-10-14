@@ -11,7 +11,7 @@
 defined('ABSPATH') || exit;
 $selected = isset($selected) ? (int) $selected : (isset($_GET['event']) ? absint($_GET['event']) : 0); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 ?>
-<p class="description" style="max-width:820px"><?php esc_html_e('Email everyone registered for an event — a change of venue, an added tour location, or any update. It goes to each registration’s email once; cancelled and refunded orders are excluded.', 'october-events'); ?></p>
+<p class="description" style="max-width:820px"><?php esc_html_e('Email everyone registered for an event — a change of venue, an added tour location, or any update. It goes to each registration’s email once; canceled and refunded orders are excluded.', 'october-events'); ?></p>
 
 <?php if (is_array($result)) :
     if (isset($result['error'])) : ?>

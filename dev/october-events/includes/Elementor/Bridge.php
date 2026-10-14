@@ -13,7 +13,7 @@ defined('ABSPATH') || exit;
  *
  * This is the piece that lets a bespoke Elementor template — e.g. Concrete
  * Communities' — paint the page and bind fields to native plugin data: a
- * **brand-colour** data tag feeds Elementor's colour controls (CC's per-event
+ * **brand-colour** data tag feeds Elementor's color controls (CC's per-event
  * page chrome), and a **field** text/URL tag feeds any text or link widget
  * (name, price, location, organiser, reference number, ticket link, …).
  *
@@ -53,7 +53,7 @@ final class Bridge {
             'end_datetime'     => __('End', 'october-events'),
             'price'            => __('Display price', 'october-events'),
             'location'         => __('Location', 'october-events'),
-            'organiser'        => __('Organiser', 'october-events'),
+            'organiser'        => __('Organizer', 'october-events'),
             'event_number'     => __('Reference number', 'october-events'),
             'ticket_link'      => __('Ticket link', 'october-events'),
             'ticket_link_text' => __('Ticket link text', 'october-events'),
@@ -105,7 +105,7 @@ final class Bridge {
             }
         };
 
-        // Brand-colour tag: feeds Elementor colour controls (CC's page chrome).
+        // Brand-colour tag: feeds Elementor color controls (CC's page chrome).
         $colour_tag = new class($color_cat, $group) extends \Elementor\Core\DynamicTags\Data_Tag {
             private $cats; private $grp;
             public function __construct($color, $grp, $data = [], $args = null) {
@@ -114,7 +114,7 @@ final class Bridge {
                 parent::__construct($data, $args);
             }
             public function get_name()       { return 'oe-brand-colour'; }
-            public function get_title()      { return __('October Events brand colour', 'october-events'); }
+            public function get_title()      { return __('October Events brand color', 'october-events'); }
             public function get_group()      { return $this->grp; }
             public function get_categories() { return $this->cats; }
             protected function get_value(array $options = []) {

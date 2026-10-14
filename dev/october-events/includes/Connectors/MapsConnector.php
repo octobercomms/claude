@@ -74,7 +74,7 @@ final class MapsConnector {
                 'festival_offer'=> get_post_meta($post->ID, '_oe_festival_offer', true),
                 'lat'           => $lat,
                 'lng'           => $lng,
-                // Featured/paid destinations get a distinct pin colour (§7).
+                // Featured/paid destinations get a distinct pin color (§7).
                 'featured'      => Fields::tier($post->ID) !== Fields::TIER_FREE,
             ];
         }

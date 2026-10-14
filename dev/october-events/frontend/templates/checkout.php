@@ -260,7 +260,7 @@ if ($membership_pitch === '') {
         </div>
       <?php endif; ?>
       <?php if (! $has_stripe && ! $has_paypal) : ?>
-        <p class="oct-error"><?php esc_html_e('No payment method configured. Please contact the organiser.', 'october-events'); ?></p>
+        <p class="oct-error"><?php esc_html_e('No payment method configured. Please contact the organizer.', 'october-events'); ?></p>
       <?php endif; ?>
     </div>
     </div>

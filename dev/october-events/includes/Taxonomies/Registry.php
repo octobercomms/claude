@@ -12,7 +12,7 @@ defined('ABSPATH') || exit;
  *
  * Admins define taxonomies (stored in one option) and attach them to one or more
  * listing types. Each is registered on `init` against the mapped CPTs, so terms
- * can be managed and queried like any taxonomy. Terms carry an optional colour
+ * can be managed and queried like any taxonomy. Terms carry an optional color
  * (term meta) and a taxonomy can be flagged "show as filter", which the
  * `[oe_listings]` archive picks up via `chips="auto"` / `filters="auto"`.
  *

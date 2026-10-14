@@ -24,10 +24,10 @@ final class TicketTypes {
     public const META_REENTRY    = '_oe_checkin_reentry'; // 1 = a ticket may scan in again at the same door (open-house re-entry); default block
 
     /**
-     * Whether the organiser flagged this event's schedule as irregular (different
+     * Whether the organizer flagged this event's schedule as irregular (different
      * hours on different days). A single start/end pair can't express that, and a
      * calendar link would repeat one window across every day, so when set we
-     * suppress the auto "add to calendar" link/.ics and show the organiser's own
+     * suppress the auto "add to calendar" link/.ics and show the organizer's own
      * dates/times text instead.
      */
     public static function is_irregular(int $event_id): bool {
@@ -121,7 +121,7 @@ final class TicketTypes {
 
     /**
      * The doors a ticket type is valid at. An empty list means every door —
-     * the default and the behaviour of every type saved before venue-scoping.
+     * the default and the behavior of every type saved before venue-scoping.
      * A non-empty list restricts the type (e.g. a "Serenbe (Sunday)" ticket set
      * to only the Serenbe homes).
      *

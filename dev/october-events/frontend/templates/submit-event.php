@@ -1,6 +1,6 @@
 <?php
 /**
- * Front-end "Submit your event" form (logged-in organisers).
+ * Front-end "Submit your event" form (logged-in organizers).
  *
  * @var string $action  admin-post.php URL
  * @var string $nonce   pre-rendered nonce field

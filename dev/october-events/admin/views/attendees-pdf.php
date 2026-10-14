@@ -5,7 +5,7 @@
  *
  * @var array<int,object> $rows        attendee rows
  * @var string            $brand       brand name
- * @var string            $accent      accent hex (brand colour)
+ * @var string            $accent      accent hex (brand color)
  * @var string            $ink         accent-on hex (text/foreground on the accent)
  * @var int               $event       event filter id (0 = all events)
  * @var string            $title       event title (or "All events")

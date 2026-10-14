@@ -14,7 +14,7 @@ defined('ABSPATH') || exit;
  * Participation, no-shows and cancels are computed live from the
  * {@see VolunteerSignups} table, so no new storage is needed for them. The only
  * stored state is the manual flag an admin raises against someone who no-showed
- * (or cancelled) yet still used their free ticket — the "we saw you" marker that
+ * (or canceled) yet still used their free ticket — the "we saw you" marker that
  * follows them into future years. Flags live in one option keyed by normalised
  * email; there are only ever a handful.
  *

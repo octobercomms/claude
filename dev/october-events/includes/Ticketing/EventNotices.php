@@ -11,7 +11,7 @@ use OE\PostTypes;
 defined('ABSPATH') || exit;
 
 /**
- * Notify ticket holders when an event is rescheduled or cancelled (BUILD-PLAN
+ * Notify ticket holders when an event is rescheduled or canceled (BUILD-PLAN
  * M6). A metabox on the event editor with two explicit, confirm-gated actions —
  * it never fires silently. The admin sees the holder count up front and a
  * browser confirm ("notify N holders?") before the send runs.
@@ -69,14 +69,14 @@ final class EventNotices {
 
         $url = admin_url('admin-post.php');
         $confirm_r = esc_js(sprintf(__('Email all %d ticket holders that this event has been rescheduled?', 'october-events'), $holders));
-        $confirm_c = esc_js(sprintf(__('Email all %d ticket holders that this event has been CANCELLED? This cannot be undone.', 'october-events'), $holders));
+        $confirm_c = esc_js(sprintf(__('Email all %d ticket holders that this event has been CANCELED? This cannot be undone.', 'october-events'), $holders));
 
         echo '<form id="oe-notice-form" method="post" action="' . esc_url($url) . '">';
         echo '<input type="hidden" name="action" value="oe_event_notice">';
         echo '<input type="hidden" name="id" value="' . esc_attr((string) $id) . '">';
         wp_nonce_field('oe_event_notice_' . $id);
         echo '<p><button type="submit" name="kind" value="rescheduled" class="button" onclick="return confirm(\'' . $confirm_r . '\')">' . esc_html__('Notify: rescheduled', 'october-events') . '</button></p>';
-        echo '<p><button type="submit" name="kind" value="cancelled" class="button button-link-delete" onclick="return confirm(\'' . $confirm_c . '\')">' . esc_html__('Notify: cancelled', 'october-events') . '</button></p>';
+        echo '<p><button type="submit" name="kind" value="cancelled" class="button button-link-delete" onclick="return confirm(\'' . $confirm_c . '\')">' . esc_html__('Notify: canceled', 'october-events') . '</button></p>';
         echo '</form>';
         echo '<p class="description">' . esc_html__('Each button emails every holder once. You are asked to confirm first — it never sends on its own.', 'october-events') . '</p>';
     }

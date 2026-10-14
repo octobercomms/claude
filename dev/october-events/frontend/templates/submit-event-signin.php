@@ -1,7 +1,7 @@
 <?php
 /**
  * Guest view of [oe_submit_event] — prompt to sign in before submitting.
- * Public organiser signup is a later slice; for now submitting requires a login.
+ * Public organizer signup is a later slice; for now submitting requires a login.
  */
 defined('ABSPATH') || exit;
 $login = wp_login_url(add_query_arg([], (string) ($_SERVER['REQUEST_URI'] ?? home_url('/'))));

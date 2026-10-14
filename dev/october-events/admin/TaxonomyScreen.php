@@ -12,7 +12,7 @@ defined('ABSPATH') || exit;
  * "Taxonomies & filters" admin screen (ADMIN-BUILD AD12).
  *
  * Define taxonomies, attach them to listing types, flag them as filters, and
- * manage their terms with colours. The registered taxonomies drive the
+ * manage their terms with colors. The registered taxonomies drive the
  * `[oe_listings]` facets (chips / dropdowns). Full editing of a single taxonomy
  * (adding terms) happens inline here; WordPress's own term screen remains
  * available too.

@@ -165,7 +165,7 @@ final class Theme {
         return false;
     }
 
-    /** Allow only a safe CSS token value (colours, lengths, keywords, shadows). */
+    /** Allow only a safe CSS token value (colors, lengths, keywords, shadows). */
     private static function safe(string $v): string {
         return preg_replace('/[^a-zA-Z0-9#%.,()\\- ]/', '', $v) ?? '';
     }

@@ -993,7 +993,7 @@ final class Volunteers {
         if (! $s) {
             return new \WP_Error('oe_not_found', __('That signup no longer exists.', 'october-events'));
         }
-        // Only a live booking can be moved. Moving a declined/cancelled/no-show
+        // Only a live booking can be moved. Moving a declined/canceled/no-show
         // signup would email the volunteer their "new shift" — contradicting the
         // decline/cancel they already received — and reset its reminders.
         if (! in_array($s->status, [VolunteerSignups::STATUS_PENDING, VolunteerSignups::STATUS_CONFIRMED], true)) {
@@ -1013,7 +1013,7 @@ final class Volunteers {
             return new \WP_Error('oe_shift_full', __('That shift is full.', 'october-events'));
         }
         // Never create a second live booking for the same person on the target.
-        // A declined/cancelled prior booking is not live, so it never blocks.
+        // A declined/canceled prior booking is not live, so it never blocks.
         $dead = [VolunteerSignups::STATUS_DECLINED, VolunteerSignups::STATUS_CANCELLED];
         foreach (VolunteerSignups::for_shift($to_opportunity, $to_shift) as $ex) {
             if ((int) $ex->id !== $signup_id
@@ -1050,7 +1050,7 @@ final class Volunteers {
     }
 
     /**
-     * The volunteer cancelled their own shift (via the link in their confirmation
+     * The volunteer canceled their own shift (via the link in their confirmation
      * email). Frees the slot and alerts staff — but does NOT email the volunteer:
      * they clicked cancel themselves and see an on-screen confirmation, so a
      * "your cancellation is confirmed" email would be noise. Idempotent.
@@ -1060,7 +1060,7 @@ final class Volunteers {
         if (! $s) {
             return false;
         }
-        // Already cancelled/declined — treat as success (link clicked twice).
+        // Already canceled/declined — treat as success (link clicked twice).
         if (in_array($s->status, [VolunteerSignups::STATUS_CANCELLED, VolunteerSignups::STATUS_DECLINED], true)) {
             return true;
         }
@@ -1096,9 +1096,9 @@ final class Volunteers {
         }
         $p    = self::email_params($s);
         $opp  = (string) ($p['opportunity'] ?? '');
-        $verb = $event === 'cancel' ? __('cancelled', 'october-events') : __('signed up', 'october-events');
+        $verb = $event === 'cancel' ? __('canceled', 'october-events') : __('signed up', 'october-events');
 
-        /* translators: 1: volunteer name, 2: signed up/cancelled, 3: opportunity */
+        /* translators: 1: volunteer name, 2: signed up/canceled, 3: opportunity */
         $subject = sprintf(__('Volunteer %2$s: %1$s — %3$s', 'october-events'), $s->name, $verb, $opp);
 
         $lines = [
@@ -1398,7 +1398,7 @@ final class Volunteers {
         ];
     }
 
-    /** Fill-health colour token for a percentage: full=green, half=amber, low/empty=red. */
+    /** Fill-health color token for a percentage: full=green, half=amber, low/empty=red. */
     public static function fill_color(int $pct): string {
         if ($pct >= 100) {
             return 'green';

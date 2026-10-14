@@ -73,7 +73,7 @@ defined('ABSPATH') || exit;
     <section class="oe-panel" data-panel="settings">
         <h2><?php esc_html_e('Account settings', 'october-events'); ?></h2>
         <form id="oe-account-form" class="oe-form">
-            <label><?php esc_html_e('Organisation', 'october-events'); ?><input type="text" name="organisation_name"></label>
+            <label><?php esc_html_e('Organization', 'october-events'); ?><input type="text" name="organisation_name"></label>
             <label><?php esc_html_e('Contact name', 'october-events'); ?><input type="text" name="contact_name"></label>
             <label><?php esc_html_e('Phone', 'october-events'); ?><input type="text" name="phone"></label>
             <label><?php esc_html_e('Billing address', 'october-events'); ?><textarea name="billing_address" rows="3"></textarea></label>

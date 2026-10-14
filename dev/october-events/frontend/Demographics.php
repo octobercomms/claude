@@ -44,7 +44,7 @@ final class Demographics {
             $out .= '<p class="oe-demo__ok">' . esc_html__('No problem — skipped.', 'october-events') . '</p>';
         }
         $out .= '<h2>' . esc_html__('A little about you (optional)', 'october-events') . '</h2>'
-            . '<p class="oe-demo__intro">' . esc_html__('This helps us shape the programme. It is entirely optional, never shared, and you can clear it any time.', 'october-events') . '</p>';
+            . '<p class="oe-demo__intro">' . esc_html__('This helps us shape the program. It is entirely optional, never shared, and you can clear it any time.', 'october-events') . '</p>';
 
         $action = esc_url(admin_url('admin-post.php'));
         $out .= '<form class="oe-demo__form" method="post" action="' . $action . '">'

@@ -56,7 +56,7 @@ $gross_profit = max(0, $total_revenue - $fees);
     </p>
 
     <?php if (! empty($oe_embed) && $event_id) : ?>
-        <p style="margin:6px 0 12px"><span class="description"><?php esc_html_e('Analysing:', 'october-events'); ?></span>
+        <p style="margin:6px 0 12px"><span class="description"><?php esc_html_e('Analyzing:', 'october-events'); ?></span>
             <strong><?php echo esc_html(get_the_title($event_id) ?: ('#' . (int) $event_id)); ?></strong>
             <span class="description"><?php esc_html_e('— pick a different event in the selector at the top of the page.', 'october-events'); ?></span></p>
     <?php endif; ?>

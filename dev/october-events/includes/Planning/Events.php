@@ -39,19 +39,19 @@ final class Events {
         'ticket_required' => 'bool',
         'notes'           => 'textarea', // internal only, never published
         // Second-tenant base fields (BUILD-PLAN M1, Concrete Communities parity).
-        // A reference number, a per-listing brand colour + image (CC paints the
-        // whole page from this; distinct from a category colour or status badge),
+        // A reference number, a per-listing brand color + image (CC paints the
+        // whole page from this; distinct from a category color or status badge),
         // and an external ticket link so a listing can link out (EventBrite)
         // instead of selling natively. All optional and additive.
         'event_number'       => 'text',
         'brand_colour'       => 'color', // #rrggbb; exposed as an Elementor dynamic tag in M3
-        'brand_colour_image' => 'int',   // attachment ID for the colour/hero image
+        'brand_colour_image' => 'int',   // attachment ID for the color/hero image
         'ticket_link'        => 'url',   // external ticketing URL (blank = native checkout)
         'ticket_link_text'   => 'text',  // button label for the external link
         // Structured fields (FIELD-MAPPING §structured): replace the old
         // HTML-in-a-field patterns with data the template renders. Availability
         // retires the sat_only/sun_only switcher pair; the status badge is a
-        // preset (dropdown, brand colour + readable text) for exceptions only.
+        // preset (dropdown, brand color + readable text) for exceptions only.
         'availability'       => 'text',  // saturday | sunday | both | specific | ''
         'status_preset'      => 'text',  // new | rescheduled | soldout | cancelled | ''
         'status_text'        => 'text',  // optional custom label; else derived from preset
@@ -65,12 +65,12 @@ final class Events {
         'specific' => 'Specific date',
     ];
 
-    /** Status preset => [label, background, text colour]. Brand-approved, accessible. */
+    /** Status preset => [label, background, text color]. Brand-approved, accessible. */
     public const STATUS_PRESETS = [
         'new'         => ['New', '#2e7d32', '#ffffff'],
         'rescheduled' => ['Rescheduled', '#b86e00', '#ffffff'],
         'soldout'     => ['Sold out', '#c62828', '#ffffff'],
-        'cancelled'   => ['Cancelled', '#555555', '#ffffff'],
+        'cancelled'   => ['Canceled', '#555555', '#ffffff'],
     ];
 
     public static function slug(): string {

@@ -13,7 +13,7 @@ defined('ABSPATH') || exit;
  * the volunteer confirmation/reminder email.
  *
  * No login required: the link carries the signup id plus a secret per-row
- * cancel token. To avoid email clients / link-scanners silently cancelling a
+ * cancel token. To avoid email clients / link-scanners silently canceling a
  * shift by pre-fetching the URL, the GET link only shows a confirmation page;
  * the cancellation happens on the POST from that page's button (the same model
  * as the one-click unsubscribe link).
@@ -87,7 +87,7 @@ final class Cancel {
         if ($state === self::STATE_INVALID) {
             echo '<p>' . esc_html__('This cancellation link is invalid or has expired. If you need to cancel a shift, just reply to your confirmation email.', 'october-events') . '</p>';
         } elseif ($state === self::STATE_DONE) {
-            echo '<p>' . esc_html__('Your shift has been cancelled. Thanks for letting us know — we hope to see you at another tour.', 'october-events') . '</p>';
+            echo '<p>' . esc_html__('Your shift has been canceled. Thanks for letting us know — we hope to see you at another tour.', 'october-events') . '</p>';
             if ($opp !== '') {
                 echo '<p class="k">' . esc_html($opp) . ($shift !== '' ? ' · ' . esc_html($shift) : '') . '</p>';
             }

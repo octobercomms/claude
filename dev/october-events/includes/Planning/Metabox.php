@@ -16,7 +16,7 @@ defined('ABSPATH') || exit;
  * additively over a live site (adoption mode).
  *
  * Carries the base event fields plus the second-tenant base fields (reference
- * number, per-listing brand colour + image, external ticket link). The richer
+ * number, per-listing brand color + image, external ticket link). The richer
  * structured fields (link-aware credits, availability, status badge) land in a
  * follow-on; this is the core that unblocks a native install.
  */
@@ -67,7 +67,7 @@ final class Metabox {
         echo '<div class="oe-ed-grid">';
 
         self::text('name', __('Event name', 'october-events'), $v('name'), 'e.g. Creative Futures Conference');
-        self::text('organiser', __('Organiser', 'october-events'), $v('organiser'), '');
+        self::text('organiser', __('Organizer', 'october-events'), $v('organiser'), '');
         self::text('start_datetime', __('Start', 'october-events'), $v('start_datetime'), 'YYYY-MM-DD HH:MM');
         self::text('end_datetime', __('End', 'october-events'), $v('end_datetime'), 'YYYY-MM-DD HH:MM');
         self::text('start_time', __('Daily start time (optional)', 'october-events'), $v('start_time'), 'HH:MM');
@@ -85,7 +85,7 @@ final class Metabox {
         echo '<hr style="margin:16px 0"><p style="font-weight:700;margin:0 0 8px">' . esc_html__('Listing fields', 'october-events') . '</p>';
         echo '<div class="oe-ed-grid">';
         self::text('event_number', __('Reference number', 'october-events'), $v('event_number'), 'e.g. 013');
-        self::color('brand_colour', __('Brand colour', 'october-events'), $v('brand_colour'));
+        self::color('brand_colour', __('Brand color', 'october-events'), $v('brand_colour'));
         self::text('ticket_link', __('External ticket link (optional)', 'october-events'), $v('ticket_link'), 'https://…  (blank = native checkout)', 'url');
         self::text('ticket_link_text', __('External link button text', 'october-events'), $v('ticket_link_text'), 'e.g. Book tickets');
         echo '</div>';
@@ -105,12 +105,12 @@ final class Metabox {
         }
         echo '</select></p>';
         echo '</div>';
-        echo '<p class="description" style="margin:4px 0 0">' . esc_html__('The preset carries a brand colour and readable text — no pasted HTML. Leave the status as None for a routine listing; availability renders its own note.', 'october-events') . '</p>';
+        echo '<p class="description" style="margin:4px 0 0">' . esc_html__('The preset carries a brand color and readable text — no pasted HTML. Leave the status as None for a routine listing; availability renders its own note.', 'october-events') . '</p>';
 
-        // Brand colour image.
+        // Brand color image.
         $img_id  = (int) $v('brand_colour_image');
         $img_src = $img_id ? wp_get_attachment_image_url($img_id, 'thumbnail') : '';
-        echo '<p style="margin-top:12px"><label style="font-weight:600">' . esc_html__('Brand colour image', 'october-events') . '</label>';
+        echo '<p style="margin-top:12px"><label style="font-weight:600">' . esc_html__('Brand color image', 'october-events') . '</label>';
         echo '<span class="oe-ed-img" id="oe-ed-img">';
         echo '<img src="' . esc_url((string) $img_src) . '" alt=""' . ($img_src ? '' : ' style="display:none"') . '>';
         echo '<input type="hidden" name="oe_event[brand_colour_image]" id="oe-ed-img-id" value="' . esc_attr((string) ($img_id ?: '')) . '">';

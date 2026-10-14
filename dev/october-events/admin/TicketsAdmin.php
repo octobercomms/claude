@@ -101,7 +101,7 @@ final class TicketsAdmin {
         require OE_DIR . 'admin/views/_tix-attendee-panel.php';
     }
 
-    /** Order control-centre slide-in: summary, payment, tickets, history, actions. */
+    /** Order control-center slide-in: summary, payment, tickets, history, actions. */
     private function render_order_panel(int $order_id): void {
         $order = $order_id ? Orders::get($order_id) : null;
         if (! $order) {
@@ -1030,7 +1030,7 @@ final class TicketsAdmin {
 
     /* ------------------------------------------------------------------ *
      * Transactions — one page: every payment (paid, refunded, failed and
-     * abandoned) in a single searchable, sortable, colour-coded list, with the
+     * abandoned) in a single searchable, sortable, color-coded list, with the
      * failed-reasons chart and abandoned-cart summary on top.
      * ------------------------------------------------------------------ */
 
@@ -1478,7 +1478,7 @@ final class TicketsAdmin {
     }
 
     /**
-     * A branded, print-optimised attendee sheet. Renders a standalone HTML page
+     * A branded, print-optimized attendee sheet. Renders a standalone HTML page
      * that opens the browser's print dialog (Save as PDF), matching the plugin's
      * ticket/door "print" pattern — no server-side PDF library needed.
      */

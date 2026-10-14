@@ -29,7 +29,7 @@ final class Orders {
      * Acquire a MySQL advisory lock (server-global) to serialize the capacity
      * check + issue, and payment idempotency, across concurrent requests. Fails
      * OPEN: if it can't be acquired (timeout / unsupported) we proceed rather
-     * than block a sale — worst case reverts to the pre-lock behaviour.
+     * than block a sale — worst case reverts to the pre-lock behavior.
      */
     private static function lock(string $key, int $timeout = 8): bool {
         if ($key === '') {
@@ -59,8 +59,8 @@ final class Orders {
 
     /**
      * Distinct registration email addresses (with a display name) for an event —
-     * everyone with a live order, so an organiser can message that event's
-     * attendees. Grouped by email so a repeat buyer is contacted once; cancelled
+     * everyone with a live order, so an organizer can message that event's
+     * attendees. Grouped by email so a repeat buyer is contacted once; canceled
      * and refunded orders are excluded. Ordered by email for a stable cursor.
      *
      * @return array<int,array{email:string,name:string}>
@@ -923,7 +923,7 @@ final class Orders {
      * Send ONE confirmation covering a set of orders — the buyer gets a single
      * email with every active ticket across the cart, rather than a partial email
      * per ticket type (and, before this, a lost email when the per-order cron
-     * events raced each other). Cancelled/refunded tickets are left out, so a
+     * events raced each other). Canceled/refunded tickets are left out, so a
      * resend after a partial refund never re-issues voided passes.
      *
      * @param array<int,int> $order_ids

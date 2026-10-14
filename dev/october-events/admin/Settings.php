@@ -195,7 +195,7 @@ final class Settings {
     }
 
     /**
-     * Reveal a single saved secret to an authorised admin, on demand — so the
+     * Reveal a single saved secret to an authorized admin, on demand — so the
      * "show" eye can display a saved API key / token (e.g. to copy it to another
      * site) without echoing every secret into the page on load. Admin + nonce
      * gated; refuses values pinned by a wp-config constant.
@@ -666,7 +666,7 @@ final class Settings {
      *
      * @return array<int,string>
      */
-    /** Accept a #rrggbb hex colour, or '' to fall back to the platform default. */
+    /** Accept a #rrggbb hex color, or '' to fall back to the platform default. */
     private static function clean_color(string $raw): string {
         $raw = trim($raw);
         if ($raw === '') {

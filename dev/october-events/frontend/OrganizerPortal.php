@@ -110,7 +110,7 @@ final class OrganizerPortal {
         $base = remove_query_arg(['oe_tab', 'oe_edit', 'oe_new', 'oe_saved']);
         $links = '<div class="oe-portal__modules">'
             . '<a class="oe-module" href="' . esc_url(add_query_arg('oe_tab', 'packages', $base)) . '"><span class="oe-module__ic">🏷</span><span><span class="oe-module__t">' . esc_html__('Choose a package', 'october-events') . '</span><span class="oe-module__d">' . esc_html__('Compare partner packages and pick one.', 'october-events') . '</span></span></a>'
-            . '<a class="oe-module" href="' . esc_url(add_query_arg('oe_tab', 'activities', $base)) . '"><span class="oe-module__ic">🗓</span><span><span class="oe-module__t">' . esc_html__('Add an activity', 'october-events') . '</span><span class="oe-module__d">' . esc_html__('Submit an event for the programme.', 'october-events') . '</span></span></a>'
+            . '<a class="oe-module" href="' . esc_url(add_query_arg('oe_tab', 'activities', $base)) . '"><span class="oe-module__ic">🗓</span><span><span class="oe-module__t">' . esc_html__('Add an activity', 'october-events') . '</span><span class="oe-module__d">' . esc_html__('Submit an event for the program.', 'october-events') . '</span></span></a>'
             . '</div>';
         return $tiles . $links;
     }

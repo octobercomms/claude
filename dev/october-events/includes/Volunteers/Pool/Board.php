@@ -8,7 +8,7 @@ defined('ABSPATH') || exit;
 /**
  * Volunteer-pool recruitment board (volunteer-pool.md step 2, admin side).
  * A read-only screen: each window×role against its target with a live signed-up
- * count and a status cue, so the organiser sees exactly where to keep recruiting
+ * count and a status cue, so the organizer sees exactly where to keep recruiting
  * and when to stop. Below it, the list of registered volunteers.
  *
  * Counts come from the pool table: a registration counts toward a window when
