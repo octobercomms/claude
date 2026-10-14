@@ -62,9 +62,9 @@ final class Registry {
             'builtin'  => false,
         ],
         'tour' => [
-            'label'    => 'Tour / multi-location',
+            'label'    => 'Multiple locations',
             'icon'     => '🗺',
-            'desc'     => 'One or more locations with timed-slot guided bookings and a map.',
+            'desc'     => 'One or more locations with a map and optional timed-slot bookings.',
             'sections' => ['[oe_tour_locations]', '[oe_event_map]'],
             'builtin'  => true,
         ],

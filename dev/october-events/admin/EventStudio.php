@@ -90,6 +90,14 @@ final class EventStudio {
         $id    = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
         $input = isset($_POST['oe_event']) && is_array($_POST['oe_event']) ? (array) wp_unslash($_POST['oe_event']) : [];
 
+        // The date pickers post "YYYY-MM-DDTHH:MM"; store the canonical
+        // "YYYY-MM-DD HH:MM" so the front end and schema read it cleanly.
+        foreach (['start_datetime', 'end_datetime'] as $df) {
+            if (isset($input[$df]) && is_string($input[$df]) && $input[$df] !== '') {
+                $input[$df] = str_replace('T', ' ', $input[$df]);
+            }
+        }
+
         $title = trim((string) ($input['name'] ?? ''));
         if ($title === '') {
             $title = __('Untitled event', 'october-events');

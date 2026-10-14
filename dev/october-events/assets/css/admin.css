@@ -434,7 +434,20 @@
 
 /* ---- Event Studio: split-pane editor --------------------------------- */
 .oe-admin.oe-es{ margin-right:16px; }
-.oe-admin .oe-es-grid{ display:grid; grid-template-columns:minmax(380px,460px) 1fr; gap:20px; align-items:start; }
+.oe-admin .oe-es-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+.oe-admin .oe-es-h1{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.oe-admin .oe-es-h1-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.oe-admin .oe-es-wysiwyg{ margin:0 0 12px; }
+.oe-admin .oe-es-wysiwyg .wp-editor-container{ border-radius:8px; overflow:hidden; }
+.oe-admin .oe-es-seg{ display:flex; gap:8px; flex-wrap:wrap; }
+.oe-admin .oe-es-seg label{ display:inline-flex; align-items:center; gap:6px; border:1px solid #e3e2db; border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:600; cursor:pointer; }
+.oe-admin .oe-es-seg label:has(input:checked){ background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+.oe-admin .oe-es-regpane{ margin:0; }
+.oe-admin .oe-es-statusbtns{ display:flex; gap:8px; margin:10px 0 0; }
+.oe-admin details.oe-es-secref-acc > summary, .oe-admin details.oe-es-adv-acc > summary{ list-style:none; }
+.oe-admin details.oe-es-secref-acc > summary::-webkit-details-marker, .oe-admin details.oe-es-adv-acc > summary::-webkit-details-marker{ display:none; }
+.oe-admin details.oe-es-secref-acc > summary::before, .oe-admin details.oe-es-adv-acc > summary::before{ content:"▸ "; color:#888; font-size:11px; }
+.oe-admin details.oe-es-secref-acc[open] > summary::before, .oe-admin details.oe-es-adv-acc[open] > summary::before{ content:"▾ "; }
 .oe-admin .oe-es-left{ display:flex; flex-direction:column; gap:16px; }
 .oe-admin .oe-es-right{ position:sticky; top:40px; }
 .oe-admin .oe-es-f{ display:block; margin:0 0 12px; }

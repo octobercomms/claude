@@ -19,6 +19,7 @@ use OE\Packs\Content\TourMeta;
 use OE\Admin\SlideIn;
 
 $packs_state = Registry::all_for($id);
+$site_name   = (string) get_bloginfo('name');
 
 $v = static fn(string $f): string => (string) ($values[$f] ?? '');
 $field = static function (string $name, string $label, string $value, string $type = 'text', string $ph = '') {
@@ -31,11 +32,42 @@ $field = static function (string $name, string $label, string $value, string $ty
         esc_attr($ph)
     );
 };
+// Normalize a stored date value (bare "Y-m-d H:i", a "T" variant, or a unix
+// timestamp) into the <input type="datetime-local"> format.
+$dtl = static function (string $val): string {
+    $val = trim($val);
+    if ($val === '') {
+        return '';
+    }
+    if (preg_match('/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/', $val, $m)) {
+        return $m[1] . 'T' . $m[2];
+    }
+    if (ctype_digit($val)) {
+        return wp_date('Y-m-d\TH:i', (int) $val);
+    }
+    $ts = strtotime($val);
+    return $ts ? gmdate('Y-m-d\TH:i', $ts) : '';
+};
+$tl = static function (string $val): string {
+    $val = trim($val);
+    if ($val === '') {
+        return '';
+    }
+    if (preg_match('/^\d{1,2}:\d{2}$/', $val)) {
+        return substr('0' . $val, -5);
+    }
+    $ts = strtotime($val);
+    return $ts ? gmdate('H:i', $ts) : '';
+};
+$reg_mode = $v('ticket_required') !== '1' ? 'none' : ($v('ticket_link') !== '' ? 'external' : 'native');
 ?>
 <div class="wrap oe-admin oe-es">
-    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <h1 class="oe-es-h1">
         <span><?php echo $id > 0 ? esc_html__('Edit event', 'october-events') : esc_html__('New event', 'october-events'); ?></span>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-events')); ?>">&larr; <?php esc_html_e('All events', 'october-events'); ?></a>
+        <span class="oe-es-h1-actions">
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-events')); ?>">&larr; <?php esc_html_e('All events', 'october-events'); ?></a>
+            <button type="submit" form="oe-es-form" class="button button-primary"><?php esc_html_e('Save event', 'october-events'); ?></button>
+        </span>
     </h1>
 
     <?php if (isset($_GET['saved'])) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
@@ -52,40 +84,36 @@ $field = static function (string $name, string $label, string $value, string $ty
                 <div class="oe-section-label"><?php esc_html_e('The basics', 'october-events'); ?></div>
                 <?php
                 $field('name', __('Event name', 'october-events'), $v('name'), 'text', 'e.g. Creative Futures Conference');
-                $field('organiser', __('Organiser', 'october-events'), $v('organiser'), 'text', 'e.g. Atlanta Design Festival');
+                $field('organiser', __('Organizer', 'october-events'), $v('organiser'), 'text', $site_name !== '' ? sprintf(__('e.g. %s', 'october-events'), $site_name) : __('e.g. Acme Design Studio', 'october-events'));
                 ?>
-                <label class="oe-es-f"><span><?php esc_html_e('Description', 'october-events'); ?></span>
-                    <textarea name="oe_event[description]" data-live rows="4"><?php echo esc_textarea($v('description')); ?></textarea>
-                </label>
-                <div class="oe-es-row">
+                <label class="oe-es-f"><span><?php esc_html_e('Description', 'october-events'); ?></span></label>
+                <div class="oe-es-wysiwyg">
                     <?php
-                    $field('start_datetime', __('Start', 'october-events'), $v('start_datetime'), 'text', 'YYYY-MM-DD HH:MM');
-                    $field('end_datetime', __('End', 'october-events'), $v('end_datetime'), 'text', 'YYYY-MM-DD HH:MM');
+                    wp_editor($v('description'), 'oe_event_description', [
+                        'textarea_name' => 'oe_event[description]',
+                        'media_buttons' => false,
+                        'textarea_rows' => 8,
+                        'teeny'         => false,
+                        'quicktags'     => true,
+                    ]);
                     ?>
                 </div>
                 <div class="oe-es-row">
-                    <?php
-                    $field('start_time', __('Daily start (optional)', 'october-events'), $v('start_time'), 'text', 'HH:MM');
-                    $field('end_time', __('Daily end (optional)', 'october-events'), $v('end_time'), 'text', 'HH:MM');
-                    ?>
+                    <label class="oe-es-f"><span><?php esc_html_e('Start', 'october-events'); ?></span><input type="datetime-local" name="oe_event[start_datetime]" value="<?php echo esc_attr($dtl($v('start_datetime'))); ?>" data-live></label>
+                    <label class="oe-es-f"><span><?php esc_html_e('End', 'october-events'); ?></span><input type="datetime-local" name="oe_event[end_datetime]" value="<?php echo esc_attr($dtl($v('end_datetime'))); ?>" data-live></label>
+                </div>
+                <div class="oe-es-row">
+                    <label class="oe-es-f"><span><?php esc_html_e('Daily start (optional)', 'october-events'); ?></span><input type="time" name="oe_event[start_time]" value="<?php echo esc_attr($tl($v('start_time'))); ?>" data-live></label>
+                    <label class="oe-es-f"><span><?php esc_html_e('Daily end (optional)', 'october-events'); ?></span><input type="time" name="oe_event[end_time]" value="<?php echo esc_attr($tl($v('end_time'))); ?>" data-live></label>
                 </div>
                 <div class="oe-es-row">
                     <?php
-                    $field('location', __('Location', 'october-events'), $v('location'), 'text', 'e.g. The Old Selfridges Hotel');
-                    $field('price', __('Display price', 'october-events'), $v('price'), 'text', 'e.g. Free, £45, From £10');
+                    $field('location', __('Location', 'october-events'), $v('location'), 'text', 'e.g. Pullman Yards, Atlanta GA');
+                    $field('price', __('Display price', 'october-events'), $v('price'), 'text', 'e.g. Free, $45, From $10');
                     ?>
                 </div>
-            </div>
 
-            <div class="oe-ad-card">
-                <div class="oe-section-label"><?php esc_html_e('Tickets & status', 'october-events'); ?></div>
-                <label class="oe-es-f oe-es-check"><input type="checkbox" name="oe_event[ticket_required]" value="1" data-live <?php checked($v('ticket_required') === '1'); ?>> <span><?php esc_html_e('A ticket is required to attend', 'october-events'); ?></span></label>
-                <div class="oe-es-row">
-                    <?php
-                    $field('ticket_link', __('External ticket link (optional)', 'october-events'), $v('ticket_link'), 'url', 'https://…  blank = native checkout');
-                    $field('ticket_link_text', __('External link button text', 'october-events'), $v('ticket_link_text'), 'text', 'e.g. Book tickets');
-                    ?>
-                </div>
+                <div class="oe-section-label" style="margin-top:14px"><?php esc_html_e('Availability & status', 'october-events'); ?></div>
                 <div class="oe-es-row">
                     <label class="oe-es-f"><span><?php esc_html_e('Availability', 'october-events'); ?></span>
                         <select name="oe_event[availability]" data-live>
@@ -95,8 +123,8 @@ $field = static function (string $name, string $label, string $value, string $ty
                             <?php endforeach; ?>
                         </select>
                     </label>
-                    <label class="oe-es-f"><span><?php esc_html_e('Status badge', 'october-events'); ?></span>
-                        <select name="oe_event[status_preset]" data-live>
+                    <label class="oe-es-f"><span><?php esc_html_e('Status badge (exceptions only)', 'october-events'); ?></span>
+                        <select name="oe_event[status_preset]" id="oe-es-statuspreset" data-live>
                             <option value=""><?php esc_html_e('None (routine)', 'october-events'); ?></option>
                             <?php foreach (Events::STATUS_PRESETS as $k => $preset) : ?>
                                 <option value="<?php echo esc_attr($k); ?>" <?php selected($v('status_preset'), $k); ?>><?php echo esc_html($preset[0]); ?></option>
@@ -104,28 +132,29 @@ $field = static function (string $name, string $label, string $value, string $ty
                         </select>
                     </label>
                 </div>
+                <p class="oe-es-statusbtns">
+                    <button type="button" class="button button-small" data-set-preset="rescheduled"><?php esc_html_e('Reschedule…', 'october-events'); ?></button>
+                    <button type="button" class="button button-small" data-set-preset="cancelled"><?php esc_html_e('Cancel event…', 'october-events'); ?></button>
+                </p>
             </div>
 
             <div class="oe-ad-card">
-                <div class="oe-section-label"><?php esc_html_e('Branding & media', 'october-events'); ?></div>
-                <div class="oe-es-row">
-                    <?php
-                    $field('event_number', __('Reference number', 'october-events'), $v('event_number'), 'text', 'e.g. 013');
-                    $field('brand_colour', __('Brand colour', 'october-events'), $v('brand_colour'), 'text', '#000000');
-                    ?>
+                <div class="oe-section-label"><?php esc_html_e('Registration', 'october-events'); ?></div>
+                <input type="hidden" name="oe_event[ticket_required]" id="oe-es-ticketreq" value="<?php echo $v('ticket_required') === '1' ? '1' : ''; ?>">
+                <div class="oe-es-seg" role="radiogroup">
+                    <label><input type="radio" name="oe_reg_mode" value="none" data-reg-mode <?php checked($reg_mode, 'none'); ?>> <?php esc_html_e('Free / no ticket', 'october-events'); ?></label>
+                    <label><input type="radio" name="oe_reg_mode" value="native" data-reg-mode <?php checked($reg_mode, 'native'); ?>> <?php esc_html_e('Sell on this site', 'october-events'); ?></label>
+                    <label><input type="radio" name="oe_reg_mode" value="external" data-reg-mode <?php checked($reg_mode, 'external'); ?>> <?php esc_html_e('External ticket link', 'october-events'); ?></label>
                 </div>
-                <div class="oe-es-media">
-                    <span class="oe-es-f-label"><?php esc_html_e('Featured image', 'october-events'); ?></span>
-                    <span class="oe-es-img" id="oe-es-img">
-                        <img src="<?php echo esc_url($thumb_src); ?>" alt=""<?php echo $thumb_src ? '' : ' style="display:none"'; ?>>
-                        <input type="hidden" name="featured_image" id="oe-es-img-id" value="<?php echo (int) ($thumb ?: 0); ?>">
-                        <button type="button" class="button" id="oe-es-img-pick"><?php esc_html_e('Choose image', 'october-events'); ?></button>
-                        <button type="button" class="button-link" id="oe-es-img-clear"<?php echo $thumb ? '' : ' style="display:none"'; ?>><?php esc_html_e('Remove', 'october-events'); ?></button>
-                    </span>
+                <div class="oe-es-regpane" id="oe-es-reg-native"<?php echo $reg_mode === 'native' ? '' : ' hidden'; ?>>
+                    <p class="description" style="margin:10px 0 0"><?php esc_html_e('Attendees buy on this site. Ticket types, prices and capacity are set in the Tickets section (the Tickets capability is switched on for you).', 'october-events'); ?></p>
                 </div>
-                <label class="oe-es-f"><span><?php esc_html_e('Internal notes (never published)', 'october-events'); ?></span>
-                    <textarea name="oe_event[notes]" rows="2"><?php echo esc_textarea($v('notes')); ?></textarea>
-                </label>
+                <div class="oe-es-regpane" id="oe-es-reg-external"<?php echo $reg_mode === 'external' ? '' : ' hidden'; ?>>
+                    <div class="oe-es-row" style="margin-top:10px">
+                        <label class="oe-es-f"><span><?php esc_html_e('External ticket link', 'october-events'); ?></span><input type="url" name="oe_event[ticket_link]" id="oe-es-ticketlink" value="<?php echo esc_attr($v('ticket_link')); ?>" placeholder="https://…" data-live></label>
+                        <label class="oe-es-f"><span><?php esc_html_e('Button text', 'october-events'); ?></span><input type="text" name="oe_event[ticket_link_text]" id="oe-es-ticketlinktext" value="<?php echo esc_attr($v('ticket_link_text')); ?>" placeholder="<?php esc_attr_e('e.g. Book tickets', 'october-events'); ?>" data-live></label>
+                    </div>
+                </div>
             </div>
 
             <div class="oe-ad-card">
@@ -140,19 +169,46 @@ $field = static function (string $name, string $label, string $value, string $ty
                     </label>
                 <?php endforeach; ?>
                 <?php if ($id > 0) : ?>
-                    <p style="margin:12px 0 0"><?php echo SlideIn::trigger('oe-es-tour', __('Edit tour locations', 'october-events'), 'button button-small'); ?> <span class="description"><?php esc_html_e('Stops, images and design credits for the Tour pack.', 'october-events'); ?></span></p>
+                    <p style="margin:12px 0 0"><?php echo SlideIn::trigger('oe-es-tour', __('Edit locations', 'october-events'), 'button button-small'); ?> <span class="description"><?php esc_html_e('Stops, images and design credits for a multi-location event.', 'october-events'); ?></span></p>
                 <?php else : ?>
-                    <p class="description" style="margin:12px 0 0"><?php esc_html_e('Tour locations become editable once the event is saved as a draft.', 'october-events'); ?></p>
+                    <p class="description" style="margin:12px 0 0"><?php esc_html_e('Locations become editable once the event is saved as a draft.', 'october-events'); ?></p>
                 <?php endif; ?>
             </div>
 
-            <div class="oe-ad-card">
-                <div class="oe-section-label"><?php esc_html_e('Page sections & shortcodes', 'october-events'); ?></div>
-                <?php echo SectionReference::card($id, 'oe-es-secref'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-            </div>
+            <details class="oe-ad-card oe-es-secref-acc">
+                <summary class="oe-section-label" style="cursor:pointer;margin:0"><?php esc_html_e('Page sections & shortcodes', 'october-events'); ?></summary>
+                <div style="margin-top:12px">
+                    <?php echo SectionReference::card($id, 'oe-es-secref'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                </div>
+            </details>
+
+            <details class="oe-ad-card oe-es-adv-acc">
+                <summary class="oe-section-label" style="cursor:pointer;margin:0"><?php esc_html_e('Media & advanced', 'october-events'); ?></summary>
+                <div style="margin-top:12px">
+                    <div class="oe-es-media">
+                        <span class="oe-es-f-label"><?php esc_html_e('Featured image', 'october-events'); ?></span>
+                        <span class="oe-es-img" id="oe-es-img">
+                            <img src="<?php echo esc_url($thumb_src); ?>" alt=""<?php echo $thumb_src ? '' : ' style="display:none"'; ?>>
+                            <input type="hidden" name="featured_image" id="oe-es-img-id" value="<?php echo (int) ($thumb ?: 0); ?>">
+                            <button type="button" class="button" id="oe-es-img-pick"><?php esc_html_e('Choose image', 'october-events'); ?></button>
+                            <button type="button" class="button-link" id="oe-es-img-clear"<?php echo $thumb ? '' : ' style="display:none"'; ?>><?php esc_html_e('Remove', 'october-events'); ?></button>
+                        </span>
+                    </div>
+                    <div class="oe-es-row">
+                        <?php
+                        $field('event_number', __('Reference number', 'october-events'), $v('event_number'), 'text', 'e.g. 013');
+                        $field('brand_colour', __('Brand color', 'october-events'), $v('brand_colour'), 'text', '#000000');
+                        ?>
+                    </div>
+                    <p class="description" style="margin:0 0 10px"><?php esc_html_e('Reference number and brand color are optional; a page builder template can display them. The brand color is exposed to Elementor/Gutenberg as a per-event value.', 'october-events'); ?></p>
+                    <label class="oe-es-f"><span><?php esc_html_e('Internal notes (never published)', 'october-events'); ?></span>
+                        <textarea name="oe_event[notes]" rows="2"><?php echo esc_textarea($v('notes')); ?></textarea>
+                    </label>
+                </div>
+            </details>
 
             <?php if ($id > 0 && $post instanceof WP_Post) : ?>
-                <?php SlideIn::open('oe-es-tour', __('Tour locations', 'october-events'), false, 'oe-slide-xwide'); ?>
+                <?php SlideIn::open('oe-es-tour', __('Locations', 'october-events'), false, 'oe-slide-xwide'); ?>
                     <?php TourMeta::render($post); ?>
                 <?php SlideIn::close(); ?>
             <?php endif; ?>
@@ -166,9 +222,6 @@ $field = static function (string $name, string $label, string $value, string $ty
                     </select>
                 </label>
                 <button type="submit" class="button button-primary button-hero"><?php esc_html_e('Save event', 'october-events'); ?></button>
-                <?php if ($id > 0) : ?>
-                    <a class="button" href="<?php echo esc_url(get_edit_post_link($id)); ?>"><?php esc_html_e('Advanced edit', 'october-events'); ?></a>
-                <?php endif; ?>
             </div>
         </div>
 
@@ -236,6 +289,7 @@ $field = static function (string $name, string $label, string $value, string $ty
         if (inflight) { pending = true; return; }
         inflight = true;
         if (state) { state.textContent = <?php echo wp_json_encode(__('Saving…', 'october-events')); ?>; }
+        if (window.tinymce) { try { window.tinymce.triggerSave(); } catch (e) {} }
         var data = new FormData(form);
         data.set('action', 'oe_event_studio_autosave');
         data.set('nonce', nonce);
@@ -264,8 +318,55 @@ $field = static function (string $name, string $label, string $value, string $ty
         el.addEventListener('change', schedule);
     });
 
-    // Live-reflect capability toggles in the section reference card, so the
-    // on/off state tracks the checkboxes before the autosave round-trips.
+    // WYSIWYG description → autosave on edit, and sync into the textarea.
+    (function () {
+        var tries = 0;
+        var iv = setInterval(function () {
+            if (window.tinymce) {
+                var ed = window.tinymce.get('oe_event_description');
+                if (ed) { clearInterval(iv); ed.on('keyup change', schedule); return; }
+            }
+            if (++tries > 40) { clearInterval(iv); }
+        }, 250);
+        var ta = document.getElementById('oe_event_description');
+        if (ta) { ta.addEventListener('input', schedule); }
+    })();
+
+    // Status preset shortcut buttons.
+    form.querySelectorAll('[data-set-preset]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var sel = document.getElementById('oe-es-statuspreset');
+            if (sel) { sel.value = b.getAttribute('data-set-preset'); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+        });
+    });
+
+    // Registration mode switch.
+    (function () {
+        var req = document.getElementById('oe-es-ticketreq');
+        var npane = document.getElementById('oe-es-reg-native');
+        var xpane = document.getElementById('oe-es-reg-external');
+        var link = document.getElementById('oe-es-ticketlink');
+        var linkText = document.getElementById('oe-es-ticketlinktext');
+        function apply(mode, fire) {
+            if (req) { req.value = (mode === 'none') ? '' : '1'; }
+            if (npane) { npane.hidden = mode !== 'native'; }
+            if (xpane) { xpane.hidden = mode !== 'external'; }
+            if (mode !== 'external') {
+                if (link) { link.value = ''; }
+                if (linkText) { linkText.value = ''; }
+            }
+            if (mode === 'native') {
+                var tix = form.querySelector('input[type=checkbox][data-pack="tickets"]');
+                if (tix && !tix.checked) { tix.checked = true; tix.dispatchEvent(new Event('change', { bubbles: true })); }
+            }
+            if (fire) { schedule(); }
+        }
+        form.querySelectorAll('[data-reg-mode]').forEach(function (r) {
+            r.addEventListener('change', function () { if (r.checked) { apply(r.value, true); } });
+        });
+    })();
+
+    // Live-reflect capability toggles in the section reference card.
     var ON = <?php echo wp_json_encode(__('on', 'october-events')); ?>,
         OFF = <?php echo wp_json_encode(__('off', 'october-events')); ?>;
     function syncSections() {

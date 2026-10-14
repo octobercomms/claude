@@ -129,8 +129,13 @@ final class Renderer {
         if ($desc === '') {
             return '';
         }
+        // Description is rich text (safe HTML). Paragraph-wrap only when it has
+        // no block markup of its own, so a WYSIWYG value renders as authored and
+        // a plain string still gets paragraphs.
+        $safe = wp_kses_post($desc);
+        $html = (strip_tags($safe) === $safe) ? wpautop($safe) : $safe;
         $inner = '<h2>' . esc_html__('About', 'october-events') . '</h2>'
-            . '<div class="oe-event__about">' . wpautop(esc_html($desc)) . '</div>';
+            . '<div class="oe-event__about">' . $html . '</div>';
         return self::wrap('about', $inner);
     }
 
