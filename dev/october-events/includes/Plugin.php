@@ -49,6 +49,7 @@ final class Plugin {
         \OE\Mail\Subscribe::init();
         \OE\Mail\SnsController::init();
         \OE\Mail\CampaignsRest::init();
+        \OE\Admin\CampaignAdmin::init();
         \OE\Mail\ContactsRest::init();
         \OE\AI\Rest::init();
         \OE\AI\PublicRest::init();

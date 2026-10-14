@@ -142,6 +142,7 @@ final class Admin {
         add_submenu_page('', 'Event studio', 'Event studio', $sc('events'), 'oe-event-studio', [\OE\Admin\EventStudio::class, 'render']);
         add_submenu_page('', 'Countdown', 'Countdown', $sc('countdown'), 'oe-countdown', [$this, 'page_countdown']);
         add_submenu_page('', 'Tour locations', 'Tour locations', 'manage_options', 'oe-locations', [\OE\Admin\LocationsScreen::class, 'render']);
+        if ($f('contacts')) { add_submenu_page('', 'Compose campaign', 'Compose campaign', $sc('contacts'), 'oe-email-compose', [\OE\Admin\CampaignAdmin::class, 'render']); }
         add_submenu_page('', 'Membership repair', '', 'manage_options', 'oe-membership-repair', [$this, 'page_membership_repair']);
     }
 
@@ -266,6 +267,10 @@ final class Admin {
         // Event Studio lives under Events in spirit; keep Events highlighted.
         if ($page === 'oe-event-studio') {
             return 'oe-events';
+        }
+        // The campaign composer belongs to the Email screen (Comms hub).
+        if ($page === 'oe-email-compose' && isset(self::$hub_highlight['oe-email'])) {
+            return self::$hub_highlight['oe-email'];
         }
         if ($page !== '' && isset(self::$hub_highlight[$page])) {
             return self::$hub_highlight[$page];
