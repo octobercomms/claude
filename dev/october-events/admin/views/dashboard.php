@@ -11,29 +11,50 @@ $checkin   = (string) \OE\Settings::get('checkin_page_url', '');
 if ($checkin === '') { $checkin = home_url('/checkin'); }
 $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
 ?>
+<?php
+// AD1 — sales analytics (real data from the ticketing tables). Fetched up
+// front so the consolidated stat bentos can render at the top.
+$oe_series  = \OE\Reports\DashboardStats::chart_series();
+$oe_byEvent = \OE\Reports\DashboardStats::sales_by_event();
+$oe_price   = \OE\Reports\DashboardStats::price();
+$oe_sales   = \OE\Ticketing\Orders::stats();
+$oe_cur     = strtoupper((string) \OE\Settings::get('currency', 'usd'));
+$oe_sym     = ['USD' => '$', 'GBP' => '£', 'EUR' => '€'][$oe_cur] ?? ($oe_cur . ' ');
+// Ticket-economics stats, minus the ones already in the headline row
+// (Tickets, Revenue) so nothing is shown twice.
+$oe_econ = array_values(array_filter((array) ($oe_price['summary'] ?? []), static function ($s) {
+    $label = strtolower((string) ($s[0] ?? ''));
+    return $label !== 'tickets' && $label !== 'revenue';
+}));
+?>
 <div class="wrap oe-admin">
-    <h1><?php esc_html_e('Dashboard', 'october-events'); ?></h1>
+    <h1 class="oe-dash-h1">
+        <span><?php esc_html_e('Dashboard', 'october-events'); ?></span>
+        <span class="oe-dash-actions">
+            <a class="button button-primary" href="<?php echo esc_url($event_new); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets')); ?>"><?php esc_html_e('Tickets', 'october-events'); ?></a>
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-contacts')); ?>"><?php esc_html_e('Contacts', 'october-events'); ?></a>
+            <?php if ($checkin !== '') : ?>
+                <a class="button" href="<?php echo esc_url($checkin); ?>" target="_blank" rel="noopener"><?php esc_html_e('Scan tickets ↗', 'october-events'); ?></a>
+            <?php endif; ?>
+        </span>
+    </h1>
     <?php Admin::bento('dashboard'); ?>
 
+    <?php // Row 1 — headline numbers. ?>
     <?php Admin::kpis(); ?>
+
+    <?php // Row 2 — ticket economics (deduped) + today, as large bentos. ?>
+    <div class="oe-kpis">
+        <?php foreach ($oe_econ as $s) : ?>
+            <div class="oe-kpi"><div class="k"><?php echo esc_html((string) $s[0]); ?></div><div class="v"><?php echo esc_html((string) $s[1]); ?></div><div class="s"><?php echo esc_html((string) ($s[2] ?? '')); ?></div></div>
+        <?php endforeach; ?>
+        <div class="oe-kpi"><div class="k"><?php esc_html_e('Tickets today', 'october-events'); ?></div><div class="v"><?php echo esc_html(number_format_i18n((int) $oe_sales['today_tickets'])); ?></div><div class="s"><?php esc_html_e('sold today', 'october-events'); ?></div></div>
+        <div class="oe-kpi"><div class="k"><?php esc_html_e('Revenue today', 'october-events'); ?></div><div class="v"><?php echo esc_html($oe_sym . number_format((float) $oe_sales['today_revenue'], 0)); ?></div><div class="s"><?php esc_html_e('collected today', 'october-events'); ?></div></div>
+    </div>
 
     <?php \OE\Admin\FirstRun::render(); ?>
 
-    <div class="oe-actionbar">
-        <a class="button button-primary" href="<?php echo esc_url($event_new); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets')); ?>"><?php esc_html_e('Tickets', 'october-events'); ?></a>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-contacts')); ?>"><?php esc_html_e('Contacts', 'october-events'); ?></a>
-        <?php if ($checkin !== '') : ?>
-            <a class="button" href="<?php echo esc_url($checkin); ?>" target="_blank" rel="noopener"><?php esc_html_e('Scan tickets ↗', 'october-events'); ?></a>
-        <?php endif; ?>
-    </div>
-
-    <?php
-    // AD1 — sales analytics (real data from the ticketing tables).
-    $oe_series  = \OE\Reports\DashboardStats::chart_series();
-    $oe_byEvent = \OE\Reports\DashboardStats::sales_by_event();
-    $oe_price   = \OE\Reports\DashboardStats::price();
-    ?>
     <div class="oe-ad-card">
         <div class="oe-ad-card-title"><span><?php esc_html_e('Sales over time', 'october-events'); ?></span>
             <span class="oe-ad-rangebar" id="oe-ad-range">
@@ -77,12 +98,6 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="oe-ad-minrow">
-        <?php foreach ($oe_price['summary'] as $s) : ?>
-            <div class="oe-ad-ministat"><div class="l"><?php echo esc_html($s[0]); ?></div><div class="v"><?php echo esc_html($s[1]); ?></div><div class="s"><?php echo esc_html($s[2]); ?></div></div>
-        <?php endforeach; ?>
     </div>
 
     <?php if ($oe_price['free_pct'] >= 60) : ?>
@@ -178,12 +193,4 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
         </tbody>
     </table>
 
-    <?php $sales = \OE\Ticketing\Orders::stats(); $cur = strtoupper((string) \OE\Settings::get('currency', 'usd')); ?>
-    <div class="oe-panel-label"><?php esc_html_e('Today', 'october-events'); ?></div>
-    <table class="widefat striped" style="max-width:560px">
-        <tbody>
-            <tr><td><?php esc_html_e('Tickets sold today', 'october-events'); ?></td><td><strong><?php echo (int) $sales['today_tickets']; ?></strong></td></tr>
-            <tr><td><?php esc_html_e('Revenue today', 'october-events'); ?></td><td><strong><?php echo esc_html($cur . ' ' . number_format($sales['today_revenue'], 2)); ?></strong></td></tr>
-        </tbody>
-    </table>
 </div>
