@@ -290,8 +290,20 @@
 .oe-admin .oe-crm-ministat{ background:#f3f3f3; border-radius:8px; padding:10px 8px; text-align:center; }
 .oe-admin .oe-crm-ministat .l{ font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#888; }
 .oe-admin .oe-crm-ministat .v{ font-size:17px; font-weight:800; color:#1a1a1a; margin-top:2px; }
-.oe-admin .oe-crm-slide h3{ margin:18px 0 6px; font-size:14px; }
+.oe-admin .oe-crm-slide h3, .oe-admin .oe-slide-body h3{ margin:18px 0 6px; font-size:14px; }
 @media (max-width:782px){ .oe-admin .oe-crm-slide{ top:46px; } .oe-admin .oe-crm-slide-stats{ grid-template-columns:repeat(2,1fr); } }
+
+/* Shared person record: badges, open-as-link trigger, action row. Reused by
+   the CRM slide-in, the AJAX detail panel and the Volunteers/Team screens. */
+.oe-admin .oe-person-badges{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px; }
+.oe-admin .oe-person-badge{ font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; border-radius:3px; padding:2px 8px; border:1px solid; }
+.oe-admin .oe-person-badge--customer{ color:#1e7a33; border-color:#9ad3a6; background:#eef8f0; }
+.oe-admin .oe-person-badge--volunteer{ color:#2749b2; border-color:#a6b6e8; background:#eef1fb; }
+.oe-admin .oe-person-badge--subscriber{ color:#8a5a00; border-color:#d7a53a; background:#fdf6e6; }
+.oe-admin .oe-person-badge--pool{ color:#555; border-color:#c9c6ba; background:#f3f2ec; }
+.oe-admin .oe-person-actions{ display:flex; gap:8px; margin:16px 0 4px; }
+.oe-admin .oe-person-link{ background:none; border:0; padding:0; margin:0; font:inherit; font-weight:700; color:#2749b2; cursor:pointer; text-align:left; }
+.oe-admin .oe-person-link:hover{ text-decoration:underline; }
 
 /* ---- Email screen (ADMIN-BUILD AD9) ---------------------------------- */
 .oe-admin .oe-email-health{ margin-top:16px; }
