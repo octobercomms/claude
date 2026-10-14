@@ -166,28 +166,54 @@ foreach ($opps as $mo) {
         <?php endif; ?>
     <?php endif; ?>
 
+    <?php \OE\Admin\SlideIn::enqueue(); ?>
+
     <?php if (! $opps) : ?>
-        <p><?php esc_html_e('No volunteer opportunities yet. Create one under the Volunteer post type.', 'october-events'); ?></p>
+        <p><?php esc_html_e('No volunteer opportunities yet. Create one with “+ New opportunity”.', 'october-events'); ?></p>
+    <?php else : ?>
+    <table class="widefat striped oe-vol-opps">
+        <thead><tr>
+            <th><?php esc_html_e('Opportunity', 'october-events'); ?></th>
+            <th><?php esc_html_e('Role', 'october-events'); ?></th>
+            <th><?php esc_html_e('Location', 'october-events'); ?></th>
+            <th style="text-align:center"><?php esc_html_e('Shifts', 'october-events'); ?></th>
+            <th><?php esc_html_e('Filled', 'october-events'); ?></th>
+            <th></th>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($opps as $opp) :
+            $ocolor   = Volunteers::fill_color((int) $opp['pct']);
+            $panel_id = 'oe-vol-opp-' . (int) $opp['id'];
+        ?>
+            <tr>
+                <td>
+                    <button type="button" class="oe-person-link" data-oe-slide-open="<?php echo esc_attr($panel_id); ?>"><?php echo esc_html($opp['title']); ?></button>
+                    <?php if (empty($opp['open'])) : ?><span class="oe-status" style="margin-left:6px"><?php esc_html_e('signups closed', 'october-events'); ?></span><?php endif; ?>
+                </td>
+                <td><?php echo esc_html((string) ($opp['role'] ?: '—')); ?></td>
+                <td><?php echo esc_html((string) ($opp['location'] ?: '—')); ?></td>
+                <td style="text-align:center"><?php echo (int) count((array) $opp['shifts']); ?></td>
+                <td>
+                    <span class="oe-vol-sum">
+                        <span class="oe-fillbar fill-<?php echo esc_attr($ocolor); ?>" aria-hidden="true"><span style="width:<?php echo (int) $opp['pct']; ?>%"></span></span>
+                        <span class="oe-vol-count"><?php echo (int) $opp['filled']; ?>/<?php echo (int) $opp['capacity']; ?></span>
+                        <span class="oe-vol-dot <?php echo esc_attr($ocolor); ?>"></span>
+                    </span>
+                </td>
+                <td><button type="button" class="button button-small" data-oe-slide-open="<?php echo esc_attr($panel_id); ?>"><?php esc_html_e('Manage', 'october-events'); ?></button></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
     <?php endif; ?>
 
     <?php foreach ($opps as $opp) :
-        $ocolor = Volunteers::fill_color((int) $opp['pct']);
+        $panel_id = 'oe-vol-opp-' . (int) $opp['id'];
+        \OE\Admin\SlideIn::open($panel_id, (string) $opp['title'], false, 'oe-slide-xwide');
     ?>
-        <details class="oe-acc oe-vol-opp">
-            <summary>
-                <span class="oe-vol-title">
-                    <?php echo esc_html($opp['title']); ?>
-                    <?php if (! empty($opp['role'])) : ?><span class="description"><?php echo esc_html($opp['role']); ?></span><?php endif; ?>
-                    <?php if (empty($opp['open'])) : ?><span class="oe-status" style="margin-left:6px"><?php esc_html_e('signups closed', 'october-events'); ?></span><?php endif; ?>
-                </span>
-                <span class="oe-vol-sum">
-                    <span class="oe-fillbar fill-<?php echo esc_attr($ocolor); ?>" aria-hidden="true"><span style="width:<?php echo (int) $opp['pct']; ?>%"></span></span>
-                    <span class="oe-vol-count"><?php echo (int) $opp['filled']; ?>/<?php echo (int) $opp['capacity']; ?></span>
-                    <span class="oe-vol-dot <?php echo esc_attr($ocolor); ?>"></span>
-                </span>
-            </summary>
-            <div class="oe-acc-body">
+        <div class="oe-vol-opp-body">
                 <p><a href="<?php echo esc_url($opp['edit_url']); ?>" class="button button-small"><?php esc_html_e('Edit opportunity', 'october-events'); ?></a>
+                    <?php if (! empty($opp['role'])) : ?><span class="oe-status" style="margin-left:8px"><?php echo esc_html($opp['role']); ?></span><?php endif; ?>
                     <?php if (! empty($opp['location'])) : ?><span class="description" style="margin-left:8px"><?php echo esc_html($opp['location']); ?></span><?php endif; ?>
                 </p>
 
@@ -279,8 +305,8 @@ foreach ($opps as $mo) {
                         </div>
                     </div>
                 <?php endforeach; ?>
-            </div>
-        </details>
+        </div>
+    <?php \OE\Admin\SlideIn::close(); ?>
     <?php endforeach; ?>
 
     <?php if ($known) : ?>
