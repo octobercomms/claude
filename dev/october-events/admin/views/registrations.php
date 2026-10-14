@@ -355,20 +355,56 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
     $oe_cur_sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$oe_cur] ?? ($oe_cur . ' ');
     $oe_promos   = \OE\Ticketing\Promo::all();
     $oe_waitlist = \OE\Ticketing\Waitlist::all(0);
-    $guided_url  = admin_url('admin.php?page=oe-tickets&tab=guided-tours');
+    $guided_url  = admin_url('admin.php?page=oe-tickets&tab=guided');
     $waitlist_url = admin_url('admin.php?page=oe-tickets&tab=waitlist');
     $promos_url  = admin_url('admin.php?page=oe-tickets&tab=promos');
+    $oe_timed_locs = class_exists('\\OE\\GuidedTours\\Slots') ? \OE\GuidedTours\Slots::locations_with_slots() : [];
     ?>
 
-    <?php // ---- Guided tours (timed tickets rework pending) ---- ?>
-    <details class="oe-acc oe-tix-moreacc">
+    <?php // ---- Timed tickets: per-location timed slots (e.g. tours, talks, demos) ---- ?>
+    <details class="oe-acc oe-tix-moreacc"<?php echo $oe_timed_locs ? ' open' : ''; ?>>
         <summary>
-            <span class="oe-tix-moresum"><strong><?php esc_html_e('Guided tours', 'october-events'); ?></strong>
-                <span class="description"><?php esc_html_e('Timed-slot reservations for guided tours.', 'october-events'); ?></span></span>
+            <span class="oe-tix-moresum"><strong><?php esc_html_e('Timed tickets', 'october-events'); ?></strong>
+                <span class="description"><?php echo esc_html(sprintf(_n('%s location with timed slots', '%s locations with timed slots', count($oe_timed_locs), 'october-events'), number_format_i18n(count($oe_timed_locs)))); ?></span></span>
         </summary>
         <div class="oe-acc-body">
-            <p style="margin:0 0 12px"><?php esc_html_e('Timed-slot bookings per tour; manage capacity, releases and the host list.', 'october-events'); ?></p>
-            <a class="button button-primary" href="<?php echo esc_url($guided_url); ?>"><?php esc_html_e('Manage guided tours', 'october-events'); ?></a>
+            <p style="margin:0 0 12px"><?php esc_html_e('Timed slots give a location its own bookable times with limited capacity, for anything that runs on a schedule: tours, talks, demos or tastings.', 'october-events'); ?></p>
+            <?php if (! $oe_timed_locs) : ?>
+                <p class="description" style="margin:0 0 12px"><?php esc_html_e('No timed slots yet. Open a location and add slots to let people book a specific time.', 'october-events'); ?></p>
+            <?php else : ?>
+            <table class="oe-ad-table">
+                <thead><tr>
+                    <th><?php esc_html_e('Location', 'october-events'); ?></th>
+                    <th class="oe-ad-num"><?php esc_html_e('Slots', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Next slot', 'october-events'); ?></th>
+                    <th class="oe-ad-num"></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($oe_timed_locs as $loc_id) :
+                    $slots = \OE\GuidedTours\Slots::all((int) $loc_id);
+                    $active = array_values(array_filter($slots, static fn($s) => ! empty($s['active'])));
+                    $next_label = '—';
+                    foreach ($active as $s) {
+                        if ($s['date'] === '') { continue; }
+                        $ts = (int) (strtotime($s['date'] . ' ' . ($s['start'] ?: '12:00')) ?: 0);
+                        if ($ts >= (time() - DAY_IN_SECONDS)) {
+                            $next_label = wp_date('D M j', $ts) . ($s['start'] !== '' ? ' · ' . gmdate('g:i A', (int) strtotime('2000-01-01 ' . $s['start'])) : '');
+                            break;
+                        }
+                    }
+                    $edit = admin_url('admin.php?page=oe-tickets&tab=guided&building=' . (int) $loc_id);
+                ?>
+                    <tr>
+                        <td><strong><?php echo esc_html(get_the_title((int) $loc_id) ?: ('#' . (int) $loc_id)); ?></strong></td>
+                        <td class="oe-ad-num"><?php echo esc_html(number_format_i18n(count($slots))); ?></td>
+                        <td><?php echo esc_html($next_label); ?></td>
+                        <td class="oe-ad-num"><a class="button button-small" href="<?php echo esc_url($edit); ?>"><?php esc_html_e('Edit slots', 'october-events'); ?></a></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php endif; ?>
+            <p style="margin:12px 0 0"><a class="button button-primary" href="<?php echo esc_url($guided_url); ?>"><?php esc_html_e('Manage timed tickets', 'october-events'); ?></a></p>
         </div>
     </details>
 

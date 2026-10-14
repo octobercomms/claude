@@ -522,7 +522,7 @@ final class Admin {
             'sales'    => __('Sales', 'october-events'),
             'payments' => __('Transactions', 'october-events'),
             'checkin'  => __('Check-in log', 'october-events'),
-            'guided'   => __('Guided tours', 'october-events'),
+            'guided'   => __('Timed tickets', 'october-events'),
             'message'  => __('Message attendees', 'october-events'),
             'waitlist' => __('Waitlist', 'october-events'),
             'promos'   => __('Promo codes', 'october-events'),
