@@ -102,7 +102,8 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
     </div>
     <?php endif; ?>
 
-    <div class="oe-ad-card">
+    <details class="oe-ad-card oe-tix-mainacc" open>
+        <summary class="oe-tix-mainsum"><strong><?php esc_html_e('Registrations', 'october-events'); ?></strong> <span class="description"><?php echo esc_html(sprintf(__('%1$s attendees · %2$s orders · %3$s check-ins', 'october-events'), number_format_i18n($att_total), number_format_i18n(count($orders)), number_format_i18n($att_in))); ?></span></summary>
         <div class="oe-tix-toolbar">
             <div class="oe-tix-seg" id="oe-tix-seg">
                 <button type="button" class="is-on" data-lens="attendees"><?php esc_html_e('Attendees', 'october-events'); ?> <b><?php echo esc_html(number_format_i18n($att_total)); ?></b></button>
@@ -346,29 +347,110 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
             <p class="oe-ad-note"><?php esc_html_e('One row per ticket × door, most recent first. A repeat scan at the same door bumps the count rather than adding a row.', 'october-events'); ?></p>
             <?php endif; ?>
         </div><!-- /checkins lens -->
-    </div><!-- /card -->
+    </details><!-- /card -->
 
     <div class="oe-section-label"><?php esc_html_e('More', 'october-events'); ?></div>
     <?php
-    $more = [
-        ['guided-tours', __('Guided tours', 'october-events'), __('Per-building guided-tour reservations.', 'october-events')],
-        ['waitlist', __('Waitlist', 'october-events'), __('Sold-out waitlist; promote people when seats free up.', 'october-events')],
-        ['promos', __('Promo codes', 'october-events'), __('Percentage or fixed discounts for checkout.', 'october-events')],
-    ];
-    foreach ($more as $mrow) :
-        $murl = admin_url('admin.php?page=oe-tickets&tab=' . $mrow[0]);
+    $oe_cur     = strtoupper((string) \OE\Settings::get('currency', 'usd'));
+    $oe_cur_sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$oe_cur] ?? ($oe_cur . ' ');
+    $oe_promos   = \OE\Ticketing\Promo::all();
+    $oe_waitlist = \OE\Ticketing\Waitlist::all(0);
+    $guided_url  = admin_url('admin.php?page=oe-tickets&tab=guided-tours');
+    $waitlist_url = admin_url('admin.php?page=oe-tickets&tab=waitlist');
+    $promos_url  = admin_url('admin.php?page=oe-tickets&tab=promos');
     ?>
-        <details class="oe-acc oe-tix-moreacc">
-            <summary>
-                <span class="oe-tix-moresum"><strong><?php echo esc_html($mrow[1]); ?></strong>
-                    <span class="description"><?php echo esc_html($mrow[2]); ?></span></span>
-            </summary>
-            <div class="oe-acc-body">
-                <p style="margin:0 0 12px"><?php echo esc_html($mrow[2]); ?></p>
-                <a class="button button-primary" href="<?php echo esc_url($murl); ?>"><?php echo esc_html(sprintf(__('Manage %s', 'october-events'), strtolower($mrow[1]))); ?></a>
-            </div>
-        </details>
-    <?php endforeach; ?>
+
+    <?php // ---- Guided tours (timed tickets rework pending) ---- ?>
+    <details class="oe-acc oe-tix-moreacc">
+        <summary>
+            <span class="oe-tix-moresum"><strong><?php esc_html_e('Guided tours', 'october-events'); ?></strong>
+                <span class="description"><?php esc_html_e('Timed-slot reservations for guided tours.', 'october-events'); ?></span></span>
+        </summary>
+        <div class="oe-acc-body">
+            <p style="margin:0 0 12px"><?php esc_html_e('Timed-slot bookings per tour; manage capacity, releases and the host list.', 'october-events'); ?></p>
+            <a class="button button-primary" href="<?php echo esc_url($guided_url); ?>"><?php esc_html_e('Manage guided tours', 'october-events'); ?></a>
+        </div>
+    </details>
+
+    <?php // ---- Waitlist (inline) ---- ?>
+    <details class="oe-acc oe-tix-moreacc"<?php echo $oe_waitlist ? ' open' : ''; ?>>
+        <summary>
+            <span class="oe-tix-moresum"><strong><?php esc_html_e('Waitlist', 'october-events'); ?></strong>
+                <span class="description"><?php echo esc_html(sprintf(_n('%s person waiting', '%s people waiting', count($oe_waitlist), 'october-events'), number_format_i18n(count($oe_waitlist)))); ?></span></span>
+        </summary>
+        <div class="oe-acc-body">
+            <?php if (! $oe_waitlist) : ?>
+                <p class="description" style="margin:0"><?php esc_html_e('No one on the waitlist. People join from checkout when a ticket type is sold out.', 'october-events'); ?></p>
+            <?php else : ?>
+            <table class="oe-ad-table">
+                <thead><tr>
+                    <th><?php esc_html_e('Name', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Event', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Ticket type', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Status', 'october-events'); ?></th>
+                    <th class="oe-ad-num"></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach (array_slice($oe_waitlist, 0, 30) as $w) :
+                    $offer    = wp_nonce_url(admin_url('admin-post.php?action=oe_waitlist_promote&id=' . (int) $w->id), 'oe_waitlist_promote');
+                    $notified = (string) ($w->status ?? '') === 'notified';
+                ?>
+                    <tr>
+                        <td><strong><?php echo esc_html((string) ($w->name ?? '') ?: '—'); ?></strong><br><span class="description"><?php echo esc_html((string) $w->email); ?></span></td>
+                        <td><?php echo esc_html(get_the_title((int) $w->event_id) ?: ('#' . (int) $w->event_id)); ?></td>
+                        <td><?php echo esc_html((string) ($w->ticket_type_label ?? '') ?: '—'); ?></td>
+                        <td><span class="oe-ad-pill oe-ad-pill--<?php echo $notified ? 'pos' : 'neu'; ?>"><?php echo $notified ? esc_html__('Notified', 'october-events') : esc_html__('Waiting', 'october-events'); ?></span></td>
+                        <td class="oe-ad-num"><a class="button button-small" href="<?php echo esc_url($offer); ?>"><?php echo $notified ? esc_html__('Offer again', 'october-events') : esc_html__('Offer spot', 'october-events'); ?></a></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <p style="margin:10px 0 0"><a class="button" href="<?php echo esc_url($waitlist_url); ?>"><?php esc_html_e('Manage waitlist', 'october-events'); ?></a></p>
+            <?php endif; ?>
+        </div>
+    </details>
+
+    <?php // ---- Promo codes (inline) ---- ?>
+    <details class="oe-acc oe-tix-moreacc"<?php echo $oe_promos ? ' open' : ''; ?>>
+        <summary>
+            <span class="oe-tix-moresum"><strong><?php esc_html_e('Promo codes', 'october-events'); ?></strong>
+                <span class="description"><?php echo esc_html(sprintf(_n('%s code', '%s codes', count($oe_promos), 'october-events'), number_format_i18n(count($oe_promos)))); ?></span></span>
+        </summary>
+        <div class="oe-acc-body">
+            <?php if (! $oe_promos) : ?>
+                <p class="description" style="margin:0 0 12px"><?php esc_html_e('No promo codes yet. Create percentage or fixed discounts for checkout.', 'october-events'); ?></p>
+            <?php else : ?>
+            <table class="oe-ad-table">
+                <thead><tr>
+                    <th><?php esc_html_e('Code', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Event', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Discount', 'october-events'); ?></th>
+                    <th class="oe-ad-num"><?php esc_html_e('Used', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Status', 'october-events'); ?></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($oe_promos as $p) :
+                    $disc = (string) $p->discount_type === 'percent'
+                        ? sprintf(__('%s%% off', 'october-events'), rtrim(rtrim(number_format((float) $p->discount_value, 2), '0'), '.'))
+                        : sprintf(__('%s off', 'october-events'), $oe_cur_sym . number_format((float) $p->discount_value, 2));
+                    $used = (int) $p->used_count . ($p->max_uses !== null ? ' / ' . (int) $p->max_uses : '');
+                    $active = ! empty($p->active);
+                ?>
+                    <tr>
+                        <td><code><?php echo esc_html((string) $p->code); ?></code></td>
+                        <td><span class="description"><?php echo $p->event_id ? esc_html(get_the_title((int) $p->event_id) ?: ('#' . (int) $p->event_id)) : esc_html__('All events', 'october-events'); ?></span></td>
+                        <td><?php echo esc_html($disc); ?></td>
+                        <td class="oe-ad-num"><?php echo esc_html($used); ?></td>
+                        <td><span class="oe-ad-pill oe-ad-pill--<?php echo $active ? 'pos' : 'neu'; ?>"><?php echo $active ? esc_html__('Active', 'october-events') : esc_html__('Off', 'october-events'); ?></span></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php endif; ?>
+            <p style="margin:10px 0 0"><a class="button button-primary" href="<?php echo esc_url($promos_url); ?>"><?php esc_html_e('+ New code', 'october-events'); ?></a> <a class="button" href="<?php echo esc_url($promos_url); ?>"><?php esc_html_e('Manage codes', 'october-events'); ?></a></p>
+        </div>
+    </details>
+    <?php // phpcs:ignore -- end More ?>
 
     <?php // ===== Add-order slide-in (the manual issue form) ===== ?>
     <?php SlideIn::open('oe-add-order', __('Add an order', 'october-events')); ?>

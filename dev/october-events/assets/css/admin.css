@@ -505,3 +505,10 @@
 .oe-admin .oe-tix-moreacc{ margin:0 0 10px; }
 .oe-admin .oe-tix-moresum{ display:flex; flex-direction:column; gap:2px; }
 .oe-admin .oe-tix-moresum .description{ font-weight:400; font-size:12.5px; }
+/* Collapsible main registrations card, so the More accordions stay reachable. */
+.oe-admin details.oe-tix-mainacc > summary{ cursor:pointer; list-style:none; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; margin:-2px 0 14px; }
+.oe-admin details.oe-tix-mainacc > summary::-webkit-details-marker{ display:none; }
+.oe-admin details.oe-tix-mainacc > summary::before{ content:"▾"; color:#888; font-size:12px; }
+.oe-admin details.oe-tix-mainacc:not([open]) > summary{ margin-bottom:0; }
+.oe-admin details.oe-tix-mainacc:not([open]) > summary::before{ content:"▸"; }
+.oe-admin .oe-tix-mainsum .description{ font-weight:400; }
