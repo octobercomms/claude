@@ -24,10 +24,10 @@ $notices = [
 ];
 ?>
 <div class="wrap oe-admin oe-tax">
-    <?php \OE\Admin\Admin::hub_tabs('admin', 'taxonomies',
-        '<a class="button" href="' . esc_url(admin_url('admin.php?page=oe-locations')) . '">' . esc_html__('Locations & venues', 'october-events') . '</a> '
-        . SlideIn::trigger('oe-tax-new', __('+ New taxonomy', 'october-events'), 'button button-primary')
-    ); ?>
+    <h1 class="wp-heading-inline"><?php esc_html_e('Taxonomies & filters', 'october-events'); ?></h1>
+    <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=oe-locations')); ?>"><?php esc_html_e('Locations & venues', 'october-events'); ?></a>
+    <?php echo SlideIn::trigger('oe-tax-new', __('+ New taxonomy', 'october-events'), 'page-title-action'); ?>
+    <hr class="wp-header-end">
 
     <?php if (isset($_GET['oe_msg'], $notices[$_GET['oe_msg']])) : // phpcs:ignore WordPress.Security.NonceVerification ?>
         <div class="notice notice-<?php echo $_GET['oe_msg'] === 'error' ? 'error' : 'success'; ?> is-dismissible inline"><p><?php echo esc_html($notices[sanitize_key((string) $_GET['oe_msg'])]); ?></p></div>

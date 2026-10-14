@@ -90,6 +90,9 @@ final class Admin {
         // Events: the native CPT list (managed in WordPress / JetEngine).
         add_submenu_page('october-events', 'Events', 'Events', $sc('events'), 'oe-events', [$this, 'page_events']);
         if ($f('tickets')) { add_submenu_page('october-events', 'Tickets', 'Tickets', $sc('tickets'), 'oe-tickets', [$this, 'page_tickets']); }
+        // Taxonomies & filters classify the event (and other listing) content, so
+        // they live beside Events rather than off in the Admin hub.
+        add_submenu_page('october-events', 'Taxonomies & filters', 'Taxonomies & filters', 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']);
 
         // ---- People hub ----------------------------------------------------
         // Each hub is one visible menu item; its members share an in-page tab
@@ -128,7 +131,6 @@ final class Admin {
         // ---- Admin hub -----------------------------------------------------
         $this->register_hub('admin', __('Admin', 'october-events'), [
             ['access',     __('User access', 'october-events'),          'manage_options', 'oe-access',     [\OE\Admin\AccessScreen::class, 'render']],
-            ['taxonomies', __('Taxonomies & filters', 'october-events'), 'manage_options', 'oe-taxonomies', [\OE\Admin\TaxonomyScreen::class, 'render']],
             ['porter',     __('Import / export', 'october-events'),      'manage_options', 'oe-porter',     [\OE\Admin\PorterScreen::class, 'render']],
             ['briefings',  __('Briefings', 'october-events'),            'manage_options', 'oe-briefings',  [\OE\Admin\BriefingsScreen::class, 'render']],
             ['logs',       __('Logs', 'october-events'),                'manage_options', 'oe-logs',       [\OE\Admin\LogsScreen::class, 'render']],
