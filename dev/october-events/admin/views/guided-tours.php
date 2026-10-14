@@ -40,11 +40,12 @@ foreach ($reservations as $r) {
     $grouped[(int) $r->location_id][(string) $r->slot_uid][] = $r;
 }
 ?>
-<div class="wrap">
-    <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
+<div class="wrap oe-admin oe-tickets">
+    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;"><span><?php esc_html_e('Tickets', 'october-events'); ?></span></h1>
     <?php \OE\Admin\Admin::tickets_tabs('guided'); ?>
-    <h2 style="margin-top:18px"><?php esc_html_e('Timed tickets', 'october-events'); ?></h2>
-    <p class="description" style="max-width:820px"><?php esc_html_e('Everyone booked onto a timed slot, by location and time. Add or remove people by hand, and download the list for each location or all at once.', 'october-events'); ?></p>
+    <?php \OE\Admin\Admin::bento('tickets'); ?>
+    <div class="oe-section-label"><?php esc_html_e('Timed tickets', 'october-events'); ?></div>
+    <p class="description" style="max-width:820px;margin:0 0 16px"><?php esc_html_e('Everyone booked onto a timed slot, by location and time. Add or remove people by hand, and download the list for each location or all at once.', 'october-events'); ?></p>
 
     <?php if (is_array($notice)) : ?>
         <div class="notice notice-<?php echo isset($notice['error']) ? 'error' : 'success'; ?> is-dismissible"><p><?php echo esc_html($notice['error'] ?? $notice['ok'] ?? ''); ?></p></div>
@@ -61,14 +62,14 @@ foreach ($reservations as $r) {
         static fn($e) => (int) $e['id'] !== \OE\Ticketing\CheckIn::TEST_EVENT_ID
     ));
     ?>
-    <div class="oe-gt-releases" style="max-width:960px;margin:16px 0 26px;padding:16px 18px;border:1px solid #dcdcde;border-radius:8px;background:#fff">
-        <h3 style="margin:0 0 4px"><?php esc_html_e('Tour release schedule', 'october-events'); ?></h3>
-        <p class="description" style="margin:0 0 12px"><?php esc_html_e('Set when a tour opens for booking. Before the date, its booking page shows a countdown and no one can reserve. When the date passes, booking opens and everyone holding that tour’s ticket is emailed once. Leave a tour off this list to keep it open all the time.', 'october-events'); ?></p>
+    <div class="oe-gt-releases oe-ad-card" style="max-width:960px;margin:16px 0 26px">
+        <h3 style="margin:0 0 4px"><?php esc_html_e('Release schedule', 'october-events'); ?></h3>
+        <p class="description" style="margin:0 0 12px"><?php esc_html_e('Set when booking opens. Before the date, the booking page shows a countdown and no one can reserve. When the date passes, booking opens and everyone holding that ticket is emailed once. Leave an entry off this list to keep it open all the time.', 'october-events'); ?></p>
 
         <?php if ($releases) : ?>
             <table class="widefat striped" style="margin-bottom:14px">
                 <thead><tr>
-                    <th><?php esc_html_e('Tour', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Entry', 'october-events'); ?></th>
                     <th><?php esc_html_e('Ticket event', 'october-events'); ?></th>
                     <th><?php esc_html_e('Opens', 'october-events'); ?></th>
                     <th><?php esc_html_e('Status', 'october-events'); ?></th>
@@ -99,7 +100,7 @@ foreach ($reservations as $r) {
                         <td><?php echo $ev_id > 0 ? esc_html(get_the_title($ev_id) ?: ('#' . $ev_id)) : '—'; ?></td>
                         <td><?php echo esc_html($opens); ?></td>
                         <td><?php echo $status; // phpcs: built from esc_html above ?></td>
-                        <td style="text-align:right"><a href="<?php echo esc_url($del); ?>" class="button-link" style="color:#b32d2e" onclick="return confirm('<?php echo esc_js(__('Remove this tour’s release schedule? Booking reverts to always-open.', 'october-events')); ?>')"><?php esc_html_e('Remove', 'october-events'); ?></a></td>
+                        <td style="text-align:right"><a href="<?php echo esc_url($del); ?>" class="button-link" style="color:#b32d2e" onclick="return confirm('<?php echo esc_js(__('Remove this release schedule? Booking reverts to always-open.', 'october-events')); ?>')"><?php esc_html_e('Remove', 'october-events'); ?></a></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -126,21 +127,21 @@ foreach ($reservations as $r) {
                 <input type="url" name="booking_url" class="regular-text" placeholder="https://architecturetours.us/book/" style="width:100%"></label>
             <p style="grid-column:1 / -1;margin:4px 0 0">
                 <button type="submit" class="button button-primary"><?php esc_html_e('Save release schedule', 'october-events'); ?></button>
-                <span class="description" style="margin-left:8px"><?php esc_html_e('Re-entering the same city + year updates that tour. City + year must match the [guided_gate] shortcode on the booking page.', 'october-events'); ?></span>
+                <span class="description" style="margin-left:8px"><?php esc_html_e('Re-entering the same city + year updates that entry. City + year must match the [guided_gate] shortcode on the booking page.', 'october-events'); ?></span>
             </p>
         </form>
     </div>
 
     <?php if (! $buildings) : ?>
-        <div class="notice notice-info inline"><p><?php esc_html_e('No guided-tour slots yet. Add slots on a building under “Guided tour slots”, then bookings appear here.', 'october-events'); ?></p></div>
+        <div class="notice notice-info inline"><p><?php esc_html_e('No timed slots yet. Add slots on a location under “Timed slots”, then bookings appear here.', 'october-events'); ?></p></div>
     <?php else : ?>
 
         <form method="get" style="margin:14px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <input type="hidden" name="page" value="oe-tickets">
             <input type="hidden" name="tab" value="guided">
-            <label><?php esc_html_e('Building', 'october-events'); ?>
+            <label><?php esc_html_e('Location', 'october-events'); ?>
                 <select name="building" onchange="this.form.submit()">
-                    <option value="0"><?php esc_html_e('All buildings', 'october-events'); ?></option>
+                    <option value="0"><?php esc_html_e('All locations', 'october-events'); ?></option>
                     <?php foreach ($buildings as $bid) : ?>
                         <option value="<?php echo (int) $bid; ?>" <?php selected($location, (int) $bid); ?>><?php echo esc_html($title_of((int) $bid)); ?></option>
                     <?php endforeach; ?>
@@ -171,7 +172,7 @@ foreach ($reservations as $r) {
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px;max-width:960px">
             <?php wp_nonce_field('oe_gt_reservation_add'); ?>
             <input type="hidden" name="action" value="oe_gt_reservation_add">
-            <label style="display:flex;flex-direction:column;font-weight:600;gap:4px"><?php esc_html_e('Building', 'october-events'); ?>
+            <label style="display:flex;flex-direction:column;font-weight:600;gap:4px"><?php esc_html_e('Location', 'october-events'); ?>
                 <select name="building" id="oe-gt-add-building" required style="min-width:220px">
                     <option value=""><?php esc_html_e('Choose…', 'october-events'); ?></option>
                     <?php foreach ($buildings as $bid) : ?>
@@ -180,7 +181,7 @@ foreach ($reservations as $r) {
                 </select>
             </label>
             <label style="display:flex;flex-direction:column;font-weight:600;gap:4px"><?php esc_html_e('Time', 'october-events'); ?>
-                <select name="slot" id="oe-gt-add-slot" required style="min-width:200px"><option value=""><?php esc_html_e('Choose a building first', 'october-events'); ?></option></select>
+                <select name="slot" id="oe-gt-add-slot" required style="min-width:200px"><option value=""><?php esc_html_e('Choose a location first', 'october-events'); ?></option></select>
             </label>
             <label style="display:flex;flex-direction:column;font-weight:600;gap:4px"><?php esc_html_e('Name', 'october-events'); ?>
                 <input type="text" name="name" style="min-width:160px"></label>
@@ -190,7 +191,7 @@ foreach ($reservations as $r) {
                 <input type="number" name="party" value="1" min="1" max="50" style="width:80px"></label>
             <button class="button button-primary"><?php esc_html_e('Add person', 'october-events'); ?></button>
         </form>
-        <p class="description" style="max-width:960px"><?php esc_html_e('They get the same confirmation email (building details and a release link). If the slot is full they join the waitlist.', 'october-events'); ?></p>
+        <p class="description" style="max-width:960px"><?php esc_html_e('They get the same confirmation email (location details and a release link). If the slot is full they join the waitlist.', 'october-events'); ?></p>
 
         <script>
         (function () {
@@ -264,7 +265,7 @@ foreach ($reservations as $r) {
                                 <td><?php echo esc_html($r->email); ?></td>
                                 <td><?php echo esc_html(ucfirst((string) $r->status)); ?></td>
                                 <td style="text-align:right">
-                                    <a href="<?php echo esc_url($resend); ?>" class="button-link" title="<?php esc_attr_e('Re-send the booking confirmation (building details + release link).', 'october-events'); ?>"><?php esc_html_e('Resend', 'october-events'); ?></a>
+                                    <a href="<?php echo esc_url($resend); ?>" class="button-link" title="<?php esc_attr_e('Re-send the booking confirmation (location details + release link).', 'october-events'); ?>"><?php esc_html_e('Resend', 'october-events'); ?></a>
                                     <span style="color:#ccc">·</span>
                                     <a href="<?php echo esc_url($remove); ?>" class="button-link" style="color:#b32d2e" onclick="return confirm('<?php echo esc_js(__('Remove this person from the slot?', 'october-events')); ?>')"><?php esc_html_e('Remove', 'october-events'); ?></a>
                                 </td>
