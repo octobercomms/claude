@@ -180,27 +180,36 @@ $reg_mode = $v('ticket_required') !== '1' ? 'none' : ($v('ticket_link') !== '' ?
             if ($id > 0 && $post instanceof WP_Post) :
                 // Repeater-based packs render their field editor inline (their
                 // inline scripts are self-contained and save on an explicit Save).
+                // Tickets & check-in is folded in too — its editor is vanilla JS
+                // (drag-to-reorder guards on jQuery and degrades gracefully) and it
+                // saves on save_post, which the explicit Save fires (autosave is
+                // guarded by DOING_AUTOSAVE), so the classic editor is fully retired.
                 $pack_renderers = [
+                    'tickets'    => static function (\WP_Post $p): void { \OE\Admin\TicketsAdmin::get_instance()->render_event_meta_box($p); },
                     'conference' => [\OE\Packs\Content\ConferenceMeta::class, 'render'],
                     'exhibition' => [\OE\Packs\Content\ExhibitionMeta::class, 'render'],
                     'tour'       => [\OE\Packs\Content\TourMeta::class, 'render'],
-                    'volunteers' => static function (\WP_Post $p): void { \OE\Volunteers::get_instance()->render_event_meta_box($p); },
+                    'volunteers' => static function (\WP_Post $p): void { (new \OE\Volunteers())->render_event_meta_box($p); },
                     'staff'      => [\OE\Packs\Content\StaffMeta::class, 'render'],
                 ];
-                $classic_edit = (string) get_edit_post_link($id);
                 foreach (Registry::PACKS as $pack_id => $pack) :
                     $on = ! empty($packs_state[$pack_id]);
                     ?>
                     <div class="oe-ad-card oe-es-pack" data-pack-section="<?php echo esc_attr($pack_id); ?>"<?php echo $on ? '' : ' style="display:none"'; ?>>
                         <div class="oe-section-label"><?php echo esc_html($pack['icon'] . ' ' . $pack['label']); ?></div>
-                        <?php if (isset($pack_renderers[$pack_id])) : ?>
-                            <?php call_user_func($pack_renderers[$pack_id], $post); ?>
-                        <?php elseif ($pack_id === 'tickets') : ?>
-                            <p class="description" style="margin:0 0 10px"><?php esc_html_e('Ticket types, prices, capacity, check-in venues and the scanner PIN.', 'october-events'); ?></p>
-                            <?php if ($classic_edit !== '') : ?>
-                                <a class="button button-primary" href="<?php echo esc_url($classic_edit); ?>#oe_ticket_types"><?php esc_html_e('Edit ticket types & check-in', 'october-events'); ?></a>
-                            <?php endif; ?>
-                        <?php endif; ?>
+                        <?php
+                        // A fault in one pack editor must never abort the page and
+                        // take the live preview with it — contain it to its card.
+                        if (isset($pack_renderers[$pack_id])) {
+                            try {
+                                call_user_func($pack_renderers[$pack_id], $post);
+                            } catch (\Throwable $e) {
+                                echo '<p class="description" style="color:#b23c17">'
+                                    . esc_html__('This section could not be loaded. The rest of the event is unaffected.', 'october-events')
+                                    . '</p>';
+                            }
+                        }
+                        ?>
                     </div>
                     <?php
                 endforeach;

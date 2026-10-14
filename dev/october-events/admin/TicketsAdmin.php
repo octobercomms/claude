@@ -363,7 +363,10 @@ final class TicketsAdmin {
             });
             // Drag-to-reorder. The saved order follows the rows' DOM order (PHP keeps
             // the submitted array in field order), so sorting the <tbody> is enough.
-            if (window.jQuery && jQuery.fn.sortable) {
+            // jquery-ui-sortable can load after this inline script (e.g. folded into
+            // the Event Studio, where it prints in the footer), so poll briefly.
+            function initSort(){
+                if (!window.jQuery || !jQuery.fn.sortable) { return false; }
                 jQuery('#oe-tt-table tbody').sortable({
                     handle: '.oe-tt-handle',
                     axis: 'y',
@@ -377,6 +380,10 @@ final class TicketsAdmin {
                     forcePlaceholderSize: true,
                     cancel: 'input,textarea,button,select,option,details,.oe-valid-at'
                 });
+                return true;
+            }
+            if (!initSort()) {
+                var _t = 0, _iv = setInterval(function(){ if (initSort() || ++_t > 40) { clearInterval(_iv); } }, 150);
             }
         })();
         </script>
