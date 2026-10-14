@@ -132,6 +132,11 @@ final class Events {
      */
     public static function sanitise(string $field, $value): string {
         $type = self::FIELDS[$field] ?? 'text';
+        // The description is rich text (WYSIWYG in the Event Studio), so keep
+        // safe HTML rather than flattening it; other textareas stay plain.
+        if ($field === 'description') {
+            return (string) wp_kses_post((string) $value);
+        }
         switch ($type) {
             case 'textarea':
                 return sanitize_textarea_field((string) $value);
