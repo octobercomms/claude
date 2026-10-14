@@ -20,7 +20,10 @@
   font-family:var(--oe-font); color:var(--oe-ink);
 }
 /* Paint the whole content column with the canvas colour. */
-#wpcontent:has(.oe-admin), .oe-admin{ background:var(--oe-page); }
+/* No page fill: WordPress can't bleed a background edge to edge, so a tinted
+   page leaves a band. Stay transparent and let the default admin background
+   show; our cards/surfaces carry their own white. */
+.oe-admin{ background:transparent; }
 .oe-admin{ margin-right:20px; padding-top:6px; }
 .oe-admin *{ box-sizing:border-box; }
 
@@ -106,6 +109,8 @@
 @media (max-width:1100px){ .oe-admin .oe-kpis{ grid-template-columns:repeat(2,1fr); } }
 
 /* ---- Action bar: primary "do something" buttons under the title ---- */
+.oe-admin .oe-dash-h1{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.oe-admin .oe-dash-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .oe-admin .oe-actionbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 22px; }
 .oe-admin .oe-actionbar .description{ margin:0 0 0 4px; }
 
