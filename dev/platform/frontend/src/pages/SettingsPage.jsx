@@ -16,6 +16,7 @@ import TendersPanel from '../components/TendersPanel';
 import AiModelsPanel from '../components/AiModelsPanel';
 import IntegrationsPage from './IntegrationsPage';
 import { roWrite } from '../utils/readOnly';
+import InboxesPanel from '../components/InboxesPanel';
 import { useAuth } from '../context/AuthContext';
 
 const KEY_GROUPS = [
@@ -264,21 +265,16 @@ const KEY_GROUPS = [
       { key: 'PANGRAM_API_URL', label: 'Pangram API base URL', placeholder: 'From docs.pangram.com → API Overview → Base URLs. Leave blank only if the built-in default works.', type: 'text' },
     ],
   },
-  {
-    title: 'Outreach Reply Inbox',
-    category: 'Outreach',
-    hint: 'IMAP login for the inbox outreach replies land in. The platform polls it to detect replies, classify them with Claude, and stop follow-ups automatically.',
-    keys: [
-      { key: 'OUTREACH_IMAP_HOST', label: 'IMAP Host', placeholder: 'e.g. imap.gmail.com', type: 'text' },
-      { key: 'OUTREACH_IMAP_PORT', label: 'IMAP Port', placeholder: '993', type: 'text' },
-      { key: 'OUTREACH_IMAP_USER', label: 'IMAP User', placeholder: 'replies@example.com', type: 'text' },
-      { key: 'OUTREACH_IMAP_PASSWORD', label: 'IMAP Password', placeholder: 'App password', type: 'password' },
-    ],
-  },
+  // The single reply inbox used to be four keys here. It is now a list, in
+  // InboxesPanel below, because one mailbox was the bug: releases replied to
+  // press@ while the poll read hello@, so opt-outs sent to press@ never
+  // happened. These keys still exist in the database and are imported into the
+  // list once, automatically; editing them here would change nothing, which is
+  // why the group is gone rather than merely relabelled.
   {
     title: 'Outreach Sending Domain',
     category: 'Outreach',
-    hint: 'Used for SPF / DMARC health checks on the dashboard. A dedicated subdomain (e.g. outreach.yourbrand.com) keeps cold-email reputation separate from your main mail domain. Reply-to is the inbox replies should go to — usually the same as the IMAP user above.',
+    hint: 'Used for SPF / DMARC health checks on the dashboard. A dedicated subdomain (e.g. outreach.yourbrand.com) keeps cold-email reputation separate from your main mail domain. Reply-to is the address journalists reply to; it must be one of the mailboxes listed under "Mailboxes OMI reads" below, or their replies and opt-outs are never seen.',
     keys: [
       { key: 'OUTREACH_SENDING_DOMAIN', label: 'Sending Domain', placeholder: 'outreach.yourbrand.com', type: 'text' },
       { key: 'OUTREACH_DEFAULT_REPLY_TO', label: 'Default Reply-To Address', placeholder: 'replies@yourbrand.com', type: 'text' },
@@ -840,6 +836,10 @@ export default function SettingsPage() {
                         {testMsg && <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: testMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{testMsg}</div>}
                       </div>
                     )}
+                    {/* Not a key/value group: a list with its own add, test and
+                        per-mailbox switches. Lives here because it is the
+                        Outreach plumbing an operator comes to this page for. */}
+                    {cat.title === 'Outreach' && <InboxesPanel />}
                   </div>
                 )}
               </Card>

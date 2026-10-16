@@ -433,17 +433,19 @@ export default function PressCampaignAnalytics({ clientId, release }) {
       {replyStatus && (
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
           {!replyStatus.configured ? (
-            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--warn, #b8860b)', borderRadius: 'var(--r-sm)' }}>
+            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--warning)', borderRadius: 'var(--r-sm)' }}>
               <strong>Reply polling is off.</strong> No inbox is connected, so a journalist who replies
               “unsubscribe” is never taken off the list automatically — you have to do it by hand.
-              Connect the mailbox journalists reply to in Settings → Outreach (IMAP host, user, app password).
+              Add the mailbox journalists reply to under Settings → Outreach → Mailboxes OMI reads.
               {replyStatus.reply_to ? <> This campaign’s reply-to is <strong>{replyStatus.reply_to}</strong>, so that is the inbox to connect.</> : null}
             </div>
           ) : replyStatus.inbox_matches_reply_to === false ? (
-            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--warn, #b8860b)', borderRadius: 'var(--r-sm)' }}>
-              <strong>Replies are landing somewhere OMI cannot see.</strong> It polls{' '}
+            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--warning)', borderRadius: 'var(--r-sm)' }}>
+              <strong>Replies are landing somewhere OMI cannot see.</strong> It reads{' '}
               <strong>{replyStatus.inbox}</strong>, but this campaign tells journalists to reply to{' '}
-              <strong>{replyStatus.reply_to}</strong>. Unsubscribe replies to that address are not picked up.
+              <strong>{replyStatus.reply_to}</strong>, which is not on that list. Unsubscribe replies sent
+              there are not picked up, so journalists who ask to be removed keep receiving follow-ups.
+              Add it under Settings → Outreach → Mailboxes OMI reads.
             </div>
           ) : (
             <div>

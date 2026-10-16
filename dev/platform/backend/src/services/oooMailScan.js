@@ -105,7 +105,7 @@ async function markScanned(key, wasAutoReply, suggestionId) {
  * Returns a short verdict rather than throwing, so a malformed message can
  * never take the reply poll down with it.
  */
-async function ingestMessage({ raw, fromEmail, subject, date, ownDomains = [] }) {
+async function ingestMessage({ raw, fromEmail, subject, date, ownDomains = [], knownSendersOnly = false }) {
   const { headers, body } = splitRaw(raw);
   const text = toText(body);
   const key = messageKey({ headers, fromEmail, subject, date });
@@ -116,6 +116,16 @@ async function ingestMessage({ raw, fromEmail, subject, date, ownDomains = [] })
   if (!extract.isAutoReply({ subject, headers })) {
     await markScanned(key, false, null);
     return { key, skipped: 'not_auto_reply' };
+  }
+
+  // Set per mailbox. A personal or finance account produces auto-replies all
+  // day from people who will never be press contacts; each extracts perfectly
+  // well and is worth nothing. Holding those mailboxes to senders OMI already
+  // knows keeps "my colleague has taken over" for someone you track while
+  // leaving supplier mail out of the queue entirely.
+  if (knownSendersOnly && !(await ooo.matchContact(fromEmail))) {
+    await markScanned(key, true, null);
+    return { key, skipped: 'sender_not_known' };
   }
 
   const candidates = extract.extractContacts(text, { senderEmail: fromEmail, ownDomains });

@@ -124,16 +124,25 @@ function htmlBody(textBody, trackingSendId, contactId, clientId) {
 // So the mailto is offered only when it goes to the inbox the reply poller
 // actually reads. No polled inbox, no mailto: one working route beats two
 // routes where one of them silently fails.
-async function listUnsubscribeHeaders(contactId, _fromEmail, clientId) {
+async function listUnsubscribeHeaders(contactId, replyToEmail, clientId) {
   const unsub = unsubscribeUrl(contactId, clientId);
   if (!unsub) return {};
   let mailto = null;
   try {
-    const polled = await getSetting('OUTREACH_IMAP_USER');
-    const [host, pass] = await Promise.all([
-      getSetting('OUTREACH_IMAP_HOST'), getSetting('OUTREACH_IMAP_PASSWORD'),
-    ]);
-    if (polled && host && pass) mailto = `mailto:${String(polled).trim()}?subject=unsubscribe`;
+    // Must name a mailbox that is actually read for replies. Advertising
+    // List-Unsubscribe against an address nobody polls is worse than omitting
+    // it: the recipient's client reports the opt-out as done, and it never
+    // happened. Prefer the campaign's own reply-to when that mailbox is on the
+    // list, so the opt-out lands where the conversation already is.
+    const inboxes = require('./outreachInboxes');
+    const live = (await inboxes.list({ activeOnly: true })).filter((i) => i.poll_replies !== false);
+    if (live.length) {
+      // The address replies actually go to, bare or inside "Name <addr>".
+      const want = (String(replyToEmail || '').match(/<([^>]+)>/)?.[1] || replyToEmail || '')
+        .trim().toLowerCase();
+      const preferred = live.find((i) => String(i.username).trim().toLowerCase() === want) || live[0];
+      mailto = `mailto:${String(preferred.username).trim()}?subject=unsubscribe`;
+    }
   } catch { /* no polled inbox — the https route is enough on its own */ }
   const list = mailto ? `<${mailto}>, <${unsub}>` : `<${unsub}>`;
   return {
@@ -300,7 +309,7 @@ async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   const subject = fillTemplate(step.subject, contact);
   const text = fillTemplate(step.body, contact);
   const html = htmlBody(text, send.id, contact.id, clientId);
-  const headers = await listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
+  const headers = await listUnsubscribeHeaders(contact.id, replyTo || from, clientId);
 
   let result;
   try {
@@ -521,7 +530,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
       }
     }
   }
-  const headers = await listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
+  const headers = await listUnsubscribeHeaders(contact.id, replyTo || from, clientId);
   return deliver({ from, to: contact.email, replyTo, subject, text, html, headers, contactId: contact.id });
 }
 

@@ -882,7 +882,13 @@ router.get('/releases/:id/reply-status', async (req, res) => {
     res.json({
       ...state,
       reply_to: replyTo,
-      inbox_matches_reply_to: state.inbox && replyTo ? norm(state.inbox) === norm(replyTo) : null,
+      // A set, not a single value: OMI now reads several mailboxes, and the
+      // question is whether ANY of them receives this campaign's replies.
+      // Comparing against one address is what let press@ go unread while the
+      // banner reported polling as healthy on hello@.
+      inbox_matches_reply_to: (state.addresses?.length && replyTo)
+        ? state.addresses.includes(norm(replyTo))
+        : null,
     });
   } catch (err) { sendErr(res, err, 'reply status'); }
 });

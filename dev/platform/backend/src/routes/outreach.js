@@ -1170,6 +1170,8 @@ router.post('/ooo/backfill', async (req, res) => {
     res.json(await outreachReplies.backfillOoo({
       days: parseInt(req.body?.days, 10) || 90,
       limit: parseInt(req.body?.limit, 10) || 2000,
+      // Omitted: every mailbox switched on for out-of-office scanning.
+      inboxId: req.body?.inbox_id || null,
     }));
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
