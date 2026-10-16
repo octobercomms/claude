@@ -65,6 +65,8 @@ jobs:
         run: node tests/press-import.test.js
       - name: Guard — out-of-office extraction reads the right name
         run: node src/services/oooExtract.test.js
+      - name: Guard — the reply catch-up reads opt-outs correctly
+        run: node src/services/replyCatchup.test.js
       - name: Syntax check every service and route
         run: |
           set -e

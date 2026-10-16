@@ -497,4 +497,8 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
   };
 }
 
-module.exports = { pollReplies, pollOneInbox, pollState, looksLikeUnsubscribe, replyBodyOnly, suppressForCampaign, backfillOoo };
+// UNSUB_PHRASES is exported so the reply catch-up can report WHICH phrase it
+// matched, rather than a bare boolean. Duplicating the list there would let the
+// two drift, and a catch-up that reads opt-outs differently from the live poll
+// is worse than no catch-up.
+module.exports = { pollReplies, pollOneInbox, pollState, looksLikeUnsubscribe, replyBodyOnly, suppressForCampaign, backfillOoo, UNSUB_PHRASES };
