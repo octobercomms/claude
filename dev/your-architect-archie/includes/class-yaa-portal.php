@@ -290,6 +290,31 @@ class YAA_Portal {
 			<?php endif; ?>
 
 			<p class="yp-copyright"><?php esc_html_e( '© Tiam Architects LLP. All drawings and documents are the copyright of Tiam Architects LLP (trading as Your Architect) and are provided for this project only. They may not be copied, shared, submitted or used for construction until payment has been made in full. Unauthorised use may result in legal action.', 'your-architect-archie' ); ?></p>
+			<?php if ( $paid ) : ?>
+			<script>
+			/* Meta Pixel Purchase conversion. Fires once per payment on the Stripe
+			   return (redirect_status=succeeded), deduped by payment_intent via
+			   sessionStorage. Guarded: fbq is only present after cookie consent
+			   (Complianz), and an unguarded call would throw a ReferenceError. */
+			(function () {
+				try {
+					var p = new URLSearchParams(window.location.search);
+					if (p.get('redirect_status') !== 'succeeded') { return; }
+					var pi = p.get('payment_intent') || <?php echo wp_json_encode( (string) $project->token ); ?>;
+					var seen = 'yaa_purchase_' + pi;
+					if (sessionStorage.getItem(seen)) { return; }
+					sessionStorage.setItem(seen, '1');
+					if (typeof fbq === 'function') {
+						fbq('track', 'Purchase', {
+							value: <?php echo wp_json_encode( round( (float) $project->amount_paid / 100, 2 ) ); ?>,
+							currency: 'GBP',
+							content_name: 'Your Architect project'
+						});
+					}
+				} catch (e) {}
+			})();
+			</script>
+			<?php endif; ?>
 		</div>
 		<?php
 		return ob_get_clean();

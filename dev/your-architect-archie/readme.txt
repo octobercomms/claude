@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.6
+Stable tag: 0.7.7
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,13 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.7 =
+* Meta Pixel conversion tracking for ads. A successful project submission fires
+  a "Lead" event (value = quoted total, GBP) and the confirmed Stripe payment
+  fires a "Purchase" event (value = amount paid, GBP) on the portal return. Both
+  are guarded so they only run once consent has loaded the pixel, and the
+  Purchase event is deduped per payment so a page refresh can't double-count.
 
 = 0.7.6 =
 * Cart confirmations now always name each line that changed and state the new
