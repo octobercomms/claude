@@ -377,6 +377,17 @@ progress is obvious on `platform.octobercomms.com`.
   discarding the body all along. Before designing anything that needs MailFlow
   to push data to OMI, check whether OMI can just read it. See
   `docs/omi/ooo-contact-updates.md`.
+- **Reply polling reads a LIST of mailboxes, and a missing one is not a
+  reporting gap.** October sends press releases replying to press@ while the
+  poll read hello@, so every reply to press@ was invisible — and because
+  `looksLikeUnsubscribe()` runs inside that poll, journalists who replied
+  "remove me" kept receiving follow-ups. Mailboxes live in `outreach_inboxes`
+  (migration 198), not in `OUTREACH_IMAP_*`. Two rules follow: `List-Unsubscribe`
+  must name a mailbox that is actually polled, because a header pointing at an
+  unread address makes the recipient's client report an opt-out that never
+  happened; and "does the polled inbox match the reply-to?" is a question about
+  a set, which is why `pollState()` returns `addresses`. See
+  `docs/omi/ooo-contact-updates.md` §10.
 - **An automatic feed into the contact list needs an undo, not just a review
   step.** `ooo_suggestions.before_state` records the prior value of every field
   an apply overwrites, in the same transaction as the write, and

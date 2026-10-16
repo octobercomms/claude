@@ -776,5 +776,43 @@ router.get('/dataforseo-estimate', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Mailboxes OMI reads ──────────────────────────────────────────────────────
+// Admin-only (the router guards above apply): these carry IMAP credentials.
+// Passwords are encrypted at rest and never returned by any endpoint here.
+//
+// This exists because one mailbox was not enough. October sends press releases
+// replying to press@ while the poll read hello@, so replies to press@ were
+// invisible — and since unsubscribe detection runs inside that poll, people
+// who asked to be removed kept receiving follow-ups.
+const inboxes = require('../services/outreachInboxes');
+
+router.get('/inboxes', async (req, res) => {
+  try { res.json({ inboxes: await inboxes.list() }); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/inboxes', async (req, res) => {
+  try { res.status(201).json(await inboxes.create(req.body || {})); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.patch('/inboxes/:id', async (req, res) => {
+  try { res.json(await inboxes.update(req.params.id, req.body || {})); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.delete('/inboxes/:id', async (req, res) => {
+  try { res.json(await inboxes.remove(req.params.id)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Open a connection and close it. Answers the only question worth asking
+// before saving: will the poll be able to read this mailbox? Takes either a
+// saved id or the raw fields, so it can be tried before anything is stored.
+router.post('/inboxes/test', async (req, res) => {
+  try { res.json(await inboxes.testConnection(req.body || {})); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 module.exports = router;
 module.exports.buildTransporter = buildTransporter;

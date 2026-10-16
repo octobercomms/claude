@@ -43,7 +43,7 @@ All three converge on `ooo_suggestions` and all three stop at the same gate.
 
 | Door | Entry point | When it is used |
 |---|---|---|
-| **Inbox scan** (`origin: 'imap'`) | `services/oooMailScan.js`, called from `pollReplies()` | The normal path. Runs automatically on every reply poll. |
+| **Inbox scan** (`origin: 'imap'`) | `services/oooMailScan.js`, called from `pollOneInbox()` | The normal path. Runs automatically on every reply poll, across every mailbox switched on for it. |
 | **Inbox backfill** | `outreachReplies.backfillOoo({ days })` → `POST /api/outreach/ooo/backfill` | Catching up. The reply poll looks back three days; this reads up to two years, extracts out-of-office content only, and marks no sends replied and no unsubscribes. |
 | **CSV upload** (`origin: 'csv'`) | `services/oooCsv.js` → `POST /api/outreach/ooo/import` | A MailFlow "contact updates" export, for a backlog MailFlow has already processed. |
 | **MailFlow push** (`origin: 'mailflow'`) | `POST /api/ooo/suggestions`, token-gated | Pre-existing, still works. Needs `MAILFLOW_INGEST_TOKEN` set in Settings. Not required for any of the above. |
@@ -202,9 +202,10 @@ work.
 
 ## 7. Setting it up
 
-1. **Settings → Keys → Outreach inbox**: `OUTREACH_IMAP_HOST`, `_PORT`, `_USER`,
-   `_PASSWORD`. Without these the inbox scan reports that it is not configured
-   and the other doors still work.
+1. **Settings → Outreach → Mailboxes OMI reads**: add every address
+   journalists might reply to. The old single `OUTREACH_IMAP_*` setting is
+   imported into that list automatically, once. Without any mailbox the inbox
+   scan reports that it is not configured and the other doors still work.
 2. **Earned → Contact Cleanup → Contact updates → Scan inbox**, 90 days, to
    catch up. Re-running is cheap: `ooo_scanned_messages` is a per-message
    watermark keyed on Message-Id.
@@ -240,3 +241,55 @@ work.
 - **Company is left blank on inbox-scanned contacts.** The reply gives a domain,
   not a company name, and turning `@mondiale.co.uk` into "Mondiale" is a guess
   that would read as fact on the record.
+
+---
+
+## 10. Several mailboxes (migration 198)
+
+`outreach_inboxes` is the list of mailboxes OMI reads. It replaced the single
+`OUTREACH_IMAP_*` setting, and the reason is worth recording because it cost
+real money: October sends press releases with a reply-to of **press@** while the
+poll read **hello@**. Every reply to press@ was invisible. Because
+`looksLikeUnsubscribe()` runs inside that same poll, journalists who replied
+"remove me" to press@ were never suppressed and kept receiving follow-ups. The
+0% reply figure on the dashboard was the symptom; mailing people who had asked
+you to stop was the cost.
+
+Each row carries its credentials (encrypted with `utils/encryption`, the same
+treatment `outreach_mailboxes` gives SMTP passwords) and the state of its own
+last poll, so "when did press@ last work?" is answerable per mailbox.
+
+Three switches per mailbox:
+
+| Switch | Effect |
+|---|---|
+| `poll_replies` | Feeds reply matching and unsubscribe detection. |
+| `scan_ooo` | Feeds the contact-update queue above. |
+| `known_senders_only` | Only raises a contact update when the sender is already in OMI. |
+
+That last one is the thing that makes several mailboxes usable rather than
+noisy. One outreach inbox produces a workable queue. A personal or finance
+account produces auto-replies all day from suppliers and services who will
+never be press contacts, each extracting perfectly well and worth nothing. With
+the switch on, such a mailbox still catches "my colleague has taken over" for
+someone you already track, without burying the queue.
+
+### Things that must stay true
+
+- **`List-Unsubscribe` must name a mailbox that is actually polled.**
+  `outreachSender.listUnsubscribeHeaders()` picks from the live list, preferring
+  the campaign's own reply-to. Advertising the header against an address nobody
+  reads is worse than omitting it: the recipient's mail client reports the
+  opt-out as done and it never happened.
+- **The reply-to check is against a set, not a value.** `pollState()` returns
+  `addresses`, and `press.js /reply-status` asks whether the campaign's reply-to
+  is one of them. Comparing against a single inbox is exactly what let press@ go
+  unread while the banner reported polling as healthy on hello@.
+- **One bad mailbox must not stop the others.** `pollReplies()` catches per
+  mailbox and records the error against that row. Before the split, one expired
+  password took reply and unsubscribe handling down for everything.
+- **The legacy import runs once.** `importLegacyOnce()` copies the old settings
+  into a row and records `OUTREACH_INBOX_IMPORTED`. Reading the settings as a
+  fallback only while the table is empty would silently drop that mailbox the
+  moment a second one was added, which is the exact failure this feature exists
+  to stop.
