@@ -34,6 +34,7 @@
 
   var busy = false, done = false, hasService = false;
   var userMsgCount = 0, emailSaved = false; // drives the always-on "Email me my quote" field.
+  var lastTotal = 0; // latest quoted total, for the Meta "Lead" conversion value.
   var submitted = false, submitReadyShown = false;
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
@@ -87,6 +88,7 @@
     pkg = pkg || { nodes: [], total: 0 };
     hasService = (pkg.nodes || []).some(function (n) { return n.id && n.id.indexOf('service_') === 0; });
     var isRedirect = !!pkg.redirect;
+    lastTotal = Number(pkg.total || 0);
     nodes.innerHTML = '';
     if (!pkg.nodes || !pkg.nodes.length) {
       nodes.appendChild(nodesEmpty);
@@ -243,6 +245,13 @@
       addMsg('bot', escapeHtml(d.message || 'Project saved.') + (d.ref ? ' <strong>(ref ' + d.ref + ')</strong>' : ''), 'note');
       submitBtn.textContent = 'Submitted ✓';
       setBusy(false); // now that submitted is true, this locks the composer
+      // Meta Pixel — a submitted project is a Lead. Guarded: fbq is absent until
+      // the visitor consents (Complianz), and must never throw inside submit.
+      try {
+        if (typeof fbq === 'function') {
+          fbq('track', 'Lead', { content_name: 'Archie project submission', value: lastTotal, currency: 'GBP' });
+        }
+      } catch (e) {}
     }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
   }
   submitBtn.addEventListener('click', doSubmit);
