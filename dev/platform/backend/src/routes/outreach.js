@@ -1176,6 +1176,56 @@ router.post('/ooo/backfill', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// ── Reply catch-up ───────────────────────────────────────────────────────────
+// The backlog pass for replies that arrived while a mailbox went unread. The
+// live poll looks back three days; this reads months, proposes what it would
+// do, and writes nothing until a person presses go.
+//
+// Both proposed actions only ever stop mail going out, so applying one wrongly
+// costs a follow-up. Reversing an opt-out would resume mail to someone who
+// asked you to stop, so there is no undo here by design.
+const replyCatchup = require('../services/replyCatchup');
+
+router.post('/reply-catchup/scan', async (req, res) => {
+  try {
+    res.json(await replyCatchup.scan({
+      days: parseInt(req.body?.days, 10) || 180,
+      limit: parseInt(req.body?.limit, 10) || 3000,
+      inboxId: req.body?.inbox_id || null,
+      user: actor(req),
+    }));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.get('/reply-catchup', async (req, res) => {
+  try {
+    const status = req.query.status === 'all' ? null : (req.query.status || 'pending');
+    const [items, counts] = await Promise.all([
+      replyCatchup.listItems({ status, limit: parseInt(req.query.limit, 10) || 500 }),
+      replyCatchup.counts(),
+    ]);
+    res.json({ items, counts });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/reply-catchup/apply-batch', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
+    if (!ids || !ids.length) return res.status(400).json({ error: 'Tick at least one reply to apply.' });
+    res.json(await replyCatchup.applyBatch(ids, { user: actor(req) }));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/reply-catchup/:id/apply', async (req, res) => {
+  try { res.json(await replyCatchup.applyItem(req.params.id, { user: actor(req) })); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/reply-catchup/:id/dismiss', async (req, res) => {
+  try { res.json(await replyCatchup.dismiss(req.params.id, { user: actor(req) })); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // Clear a hard bounce on a contact. Use when the AM has confirmed the
 // address is actually fine (the bounce was a temporary mail-server
 // hiccup, or they got a new working address). Doesn't touch the

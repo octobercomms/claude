@@ -377,6 +377,15 @@ progress is obvious on `platform.octobercomms.com`.
   discarding the body all along. Before designing anything that needs MailFlow
   to push data to OMI, check whether OMI can just read it. See
   `docs/omi/ooo-contact-updates.md`.
+- **The reply poll's three-day window means a mailbox added late never catches
+  up on its own.** Adding press@ fixed everything from that moment and nothing
+  before it. The backlog pass is the Reply catch-up
+  (`docs/omi/reply-catchup.md`): it scans months, proposes, and writes nothing
+  until a person presses go. It has no undo on purpose — both actions it takes
+  only stop mail going out, so a wrong apply costs a follow-up, while reversing
+  an opt-out would resume mail to someone who asked you to stop. Also: it sets
+  `replied_at` to the reply's own date, because stamping a backlog with NOW()
+  tells the dashboard everyone replied this afternoon.
 - **Reply polling reads a LIST of mailboxes, and a missing one is not a
   reporting gap.** October sends press releases replying to press@ while the
   poll read hello@, so every reply to press@ was invisible — and because
