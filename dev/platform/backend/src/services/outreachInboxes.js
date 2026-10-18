@@ -39,7 +39,7 @@ function describeImapError(err, inbox) {
   if (err?.authenticationFailed || /AUTHENTICATIONFAILED|invalid credentials/i.test(msg + (err?.responseText || ''))) {
     parts.push('The username or app password was rejected. Gmail needs an app password, and a revoked one fails exactly like this.');
   } else if (/command failed/i.test(msg)) {
-    parts.push('The server rejected the command. On Gmail this is almost always IMAP being switched off for the account (Gmail → Settings → Forwarding and POP/IMAP → Enable IMAP), or an app password that has since been revoked. Press Test on this mailbox to confirm.');
+    parts.push('The server rejected the command. Three causes account for nearly all of these: the address is a forwarding alias or group with no mailbox behind it, so there is nothing to open; IMAP is switched off for the account (Gmail → Settings → Forwarding and POP/IMAP → Enable IMAP); or the app password has been revoked. A forwarding address can never be read — put the mailbox it forwards INTO on this list instead.');
   }
 
   const where = inbox ? `${inbox.label} (${inbox.username})` : 'mailbox';
