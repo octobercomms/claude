@@ -205,7 +205,7 @@ async function pollOneInbox(inbox) {
   try {
     await client.connect();
   } catch (err) {
-    await inboxes.recordState(inbox.id, { last_run_at: new Date(), last_error: err.message });
+    await inboxes.recordState(inbox.id, { last_run_at: new Date(), last_error: inboxes.describeImapError(err, inbox) });
     throw err;
   }
   try {
@@ -386,7 +386,7 @@ async function pollReplies() {
       unsubscribed += r.unsubscribed; oooQueued += r.oooQueued;
       if (r.matched) lastMatchAt = new Date();
     } catch (err) {
-      errors.push(`${inbox.label}: ${err.message}`);
+      errors.push(inboxes.describeImapError(err, inbox));
       console.warn('[Outreach replies]', inbox.label, err.message);
     }
   }
@@ -481,7 +481,7 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
       }
     } catch (err) {
       // One unreachable mailbox must not abandon the others.
-      errors.push(`${inbox.label}: ${err.message}`);
+      errors.push(inboxes.describeImapError(err, inbox));
       console.warn('[OOO backfill]', inbox.label, err.message);
     } finally {
       await client.logout().catch(() => {});

@@ -20,6 +20,32 @@ const PUBLIC_COLUMNS = `id, label, host, port, username, active, poll_replies,
   scan_ooo, known_senders_only, last_run_at, last_ok_at, last_match_at,
   last_error, scanned, matched, unsubscribed, ooo_queued, created_at, updated_at`;
 
+/**
+ * Turn an ImapFlow error into something an operator can act on.
+ *
+ * "Command failed" on its own is what hello@ reported after a scan read zero
+ * messages, and it says nothing: not which mailbox, not why, not what to do.
+ * ImapFlow carries the server's own words in `responseText` and a status code
+ * in `serverResponseCode`; both get surfaced, and the two causes that account
+ * for nearly every Gmail failure get named outright.
+ */
+function describeImapError(err, inbox) {
+  const parts = [];
+  const msg = String(err?.message || 'Unknown error');
+  parts.push(msg);
+  if (err?.responseText && err.responseText !== msg) parts.push(`— ${err.responseText}`);
+  if (err?.serverResponseCode) parts.push(`[${err.serverResponseCode}]`);
+
+  if (err?.authenticationFailed || /AUTHENTICATIONFAILED|invalid credentials/i.test(msg + (err?.responseText || ''))) {
+    parts.push('The username or app password was rejected. Gmail needs an app password, and a revoked one fails exactly like this.');
+  } else if (/command failed/i.test(msg)) {
+    parts.push('The server rejected the command. On Gmail this is almost always IMAP being switched off for the account (Gmail → Settings → Forwarding and POP/IMAP → Enable IMAP), or an app password that has since been revoked. Press Test on this mailbox to confirm.');
+  }
+
+  const where = inbox ? `${inbox.label} (${inbox.username})` : 'mailbox';
+  return `${where}: ${parts.join(' ')}`;
+}
+
 function normHost(v) { return String(v || '').trim(); }
 function normUser(v) { return String(v || '').trim(); }
 
@@ -244,11 +270,11 @@ async function testConnection(input = {}) {
     await client.logout().catch(() => {});
     // Name the host, because "fetch failed" against an unnamed server is the
     // least useful error this platform has ever shown anyone.
-    return { ok: false, label, error: `${err.message} (connecting to ${host}:${port} as ${username})` };
+    return { ok: false, label, error: `${describeImapError(err, { label, username })} (${host}:${port})` };
   }
 }
 
 module.exports = {
   list, create, update, remove, withCredentials, activeWithCredentials,
-  recordState, testConnection, importLegacyOnce,
+  recordState, testConnection, importLegacyOnce, describeImapError,
 };
