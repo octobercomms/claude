@@ -82,3 +82,93 @@ In order of return:
 - `dev/platform/frontend/src/components/proposal/ProposalDocument.jsx`: one renderer shared by the preview and the live page
 - `dev/platform/frontend/src/pages/ProposalPublicPage.jsx` (`/p/:token`), `ProposalEditorPage.jsx` (`/proposals/:id`), `ProposalsPage.jsx`, `ProofLibraryPage.jsx`
 - `SnapshotStudioPage.jsx`: Pipeline card (contact, referral, call, brief, notes, draft proposal)
+
+---
+
+## The offer is data now (October 2026)
+
+`PACKAGES` and `METHOD` have gone from `proposals.js`. A **method** is a row in
+`proposal_methods`: name, family, prices per currency with a GoCardless link
+each, and the objectives, KPIs, strategy, tactics and stages it delivers.
+Edited in Settings → Proposals.
+
+**Why the content moved out of Claude.** Nine blocks used to be generated per
+prospect. Four are now: letter, situation, priority, covering email. The rest
+is the method. Three reasons, in order of importance:
+
+1. **The KPIs are contractual.** A proposal becomes an agreement the moment the
+   prospect ticks the box. Claude writing "enquiries above £400k from one in ten
+   to four in ten" each time means a promise nobody decided to make. Fixed per
+   method, Daniel decided once, deliberately.
+2. **A method that reads identically every time is a product.** A plan rewritten
+   per prospect reads as bespoke consulting and gets compared on day rate.
+3. **One edit improves every future proposal**, instead of one PDF.
+
+**Document order is SOST**, with the method between strategy and tactics:
+situation, objectives, strategy, method, tactics. Strategy is the thinking, the
+method is the machine, tactics is what lands in their diary. Tactics without the
+method in front of it is a menu of activities, and a menu gets compared on price.
+Action and Control are not missing: they are the next-steps block and the KPIs
+plus the report.
+
+**One package, no radio buttons.** Daniel picks the level from the call and the
+proposal states it. The old public page let the prospect choose, which turned
+the price into a comparison. The level and currency are swappable on the draft
+without a redraft (`POST /proposals/:id/method`).
+
+**Currencies are fixed per market, never converted.** £1,870 and $1,870 are
+different prices on purpose. A level with no price in the chosen currency drafts
+anyway and the document says "price to confirm": an invented figure in a
+document that becomes a contract is worse than a blank.
+
+**`method_snapshot` on the proposal** is the full method as it was at draft
+time. Improving a method must never rewrite a proposal already signed, and
+acceptance follows the mandate link captured in the signed document, not
+today's.
+
+## The evidence rule
+
+`proposal_methods.evidence_policy` is `full` or `no_outcome_claims`. The second
+comes from Daniel's own line on the Serious Buyer page: *no outcome claims until
+a client has run the method.*
+
+It is a column, not a note to remember, because `matchProof`'s job is to surface
+the most persuasive proof available and a case study from a different service
+scores well on sector overlap alone. Under `no_outcome_claims`:
+
+- the case study is withheld in code (the withheld id is recorded, not dropped)
+- the counted record gets four credential slots instead of two
+- the writing prompt is told it may not state or imply a result the method
+  produced, and that this overrides persuasiveness
+- the proof block says the method is new, rather than leaving a gap
+
+`src/services/proposalMethods.test.js` guards all of it, plus "a figure needs its
+source" and "nothing derives a USD price from the GBP one". It runs in CI.
+
+## Proof: the counted record
+
+`proof_items` gained `figure` and `source`. The strongest proof October has is
+checkable and nobody else in the sector publishes it: 22 countries, 216 pieces
+of coverage, 150 outlets, 18 clients, all sourced to the editorial log,
+March 2023 to April 2026. A figure renders large with its source beneath;
+`saveProof` refuses a figure with no source, because that is a claim rather than
+a fact.
+
+## Print and PDF
+
+`PROPOSAL_CSS` carries a print stylesheet, so Cmd-P in the prospect's browser
+and OMI's own PDF (Puppeteer against the same page) produce the same document.
+No second template to drift. Sized in millimetres for A4 and US Letter both.
+`print-color-adjust: exact` is load-bearing: browsers drop background ink by
+default, which on a black ground takes the white text with it.
+
+## Still outstanding
+
+- Nine GoCardless pages (3 methods × 3 currencies). USD and EUR prices unset.
+- Case studies: still zero. The counted record carries the proof block until
+  they exist.
+- Server-side PDF endpoint via Puppeteer (the print CSS is ready for it).
+- Click tracking, in particular GoCardless-reached-not-completed, which is the
+  strongest buying signal a proposal can give and is currently invisible.
+- Terms versioning, e-sign and audit trail, Stripe setup fees, and the pause
+  button, all ported from `dev/oc-proposals`, which is retired once they land.

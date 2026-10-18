@@ -11,9 +11,14 @@ const STATUS = {
   draft: 'Draft, not sent', sent: 'Sent, not opened', viewed: 'Opened',
   replied: 'Replied', accepted: 'Accepted', lost: 'Lost',
 };
+// SOST, in the order the document reads. Splitting the old single "Plan" row
+// into its four steps is what makes the dwell bars worth looking at: "four
+// minutes on tactics" tells you to talk about delivery, where "read the plan"
+// tells you nothing.
 const SECTION_LABEL = {
-  cover: 'Cover', letter: 'Letter', situation: 'Situation', plan: 'Plan',
-  method: 'How it works', proof: 'Proof', pricing: 'Pricing', next: 'Sign-up step',
+  cover: 'Cover', letter: 'Letter', situation: 'Situation', objectives: 'Objectives',
+  strategy: 'Strategy', method: 'How it works', tactics: 'Tactics', proof: 'Proof',
+  availability: 'Places', pricing: 'Pricing', next: 'Sign-up step',
 };
 
 export default function ProposalEditorPage() {
@@ -25,8 +30,25 @@ export default function ProposalEditorPage() {
   const [proof, setProof] = useState([]);
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState('');
+  const [methods, setMethods] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
 
   useEffect(() => { load(); api.get('/proposals/proof').then(setProof).catch(() => {}); /* eslint-disable-line */ }, [id]);
+  useEffect(() => {
+    api.get('/proposals/methods').then(d => {
+      setMethods((d.methods || []).filter(m => m.active));
+      setCurrencies(d.currencies || []);
+    }).catch(() => {});
+  }, []);
+
+  // Repricing is not a redraft. Daniel picks the level from the call, and
+  // changing his mind must cost nothing, so this swaps the method snapshot and
+  // leaves the four written blocks exactly as they are.
+  async function setLevel(fields) {
+    setBusy('method');
+    try { await api.post(`/proposals/${id}/method`, fields); await load(); }
+    catch (e) { toast(e.message, 'error'); } finally { setBusy(null); }
+  }
 
   async function load() {
     try {
@@ -98,7 +120,7 @@ export default function ProposalEditorPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(300px, 1fr)', gap: 'var(--s5)', alignItems: 'start' }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden', maxHeight: '82vh', overflowY: 'auto' }}>
           <style>{PROPOSAL_CSS}</style>
-          <ProposalDocument data={preview} acceptSlot={<div className="body-sm" style={{ color: '#b9b9b9', marginTop: 16 }}>[Package choice, terms tick-box and Direct Debit button appear here for the prospect.]</div>} />
+          <ProposalDocument data={preview} acceptSlot={<div className="body-sm" style={{ color: '#b9b9b9', marginTop: 16 }}>[Name, terms tick-box and Direct Debit button appear here for the prospect.]</div>} />
         </div>
 
         <div className="stack" style={{ gap: 'var(--s4)' }}>
@@ -126,6 +148,36 @@ export default function ProposalEditorPage() {
 
           <div className="card">
             <div className="caption mb-3">Before it goes</div>
+            {/* The level and the market. Changing either swaps the priced offer
+                and leaves the four written blocks untouched, so a reprice costs
+                nothing and never risks the prospect's own sections. */}
+            <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <Field label="Level">
+                  <select className="input" value={p.method_id || ''} disabled={!isDraft || busy === 'method'}
+                    onChange={ev => setLevel({ method_id: ev.target.value })}>
+                    {!methods.some(m => m.id === p.method_id) && (
+                      <option value={p.method_id || ''}>{p.method_snapshot?.name || 'none'}</option>
+                    )}
+                    {methods.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <div style={{ flex: '0 1 120px' }}>
+                <Field label="Currency">
+                  <select className="input" value={p.currency || 'GBP'} disabled={!isDraft || busy === 'method'}
+                    onChange={ev => setLevel({ currency: ev.target.value })}>
+                    {currencies.map(cc => <option key={cc.code} value={cc.code}>{cc.symbol} {cc.code}</option>)}
+                  </select>
+                </Field>
+              </div>
+            </div>
+            {p.method_snapshot?.price_missing && (
+              <div className="body-xs mb-2" style={{ color: 'var(--warning)' }}>
+                No {p.currency} price on this level, so the proposal says the price is to confirm.
+                Set it in Settings → Proposals and pick the level again.
+              </div>
+            )}
             <Field label="Send to (email)"><input className="input" defaultValue={p.recipient_email || ''} disabled={!isDraft}
               onBlur={ev => ev.target.value !== (p.recipient_email || '') && patch({ recipient_email: ev.target.value })} /></Field>
             <Field label="Addressed to (as written on the letter)"><input className="input" defaultValue={p.recipient_names || ''} disabled={!isDraft}

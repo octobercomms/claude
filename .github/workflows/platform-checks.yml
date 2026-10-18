@@ -69,6 +69,8 @@ jobs:
         run: node src/services/replyCatchup.test.js
       - name: Guard — a reply is read as the journalist wrote it
         run: node src/services/mimeText.test.js
+      - name: Guard — a proposal cannot overclaim or invent a price
+        run: node src/services/proposalMethods.test.js
       - name: Syntax check every service and route
         run: |
           set -e

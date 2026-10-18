@@ -35,6 +35,7 @@ import WatchPage from './pages/WatchPage';
 import ProposalPublicPage from './pages/ProposalPublicPage';
 import BookingManagePage from './pages/BookingManagePage';
 import ProposalEditorPage from './pages/ProposalEditorPage';
+import ProposalSamplePage from './pages/ProposalSamplePage';
 import ClientVideoTab from './pages/ClientVideoTab';
 import DesignSystemPage from './pages/DesignSystemPage';
 
@@ -121,6 +122,10 @@ export default function App() {
             <Route path="tenders/:id" element={<TenderWorkspacePage />} />
             <Route path="leads/:id" element={<SnapshotStudioPage />} />
             <Route path="proposals" element={<Navigate to="/settings?tab=proposals" replace />} />
+            {/* A whole proposal with dummy content, rendered through the real
+                component, for designing and printing against. Static segment,
+                so it never collides with a proposal id. */}
+            <Route path="proposals/sample" element={<ProposalSamplePage />} />
             <Route path="proposals/:id" element={<ProposalEditorPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="lab/checker" element={<CheckerBenchPage />} />

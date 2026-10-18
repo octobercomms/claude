@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import MethodsPanel from '../components/proposal/MethodsPanel';
 
 // Every proposal and where it sits. Sorted by what needs Daniel: opened and
 // unanswered first, because that is the 24-hour window that decides most wins.
@@ -68,6 +69,13 @@ export default function ProposalsPage() {
           </table>
         </div>
       )}
+
+      {/* The offer itself. Below the pipeline because it is edited rarely and
+          read often, and because a price change here applies to the next
+          proposal rather than to anything in the table above. */}
+      <div style={{ marginTop: 'var(--s8)', paddingTop: 'var(--s6)', borderTop: '1px solid var(--border-neutral)' }}>
+        <MethodsPanel />
+      </div>
     </div>
   );
 }

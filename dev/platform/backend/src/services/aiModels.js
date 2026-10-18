@@ -25,6 +25,11 @@ const FEATURE_DEFAULTS = {
   // Proposals are the highest-value writing OMI does (a £20-30k/yr decision
   // rides on one), so they default to Opus.
   pipeline_proposal: 'claude-opus-4-8',
+  // Pulling named facts out of call notes or a transcript is mechanical, and
+  // the transcript is the long input (a 45-minute call is ~10k tokens), so this
+  // pass runs on the cheapest Claude. The writing pass that reads its output
+  // stays on Opus.
+  pipeline_proposal_extract: 'claude-haiku-4-5',
   // Follow-ups are lower-stakes chase emails (and now generated only for
   // journalists who actually opened), so they default to Sonnet, not Opus —
   // ~5× cheaper per call at more than good enough quality. The AM can raise it
@@ -75,6 +80,7 @@ const FEATURES = [
   { group: 'Sales pipeline', items: [
     { key: 'snapshot_draft', label: 'Growth Snapshot draft', sensitive: false },
     { key: 'pipeline_call_brief', label: 'Pre-call brief', sensitive: true },
+    { key: 'pipeline_proposal_extract', label: 'Proposal — reading call notes', sensitive: true },
     { key: 'pipeline_proposal', label: 'Proposal drafting', sensitive: true },
   ] },
   { group: 'Tender agent', items: [
