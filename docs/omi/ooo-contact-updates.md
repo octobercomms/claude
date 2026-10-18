@@ -230,6 +230,42 @@ work.
 | `backend/src/routes/oooSuggestions.js` | The token-gated MailFlow push door |
 | `frontend/src/components/OooReviewPanel.jsx` | The two lists, flags, batch apply, undo, upload |
 
+## 8a. The watermark, and reading a message twice
+
+`ooo_scanned_messages` records every message key the scanner has seen, and
+`ingestMessage` returns early on a repeat. That is right for not proposing the
+same stand-in twice, and wrong the moment the reader itself improves.
+
+It improved on 18 Oct 2026 (`mimeText`, PR #1695). Before that "the body" was
+everything after the first blank line, so an auto-reply in the usual
+`multipart/alternative` shape handed the extractor a boundary line and part
+headers, and where the part was base64, nothing readable at all. The extractor
+found no contacts and the message was filed as `was_auto_reply = TRUE,
+suggestion_id = NULL` — which on screen is indistinguishable from a plain
+"I'm away until Monday". Some of those were a failed read, and the stand-ins
+named in them were silently lost.
+
+So the reader is versioned. `READER_VERSION` in `oooMailScan.js` is stamped on
+every row; a message scanned by an older reader is eligible to be read again.
+The next reader improvement bumps the constant and costs nothing else.
+
+**A message is re-read only when all three hold** (`needsReread`):
+
+| Condition | Why |
+|---|---|
+| `reader_version < READER_VERSION` | Otherwise the live poll re-extracts the same messages every 15 minutes forever. A re-read that still finds nothing stamps the current version, so it settles. |
+| `suggestion_id IS NULL` | A row with a suggestion is on a screen and may have been applied or declined. Re-reading it could resurrect a decision someone already made. |
+| `was_auto_reply = TRUE` | That verdict comes from the subject and headers, which `mimeText` did not change. Re-reading every ordinary email ever seen is a great deal of work for a guaranteed identical answer. |
+
+Migration 202 back-fills version 2 onto rows that already carry a suggestion
+and onto non-auto-replies, so the eligible set is only ever "read the body,
+found nothing".
+
+The backfill reports `recovered`: suggestions that came from messages an
+earlier reader had written off. The panel says so in words, because "N queued"
+alone cannot tell you whether re-reading achieved anything, and finding out
+was the point.
+
 ## 9. Known gaps
 
 - **Retiring a dead sender** is flagged, not actionable. See §6.

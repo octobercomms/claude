@@ -436,7 +436,7 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
   const sendingDomain = await getSetting('OUTREACH_SENDING_DOMAIN').catch(() => null);
   const { ImapFlow } = require('imapflow');
 
-  let scanned = 0; let queued = 0; let autoReplies = 0; let contacts = 0;
+  let scanned = 0; let queued = 0; let autoReplies = 0; let contacts = 0; let reread = 0;
   const per = [];
   const errors = [];
 
@@ -472,6 +472,10 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
               knownSendersOnly: Boolean(inbox.known_senders_only),
             });
             if (res?.queued) { boxQueued += 1; contacts += res.contacts || 0; }
+            // A suggestion recovered from a message an older reader had
+            // already written off. Counted separately so the screen can show
+            // that re-reading did something, rather than leaving it to faith.
+            if (res?.queued && res?.reread) reread += 1;
             if (res?.queued || res?.skipped === 'nothing_extracted') autoReplies += 1;
           } catch (err) {
             console.warn('[OOO backfill]', inbox.label, email, err.message);
@@ -493,7 +497,7 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
 
   return {
     window_days: windowDays, scanned, auto_replies: autoReplies,
-    suggestions_queued: queued, contacts_proposed: contacts,
+    suggestions_queued: queued, contacts_proposed: contacts, recovered: reread,
     inboxes: per, errors,
   };
 }

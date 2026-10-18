@@ -17,6 +17,19 @@
 // holds, and an unknown sender lands in a separate review list that is never
 // pre-ticked. Nothing here writes to a contact.
 
+// Which body reader is running.
+//
+// Bumped whenever the reader changes what text the extractor sees, so that
+// messages already scanned by an older reader can be read again. Version 2 is
+// mimeText (PR #1695): proper MIME walk, text/plain preferred, base64 and
+// quoted-printable decoded, charset honoured. Version 1 was "everything after
+// the first blank line", which on a multipart auto-reply handed the extractor
+// a boundary line and part headers.
+//
+// Only messages that produced NO suggestion are ever reconsidered, and only
+// ones already judged to be auto-replies. See migration 202 for why.
+const READER_VERSION = 2;
+
 const crypto = require('crypto');
 const pool = require('../db');
 const extract = require('./oooExtract');
@@ -84,19 +97,39 @@ function messageKey({ headers, fromEmail, subject, date }) {
 }
 
 async function alreadyScanned(key) {
-  const { rows } = await pool.query('SELECT suggestion_id FROM ooo_scanned_messages WHERE message_key = $1', [key]);
+  const { rows } = await pool.query(
+    'SELECT suggestion_id, was_auto_reply, reader_version FROM ooo_scanned_messages WHERE message_key = $1',
+    [key]
+  );
   return rows.length ? rows[0] : null;
+}
+
+/**
+ * Should a message we have already seen be read again?
+ *
+ * Only when the reader that produced the old verdict was older than the one
+ * running, the message was judged an auto-reply (a verdict that comes from the
+ * headers and so has not changed), and it produced no suggestion. A row with a
+ * suggestion is on a screen and may have been applied or declined; re-reading
+ * it could resurrect a decision someone already made.
+ */
+function needsReread(seen) {
+  return Boolean(seen)
+    && !seen.suggestion_id
+    && seen.was_auto_reply === true
+    && Number(seen.reader_version || 1) < READER_VERSION;
 }
 
 async function markScanned(key, wasAutoReply, suggestionId) {
   await pool.query(
-    `INSERT INTO ooo_scanned_messages (message_key, was_auto_reply, suggestion_id)
-     VALUES ($1,$2,$3)
+    `INSERT INTO ooo_scanned_messages (message_key, was_auto_reply, suggestion_id, reader_version)
+     VALUES ($1,$2,$3,$4)
      ON CONFLICT (message_key) DO UPDATE
         SET was_auto_reply = EXCLUDED.was_auto_reply,
             suggestion_id  = COALESCE(EXCLUDED.suggestion_id, ooo_scanned_messages.suggestion_id),
+            reader_version = EXCLUDED.reader_version,
             scanned_at = NOW()`,
-    [key, Boolean(wasAutoReply), suggestionId || null]
+    [key, Boolean(wasAutoReply), suggestionId || null, READER_VERSION]
   );
 }
 
@@ -116,7 +149,8 @@ async function ingestMessage({ raw, source = null, fromEmail, subject, date, own
   const key = messageKey({ headers, fromEmail, subject, date });
 
   const seen = await alreadyScanned(key);
-  if (seen) return { key, skipped: 'already_scanned', suggestion_id: seen.suggestion_id };
+  const reread = needsReread(seen);
+  if (seen && !reread) return { key, skipped: 'already_scanned', suggestion_id: seen.suggestion_id };
 
   if (!extract.isAutoReply({ subject, headers })) {
     await markScanned(key, false, null);
@@ -197,7 +231,7 @@ async function ingestMessage({ raw, source = null, fromEmail, subject, date, own
   );
 
   await markScanned(key, true, id);
-  return { key, queued: true, suggestion_id: id, contacts: alts.length, departure: Boolean(departure) };
+  return { key, queued: true, reread, suggestion_id: id, contacts: alts.length, departure: Boolean(departure) };
 }
 
-module.exports = { ingestMessage, departureSentence, splitRaw, toText, messageKey };
+module.exports = { ingestMessage, departureSentence, splitRaw, toText, messageKey, needsReread, READER_VERSION };

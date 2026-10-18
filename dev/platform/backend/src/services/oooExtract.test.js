@@ -142,4 +142,56 @@ check('a dot inside an address does not split the sentence',
 check('two sentences split',
   x.sentences('I am away. Contact a@b.com.').length === 2);
 
+
+// ---------------------------------------------------------------------------
+// Re-reading a message an older reader already wrote off.
+//
+// ooo_scanned_messages is a permanent watermark, which is right for not
+// proposing the same contact twice and wrong the moment the reader improves.
+// It did improve (mimeText, PR #1695): before that an auto-reply in the usual
+// multipart shape handed the extractor a boundary line and part headers, and
+// where the part was base64, nothing readable. Those messages were filed as
+// "auto-reply, nothing extracted" — indistinguishable on screen from a plain
+// "I'm away until Monday", and some of them were a failed read.
+//
+// The eligibility rule is the whole safety argument, so it is pinned here.
+const scan = require('./oooMailScan');
+
+function reread(row) { return scan.needsReread(row); }
+const OLD = scan.READER_VERSION - 1;
+
+check('a message read by an older reader that found nothing is re-read',
+  reread({ suggestion_id: null, was_auto_reply: true, reader_version: OLD }) === true);
+
+check('a message that already produced a suggestion is never re-read',
+  reread({ suggestion_id: 'sug_1', was_auto_reply: true, reader_version: OLD }) === false);
+
+// The verdict comes from the subject and headers, which mimeText did not
+// touch. Re-reading every ordinary email ever seen would be a lot of work for
+// a guaranteed identical answer.
+check('a message judged not an auto-reply is never re-read',
+  reread({ suggestion_id: null, was_auto_reply: false, reader_version: OLD }) === false);
+
+check('a message already read by the current reader is not re-read',
+  reread({ suggestion_id: null, was_auto_reply: true, reader_version: scan.READER_VERSION }) === false);
+
+check('nor by a newer one, so a rollback cannot start a re-read storm',
+  reread({ suggestion_id: null, was_auto_reply: true, reader_version: scan.READER_VERSION + 1 }) === false);
+
+check('a row with no version recorded counts as the oldest reader',
+  reread({ suggestion_id: null, was_auto_reply: true, reader_version: null }) === true);
+
+check('an unseen message is not a re-read', reread(null) === false);
+check('nor is undefined', reread(undefined) === false);
+
+// The settling property: once re-read, it stops. Without this the live poll
+// would re-extract the same messages every 15 minutes forever.
+const afterReread = { suggestion_id: null, was_auto_reply: true, reader_version: scan.READER_VERSION };
+check('a re-read that still finds nothing settles and is not tried again',
+  reread(afterReread) === false);
+
+check('the watermark records the current reader version',
+  /reader_version = EXCLUDED\.reader_version/.test(
+    require('fs').readFileSync(require('path').join(__dirname, 'oooMailScan.js'), 'utf8')));
+
 console.log(`oooExtract: ${passed} checks passed.`);
