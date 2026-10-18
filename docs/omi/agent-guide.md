@@ -364,6 +364,15 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **A permanent watermark and an improving reader are in tension.** OMI has
+  two scan watermarks: `ooo_scanned_messages` (out-of-office) and
+  `outreach_reply_catchup.message_key`. Both exist to stop a second proposal
+  of the same thing, and both will happily preserve a bad result forever when
+  the code that produced it gets better. Both now re-read: the catch-up
+  refreshes rows still `pending`, the OOO scanner re-reads messages scanned by
+  an older `READER_VERSION` that produced no suggestion. If you improve a
+  reader, bump that constant, and check whether anything else is sitting
+  behind a watermark.
 - **Never read a mail body by splitting on the first blank line.** Use
   `services/mimeText.js` (`bodyText`), and hand it imapflow's raw `Buffer`
   rather than a UTF-8 string. Both readers used to do the naive split, which

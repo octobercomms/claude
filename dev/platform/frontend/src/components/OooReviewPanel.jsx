@@ -201,7 +201,11 @@ export default function OooReviewPanel() {
       const r = await api.post('/outreach/ooo/backfill', { days: Number(scanDays) || 90 });
       if (r.skipped) { toast(r.skipped, 'error'); return; }
       setReport(r);
-      toast(`Read ${r.scanned} message${r.scanned === 1 ? '' : 's'}; queued ${r.suggestions_queued}.`, 'success');
+      toast(
+        `Read ${r.scanned} message${r.scanned === 1 ? '' : 's'}; queued ${r.suggestions_queued}.`
+        + (r.recovered ? ` ${r.recovered} recovered from replies an earlier scan misread.` : ''),
+        'success'
+      );
       load();
     } catch (e) { toast(e.message, 'error'); }
     finally { setScanning(false); }
@@ -262,6 +266,15 @@ export default function OooReviewPanel() {
             {report.scanned != null && <span>{report.scanned} messages read · {report.auto_replies || 0} auto-replies · </span>}
             <strong>{report.suggestions_queued}</strong> queued for review
             {report.from_known_sender != null && <> · {report.from_known_sender} from a contact in OMI, {report.from_unknown_sender} from someone else</>}
+            {/* Recovered from messages an older reader had written off. Shown
+                because "N queued" alone cannot tell you a re-read did anything,
+                and the whole point of versioning the reader was to find out. */}
+            {report.recovered > 0 && (
+              <div style={{ marginTop: 'var(--s1)', color: 'var(--text)' }}>
+                <strong>{report.recovered}</strong> of those came from auto-replies an earlier scan
+                could not read properly. They had been recorded as naming nobody.
+              </div>
+            )}
             {report.flagged && Object.keys(report.flagged).length > 0 && (
               <div style={{ marginTop: 'var(--s1)' }}>
                 Flagged: {Object.entries(report.flagged).map(([k, n]) => `${FLAG_LABEL[k] || k} (${n})`).join(' · ')}
