@@ -235,12 +235,25 @@ async function consider({ msg, email, inbox }) {
   const doUnsub = Boolean(phrase) && !alreadyOut;
   if (!markReplied && !doUnsub) return 'already';   // nothing left to do
 
+  // What applying would actually stop. Two scopes, because the two actions
+  // behind one button have two scopes: marking a reply cancels pending sends
+  // to this contact anywhere, an opt-out cancels them for one client. Counted
+  // here so the review screen can state a number instead of implying one.
+  const { rows: [pending] } = await pool.query(
+    `SELECT COUNT(*)::int AS all_clients,
+            COUNT(*) FILTER (WHERE c.client_id = $2)::int AS this_client
+       FROM outreach_sends s
+       JOIN outreach_campaigns c ON c.id = s.campaign_id
+      WHERE s.contact_id = $1 AND s.status = 'pending'`,
+    [newest.contact_id, newest.client_id]
+  );
+
   await pool.query(
     `INSERT INTO outreach_reply_catchup
        (message_key, inbox_label, from_email, subject, received_at, snippet,
         contact_id, campaign_id, client_id, send_ids, mark_replied, unsubscribe,
-        unsub_phrase, machine_opt_out)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14)
+        unsub_phrase, machine_opt_out, pending_all, pending_client, counts_known)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,TRUE)
      ON CONFLICT (message_key) DO UPDATE
         SET snippet        = EXCLUDED.snippet,
             inbox_label    = EXCLUDED.inbox_label,
@@ -253,7 +266,10 @@ async function consider({ msg, email, inbox }) {
             mark_replied   = EXCLUDED.mark_replied,
             unsubscribe    = EXCLUDED.unsubscribe,
             unsub_phrase   = EXCLUDED.unsub_phrase,
-            machine_opt_out = EXCLUDED.machine_opt_out
+            machine_opt_out = EXCLUDED.machine_opt_out,
+            pending_all    = EXCLUDED.pending_all,
+            pending_client = EXCLUDED.pending_client,
+            counts_known   = TRUE
       WHERE outreach_reply_catchup.status = 'pending'`,
     [
       key, inbox.label, email, subject || null, receivedAt,
@@ -261,6 +277,7 @@ async function consider({ msg, email, inbox }) {
       newest.contact_id, newest.campaign_id, newest.client_id,
       open.map((s) => s.id),
       markReplied, doUnsub, phrase, machine,
+      pending.all_clients, pending.this_client,
     ]
   );
   if (refreshing) return 'refreshed';
