@@ -133,4 +133,24 @@ check('the body is read through the MIME reader, not a blank-line split',
 check('nothing still reaches for the old whole-body text',
   !/oooMailScan\.toText\(/.test(src));
 
+// ---------------------------------------------------------------------------
+// The review screen tells you, per row, what Apply will do: which list someone
+// comes off, and how many queued emails stop. Those sentences are only honest
+// while the numbers behind them are real, so the contract is guarded here.
+//
+// The two scopes are the whole point and are easy to collapse into one by
+// accident: marking a reply cancels pending sends to the contact ANYWHERE,
+// while an opt-out cancels them for ONE client. A notice built on a single
+// count would be wrong for one of the two every time.
+check('the scan counts pending sends in both scopes',
+  /COUNT\(\*\)::int AS all_clients[\s\S]{0,200}?FILTER \(WHERE c\.client_id = \$2\)::int AS this_client/.test(src));
+check('it counts only what is still queued',
+  /AS this_client[\s\S]{0,200}?s\.status = 'pending'/.test(src));
+check('both counts are stored on the row',
+  /pending_all, pending_client, counts_known/.test(src));
+check('and refreshed when a pending row is re-read',
+  /DO UPDATE[\s\S]{0,900}?pending_all\s+= EXCLUDED\.pending_all[\s\S]{0,200}?pending_client = EXCLUDED\.pending_client/.test(src));
+check('counts_known is set, so a row never implies zero when nothing was counted',
+  /counts_known\s+= TRUE/.test(src));
+
 console.log(`replyCatchup: ${passed} checks passed (including SQL guards).`);

@@ -103,6 +103,32 @@ The subject line is taken from the IMAP envelope, which imapflow decodes, so
 subject-matched opt-outs (One-Click among them) were never affected by any of
 this.
 
+## Saying what Apply does
+
+Daniel, on the first live review screen: *"the apply button — i'm not sure what
+i'm applying. is it going to unsubscribe from my database, the campaign, that
+client?"* A fair question, because one button runs two actions with two
+different scopes:
+
+| Badge | What Apply does | Scope |
+|---|---|---|
+| Asked to be removed | Records the opt-out and cancels queued sends | **One client** — the one whose campaign they replied to. The contact stays in the library; other clients can still mail them |
+| Replied | Stamps `replied_at` and cancels queued sends | **Everywhere** — any pending send to that contact, across campaigns and clients |
+
+So each card now carries an "If you press Apply" notice built from its own
+fields (`whatApplyDoes` in `ReplyCatchupPanel.jsx`), plus a recommendation.
+
+The rule that keeps it honest: **never state a number the scan did not
+count.** The scan stores `pending_all` and `pending_client` and sets
+`counts_known`; where a count is missing the clause is omitted rather than
+rendered as zero. A row raised before migration 201 says "Records that X
+replied, against 5 sends" with no follow-up clause, which is true, instead of
+"stops 0 follow-ups", which would be a confident wrong answer on the one screen
+built to remove doubt. A re-scan fills the counts in.
+
+The counts are a snapshot from the last scan, not a promise. `applied_note`
+still reports what actually happened at the moment of applying.
+
 ## Known limits
 
 - **An opt-out is recorded against one campaign's client.** `suppressForCampaign`
@@ -118,8 +144,9 @@ this.
 | File | What it is |
 |---|---|
 | `backend/migrations/199_reply_catchup.sql` | `outreach_reply_catchup` |
+| `backend/migrations/201_reply_catchup_pending_counts.sql` | `pending_all`, `pending_client`, `counts_known` |
 | `backend/src/services/replyCatchup.js` | scan, list, apply, dismiss |
-| `backend/src/services/replyCatchup.test.js` | 32 checks on opt-out reading and the re-scan SQL guards. `node src/services/replyCatchup.test.js` |
+| `backend/src/services/replyCatchup.test.js` | 37 checks on opt-out reading, the re-scan SQL guards and the Apply-notice counts. `node src/services/replyCatchup.test.js` |
 | `backend/src/services/mimeText.js` | Readable text out of a raw RFC822 message |
 | `backend/src/services/mimeText.test.js` | 28 checks, every case from a message that came out wrong. `node src/services/mimeText.test.js` |
 | `backend/src/routes/outreach.js` | `/reply-catchup/*` |
