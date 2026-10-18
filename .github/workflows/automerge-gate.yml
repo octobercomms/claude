@@ -1,0 +1,34 @@
+# Checks that the auto-merge gate still gates.
+#
+# auto-merge-claude.yml decides, unattended, whether a claude/* PR may merge.
+# On 18 Oct 2026 one jq expression in it merged three PRs before CI had
+# registered and declined two that were fully green. Nothing tested it, because
+# it is a workflow rather than application code — and platform-checks only runs
+# on dev/platform/** paths, so a change to the merge gate ran no checks at all.
+#
+# Deliberately narrow: it runs only when the gate or its test changes, so it
+# adds no check to ordinary PRs.
+
+name: Auto-merge gate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/auto-merge-claude.yml'
+      - '.github/workflows/auto-merge-gate.test.js'
+      - '.github/workflows/automerge-gate.yml'
+
+concurrency:
+  group: automerge-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Guard — the gate merges only what it should
+        run: node .github/workflows/auto-merge-gate.test.js

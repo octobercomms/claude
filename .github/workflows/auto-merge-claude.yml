@@ -4,6 +4,14 @@ name: Auto-merge Claude PRs
 # they are mergeable and every check on the head commit is green. Scoped to
 # claude/* only, so PRs you or a teammate open are never touched.
 #
+# "Green" means: every required check has REPORTED, and everything that
+# reported passed. Both halves are load-bearing. Without the first, jq's `all`
+# over an empty array is true and a PR merges before any check starts; that
+# happened to #1693, #1695 and #1696. The bot's own check run is excluded from
+# the rollup because it is posted against the PR head commit and is
+# in_progress while this job runs, which blocked #1697 and #1698 when they were
+# fully green.
+#
 # IMPORTANT — the post-merge deploy:
 # GitHub does NOT run further workflows for pushes made with the default
 # GITHUB_TOKEN (loop protection). platform-deploy.yml runs `on: push` to main,
@@ -52,19 +60,54 @@ jobs:
           if [ -z "$prs" ]; then echo "No open Claude PRs."; exit 0; fi
 
           for pr in $prs; do
-            # Ready = GitHub says it is mergeable AND every check on the head
-            # commit concluded success/neutral/skipped (empty rollup = no checks
-            # = ready). A pending/in-progress check has no conclusion, so it
-            # falls back to PENDING and blocks the merge until it finishes.
+            # Which checks MUST have reported before this PR can merge.
+            #
+            # "Every check that has reported is green" is not a gate: jq's
+            # `all` over an empty array is true, so a PR whose checks have not
+            # registered yet reads as fully green. Cloudflare Pages also
+            # registers seconds before platform-checks does, so "at least one
+            # check" is not enough either. platform-checks runs on changes
+            # under dev/platform/**, so when the PR touches those paths its two
+            # jobs are required by name.
+            # Fail safe: if the file list cannot be read, do not merge this
+            # round rather than quietly treating the PR as needing no checks.
+            # Inside an `if`, a non-zero exit does not trip `set -e`, so this
+            # has to be handled explicitly.
+            if ! files=$(gh pr diff "$pr" --repo "$REPO" --name-only); then
+              echo "::warning::could not list changed files for #$pr — not merging this round."
+              continue
+            fi
+            required=""
+            if printf '%s\n' "$files" | grep -q '^dev/platform/'; then
+              required="backend frontend"
+            fi
+
+            # Ready = GitHub says it is mergeable, every required check has
+            # reported, and every check that has reported concluded
+            # success/neutral/skipped. A pending or in-progress check has no
+            # conclusion, falls back to PENDING, and blocks.
+            #
+            # The bot's own check run is excluded. It is posted against the PR
+            # head commit, so it appears in the rollup it is evaluating, and
+            # while this job runs it is in_progress — which means the gate
+            # could only ever pass when nothing at all had registered, itself
+            # included. That is the whole bug, in both directions: it merged
+            # PRs before CI started and declined PRs that were fully green.
             ready=$(gh pr view "$pr" --repo "$REPO" --json mergeable,statusCheckRollup --jq '
-              (.mergeable == "MERGEABLE")
-              and ([.statusCheckRollup[]? | (.conclusion // .state // "PENDING")]
-                   | all(. as $c | ["SUCCESS","NEUTRAL","SKIPPED"] | index($c) != null))')
+              ((.statusCheckRollup // []) | map(select((.name // .context // "") != "automerge"))) as $checks
+              | ($checks | map(.name // .context // "")) as $names
+              | (.mergeable == "MERGEABLE")
+                and ($checks | length > 0)
+                and (($ARGS.positional // []) - $names | length == 0)
+                and ($checks | all(. as $c | ["SUCCESS","NEUTRAL","SKIPPED"]
+                                             | index($c.conclusion // $c.state // "PENDING") != null))
+            ' --args $required)
+
             if [ "$ready" = "true" ]; then
               echo "PR #$pr is green + mergeable — merging."
               gh pr merge "$pr" --repo "$REPO" --merge \
                 || echo "::warning::merge of #$pr failed; will retry on the next event."
             else
-              echo "PR #$pr not ready yet (conflict or checks pending) — skipping."
+              echo "PR #$pr not ready yet (conflict, or checks pending/missing) — skipping."
             fi
           done
