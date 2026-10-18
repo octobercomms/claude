@@ -136,13 +136,25 @@ async function listUnsubscribeHeaders(contactId, replyToEmail, clientId) {
     // list, so the opt-out lands where the conversation already is.
     const inboxes = require('./outreachInboxes');
     const live = (await inboxes.list({ activeOnly: true })).filter((i) => i.poll_replies !== false);
-    if (live.length) {
+
+    // "Switched on" is not the same as "readable". October's hello@ is a
+    // forwarding alias with no mailbox behind it: it sits in the list, it is
+    // active, and every poll of it fails. It was also first in the list, so
+    // falling back to live[0] advertised an unsubscribe address OMI cannot
+    // read — precisely what the comment above says never to do. Only a mailbox
+    // that has actually been read successfully, and is not currently failing,
+    // may be named here.
+    const healthy = live.filter((i) => i.last_ok_at && !i.last_error);
+    if (healthy.length) {
       // The address replies actually go to, bare or inside "Name <addr>".
       const want = (String(replyToEmail || '').match(/<([^>]+)>/)?.[1] || replyToEmail || '')
         .trim().toLowerCase();
-      const preferred = live.find((i) => String(i.username).trim().toLowerCase() === want) || live[0];
+      const preferred = healthy.find((i) => String(i.username).trim().toLowerCase() === want) || healthy[0];
       mailto = `mailto:${String(preferred.username).trim()}?subject=unsubscribe`;
     }
+    // Nothing proven readable yet (a fresh install, or every mailbox failing):
+    // no mailto at all. The one-click https link below still works, so opt-outs
+    // keep functioning; what stops is claiming a route that does not.
   } catch { /* no polled inbox — the https route is enough on its own */ }
   const list = mailto ? `<${mailto}>, <${unsub}>` : `<${unsub}>`;
   return {
