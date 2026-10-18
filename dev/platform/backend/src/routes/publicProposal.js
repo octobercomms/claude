@@ -40,8 +40,11 @@ router.post('/:token/ping', pingLimiter, express.text({ type: 'text/plain' }), a
 
 router.post('/:token/accept', acceptLimiter, express.json(), async (req, res) => {
   try {
+    // No package in the body: the proposal carries one priced method and
+    // acceptance accepts it, so a prospect cannot pick a cheaper level than
+    // the one the document states.
     const out = await proposals.accept(req.params.token, {
-      name: req.body?.name, pkg: req.body?.package, agreed: !!req.body?.agreed,
+      name: req.body?.name, agreed: !!req.body?.agreed,
     });
     if (!out) return res.status(404).json({ error: 'Not found' });
     res.json(out);

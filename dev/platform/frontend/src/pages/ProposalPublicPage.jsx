@@ -93,8 +93,10 @@ function useTracking(token, enabled) {
   }, [token, enabled]);
 }
 
+// There is nothing to choose here. The proposal carries one priced method,
+// picked by Daniel after the call, so acceptance accepts it: no radio buttons,
+// no cheaper level to find, and nothing for the prospect to get wrong.
 function Accept({ token, data }) {
-  const [pkg, setPkg] = useState(data.accepted_package || data.content?.recommended || 'advanced');
   const [name, setName] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -106,7 +108,7 @@ function Accept({ token, data }) {
     try {
       const r = await fetch(`/api/public/proposal/${encodeURIComponent(token)}/accept`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, package: pkg, agreed }),
+        body: JSON.stringify({ name, agreed }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Something went wrong.');
@@ -118,24 +120,25 @@ function Accept({ token, data }) {
   if (done) {
     return <div className="box hl" style={{ marginTop: 20 }}><h3>agreed. thank you.</h3><p style={{ margin: 0 }}>We'll be in touch today to set up the Direct Debit and book the audit kick-off.</p></div>;
   }
+  const offer = data.offer || {};
+  const price = offer.monthly != null
+    ? `${offer.symbol || '£'}${Number(offer.monthly).toLocaleString('en-GB')} per month`
+    : 'the monthly fee above';
+
   return (
     <div style={{ marginTop: 20 }}>
-      <div className="radio">
-        {(data.packages || []).map(p => (
-          <label key={p.key} className={pkg === p.key ? 'on' : ''}>
-            <input type="radio" name="pkg" value={p.key} checked={pkg === p.key} onChange={() => setPkg(p.key)} style={{ display: 'none' }} />
-            {p.name} · {(data.content?.currency || '£')}{Number(p.monthly).toLocaleString('en-GB')}/month
-          </label>
-        ))}
-      </div>
       <input type="text" placeholder="your full name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
       <label className="agree">
         <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
-        <span>I agree to October Communications' <a href={data.terms_url} target="_blank" rel="noreferrer">terms and conditions</a> and to a monthly Direct Debit for the level above, which can be altered or paused with notice.</span>
+        <span>I agree to October Communications' <a href={data.terms_url} target="_blank" rel="noreferrer">terms and conditions</a> and to {price} by Direct Debit for {offer.name || 'this level'}, which I can pause or stop from my dashboard at any time.</span>
       </label>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <button className="btn" onClick={go} disabled={busy || !agreed || !name.trim()}>{busy ? 'one moment…' : 'agree and set up direct debit'}</button>
         <a className="btn ghost" href={`mailto:${data.contact_email}?subject=${encodeURIComponent('Question on the proposal')}`}>ask a question first</a>
+        {/* The print stylesheet in PROPOSAL_CSS makes this the same document
+            OMI renders as a PDF, so a prospect who wants it on paper to show a
+            partner gets the designed version rather than a wrecked screenshot. */}
+        <button className="btn ghost" onClick={() => window.print()}>save as pdf</button>
       </div>
       {err && <div className="err">{err}</div>}
     </div>

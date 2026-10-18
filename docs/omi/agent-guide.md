@@ -232,8 +232,8 @@ The flow, and what is automatic vs human:
 | **Nudge** | Report unlocked, no call booked in 48h → **one** email, never repeated, never to a lead older than 7 days. | Automatic |
 | **Booking** | Custom widget books against Daniel's Google Calendar, creates the Meet event, Google sends the invite. Manage link at `/b/:token`. | Automatic |
 | **Call brief** | On booking: opener, 3 evidence-backed talking points, qualifying questions, likely objection. | Automatic |
-| **Proposal** | Re-reads the site, combines snapshot + call notes, writes in the ROAR structure, matches proof by sector (×3) and problem (×2), prices Advanced before Basic. ~1 min, runs on Opus. | Daniel triggers |
-| **Approval** | One screen: the proposal exactly as the prospect sees it, beside recipients, matched proof and why, pricing. **Nothing sends without a click.** | Daniel |
+| **Proposal** | Two passes. One cheap pass reads the notes or a pasted transcript and extracts the facts plus a list of what the call never established, shown for review before anything is written. One Opus pass then writes only the four blocks that are about the prospect (letter, situation, priority, covering email) from that extraction plus the snapshot and the site. Objectives, KPIs, strategy, tactics, stages and price come from the **method** Daniel picks, not from Claude. ~17p a proposal; a redraft costs only the second pass. | Daniel triggers |
+| **Approval** | One screen: the proposal exactly as the prospect sees it, beside recipients, matched proof and why, and the level + currency, which can be swapped without a redraft. **Nothing sends without a click.** | Daniel |
 | **Tracking** | Public page at `/p/:token` logs each viewing session and seconds per section. | Automatic |
 | **Decay alerts** | First open (instant), unopened 24h, opened-no-reply 24h with a talking point from the section they read most, cooling on repeat visits. **All to Daniel, never to the prospect.** | Daniel acts |
 | **Sign-up** | Package + terms tick → GoCardless mandate. Lead becomes `won`. | Prospect |
@@ -248,7 +248,10 @@ routes `{leads,proposals,publicProposal,booking,publicBooking,publicSnapshot}.js
 migrations `123`/`183`/`184`. Frontend `pages/{LeadsPage,SnapshotStudioPage,
 ProposalsPage,ProposalEditorPage,ProofLibraryPage,BookingSettingsPage,
 ProposalPublicPage,BookingManagePage}.jsx` plus
-`components/proposal/ProposalDocument.jsx` (one renderer shared by the internal
+`components/proposal/{ProposalDocument,MethodsPanel,sampleProposal}.jsx|js`
+and `pages/ProposalSamplePage.jsx` (a whole dummy proposal at `/proposals/sample`,
+rendered through the real document component, for designing and print-testing
+against). ProposalDocument.jsx is one renderer shared by the internal
 preview and the live page, so what is approved is what is sent).
 
 **Not live until Daniel does these.** Check before claiming the pipeline works:

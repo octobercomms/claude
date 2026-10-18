@@ -219,6 +219,60 @@ export default function SnapshotStudioPage() {
   );
 }
 
+// What the first pass pulled out of the notes, for checking before a word is
+// written. Two things here earn their place. The gap list, because four blocks
+// now carry the whole weight of "he understood us" and being told what the call
+// never established is worth more than a block filled confidently. And the
+// withheld count, because a transcript holds things that must never reach a
+// document the prospect can forward: a price objection, what they said about
+// their last agency, an aside about someone's health.
+function Facts({ facts }) {
+  if (facts.failed) {
+    return (
+      <div className="body-sm mt-2" style={{ color: 'var(--warning)' }}>
+        Could not read the notes this time, so drafting will work straight from them.
+        You lose this check, not the proposal.
+      </div>
+    );
+  }
+  const block = (label, arr) => (arr?.length ? (
+    <div style={{ marginTop: 'var(--s2)' }}>
+      <em>{label}</em>
+      <ul style={{ paddingLeft: 18, margin: '2px 0' }}>{arr.map((x, i) => <li key={i}>{x}</li>)}</ul>
+    </div>
+  ) : null);
+  const line = (label, v) => (v ? <div style={{ marginTop: 'var(--s2)' }}><em>{label}:</em> {v}</div> : null);
+
+  return (
+    <div className="body-sm" style={{
+      background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)',
+      padding: 'var(--s3)', margin: 'var(--s3) 0',
+    }}>
+      <strong>What the call gave us</strong>
+      {block('Going wrong', facts.going_wrong)}
+      {block('Proud of', facts.proudest_work)}
+      {block('Already tried', facts.already_tried)}
+      {line('Making it live now', facts.trigger)}
+      {line('Who decides', facts.decision)}
+      {line('Work they want', facts.target_work)}
+      {block('Their own words', facts.quotes)}
+      {facts.missing?.length > 0 && (
+        <div style={{ marginTop: 'var(--s3)', color: 'var(--warning)' }}>
+          <strong>Not established on the call:</strong> {facts.missing.join(', ')}.
+          {' '}Add a line about any of these to the notes and read them again, or leave it:
+          the proposal will not invent them.
+        </div>
+      )}
+      {facts.withheld > 0 && (
+        <div className="body-xs text-subtle mt-2">
+          {facts.withheld} thing{facts.withheld === 1 ? '' : 's'} left out as having no place in a
+          proposal. Nothing said in confidence goes into the document.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Field({ label, children }) {
   return (
     <div className="field">
@@ -238,9 +292,36 @@ function PipelineCard({ lead, onLead, patch }) {
   const [proposals, setProposals] = useState([]);
   const [names, setNames] = useState(lead.contact_name || '');
   const [angle, setAngle] = useState('');
+  const [methods, setMethods] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+  const [methodId, setMethodId] = useState('');
+  const [currency, setCurrency] = useState('GBP');
+  const [facts, setFacts] = useState(null);
   const brief = lead.call_brief;
 
   useEffect(() => { api.get(`/proposals/lead/${lead.id}`).then(setProposals).catch(() => {}); }, [lead.id]);
+  useEffect(() => {
+    api.get('/proposals/methods').then(d => {
+      const live = (d.methods || []).filter(m => m.active);
+      setMethods(live);
+      setCurrencies(d.currencies || []);
+      if (live.length) setMethodId(prev => prev || live[0].id);
+    }).catch(() => {});
+  }, []);
+
+  // Pass one. Reads whatever is in the notes box, which may be two sentences or
+  // a whole transcript, and shows what it found before anything is written. The
+  // gap list is the point: four blocks now carry the whole weight of "he
+  // understood us", so being told what the call never established beats the
+  // blocks it would fill confidently. It also means the transcript is read once
+  // rather than on every redraft.
+  async function readNotes() {
+    const notes = document.getElementById('pp-call-notes')?.value;
+    if (!String(notes || '').trim()) { toast('Paste the notes or the transcript first.', 'error'); return; }
+    setBusy('extract');
+    try { setFacts(await api.post('/proposals/extract', { notes })); }
+    catch (e) { toast(`Could not read the notes: ${e.message}`, 'error'); } finally { setBusy(null); }
+  }
 
   async function book() {
     setBusy('book');
@@ -259,7 +340,13 @@ function PipelineCard({ lead, onLead, patch }) {
     setBusy('proposal');
     try {
       const notes = document.getElementById('pp-call-notes')?.value;
-      const p = await api.post('/proposals', { lead_id: lead.id, recipient_names: names, recipient_email: lead.email, call_notes: notes, angle });
+      const p = await api.post('/proposals', {
+        lead_id: lead.id, recipient_names: names, recipient_email: lead.email,
+        call_notes: notes, angle, method_id: methodId, currency,
+        // Reuse the extraction Daniel has already looked at, so drafting does
+        // not pay to read the transcript a second time.
+        extraction: facts || undefined,
+      });
       navigate(`/proposals/${p.id}`);
     } catch (e) { toast(`Draft failed: ${e.message}`, 'error'); setBusy(null); }
   }
@@ -296,11 +383,52 @@ function PipelineCard({ lead, onLead, patch }) {
         <textarea id="pp-call-notes" className="textarea" rows={5} defaultValue={lead.call_notes || ''}
           placeholder="What they want, in their words. Budget, timeline, who decides, what they've tried."
           onBlur={e => e.target.value !== (lead.call_notes || '') && patch({ call_notes: e.target.value })} /></Field>
+      <button className="btn btn-secondary btn-sm" onClick={readNotes} disabled={!!busy}>
+        {busy === 'extract' ? 'Reading…' : facts ? 'Read the notes again' : 'Read the notes'}</button>
+
+      {facts && <Facts facts={facts} />}
+
       <Field label="Address the proposal to"><input className="input" value={names} onChange={e => setNames(e.target.value)} placeholder="Shaun, Craig and Debbie" /></Field>
       <Field label="Your angle (optional, one line)"><input className="input" value={angle} onChange={e => setAngle(e.target.value)} placeholder="e.g. it's a positioning problem, not a press problem" /></Field>
-      <button className="btn btn-primary" onClick={draftProposal} disabled={!!busy || !lead.email}>
+
+      {/* The level and the market. Picked from the call, stated in the proposal
+          rather than offered as a menu: a prospect choosing their own level
+          turns the price into a comparison. Both are changeable on the draft
+          afterwards without another generation. */}
+      <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 240px' }}>
+          <Field label="Level — what this proposal sells">
+            <select className="input" value={methodId} onChange={e => setMethodId(e.target.value)}>
+              {!methods.length && <option value="">No methods yet</option>}
+              {methods.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div style={{ flex: '0 1 150px' }}>
+          <Field label="Currency">
+            <select className="input" value={currency} onChange={e => setCurrency(e.target.value)}>
+              {currencies.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
+            </select>
+          </Field>
+        </div>
+      </div>
+      {(() => {
+        const m = methods.find(x => x.id === methodId);
+        if (!m) return null;
+        const p = m.prices?.[currency];
+        if (!p) return <div className="body-xs mt-1" style={{ color: 'var(--warning)' }}>
+          No {currency} price on {m.name}. The proposal will say the price is to confirm. Set it in Settings → Proposals.
+        </div>;
+        if (!p.gocardless_url) return <div className="body-xs mt-1" style={{ color: 'var(--warning)' }}>
+          No {currency} GoCardless link on {m.name}. They can still accept; you will be told to send the mandate by hand.
+        </div>;
+        return null;
+      })()}
+
+      <button className="btn btn-primary" onClick={draftProposal} disabled={!!busy || !lead.email || !methodId}>
         {busy === 'proposal' ? 'Drafting the proposal (about a minute)…' : 'Draft proposal'}</button>
       {!lead.email && <div className="body-xs text-muted mt-1">Add their email above first.</div>}
+      {!methods.length && <div className="body-xs text-muted mt-1">Add a method in Settings → Proposals first.</div>}
 
       {proposals.length > 0 && (
         <div className="mt-3">
