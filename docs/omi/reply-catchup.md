@@ -87,6 +87,7 @@ sends is single-part, and the failures were not cosmetic:
 | `multipart/alternative` | The boundary line and the part's own headers, as the journalist's reply |
 | A base64 part | Undecoded base64 — and the opt-out scan read that, so a "please remove me" typed into an Outlook message matched nothing and was never actioned |
 | A `gb2312` part | Mojibake, read as UTF-8 |
+| A curly quote under a `us-ascii` label | U+FFFD. Outlook emits windows-1252 bytes while labelling the part us-ascii, so "Harper's Bazaar" reached the screen as "Harper&#xFFFD;s Bazaar". `us-ascii` and `iso-8859-1` now decode as `windows-1252`, which is what the HTML5 spec requires of browsers, for this exact reason |
 | Our own quoted footer | Kept, because collapsing every newline left `replyBodyOnly`'s `>` filter nothing to match |
 
 `services/mimeText.js` walks the MIME tree instead: prefers the `text/plain`

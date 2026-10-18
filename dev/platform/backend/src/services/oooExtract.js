@@ -202,7 +202,26 @@ const ROLE_WORDS = new RegExp('^(?:' + [
   'content', 'news', 'features', 'digital', 'online', 'special', 'projects',
   'dr', 'prof', 'professor', 'mr', 'mrs', 'ms', 'miss', 'sir', 'dame',
   'team', 'desk', 'please', 'contact', 'email', 'reach', 'out', 'to', 'at',
+  // Abbreviated titles. Without these, "Bazaar's EIC Lydia Slater" proposed a
+  // contact literally named "EIC Lydia Slater": the spelled-out forms above
+  // were stripped from "Digital Editor John Bush" while the initialism beside
+  // it went straight through. Matching is case-insensitive and whole-word, so
+  // a surname like Ed or Page is only dropped when it sits where a title sits.
+  'eic', 'ed', 'ceo', 'coo', 'cfo', 'cmo', 'cto', 'md', 'vp', 'svp', 'evp',
+  'pr', 'comms', 'gm', 'exec', 'asst', 'dep', 'snr', 'jr', 'sr',
 ].join('|') + ')$', 'i');
+
+// Hyphenated titles are a single token, so ROLE_WORDS never sees their parts:
+// "Editor-in-Chief Lydia Slater" would keep the whole title as a name word.
+const HYPHENATED_ROLE = /^(?:editor|deputy|assistant|associate|managing|director|head|chief|vice)[-\u2010-\u2015][A-Za-z-]+$/i;
+
+// A possessive belongs to the organisation that employs the person, never to
+// the person: "Bazaar's EIC Lydia Slater", "the Guardian's arts editor Ada
+// Lin". Dropping the owner leaves the name. No English forename or surname
+// ends in an apostrophe followed by s -- O'Shea and O'Sullivan do not -- so
+// this cannot eat a real name, and the address still has to corroborate
+// whatever survives.
+const POSSESSIVE = /['\u2019]s$/i;
 
 // Lowercase words that sit between a name and its address and must be stepped
 // over rather than treated as the end of the name: "email Alexis Muellner at
@@ -225,7 +244,9 @@ const RUN_RE = /\b[A-Z][A-Za-z'\u2019-]*(?:\s+[A-Z][A-Za-z'\u2019-]*){0,5}\b/g;
 // Drop titles and cue words from a run, and keep at most three words — a
 // person's name, not a sentence.
 function trimRun(run) {
-  const words = String(run).split(/\s+/).filter((w) => !ROLE_WORDS.test(w));
+  const words = String(run)
+    .split(/\s+/)
+    .filter((w) => !ROLE_WORDS.test(w) && !HYPHENATED_ROLE.test(w) && !POSSESSIVE.test(w));
   return words.slice(-3).join(' ');
 }
 

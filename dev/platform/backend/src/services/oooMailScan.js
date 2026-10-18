@@ -28,7 +28,12 @@
 //
 // Only messages that produced NO suggestion are ever reconsidered, and only
 // ones already judged to be auto-replies. See migration 202 for why.
-const READER_VERSION = 2;
+// Version 3 adds the charset fix: us-ascii and iso-8859-1 decode as
+// windows-1252, so Outlook's curly quotes stop arriving as U+FFFD ("Harper's
+// Bazaar" was reaching the review screen as "Harper<?>s Bazaar"), and the
+// extractor stops treating abbreviated and possessive titles as part of a
+// name ("Bazaar's EIC Lydia Slater" proposed a contact by that literal name).
+const READER_VERSION = 3;
 
 const crypto = require('crypto');
 const pool = require('../db');
@@ -98,7 +103,10 @@ function messageKey({ headers, fromEmail, subject, date }) {
 
 async function alreadyScanned(key) {
   const { rows } = await pool.query(
-    'SELECT suggestion_id, was_auto_reply, reader_version FROM ooo_scanned_messages WHERE message_key = $1',
+    `SELECT m.suggestion_id, m.was_auto_reply, m.reader_version, s.status AS suggestion_status
+       FROM ooo_scanned_messages m
+       LEFT JOIN ooo_suggestions s ON s.id = m.suggestion_id
+      WHERE m.message_key = $1`,
     [key]
   );
   return rows.length ? rows[0] : null;
@@ -114,10 +122,23 @@ async function alreadyScanned(key) {
  * it could resurrect a decision someone already made.
  */
 function needsReread(seen) {
-  return Boolean(seen)
-    && !seen.suggestion_id
-    && seen.was_auto_reply === true
-    && Number(seen.reader_version || 1) < READER_VERSION;
+  if (!seen) return false;
+  if (seen.was_auto_reply !== true) return false;
+  if (Number(seen.reader_version || 1) >= READER_VERSION) return false;
+  // No suggestion: the reader is what decided there was nothing to propose.
+  if (!seen.suggestion_id) return true;
+  // A suggestion still PENDING has had nothing done to it, and its stored
+  // quote and names came from whichever reader produced them -- which is why
+  // rows raised before the MIME fix still showed a boundary line mid-sentence.
+  // Nothing is lost by proposing it again from a better read; upsertSuggestion
+  // replaces alt_contacts in place and the ticks are browser state, not
+  // stored. (The reply catch-up refreshes its pending rows for exactly this
+  // reason; not carrying the rule across was an oversight.)
+  //
+  // Applied and dismissed rows are decisions, and upsertSuggestion overwrites
+  // alt_contacts unconditionally, so re-reading one would rewrite what someone
+  // already acted on. Those stay untouched.
+  return seen.suggestion_status === 'pending';
 }
 
 async function markScanned(key, wasAutoReply, suggestionId) {
