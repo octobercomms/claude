@@ -389,6 +389,15 @@ progress is obvious on `platform.octobercomms.com`.
   `.github/workflows/auto-merge-gate.test.js`, which reads the filter out of
   the workflow so the test cannot drift from what runs. If you change that
   filter, run the test.
+- **A `check_suite` event from GitHub Actions does not trigger a workflow.**
+  Same loop protection as a `GITHUB_TOKEN` push not firing `on: push`. The
+  auto-merge bot listened on `check_suite: completed` and so never woke when
+  `platform-checks` went green: the only such events reaching it came from
+  Cloudflare Pages, which finishes first, so every PR was judged too early,
+  declined correctly, and never reconsidered until the `*/30` safety net.
+  `workflow_run` does fire for Actions workflows and is what the gate now
+  uses. If you add a CI workflow whose result should gate a merge, add its
+  `name:` to that `workflow_run.workflows` list.
 - **A workflow change runs no checks.** `platform-checks.yml` triggers on
   `dev/platform/**`, so edits to `.github/workflows/**` were entirely untested
   until `automerge-gate.yml` existed. Anything unattended you add there wants

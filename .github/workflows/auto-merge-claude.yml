@@ -27,6 +27,21 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
   check_suite:
     types: [completed]
+  # The one that actually matters.
+  #
+  # GitHub does NOT trigger workflows from check_suite or check_run events
+  # that GitHub Actions itself produced — the same loop protection that stops
+  # a GITHUB_TOKEN push firing `on: push`. So platform-checks going green
+  # never woke this workflow. The only check_suite events that reached it came
+  # from third-party apps (Cloudflare Pages), which finish BEFORE the platform
+  # checks do, so the bot evaluated every PR too early, declined correctly,
+  # and was never asked again until the */30 safety net came round.
+  #
+  # workflow_run does fire for Actions workflows, so this is the trigger that
+  # lets the gate see CI finish.
+  workflow_run:
+    workflows: ["Platform checks", "Auto-merge gate"]
+    types: [completed]
   schedule:
     - cron: '*/30 * * * *'   # safety net for any missed events
   workflow_dispatch:
