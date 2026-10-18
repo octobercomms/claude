@@ -105,10 +105,50 @@ async function status() {
   return { connected: !!t?.refresh_token, email: t?.email || null, connected_at: t?.connected_at || null };
 }
 
+// Google says why it refused; axios throws "Request failed with status code
+// 403" and drops it. That difference matters more than it looks: the three
+// common reasons for a 403 here need three completely different fixes, and
+// without the reason the booking screen can only say something went wrong,
+// which is a dead end for whoever has to fix it.
+const REMEDY = {
+  insufficientPermissions: 'The connected Google account has not granted the scope this call needs. Disconnect the calendar and connect it again, agreeing to every box on the consent screen.',
+  forbidden: 'Google refused the request on this calendar. Check the calendar id is one this account can see.',
+  accessNotConfigured: 'The Google Calendar API is not enabled on the Google Cloud project behind GOOGLE_CLIENT_ID. Enable it in that project and try again.',
+  rateLimitExceeded: 'Google is rate limiting this account. Nothing to change; wait a minute and try again.',
+  userRateLimitExceeded: 'Google is rate limiting this account. Nothing to change; wait a minute and try again.',
+  quotaExceeded: 'The Google Cloud project has run out of Calendar API quota for now. Wait, or raise the quota on that project.',
+  dailyLimitExceeded: 'The Google Cloud project has hit its daily Calendar API limit. Wait for the reset, or raise it on that project.',
+  variableTermLimitExceeded: 'The requested window is longer than Google will answer in one freeBusy call. Lower "days ahead".',
+};
+
+function googleError(err, method, path) {
+  const res = err.response;
+  if (!res) return err;                       // network, timeout, DNS: unchanged
+  const body = res.data?.error;
+  const reason = body?.errors?.[0]?.reason || body?.status || null;
+  const detail = body?.message || res.statusText || '';
+  const remedy = REMEDY[reason];
+  const e = new Error([
+    `Google Calendar refused ${method.toUpperCase()} ${path} with ${res.status}`,
+    reason ? ` (${reason})` : '',
+    detail ? `: ${detail}` : '.',
+    remedy ? ` ${remedy}` : '',
+  ].join(''));
+  e.response = res;            // the public route still logs the raw body
+  e.status = res.status;
+  e.googleReason = reason;
+  e.googleDetail = detail;
+  return e;
+}
+
 async function call(method, path, { params, data } = {}) {
   const token = await accessToken();
-  const res = await axios({ method, url: `${API}${path}`, params, data, headers: { Authorization: `Bearer ${token}` }, timeout: 15000 });
-  return res.data;
+  try {
+    const res = await axios({ method, url: `${API}${path}`, params, data, headers: { Authorization: `Bearer ${token}` }, timeout: 15000 });
+    return res.data;
+  } catch (err) {
+    throw googleError(err, method, path);
+  }
 }
 
 // Busy blocks across the calendars that should block a booking (primary plus
@@ -160,4 +200,4 @@ async function cancelEvent({ calendarId = 'primary', eventId }) {
   }
 }
 
-module.exports = { SCOPES, getAuthUrl, handleCallback, status, disconnect, busy, createMeetEvent, moveEvent, cancelEvent };
+module.exports = { SCOPES, getAuthUrl, handleCallback, status, disconnect, busy, createMeetEvent, moveEvent, cancelEvent, googleError, REMEDY };
