@@ -121,7 +121,9 @@ export default function ReplyCatchupPanel() {
           Reply polling only looks back three days, so replies that arrived while a
           mailbox was not being read were never matched and never checked for opt-outs.
           This reads further back across every mailbox switched on for replies and shows
-          you what it would do. Scanning changes nothing.
+          you what it would do. Scanning changes nothing. Anything already waiting here
+          is re-read too, so a scan corrects proposals raised earlier; what you have
+          applied or dismissed is left alone.
         </div>
         <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
           <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Look back</label>
@@ -137,6 +139,7 @@ export default function ReplyCatchupPanel() {
             {report.scanned} messages read over {report.window_days} days · <strong>{report.found}</strong> to review
             {report.opt_outs ? <> · <strong style={{ color: 'var(--negative)' }}>{report.opt_outs} opt-out{report.opt_outs === 1 ? '' : 's'}</strong></> : null}
             {report.already_handled ? ` · ${report.already_handled} already handled` : ''}
+            {report.refreshed ? ` · ${report.refreshed} re-read` : ''}
             {report.inboxes?.length > 1 && (
               <div style={{ marginTop: 'var(--s1)' }}>
                 {report.inboxes.map((b) => `${b.inbox}: ${b.found} of ${b.scanned}`).join(' · ')}

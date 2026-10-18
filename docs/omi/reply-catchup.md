@@ -66,6 +66,42 @@ step guards the direction that can do harm; an undo would open the one that can.
 - **`message_key` dedupes across scans.** Same derivation as the out-of-office
   watermark, so widening the window and re-running is cheap and never proposes
   the same reply twice.
+- **A re-scan refreshes rows that are still pending, and only those.** Nothing
+  has been written on a pending row's behalf, so recomputing it is free, and it
+  is the only route by which a reader improvement reaches proposals an earlier
+  scan already raised. Applied and dismissed rows are decisions; the upsert
+  carries `WHERE status = 'pending'` and `consider()` returns early for them.
+  Removing either guard would let a re-read of the mailbox rewrite history.
+- **The body is read through `mimeText.bodyText`, never a blank-line split.**
+  See below.
+
+## Reading the message
+
+Until October 2026 both readers took "the body" to be everything after the
+first blank line, stripped HTML tags off it and collapsed the whitespace. On a
+single-part plain-text mail that is roughly right. Almost nothing a journalist
+sends is single-part, and the failures were not cosmetic:
+
+| What arrived | What was stored and scanned |
+|---|---|
+| `multipart/alternative` | The boundary line and the part's own headers, as the journalist's reply |
+| A base64 part | Undecoded base64 — and the opt-out scan read that, so a "please remove me" typed into an Outlook message matched nothing and was never actioned |
+| A `gb2312` part | Mojibake, read as UTF-8 |
+| Our own quoted footer | Kept, because collapsing every newline left `replyBodyOnly`'s `>` filter nothing to match |
+
+`services/mimeText.js` walks the MIME tree instead: prefers the `text/plain`
+part of a `multipart/alternative`, skips attachments, decodes base64 and
+quoted-printable, decodes the declared charset through `TextDecoder` (Node
+ships full ICU), and keeps newlines so quote-stripping works. All three readers
+go through it — the live poll, the catch-up scan and the out-of-office
+extractor — so there is one definition of "what the message says".
+
+Pass it the raw `Buffer` from imapflow where you have it. A string that has
+already been decoded as UTF-8 has lost the bytes a `gb2312` part needs.
+
+The subject line is taken from the IMAP envelope, which imapflow decodes, so
+subject-matched opt-outs (One-Click among them) were never affected by any of
+this.
 
 ## Known limits
 
@@ -83,6 +119,8 @@ step guards the direction that can do harm; an undo would open the one that can.
 |---|---|
 | `backend/migrations/199_reply_catchup.sql` | `outreach_reply_catchup` |
 | `backend/src/services/replyCatchup.js` | scan, list, apply, dismiss |
-| `backend/src/services/replyCatchup.test.js` | 16 checks on opt-out reading. `node src/services/replyCatchup.test.js` |
+| `backend/src/services/replyCatchup.test.js` | 32 checks on opt-out reading and the re-scan SQL guards. `node src/services/replyCatchup.test.js` |
+| `backend/src/services/mimeText.js` | Readable text out of a raw RFC822 message |
+| `backend/src/services/mimeText.test.js` | 28 checks, every case from a message that came out wrong. `node src/services/mimeText.test.js` |
 | `backend/src/routes/outreach.js` | `/reply-catchup/*` |
 | `frontend/src/components/ReplyCatchupPanel.jsx` | The review screen |

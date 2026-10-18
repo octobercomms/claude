@@ -20,6 +20,7 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const extract = require('./oooExtract');
+const mimeText = require('./mimeText');
 const ooo = require('./oooSuggestions');
 
 // Phrases that mean the sender has gone for good rather than gone for a week.
@@ -105,9 +106,13 @@ async function markScanned(key, wasAutoReply, suggestionId) {
  * Returns a short verdict rather than throwing, so a malformed message can
  * never take the reply poll down with it.
  */
-async function ingestMessage({ raw, fromEmail, subject, date, ownDomains = [], knownSendersOnly = false }) {
-  const { headers, body } = splitRaw(raw);
-  const text = toText(body);
+async function ingestMessage({ raw, source = null, fromEmail, subject, date, ownDomains = [], knownSendersOnly = false }) {
+  const { headers } = splitRaw(raw);
+  // `source` is imapflow's raw Buffer where the caller has it. mimeText walks
+  // the MIME tree and decodes the part properly; the old splitRaw/toText pair
+  // handed an auto-reply's boundary line and base64 straight to the extractor,
+  // which is no way to read a name out of a signature.
+  const text = mimeText.bodyText(source || raw);
   const key = messageKey({ headers, fromEmail, subject, date });
 
   const seen = await alreadyScanned(key);

@@ -67,6 +67,8 @@ jobs:
         run: node src/services/oooExtract.test.js
       - name: Guard — the reply catch-up reads opt-outs correctly
         run: node src/services/replyCatchup.test.js
+      - name: Guard — a reply is read as the journalist wrote it
+        run: node src/services/mimeText.test.js
       - name: Syntax check every service and route
         run: |
           set -e
