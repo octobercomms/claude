@@ -364,6 +364,15 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **Never read a mail body by splitting on the first blank line.** Use
+  `services/mimeText.js` (`bodyText`), and hand it imapflow's raw `Buffer`
+  rather than a UTF-8 string. Both readers used to do the naive split, which
+  stored a multipart boundary as the journalist's reply, never decoded base64,
+  and left the opt-out keyword scan reading base64 — so a typed "please remove
+  me" in an Outlook message was missed for months while One-Click opt-outs,
+  which match on the subject, worked fine. Headers may be read off the raw
+  string; the body may not. See `docs/omi/reply-catchup.md` § Reading the
+  message.
 - **Email opens are not a signal.** Apple Mail Privacy Protection and Gmail's
   image proxy fetch the tracking pixel with no human involved, repeatedly. Any
   threshold built on `open_count` fires on machines: a 3-open "warm journalist"

@@ -2,6 +2,7 @@ const pool = require('../db');
 const { getSetting } = require('../utils/settings');
 const outreachAi = require('./outreachAi');
 const oooMailScan = require('./oooMailScan');
+const mimeText = require('./mimeText');
 const inboxes = require('./outreachInboxes');
 
 // Statuses that should suppress the contact entirely going forward.
@@ -220,16 +221,14 @@ async function pollOneInbox(inbox) {
           const email = from && from.address ? from.address.toLowerCase().trim() : '';
           if (!email) continue;
 
-          // Strip the headers off so we only pass the body to the classifier.
+          // The readable text of the message, whatever shape it arrived in.
+          // This used to be "everything after the first blank line, tags
+          // stripped, whitespace collapsed", which on a multipart mail stored
+          // the boundary and the part headers as the journalist's reply, never
+          // decoded base64, and left the opt-out scan reading gibberish. Pass
+          // the raw Buffer so the charset survives too.
           const raw = msg.source ? msg.source.toString('utf8') : '';
-          const split = raw.indexOf('\r\n\r\n');
-          const body = (split >= 0 ? raw.slice(split + 4) : raw)
-            .replace(/=\r?\n/g, '')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/&nbsp;/gi, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 4000);
+          const body = mimeText.bodyText(msg.source || raw).slice(0, 4000);
 
           // Read any lasting contact change out of the auto-reply. This runs
           // for every message, not only the ones matching a contact we emailed:
@@ -240,6 +239,7 @@ async function pollOneInbox(inbox) {
           try {
             const res = inbox.scan_ooo === false ? null : await oooMailScan.ingestMessage({
               raw,
+              source: msg.source || null,
               fromEmail: email,
               subject: msg.envelope?.subject ? String(msg.envelope.subject) : '',
               date: msg.envelope?.date || null,
@@ -464,6 +464,7 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
           try {
             const res = await oooMailScan.ingestMessage({
               raw: msg.source ? msg.source.toString('utf8') : '',
+              source: msg.source || null,
               fromEmail: email,
               subject: msg.envelope?.subject ? String(msg.envelope.subject) : '',
               date: msg.envelope?.date || null,

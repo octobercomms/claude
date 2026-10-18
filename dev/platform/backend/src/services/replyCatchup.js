@@ -19,6 +19,7 @@
 const pool = require('../db');
 const inboxes = require('./outreachInboxes');
 const oooMailScan = require('./oooMailScan');
+const mimeText = require('./mimeText');
 const replies = require('./outreachReplies');
 
 /**
@@ -128,7 +129,7 @@ async function scan({ days = 180, limit = 3000, inboxId = null, user = null } = 
   const cap = Math.min(20000, Math.max(1, Number(limit) || 3000));
   const { ImapFlow } = require('imapflow');
 
-  let scanned = 0; let found = 0; let optOuts = 0; let alreadyHandled = 0;
+  let scanned = 0; let found = 0; let optOuts = 0; let alreadyHandled = 0; let refreshed = 0;
   const per = [];
   const errors = [];
 
@@ -156,6 +157,7 @@ async function scan({ days = 180, limit = 3000, inboxId = null, user = null } = 
             const r = await consider({ msg, email, inbox });
             if (r === 'found') { boxFound += 1; found += 1; }
             else if (r === 'opt_out') { boxFound += 1; found += 1; optOuts += 1; }
+            else if (r === 'refreshed') refreshed += 1;
             else if (r === 'already') alreadyHandled += 1;
           } catch (err) {
             console.warn('[Reply catch-up]', inbox.label, email, err.message);
@@ -177,27 +179,41 @@ async function scan({ days = 180, limit = 3000, inboxId = null, user = null } = 
 
   return {
     window_days: windowDays, scanned, found, opt_outs: optOuts,
-    already_handled: alreadyHandled, inboxes: per, errors,
+    already_handled: alreadyHandled, refreshed, inboxes: per, errors,
   };
 }
 
 // One message: decide whether it proposes anything, and record it if so.
 async function consider({ msg, email, inbox }) {
   const raw = msg.source ? msg.source.toString('utf8') : '';
-  const { headers, body } = oooMailScan.splitRaw(raw);
+  const { headers } = oooMailScan.splitRaw(raw);
   const subject = msg.envelope?.subject ? String(msg.envelope.subject) : '';
   const receivedAt = msg.envelope?.date || null;
   const key = oooMailScan.messageKey({ headers, fromEmail: email, subject, date: receivedAt });
 
   // Already proposed by an earlier scan. Re-scanning a wider window is cheap
   // and never duplicates.
-  const { rows: seen } = await pool.query('SELECT 1 FROM outreach_reply_catchup WHERE message_key = $1', [key]);
-  if (seen.length) return 'seen';
+  //
+  // A row still PENDING is re-read rather than skipped. Nothing has been
+  // written anywhere on its behalf, so recomputing it costs nothing and is the
+  // only way a reader improvement reaches rows an earlier scan already
+  // proposed: the rows raised before MIME decoding worked hold a boundary line
+  // or a wall of base64 where the reply should be, and a reviewer cannot
+  // approve what they cannot read. Applied and dismissed rows are decided and
+  // are never touched.
+  const { rows: seen } = await pool.query(
+    'SELECT status FROM outreach_reply_catchup WHERE message_key = $1', [key]
+  );
+  const refreshing = seen.length > 0;
+  if (refreshing && seen[0].status !== 'pending') return 'seen';
 
   const sends = await openSendsFor(email);
   if (!sends.length) return 'no_match';           // not someone we emailed
 
-  const text = oooMailScan.toText(body);
+  // The raw Buffer, not the UTF-8 string: mimeText walks the MIME tree, picks
+  // the text/plain part, and decodes the transfer encoding and charset. Pass
+  // it a string already decoded as UTF-8 and a gb2312 part is beyond saving.
+  const text = mimeText.bodyText(msg.source || raw);
   const phrase = unsubPhrase(text, subject);
 
   // An auto-reply is not a reply. The live poll marks them because it cannot
@@ -225,7 +241,20 @@ async function consider({ msg, email, inbox }) {
         contact_id, campaign_id, client_id, send_ids, mark_replied, unsubscribe,
         unsub_phrase, machine_opt_out)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14)
-     ON CONFLICT (message_key) DO NOTHING`,
+     ON CONFLICT (message_key) DO UPDATE
+        SET snippet        = EXCLUDED.snippet,
+            inbox_label    = EXCLUDED.inbox_label,
+            subject        = EXCLUDED.subject,
+            received_at    = EXCLUDED.received_at,
+            contact_id     = EXCLUDED.contact_id,
+            campaign_id    = EXCLUDED.campaign_id,
+            client_id      = EXCLUDED.client_id,
+            send_ids       = EXCLUDED.send_ids,
+            mark_replied   = EXCLUDED.mark_replied,
+            unsubscribe    = EXCLUDED.unsubscribe,
+            unsub_phrase   = EXCLUDED.unsub_phrase,
+            machine_opt_out = EXCLUDED.machine_opt_out
+      WHERE outreach_reply_catchup.status = 'pending'`,
     [
       key, inbox.label, email, subject || null, receivedAt,
       replies.replyBodyOnly(text).slice(0, 600) || text.slice(0, 600),
@@ -234,6 +263,7 @@ async function consider({ msg, email, inbox }) {
       markReplied, doUnsub, phrase, machine,
     ]
   );
+  if (refreshing) return 'refreshed';
   return doUnsub ? 'opt_out' : 'found';
 }
 
@@ -377,4 +407,8 @@ async function dismiss(id, opts = {}) {
 module.exports = {
   scan, listItems, counts, applyItem, applyBatch, dismiss,
   unsubPhrase, unsubPhraseDetail, isMachineBody, isMachineOptOut, openSendsFor,
+  // Exported so one message can be put through the whole decision against a
+  // real database without opening an IMAP connection. That is the only way to
+  // prove the re-scan refreshes a pending row and leaves an applied one alone.
+  consider,
 };
