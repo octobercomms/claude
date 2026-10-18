@@ -4,6 +4,7 @@ const outreachAi = require('./outreachAi');
 const oooMailScan = require('./oooMailScan');
 const mimeText = require('./mimeText');
 const inboxes = require('./outreachInboxes');
+const budget = require('./budget');
 
 // Statuses that should suppress the contact entirely going forward.
 const SUPPRESSING = new Set(['unsubscribe', 'not_relevant']);
@@ -308,7 +309,21 @@ async function pollOneInbox(inbox) {
           }
 
           // Best-effort classify — never let it block the poll.
-          if (rows.length && body) {
+          //
+          // Budgeted here rather than inside outreachAi, because that module
+          // also serves two screens a person clicks and waits on; gating it
+          // there would block them for a cap this cron loop spent. This is the
+          // only unattended caller, so this is where the gate belongs.
+          //
+          // The gate deliberately wraps ONLY the classification. Everything
+          // above it — marking the send replied, cancelling follow-ups,
+          // deterministic opt-out detection, out-of-office extraction — is
+          // free and runs regardless. A spending cap must never be able to
+          // leave someone on a list after they asked to come off.
+          const classifyAllowed = rows.length && body
+            ? !(await budget.taskCapReached('press_replies'))
+            : false;
+          if (classifyAllowed) {
             try {
               const { rows: camp } = await pool.query(
                 'SELECT name FROM outreach_campaigns WHERE id = $1',

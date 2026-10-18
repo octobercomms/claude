@@ -364,6 +364,21 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **`new Anthropic()` anywhere is invisible to every cap.** `callClaude` holds
+  the global hard cap, so a service that constructs the SDK itself is unseen
+  by it, by the per-task cap and by the Pause switch — while still recording
+  its spend, so Settings shows money going out that nothing can stop.
+  `tests/budget-gating.test.js` exists for this and is only as good as its
+  own classification: `services/outreachAi.js` sat in HUMAN_TRIGGERED while
+  `classifyReply` ran on the */15 reply poll, which is the fourth file that
+  list has had wrong. When you put anything on a cron, check that list.
+- **A budget must never be able to stop compliance work.** In
+  `outreachReplies.pollReplies` the gate wraps the Claude classification and
+  nothing else: marking the send replied, cancelling follow-ups, deterministic
+  opt-out detection and out-of-office extraction all run first and are free.
+  Five assertions in the budget verification pin that ordering, because a cap
+  that silenced opt-out handling would turn a spending control into a legal
+  problem.
 - **The auto-merge bot's own check run is in the rollup it evaluates.** It is
   posted against the PR head commit, so a naive "every check is green" test
   can only pass when nothing has registered at all — itself included. Combined
@@ -374,6 +389,15 @@ progress is obvious on `platform.octobercomms.com`.
   `.github/workflows/auto-merge-gate.test.js`, which reads the filter out of
   the workflow so the test cannot drift from what runs. If you change that
   filter, run the test.
+- **A `check_suite` event from GitHub Actions does not trigger a workflow.**
+  Same loop protection as a `GITHUB_TOKEN` push not firing `on: push`. The
+  auto-merge bot listened on `check_suite: completed` and so never woke when
+  `platform-checks` went green: the only such events reaching it came from
+  Cloudflare Pages, which finishes first, so every PR was judged too early,
+  declined correctly, and never reconsidered until the `*/30` safety net.
+  `workflow_run` does fire for Actions workflows and is what the gate now
+  uses. If you add a CI workflow whose result should gate a merge, add its
+  `name:` to that `workflow_run.workflows` list.
 - **A workflow change runs no checks.** `platform-checks.yml` triggers on
   `dev/platform/**`, so edits to `.github/workflows/**` were entirely untested
   until `automerge-gate.yml` existed. Anything unattended you add there wants

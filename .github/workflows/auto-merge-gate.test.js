@@ -57,6 +57,18 @@ const invocation = [
   ['the PR JSON is read before being filtered', /pr_json=\$\(gh pr view/.test(code)],
   ['an unreadable PR skips rather than merging', /could not read #\$pr[\s\S]{0,120}?continue/.test(code)],
   ['an unreadable file list skips rather than merging', /could not list changed files[\s\S]{0,120}?continue/.test(code)],
+
+  // A correct gate that is never asked again is still a PR sitting there.
+  //
+  // GitHub does not trigger workflows from check_suite or check_run events
+  // that Actions itself produced, so platform-checks going green never woke
+  // this workflow: the only check_suite events arriving came from third-party
+  // apps, which finish first. Every PR was therefore evaluated too early,
+  // declined correctly, and never reconsidered until the */30 safety net.
+  // workflow_run does fire for Actions workflows.
+  ['the gate re-runs when Actions CI finishes', /workflow_run:/.test(code)],
+  ['and specifically when the platform checks do', /workflows:\s*\[[^\]]*"Platform checks"/.test(code)],
+  ['a safety-net schedule is still present', /schedule:/.test(code)],
 ];
 console.log('--- filter extracted from the workflow ---');
 console.log(FILTER.split('\n').map((l) => '  ' + l.trim()).join('\n'));

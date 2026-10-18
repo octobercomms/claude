@@ -132,6 +132,16 @@ Respond as valid JSON only:
     messages: [{ role: 'user', content: prompt }],
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'outreach_classify_reply' });
+  // Noted here rather than in the caller because this function returns null
+  // on an unparseable response — having already spent the money. A caller
+  // that noted the spend from the return value would miss exactly the calls
+  // that produced nothing, which is the wrong direction to be wrong in.
+  // Reporting only; the gate itself lives in the one unattended caller,
+  // outreachReplies.pollReplies.
+  require('./budget').noteTaskSpend(
+    'press_replies',
+    require('./costLog').claudeCostFromUsage(MODEL, resp.usage)
+  );
 
   const text = resp.content.find(b => b.type === 'text')?.text || '';
   const match = text.match(/\{[\s\S]*\}/);
