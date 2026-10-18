@@ -93,7 +93,16 @@ jobs:
             # could only ever pass when nothing at all had registered, itself
             # included. That is the whole bug, in both directions: it merged
             # PRs before CI started and declined PRs that were fully green.
-            ready=$(gh pr view "$pr" --repo "$REPO" --json mergeable,statusCheckRollup --jq '
+            # Piped into the real jq rather than `gh --jq`: gh embeds jq but
+            # exposes no way to pass positional arguments, so `--args` is an
+            # unknown flag there. The repo's gate test runs this same filter
+            # through the same binary, which is the only way the test can
+            # stand for what actually executes.
+            if ! pr_json=$(gh pr view "$pr" --repo "$REPO" --json mergeable,statusCheckRollup); then
+              echo "::warning::could not read #$pr — not merging this round."
+              continue
+            fi
+            ready=$(printf '%s' "$pr_json" | jq -r '
               ((.statusCheckRollup // []) | map(select((.name // .context // "") != "automerge"))) as $checks
               | ($checks | map(.name // .context // "")) as $names
               | (.mergeable == "MERGEABLE")

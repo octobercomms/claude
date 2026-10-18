@@ -23,9 +23,41 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 
 const wf = fs.readFileSync(require('path').join(__dirname, 'auto-merge-claude.yml'), 'utf8');
-const m = /--json mergeable,statusCheckRollup --jq '\n([\s\S]*?)\n\s*' --args \$required/.exec(wf);
-if (!m) { console.error('could not find the readiness filter in the workflow'); process.exit(1); }
+const m = /\| jq -r '\n([\s\S]*?)\n\s*' --args \$required/.exec(wf);
+if (!m) {
+  // Name the mistake rather than just failing to find a regex. This exact
+  // shape shipped once and died on the runner with "unknown flag: --args".
+  if (/--jq\s*'/.test(wf)) {
+    console.error('FAIL  the readiness filter is applied by `gh --jq`, which cannot take --args.');
+    console.error('      Pipe the PR JSON into the real jq binary instead:');
+    console.error("        ready=$(printf '%s' \"$pr_json\" | jq -r '<filter>' --args $required)");
+  } else {
+    console.error('FAIL  could not find the readiness filter in the workflow.');
+  }
+  process.exit(1);
+}
 const FILTER = m[1];
+
+// The comments below explain the very mistake these guards look for, so a
+// naive scan matches the prose instead of the code. Strip whole-line comments
+// first; a '#' mid-line (as in "#$pr") is not one.
+const code = wf.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+
+// How the filter is INVOKED, not just what it says.
+//
+// The first version of this fix passed `--args` to `gh pr view --jq`. The
+// filter was right and every case below passed, because the test ran it
+// through the real jq binary — while the workflow ran it through gh's
+// embedded one, which has no way to take positional arguments and died with
+// "unknown flag: --args" on the first PR it saw. A test of the expression
+// alone cannot catch that, so the invocation is checked too.
+const invocation = [
+  ['the filter is piped into the real jq binary', /\| jq -r '/.test(code)],
+  ['gh is not asked to apply it with --args', !/--jq[\s\S]{0,800}?--args/.test(code)],
+  ['the PR JSON is read before being filtered', /pr_json=\$\(gh pr view/.test(code)],
+  ['an unreadable PR skips rather than merging', /could not read #\$pr[\s\S]{0,120}?continue/.test(code)],
+  ['an unreadable file list skips rather than merging', /could not list changed files[\s\S]{0,120}?continue/.test(code)],
+];
 console.log('--- filter extracted from the workflow ---');
 console.log(FILTER.split('\n').map((l) => '  ' + l.trim()).join('\n'));
 console.log();
@@ -76,6 +108,11 @@ const cases = [
 ];
 
 let pass = 0, fail = 0;
+for (const [label, good] of invocation) {
+  good ? pass++ : fail++;
+  console.log((good ? 'PASS  ' : 'FAIL  ') + label);
+}
+console.log();
 for (const [label, obj, req, want] of cases) {
   let got;
   try { got = jq(obj, req); } catch (e) { got = 'ERROR: ' + e.message.split('\n')[0]; }
