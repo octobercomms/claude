@@ -364,6 +364,20 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **The auto-merge bot's own check run is in the rollup it evaluates.** It is
+  posted against the PR head commit, so a naive "every check is green" test
+  can only pass when nothing has registered at all — itself included. Combined
+  with jq's `all` over an empty array being true, that merged three PRs before
+  CI started and declined two that were fully green, on the same afternoon. The
+  gate now excludes its own check, requires `backend` and `frontend` to have
+  reported when the PR touches `dev/platform/**`, and is tested by
+  `.github/workflows/auto-merge-gate.test.js`, which reads the filter out of
+  the workflow so the test cannot drift from what runs. If you change that
+  filter, run the test.
+- **A workflow change runs no checks.** `platform-checks.yml` triggers on
+  `dev/platform/**`, so edits to `.github/workflows/**` were entirely untested
+  until `automerge-gate.yml` existed. Anything unattended you add there wants
+  its own narrow check.
 - **A permanent watermark and an improving reader are in tension.** OMI has
   two scan watermarks: `ooo_scanned_messages` (out-of-office) and
   `outreach_reply_catchup.message_key`. Both exist to stop a second proposal
