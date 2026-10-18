@@ -226,5 +226,58 @@ check('a real opt-out still matches', replies.looksLikeUnsubscribe(realOptOut, '
 
 // ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+// Windows-1252 bytes under an ASCII label.
+//
+// "Harper's Bazaar UK" reached the live review screen as "Harper<?>s Bazaar
+// UK". Outlook and Word emit curly quotes, en dashes and ellipses as
+// windows-1252 bytes in the 0x80-0x9F range while labelling the part us-ascii.
+// Decoded as UTF-8 those bytes are invalid and collapse to U+FFFD. Browsers
+// solve this by decoding both us-ascii and iso-8859-1 as windows-1252, which
+// the HTML5 spec requires; this does the same.
+
+function win1252(label, bytes, tail) {
+  return mime.bodyText(Buffer.concat([
+    Buffer.from(`Content-Type: text/plain; charset="${label}"\r\n\r\n`, 'latin1'),
+    Buffer.from('I no longer work at Harper', 'latin1'),
+    Buffer.from(bytes),
+    Buffer.from(tail, 'latin1'),
+  ]));
+}
+
+const curly = win1252('us-ascii', [0x92], 's Bazaar UK.');
+check('a curly apostrophe under us-ascii survives', curly, contains('Harper\u2019s Bazaar'));
+check('and does not become a replacement character', curly, lacks('\uFFFD'));
+check('iso-8859-1 is read the same way',
+  win1252('iso-8859-1', [0x92], 's Bazaar.'), contains('Harper\u2019s'));
+
+const dashes = mime.bodyText(Buffer.concat([
+  Buffer.from('Content-Type: text/plain; charset=us-ascii\r\n\r\nBack Oct 20', 'latin1'),
+  Buffer.from([0x96]),                                  // en dash
+  Buffer.from('24', 'latin1'),
+  Buffer.from([0x85]),                                  // ellipsis
+]));
+check('en dash and ellipsis survive too', dashes, contains('\u2013'));
+check('the ellipsis as well', dashes, contains('\u2026'));
+
+// Nothing correct is lost: plain ASCII is identical either way, and real UTF-8
+// still decodes as UTF-8 when it says so.
+check('plain ASCII under us-ascii is unchanged',
+  mime.bodyText('Content-Type: text/plain; charset=us-ascii\r\n\r\nJust a plain note.'),
+  'Just a plain note.');
+check('a declared utf-8 part is still read as utf-8',
+  mime.bodyText(Buffer.concat([
+    Buffer.from('Content-Type: text/plain; charset=utf-8\r\n\r\nCaf', 'latin1'),
+    Buffer.from('\u00e9 \u2019 \u4f60\u597d', 'utf8'),
+  ])),
+  contains('Caf\u00e9 \u2019 \u4f60\u597d'));
+check('and a part with no charset at all still defaults to utf-8',
+  mime.bodyText(Buffer.concat([
+    Buffer.from('Content-Type: text/plain\r\n\r\n', 'latin1'),
+    Buffer.from('r\u00e9sum\u00e9', 'utf8'),
+  ])),
+  contains('r\u00e9sum\u00e9'));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

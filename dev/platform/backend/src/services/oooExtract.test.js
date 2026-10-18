@@ -194,4 +194,54 @@ check('the watermark records the current reader version',
   /reader_version = EXCLUDED\.reader_version/.test(
     require('fs').readFileSync(require('path').join(__dirname, 'oooMailScan.js'), 'utf8')));
 
+
+// ---------------------------------------------------------------------------
+// Titles must not become part of a person's name.
+//
+// "Bazaar's EIC Lydia Slater" reached the live review screen proposing a
+// contact literally named "EIC Lydia Slater". The spelled-out titles beside it
+// ("Digital Editor John Bush") were stripped correctly, so the gap was only
+// the abbreviations, the hyphenated forms and the possessive owner.
+function named(text) {
+  return x.extractContacts(text, { senderEmail: 'someone@else.com', ownDomains: [] })
+    .map((c) => c.name);
+}
+
+check('an initialism is not part of the name',
+  named("Bazaar's EIC Lydia Slater (lydia.slater@hearst.co.uk)").join() === 'Lydia Slater');
+check('nor a hyphenated title',
+  named('Please email Editor-in-Chief Lydia Slater at lydia.slater@hearst.co.uk').join() === 'Lydia Slater');
+check('nor a C-suite abbreviation',
+  named('Contact our CEO Marcus Webb at marcus.webb@example.com').join() === 'Marcus Webb');
+check('nor the masthead that owns the role',
+  named("The Guardian's arts editor Ada Lin is covering this: ada.lin@guardian.co.uk").join() === 'Ada Lin');
+check('the spelled-out case still works',
+  named('please contact Digital Editor John Bush at jbush@bizjournals.com').join() === 'John Bush');
+
+// The possessive rule must not eat a real name. No English name ends in
+// apostrophe-s, but Irish surnames start with one and are the obvious hazard.
+check("an apostrophe surname survives",
+  named("Please contact Siobhan O'Sullivan at siobhan.osullivan@rte.ie").join() === "Siobhan O'Sullivan");
+check('and the original Starboard case has not regressed',
+  named('Email Hannah Wintle for Sleeper at h.wintle@mondiale.co.uk').join() === 'Hannah Wintle');
+
+// ---------------------------------------------------------------------------
+// Re-reading a PENDING suggestion.
+//
+// Migration 202 excluded every row carrying a suggestion. Half right: an
+// applied or dismissed row is a decision and upsertSuggestion overwrites
+// alt_contacts unconditionally, so re-reading one rewrites what someone acted
+// on. A pending row has had nothing done to it, and its stored quote came from
+// whichever reader produced it.
+check('a pending suggestion is re-read by a newer reader',
+  reread({ suggestion_id: 's1', suggestion_status: 'pending', was_auto_reply: true, reader_version: OLD }) === true);
+check('an applied suggestion is never re-read',
+  reread({ suggestion_id: 's1', suggestion_status: 'applied', was_auto_reply: true, reader_version: OLD }) === false);
+check('a dismissed suggestion is never re-read',
+  reread({ suggestion_id: 's1', suggestion_status: 'dismissed', was_auto_reply: true, reader_version: OLD }) === false);
+check('a pending suggestion already read by the current reader is left alone',
+  reread({ suggestion_id: 's1', suggestion_status: 'pending', was_auto_reply: true, reader_version: scan.READER_VERSION }) === false);
+check('a suggestion id with no row behind it is treated as undecided',
+  reread({ suggestion_id: 's1', suggestion_status: null, was_auto_reply: true, reader_version: OLD }) === false);
+
 console.log(`oooExtract: ${passed} checks passed.`);

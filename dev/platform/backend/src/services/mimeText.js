@@ -92,16 +92,26 @@ function decodeBase64(text) {
   return Buffer.from(String(text || '').replace(/[^A-Za-z0-9+/=]/g, ''), 'base64');
 }
 
+// us-ascii and iso-8859-1 decode as windows-1252 on purpose, which is what
+// the HTML5 spec requires of browsers and for the same reason: Outlook and
+// Word emit curly quotes, en dashes and ellipses as windows-1252 bytes in the
+// 0x80-0x9F range while labelling the part us-ascii. Decoded as UTF-8 those
+// bytes are invalid and become U+FFFD, so "Harper's Bazaar" reached the review
+// screen as "Harper<?>s Bazaar". windows-1252 is a strict superset of ASCII
+// for the printable range, and 0x80-0x9F in iso-8859-1 are C1 control
+// characters that no mail body legitimately contains, so nothing correct is
+// lost by reading them this way.
 const CHARSET_ALIASES = {
-  'us-ascii': 'utf-8',
-  ascii: 'utf-8',
-  'ansi_x3.4-1968': 'utf-8',
+  'us-ascii': 'windows-1252',
+  ascii: 'windows-1252',
+  'ansi_x3.4-1968': 'windows-1252',
+  'iso-8859-1': 'windows-1252',
+  'iso8859-1': 'windows-1252',
+  latin1: 'windows-1252',
   utf8: 'utf-8',
   'unicode-1-1-utf-8': 'utf-8',
   'cp-1252': 'windows-1252',
   cp1252: 'windows-1252',
-  'iso8859-1': 'iso-8859-1',
-  latin1: 'iso-8859-1',
 };
 
 /**

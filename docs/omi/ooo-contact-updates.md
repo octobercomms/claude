@@ -254,17 +254,44 @@ The next reader improvement bumps the constant and costs nothing else.
 | Condition | Why |
 |---|---|
 | `reader_version < READER_VERSION` | Otherwise the live poll re-extracts the same messages every 15 minutes forever. A re-read that still finds nothing stamps the current version, so it settles. |
-| `suggestion_id IS NULL` | A row with a suggestion is on a screen and may have been applied or declined. Re-reading it could resurrect a decision someone already made. |
+| no suggestion, **or** one still `pending` | A pending suggestion has had nothing done to it and its tick boxes are browser state, so re-proposing it from a better read costs nothing. Applied and dismissed rows are decisions, and `upsertSuggestion` overwrites `alt_contacts` unconditionally, so re-reading one would rewrite what somebody acted on. |
 | `was_auto_reply = TRUE` | That verdict comes from the subject and headers, which `mimeText` did not change. Re-reading every ordinary email ever seen is a great deal of work for a guaranteed identical answer. |
 
-Migration 202 back-fills version 2 onto rows that already carry a suggestion
-and onto non-auto-replies, so the eligible set is only ever "read the body,
-found nothing".
+Migration 202 first excluded *every* row carrying a suggestion, which was half
+right: it also froze pending rows whose stored quote held a boundary line
+spliced mid-sentence. Migration 203 puts the pending ones back in scope. The
+reply catch-up had refreshed its pending rows from the start
+(`docs/omi/reply-catchup.md`); not carrying that rule across was an oversight,
+not a judgement.
+
+### Reader versions
+
+| Version | What changed |
+|---|---|
+| 1 | "Everything after the first blank line", tags stripped, whitespace collapsed. |
+| 2 | `mimeText` (PR #1695): MIME walk, `text/plain` preferred, base64 and quoted-printable decoded, newlines kept. |
+| 3 | `us-ascii` and `iso-8859-1` decode as `windows-1252`, so Outlook's curly quotes stop arriving as U+FFFD; abbreviated, hyphenated and possessive titles no longer land in a contact's name. |
 
 The backfill reports `recovered`: suggestions that came from messages an
 earlier reader had written off. The panel says so in words, because "N queued"
 alone cannot tell you whether re-reading achieved anything, and finding out
 was the point.
+
+### Titles are not names
+
+`ROLE_WORDS` strips the words that sit between a cue and a name. It long held
+only spelled-out titles, so "Digital Editor John Bush" came out as "John Bush"
+while "Bazaar's EIC Lydia Slater" proposed a contact literally named "EIC Lydia
+Slater". Three shapes now come off:
+
+- **Initialisms** — EIC, CEO, MD, VP, PR, GM and the rest, in `ROLE_WORDS`.
+- **Hyphenated titles** — `Editor-in-Chief` is a single token, so `ROLE_WORDS`
+  never saw its parts. `HYPHENATED_ROLE` catches it.
+- **The possessive owner** — "Bazaar's", "The Guardian's". It names the
+  organisation that employs the person, never the person. No English forename
+  or surname ends in apostrophe-s (O'Shea and O'Sullivan do not), so this
+  cannot eat a real name, and the address still has to corroborate whatever
+  survives.
 
 ## 9. Known gaps
 
