@@ -43,6 +43,16 @@ const CRON_DRIVEN = [
 // person who clicked Generate, which is not the intent.
 const GATED_BY_CALLER = {
   'services/strategistReport.js': 'services/scheduler.js',
+  // Mixed: writeSequence and refineAudience are screens a person clicks and
+  // waits on, classifyReply runs inside pollReplies on a */15 cron. Gating
+  // inside the file would block the person for a cap the cron spent, so the
+  // gate lives in the one unattended caller.
+  //
+  // This file sat in HUMAN_TRIGGERED below until 18 Oct 2026, which is the
+  // third time that list has been wrong (outletResolve, webSearch,
+  // aiVisibility before it) — and the costliest kind of wrong, because a
+  // guard that classifies wrongly reads as assurance.
+  'services/outreachAi.js': 'services/outreachReplies.js',
 };
 
 // Interactive paths: a person clicks and waits, so the work is bounded by the
@@ -52,7 +62,7 @@ const HUMAN_TRIGGERED = new Set([
   'routes/chat.js', 'routes/prAddon.js',
   'services/adCreative.js', 'services/refineChat.js', 'services/socialCaptions.js',
   'services/socialPlanner.js', 'services/social.js', 'services/reelScript.js',
-  'services/outreachAi.js', 'services/mediaAssistant.js', 'services/contentReviewer.js',
+  'services/mediaAssistant.js', 'services/contentReviewer.js',
   'services/contactTidy.js', 'services/tagTidy.js',
   'services/tender/addByUrl.js', 'services/tender/chat.js',
   'services/claude.js',  // the wrapper itself; it holds the global cap
