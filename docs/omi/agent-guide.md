@@ -254,16 +254,78 @@ rendered through the real document component, for designing and print-testing
 against). ProposalDocument.jsx is one renderer shared by the internal
 preview and the live page, so what is approved is what is sent).
 
+### The Google Cloud project behind everything Google
+
+Read this before debugging anything Google-shaped. It cost an afternoon on
+19 Oct 2026.
+
+**One OAuth client serves all of it.** `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+are used by `services/googleCalendar.js` (booking), `connectors/google.js`
+(GA4, Search Console, Merchant Center) and `routes/settings.js` (Google Ads).
+So *never* swap those credentials to fix one feature: it disconnects every
+client's analytics and search data and means reconnecting all of them. Treat a
+credential change as a migration, not a fix.
+
+**The project is "October PMP", project number 208584272087, and it lives under
+a different Google account from the one Daniel works in daily.** Opening a
+console link while signed in as the everyday account gives "You need additional
+access to the project", missing `resourcemanager.projects.get`, which looks like
+a broken project and is really the wrong sign-in. Switch accounts first.
+
+**A 403 from a Google API is not one thing.** `insufficientPermissions` means a
+scope was never granted (reconnect). `accessNotConfigured` means that API is not
+enabled on the project (enable it; nothing to do with scopes). `rateLimitExceeded`
+means wait. `googleCalendar.js` now pulls Google's own reason out of the response
+body and appends the remedy, because axios throws away everything except
+"Request failed with status code 403" and the three fixes are unrelated. Guarded
+by `googleCalendar.test.js` in CI. **Do not guess between them** — the diagnostic
+exists so nobody has to, and the scope guess in particular is expensive and was
+wrong when it mattered.
+
+The booking page had never worked before 19 Oct 2026: OAuth succeeded, so
+Settings showed "Connected", while every `freeBusy` call was refused because the
+Calendar API was switched off on that project.
+
 **Not live until Daniel does these.** Check before claiming the pipeline works:
-- Google Calendar connected in Settings → Biz dev → Booking.
+- Google Calendar connected in Settings → Biz dev → Booking, *and* the Calendar
+  API enabled on project 208584272087 (see above).
 - Booking embed snippet pasted into `octobercomms.com/book/`.
-- `GOCARDLESS_URL_ADVANCED` / `GOCARDLESS_URL_BASIC` set, else acceptance ends
-  on a thank-you screen and is followed up by hand.
+- GoCardless links per method per currency, set in Settings → Biz dev →
+  Proposals, else acceptance ends on a thank-you screen and the mandate is sent
+  by hand. (The old `GOCARDLESS_URL_ADVANCED` / `_BASIC` env vars are now only a
+  last-resort fallback; the links live on the method.)
 - `PIPELINE_ALERT_EMAIL`, `PIPELINE_TERMS_URL` set.
-- **Case studies added to the proof library.** It ships with 5 testimonials and
-  4 credentials and *zero* case studies, only two of them from architects, so
-  "matched proof" is a default until that is fixed. This is the weakest link in
-  the whole pipeline; say so rather than overselling the matching.
+- **Case studies added to the proof library.** Still *zero*. What carries the
+  proof block instead is October's counted record, seeded 19 Oct 2026 from the
+  site redesign: 22 countries, 216 pieces of coverage, 150 outlets, 18 clients,
+  each with "October's editorial log, March 2023 to April 2026" cited beneath
+  it. That is checkable and nobody else in the sector publishes it, so it is
+  stronger than a thin case study would be — but say "no case studies yet"
+  plainly rather than overselling the matching.
+- **Prices in USD and EUR.** GBP is seeded from the site's pricing table
+  (£1,345 / £1,870 / £1,140); the other two are deliberately blank. A level with
+  no price in the chosen currency still drafts and the document says "price to
+  confirm". **Never invent or convert one**: the figure is contractual the
+  moment the prospect accepts, and fixed per-market pricing is the point.
+
+### Deploying
+
+`main` → live is automatic again as of 19 Oct 2026, and the way it broke is
+worth knowing. GitHub does not run workflows for a push made with the default
+`GITHUB_TOKEN`, so once `auto-merge-claude.yml` started merging (first run
+2 Sept 2026) `platform-deploy.yml`'s `on: push` stopped firing. Platform
+push-deploys went 63 in August to 1 in October while everything still *merged*
+fine. The workflow warned on every run, into a log nobody reads.
+
+The merge bot now dispatches the deploy itself after merging anything the
+deploy watches; `workflow_dispatch` is exempt from that loop protection. Guarded
+by `auto-merge-gate.test.js`, which reads both workflow files so their path
+lists cannot drift apart.
+
+So: **do not tell Daniel to run a deploy by hand**, and do not add
+`AUTO_MERGE_TOKEN` to "fix" this — it is honoured if set, but nothing needs it.
+If a merge does not deploy, check the auto-merge run's log for the dispatch line
+before concluding anything.
 
 ## 7. The mission / roadmap
 
