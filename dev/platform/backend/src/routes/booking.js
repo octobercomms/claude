@@ -17,7 +17,7 @@ router.post('/disconnect', async (req, res) => {
   try { await gcal.disconnect(); res.json({ connected: false }); } catch (err) { res.status(500).json({ error: err.message }); }
 });
 router.get('/settings', async (req, res) => {
-  try { res.json({ config: await booking.getConfig(), budgets: booking.BUDGETS }); } catch (err) { res.status(500).json({ error: err.message }); }
+  try { res.json({ config: await booking.getConfig() }); } catch (err) { res.status(500).json({ error: err.message }); }
 });
 router.put('/settings', async (req, res) => {
   try { res.json({ config: await booking.saveConfig(req.body || {}) }); } catch (err) { res.status(400).json({ error: err.message }); }

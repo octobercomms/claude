@@ -35,7 +35,6 @@ const DEFAULTS = {
   max_reschedules: 3,
 };
 
-const BUDGETS = ['Under £1,500 a month', '£1,500 to £3,000 a month', '£3,000+ a month', 'Not sure yet'];
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 async function getConfig() {
@@ -171,7 +170,6 @@ async function slots() {
     timezone: cfg.timezone,
     duration: cfg.duration,
     slots: computeSlots(cfg, { now, busy, counts }).map(t => new Date(t).toISOString()),
-    budgets: BUDGETS,
   };
 }
 
@@ -256,15 +254,18 @@ async function book(input = {}) {
   const emailAddr = clip(input.email, 200).toLowerCase();
   const company = clip(input.company, 160);
   const website = clip(input.website, 300);
+  // What kind of practice they are, in their own words. Worth more than the
+  // budget question it replaces: it is the honest answer to "are you for me",
+  // and it feeds the proposal engine's sector matching later.
+  const business = clip(input.business, 300);
   const goal = clip(input.goal, 1000);
-  const budget = BUDGETS.includes(input.budget) ? input.budget : null;
   const referral = clip(input.referral, 160);
   const tz = clip(input.timezone, 64) || null;
+  // Only the two the invite cannot be sent without. Everything else matches
+  // Daniel's own form, where every question is optional: a first contact that
+  // interrogates loses more good prospects than it filters bad ones.
   if (!name) throw new Error('Add your name.');
   if (!isEmail(emailAddr)) throw new Error('Add a valid email address.');
-  if (!company) throw new Error('Add your company.');
-  if (!website) throw new Error('Add your website address.');
-  if (!budget) throw new Error('Choose a budget range.');
 
   const cfg = await getConfig();
   const lead = await resolveLead({ snapshotToken: clip(input.snapshot, 80) || null, emailAddr, name, company, website, referral });
@@ -276,11 +277,13 @@ async function book(input = {}) {
     const endMs = startMs + cfg.duration * 60000;
     const ev = await gcal.createMeetEvent({
       calendarId: cfg.calendar_ids[0] || 'primary',
-      summary: cfg.title.replace('{company}', company).replace('{name}', name),
+      // company can be blank now, so the title falls back to their name
+      // rather than reading "October x : intro call".
+      summary: cfg.title.replace('{company}', company || name).replace('{name}', name),
       description: [
-        `${name}, ${company} (${website})`,
-        goal ? `What they want more of: ${goal}` : null,
-        `Budget: ${budget}`,
+        [name, company, website && `(${website})`].filter(Boolean).join(', '),
+        business ? `Type of business: ${business}` : null,
+        goal ? `Main marketing challenge: ${goal}` : null,
         referral ? `Heard about us: ${referral}` : null,
         '',
         `Need to move or cancel? ${manageUrl}`,
@@ -293,34 +296,34 @@ async function book(input = {}) {
       `INSERT INTO bookings (lead_id, manage_token, start_at, end_at, timezone, name, email, company, website, answers, calendar_event_id, meet_url)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [lead.id, token, new Date(startMs), new Date(endMs), tz, name, emailAddr, company, website,
-        JSON.stringify({ goal, budget, referral }), ev.id, ev.meet_url]);
+        JSON.stringify({ business, goal, referral }), ev.id, ev.meet_url]);
     busyCache.at = 0;
     return rows[0];
   });
 
   // Pipeline: call booked, answers into the notes, brief prepared in the background.
-  const notes = [`Booking form: wants more of: ${goal || '(not said)'}`, `Budget: ${budget}`].join('\n');
+  const notes = [
+    business ? `Type of business: ${business}` : null,
+    `Main marketing challenge: ${goal || '(not said)'}`,
+  ].filter(Boolean).join('\n');
   await pool.query(
     `UPDATE snapshot_leads SET call_notes = CASE WHEN call_notes IS NULL OR call_notes = '' THEN $2 ELSE call_notes END WHERE id = $1`,
     [lead.id, notes]);
   await proposals.markCallBooked(lead.id, new Date(startMs).toISOString());
   proposals.callBrief(lead.id).catch(e => console.warn(`[booking] brief for ${lead.id} failed: ${e.message}`));
 
-  const lowBudget = budget === BUDGETS[0];
   email.sendPipelineAlert({
-    subject: `Call booked: ${company}, ${fmtWhen(startMs, cfg.timezone)}`,
-    headline: `${name} (${company}) booked a call for ${fmtWhen(startMs, cfg.timezone)}.`,
+    subject: `Call booked: ${company || name}, ${fmtWhen(startMs, cfg.timezone)}`,
+    headline: `${name}${company ? ` (${company})` : ''} booked a call for ${fmtWhen(startMs, cfg.timezone)}.`,
     lines: [
-      `Website: ${website}`,
-      `Wants more of: ${goal || 'not said'}`,
-      `Budget: ${budget}${lowBudget ? ' (below Basic)' : ''}`,
+      website ? `Website: ${website}` : 'No website given',
+      business ? `Type of business: ${business}` : 'Type of business not given',
+      `Main marketing challenge: ${goal || 'not said'}`,
       referral ? `Heard about us: ${referral}` : 'Referral source not given',
       lead.draft ? 'They ran a Snapshot before booking.' : 'No Snapshot yet; OMI is reading their site now.',
       booking.meet_url ? `Meet: ${booking.meet_url}` : 'Meet link missing, check the calendar event.',
     ],
-    suggestion: lowBudget
-      ? 'Budget sits below the Basic tier. Decide before the call whether to keep it, move it to a 15-minute fit check, or point them to a lighter option.'
-      : 'The call brief will be on the lead page within a couple of minutes.',
+    suggestion: 'The call brief will be on the lead page within a couple of minutes.',
     link: `${PLATFORM_URL()}/leads/${lead.id}`,
   }).catch(() => {});
 
@@ -413,6 +416,6 @@ async function upcoming() {
 }
 
 module.exports = {
-  DEFAULTS, BUDGETS, getConfig, saveConfig, slots, book, manageView, reschedule, cancel, upcoming,
+  DEFAULTS, getConfig, saveConfig, slots, book, manageView, reschedule, cancel, upcoming,
   computeSlots, zonedToUtc, offsetMs,
 };
