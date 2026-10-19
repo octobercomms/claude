@@ -75,6 +75,8 @@ jobs:
         run: node src/services/googleCalendar.test.js
       - name: Guard — every settings field is one the server will store
         run: node tests/settings-keys.test.js
+      - name: Guard — a hand-added journalist is a journalist, added once
+        run: node tests/contact-create.test.js
       - name: Syntax check every service and route
         run: |
           set -e
