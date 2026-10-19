@@ -1205,8 +1205,22 @@ async function sendCertExpiryAlert({ problems = [], alertDays = 14 }) {
 
 // ── Sales pipeline (docs/omi/sales-pipeline.md) ─────────────────────────────
 const pipeEsc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const pipelineFrom = () => process.env.PIPELINE_FROM || getSenderAddress();
-const pipelineReplyTo = () => process.env.PIPELINE_REPLY_TO || undefined;
+// Who a prospect sees a proposal or a nudge come from.
+//
+// These used to be env vars, so changing them meant a deploy. They are
+// settings now (Settings -> Connections -> Email), read through getSetting,
+// which falls back to the environment so anything already set keeps working.
+//
+// IMPORTANT, and the reason the UI says so too: putting an address here does
+// not by itself authorise it. On Gmail the SMTP session authenticates as
+// GMAIL_USER, and Gmail REWRITES the From header back to that account unless
+// the address is a verified "Send mail as" alias on it, so a change made here
+// alone is silently undone. On SES the address or its domain must be verified
+// or the send is rejected outright. Either way the fix is at the provider; this
+// field only says which authorised address to use.
+const { getSetting } = require('../utils/settings');
+const pipelineFrom = async () => (await getSetting('PIPELINE_FROM')) || getSenderAddress();
+const pipelineReplyTo = async () => (await getSetting('PIPELINE_REPLY_TO')) || undefined;
 const pipelineAlertTo = () => process.env.PIPELINE_ALERT_EMAIL || process.env.ALERT_EMAIL || 'octobercomms@gmail.com';
 
 // The proposal itself — a short personal note and one link. The page is the
@@ -1215,11 +1229,18 @@ async function sendProposal({ to, subject, note, link, signoff = 'Daniel' }) {
   const paras = String(note || '').split(/\n{2,}/).map(p => `<p>${pipeEsc(p).replace(/\n/g, '<br/>')}</p>`).join('');
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#111;max-width:560px">
     ${paras}
-    <p><a href="${pipeEsc(link)}" style="background:#111;color:#fff;padding:12px 22px;border-radius:100px;text-decoration:none;display:inline-block;font-weight:700">Open your proposal</a></p>
+    <!-- A plain link, not a button. This email is one person writing to one
+         person about a conversation they just had; a pill-shaped call to
+         action is the shape of a marketing send, and both the recipient and
+         their spam filter read it that way. The first real proposal sent
+         through here landed in spam. -->
+    <p><a href="${pipeEsc(link)}" style="color:#111">${pipeEsc(link)}</a></p>
     <p>${pipeEsc(signoff)}</p>
   </div>`;
   const text = `${note}\n\nYour proposal: ${link}\n\n${signoff}`;
-  return getTransporter().sendMail({ from: pipelineFrom(), replyTo: pipelineReplyTo(), to, subject, html, text });
+  return getTransporter().sendMail({
+    from: await pipelineFrom(), replyTo: await pipelineReplyTo(), to, subject, html, text,
+  });
 }
 
 // Stage 2 — the single automated nudge to someone who unlocked their report
@@ -1234,7 +1255,7 @@ async function sendReportNudge({ to, name, company, bookUrl, finding }) {
     ? `<p><a href="${pipeEsc(bookUrl)}">Pick a time that suits</a></p>`
     : `<p>${pipeEsc(p)}</p>`).join('');
   return getTransporter().sendMail({
-    from: pipelineFrom(), replyTo: pipelineReplyTo(), to,
+    from: await pipelineFrom(), replyTo: await pipelineReplyTo(), to,
     subject: `Your ${company || 'October'} snapshot`,
     html: `<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#111;max-width:560px">${html}</div>`,
     text,

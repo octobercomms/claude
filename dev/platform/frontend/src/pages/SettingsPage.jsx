@@ -100,6 +100,17 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Proposals and prospect email',
+    category: 'Email',
+    hint: 'Who a prospect sees a proposal or a snapshot nudge come from. Everything else (reports, internal alerts) keeps using the provider address below. '
+      + 'Setting an address here does NOT authorise it: on Gmail the address must be a verified "Send mail as" alias on the account in Gmail SMTP below, or Gmail quietly rewrites the From back to that account; on SES the address or its domain must be verified, or the send is rejected. '
+      + 'Worth doing: a proposal from a reports@ address is a strong spam signal, because that address sends automated mail all day and filters learn it.',
+    keys: [
+      { key: 'PIPELINE_FROM', label: 'Send proposals from', placeholder: '"Daniel Nelson" <dn@octobercomms.com>', type: 'text' },
+      { key: 'PIPELINE_REPLY_TO', label: 'Replies go to (optional)', placeholder: 'dn@octobercomms.com', type: 'text' },
+    ],
+  },
+  {
     title: 'Gmail SMTP',
     category: 'Email',
     hint: 'Used when EMAIL_PROVIDER is set to "gmail". Requires a Gmail App Password — Google Account → Security → 2-Step Verification → App passwords.',
