@@ -108,14 +108,14 @@ export default function BookingSettingsPage() {
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table className="table">
-          <thead><tr><th>When</th><th>Who</th><th>Budget</th><th>Wants</th><th>Status</th></tr></thead>
+          <thead><tr><th>When</th><th>Who</th><th>Type of business</th><th>Main challenge</th><th>Status</th></tr></thead>
           <tbody>
             {!upcoming.length && <tr><td colSpan={5} className="text-subtle">No bookings yet.</td></tr>}
             {upcoming.map(b => (
               <tr key={b.id} style={{ cursor: b.lead_id ? 'pointer' : 'default' }} onClick={() => b.lead_id && window.location.assign(`/leads/${b.lead_id}`)}>
                 <td>{new Date(b.start_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                 <td className="strong">{b.name}<div className="body-xs text-muted">{b.company}</div></td>
-                <td className="text-muted">{b.answers?.budget || '—'}</td>
+                <td className="text-muted">{b.answers?.business || '—'}</td>
                 <td className="text-muted" style={{ maxWidth: 260 }}>{b.answers?.goal || '—'}</td>
                 <td>{b.status}{b.reschedule_count ? ` · moved ${b.reschedule_count}×` : ''}</td>
               </tr>

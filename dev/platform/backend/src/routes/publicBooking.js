@@ -114,6 +114,18 @@ const LOADER_JS = `(function(){
   window.addEventListener('message',function(e){if(e.source!==f.contentWindow)return;var d=e.data;if(d&&d.type==='booking-embed-height'&&d.height){f.style.height=d.height+'px';}});
 })();`;
 
+// The widget, as one self-contained document. Note that everything inside the
+// template literal below is SERVED TO THE BROWSER, comments included, so keep
+// internal reasoning out here.
+//
+// The form asks Daniel's own questions, in his words, taken from the form he
+// already uses. No placeholders anywhere: an example belongs in the label,
+// where it stays readable after someone starts typing. No budget question, and
+// only name and email are required, because a first contact that interrogates
+// loses more good prospects than it filters bad ones.
+//
+// No border and no padding either: this is dropped into an Elementor section
+// that sets its own box, and anything here fights it.
 function renderEmbed({ theme, accent, snapshot }) {
   return `<!doctype html><html lang="en" class="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Book a call with October</title>
@@ -123,7 +135,9 @@ ${FONT_CSS}
 html.dark{--ink:#fff;--mut:#b4b4b4;--line:rgba(255,255,255,.24);--field:rgba(255,255,255,.42)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Brockmann',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--ink);background:transparent;line-height:1.5;text-transform:lowercase}
-.wrap{padding:36px 0;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink)}
+/* No frame and no padding: the widget is dropped into an Elementor section
+   that already sets its own box, so anything here fights it. */
+.wrap{padding:0}
 h1{font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1.05}
 .lede{color:var(--mut);margin-top:8px;max-width:58ch}
 .lab{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--mut);margin:22px 0 8px}
@@ -141,9 +155,6 @@ input,textarea,select{width:100%;background:transparent;border:0;border-bottom:1
 textarea{resize:vertical;min-height:64px}
 select option{color:#111}
 input:focus,textarea:focus,select:focus{outline:none;border-bottom-color:var(--y)}
-.chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{border:2px solid var(--line);padding:8px 12px;cursor:pointer;font-size:13px;font-weight:700;background:transparent;color:var(--ink);font-family:inherit;text-transform:lowercase}
-.chip.on{border-color:var(--y);color:var(--y)}
 .btn{display:inline-block;background:var(--y);color:#111;border:0;border-radius:100px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;margin-top:22px;text-transform:lowercase}
 .btn:disabled{opacity:.5;cursor:default}
 .link{background:none;border:0;color:var(--mut);font-family:inherit;font-size:13px;cursor:pointer;text-decoration:underline;margin-left:14px;text-transform:lowercase}
@@ -159,7 +170,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-bottom-color:var(--y
 var SNAP=${JSON.stringify(snapshot)};
 var out=document.getElementById('out');
 var TZ;try{TZ=Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/London'}catch(e){TZ='Europe/London'}
-var data=null,dayKey=null,slot=null,budget=null;
+var data=null,dayKey=null,slot=null;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 var lastH=0;function ph(){try{var h=Math.ceil(document.body.getBoundingClientRect().height);if(h>0&&Math.abs(h-lastH)>1){lastH=h;parent.postMessage({type:'booking-embed-height',height:h},'*')}}catch(e){}}
 new ResizeObserver(ph).observe(document.body);
@@ -182,21 +193,20 @@ function form(){
   var when=fmt(slot,{weekday:'long',day:'numeric',month:'long'})+', '+fmt(slot,{hour:'2-digit',minute:'2-digit'});
   var h='<div class="picked">'+esc(when)+' <button class="link" id="chg">change</button></div>';
   h+='<div class="row"><div><label for="nm">your name</label><input id="nm" autocomplete="name"></div><div><label for="em">work email</label><input id="em" type="email" autocomplete="email"></div></div>';
-  h+='<div class="row"><div><label for="co">company</label><input id="co" autocomplete="organization"></div><div><label for="ws">website</label><input id="ws" placeholder="yourpractice.com" autocomplete="url"></div></div>';
-  h+='<label for="gl">what do you want more of? (optional)</label><textarea id="gl" placeholder="e.g. residential work in west london, press in the nationals"></textarea>';
-  h+='<label>monthly marketing budget</label><div class="chips">'+data.budgets.map(function(b){return '<button type="button" class="chip" data-b="'+esc(b)+'">'+esc(b)+'</button>'}).join('')+'</div>';
-  h+='<label for="rf">how did you hear about us? (optional)</label><input id="rf" placeholder="ADF, a friend, Google…">';
+  h+='<div class="row"><div><label for="co">company name</label><input id="co" autocomplete="organization"></div><div><label for="ws">website</label><input id="ws" autocomplete="url"></div></div>';
+  h+='<label for="bz">describe your type of business in a few words, e.g. "residential architecture practice" or "eCommerce store"</label><input id="bz">';
+  h+='<label for="gl">what is your main marketing challenge? what are you keen to improve?</label><textarea id="gl"></textarea>';
+  h+='<label for="rf">how did you hear about us?</label><input id="rf">';
   h+='<button class="btn" id="go">confirm the call</button><div class="err" id="err" style="display:none"></div>';
   out.innerHTML=h;
   document.getElementById('chg').onclick=function(){pick()};
-  Array.prototype.forEach.call(out.querySelectorAll('.chip'),function(c){c.onclick=function(){budget=c.getAttribute('data-b');Array.prototype.forEach.call(out.querySelectorAll('.chip'),function(x){x.className='chip'+(x===c?' on':'')})}});
   document.getElementById('go').onclick=submit;ph();
 }
 function v(id){return (document.getElementById(id).value||'').trim()}
 function submit(){
   var err=document.getElementById('err'),go=document.getElementById('go');err.style.display='none';
   go.disabled=true;go.innerHTML='<span class="spin"></span>booking…';
-  fetch('/api/public/booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start:slot,name:v('nm'),email:v('em'),company:v('co'),website:v('ws'),goal:v('gl'),budget:budget,referral:v('rf'),timezone:TZ,snapshot:SNAP})})
+  fetch('/api/public/booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start:slot,name:v('nm'),email:v('em'),company:v('co'),website:v('ws'),business:v('bz'),goal:v('gl'),referral:v('rf'),timezone:TZ,snapshot:SNAP})})
    .then(function(r){return r.json().then(function(j){return{ok:r.ok,status:r.status,j:j}})})
    .then(function(o){
      if(o.status===409){slot=null;load(o.j.error);return}
