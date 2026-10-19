@@ -612,6 +612,25 @@ progress is obvious on `platform.octobercomms.com`.
   clients were asked for and returns it flagged `already_in_library` rather than
   inserting; it never re-kinds or overwrites what is filed, because a silent
   overwrite of a record with coverage against it is worse than a duplicate.
+- **A ratio is not a ranking.** Social winners were ranked on interactions /
+  reach, which puts the smallest posts first: 3 likes on 10 reach scores 30% and
+  beats a reel that took 900 interactions on 40,000. The "heater" flag was
+  pooled across every platform and format, so on an account where reels
+  out-reach everything, every reel was a heater and no LinkedIn post ever was.
+  `services/socialBaseline.js` replaced both with a per-cohort leave-one-out
+  median and a stated multiple. Three rules make it honest: a post is never in
+  the baseline it is measured against; under five comparable posts the scope
+  drops to the whole account and `baseline_scope` says so, and under five in
+  total there is no multiple at all; and the engagement rate is withheld, not
+  printed, below 100 reach. The multiple is also what the generation prompt
+  grounds on, so a batch is modelled on posts that genuinely travelled rather
+  than on small-reach artefacts.
+- **`engagement_rate` is in percentage points, everywhere.** 2.3 means 2.3%.
+  `socialOverviewReport` stored the average and then multiplied by 100 again in
+  the client-facing summary prompt, so a 2.3% account was described to the
+  client as 230%. It is also null by design under the reach floor, so any
+  consumer must exclude it rather than coerce it to a zero that drags an
+  average down. `socialBaseline.test.js` pins both.
 - **A derived field needs to say where it came from.** Country is inferred from
   the outlet, the location text or an email TLD, and the operator excludes
   countries from a send on the strength of it, so `country_source` is stored

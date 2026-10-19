@@ -77,6 +77,8 @@ jobs:
         run: node tests/settings-keys.test.js
       - name: Guard — a hand-added journalist is a journalist, added once
         run: node tests/contact-create.test.js
+      - name: Guard — a winner beat its own account, not a flattering fraction
+        run: node src/services/socialBaseline.test.js
       - name: Syntax check every service and route
         run: |
           set -e
