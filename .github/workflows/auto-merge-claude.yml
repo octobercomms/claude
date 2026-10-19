@@ -15,12 +15,24 @@ name: Auto-merge Claude PRs
 # IMPORTANT — the post-merge deploy:
 # GitHub does NOT run further workflows for pushes made with the default
 # GITHUB_TOKEN (loop protection). platform-deploy.yml runs `on: push` to main,
-# so if this workflow merges with GITHUB_TOKEN the deploy will NOT auto-trigger.
-# To keep deploy-on-merge working, add a repo secret AUTO_MERGE_TOKEN — a
-# fine-grained PAT with Contents: Read/Write and Pull requests: Read/Write on
-# this repo. The merge is then attributed to that token and the push fires the
-# deploy like a normal human merge. Without the secret it still merges, but you
-# would need to re-run the deploy manually.
+# so a merge made here with GITHUB_TOKEN lands on main and the deploy never
+# fires. That is not theoretical: this workflow's first run was 2 Sept 2026,
+# and platform push-deploys fell from 63 in August to 1 in October, because
+# from that day the bot was doing the merging. Every run since has printed a
+# warning saying so, into a log nobody opens, which is the same as not warning.
+#
+# So the workflow now finishes the job itself: after merging a PR that touches
+# anything platform-deploy.yml watches, it dispatches that workflow directly.
+# workflow_dispatch is explicitly exempt from the loop protection — GitHub's
+# docs state that workflow_dispatch and repository_dispatch events always
+# create workflow runs — so GITHUB_TOKEN plus `actions: write` is enough and
+# no PAT is required.
+#
+# A repo secret AUTO_MERGE_TOKEN (fine-grained PAT, Contents and Pull requests
+# Read/Write) is still honoured and still the tidier arrangement: the merge is
+# then attributed to a user and the push fires the deploy like a human merge.
+# When it is set, the dispatch below is skipped, so the deploy runs once either
+# way rather than twice.
 
 on:
   pull_request:
@@ -49,6 +61,9 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Lets this workflow dispatch platform-deploy.yml after a merge it made with
+  # GITHUB_TOKEN, which `on: push` will not see.
+  actions: write
 
 concurrency:
   group: auto-merge-claude
@@ -65,9 +80,10 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [ "$HAS_PAT" != "true" ]; then
-            echo "::warning::AUTO_MERGE_TOKEN is not set — merging with GITHUB_TOKEN, so the post-merge deploy will NOT auto-trigger. Add the PAT secret to restore deploy-on-merge."
-          fi
+          # Tracks whether anything merged this round needs the platform
+          # redeployed. Set only after a merge actually succeeds, so a failed
+          # merge never dispatches a deploy of code that is not on main.
+          deploy_needed=false
 
           # Open PRs from claude/* branches that are not drafts.
           prs=$(gh pr list --repo "$REPO" --state open --json number,headRefName,isDraft \
@@ -95,6 +111,14 @@ jobs:
             required=""
             if printf '%s\n' "$files" | grep -q '^dev/platform/'; then
               required="backend frontend"
+            fi
+
+            # Does merging this PR need a deploy? Mirrors the paths in
+            # platform-deploy.yml's `on: push` filter; the gate test reads both
+            # files and fails if they drift apart.
+            touches_platform=false
+            if printf '%s\n' "$files" | grep -qE '^(dev/platform/|dev/october-mi-shopify/|\.github/workflows/platform-deploy\.yml$)'; then
+              touches_platform=true
             fi
 
             # Ready = GitHub says it is mergeable, every required check has
@@ -129,9 +153,30 @@ jobs:
 
             if [ "$ready" = "true" ]; then
               echo "PR #$pr is green + mergeable — merging."
-              gh pr merge "$pr" --repo "$REPO" --merge \
-                || echo "::warning::merge of #$pr failed; will retry on the next event."
+              if gh pr merge "$pr" --repo "$REPO" --merge; then
+                if [ "$touches_platform" = "true" ]; then deploy_needed=true; fi
+              else
+                echo "::warning::merge of #$pr failed; will retry on the next event."
+              fi
             else
               echo "PR #$pr not ready yet (conflict, or checks pending/missing) — skipping."
             fi
           done
+
+          # Finish the job. A GITHUB_TOKEN merge cannot wake `on: push`, but
+          # workflow_dispatch is exempt from that loop protection, so ask the
+          # deploy to run. Once per round rather than once per PR: three PRs
+          # merged together deploy once.
+          #
+          # Skipped when AUTO_MERGE_TOKEN is set, because then the merge push
+          # fires the deploy by itself and dispatching would queue a second,
+          # redundant run behind it.
+          if [ "$deploy_needed" != "true" ]; then
+            echo "Nothing merged that platform-deploy watches — no deploy needed."
+          elif [ "$HAS_PAT" = "true" ]; then
+            echo "Merged under AUTO_MERGE_TOKEN — the push fires the deploy; not dispatching."
+          elif gh workflow run platform-deploy.yml --repo "$REPO" --ref main; then
+            echo "Dispatched platform-deploy against main."
+          else
+            echo "::error::Merged a platform change but could not dispatch platform-deploy. Run it by hand from the Actions tab: the merge is on main and is NOT live."
+          fi

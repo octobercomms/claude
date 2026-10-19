@@ -119,8 +119,55 @@ const cases = [
     { mergeable: 'MERGEABLE', statusCheckRollup: [ok('automerge')] }, [], false],
 ];
 
+// ---------------------------------------------------------------------------
+// The deploy hand-off.
+//
+// This workflow's first run was 2 Sept 2026. Platform push-deploys went from 63
+// in August to 1 in October, because a merge made with GITHUB_TOKEN cannot wake
+// platform-deploy.yml's `on: push` — GitHub's loop protection. The workflow
+// warned about it on every run, into a log nobody opens, for seven weeks.
+//
+// It now dispatches the deploy itself (workflow_dispatch is exempt from that
+// protection). These checks hold the parts that would fail silently again: the
+// permission the dispatch needs, the guards that stop it firing on a failed
+// merge or a docs-only PR, and the path list staying in step with the deploy's
+// own trigger.
+
+const deployWf = fs.readFileSync(require('path').join(__dirname, 'platform-deploy.yml'), 'utf8');
+const bare = wf.split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+
+const asserts = [
+  ['the dispatch has the actions: write it needs',
+    /permissions:[\s\S]*?actions:\s*write/.test(bare)],
+  ['it dispatches platform-deploy on main',
+    /gh workflow run platform-deploy\.yml[^\n]*--ref main/.test(bare)],
+  ['the dispatch is gated on something needing deploying',
+    /if \[ "\$deploy_needed" != "true" \]/.test(bare)],
+  ['deploy_needed starts false',
+    /deploy_needed=false/.test(bare)],
+  ['only a SUCCESSFUL merge can set it',
+    /if gh pr merge[\s\S]{0,200}?touches_platform" = "true" \]; then deploy_needed=true/.test(bare)],
+  ['a PAT, if set, means no second dispatch',
+    /elif \[ "\$HAS_PAT" = "true" \]/.test(bare)],
+  ['a failed dispatch is an error, not a shrug',
+    /::error::Merged a platform change but could not dispatch/.test(bare)],
+  ['the dispatch sits after the loop, so N merges deploy once',
+    bare.lastIndexOf('done') < bare.indexOf('gh workflow run platform-deploy.yml')],
+];
+
+// The two path lists must agree, or a merge deploys nothing (or everything).
+const deployPaths = (deployWf.match(/- '([^']+)'/g) || [])
+  .map(s => s.slice(3, -1))
+  .filter(p => /\*|\.yml$/.test(p));
+const matcher = (bare.match(/grep -qE '\^\(([^']+)\)'/) || [])[1] || '';
+for (const p of deployPaths) {
+  const stem = p.replace(/\*+$/, '').replace(/\./g, '\\.');
+  asserts.push([`the deploy path ${p} is matched by the bot too`, matcher.includes(stem)]);
+}
+asserts.push(['the deploy actually lists paths to compare against', deployPaths.length >= 3]);
+
 let pass = 0, fail = 0;
-for (const [label, good] of invocation) {
+for (const [label, good] of invocation.concat(asserts)) {
   good ? pass++ : fail++;
   console.log((good ? 'PASS  ' : 'FAIL  ') + label);
 }
