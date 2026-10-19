@@ -108,7 +108,9 @@ export default function ProposalDocument({ data, acceptSlot = null }) {
   const names = data?.recipient_names;
   // The offer: one method, priced, as Daniel chose it after the call.
   const offer = data?.offer || {};
-  const cur = offer.symbol || c.currency || '£';
+  // Only the method snapshot decides the symbol. A bare symbol on the
+  // content is legacy and can disagree with what is actually charged.
+  const cur = offer.symbol || '£';
   const objectives = offer.objectives || {};
   const strategy = list(offer.strategy);
   const tactics = list(offer.tactics);

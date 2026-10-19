@@ -189,14 +189,18 @@ export default function ProposalEditorPage() {
               onBlur={ev => ev.target.value !== (c.email_note || '') && patch({ content: { email_note: ev.target.value } })} /></Field>
             <Field label="Cover image URL"><input className="input" defaultValue={c.cover_image || ''} disabled={!isDraft} placeholder="Blank = yellow check"
               onBlur={ev => ev.target.value !== (c.cover_image || '') && patch({ content: { cover_image: ev.target.value || null } })} /></Field>
-            <div className="row" style={{ gap: 'var(--s2)' }}>
-              <Field label="Currency"><select className="input" value={c.currency || '£'} disabled={!isDraft} onChange={ev => patch({ content: { currency: ev.target.value } })}>
-                {['£', '$', '€'].map(x => <option key={x}>{x}</option>)}</select></Field>
-              <Field label="One-off onboarding"><input className="input" type="number" defaultValue={c.setup_fee || ''} disabled={!isDraft} placeholder="none"
-                onBlur={ev => patch({ content: { setup_fee: ev.target.value ? Number(ev.target.value) : null } })} /></Field>
-              <Field label="Recommend"><select className="input" value={c.recommended || 'advanced'} disabled={!isDraft} onChange={ev => patch({ content: { recommended: ev.target.value } })}>
-                <option value="advanced">Advanced</option><option value="basic">Basic</option></select></Field>
-            </div>
+            {/* The old Currency / One-off onboarding / Recommend row has gone.
+                All three were left over from the hardcoded two-tier offer and
+                none of them still worked: setup fee and currency now come from
+                the method snapshot, and "recommend" does not exist when the
+                proposal states one package.
+
+                Currency was the dangerous one. It set a bare symbol on the
+                content, so choosing $ would have rendered "$1,870" on a
+                proposal still priced and mandated in GBP, in a document that
+                becomes an agreement the moment it is accepted. Price lives in
+                one place now: the Level and Currency pickers above, which swap
+                the whole priced snapshot together. */}
             <div className="body-xs text-muted">Matched on: {(c.sector_tags || []).join(', ') || 'no sector'} · {(c.problem_tags || []).join(', ') || 'no problem tags'}</div>
           </div>
 
