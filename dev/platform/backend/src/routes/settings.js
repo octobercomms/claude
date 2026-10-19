@@ -106,6 +106,12 @@ const SETTINGS_KEYS = [
   'EMAIL_PROVIDER',
   'GMAIL_USER', 'GMAIL_APP_PASSWORD',
   'SES_SMTP_USER', 'SES_SMTP_PASS', 'SES_REGION', 'SES_FROM_EMAIL',
+  // Who a prospect sees a proposal or a snapshot nudge come from. This list is
+  // an allowlist: a key missing from it is skipped by the save loop, so the
+  // field appears to save, reports success, persists nothing and never shows
+  // the Set badge. That is exactly what these two did when the fields were
+  // added to the Settings page and not to this array.
+  'PIPELINE_FROM', 'PIPELINE_REPLY_TO',
   'SES_ACCESS_KEY_ID', 'SES_SECRET_ACCESS_KEY',
   'OUTREACH_SENDING_DOMAIN', 'OUTREACH_DEFAULT_REPLY_TO',
   'ALERT_EMAIL',
@@ -246,7 +252,14 @@ router.post('/platform-keys', async (req, res) => {
         [`${key}_AS_OF`, JSON.stringify(encrypt(stamp))]
       );
     }
-    res.json({ updated: updates, cleared });
+    // Anything the client sent that is not on the allowlist. Without this the
+    // endpoint answers 200 with an empty `updated` and the field silently does
+    // nothing, which is how PIPELINE_FROM shipped broken: the save looked fine
+    // and the value never left the browser. The client turns this into an
+    // error rather than a success toast.
+    const ignored = Object.keys(req.body || {}).filter(k => !SETTINGS_KEYS.includes(k));
+    if (ignored.length) console.warn(`[settings] ignored unknown keys: ${ignored.join(', ')}`);
+    res.json({ updated: updates, cleared, ignored });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
