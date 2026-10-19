@@ -12,6 +12,7 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../db');
+const socialBaseline = require('./socialBaseline');
 const dataForSEO = require('../connectors/dataforseo');
 const apify = require('../connectors/apify');
 const meta = require('../connectors/meta');
@@ -186,7 +187,21 @@ ${trendingSounds.length
   : '(no trending sounds cached — the AM can click Refresh Trending Sounds on the Social tab to pull a fresh set)'}
 
 ${winners.length
-  ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`
+  ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure).\n`
+    + `The multiple is how far the post beat the median of this account's own other posts of the same platform and format, which is the figure to trust: a high engagement rate on low reach says little, and reach is not comparable between accounts. A post shown without a multiple has no baseline yet, so weight it lower.\n`
+    // engagement_rate is deliberately null under the reach floor, and an
+    // interpolated null would read to the model as a measured zero.
+    + winners.map((w, i) => {
+        const perf = [
+          w.reach_multiple !== null && w.reach_multiple !== undefined
+            ? `${w.reach_multiple}× its own ${w.baseline_scope === 'cohort' ? `${w.platform} ${w.kind}` : 'account'} baseline`
+            : 'no baseline yet',
+          w.engagement_rate !== null && w.engagement_rate !== undefined
+            ? `${w.engagement_rate}% engagement`
+            : null,
+        ].filter(Boolean).join(' · ');
+        return `${i + 1}. [${w.platform} · ${w.kind} · ${perf}] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`;
+      }).join('\n')
   : 'No published-post engagement data yet — design on brand + brief + trends alone. After the AM publishes a few of these and marks them published, future batches will draw on what worked.'}
 
 Produce exactly ${n} post${n === 1 ? '' : 's'}. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English. Keep hashtags to 3–5 highly relevant ones per post (see the Instagram playbook) — never a wall.
@@ -331,29 +346,11 @@ async function getRecentWinners(clientId, { days = 90, limit = 5 } = {}) {
      FROM latest l JOIN social_posts p ON p.id = l.post_id`,
     [clientId, days]
   );
-  const scored = rows
-    .map(r => {
-      const reachLike = r.reach || r.impressions || r.views || 0;
-      const interactions = (r.likes || 0) + (r.comments || 0) + (r.shares || 0) + (r.saves || 0);
-      const rate = reachLike > 0 ? Math.round((interactions / reachLike) * 1000) / 10 : 0;
-      return { ...r, reach_like: reachLike, engagement_rate: rate };
-    });
-
-  // "Heater" detection — any post whose reach is at least 2× the
-  // 30-day median across this client's published posts. Median is more
-  // robust than mean here because one viral post would otherwise drag
-  // the threshold up so high that nothing else qualifies.
-  const reaches = scored.map(r => r.reach_like).filter(n => n > 0).sort((a, b) => a - b);
-  const median = reaches.length ? reaches[Math.floor(reaches.length / 2)] : 0;
-  const heaterThreshold = median * 2;
-  const withHeater = scored.map(r => ({
-    ...r,
-    is_heater: heaterThreshold > 0 && r.reach_like >= heaterThreshold,
-  }));
-
-  return withHeater
-    .sort((a, b) => b.engagement_rate - a.engagement_rate)
-    .slice(0, limit);
+  // Ranked by how far each post beat the median of this client's OWN other
+  // posts of the same platform and format. See services/socialBaseline.js for
+  // why that replaced ranking on interactions / reach, which put a post with
+  // 3 likes on 10 reach above a reel that took 900 interactions on 40,000.
+  return socialBaseline.rank(rows).slice(0, limit);
 }
 
 // Aggregated hook library for a client. Pulls every hook that appears

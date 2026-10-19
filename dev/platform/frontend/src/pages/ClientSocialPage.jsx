@@ -2012,17 +2012,38 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
       <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         {winners.map(w => (
           <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 'var(--s3)', background: 'var(--surface)', border: '1px solid #f0e0a0', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit', position: 'relative' }}>
-            {w.is_heater && (
-              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', background: 'var(--negative)', color: 'white', borderRadius: 'var(--r-sm)', letterSpacing: 0.5 }}>🔥 HEATER</span>
+            {/* The multiple is the headline figure, because it is the only one
+                the client can read without knowing anyone else's numbers. A
+                post with no multiple yet shows nothing here rather than a
+                borrowed one. */}
+            {w.reach_multiple != null && (
+              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', background: w.is_heater ? 'var(--negative)' : 'var(--surface-sunken)', color: w.is_heater ? 'white' : 'var(--text-muted)', borderRadius: 'var(--r-sm)', letterSpacing: 0.5 }}>
+                {w.is_heater ? '🔥 ' : ''}{w.reach_multiple}×
+              </span>
             )}
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
-            <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: 'var(--s1) 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
+            <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: 'var(--s1) 0', lineHeight: 1.3, paddingRight: w.reach_multiple != null ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
-            <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--warning)' }}>{w.engagement_rate}% engagement</div>
+            <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--warning)' }}>
+              {w.reach_multiple != null
+                ? <>{w.reach_multiple}× {w.baseline_scope === 'cohort' ? 'this format\u2019s' : 'the account\u2019s'} baseline{w.reach_baseline ? <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}> · median {w.reach_baseline.toLocaleString()} reach</span> : null}</>
+                : <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>No baseline yet</span>}
+            </div>
+            {/* engagement_rate is null by design under the reach floor, so it
+                is a second line rather than the headline it used to be. */}
+            {w.engagement_rate != null && (
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{w.engagement_rate}% engagement</div>
+            )}
           </a>
         ))}
       </div>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
+        The next batch you generate will model these. A multiple compares the post with the median of
+        this account’s own other posts of the same platform and format, excluding itself, so it reads
+        the same on 800 followers as on 80,000. 🔥 = 2× or better.
+        {winners.some(w => w.baseline_scope === 'account') && ' Where a format has fewer than five posts the comparison widens to the whole account, and the card says so.'}
+        {winners.some(w => w.reach_multiple == null) && ' Posts marked “no baseline yet” need more published history before a multiple means anything.'}
+      </div>
     </div>
   );
 }
