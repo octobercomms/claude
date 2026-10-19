@@ -595,6 +595,23 @@ progress is obvious on `platform.octobercomms.com`.
   "the journalist record" means picking one; putting it on both creates two
   columns to keep in sync. Country went on `outreach_contacts` because that is
   what sending reads. See `docs/omi/press-countries.md`.
+- **`outreach_contacts.kind` decides which half of the product can see a
+  contact, and it defaults to the wrong one.** `media` and `industry` are the
+  shared press list; `prospect` is private per-client business outreach. Every
+  press surface filters on `kind = 'media'` and the column defaults to
+  `'prospect'`, so a write that does not state the kind creates a contact no
+  press surface will ever return, with no error to say so. That is how the only
+  single-contact form in the product spent months filing journalists as
+  prospects. Any new path that creates a contact states its kind; the create
+  route whitelists it against `VALID_KINDS` and `tests/contact-create.test.js`
+  holds the line.
+- **The library has no unique index on email.** Duplicates are prevented in the
+  application, by `pressImport.findExisting` (email, else name + company), which
+  both the paste importer and the hand-add route use so "the same person" means
+  one thing. A create that matches attaches the existing record to whichever
+  clients were asked for and returns it flagged `already_in_library` rather than
+  inserting; it never re-kinds or overwrites what is filed, because a silent
+  overwrite of a record with coverage against it is worse than a duplicate.
 - **A derived field needs to say where it came from.** Country is inferred from
   the outlet, the location text or an email TLD, and the operator excludes
   countries from a send on the strength of it, so `country_source` is stored

@@ -15,6 +15,15 @@ const outreachVerification = require('../services/outreachVerification');
 const outreachMailboxes = require('../services/outreachMailboxes');
 const outreachTasks = require('../services/outreachTasks');
 const pr = require('../services/pr');
+// The paste importer's idea of "this is the same person". Shared so a hand-add
+// and a pasted list agree on what counts as a duplicate.
+const { findExisting } = require('../services/pressImport');
+
+// The three contact worlds. 'media' and 'industry' are the shared press list;
+// 'prospect' is private per-client business outreach. Anything a client sends
+// is checked against this before it reaches the column, so a typo cannot
+// invent a fourth kind that no surface will ever query for.
+const VALID_KINDS = new Set(['media', 'industry', 'prospect']);
 
 // Map a free-text "Type" column value to the unified contact kind.
 function contactKind(v) {
@@ -950,40 +959,76 @@ router.post('/tags/rename', async (req, res) => {
 // AM is in a client's Contacts tab). Pass attach_clients=[ids] to attach to
 // multiple clients in one go; or omit client_id entirely to add to the
 // library without attaching anywhere.
+//
+// Two things this route gets right that it did not before 19 Oct 2026:
+//
+// 1. `kind` is honoured. It used to be dropped, so the column default took
+//    over and every hand-added contact was born a 'prospect'. Every press
+//    surface filters on kind='media', so a journalist added here was invisible
+//    to audiences, journalist search and release sends, with no error anywhere
+//    to say so. The caller now states the kind and we whitelist it.
+// 2. A second record for someone already in the library is never created.
+//    The library is workspace-wide and has no unique index on email, so a
+//    manual add was free to mint the duplicates the Cleanup Centre then has to
+//    merge. We reuse the paste importer's own findExisting so "same person"
+//    means the same thing on both paths, attach them to whichever clients were
+//    asked for, and hand the existing record back flagged. Nothing is
+//    overwritten from the typed fields: the caller shows the record and the
+//    operator decides what to change, which also surfaces the case where the
+//    person is already filed under a different kind.
 router.post('/contacts', async (req, res) => {
   const b = req.body;
+  const kind = (typeof b.kind === 'string' && VALID_KINDS.has(b.kind)) ? b.kind : null;
+  const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+  const name = b.name || [b.first_name, b.last_name].filter(Boolean).join(' ') || '';
+  // A row with neither is unreachable: nothing can search for it, nothing can
+  // email it, and it cannot be told apart from the next blank one.
+  if (!email && !name.trim()) {
+    return res.status(400).json({ error: 'Give at least a name or an email address.' });
+  }
   try {
-    const tags = normaliseTags(b.tags);
-    const { rows } = await pool.query(
-      `INSERT INTO outreach_contacts
-         (client_id, name, first_name, last_name, email, company, role, title,
-          contact_type, location, linkedin_url, source, website, status, notes, tags)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       RETURNING *`,
-      [
-        b.client_id || null,
-        b.name || [b.first_name, b.last_name].filter(Boolean).join(' ') || null,
-        b.first_name || null, b.last_name || null,
-        b.email || null, b.company || null,
-        b.role || b.title || null, b.title || null,
-        b.contact_type || null, b.location || null,
-        b.linkedin_url || null, b.source || 'manual',
-        b.website || null, b.status || 'new', b.notes || null,
-        tags,
-      ]
-    );
-    const contact = rows[0];
     const attachIds = new Set([
       ...(b.client_id ? [b.client_id] : []),
       ...(Array.isArray(b.attach_clients) ? b.attach_clients.filter(Boolean) : []),
     ]);
-    for (const cid of attachIds) {
-      await pool.query(
-        `INSERT INTO outreach_contact_clients (contact_id, client_id)
-         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [contact.id, cid]
-      );
+    const attachAll = async (contactId) => {
+      for (const cid of attachIds) {
+        await pool.query(
+          `INSERT INTO outreach_contact_clients (contact_id, client_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [contactId, cid]
+        );
+      }
+    };
+
+    const existing = await findExisting({ email, name, company: b.company || '' });
+    if (existing) {
+      await attachAll(existing.id);
+      return res.status(200).json({ ...existing, already_in_library: true });
     }
+
+    const tags = normaliseTags(b.tags);
+    const { rows } = await pool.query(
+      `INSERT INTO outreach_contacts
+         (client_id, name, first_name, last_name, email, company, role, title,
+          contact_type, location, linkedin_url, source, website, status, notes, tags, kind)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+               COALESCE($17, 'prospect'))
+       RETURNING *`,
+      [
+        b.client_id || null,
+        name || null,
+        b.first_name || null, b.last_name || null,
+        email || null, b.company || null,
+        b.role || b.title || null, b.title || null,
+        b.contact_type || null, b.location || null,
+        b.linkedin_url || null, b.source || 'manual',
+        b.website || null, b.status || 'new', b.notes || null,
+        tags, kind,
+      ]
+    );
+    const contact = rows[0];
+    await attachAll(contact.id);
     res.status(201).json(contact);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1410,7 +1455,6 @@ router.put('/contacts/:id', async (req, res) => {
     const newTags = b.tags === undefined ? c.tags : normaliseTags(b.tags);
     // kind is whitelisted to the three valid values so a bad client can't
     // write 'foo' and break the Press/Prospects filter.
-    const VALID_KINDS = new Set(['media', 'industry', 'prospect']);
     const newKind = (typeof b.kind === 'string' && VALID_KINDS.has(b.kind)) ? b.kind : c.kind;
     const { rows } = await pool.query(
       `UPDATE outreach_contacts SET

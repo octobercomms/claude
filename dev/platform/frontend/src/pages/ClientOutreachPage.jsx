@@ -205,8 +205,18 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   async function addContact(e) {
     e.preventDefault();
     try {
-      const c = await api.post('/outreach/contacts', { ...newContact, client_id: id });
-      setContacts(p => [c, ...p]);
+      // kind is stated rather than left to the column default: this tab is a
+      // client's sales leads, so a contact added here is a prospect. The press
+      // library has its own add form, which states 'media'.
+      const c = await api.post('/outreach/contacts', { ...newContact, kind: 'prospect', client_id: id });
+      // The server hands back the existing record instead of creating a second
+      // one when this person is already in the library, and attaches them to
+      // this client. Replace rather than prepend so the list cannot show them
+      // twice, and say which happened.
+      setContacts(p => [c, ...p.filter(x => x.id !== c.id)]);
+      if (c.already_in_library) {
+        toast(`${c.name || c.email} was already in the library — attached to this client.`, 'success');
+      }
       setNewContact({ name: '', email: '', company: '', role: '', website: '' });
       setShowAddContact(false);
     } catch (err) { toast(err.message, 'error'); }

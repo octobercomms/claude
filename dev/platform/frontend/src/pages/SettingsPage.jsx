@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
+import AddContactModal from '../components/AddContactModal';
 import EditContactModal from '../components/EditContactModal';
 import ListDetail from '../components/shells/ListDetail';
 import ManageUsersPage from './ManageUsersPage';
@@ -2486,6 +2487,7 @@ function ContactsLibrary() {
   const [info, setInfo] = useState(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [openContact, setOpenContact] = useState(null);
   const [tidyOpen, setTidyOpen] = useState(false);
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
@@ -2713,6 +2715,22 @@ function ContactsLibrary() {
           await reload();
         }}
       />
+      {addOpen && (
+        <AddContactModal
+          entityLabel="journalist"
+          defaultKind="media"
+          onClose={() => setAddOpen(false)}
+          onCreated={async (contact) => {
+            setAddOpen(false);
+            await reload();
+            // Hand straight over to the full record. The add form holds only
+            // what identifies someone; country, tags, LinkedIn and client
+            // attachments are all on the edit modal, and this is the moment
+            // the operator has that detail to hand.
+            setOpenContact(contact);
+          }}
+        />
+      )}
       {openContact && (
         <EditContactModal
           contact={openContact}
@@ -2747,7 +2765,10 @@ function ContactsLibrary() {
               title={total ? `Download ${total.toLocaleString()} journalist${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
               ↓ Export CSV
             </button>
-            <button onClick={() => setImportOpen(true)} className="btn btn-primary btn-sm">Import CSV</button>
+            <button onClick={() => setImportOpen(true)} className="btn btn-secondary btn-sm">Import CSV</button>
+            <button {...roWrite(readOnly, { onClick: () => setAddOpen(true) })} className="btn btn-primary btn-sm">
+              + Add journalist
+            </button>
           </div>
         </div>
 
