@@ -490,7 +490,18 @@ export default function SettingsPage() {
         setSectionResult({ title: group.title, ok: false, message: 'No changes to save' });
         return;
       }
-      await api.post('/settings/platform-keys', body);
+      const saved = await api.post('/settings/platform-keys', body);
+      // The server only stores keys on its allowlist. A field present here but
+      // missing there used to save silently and persist nothing; now it says so
+      // instead of showing "Saved" over a value that never left the browser.
+      if (saved?.ignored?.length) {
+        setSectionResult({
+          title: group.title,
+          ok: false,
+          message: `Not saved: ${saved.ignored.join(', ')}. The server does not accept ${saved.ignored.length === 1 ? 'this key' : 'these keys'} yet.`,
+        });
+        return;
+      }
       const fresh = await api.get('/settings/platform-keys');
       setValues(fresh);
       setInitialValues(fresh);
