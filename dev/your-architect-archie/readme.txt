@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.7
+Stable tag: 0.7.8
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,11 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.8 =
+* Archie now asks for the customer's name and email as two separate questions
+  (name first, then email) instead of bundling both into one, so people don't
+  answer with just one and have to be asked again.
 
 = 0.7.7 =
 * Meta Pixel conversion tracking for ads. A successful project submission fires
