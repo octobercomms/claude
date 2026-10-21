@@ -24,6 +24,10 @@ npm-debug.log*
 
 # Runtime artefacts — generated reports, not source
 dev/platform/backend/pdfs/
+# Screen recordings land here on the disk media driver (services/mediaStore).
+# Uploads now spool into recordings-store/tmp first, so an interrupted upload
+# leaves a part-file behind; neither it nor a real recording belongs in git.
+dev/platform/backend/recordings-store/
 *.zip
 .claude/worktrees/
 
