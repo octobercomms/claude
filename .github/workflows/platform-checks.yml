@@ -79,6 +79,8 @@ jobs:
         run: node tests/contact-create.test.js
       - name: Guard — a winner beat its own account, not a flattering fraction
         run: node src/services/socialBaseline.test.js
+      - name: Guard — a long screen recording can actually be saved
+        run: node tests/recording-upload.test.js
       - name: Syntax check every service and route
         run: |
           set -e
