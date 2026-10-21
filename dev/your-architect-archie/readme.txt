@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.12
+Stable tag: 0.7.13
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,14 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.13 =
+* Blurred drawing previews in the client portal can now be tapped to enlarge —
+  the customer can study the (still blurred and watermarked) preview full-screen
+  before paying. It stays locked and unreadable until payment clears.
+* Clients can now request a change from the portal before paying, not only after.
+  The "Need a change?" box now also appears while they're reviewing the preview,
+  so they can ask for tweaks before committing.
 
 = 0.7.12 =
 * Existing drawings are no longer required to submit. If a customer says they

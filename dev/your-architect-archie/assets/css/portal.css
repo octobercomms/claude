@@ -35,6 +35,15 @@
 .yaa-portal .yp-thumb-doc::before { content:'PDF'; color:var(--muted); font-weight:800; }
 .yaa-portal .yp-doc-ico { color:var(--navy); font-weight:800; }
 .yaa-portal .yp-lockbadge { position:absolute; inset:auto 0 8px 0; text-align:center; color:#fff; background:rgba(37,62,148,.82); font-size:.72rem; font-weight:700; padding:4px; }
+.yaa-portal button.yp-thumb { border:0; font:inherit; width:100%; cursor:zoom-in; }
+.yaa-portal .yp-zoomico { position:absolute; top:8px; right:8px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; background:rgba(37,62,148,.82); color:#fff; border-radius:7px; font-size:.85rem; line-height:1; }
+.yaa-portal .yp-lightbox { position:fixed; inset:0; z-index:99999; background:rgba(15,20,35,.9); display:flex; align-items:center; justify-content:center; padding:24px; }
+.yaa-portal .yp-lightbox[hidden] { display:none; }
+.yaa-portal .yp-lightbox-fig { margin:0; display:flex; flex-direction:column; align-items:center; gap:12px; max-width:94vw; max-height:94vh; }
+.yaa-portal .yp-lightbox-fig img { max-width:94vw; max-height:78vh; object-fit:contain; background:#fff; box-shadow:0 20px 60px rgba(0,0,0,.5); border-radius:6px; }
+.yaa-portal .yp-lightbox-fig figcaption { color:#fff; font-size:.88rem; font-weight:600; background:rgba(37,62,148,.92); padding:8px 16px; border-radius:999px; text-align:center; }
+.yaa-portal .yp-lightbox-close { position:fixed; top:16px; right:20px; width:44px; height:44px; border:0; border-radius:50%; background:rgba(255,255,255,.16); color:#fff; font-size:1.3rem; line-height:1; cursor:pointer; }
+.yaa-portal .yp-lightbox-close:hover { background:rgba(255,255,255,.28); }
 .yaa-portal .yp-file-meta { padding:10px 12px; display:flex; flex-direction:column; gap:2px; }
 .yaa-portal .yp-file-label { font-weight:600; font-size:.85rem; word-break:break-word; }
 .yaa-portal .yp-file-src { color:var(--muted); font-size:.75rem; }
