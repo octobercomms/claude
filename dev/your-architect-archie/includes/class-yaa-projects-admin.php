@@ -786,12 +786,17 @@ class YAA_Projects_Admin {
 		$post_url = admin_url( 'admin-post.php' );
 		$pre_paid = in_array( $status, array( 'submitted', 'approved', 'in_progress', 'emailed', 'preview' ), true );
 
-		// Measured-survey gate: a survey needs arranging (client had no existing
-		// drawings) and we can't base drawings on one until it's in.
+		// Plans gate: before drawings can start we need the plans they'll be based on
+		// — either a measured survey we arrange (client had no drawings), or the
+		// client's own existing drawings (they said they have some). Either is
+		// "received" once the file is in or we mark it so.
 		$state           = YAA_Project::state( $pid );
 		$needs_survey    = ! empty( $state['survey'] );
-		$survey_received = ! empty( $project->survey_received_at );
-		$survey_blocks   = ( $needs_survey && ! $survey_received );
+		$needs_drawings  = ! empty( $state['hasDrawings'] );
+		$has_client_file = ! empty( YAA_Files::for_project( $pid, 'client' ) );
+		$plans_received  = ! empty( $project->survey_received_at ) || $has_client_file;
+		$survey_received = $plans_received; // back-compat name used below
+		$survey_blocks   = ( ( $needs_survey || $needs_drawings ) && ! $plans_received );
 
 		ob_start();
 		?>
@@ -819,31 +824,38 @@ class YAA_Projects_Admin {
 					<?php endforeach; ?>
 				</div>
 
-				<?php if ( $needs_survey && $pre_paid && ! $project->paid ) : ?>
-					<?php if ( $survey_received ) : ?>
+				<?php if ( ( $needs_survey || $needs_drawings ) && $pre_paid && ! $project->paid ) : ?>
+					<?php if ( $plans_received ) : ?>
 						<div class="yaa-survey ok">
-							<div><span class="yaa-badge green"><?php esc_html_e( 'Measured survey received', 'your-architect-archie' ); ?></span>
-								<span class="yaa-sub"><?php echo esc_html( $project->survey_received_at ? self::ago( $project->survey_received_at ) : '' ); ?></span></div>
-							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
-								<input type="hidden" name="action" value="yaa_project_survey">
-								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
-								<input type="hidden" name="received" value="0">
-								<?php wp_nonce_field( 'yaa_workflow' ); ?>
-								<button class="yaa-linkbtn"><?php esc_html_e( 'Mark not yet received', 'your-architect-archie' ); ?></button>
-							</form>
+							<div><span class="yaa-badge green"><?php echo $needs_drawings ? esc_html__( 'Client drawings received', 'your-architect-archie' ) : esc_html__( 'Measured survey received', 'your-architect-archie' ); ?></span>
+								<span class="yaa-sub"><?php echo esc_html( $has_client_file ? __( 'uploaded by the client', 'your-architect-archie' ) : ( $project->survey_received_at ? self::ago( $project->survey_received_at ) : '' ) ); ?></span></div>
+							<?php if ( ! $has_client_file ) : ?>
+								<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
+									<input type="hidden" name="action" value="yaa_project_survey">
+									<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+									<input type="hidden" name="received" value="0">
+									<?php wp_nonce_field( 'yaa_workflow' ); ?>
+									<button class="yaa-linkbtn"><?php esc_html_e( 'Mark not yet received', 'your-architect-archie' ); ?></button>
+								</form>
+							<?php endif; ?>
 						</div>
 					<?php else : ?>
 						<div class="yaa-survey warn">
 							<div class="yaa-survey-txt">
-								<strong>⚠ <?php esc_html_e( 'Measured survey required — not yet received', 'your-architect-archie' ); ?></strong>
-								<p class="yaa-sub"><?php esc_html_e( 'This client had no existing drawings, so the drawings are based on a measured survey arranged separately. Don’t start work until it’s in — mark it received once the surveyor’s file reaches you.', 'your-architect-archie' ); ?></p>
+								<?php if ( $needs_drawings ) : ?>
+									<strong>⚠ <?php esc_html_e( 'Client’s own drawings — not yet received', 'your-architect-archie' ); ?></strong>
+									<p class="yaa-sub"><?php esc_html_e( 'The client said they already have existing drawings. We need them before work starts — they can upload them, or send them to us by email. Mark received once they’re in.', 'your-architect-archie' ); ?></p>
+								<?php else : ?>
+									<strong>⚠ <?php esc_html_e( 'Measured survey required — not yet received', 'your-architect-archie' ); ?></strong>
+									<p class="yaa-sub"><?php esc_html_e( 'This client had no existing drawings, so the drawings are based on a measured survey arranged separately. Don’t start work until it’s in — mark it received once the surveyor’s file reaches you.', 'your-architect-archie' ); ?></p>
+								<?php endif; ?>
 							</div>
 							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
 								<input type="hidden" name="action" value="yaa_project_survey">
 								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
 								<input type="hidden" name="received" value="1">
 								<?php wp_nonce_field( 'yaa_workflow' ); ?>
-								<button class="yaa-btn ghost"><?php esc_html_e( 'Mark survey received', 'your-architect-archie' ); ?></button>
+								<button class="yaa-btn ghost"><?php esc_html_e( 'Mark received', 'your-architect-archie' ); ?></button>
 							</form>
 						</div>
 					<?php endif; ?>
@@ -869,7 +881,7 @@ class YAA_Projects_Admin {
 
 				<?php if ( 'approved' === $status ) : ?>
 					<?php echo self::email_block( $project, 'approved', __( 'Approval email (preparing drawings)', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-					<?php $start_confirm = $survey_blocks ? "return confirm('No measured survey has been recorded as received yet \u2014 the drawings are based on it. Start drawings anyway?');" : ''; ?>
+					<?php $start_confirm = $survey_blocks ? "return confirm('The plans the drawings are based on (survey or the client\u2019s own drawings) are not recorded as received yet. Start drawings anyway?');" : ''; ?>
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" onsubmit="<?php echo esc_attr( $start_confirm ); ?>">
 						<input type="hidden" name="action" value="yaa_project_start">
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">

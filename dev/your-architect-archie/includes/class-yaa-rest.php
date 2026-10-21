@@ -291,12 +291,10 @@ class YAA_Rest {
 			return new WP_REST_Response( array( 'needPostcode' => true, 'message' => $ask ), 200 );
 		}
 
-		// If they told us they already have drawings, we must have the file(s) first.
-		if ( ! $redirect && ! empty( $state['hasDrawings'] ) && empty( YAA_Files::for_project( $id, 'client' ) ) ) {
-			$ask = __( 'Could you upload your existing drawings first? Tap the photo/paperclip button by the message box — it\'s essential we work from your current plans.', 'your-architect-archie' );
-			YAA_Project::add_message( $id, 'assistant', $ask );
-			return new WP_REST_Response( array( 'needUpload' => true, 'message' => $ask ), 200 );
-		}
+		// If they told us they have existing drawings but haven't attached them yet,
+		// we no longer block the submission on it — forcing an upload at the finish
+		// line just loses the lead. We take the enquiry now; the studio sees a
+		// "drawings not yet received" flag on the project and can collect them later.
 
 		// Record the consent choice at the point of submission (their explicit GO).
 		$state['consentAt'] = current_time( 'mysql' );

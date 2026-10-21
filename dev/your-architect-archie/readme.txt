@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.11
+Stable tag: 0.7.12
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.12 =
+* Existing drawings are no longer required to submit. If a customer says they
+  have their own plans, Archie now says we'll need them and they can upload now
+  or send them later — and the quote can be submitted either way, so people no
+  longer get stuck at the finish line over a file.
+* Archie always ends with a clear prompt to press "Save & submit project" once
+  everything is collected — it was occasionally signing off ("That's everything
+  I need!") without telling the customer to submit, leaving the quote stranded.
+* The project workflow now also flags "Client's own drawings — not yet received"
+  (alongside the measured-survey flag) and warns before starting drawings until
+  the plans are in, whether that's the client's own file or an arranged survey.
 
 = 0.7.11 =
 * Fixed the quick-reply chips getting stuck on an earlier question — e.g. still

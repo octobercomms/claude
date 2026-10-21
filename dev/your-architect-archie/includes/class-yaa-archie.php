@@ -114,7 +114,7 @@ class YAA_Archie {
 			'2) WHICH SERVICE(S) they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. They can have MORE THAN ONE of our services in the same quote (e.g. a full planning application AND building regulations drawings). To put a service in the quote, set `addServices` to the ones to add; to take one out, set `removeServices` — and ONLY remove a service when the customer explicitly asks to remove that specific service. Never re-send the whole cart, and never remove anything because they declined an add-on or answered another question. The customer can ALSO remove items themselves with the ✕ on their quote, so the cart may differ from earlier in the chat — ALWAYS trust "THE CUSTOMER\'S CURRENT QUOTE" below for what is in the cart right now, never your own memory. Any time you add or remove something, say plainly what changed and read the current quote back. ONLY our own services from the menu can go in the quote. If they ask for a measured survey, a structural engineer, or anything not on our menu, warmly explain those are arranged separately through trusted independent professionals (we help find one; they approve that quote and pay them directly), so it is not part of our fixed fee and cannot be added as a priced line — never claim you have added it. ' . $advice . ' If they tap "I\'m not sure", diagnose and recommend a service as above rather than deflecting — only set advice=true once they clearly want to talk to a person instead of getting their price online. Asking for their email or their name are open questions — never offer tappable options for those.',
 			'3) briefly, what the work physically is (a rear/side extension, loft, garage, outbuilding, internal work, a new home) — for our notes; set projectType if clear. Keep it to one light question, do not labour it.',
 			'4) the relevant add-ons for the services they chose (see the add-ons list): for Full planning, whether we submit & manage the application; the optional 3D visualisation; and the site visit ONLY if they are in London / the M25.',
-			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → set hasDrawings=true and survey=false, tell them it is essential we see those drawings and ask them to upload the file(s) now using the photo/paperclip button next to the message box; they should upload before finishing. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '" (For a full planning application an accurate measured survey is required before we can start, even if they only have estate-agent floor plans.)',
+			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → set hasDrawings=true and survey=false. Warmly tell them we will need those drawings before we start, and that they can upload them now using the photo/paperclip button next to the message box OR send them over later — whichever is easier for them. Do NOT insist they upload before finishing, and do NOT hold up the remaining questions waiting for a file. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '" (For a full planning application an accurate measured survey is required before we can start, even if they only have estate-agent floor plans.)',
 			'6) will the work involve structural changes (removing walls, adding steel beams)? Reassure that "No / not sure" is completely fine. If they are unsure, reply: "' . $structural_line . '" and set structural only if you are confident.',
 			'7) their rough timeframe;',
 			'8) their name (first name is fine) — ask for this warmly, on its own, so the team knows who they are speaking to. Keep it to a single short question and do NOT ask for anything else (especially not their email) in the same message.',
@@ -133,7 +133,7 @@ class YAA_Archie {
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
 			'- New dwellings and full RIBA services (concept to construction) or larger commissions are handled directly by Tiam Architects: include "newdwelling" in `services` if that is what they want, and point them to ' . $riba . ' at the end.',
 			'',
-			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Use `addServices` to add our services and `removeServices` to remove one (only when explicitly asked to remove that service); never re-send the whole cart. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given), the property is in the UK, and — if they said they have existing drawings — they have uploaded them. Never set done before all of that.',
+			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Use `addServices` to add our services and `removeServices` to remove one (only when explicitly asked to remove that service); never re-send the whole cart. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given) and the property is in the UK. Do NOT require an uploaded file for done — existing drawings can be attached now or sent later. Never set done before you have the postcode and the email.',
 		);
 
 		$known = self::address_knowledge( $state );
@@ -175,7 +175,7 @@ class YAA_Archie {
 			$d[] = '- Site visit (London / M25): ' . ( $state['siteVisit'] ? 'YES (added)' : 'declined' );
 		}
 		if ( ! empty( $state['hasDrawings'] ) ) {
-			$d[] = '- Existing drawings: the customer HAS them and must upload the file(s).';
+			$d[] = '- Existing drawings: the customer HAS them; we need the file(s), which they can upload now or send later (do not block on this).';
 		} elseif ( ! empty( $state['survey'] ) ) {
 			$d[] = '- Existing drawings: none — a measured survey will be arranged separately.';
 		}
@@ -261,7 +261,7 @@ class YAA_Archie {
 							'description' => 'services to REMOVE from the cart this turn — ONLY when the customer explicitly asks to remove that specific service. Never remove anything otherwise.',
 						),
 						'advice'      => array( 'type' => 'boolean', 'description' => 'true if the person is unsure what they need or wants advice / to talk to someone rather than pick a service from the menu' ),
-						'hasDrawings' => array( 'type' => 'boolean', 'description' => 'true if they say they already have existing drawings, plans or a measured survey of the property — if so they must upload the file(s)' ),
+						'hasDrawings' => array( 'type' => 'boolean', 'description' => 'true if they say they already have existing drawings, plans or a measured survey of the property — if so we will need the file(s), which they can upload now or send later' ),
 						'projectType' => array( 'type' => 'string', 'enum' => array( 'extension', 'loft', 'garage', 'outbuilding', 'internal', 'newdwelling' ), 'description' => 'optional context — what the work physically is' ),
 						'storeys'     => array( 'type' => 'string', 'description' => 'for a rear/side extension: single, two, or unsure' ),
 						'submitApp'   => array( 'type' => 'boolean', 'description' => 'true if they want us to submit & manage the planning application (planning service only)' ),
@@ -557,21 +557,26 @@ class YAA_Archie {
 
 		$package = YAA_Pricing::build_package( $state );
 
-		// Never treat the chat as finished until we have everything the studio needs
-		// to act: a UK postcode, an email to reach them on, and — if they said they
-		// already have drawings — the uploaded file(s).
-		if ( $done ) {
-			if ( empty( $state['email'] ) || empty( $state['postcode'] ) ) {
-				$done = false;
-			} elseif ( ! empty( $state['hasDrawings'] ) && ! self::has_client_upload( $project_id ) ) {
-				$done = false;
-			}
+		// Never treat the chat as finished until we have the essentials the studio
+		// needs to act: a UK postcode and an email to reach them on. We no longer
+		// require an uploaded file here — if they have their own drawings they can
+		// attach them now or send them later, and the studio chases them up.
+		if ( $done && ( empty( $state['email'] ) || empty( $state['postcode'] ) ) ) {
+			$done = false;
 		}
 
 		// The model sometimes returns a tool call with no spoken text (it recorded a
 		// field but didn't continue). Fall back to the next question, not a dead-end
 		// "thanks", so the conversation always moves forward.
 		$message = '' !== $result['text'] ? $result['text'] : self::next_prompt( $state, $done );
+
+		// Once everything's collected, always close with the call to action — the
+		// model sometimes signs off ("That's everything I need!") without telling
+		// them to press the button, which leaves the quote stranded, never submitted.
+		if ( $done && false === stripos( $message, 'submit' ) ) {
+			$message = rtrim( $message ) . ' ' . __( 'You\'re all set — just press the "Save & submit project" button to send everything to our team. Nothing goes to them until you do.', 'your-architect-archie' );
+		}
+
 		YAA_Project::set_state( $project_id, $state );
 		YAA_Project::add_message( $project_id, 'assistant', $message );
 		YAA_Project::set_package( $project_id, $package );
