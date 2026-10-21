@@ -22,16 +22,28 @@
 const fs = require('fs');
 const path = require('path');
 
-// Strip comments before matching. Every one of these files now carries a
-// comment explaining what it used to do wrong, and naming the old call in prose
-// must not read as still making it — the first run of this test failed three
-// checks for exactly that reason.
-const stripComments = (src) => src
-  .replace(/\/\*[\s\S]*?\*\//g, '')
-  .replace(/(^|[^:])\/\/.*$/gm, '$1')
-  .replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+// Drop comment LINES before matching, rather than comment spans.
+//
+// Every file here carries a comment explaining what it used to do wrong, and
+// naming the old call in prose must not read as still making it. The first
+// attempt at this used regexes for /* */ and trailing //, which ate across
+// lines and silently destroyed most of each file: api.js came through at 28%
+// of its length and mediaStore at 59%, so several checks were passing on
+// whatever happened to survive. Splitting on lines cannot do that — a line is
+// either dropped whole or kept whole.
+//
+// A trailing comment on a code line survives, which is fine: the assertions
+// below are all code-shaped, and no comment in these files writes `xhr.open(`
+// or `multer.diskStorage(`.
+const codeOnly = (src) => src
+  .split('\n')
+  .filter((line) => {
+    const t = line.trim();
+    return !(t.startsWith('//') || t.startsWith('*') || t.startsWith('/*') || t.startsWith('{/*'));
+  })
+  .join('\n');
 
-const read = (...p) => stripComments(fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8'));
+const read = (...p) => codeOnly(fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8'));
 // nginx keeps its comments: the directives are matched inside a located block,
 // and the '#' comment syntax cannot be confused with one.
 const nginx = fs.readFileSync(
@@ -40,7 +52,7 @@ const route = read('src', 'routes', 'recordings.js');
 const store = read('src', 'services', 'mediaStore.js');
 const pageRaw = fs.readFileSync(
   path.join(__dirname, '..', '..', 'frontend', 'src', 'pages', 'RecordingsPage.jsx'), 'utf8');
-const page = stripComments(pageRaw);
+const page = codeOnly(pageRaw);
 
 let pass = 0;
 let fail = 0;
@@ -143,6 +155,35 @@ check('and can get the file out without the DevTools console',
 check('the download does not revoke the URL before the browser starts it',
   /setTimeout\(\(\) => URL\.revokeObjectURL/.test(page),
   'revoking immediately cancels the download in Chrome');
+
+// --- progress and rename ---------------------------------------------------
+// fetch exposes no upload-progress event, so a 600MB recording sat behind a
+// motionless "Uploading…" with no way to tell progress from a stall.
+const api = read('..', 'frontend', 'src', 'utils', 'api.js');
+check('there is an upload helper that reports progress',
+  /postFormProgress/.test(api) && /upload\.onprogress/.test(api),
+  'fetch cannot report upload progress; this needs XMLHttpRequest');
+check('it still sends the session cookie',
+  /withCredentials = true/.test(api),
+  'without it every upload is a 401 and bounces to login');
+check('it gives a 413 the same plain-English message as fetch does',
+  /413[\s\S]{0,200}too large to upload/.test(api),
+  'otherwise the one error this page is most likely to hit reads as a JSON parse failure');
+check('both upload paths report progress',
+  (page.match(/postFormProgress/g) || []).length >= 2,
+  'the recorder save and the file import each need it');
+check('progress is cleared when an upload ends',
+  (page.match(/setUploadPct\(null\)/g) || []).length >= 3,
+  'a stale percentage left on screen is worse than none');
+
+check('a finished video can be renamed from the list',
+  /function rename\(/.test(page) && />Rename</.test(pageRaw),
+  'a title was only settable at save time, so a hurried or failed save kept the wrong name for good');
+check('the rename endpoint exists and is ownership-checked',
+  /router\.patch\('\/:id'/.test(route) && /created_by IS NOT DISTINCT FROM/.test(route));
+check('it refuses an empty title',
+  /if \(!title\) return res\.status\(400\)/.test(route),
+  'blanking a title loses the only handle on the video');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

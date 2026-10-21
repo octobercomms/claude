@@ -63,6 +63,11 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   const [importResults, setImportResults] = useState(null);
   const [fileMeta, setFileMeta] = useState({ title: '', date: '', share_id: '', views: '' });
   const [fileUploading, setFileUploading] = useState(false);
+  // How far an upload has got, 0-100, or null when nothing is uploading or the
+  // browser cannot tell us the total. A large recording used to sit behind a
+  // motionless "Uploading…" for minutes with no way to tell progress from a
+  // stall.
+  const [uploadPct, setUploadPct] = useState(null);
   const fileImportRef = useRef(null);
 
   const recorderRef = useRef(null);
@@ -292,12 +297,14 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       pendingRowRef.current = created.id;
       const fd = new FormData();
       fd.append('file', blobRef.current, 'recording.webm');
-      await api.postForm(created.upload.path, fd);
+      setUploadPct(0);
+      await api.postFormProgress(created.upload.path, fd, (p) => setUploadPct(p.percent));
       await api.post(`/recordings/${created.id}/finalize`, { duration_s: Math.round(durationRef.current) });
       const link = window.location.origin + created.share_path;
       try { await navigator.clipboard.writeText(link); toast('Saved — share link copied to clipboard'); }
       catch { toast('Saved'); }
       pendingRowRef.current = null;
+      setUploadPct(null);
       discard();
       load();
     } catch (err) {
@@ -308,6 +315,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       // typing a blob-URL download into the DevTools console.
       setSaveError(err?.message || 'unknown error');
       setPhase('preview');
+      setUploadPct(null);
       // Tidy the placeholder row. Best-effort: if this fails the recording is
       // still safe on the page, which is what matters, and a stray row is a
       // cosmetic problem by comparison.
@@ -379,6 +387,18 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     } catch (err) { toast('Download failed: ' + (err?.message || ''), 'error'); }
   }
 
+  async function rename(rec) {
+    const next = window.prompt('Rename this video', rec.title || '');
+    if (next === null) return;                 // cancelled
+    const title = next.trim();
+    if (!title || title === rec.title) return; // unchanged or emptied
+    try {
+      await api.patch(`/recordings/${rec.id}`, { title });
+      toast('Renamed');
+      load();
+    } catch (err) { toast('Rename failed: ' + (err?.message || ''), 'error'); }
+  }
+
   async function remove(rec) {
     if (!window.confirm(`Delete “${rec.title}”? This can’t be undone.`)) return;
     try { await api.delete(`/recordings/${rec.id}`); load(); toast('Deleted'); }
@@ -416,13 +436,14 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       if (fileMeta.share_id) fd.append('share_id', fileMeta.share_id);
       if (fileMeta.views) fd.append('imported_views', fileMeta.views);
       if (clientId) fd.append('client_id', clientId);
-      await api.postForm('/recordings/import', fd);
+      setUploadPct(0);
+      await api.postFormProgress('/recordings/import', fd, (p) => setUploadPct(p.percent));
       toast('Uploaded');
       setFileMeta({ title: '', date: '', share_id: '', views: '' });
       if (fileImportRef.current) fileImportRef.current.value = '';
       load();
     } catch (err) { toast('Upload failed: ' + (err?.message || ''), 'error'); }
-    finally { setFileUploading(false); }
+    finally { setFileUploading(false); setUploadPct(null); }
   }
 
   function toggleSelect(id) {
@@ -563,7 +584,9 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
               </div>
               <div className="row" style={{ gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
                 <button onClick={save} disabled={phase === 'saving'} className="btn btn-primary">
-                  {phase === 'saving' ? 'Saving…' : 'Save & copy link'}
+                  {phase === 'saving'
+                    ? (uploadPct === null ? 'Saving…' : `Uploading ${uploadPct}%`)
+                    : 'Save & copy link'}
                 </button>
                 <button onClick={downloadLocal} disabled={phase === 'saving'} className="btn btn-secondary"
                   title="Save the recording to your computer. Always available, whether or not the upload worked.">
@@ -573,6 +596,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                   Discard
                 </button>
               </div>
+              {phase === 'saving' && <UploadBar pct={uploadPct} />}
             </div>
           )}
         </div>
@@ -628,8 +652,11 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                   className="input" style={{ flex: '1 1 110px' }} />
               </div>
               <button onClick={uploadImport} disabled={fileUploading} className="btn btn-secondary" style={{ marginTop: 'var(--s3)' }}>
-                {fileUploading ? 'Uploading…' : 'Upload video'}
+                {fileUploading
+                  ? (uploadPct === null ? 'Uploading…' : `Uploading ${uploadPct}%`)
+                  : 'Upload video'}
               </button>
+              {fileUploading && <UploadBar pct={uploadPct} />}
             </div>
           </div>
         )}
@@ -693,6 +720,10 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                 )}
               </div>
               <div className="row" style={{ gap: 'var(--s2)' }}>
+                {canEdit && (
+                  <button onClick={() => rename(r)} title="Rename this video"
+                    className="btn btn-secondary btn-sm">Rename</button>
+                )}
                 <a href={r.share_path} target="_blank" rel="noopener noreferrer"
                   style={{ padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
                 <button onClick={() => copyLink(r)} className="btn btn-secondary btn-sm">Copy link</button>
@@ -731,6 +762,33 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       )}
 
       <style>{`@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }`}</style>
+    </div>
+  );
+}
+
+// A plain progress bar for an upload in flight. pct is null while the browser
+// has not told us a total, in which case the bar is shown striped-full rather
+// than at zero, so "we don't know" never reads as "nothing has happened".
+function UploadBar({ pct }) {
+  const known = typeof pct === 'number';
+  return (
+    <div style={{ marginTop: 'var(--s2)', maxWidth: 420 }}>
+      <div style={{
+        height: 6, background: 'var(--surface-sunken)', borderRadius: 'var(--r-pill)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: known ? `${pct}%` : '100%',
+          background: known ? 'var(--accent)' : 'var(--surface-raised)',
+          transition: 'width 200ms linear',
+        }} />
+      </div>
+      <div className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
+        {known
+          ? `${pct}% uploaded — keep this tab open.`
+          : 'Uploading — keep this tab open.'}
+      </div>
     </div>
   );
 }
