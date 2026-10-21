@@ -175,6 +175,13 @@ export default function Layout() {
           </div>
           <button onClick={() => setShowPassword(true)} className="app-nav-footer-btn">Change password</button>
           <button onClick={handleLogout} className="app-nav-footer-btn">Sign out</button>
+          {/* Which build this browser is actually running. Small and dim, but
+              it turns "is my change live?" from an afternoon of guessing into
+              one glance: compare it with the latest commit on main. */}
+          <div className="user-line" style={{ marginTop: 'var(--s2)', opacity: 0.5, fontSize: 'var(--fs-caption)' }}
+            title="The commit this browser's bundle was built from. If it is behind main, hard-reload.">
+            build {typeof __BUILD__ === 'string' ? __BUILD__ : 'dev'}
+          </div>
         </div>
       </nav>
       <main className="app-main" ref={mainRef}>
