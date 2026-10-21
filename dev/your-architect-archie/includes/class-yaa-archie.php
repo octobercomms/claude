@@ -142,6 +142,12 @@ class YAA_Archie {
 			$lines[] = $known;
 		}
 
+		$decided = self::decisions_context( $state );
+		if ( $decided ) {
+			$lines[] = '';
+			$lines[] = $decided;
+		}
+
 		$quote = self::quote_context( $state );
 		if ( $quote ) {
 			$lines[] = '';
@@ -149,6 +155,43 @@ class YAA_Archie {
 		}
 
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * A compact list of the yes/no questions already answered (including declines),
+	 * injected so Archie never re-asks something the customer has settled — the
+	 * conversation history alone sometimes isn't enough and it loops back to, say,
+	 * the 3D visualisation it already declined.
+	 */
+	private static function decisions_context( array $state ) {
+		$d = array();
+		if ( array_key_exists( 'submitApp', $state ) ) {
+			$d[] = '- We submit & manage the planning application: ' . ( $state['submitApp'] ? 'YES (added)' : 'declined' );
+		}
+		if ( array_key_exists( 'concept', $state ) ) {
+			$d[] = '- 3D visualisation add-on: ' . ( $state['concept'] ? 'YES (added)' : 'declined' );
+		}
+		if ( array_key_exists( 'siteVisit', $state ) ) {
+			$d[] = '- Site visit (London / M25): ' . ( $state['siteVisit'] ? 'YES (added)' : 'declined' );
+		}
+		if ( ! empty( $state['hasDrawings'] ) ) {
+			$d[] = '- Existing drawings: the customer HAS them and must upload the file(s).';
+		} elseif ( ! empty( $state['survey'] ) ) {
+			$d[] = '- Existing drawings: none — a measured survey will be arranged separately.';
+		}
+		if ( array_key_exists( 'structural', $state ) ) {
+			$d[] = '- Structural changes: ' . ( $state['structural'] ? 'yes' : 'no / not sure' );
+		}
+		if ( ! empty( $state['timeframe'] ) ) {
+			$d[] = '- Timeframe: ' . $state['timeframe'];
+		}
+		if ( ! empty( $state['projectType'] ) ) {
+			$d[] = '- What the work is: ' . $state['projectType'];
+		}
+		if ( empty( $d ) ) {
+			return '';
+		}
+		return "ALREADY DECIDED — do NOT ask about any of these again (not even to confirm); move straight on to the next item you have not yet covered:\n" . implode( "\n", $d );
 	}
 
 	/** The current priced quote, injected so Archie can read the customer's own figures back to them. */
@@ -370,6 +413,11 @@ class YAA_Archie {
 		if ( null !== $svc_fast ) {
 			return $svc_fast;
 		}
+
+		// Record a tap on one of our own closed-set chips before the model runs, so
+		// the deterministic flow always advances even if the model forgets to set the
+		// field (e.g. a declined add-on) — keeps the chips in step with the question.
+		self::record_tap_answer( $state, self::suggested_options( $state ), $user_text );
 
 		// This turn will call the model — count it against the per-session daily cap
 		// (fast-path turns above are free and never counted).
@@ -634,6 +682,85 @@ class YAA_Archie {
 			return array( 'Next few weeks', 'A few months', 'Just planning ahead' );
 		}
 		return array(); // name / email → free text.
+	}
+
+	/**
+	 * Safety net for closed-set chips: when the customer taps one of the
+	 * deterministic quick-reply options we offered, record the answer in state
+	 * ourselves. The model sometimes acknowledges a decline ("No thanks" to the
+	 * 3D visualisation) without setting the field, which leaves suggested_options()
+	 * stuck re-offering that question while the model's spoken question has already
+	 * moved on — the exact desync where the chips no longer match the question.
+	 *
+	 * Only acts on a verbatim tap of a chip we actually offered this turn, so
+	 * typed free text and clarification taps ("What's that?") never trigger it.
+	 *
+	 * @param array    $s       State, modified in place.
+	 * @param string[] $offered The chips offered on the previous turn (suggested_options of the pre-turn state).
+	 * @param string   $text    The incoming user message.
+	 */
+	private static function record_tap_answer( array &$s, array $offered, $text ) {
+		$text = (string) $text;
+		if ( empty( $offered ) || '' === $text || ! in_array( $text, $offered, true ) ) {
+			return;
+		}
+		// Submit & manage (planning add-on).
+		if ( in_array( 'Please submit & manage it for me', $offered, true ) ) {
+			if ( 'Please submit & manage it for me' === $text ) {
+				$s['submitApp'] = true;
+			} elseif ( "I'll submit it myself" === $text ) {
+				$s['submitApp'] = false;
+			}
+			return;
+		}
+		// 3D visualisation. "What's that?" is a clarification — leave unset.
+		if ( in_array( 'Yes, add a 3D visualisation', $offered, true ) ) {
+			if ( 'Yes, add a 3D visualisation' === $text ) {
+				$s['concept'] = true;
+			} elseif ( 'No thanks' === $text ) {
+				$s['concept'] = false;
+			}
+			return;
+		}
+		// London / M25 site visit.
+		if ( in_array( 'Yes, please visit', $offered, true ) ) {
+			if ( 'Yes, please visit' === $text ) {
+				$s['siteVisit'] = true;
+			} elseif ( 'No need' === $text ) {
+				$s['siteVisit'] = false;
+			}
+			return;
+		}
+		// Existing plans / measured survey. "What's a measured survey?" → clarification.
+		if ( in_array( 'Yes, I have plans drawn up', $offered, true ) ) {
+			if ( 'Yes, I have plans drawn up' === $text ) {
+				$s['hasDrawings'] = true;
+				$s['survey']      = false;
+			} elseif ( 'No — please help with a survey' === $text ) {
+				$s['survey']      = true;
+				$s['hasDrawings'] = false;
+			}
+			return;
+		}
+		// Structural changes.
+		if ( in_array( 'Yes', $offered, true ) && in_array( 'No / not sure', $offered, true ) ) {
+			if ( 'Yes' === $text ) {
+				$s['structural'] = true;
+			} elseif ( 'No / not sure' === $text ) {
+				$s['structural'] = false;
+			}
+			return;
+		}
+		// Timeframe.
+		if ( in_array( 'Next few weeks', $offered, true ) ) {
+			$s['timeframe'] = $text;
+			return;
+		}
+		// Light project-type context.
+		if ( in_array( 'Rear or side extension', $offered, true ) && 'Something else' !== $text ) {
+			$s['projectType'] = $text;
+			return;
+		}
 	}
 
 	/**
