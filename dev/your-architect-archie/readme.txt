@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.9
+Stable tag: 0.7.10
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,13 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.10 =
+* New measured-survey gate. When a client had no existing drawings (so a survey
+  must be arranged separately), the project now shows a loud amber “Measured
+  survey required — not yet received” flag with a “Mark survey received” button,
+  and clicking “Mark drawings started” first asks you to confirm while no survey
+  is in. Once marked received it turns green with the date, and can be undone.
 
 = 0.7.9 =
 * New Email log (Archie Projects → Email log): a system-wide record of every

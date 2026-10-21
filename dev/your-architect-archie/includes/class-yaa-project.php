@@ -216,6 +216,18 @@ class YAA_Project {
 		do_action( 'yaa_project_paid', (int) $id );
 	}
 
+	/** Record (or clear) that the measured survey has been received for a project. */
+	public static function mark_survey_received( $id, $received = true ) {
+		$id = (int) $id;
+		if ( $received ) {
+			self::update_row( $id, array( 'survey_received_at' => current_time( 'mysql' ) ), array( '%s' ) );
+			self::log_event( $id, 'survey_received' );
+		} else {
+			self::update_row( $id, array( 'survey_received_at' => null ), array( '%s' ) );
+			self::log_event( $id, 'survey_unmarked' );
+		}
+	}
+
 	/** Permanently delete a project and everything attached to it (files on disk, file/event/email rows). */
 	public static function delete( $id ) {
 		global $wpdb;

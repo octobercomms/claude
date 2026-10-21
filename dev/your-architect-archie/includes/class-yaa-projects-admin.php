@@ -37,6 +37,7 @@ class YAA_Projects_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_post_yaa_project_approve', array( __CLASS__, 'act_approve' ) );
 		add_action( 'admin_post_yaa_project_start', array( __CLASS__, 'act_start' ) );
+		add_action( 'admin_post_yaa_project_survey', array( __CLASS__, 'act_survey' ) );
 		add_action( 'admin_post_yaa_project_reject', array( __CLASS__, 'act_reject' ) );
 		add_action( 'admin_post_yaa_email_draft', array( __CLASS__, 'act_email_draft' ) );
 		add_action( 'admin_post_yaa_email_save', array( __CLASS__, 'act_email_save' ) );
@@ -306,6 +307,13 @@ class YAA_Projects_Admin {
 		YAA_Project::ensure_token( $pid );
 		YAA_Project::set_status( $pid, 'in_progress' );
 		self::back( $pid, 'started_drawings' );
+	}
+	public static function act_survey() {
+		self::guard( 'yaa_workflow' );
+		$pid      = (int) ( $_POST['project_id'] ?? 0 );
+		$received = ! empty( $_POST['received'] );
+		YAA_Project::mark_survey_received( $pid, $received );
+		self::back( $pid, $received ? 'survey_received' : 'survey_unmarked' );
 	}
 	public static function act_reject() {
 		self::guard( 'yaa_workflow' );
@@ -760,6 +768,8 @@ class YAA_Projects_Admin {
 			'saved'            => array( 'ok', 'Draft saved.' ),
 			'sent'             => array( 'ok', 'Email sent to the client.' ),
 			'send_failed'      => array( 'err', 'Could not send — check the recipient and email settings.' ),
+			'survey_received'  => array( 'ok', 'Measured survey marked as received.' ),
+			'survey_unmarked'  => array( 'ok', 'Measured survey marked as not yet received.' ),
 		);
 		if ( 'file_failed' === $notice ) {
 			$why = get_transient( 'yaa_upload_err_' . get_current_user_id() );
@@ -775,6 +785,14 @@ class YAA_Projects_Admin {
 		}
 		$post_url = admin_url( 'admin-post.php' );
 		$pre_paid = in_array( $status, array( 'submitted', 'approved', 'in_progress', 'emailed', 'preview' ), true );
+
+		// Measured-survey gate: a survey needs arranging (client had no existing
+		// drawings) and we can't base drawings on one until it's in.
+		$state           = YAA_Project::state( $pid );
+		$needs_survey    = ! empty( $state['survey'] );
+		$survey_received = ! empty( $project->survey_received_at );
+		$survey_blocks   = ( $needs_survey && ! $survey_received );
+
 		ob_start();
 		?>
 		<div class="yaa-card" id="workflow">
@@ -801,6 +819,36 @@ class YAA_Projects_Admin {
 					<?php endforeach; ?>
 				</div>
 
+				<?php if ( $needs_survey && $pre_paid && ! $project->paid ) : ?>
+					<?php if ( $survey_received ) : ?>
+						<div class="yaa-survey ok">
+							<div><span class="yaa-badge green"><?php esc_html_e( 'Measured survey received', 'your-architect-archie' ); ?></span>
+								<span class="yaa-sub"><?php echo esc_html( $project->survey_received_at ? self::ago( $project->survey_received_at ) : '' ); ?></span></div>
+							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
+								<input type="hidden" name="action" value="yaa_project_survey">
+								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+								<input type="hidden" name="received" value="0">
+								<?php wp_nonce_field( 'yaa_workflow' ); ?>
+								<button class="yaa-linkbtn"><?php esc_html_e( 'Mark not yet received', 'your-architect-archie' ); ?></button>
+							</form>
+						</div>
+					<?php else : ?>
+						<div class="yaa-survey warn">
+							<div class="yaa-survey-txt">
+								<strong>⚠ <?php esc_html_e( 'Measured survey required — not yet received', 'your-architect-archie' ); ?></strong>
+								<p class="yaa-sub"><?php esc_html_e( 'This client had no existing drawings, so the drawings are based on a measured survey arranged separately. Don’t start work until it’s in — mark it received once the surveyor’s file reaches you.', 'your-architect-archie' ); ?></p>
+							</div>
+							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
+								<input type="hidden" name="action" value="yaa_project_survey">
+								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+								<input type="hidden" name="received" value="1">
+								<?php wp_nonce_field( 'yaa_workflow' ); ?>
+								<button class="yaa-btn ghost"><?php esc_html_e( 'Mark survey received', 'your-architect-archie' ); ?></button>
+							</form>
+						</div>
+					<?php endif; ?>
+				<?php endif; ?>
+
 				<?php if ( 'submitted' === $status ) : ?>
 					<p class="yaa-sub"><?php esc_html_e( 'Decide whether to take this project on. Neither button emails the client right away — after you choose, you’ll prepare, edit and send the email yourself.', 'your-architect-archie' ); ?></p>
 					<div class="yaa-actions">
@@ -821,7 +869,8 @@ class YAA_Projects_Admin {
 
 				<?php if ( 'approved' === $status ) : ?>
 					<?php echo self::email_block( $project, 'approved', __( 'Approval email (preparing drawings)', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
+					<?php $start_confirm = $survey_blocks ? "return confirm('No measured survey has been recorded as received yet \u2014 the drawings are based on it. Start drawings anyway?');" : ''; ?>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" onsubmit="<?php echo esc_attr( $start_confirm ); ?>">
 						<input type="hidden" name="action" value="yaa_project_start">
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
 						<?php wp_nonce_field( 'yaa_workflow' ); ?>
@@ -1069,6 +1118,14 @@ class YAA_Projects_Admin {
 		.yaa-badge.blue { background:#e8f0fe; color:#2456c8; }
 		.yaa-badge.red { background:#fde8e8; color:#b42318; }
 		.yaa-emails-meta { color:var(--muted); font-size:.82rem; }
+		.yaa-survey { display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; border-radius:12px; padding:14px 16px; margin:14px 0; }
+		.yaa-survey.warn { background:#fff7ed; border:1px solid #f3c98b; }
+		.yaa-survey.ok { background:#f0f9f2; border:1px solid #bfe4c9; }
+		.yaa-survey-txt { max-width:640px; }
+		.yaa-survey-txt strong { color:#a15c00; display:block; }
+		.yaa-survey-txt p { margin:4px 0 0; }
+		.yaa-linkbtn { background:none; border:none; color:var(--muted); text-decoration:underline; cursor:pointer; padding:0; font-size:.82rem; }
+		.yaa-linkbtn:hover { color:var(--navy); }
 		.yaa-progress { width:80px; height:7px; border-radius:999px; background:var(--line); overflow:hidden; }
 		.yaa-progress span { display:block; height:100%; background:var(--blue); }
 		.yaa-empty { background:#fff; border:2px dashed var(--line); border-radius:12px; padding:34px; text-align:center; color:var(--muted); }
