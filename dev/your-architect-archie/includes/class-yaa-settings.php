@@ -32,6 +32,9 @@ class YAA_Settings {
 			'terms_url'             => '',
 			'privacy_url'           => '',
 			'daily_token_cap'       => 500000, // soft cap; hard-stop new turns beyond it.
+			'ai_price_in'           => 3.0,  // est. cost per 1M input tokens (model's published rate).
+			'ai_price_out'          => 15.0, // est. cost per 1M output tokens.
+			'ai_price_currency'     => '$',  // currency symbol for the cost estimate.
 			'stripe_secret_key'     => '',
 			'stripe_publishable'    => '',
 			'stripe_webhook_secret' => '',

@@ -278,7 +278,7 @@ class YAA_Email {
 	 * the Emails admin page shows everything the plugin sends. $ok is wp_mail()'s
 	 * boolean return, so a failed send is logged too.
 	 */
-	public static function log_sent( $project_id, $to, $recipient_type, $kind, $subject, $ok = true ) {
+	public static function log_sent( $project_id, $to, $recipient_type, $kind, $subject, $ok = true, $body = '' ) {
 		global $wpdb;
 		$wpdb->insert(
 			YAA_DB::emails_table(),
@@ -286,7 +286,7 @@ class YAA_Email {
 				'project_id'     => (int) $project_id,
 				'kind'           => (string) $kind,
 				'subject'        => (string) $subject,
-				'body'           => '',
+				'body'           => (string) $body,
 				'status'         => $ok ? 'sent' : 'failed',
 				'recipient'      => (string) $to,
 				'recipient_type' => 'studio' === $recipient_type ? 'studio' : 'client',

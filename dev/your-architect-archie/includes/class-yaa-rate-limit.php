@@ -71,4 +71,40 @@ class YAA_Rate_Limit {
 		$used = (int) get_transient( 'yaa_tok_' . gmdate( 'Ymd' ) );
 		return $used < $cap;
 	}
+
+	/**
+	 * Durable per-month usage tally (input/output tokens + model turns), kept in a
+	 * single option so the dashboard can show monthly spend. The daily transient
+	 * above is only the cap counter and evaporates after a day; this persists.
+	 */
+	public static function record_usage( $in, $out ) {
+		$month = gmdate( 'Ym' );
+		$all   = get_option( 'yaa_usage', array() );
+		if ( ! is_array( $all ) ) {
+			$all = array();
+		}
+		$m = isset( $all[ $month ] ) && is_array( $all[ $month ] ) ? $all[ $month ] : array( 'in' => 0, 'out' => 0, 'turns' => 0 );
+		$m['in']    = (int) $m['in'] + max( 0, (int) $in );
+		$m['out']   = (int) $m['out'] + max( 0, (int) $out );
+		$m['turns'] = (int) $m['turns'] + 1;
+		$all[ $month ] = $m;
+		// Keep the store small: only the last 18 months.
+		if ( count( $all ) > 18 ) {
+			ksort( $all );
+			$all = array_slice( $all, -18, null, true );
+		}
+		update_option( 'yaa_usage', $all, false );
+	}
+
+	/** The stored usage for a given YYYYMM (or the current month). */
+	public static function usage_for( $month = '' ) {
+		$month = $month ? $month : gmdate( 'Ym' );
+		$all   = get_option( 'yaa_usage', array() );
+		$m     = is_array( $all ) && isset( $all[ $month ] ) ? $all[ $month ] : array();
+		return array(
+			'in'    => isset( $m['in'] ) ? (int) $m['in'] : 0,
+			'out'   => isset( $m['out'] ) ? (int) $m['out'] : 0,
+			'turns' => isset( $m['turns'] ) ? (int) $m['turns'] : 0,
+		);
+	}
 }

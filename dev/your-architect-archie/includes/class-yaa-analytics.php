@@ -86,6 +86,23 @@ class YAA_Analytics {
 		$pct = function ( $n, $d ) {
 			return $d ? round( ( $n / $d ) * 100 ) : 0;
 		};
+
+		// AI usage + estimated cost (monthly — independent of the date range above).
+		$cur_use   = YAA_Rate_Limit::usage_for( gmdate( 'Ym' ) );
+		$prev_use  = YAA_Rate_Limit::usage_for( gmdate( 'Ym', strtotime( 'first day of last month' ) ) );
+		$price_in  = (float) YAA_Settings::get( 'ai_price_in', 3.0 );
+		$price_out = (float) YAA_Settings::get( 'ai_price_out', 15.0 );
+		$sym       = (string) YAA_Settings::get( 'ai_price_currency', '$' );
+		$ai_cost   = function ( $u ) use ( $price_in, $price_out ) {
+			return ( $u['in'] / 1000000 * $price_in ) + ( $u['out'] / 1000000 * $price_out );
+		};
+		$fmt_cost  = function ( $c ) use ( $sym ) {
+			return $sym . number_format( (float) $c, 2 );
+		};
+		$fmt_tok   = function ( $n ) {
+			$n = (int) $n;
+			return $n >= 1000000 ? round( $n / 1000000, 2 ) . 'M' : ( $n >= 1000 ? round( $n / 1000 ) . 'k' : (string) $n );
+		};
 		?>
 		<div class="wrap yaa-admin">
 			<div class="yaa-head"><h1><?php esc_html_e( 'Analytics', 'your-architect-archie' ); ?></h1>
@@ -137,6 +154,27 @@ class YAA_Analytics {
 							<?php endforeach; ?>
 						</div>
 					<?php endif; ?>
+				</div>
+			</div>
+
+			<div class="yaa-grid">
+				<div class="yaa-card">
+					<div class="yaa-card-head"><h2><?php echo esc_html( sprintf( __( 'AI cost — %s', 'your-architect-archie' ), date_i18n( 'F' ) ) ); ?></h2></div>
+					<div class="yaa-stats" style="margin:0 0 6px">
+						<div class="yaa-stat"><span class="n"><?php echo esc_html( $fmt_cost( $ai_cost( $cur_use ) ) ); ?></span><span class="l"><?php esc_html_e( 'Estimated AI spend', 'your-architect-archie' ); ?></span></div>
+						<div class="yaa-stat"><span class="n"><?php echo esc_html( number_format( (int) $cur_use['turns'] ) ); ?></span><span class="l"><?php esc_html_e( 'Archie turns', 'your-architect-archie' ); ?></span></div>
+						<div class="yaa-stat"><span class="n"><?php echo esc_html( $fmt_tok( $cur_use['in'] + $cur_use['out'] ) ); ?></span><span class="l"><?php esc_html_e( 'Tokens used', 'your-architect-archie' ); ?></span></div>
+					</div>
+					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Last month: %1$s over %2$s turns.', 'your-architect-archie' ), $fmt_cost( $ai_cost( $prev_use ) ), number_format( (int) $prev_use['turns'] ) ) ); ?></p>
+					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Estimate at %1$s/M input · %2$s/M output — set your model\'s real published rates under Settings. Usage tracking began when this version was installed.', 'your-architect-archie' ), $sym . rtrim( rtrim( number_format( $price_in, 2 ), '0' ), '.' ), $sym . rtrim( rtrim( number_format( $price_out, 2 ), '0' ), '.' ) ) ); ?></p>
+				</div>
+
+				<div class="yaa-card">
+					<div class="yaa-card-head"><h2><?php esc_html_e( 'Cost guardrails', 'your-architect-archie' ); ?></h2></div>
+					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Model: %s', 'your-architect-archie' ), (string) YAA_Settings::get( 'claude_model', 'claude-sonnet-4-6' ) ) ); ?></p>
+					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Daily token cap: %s (hard-stops new chats for the rest of the UTC day once hit).', 'your-architect-archie' ), number_format( (int) YAA_Settings::get( 'daily_token_cap', 500000 ) ) ) ); ?></p>
+					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Per-device limits: %1$s turns/min, %2$s turns/day.', 'your-architect-archie' ), (int) YAA_Settings::get( 'rate_limit_per_min', 20 ), (int) YAA_Settings::get( 'session_daily_cap', 60 ) ) ); ?></p>
+					<p class="yaa-sub"><?php esc_html_e( 'Tighten any of these in Settings to cap spend.', 'your-architect-archie' ); ?></p>
 				</div>
 			</div>
 

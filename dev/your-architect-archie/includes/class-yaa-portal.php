@@ -113,7 +113,7 @@ class YAA_Portal {
 		$headers = array( 'Content-Type: text/html; charset=UTF-8', sprintf( 'From: %s <%s>', 'Your Architect', $from ) );
 		$ok = wp_mail( $project->email, 'Your Architect — your secure sign-in link', $html, $headers );
 		if ( class_exists( 'YAA_Email' ) ) {
-			YAA_Email::log_sent( (int) $project->id, (string) $project->email, 'client', 'signin', 'Your Architect — your secure sign-in link', (bool) $ok );
+			YAA_Email::log_sent( (int) $project->id, (string) $project->email, 'client', 'signin', 'Your Architect — your secure sign-in link', (bool) $ok, $html );
 		}
 		return $ok;
 	}
@@ -164,7 +164,7 @@ class YAA_Portal {
 		}
 		$ok = wp_mail( $to, $subject, $body, $headers );
 		if ( class_exists( 'YAA_Email' ) ) {
-			YAA_Email::log_sent( (int) $project->id, is_array( $to ) ? implode( ', ', $to ) : (string) $to, 'studio', 'notify_revision', $subject, (bool) $ok );
+			YAA_Email::log_sent( (int) $project->id, is_array( $to ) ? implode( ', ', $to ) : (string) $to, 'studio', 'notify_revision', $subject, (bool) $ok, $body );
 		}
 	}
 
@@ -283,22 +283,40 @@ class YAA_Portal {
 			if ( $paid || $has_drawings ) : ?>
 				<section class="yp-card">
 					<h2><?php esc_html_e( 'Need a change?', 'your-architect-archie' ); ?></h2>
+					<?php
+					$revisions = array();
+					foreach ( (array) YAA_Project::events( $project->id ) as $ev ) {
+						if ( 'revision_requested' === $ev->type ) {
+							$m = json_decode( (string) $ev->meta_json, true );
+							$revisions[] = array(
+								'msg' => ( is_array( $m ) && isset( $m['message'] ) ) ? (string) $m['message'] : '',
+								'at'  => $ev->created,
+							);
+						}
+					}
+					?>
 					<?php if ( isset( $_GET['revision'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
-						<p class="yp-note-ok"><?php esc_html_e( 'Thanks — we\'ve passed your request to the team and they\'ll be in touch.', 'your-architect-archie' ); ?></p>
-					<?php else : ?>
-						<?php if ( $paid ) : ?>
-							<p class="yp-sub"><?php echo esc_html( sprintf( __( 'Your package includes %d revisions. Tell us what you\'d like changed and we\'ll take a look.', 'your-architect-archie' ), (int) ( isset( $package['meta']['revisions'] ) ? $package['meta']['revisions'] : 2 ) ) ); ?></p>
-						<?php else : ?>
-							<p class="yp-sub"><?php esc_html_e( 'Looking over your preview and want something adjusted before you pay? Tell us what you\'d like changed and we\'ll take a look — no charge for getting it right first.', 'your-architect-archie' ); ?></p>
-						<?php endif; ?>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="yp-revision">
-							<input type="hidden" name="action" value="yaa_portal_revision">
-							<input type="hidden" name="token" value="<?php echo esc_attr( $project->token ); ?>">
-							<?php wp_nonce_field( 'yaa_portal_revision' ); ?>
-							<textarea name="message" rows="4" required placeholder="<?php esc_attr_e( 'What would you like us to change?', 'your-architect-archie' ); ?>"></textarea>
-							<button type="submit" class="yp-btn"><?php esc_html_e( 'Request a change', 'your-architect-archie' ); ?></button>
-						</form>
+						<p class="yp-note-ok"><?php esc_html_e( 'Thanks — we\'ve passed your request to the team and they\'ll be in touch. Need anything else changed? Just add it below.', 'your-architect-archie' ); ?></p>
 					<?php endif; ?>
+					<?php if ( $paid ) : ?>
+						<p class="yp-sub"><?php echo esc_html( sprintf( __( 'Your package includes %d revisions. Tell us what you\'d like changed — you can send as many requests as you need.', 'your-architect-archie' ), (int) ( isset( $package['meta']['revisions'] ) ? $package['meta']['revisions'] : 2 ) ) ); ?></p>
+					<?php else : ?>
+						<p class="yp-sub"><?php esc_html_e( 'Looking over your preview and want something adjusted before you pay? Ask for as many changes as you like — no charge for getting it right first.', 'your-architect-archie' ); ?></p>
+					<?php endif; ?>
+					<?php if ( ! empty( $revisions ) ) : ?>
+						<ul class="yp-revlist">
+							<?php foreach ( $revisions as $rv ) : ?>
+								<li><span class="yp-revdate"><?php echo esc_html( $rv['at'] ? date_i18n( 'j M', strtotime( $rv['at'] ) ) : '' ); ?></span><span class="yp-revmsg"><?php echo esc_html( $rv['msg'] ); ?></span></li>
+							<?php endforeach; ?>
+						</ul>
+					<?php endif; ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="yp-revision">
+						<input type="hidden" name="action" value="yaa_portal_revision">
+						<input type="hidden" name="token" value="<?php echo esc_attr( $project->token ); ?>">
+						<?php wp_nonce_field( 'yaa_portal_revision' ); ?>
+						<textarea name="message" rows="4" required placeholder="<?php esc_attr_e( 'What would you like us to change?', 'your-architect-archie' ); ?>"></textarea>
+						<button type="submit" class="yp-btn"><?php esc_html_e( 'Request a change', 'your-architect-archie' ); ?></button>
+					</form>
 				</section>
 			<?php endif; ?>
 

@@ -96,8 +96,9 @@ class YAA_Followups {
 			$headers[] = sprintf( 'Reply-To: %s <%s>', $name ? $name : $email, $email );
 		}
 
-		$ok = wp_mail( $to, $subject, self::admin_html( $row, $state, $package ), $headers );
-		YAA_Email::log_sent( $project_id, is_array( $to ) ? implode( ', ', $to ) : (string) $to, 'studio', 'notify_submit', $subject, (bool) $ok );
+		$admin_html = self::admin_html( $row, $state, $package );
+		$ok = wp_mail( $to, $subject, $admin_html, $headers );
+		YAA_Email::log_sent( $project_id, is_array( $to ) ? implode( ', ', $to ) : (string) $to, 'studio', 'notify_submit', $subject, (bool) $ok, $admin_html );
 
 		// ---- Visitor confirmation ----
 		if ( is_email( $email ) ) {
@@ -105,8 +106,14 @@ class YAA_Followups {
 				'Content-Type: text/html; charset=UTF-8',
 				sprintf( 'From: %s <%s>', 'Your Architect', $noreply ),
 			);
-			$ok = wp_mail( $email, 'Your Architect — your project summary', self::client_html( $row, $state, $package ), $client_headers );
-			YAA_Email::log_sent( $project_id, $email, 'client', 'client_summary', 'Your Architect — your project summary', (bool) $ok );
+			// Replies (e.g. a client sending their drawings back) should reach the studio.
+			$studio = self::studio_recipients();
+			if ( ! empty( $studio[0] ) && is_email( $studio[0] ) ) {
+				$client_headers[] = sprintf( 'Reply-To: %s <%s>', 'Your Architect', $studio[0] );
+			}
+			$client_html = self::client_html( $row, $state, $package );
+			$ok = wp_mail( $email, 'Your Architect — your project summary', $client_html, $client_headers );
+			YAA_Email::log_sent( $project_id, $email, 'client', 'client_summary', 'Your Architect — your project summary', (bool) $ok, $client_html );
 		}
 	}
 
@@ -193,6 +200,16 @@ class YAA_Followups {
 		if ( '' !== $pkg ) {
 			$inner .= self::section( __( 'Your fixed price', 'your-architect-archie' ) );
 			$inner .= $pkg;
+		}
+
+		// If they told Archie they already have drawings but didn't upload them,
+		// ask for them here — we can't start without them.
+		$has_upload = class_exists( 'YAA_Files' ) && ! empty( YAA_Files::for_project( $row->id, 'client' ) );
+		if ( ! empty( $state['hasDrawings'] ) && ! $has_upload ) {
+			$inner .= '<div style="margin:0 0 14px;padding:14px 16px;background:#fff7ed;border:1px solid #f3c98b;border-radius:10px;font-size:14px;line-height:1.6;color:' . self::INK . ';">'
+				. '<strong>' . esc_html__( 'One thing we still need — your existing drawings', 'your-architect-archie' ) . '</strong><br>'
+				. esc_html__( 'You mentioned you already have drawings or plans of your property. We work from those, so we\'ll need them before we can start. Just reply to this email with the file(s) attached, or send them over whenever you can.', 'your-architect-archie' )
+				. '</div>';
 		}
 
 		$inner .= self::section( __( 'What happens next', 'your-architect-archie' ) );
@@ -354,8 +371,9 @@ class YAA_Followups {
 			if ( ! is_email( $email ) ) {
 				continue;
 			}
-			$ok = wp_mail( $email, 'Your Architect — pick up where you left off', "Your saved project is ready whenever you are — just head back and Archie will resume.\n\n— Your Architect\n", array( 'Content-Type: text/plain; charset=UTF-8' ) );
-			YAA_Email::log_sent( (int) $p->id, $email, 'client', 'resume', 'Your Architect — pick up where you left off', (bool) $ok );
+			$resume_body = "Your saved project is ready whenever you are — just head back and Archie will resume.\n\n— Your Architect\n";
+			$ok = wp_mail( $email, 'Your Architect — pick up where you left off', $resume_body, array( 'Content-Type: text/plain; charset=UTF-8' ) );
+			YAA_Email::log_sent( (int) $p->id, $email, 'client', 'resume', 'Your Architect — pick up where you left off', (bool) $ok, nl2br( esc_html( $resume_body ) ) );
 			YAA_Project::log_event( (int) $p->id, 'followup_sent' );
 		}
 	}

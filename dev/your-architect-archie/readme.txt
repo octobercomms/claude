@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.13
+Stable tag: 0.7.14
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.14 =
+* The project-summary email now asks the client to send their existing drawings
+  when they said they have some but didn't upload, and replies to that email now
+  reach the studio.
+* Clients can request more than one change from the portal — the form stays
+  available after each request, and their past requests are listed.
+* The Email log is now clickable: open any row to see the actual message that was
+  sent (the full HTML), with its delivery details.
+* New AI cost panel on the Analytics dashboard: estimated spend this month and
+  last, Archie turns and tokens used, and your cost guardrails at a glance. Set
+  your model's per-million token rates and currency under Settings.
 
 = 0.7.13 =
 * Blurred drawing previews in the client portal can now be tapped to enlarge —
