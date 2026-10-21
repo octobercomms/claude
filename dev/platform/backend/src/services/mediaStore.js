@@ -55,6 +55,24 @@ const disk = {
     await fs.promises.writeFile(diskPath(key), buf);
     return { size: buf.length };
   },
+  // Move a file already on disk into the store, without reading it into memory.
+  // multer streams the upload into tmpDir(), which is deliberately inside the
+  // store directory so this is a same-filesystem rename: instant, atomic, and
+  // no second copy of a 700MB recording. The copy+unlink fallback covers the
+  // case where someone has mounted the store elsewhere.
+  async saveFile(key, srcPath) {
+    ensureDiskDir();
+    const dest = diskPath(key);
+    try {
+      await fs.promises.rename(srcPath, dest);
+    } catch (err) {
+      if (err.code !== 'EXDEV') throw err;
+      await fs.promises.copyFile(srcPath, dest);
+      await fs.promises.unlink(srcPath).catch(() => {});
+    }
+    const st = await fs.promises.stat(dest);
+    return { size: st.size };
+  },
   async openRead(key, range) {
     const p = diskPath(key);
     const st = await fs.promises.stat(p); // throws if missing
@@ -121,6 +139,22 @@ const r2 = {
     }));
     return { size: buf.length };
   },
+  // Stream the file straight up rather than reading it in. S3 requires a length
+  // on a non-multipart PUT, which we have from stat, so this needs no extra
+  // dependency and holds one buffer at a time instead of the whole recording.
+  // Single-PUT tops out at 5GB, well above what the route accepts.
+  async saveFile(key, srcPath, mime) {
+    const st = await fs.promises.stat(srcPath);
+    await s3().send(new PutObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      Body: fs.createReadStream(srcPath),
+      ContentLength: st.size,
+      ContentType: mime || 'video/webm',
+    }));
+    await fs.promises.unlink(srcPath).catch(() => {});
+    return { size: st.size };
+  },
   // Playback for R2 goes through signedGetUrl → redirect, so openRead isn't hit.
   async openRead() { throw new Error('openRead is not used for the R2 store (playback redirects to a signed URL).'); },
   async signedGetUrl(key, ttlSec = 3600) {
@@ -148,6 +182,14 @@ module.exports = {
   },
   uploadDescriptor: (...a) => active.uploadDescriptor(...a),
   saveBuffer: (...a) => active.saveBuffer(...a),
+  saveFile: (...a) => active.saveFile(...a),
+  // Where multer should spool an incoming upload. Inside the disk store so the
+  // handover is a rename rather than a copy; created on demand.
+  tmpDir() {
+    const dir = path.join(DISK_DIR, 'tmp');
+    try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
+    return dir;
+  },
   openRead: (...a) => active.openRead(...a),
   signedGetUrl: (...a) => active.signedGetUrl(...a),
   getBuffer: (...a) => active.getBuffer(...a),

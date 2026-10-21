@@ -31,6 +31,13 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   // view-only library (no recorder, import, delete or attach).
   const canEdit = !readOnly;
   const [list, setList] = useState(null);
+  // Set when an upload fails. The recording itself is still held in blobRef, so
+  // this drives a banner telling the operator the file is not lost and how to
+  // get it off the page.
+  const [saveError, setSaveError] = useState(null);
+  // The recordings row created at the start of a save, held so a failure can
+  // remove it again.
+  const pendingRowRef = useRef(null);
   const [supported] = useState(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined');
   const [withMic, setWithMic] = useState(true);
   const [withCam, setWithCam] = useState(false);
@@ -269,14 +276,20 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
 
   function discard() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null); blobRef.current = null; setTitle(''); setPhase('idle');
+    setPreviewUrl(null); blobRef.current = null; setTitle(''); setSaveError(null); setPhase('idle');
   }
 
   async function save() {
     if (!blobRef.current) return;
+    setSaveError(null);
     setPhase('saving');
     try {
       const created = await api.post('/recordings', { title: title.trim() || 'Untitled recording', mime: 'video/webm', client_id: clientId || undefined });
+      // Remember the row so a failed upload can take it back out. The row is
+      // created before the bytes are sent, so without this every failed attempt
+      // leaves a permanent entry in the library that says "uploading", plays
+      // nothing, and hands out a share link to an empty page.
+      pendingRowRef.current = created.id;
       const fd = new FormData();
       fd.append('file', blobRef.current, 'recording.webm');
       await api.postForm(created.upload.path, fd);
@@ -284,12 +297,43 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       const link = window.location.origin + created.share_path;
       try { await navigator.clipboard.writeText(link); toast('Saved — share link copied to clipboard'); }
       catch { toast('Saved'); }
+      pendingRowRef.current = null;
       discard();
       load();
     } catch (err) {
       toast('Save failed: ' + (err?.message || 'unknown error'), 'error');
+      // The blob is deliberately kept — discard() is the only thing that drops
+      // it. Surface a way to get the file out, because on 21 Oct 2026 a
+      // 30-minute recording failed to upload and the only route to it was
+      // typing a blob-URL download into the DevTools console.
+      setSaveError(err?.message || 'unknown error');
       setPhase('preview');
+      // Tidy the placeholder row. Best-effort: if this fails the recording is
+      // still safe on the page, which is what matters, and a stray row is a
+      // cosmetic problem by comparison.
+      if (pendingRowRef.current) {
+        const id = pendingRowRef.current;
+        pendingRowRef.current = null;
+        api.delete(`/recordings/${id}`).then(load).catch(() => {});
+      }
     }
+  }
+
+  // Hand the recording to the operator as a file. Works whatever the upload
+  // did, because it reads the blob already in the page.
+  function downloadLocal() {
+    if (!blobRef.current) return;
+    const url = URL.createObjectURL(blobRef.current);
+    const a = document.createElement('a');
+    a.href = url;
+    const base = (title.trim() || 'recording').replace(/[^\w .-]+/g, '-').slice(0, 80);
+    a.download = `${base}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Give the download a moment to start before dropping the URL; revoking
+    // immediately cancels it in Chrome.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   async function transcribeOne(rec) {
@@ -500,6 +544,19 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
           {(phase === 'preview' || phase === 'saving') && (
             <div>
               {previewUrl && <video src={previewUrl} controls style={{ width: '100%', maxHeight: 340, background: '#000', borderRadius: 'var(--r-md)' }} />}
+              {saveError && (
+                <div style={{
+                  marginTop: 'var(--s3)', padding: 'var(--s3)',
+                  background: 'var(--negative-soft)', border: 'var(--border-w) solid var(--negative)',
+                  borderRadius: 'var(--r-sm)',
+                }}>
+                  <div style={{ fontWeight: 700, color: 'var(--negative)' }}>Upload failed. The recording is not lost.</div>
+                  <div className="body-sm" style={{ marginTop: 'var(--s1)' }}>
+                    {saveError} It is still held on this page, so you can try Save again, or press Download
+                    to keep the file. Do not close this tab until you have one or the other.
+                  </div>
+                </div>
+              )}
               <div style={{ marginTop: 'var(--s3)' }}>
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Give it a title…" disabled={phase === 'saving'}
                   className="input" style={{ width: '100%', maxWidth: 420 }} />
@@ -507,6 +564,10 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
               <div className="row" style={{ gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
                 <button onClick={save} disabled={phase === 'saving'} className="btn btn-primary">
                   {phase === 'saving' ? 'Saving…' : 'Save & copy link'}
+                </button>
+                <button onClick={downloadLocal} disabled={phase === 'saving'} className="btn btn-secondary"
+                  title="Save the recording to your computer. Always available, whether or not the upload worked.">
+                  ↓ Download
                 </button>
                 <button onClick={discard} disabled={phase === 'saving'} className="btn btn-secondary">
                   Discard

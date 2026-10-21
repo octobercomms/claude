@@ -21,9 +21,37 @@ router.use(loadVisibleClientIds);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Recorded blobs are held in memory only long enough to write them to the store.
-// Internal walkthroughs are small; the cap is a guard, not a target.
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024 * 1024 } });
+// Uploads stream to a temp file, never into memory.
+//
+// This used to be memoryStorage() with a 512MB cap, which had two failure
+// modes. A 30-minute screen recording runs to roughly 700MB at the bitrate the
+// browser produces, so it was refused outright. And anything under the cap was
+// buffered whole in the box's RAM, so raising the limit alone would have traded
+// a clean error for an out-of-memory kill that takes the whole platform down
+// mid-upload. Streaming to disk fixes both: memory stays flat whatever the
+// size, and mediaStore.saveFile moves the finished file into the store by
+// rename.
+//
+// 2GB matches the nginx client_max_body_size on /api/recordings/. Keep the two
+// in step: a limit here that is higher than nginx's just moves the rejection
+// earlier in the request and loses the clearer message.
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, mediaStore.tmpDir()),
+    filename: (req, file, cb) => cb(null, `up-${crypto.randomBytes(12).toString('hex')}`),
+  }),
+  limits: { fileSize: MAX_UPLOAD_BYTES },
+});
+
+// multer leaves the spooled file behind on any error path, and a few hundred MB
+// per abandoned upload adds up. Every handler that takes a file calls this in a
+// finally.
+async function cleanupUpload(req) {
+  const p = req.file && req.file.path;
+  if (!p) return;
+  try { await require('fs').promises.unlink(p); } catch { /* already moved or gone */ }
+}
 
 function newToken() {
   return crypto.randomBytes(16).toString('base64url');
@@ -88,11 +116,13 @@ router.post('/:key/blob', upload.single('file'), async (req, res) => {
     const { rows } = await pool.query('SELECT id, mime FROM recordings WHERE storage_key = $1', [key]);
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
     if (!req.file) return res.status(400).json({ error: 'No file' });
-    await mediaStore.saveBuffer(key, req.file.buffer, rows[0].mime);
-    await pool.query('UPDATE recordings SET size_bytes = $1 WHERE id = $2', [req.file.size, rows[0].id]);
+    const { size } = await mediaStore.saveFile(key, req.file.path, rows[0].mime);
+    await pool.query('UPDATE recordings SET size_bytes = $1 WHERE id = $2', [size, rows[0].id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    await cleanupUpload(req);
   }
 });
 
@@ -308,12 +338,16 @@ router.post('/import', upload.single('file'), async (req, res) => {
       await pool.query('UPDATE recordings SET client_id = $1 WHERE id = $2', [clientId, rec.id]);
     }
     const key = mediaStore.keyFor(rec.id, mime);
-    await mediaStore.saveBuffer(key, req.file.buffer, mime);
+    // saveFile, not saveBuffer: multer now hands us a path. req.file.buffer is
+    // undefined under diskStorage and would have written an empty file.
+    await mediaStore.saveFile(key, req.file.path, mime);
     await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
     transcribe.transcribeInBackground(rec.id);
     res.json(present({ ...rec, storage_key: key }));
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
+  } finally {
+    await cleanupUpload(req);
   }
 });
 
