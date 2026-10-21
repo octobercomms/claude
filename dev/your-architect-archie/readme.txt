@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.10
+Stable tag: 0.7.11
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.11 =
+* Fixed the quick-reply chips getting stuck on an earlier question — e.g. still
+  offering the "3D visualisation" options while Archie had already moved on to
+  asking about existing drawings. Tapping one of Archie's own options now records
+  the answer directly, so the chips always keep step with the question.
+* Archie no longer re-asks about an add-on (3D visualisation, submit & manage,
+  site visit) the customer has already accepted or declined — the decisions it
+  has made are now carried explicitly in its context.
 
 = 0.7.10 =
 * New measured-survey gate. When a client had no existing drawings (so a survey
