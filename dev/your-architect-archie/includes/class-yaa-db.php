@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class YAA_DB {
 
 	const SCHEMA_OPTION = 'yaa_db_version';
-	const SCHEMA        = '5';
+	const SCHEMA        = '6';
 
 	public static function projects_table() {
 		global $wpdb;
@@ -76,6 +76,7 @@ class YAA_DB {
 			state_json LONGTEXT NULL,
 			messages_json LONGTEXT NULL,
 			package_json LONGTEXT NULL,
+			survey_received_at DATETIME NULL,
 			created DATETIME NOT NULL,
 			updated DATETIME NOT NULL,
 			submitted_at DATETIME NULL,
