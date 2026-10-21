@@ -407,6 +407,11 @@ class YAA_Projects_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+		$view_id = isset( $_GET['email'] ) ? (int) $_GET['email'] : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( $view_id ) {
+			self::render_email_detail( $view_id );
+			return;
+		}
 		$rows   = YAA_Email::recent_log( 300 );
 		$labels = self::email_kind_labels();
 		?>
@@ -439,7 +444,7 @@ class YAA_Projects_Admin {
 					<tr>
 						<td><?php echo esc_html( $ts ? self::ago( $when ) : '—' ); ?><br><span class="yaa-emails-meta"><?php echo esc_html( $ts ? date_i18n( 'j M Y, H:i', $ts ) : '' ); ?></span></td>
 						<td><span class="yaa-badge <?php echo $is_studio ? 'amber' : 'blue'; ?>"><?php echo $is_studio ? esc_html__( 'To studio', 'your-architect-archie' ) : esc_html__( 'To client', 'your-architect-archie' ); ?></span></td>
-						<td><strong><?php echo esc_html( $kind ); ?></strong><br><span class="yaa-emails-meta"><?php echo esc_html( (string) $r->subject ); ?></span></td>
+						<td><a href="<?php echo esc_url( add_query_arg( array( 'page' => 'yaa-emails', 'email' => (int) $r->id ), admin_url( 'admin.php' ) ) ); ?>"><strong><?php echo esc_html( $kind ); ?></strong></a><br><span class="yaa-emails-meta"><?php echo esc_html( (string) $r->subject ); ?></span></td>
 						<td><?php echo esc_html( (string) $r->recipient ); ?></td>
 						<td><?php if ( $r->project_id ) : ?><a href="<?php echo esc_url( $purl ); ?>"><?php echo esc_html( $proj ); ?></a><?php else : ?><?php echo esc_html( $proj ); ?><?php endif; ?></td>
 						<td><?php if ( 'failed' === $r->status ) : ?><span class="yaa-badge red"><?php esc_html_e( 'Failed', 'your-architect-archie' ); ?></span><?php else : ?><span class="yaa-badge green"><?php esc_html_e( 'Sent', 'your-architect-archie' ); ?></span><?php endif; ?></td>
@@ -447,6 +452,44 @@ class YAA_Projects_Admin {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/** The actual email behind one log row: delivery details + the message as sent. */
+	private static function render_email_detail( $id ) {
+		$em     = YAA_Email::get( $id );
+		$labels = self::email_kind_labels();
+		$back   = add_query_arg( array( 'page' => 'yaa-emails' ), admin_url( 'admin.php' ) );
+		?>
+		<div class="wrap yaa-wrap">
+			<h1><?php esc_html_e( 'Email', 'your-architect-archie' ); ?></h1>
+			<p><a href="<?php echo esc_url( $back ); ?>">&larr; <?php esc_html_e( 'Back to the email log', 'your-architect-archie' ); ?></a></p>
+			<?php if ( ! $em ) : ?>
+				<div class="yaa-card"><p class="yaa-emails-meta"><?php esc_html_e( 'That email could not be found.', 'your-architect-archie' ); ?></p></div>
+			<?php else :
+				$kind = isset( $labels[ $em->kind ] ) ? $labels[ $em->kind ] : ucfirst( str_replace( '_', ' ', (string) $em->kind ) );
+				$when = $em->sent_at ? $em->sent_at : $em->created;
+				$is_studio = ( 'studio' === $em->recipient_type );
+			?>
+				<div class="yaa-card">
+					<table style="width:100%;border-collapse:collapse;font-size:.92rem">
+						<tr><td style="padding:6px 0;color:#6b7280;width:120px"><?php esc_html_e( 'Type', 'your-architect-archie' ); ?></td><td style="padding:6px 0;font-weight:600"><?php echo esc_html( $kind ); ?></td></tr>
+						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'Subject', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo esc_html( (string) $em->subject ); ?></td></tr>
+						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'To', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo esc_html( (string) $em->recipient ); ?> <span class="yaa-badge <?php echo $is_studio ? 'amber' : 'blue'; ?>"><?php echo $is_studio ? esc_html__( 'studio', 'your-architect-archie' ) : esc_html__( 'client', 'your-architect-archie' ); ?></span></td></tr>
+						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'When', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo esc_html( $when ? date_i18n( 'j M Y, H:i', strtotime( $when ) ) : '—' ); ?></td></tr>
+						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'Status', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo 'failed' === $em->status ? '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>' : '<span class="yaa-badge green">' . esc_html__( 'Sent', 'your-architect-archie' ) . '</span>'; ?></td></tr>
+					</table>
+				</div>
+				<div class="yaa-card">
+					<h2 style="margin-top:0"><?php esc_html_e( 'Message', 'your-architect-archie' ); ?></h2>
+					<?php if ( '' !== trim( (string) $em->body ) ) : ?>
+						<iframe sandbox="" title="<?php esc_attr_e( 'Email preview', 'your-architect-archie' ); ?>" style="width:100%;min-height:560px;border:1px solid #e7eaef;border-radius:8px;background:#fff" srcdoc="<?php echo esc_attr( (string) $em->body ); ?>"></iframe>
+					<?php else : ?>
+						<p class="yaa-emails-meta"><?php esc_html_e( 'The full message wasn\'t stored for this email (it predates message logging). The subject and delivery details above are recorded.', 'your-architect-archie' ); ?></p>
+					<?php endif; ?>
+				</div>
 			<?php endif; ?>
 		</div>
 		<?php

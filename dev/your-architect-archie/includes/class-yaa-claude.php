@@ -95,6 +95,7 @@ class YAA_Claude {
 		$in  = isset( $json['usage']['input_tokens'] ) ? (int) $json['usage']['input_tokens'] : 0;
 		$out = isset( $json['usage']['output_tokens'] ) ? (int) $json['usage']['output_tokens'] : 0;
 		YAA_Rate_Limit::add_tokens( $in + $out );
+		YAA_Rate_Limit::record_usage( $in, $out );
 
 		return array( 'text' => $text, 'tool' => $tool, 'input_tokens' => $in, 'output_tokens' => $out );
 	}
