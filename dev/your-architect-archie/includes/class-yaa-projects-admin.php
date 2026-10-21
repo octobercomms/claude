@@ -348,6 +348,14 @@ class YAA_Projects_Admin {
 			'dashicons-format-chat',
 			26
 		);
+		add_submenu_page(
+			self::SLUG,
+			__( 'Email log', 'your-architect-archie' ),
+			__( 'Email log', 'your-architect-archie' ),
+			'manage_options',
+			'yaa-emails',
+			array( __CLASS__, 'render_emails' )
+		);
 	}
 
 	public static function assets() {
@@ -367,6 +375,73 @@ class YAA_Projects_Admin {
 			return;
 		}
 		self::render_list();
+	}
+
+	/** Friendly labels for the email `kind` column. */
+	private static function email_kind_labels() {
+		return array(
+			'approved'        => __( 'Approval email', 'your-architect-archie' ),
+			'progress'        => __( 'Drawings in progress', 'your-architect-archie' ),
+			'preview'         => __( 'Preview + payment link', 'your-architect-archie' ),
+			'rejected'        => __( 'Decline email', 'your-architect-archie' ),
+			'receipt'         => __( 'Payment receipt', 'your-architect-archie' ),
+			'confirmation'    => __( 'Confirmation', 'your-architect-archie' ),
+			'notify_submit'   => __( 'New-enquiry alert', 'your-architect-archie' ),
+			'client_summary'  => __( 'Quote summary to client', 'your-architect-archie' ),
+			'resume'          => __( 'Resume reminder', 'your-architect-archie' ),
+			'signin'          => __( 'Portal sign-in link', 'your-architect-archie' ),
+			'notify_revision' => __( 'Revision-request alert', 'your-architect-archie' ),
+		);
+	}
+
+	// ---- Email log (system-wide) ----
+	public static function render_emails() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$rows   = YAA_Email::recent_log( 300 );
+		$labels = self::email_kind_labels();
+		?>
+		<div class="wrap yaa-wrap">
+			<h1><?php esc_html_e( 'Email log', 'your-architect-archie' ); ?></h1>
+			<p class="yaa-emails-meta"><?php esc_html_e( 'Every email the system has sent — staged client emails, new-enquiry and revision alerts to the studio, quote summaries, portal sign-in links and payment receipts. Newest first, last 300.', 'your-architect-archie' ); ?></p>
+			<?php if ( empty( $rows ) ) : ?>
+				<div class="yaa-card"><p class="yaa-emails-meta"><?php esc_html_e( 'No emails have been sent yet.', 'your-architect-archie' ); ?></p></div>
+			<?php else : ?>
+			<table class="wp-list-table widefat fixed striped" style="margin-top:12px">
+				<thead>
+					<tr>
+						<th style="width:140px"><?php esc_html_e( 'When', 'your-architect-archie' ); ?></th>
+						<th style="width:110px"><?php esc_html_e( 'Direction', 'your-architect-archie' ); ?></th>
+						<th><?php esc_html_e( 'Email', 'your-architect-archie' ); ?></th>
+						<th><?php esc_html_e( 'Recipient', 'your-architect-archie' ); ?></th>
+						<th style="width:120px"><?php esc_html_e( 'Project', 'your-architect-archie' ); ?></th>
+						<th style="width:80px"><?php esc_html_e( 'Status', 'your-architect-archie' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach ( $rows as $r ) :
+					$is_studio = ( 'studio' === $r->recipient_type );
+					$kind      = isset( $labels[ $r->kind ] ) ? $labels[ $r->kind ] : ucfirst( str_replace( '_', ' ', (string) $r->kind ) );
+					$when      = $r->sent_at ? $r->sent_at : $r->created;
+					$ts        = $when ? strtotime( $when ) : 0;
+					$proj      = $r->project_ref ? $r->project_ref : ( $r->project_name ? $r->project_name : ( $r->project_id ? '#' . (int) $r->project_id : '—' ) );
+					$purl      = add_query_arg( array( 'page' => self::SLUG, 'project' => (int) $r->project_id ), admin_url( 'admin.php' ) );
+				?>
+					<tr>
+						<td><?php echo esc_html( $ts ? self::ago( $when ) : '—' ); ?><br><span class="yaa-emails-meta"><?php echo esc_html( $ts ? date_i18n( 'j M Y, H:i', $ts ) : '' ); ?></span></td>
+						<td><span class="yaa-badge <?php echo $is_studio ? 'amber' : 'blue'; ?>"><?php echo $is_studio ? esc_html__( 'To studio', 'your-architect-archie' ) : esc_html__( 'To client', 'your-architect-archie' ); ?></span></td>
+						<td><strong><?php echo esc_html( $kind ); ?></strong><br><span class="yaa-emails-meta"><?php echo esc_html( (string) $r->subject ); ?></span></td>
+						<td><?php echo esc_html( (string) $r->recipient ); ?></td>
+						<td><?php if ( $r->project_id ) : ?><a href="<?php echo esc_url( $purl ); ?>"><?php echo esc_html( $proj ); ?></a><?php else : ?><?php echo esc_html( $proj ); ?><?php endif; ?></td>
+						<td><?php if ( 'failed' === $r->status ) : ?><span class="yaa-badge red"><?php esc_html_e( 'Failed', 'your-architect-archie' ); ?></span><?php else : ?><span class="yaa-badge green"><?php esc_html_e( 'Sent', 'your-architect-archie' ); ?></span><?php endif; ?></td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+			<?php endif; ?>
+		</div>
+		<?php
 	}
 
 	// ---- List ----
@@ -727,13 +802,21 @@ class YAA_Projects_Admin {
 				</div>
 
 				<?php if ( 'submitted' === $status ) : ?>
-					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
-						<input type="hidden" name="action" value="yaa_project_approve">
-						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
-						<?php wp_nonce_field( 'yaa_workflow' ); ?>
-						<p class="yaa-sub"><?php esc_html_e( 'Approve to confirm you can do this project, then send the client their approval email.', 'your-architect-archie' ); ?></p>
-						<button class="yaa-btn"><?php esc_html_e( 'Approve project', 'your-architect-archie' ); ?></button>
-					</form>
+					<p class="yaa-sub"><?php esc_html_e( 'Decide whether to take this project on. Neither button emails the client right away — after you choose, you’ll prepare, edit and send the email yourself.', 'your-architect-archie' ); ?></p>
+					<div class="yaa-actions">
+						<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
+							<input type="hidden" name="action" value="yaa_project_approve">
+							<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+							<?php wp_nonce_field( 'yaa_workflow' ); ?>
+							<button class="yaa-btn"><?php esc_html_e( 'Approve project', 'your-architect-archie' ); ?></button>
+						</form>
+						<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" onsubmit="return confirm('Mark this enquiry as not accepted? Nothing is emailed yet — you can then edit and send the client a decline email.');">
+							<input type="hidden" name="action" value="yaa_project_reject">
+							<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+							<?php wp_nonce_field( 'yaa_workflow' ); ?>
+							<button class="yaa-btn ghost yaa-btn-decline"><?php esc_html_e( 'Not accepted / decline…', 'your-architect-archie' ); ?></button>
+						</form>
+					</div>
 				<?php endif; ?>
 
 				<?php if ( 'approved' === $status ) : ?>
@@ -769,7 +852,7 @@ class YAA_Projects_Admin {
 					<?php endif; ?>
 				</div>
 
-				<?php if ( $pre_paid ) : ?>
+				<?php if ( $pre_paid && 'submitted' !== $status ) : ?>
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline yaa-decline" onsubmit="return confirm('Mark this enquiry as not accepted? You can then send the client a decline email.');">
 						<input type="hidden" name="action" value="yaa_project_reject">
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
@@ -983,6 +1066,9 @@ class YAA_Projects_Admin {
 		.yaa-badge.green { background:#e5f6ec; color:#0f7a3d; }
 		.yaa-badge.purple { background:#efe9fb; color:#5b34c7; }
 		.yaa-badge.grey { background:#eef0f4; color:#5b6472; }
+		.yaa-badge.blue { background:#e8f0fe; color:#2456c8; }
+		.yaa-badge.red { background:#fde8e8; color:#b42318; }
+		.yaa-emails-meta { color:var(--muted); font-size:.82rem; }
 		.yaa-progress { width:80px; height:7px; border-radius:999px; background:var(--line); overflow:hidden; }
 		.yaa-progress span { display:block; height:100%; background:var(--blue); }
 		.yaa-empty { background:#fff; border:2px dashed var(--line); border-radius:12px; padding:34px; text-align:center; color:var(--muted); }
@@ -1045,6 +1131,7 @@ class YAA_Projects_Admin {
 		.yaa-head-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
 		.yaa-btn.danger { background:#fff; color:#c0392b !important; border:2px solid #f0c9c4; }
 		.yaa-btn.danger:hover { background:#c0392b; color:#fff !important; border-color:#c0392b; }
+		.yaa-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:4px; }
 		.yaa-decline { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
 		.yaa-btn-decline { color:#a15c00 !important; border-color:#f0d9b0; }
 		.yaa-btn-decline:hover { background:#fff4e5; border-color:#a15c00; }

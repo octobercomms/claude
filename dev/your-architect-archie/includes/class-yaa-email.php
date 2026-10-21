@@ -258,9 +258,9 @@ class YAA_Email {
 
 		$wpdb->update(
 			YAA_DB::emails_table(),
-			array( 'status' => 'sent', 'sent_at' => current_time( 'mysql' ), 'provider_id' => (string) $provider_id ),
+			array( 'status' => 'sent', 'sent_at' => current_time( 'mysql' ), 'provider_id' => (string) $provider_id, 'recipient' => (string) $project->email, 'recipient_type' => 'client' ),
 			array( 'id' => (int) $email_id ),
-			array( '%s', '%s', '%s' ),
+			array( '%s', '%s', '%s', '%s', '%s' ),
 			array( '%d' )
 		); // phpcs:ignore WordPress.DB
 
@@ -270,6 +270,48 @@ class YAA_Email {
 		YAA_Project::set_status( $email->project_id, $new_status );
 		YAA_Project::log_event( $email->project_id, 'email_sent', array( 'email_id' => (int) $email_id, 'kind' => $kind ) );
 		return true;
+	}
+
+	/**
+	 * Record a one-off transactional email (studio notifications, sign-in links,
+	 * client summaries, resume nudges) in the same table as the staged emails, so
+	 * the Emails admin page shows everything the plugin sends. $ok is wp_mail()'s
+	 * boolean return, so a failed send is logged too.
+	 */
+	public static function log_sent( $project_id, $to, $recipient_type, $kind, $subject, $ok = true ) {
+		global $wpdb;
+		$wpdb->insert(
+			YAA_DB::emails_table(),
+			array(
+				'project_id'     => (int) $project_id,
+				'kind'           => (string) $kind,
+				'subject'        => (string) $subject,
+				'body'           => '',
+				'status'         => $ok ? 'sent' : 'failed',
+				'recipient'      => (string) $to,
+				'recipient_type' => 'studio' === $recipient_type ? 'studio' : 'client',
+				'created'        => current_time( 'mysql' ),
+				'sent_at'        => current_time( 'mysql' ),
+			),
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+		); // phpcs:ignore WordPress.DB
+		return (int) $wpdb->insert_id;
+	}
+
+	/** Recent sent/failed emails across all projects, newest first, with project ref/name. */
+	public static function recent_log( $limit = 200 ) {
+		global $wpdb;
+		$e     = YAA_DB::emails_table();
+		$p     = YAA_DB::projects_table();
+		$limit = max( 1, min( 1000, (int) $limit ) );
+		return $wpdb->get_results( $wpdb->prepare(
+			"SELECT em.*, pr.ref AS project_ref, pr.name AS project_name, pr.email AS project_email
+			 FROM {$e} em LEFT JOIN {$p} pr ON pr.id = em.project_id
+			 WHERE em.status IN ('sent','failed')
+			 ORDER BY COALESCE(em.sent_at, em.created) DESC, em.id DESC
+			 LIMIT %d",
+			$limit
+		) ); // phpcs:ignore WordPress.DB
 	}
 
 	/** Auto-send the payment receipt once (fired on yaa_project_paid). */

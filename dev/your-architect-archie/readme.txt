@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.8
+Stable tag: 0.7.9
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,16 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.9 =
+* New Email log (Archie Projects → Email log): a system-wide record of every
+  email the plugin sends — staged client emails, new-enquiry and revision
+  alerts to the studio, quote summaries, portal sign-in links and payment
+  receipts — each with its recipient, direction (to client / to studio) and
+  sent-or-failed status.
+* On a submitted project the Approve and "Not accepted / decline" buttons now
+  sit together, with a line making clear that neither emails the client
+  automatically — you prepare, edit and send the email yourself afterwards.
 
 = 0.7.8 =
 * Archie now asks for the customer's name and email as two separate questions

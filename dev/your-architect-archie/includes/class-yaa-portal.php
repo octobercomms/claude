@@ -111,7 +111,11 @@ class YAA_Portal {
 			. '<p style="line-height:1.6;color:#6b7488;font-size:13px">If you didn\'t ask for this, you can safely ignore it. For your security the link expires and only works from your email.</p>'
 			. '</div>';
 		$headers = array( 'Content-Type: text/html; charset=UTF-8', sprintf( 'From: %s <%s>', 'Your Architect', $from ) );
-		return wp_mail( $project->email, 'Your Architect — your secure sign-in link', $html, $headers );
+		$ok = wp_mail( $project->email, 'Your Architect — your secure sign-in link', $html, $headers );
+		if ( class_exists( 'YAA_Email' ) ) {
+			YAA_Email::log_sent( (int) $project->id, (string) $project->email, 'client', 'signin', 'Your Architect — your secure sign-in link', (bool) $ok );
+		}
+		return $ok;
 	}
 
 	/** POST: email me a sign-in link. */
@@ -158,7 +162,10 @@ class YAA_Portal {
 		if ( is_email( $project->email ) ) {
 			$headers[] = sprintf( 'Reply-To: %s <%s>', $who, $project->email );
 		}
-		wp_mail( $to, $subject, $body, $headers );
+		$ok = wp_mail( $to, $subject, $body, $headers );
+		if ( class_exists( 'YAA_Email' ) ) {
+			YAA_Email::log_sent( (int) $project->id, is_array( $to ) ? implode( ', ', $to ) : (string) $to, 'studio', 'notify_revision', $subject, (bool) $ok );
+		}
 	}
 
 
