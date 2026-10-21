@@ -96,7 +96,8 @@ class YAA_Followups {
 			$headers[] = sprintf( 'Reply-To: %s <%s>', $name ? $name : $email, $email );
 		}
 
-		wp_mail( $to, $subject, self::admin_html( $row, $state, $package ), $headers );
+		$ok = wp_mail( $to, $subject, self::admin_html( $row, $state, $package ), $headers );
+		YAA_Email::log_sent( $project_id, is_array( $to ) ? implode( ', ', $to ) : (string) $to, 'studio', 'notify_submit', $subject, (bool) $ok );
 
 		// ---- Visitor confirmation ----
 		if ( is_email( $email ) ) {
@@ -104,7 +105,8 @@ class YAA_Followups {
 				'Content-Type: text/html; charset=UTF-8',
 				sprintf( 'From: %s <%s>', 'Your Architect', $noreply ),
 			);
-			wp_mail( $email, 'Your Architect — your project summary', self::client_html( $row, $state, $package ), $client_headers );
+			$ok = wp_mail( $email, 'Your Architect — your project summary', self::client_html( $row, $state, $package ), $client_headers );
+			YAA_Email::log_sent( $project_id, $email, 'client', 'client_summary', 'Your Architect — your project summary', (bool) $ok );
 		}
 	}
 
@@ -352,7 +354,8 @@ class YAA_Followups {
 			if ( ! is_email( $email ) ) {
 				continue;
 			}
-			wp_mail( $email, 'Your Architect — pick up where you left off', "Your saved project is ready whenever you are — just head back and Archie will resume.\n\n— Your Architect\n", array( 'Content-Type: text/plain; charset=UTF-8' ) );
+			$ok = wp_mail( $email, 'Your Architect — pick up where you left off', "Your saved project is ready whenever you are — just head back and Archie will resume.\n\n— Your Architect\n", array( 'Content-Type: text/plain; charset=UTF-8' ) );
+			YAA_Email::log_sent( (int) $p->id, $email, 'client', 'resume', 'Your Architect — pick up where you left off', (bool) $ok );
 			YAA_Project::log_event( (int) $p->id, 'followup_sent' );
 		}
 	}
