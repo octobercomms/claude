@@ -80,6 +80,53 @@ export const api = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
   postForm: (path, formData) => request(path, { method: 'POST', body: formData }),
+
+  // Same as postForm, but reports how much has gone up.
+  //
+  // fetch cannot do this: it exposes no upload-progress event, so a 600MB
+  // recording sat behind a motionless "Uploading…" for minutes with no way to
+  // tell a working upload from a stalled one. XMLHttpRequest still has
+  // upload.onprogress, which is the only reason it is used here.
+  //
+  // onProgress receives { loaded, total, percent }, where percent is null when
+  // the browser cannot determine the total (lengthComputable false).
+  postFormProgress(path, formData, onProgress) {
+    if (_readOnly) return Promise.reject(new Error(READ_ONLY_MSG));
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BASE}${path}`);
+      xhr.withCredentials = true;           // the session cookie, as fetch's credentials:'include'
+      xhr.upload.onprogress = (e) => {
+        if (typeof onProgress !== 'function') return;
+        onProgress({
+          loaded: e.loaded,
+          total: e.lengthComputable ? e.total : null,
+          percent: e.lengthComputable && e.total > 0
+            ? Math.min(100, Math.round((e.loaded / e.total) * 100))
+            : null,
+        });
+      };
+      xhr.onload = () => {
+        // 413 arrives as nginx's HTML error page, exactly as it does through
+        // fetch, so it gets the same plain-English message rather than a
+        // JSON parse failure.
+        if (xhr.status === 413) {
+          return reject(new Error('That file is too large to upload. Try a smaller file or split it into shorter clips.'));
+        }
+        if (xhr.status === 401) {
+          window.location.href = '/login';
+          return reject(new Error('Session expired'));
+        }
+        let body = null;
+        try { body = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+        if (xhr.status >= 200 && xhr.status < 300) return resolve(body);
+        reject(new Error((body && body.error) || `HTTP ${xhr.status}`));
+      };
+      xhr.onerror = () => reject(new Error('Could not reach the server — check your connection or try again in a moment.'));
+      xhr.onabort = () => reject(new Error('Upload cancelled.'));
+      xhr.send(formData);
+    });
+  },
   put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path, body) => request(path, { method: 'DELETE', ...(body ? { body: JSON.stringify(body) } : {}) }),

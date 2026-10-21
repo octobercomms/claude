@@ -223,6 +223,27 @@ router.put('/:id/clients', express.json(), async (req, res) => {
   }
 });
 
+// ── Rename ────────────────────────────────────────────────────────────────────
+// A title was only settable at save time, so a recording saved in a hurry (or
+// one that failed to save and came back as "Untitled recording") kept the wrong
+// name for good. Same ownership rule as the clients endpoint: yours, or admin.
+router.patch('/:id', express.json(), async (req, res) => {
+  try {
+    const title = String(req.body?.title ?? '').trim().slice(0, 200);
+    if (!title) return res.status(400).json({ error: 'Give it a title.' });
+    const { rows } = await pool.query(
+      `UPDATE recordings SET title = $1
+        WHERE id = $2 AND (created_by IS NOT DISTINCT FROM $3 OR $4)
+        RETURNING *`,
+      [title, req.params.id, req.user?.id || null, req.user?.role === 'admin']
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+    res.json(present(rows[0]));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // ── Transcribe on demand (retry, or backfill a migrated video) ────────────────
 router.post('/:id/transcribe', async (req, res) => {
   if (!transcribe.enabled) return res.status(503).json({ error: 'Transcription is not configured (no OPENAI_API_KEY).' });
