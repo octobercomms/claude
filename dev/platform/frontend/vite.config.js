@@ -2,11 +2,30 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+// The commit this bundle was built from, stamped in at build time and shown in
+// the sidebar. Without it there is no way to tell from a browser which build is
+// running, which on 21 Oct 2026 cost hours: three deploys landed on the box
+// while the browser kept serving a cached index.html, and the only clue was a
+// button that should have been there and was not.
+//
+// Falls back to 'dev' outside a git checkout so a build never fails over this.
+function buildStamp() {
+  try {
+    return execSync('git rev-parse --short HEAD', { cwd: here, encoding: 'utf8' }).trim();
+  } catch {
+    return 'dev';
+  }
+}
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __BUILD__: JSON.stringify(buildStamp()),
+  },
   // The humanity analyser lives in dev/platform/shared so the editor and the
   // backend run the same code. It sits outside the Vite root, hence the alias
   // and the fs.allow.

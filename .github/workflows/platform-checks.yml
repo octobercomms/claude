@@ -81,6 +81,8 @@ jobs:
         run: node src/services/socialBaseline.test.js
       - name: Guard — a long screen recording can actually be saved
         run: node tests/recording-upload.test.js
+      - name: Guard — a deploy reaches the browser, and names its build
+        run: node tests/deploy-visibility.test.js
       - name: Syntax check every service and route
         run: |
           set -e
