@@ -278,19 +278,25 @@ class YAA_Portal {
 			<?php echo self::files_section( $project, 'drawing', __( 'Your drawings', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo self::files_section( $project, 'doc', __( 'Documents', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 
-			<?php if ( $paid ) : ?>
+			<?php
+			$has_drawings = class_exists( 'YAA_Files' ) && ! empty( YAA_Files::for_project( $project->id, 'drawing' ) );
+			if ( $paid || $has_drawings ) : ?>
 				<section class="yp-card">
 					<h2><?php esc_html_e( 'Need a change?', 'your-architect-archie' ); ?></h2>
 					<?php if ( isset( $_GET['revision'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
-						<p class="yp-note-ok"><?php esc_html_e( 'Thanks — we\'ve passed your revision request to the team and they\'ll be in touch.', 'your-architect-archie' ); ?></p>
+						<p class="yp-note-ok"><?php esc_html_e( 'Thanks — we\'ve passed your request to the team and they\'ll be in touch.', 'your-architect-archie' ); ?></p>
 					<?php else : ?>
-						<p class="yp-sub"><?php echo esc_html( sprintf( __( 'Your package includes %d revisions. Tell us what you\'d like changed and we\'ll take a look.', 'your-architect-archie' ), (int) ( isset( $package['meta']['revisions'] ) ? $package['meta']['revisions'] : 2 ) ) ); ?></p>
+						<?php if ( $paid ) : ?>
+							<p class="yp-sub"><?php echo esc_html( sprintf( __( 'Your package includes %d revisions. Tell us what you\'d like changed and we\'ll take a look.', 'your-architect-archie' ), (int) ( isset( $package['meta']['revisions'] ) ? $package['meta']['revisions'] : 2 ) ) ); ?></p>
+						<?php else : ?>
+							<p class="yp-sub"><?php esc_html_e( 'Looking over your preview and want something adjusted before you pay? Tell us what you\'d like changed and we\'ll take a look — no charge for getting it right first.', 'your-architect-archie' ); ?></p>
+						<?php endif; ?>
 						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="yp-revision">
 							<input type="hidden" name="action" value="yaa_portal_revision">
 							<input type="hidden" name="token" value="<?php echo esc_attr( $project->token ); ?>">
 							<?php wp_nonce_field( 'yaa_portal_revision' ); ?>
 							<textarea name="message" rows="4" required placeholder="<?php esc_attr_e( 'What would you like us to change?', 'your-architect-archie' ); ?>"></textarea>
-							<button type="submit" class="yp-btn"><?php esc_html_e( 'Request a revision', 'your-architect-archie' ); ?></button>
+							<button type="submit" class="yp-btn"><?php esc_html_e( 'Request a change', 'your-architect-archie' ); ?></button>
 						</form>
 					<?php endif; ?>
 				</section>
@@ -322,6 +328,29 @@ class YAA_Portal {
 			})();
 			</script>
 			<?php endif; ?>
+
+			<div class="yp-lightbox" id="yp-lightbox" hidden>
+				<button type="button" class="yp-lightbox-close" aria-label="<?php esc_attr_e( 'Close', 'your-architect-archie' ); ?>">✕</button>
+				<figure class="yp-lightbox-fig">
+					<img src="" alt="<?php esc_attr_e( 'Enlarged blurred preview', 'your-architect-archie' ); ?>">
+					<figcaption>🔒 <?php esc_html_e( 'Blurred preview — the full drawing unlocks once payment clears.', 'your-architect-archie' ); ?></figcaption>
+				</figure>
+			</div>
+			<script>
+			(function () {
+				var box = document.getElementById('yp-lightbox');
+				if (!box) { return; }
+				var img = box.querySelector('img');
+				function open(src) { img.src = src; box.hidden = false; document.body.style.overflow = 'hidden'; }
+				function close() { box.hidden = true; img.src = ''; document.body.style.overflow = ''; }
+				document.addEventListener('click', function (e) {
+					var z = e.target.closest ? e.target.closest('.yp-zoom') : null;
+					if (z && z.getAttribute('data-full')) { e.preventDefault(); open(z.getAttribute('data-full')); return; }
+					if (e.target === box || (e.target.closest && e.target.closest('.yp-lightbox-close'))) { close(); }
+				});
+				document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) { close(); } });
+			})();
+			</script>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -392,7 +421,7 @@ class YAA_Portal {
 					?>
 					<div class="yp-file <?php echo $locked ? 'locked' : ''; ?>">
 						<?php if ( $locked && $is_img ) : ?>
-							<div class="yp-thumb"><img src="<?php echo esc_url( YAA_Files::preview_url( $f ) ); ?>" alt=""><span class="yp-lockbadge">🔒 <?php esc_html_e( 'Pay to unlock', 'your-architect-archie' ); ?></span></div>
+							<button type="button" class="yp-thumb yp-zoom" data-full="<?php echo esc_url( YAA_Files::preview_url( $f ) ); ?>" aria-label="<?php esc_attr_e( 'Enlarge preview', 'your-architect-archie' ); ?>"><img src="<?php echo esc_url( YAA_Files::preview_url( $f ) ); ?>" alt=""><span class="yp-lockbadge">🔒 <?php esc_html_e( 'Pay to unlock', 'your-architect-archie' ); ?></span><span class="yp-zoomico" aria-hidden="true">⤢</span></button>
 						<?php elseif ( $locked ) : ?>
 							<div class="yp-thumb yp-thumb-doc"><span class="yp-lockbadge">🔒 <?php esc_html_e( 'Pay to unlock', 'your-architect-archie' ); ?></span></div>
 						<?php else : ?>
