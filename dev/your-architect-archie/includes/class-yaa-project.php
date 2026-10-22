@@ -216,6 +216,67 @@ class YAA_Project {
 		do_action( 'yaa_project_paid', (int) $id );
 	}
 
+	/** Normalise a postcode for matching (alphanumeric, upper). */
+	private static function norm_pc( $pc ) {
+		return strtoupper( preg_replace( '/[^a-z0-9]/i', '', (string) $pc ) );
+	}
+
+	/** Normalise an address line for matching (alphanumeric, lower). */
+	private static function norm_addr( $addr ) {
+		return strtolower( preg_replace( '/[^a-z0-9]/i', '', (string) $addr ) );
+	}
+
+	/**
+	 * When a project is submitted, fold every earlier not-yet-converted chat from
+	 * the same property into it: they become "recovered" so the dashboard counts
+	 * them as part of this converted lead, not as separate abandoned drop-offs.
+	 * Matches on the address — a lot of people abandon at the first (address)
+	 * question before a postcode, and come back later. Guards against flats that
+	 * share a postcode by also requiring the address lines to agree once both
+	 * sides have a postcode.
+	 *
+	 * @return int how many earlier chats were recovered.
+	 */
+	public static function recover_by_address( $new_id, $postcode, $address ) {
+		global $wpdb;
+		$table = self::table();
+		$newpc = self::norm_pc( $postcode );
+		$newad = self::norm_addr( $address );
+		if ( '' === $newpc && strlen( $newad ) < 6 ) {
+			return 0; // not enough to match safely.
+		}
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB
+			"SELECT id, postcode, state_json FROM {$table}
+			 WHERE id <> %d AND status IN ('partial','quoted','abandoned')
+			 ORDER BY id DESC LIMIT 1000",
+			(int) $new_id
+		) );
+		$ids = array();
+		foreach ( (array) $rows as $r ) {
+			$pc = self::norm_pc( $r->postcode );
+			$s  = json_decode( (string) $r->state_json, true );
+			$ad = self::norm_addr( is_array( $s ) && isset( $s['address'] ) ? $s['address'] : '' );
+			// Addresses agree when one normalised line contains the other (handles a
+			// postcode later appended, or a city added on the return visit).
+			$addr_ok = ( '' !== $ad && '' !== $newad && min( strlen( $ad ), strlen( $newad ) ) >= 6
+				&& ( false !== strpos( $newad, $ad ) || false !== strpos( $ad, $newad ) ) );
+			if ( '' !== $pc ) {
+				$match = ( $pc === $newpc ) && $addr_ok; // both have a postcode → need the address too.
+			} else {
+				$match = $addr_ok; // early abandon with no postcode → match on the address alone.
+			}
+			if ( $match ) {
+				self::update_row( (int) $r->id, array( 'status' => 'recovered' ), array( '%s' ) );
+				self::log_event( (int) $r->id, 'recovered', array( 'into' => (int) $new_id ) );
+				$ids[] = (int) $r->id;
+			}
+		}
+		if ( $ids ) {
+			self::log_event( (int) $new_id, 'recovered_from', array( 'ids' => $ids ) );
+		}
+		return count( $ids );
+	}
+
 	/** Record (or clear) that the measured survey has been received for a project. */
 	public static function mark_survey_received( $id, $received = true ) {
 		$id = (int) $id;

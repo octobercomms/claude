@@ -48,10 +48,29 @@ class YAA_Claude {
 			);
 		}
 
+		// System as cacheable blocks. The stable prefix (service menu + rules + the
+		// tool definitions that precede it) carries a cache breakpoint, so from the
+		// second turn on it's read from cache at ~1/10th the input price instead of
+		// being re-billed in full. The volatile per-turn context (live quote,
+		// decisions, address) follows the breakpoint, uncached.
+		if ( is_array( $system ) ) {
+			$stable   = (string) ( isset( $system['stable'] ) ? $system['stable'] : '' );
+			$volatile = (string) ( isset( $system['volatile'] ) ? $system['volatile'] : '' );
+		} else {
+			$stable   = (string) $system;
+			$volatile = '';
+		}
+		$system_blocks = array(
+			array( 'type' => 'text', 'text' => $stable, 'cache_control' => array( 'type' => 'ephemeral' ) ),
+		);
+		if ( '' !== $volatile ) {
+			$system_blocks[] = array( 'type' => 'text', 'text' => $volatile );
+		}
+
 		$body = array(
 			'model'      => $model ? $model : 'claude-sonnet-4-6',
 			'max_tokens' => (int) YAA_Settings::get( 'max_output_tokens', 700 ),
-			'system'     => (string) $system,
+			'system'     => $system_blocks,
 			'messages'   => $api_messages,
 		);
 		if ( ! empty( $tools ) ) {
@@ -92,10 +111,12 @@ class YAA_Claude {
 			}
 		}
 
-		$in  = isset( $json['usage']['input_tokens'] ) ? (int) $json['usage']['input_tokens'] : 0;
-		$out = isset( $json['usage']['output_tokens'] ) ? (int) $json['usage']['output_tokens'] : 0;
-		YAA_Rate_Limit::add_tokens( $in + $out );
-		YAA_Rate_Limit::record_usage( $in, $out );
+		$in     = isset( $json['usage']['input_tokens'] ) ? (int) $json['usage']['input_tokens'] : 0;
+		$out    = isset( $json['usage']['output_tokens'] ) ? (int) $json['usage']['output_tokens'] : 0;
+		$cread  = isset( $json['usage']['cache_read_input_tokens'] ) ? (int) $json['usage']['cache_read_input_tokens'] : 0;
+		$cwrite = isset( $json['usage']['cache_creation_input_tokens'] ) ? (int) $json['usage']['cache_creation_input_tokens'] : 0;
+		YAA_Rate_Limit::add_tokens( $in + $out + $cread + $cwrite );
+		YAA_Rate_Limit::record_usage( $in, $out, $cread, $cwrite );
 
 		return array( 'text' => $text, 'tool' => $tool, 'input_tokens' => $in, 'output_tokens' => $out );
 	}
