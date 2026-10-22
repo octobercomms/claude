@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.15
+Stable tag: 0.7.16
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,19 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.16 =
+* The "Save & submit project" button now pulses and glows once the quote is
+  ready, drawing the eye to it — kept exactly where it is, beside the terms.
+* The quote is now actually emailed the moment a customer gives their email (not
+  only on submit), so the "we'll email your quote" promise is kept, it lands in
+  the email log, and they have their fixed price to return to. That email carries
+  a "Finish & submit your project" button that reopens their saved quote on any
+  device (via a secure link) so they can accept the terms and submit — it never
+  submits on its own.
+* New "Email the client their quote" button on a project, to resend on demand.
+* New "Chat page URL" setting (where the Archie chat lives), used by that email
+  button; blank uses the home page.
 
 = 0.7.15 =
 * Prompt caching cuts the AI cost. Archie's large, unchanging instructions are

@@ -367,6 +367,9 @@
     } else {
       renderOptions(d.options);
       revealSaveQuote();
+      // Resumed with a finished quote (e.g. from the emailed "Finish & submit"
+      // link) — surface the consent + pulsing submit button straight away.
+      if (d.done) { done = true; showSubmitReady(); }
       input.focus({ preventScroll: true });
     }
   }).catch(function () { addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });

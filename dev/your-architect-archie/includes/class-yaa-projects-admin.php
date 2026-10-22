@@ -39,6 +39,7 @@ class YAA_Projects_Admin {
 		add_action( 'admin_post_yaa_project_approve', array( __CLASS__, 'act_approve' ) );
 		add_action( 'admin_post_yaa_project_start', array( __CLASS__, 'act_start' ) );
 		add_action( 'admin_post_yaa_project_survey', array( __CLASS__, 'act_survey' ) );
+		add_action( 'admin_post_yaa_project_quote', array( __CLASS__, 'act_quote' ) );
 		add_action( 'admin_post_yaa_project_reject', array( __CLASS__, 'act_reject' ) );
 		add_action( 'admin_post_yaa_email_draft', array( __CLASS__, 'act_email_draft' ) );
 		add_action( 'admin_post_yaa_email_save', array( __CLASS__, 'act_email_save' ) );
@@ -316,6 +317,12 @@ class YAA_Projects_Admin {
 		YAA_Project::mark_survey_received( $pid, $received );
 		self::back( $pid, $received ? 'survey_received' : 'survey_unmarked' );
 	}
+	public static function act_quote() {
+		self::guard( 'yaa_workflow' );
+		$pid = (int) ( $_POST['project_id'] ?? 0 );
+		$ok  = class_exists( 'YAA_Followups' ) ? YAA_Followups::send_quote_copy( $pid, true ) : false;
+		self::back( $pid, $ok ? 'quote_sent' : 'quote_failed' );
+	}
 	public static function act_reject() {
 		self::guard( 'yaa_workflow' );
 		$pid = (int) ( $_POST['project_id'] ?? 0 );
@@ -394,6 +401,7 @@ class YAA_Projects_Admin {
 			'preview'         => __( 'Preview + payment link', 'your-architect-archie' ),
 			'rejected'        => __( 'Decline email', 'your-architect-archie' ),
 			'receipt'         => __( 'Payment receipt', 'your-architect-archie' ),
+			'quote'           => __( 'Quote copy to client', 'your-architect-archie' ),
 			'confirmation'    => __( 'Confirmation', 'your-architect-archie' ),
 			'notify_submit'   => __( 'New-enquiry alert', 'your-architect-archie' ),
 			'client_summary'  => __( 'Quote summary to client', 'your-architect-archie' ),
@@ -814,6 +822,8 @@ class YAA_Projects_Admin {
 			'send_failed'      => array( 'err', 'Could not send — check the recipient and email settings.' ),
 			'survey_received'  => array( 'ok', 'Measured survey marked as received.' ),
 			'survey_unmarked'  => array( 'ok', 'Measured survey marked as not yet received.' ),
+			'quote_sent'       => array( 'ok', 'The quote was emailed to the client.' ),
+			'quote_failed'     => array( 'err', 'Could not email the quote — check the recipient and email settings.' ),
 		);
 		if ( 'file_failed' === $notice ) {
 			$why = get_transient( 'yaa_upload_err_' . get_current_user_id() );
@@ -903,6 +913,15 @@ class YAA_Projects_Admin {
 							</form>
 						</div>
 					<?php endif; ?>
+				<?php endif; ?>
+
+				<?php if ( $pre_paid && ! $project->paid && is_email( (string) $project->email ) && (int) $project->total > 0 ) : ?>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" style="margin:4px 0 14px">
+						<input type="hidden" name="action" value="yaa_project_quote">
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+						<?php wp_nonce_field( 'yaa_workflow' ); ?>
+						<button class="yaa-linkbtn"><?php esc_html_e( '✉ Email the client their quote', 'your-architect-archie' ); ?></button>
+					</form>
 				<?php endif; ?>
 
 				<?php if ( 'submitted' === $status ) : ?>

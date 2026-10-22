@@ -587,6 +587,11 @@ class YAA_Archie {
 		YAA_Project::set_package( $project_id, $package );
 		if ( $done ) {
 			YAA_Project::set_status( $project_id, 'quoted' );
+			// They've given their email and the quote is final — email them their copy
+			// now (deduped), so they have it even if they don't press Save & submit.
+			if ( class_exists( 'YAA_Followups' ) ) {
+				YAA_Followups::send_quote_copy( $project_id );
+			}
 		}
 
 		return array(
