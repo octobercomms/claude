@@ -28,6 +28,7 @@ class YAA_Projects_Admin {
 			'started'    => array( 'label' => 'Started',    'statuses' => array( 'partial', 'quoted' ) ),
 			'submitted'  => array( 'label' => 'Submitted',  'statuses' => array( 'submitted' ) ),
 			'redirected' => array( 'label' => 'RIBA / Tiam','statuses' => array( 'redirected' ) ),
+			'recovered'  => array( 'label' => 'Recovered',  'statuses' => array( 'recovered' ) ),
 			'abandoned'  => array( 'label' => 'Abandoned',  'statuses' => array( 'abandoned' ) ),
 		);
 	}
@@ -1098,6 +1099,7 @@ class YAA_Projects_Admin {
 			'paid'       => array( 'Paid', 'green' ),
 			'rejected'   => array( 'Not accepted', 'grey' ),
 			'redirected' => array( 'RIBA / Tiam', 'purple' ),
+			'recovered'  => array( 'Recovered', 'blue' ),
 			'abandoned'  => array( 'Abandoned', 'grey' ),
 		);
 		$b = isset( $map[ $status ] ) ? $map[ $status ] : array( ucfirst( (string) $status ), 'grey' );

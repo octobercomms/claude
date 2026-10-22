@@ -47,7 +47,11 @@ class YAA_Analytics {
 		$count = function ( $col ) use ( $wpdb, $p, $since ) {
 			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE {$col} >= %s", $since ) ); // phpcs:ignore WordPress.DB
 		};
-		$started   = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE created >= %s", $since ) ); // phpcs:ignore WordPress.DB
+		// "Recovered" chats are earlier abandoned attempts from the same address that
+		// a later submission folded in — they're part of a converted lead, so they're
+		// excluded from the started base rather than counted as separate drop-offs.
+		$started   = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE created >= %s AND status <> 'recovered'", $since ) ); // phpcs:ignore WordPress.DB
+		$recovered = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE created >= %s AND status = 'recovered'", $since ) ); // phpcs:ignore WordPress.DB
 		$submitted = $count( 'submitted_at' );
 		$approved  = $count( 'approved_at' );
 		$paid      = $count( 'paid_at' );
@@ -94,7 +98,12 @@ class YAA_Analytics {
 		$price_out = (float) YAA_Settings::get( 'ai_price_out', 15.0 );
 		$sym       = (string) YAA_Settings::get( 'ai_price_currency', '$' );
 		$ai_cost   = function ( $u ) use ( $price_in, $price_out ) {
-			return ( $u['in'] / 1000000 * $price_in ) + ( $u['out'] / 1000000 * $price_out );
+			$cread  = isset( $u['cread'] ) ? (int) $u['cread'] : 0;   // cached reads bill ~1/10th of input.
+			$cwrite = isset( $u['cwrite'] ) ? (int) $u['cwrite'] : 0; // cache writes bill ~1.25x of input.
+			return ( $u['in'] / 1000000 * $price_in )
+				+ ( $cwrite / 1000000 * $price_in * 1.25 )
+				+ ( $cread / 1000000 * $price_in * 0.1 )
+				+ ( $u['out'] / 1000000 * $price_out );
 		};
 		$fmt_cost  = function ( $c ) use ( $sym ) {
 			return $sym . number_format( (float) $c, 2 );
@@ -141,6 +150,9 @@ class YAA_Analytics {
 						</div>
 					<?php endforeach; ?>
 					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Submit rate %1$s%% · Payment rate %2$s%%', 'your-architect-archie' ), $pct( $submitted, $started ), $pct( $paid, $submitted ) ) ); ?></p>
+					<?php if ( $recovered > 0 ) : ?>
+						<p class="yaa-sub"><?php echo esc_html( sprintf( _n( '%s earlier abandoned chat was recovered (same address returned and submitted) — folded into a lead, not counted as a drop-off.', '%s earlier abandoned chats were recovered (same address returned and submitted) — folded into leads, not counted as drop-offs.', $recovered, 'your-architect-archie' ), number_format( $recovered ) ) ); ?></p>
+					<?php endif; ?>
 				</div>
 
 				<div class="yaa-card">
@@ -163,8 +175,10 @@ class YAA_Analytics {
 					<div class="yaa-stats" style="margin:0 0 6px">
 						<div class="yaa-stat"><span class="n"><?php echo esc_html( $fmt_cost( $ai_cost( $cur_use ) ) ); ?></span><span class="l"><?php esc_html_e( 'Estimated AI spend', 'your-architect-archie' ); ?></span></div>
 						<div class="yaa-stat"><span class="n"><?php echo esc_html( number_format( (int) $cur_use['turns'] ) ); ?></span><span class="l"><?php esc_html_e( 'Archie turns', 'your-architect-archie' ); ?></span></div>
-						<div class="yaa-stat"><span class="n"><?php echo esc_html( $fmt_tok( $cur_use['in'] + $cur_use['out'] ) ); ?></span><span class="l"><?php esc_html_e( 'Tokens used', 'your-architect-archie' ); ?></span></div>
+						<div class="yaa-stat"><span class="n"><?php echo esc_html( $fmt_tok( $cur_use['in'] + $cur_use['out'] + $cur_use['cread'] + $cur_use['cwrite'] ) ); ?></span><span class="l"><?php esc_html_e( 'Tokens used', 'your-architect-archie' ); ?></span></div>
 					</div>
+					<?php $cache_total = $cur_use['in'] + $cur_use['cread'] + $cur_use['cwrite']; $cache_pct = $cache_total ? round( $cur_use['cread'] / $cache_total * 100 ) : 0; ?>
+					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Prompt caching: %s%% of input served from cache (cheaper). Higher is better.', 'your-architect-archie' ), $cache_pct ) ); ?></p>
 					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Last month: %1$s over %2$s turns.', 'your-architect-archie' ), $fmt_cost( $ai_cost( $prev_use ) ), number_format( (int) $prev_use['turns'] ) ) ); ?></p>
 					<p class="yaa-sub"><?php echo esc_html( sprintf( __( 'Estimate at %1$s/M input · %2$s/M output — set your model\'s real published rates under Settings. Usage tracking began when this version was installed.', 'your-architect-archie' ), $sym . rtrim( rtrim( number_format( $price_in, 2 ), '0' ), '.' ), $sym . rtrim( rtrim( number_format( $price_out, 2 ), '0' ), '.' ) ) ); ?></p>
 				</div>

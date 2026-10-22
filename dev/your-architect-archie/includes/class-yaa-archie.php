@@ -48,7 +48,7 @@ class YAA_Archie {
 	 * by someone who knows nothing about architecture or planning. Rebuilt each turn
 	 * with what we've learned about the address so Archie can be clever, not scripted.
 	 */
-	private static function system_prompt( array $state = array() ) {
+	private static function system_blocks( array $state = array() ) {
 		$t        = YAA_Pricing::table();
 		$services = YAA_Pricing::services();
 		$addons   = $t['addons'];
@@ -136,25 +136,30 @@ class YAA_Archie {
 			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Use `addServices` to add our services and `removeServices` to remove one (only when explicitly asked to remove that service); never re-send the whole cart. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given) and the property is in the UK. Do NOT require an uploaded file for done — existing drawings can be attached now or sent later. Never set done before you have the postcode and the email.',
 		);
 
+		// Everything above is config-derived and identical every turn → it's the
+		// cacheable prefix. The per-turn context below (address intelligence,
+		// decisions already made, the live quote) changes as the chat moves, so it
+		// is sent as a separate, uncached block after the cache breakpoint.
+		$stable = implode( "\n", $lines );
+
+		$vol = array();
 		$known = self::address_knowledge( $state );
 		if ( $known ) {
-			$lines[] = '';
-			$lines[] = $known;
+			$vol[] = $known;
 		}
-
 		$decided = self::decisions_context( $state );
 		if ( $decided ) {
-			$lines[] = '';
-			$lines[] = $decided;
+			$vol[] = $decided;
 		}
-
 		$quote = self::quote_context( $state );
 		if ( $quote ) {
-			$lines[] = '';
-			$lines[] = $quote;
+			$vol[] = $quote;
 		}
 
-		return implode( "\n", $lines );
+		return array(
+			'stable'   => $stable,
+			'volatile' => implode( "\n\n", $vol ),
+		);
 	}
 
 	/**
@@ -425,7 +430,7 @@ class YAA_Archie {
 			YAA_Rate_Limit::count_session_turn( $session );
 		}
 
-		$result = YAA_Claude::turn( self::system_prompt( $state ), $messages, self::tools() );
+		$result = YAA_Claude::turn( self::system_blocks( $state ), $messages, self::tools() );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}

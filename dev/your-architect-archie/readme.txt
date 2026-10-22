@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.14
+Stable tag: 0.7.15
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,16 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.15 =
+* Prompt caching cuts the AI cost. Archie's large, unchanging instructions are
+  now cached and re-read at roughly a tenth of the price on every turn after the
+  first — about half the cost per conversation. The Analytics cost card shows the
+  cache hit rate and the cheaper estimate.
+* Returning visitors are recovered. When someone submits, any earlier abandoned
+  chats from the same address are folded into that lead (new "Recovered" tab and
+  badge in Projects) and no longer counted as drop-offs, so the conversion rate
+  reflects unique leads rather than every restart.
 
 = 0.7.14 =
 * The project-summary email now asks the client to send their existing drawings

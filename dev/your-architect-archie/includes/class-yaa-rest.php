@@ -303,6 +303,11 @@ class YAA_Rest {
 
 		YAA_Project::set_status( $id, $redirect ? 'redirected' : 'submitted' );
 
+		// Fold earlier abandoned chats from the same address into this converted
+		// lead so they stop counting as drop-offs in the dashboard.
+		$addr = isset( $state['address'] ) ? (string) $state['address'] : '';
+		YAA_Project::recover_by_address( $id, (string) $state['postcode'], $addr );
+
 		do_action( 'yaa_project_submitted', $id, $package );
 		YAA_Followups::notify_submit( $id, $package );
 
