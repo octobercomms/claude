@@ -533,10 +533,15 @@ class YAA_Projects_Admin {
 			)
 		);
 
-		// Headline funnel numbers.
+		// Headline funnel numbers. "Submitted" means the project reached submission
+		// or anything beyond it (approved, in progress, preview, paid) — not only the
+		// exact 'submitted' status, or an approved project would read as 0. Recovered
+		// chats (earlier abandoned attempts folded into a later submission) are left
+		// out of the base so they don't drag the conversion rate.
 		$started_n   = $count_for( array( 'partial', 'quoted' ) );
-		$submitted_n = $count_for( array( 'submitted' ) );
-		$total_n     = array_sum( $counts );
+		$submitted_n = $count_for( array( 'submitted', 'approved', 'in_progress', 'emailed', 'preview', 'paid' ) );
+		$recovered_n = $count_for( array( 'recovered' ) );
+		$total_n     = array_sum( $counts ) - $recovered_n;
 		$conv        = $total_n ? round( ( $submitted_n / max( 1, $total_n ) ) * 100 ) : 0;
 		?>
 		<div class="wrap yaa-admin">

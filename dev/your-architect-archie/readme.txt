@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.17
+Stable tag: 0.7.18
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,12 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.18 =
+* Fixed the "Projects (submitted)" and "Conversion rate" tiles on the Projects
+  list reading 0 when projects had moved past submission. "Submitted" now counts
+  every project that reached submission or beyond (approved, in progress, preview,
+  paid), and recovered chats are left out of the conversion base.
 
 = 0.7.17 =
 * Fixed the "Email the client their quote" button not showing on a project at the
