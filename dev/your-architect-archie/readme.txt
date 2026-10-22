@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.16
+Stable tag: 0.7.17
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,11 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.17 =
+* Fixed the "Email the client their quote" button not showing on a project at the
+  "Quoted" stage (the exact case it's needed for) — it now appears on any
+  unpaid project that has a priced quote and an email on file.
 
 = 0.7.16 =
 * The "Save & submit project" button now pulses and glows once the quote is

@@ -915,7 +915,7 @@ class YAA_Projects_Admin {
 					<?php endif; ?>
 				<?php endif; ?>
 
-				<?php if ( $pre_paid && ! $project->paid && is_email( (string) $project->email ) && (int) $project->total > 0 ) : ?>
+				<?php if ( ! $project->paid && is_email( (string) $project->email ) && (int) $project->total > 0 ) : ?>
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" style="margin:4px 0 14px">
 						<input type="hidden" name="action" value="yaa_project_quote">
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
