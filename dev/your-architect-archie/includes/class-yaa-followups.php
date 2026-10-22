@@ -178,6 +178,77 @@ class YAA_Followups {
 	}
 
 	/** Visitor confirmation: a warm summary of what they told Archie + their fixed price. */
+	/**
+	 * Email the client a copy of their fixed-price quote as soon as we have their
+	 * email — separate from submission. People give their email expecting the quote
+	 * ("Email me my quote") and then often don't press Save & submit; without this
+	 * they get nothing, and nothing lands in the email log. Sends once per project
+	 * (deduped on the 'quote' kind), Reply-To the studio, with a nudge to submit.
+	 */
+	public static function send_quote_copy( $project_id, $force = false ) {
+		if ( ! class_exists( 'YAA_Email' ) ) {
+			return false;
+		}
+		$row = YAA_Project::get( $project_id );
+		if ( ! $row || ! is_email( (string) $row->email ) ) {
+			return false;
+		}
+		if ( ! $force ) {
+			// Auto-send only before submission, and only once; a manual resend
+			// (force) from the admin bypasses both of these.
+			if ( in_array( (string) $row->status, array( 'submitted', 'approved', 'in_progress', 'emailed', 'preview', 'paid', 'redirected' ), true ) ) {
+				return false;
+			}
+			if ( YAA_Email::latest_of_kind( $project_id, 'quote' ) ) {
+				return false;
+			}
+		}
+		$state   = YAA_Project::state( $project_id );
+		$package = YAA_Pricing::build_package( $state );
+		if ( ! empty( $package['redirect'] ) ) {
+			return false; // RIBA / new-dwelling hand-off has no fixed price to send.
+		}
+		$pkg_html = self::package_table( $package );
+		if ( '' === $pkg_html ) {
+			return false; // nothing priced yet.
+		}
+		$first = trim( (string) $row->name ) ? strtok( trim( (string) $row->name ), ' ' ) : 'there';
+		$total = YAA_Pricing::money( isset( $package['total'] ) ? (int) $package['total'] : (int) $row->total );
+
+		$inner  = '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:' . self::INK . ';">' . sprintf( esc_html__( 'Hi %s,', 'your-architect-archie' ), esc_html( $first ) ) . '</p>';
+		$inner .= '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:' . self::INK . ';">' . esc_html__( 'Here\'s the fixed-price quote you built with Archie, saved for you to keep. Nothing has been sent to our team yet — when you\'re ready to go ahead, head back to where you left off and press "Save & submit project", or just reply to this email and we\'ll pick it up from here.', 'your-architect-archie' ) . '</p>';
+		$inner .= self::section( __( 'Your fixed price', 'your-architect-archie' ) );
+		$inner .= $pkg_html;
+
+		// "Finish & submit" button — a tokenised resume link that reopens their saved
+		// quote (with the terms acceptance + submit button) on any device. It does
+		// NOT submit on its own: terms must still be accepted on the page.
+		$token = YAA_Project::ensure_token( $project_id );
+		$chat  = (string) YAA_Settings::get( 'chat_url', '' );
+		if ( '' === $chat ) {
+			$chat = home_url( '/' );
+		}
+		$link  = add_query_arg( 'yaa_resume', rawurlencode( (string) $token ), $chat );
+		$inner .= '<p style="margin:24px 0 8px;"><a href="' . esc_url( $link ) . '" style="display:inline-block;background:#253E94;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 30px;border-radius:12px;font-size:16px;">' . esc_html__( 'Finish &amp; submit your project', 'your-architect-archie' ) . '</a></p>';
+		$inner .= '<p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:' . self::MUTED . ';">' . esc_html__( 'This reopens your saved quote so you can accept the terms and submit — nothing is sent to our team until you do.', 'your-architect-archie' ) . '</p>';
+
+		$inner .= self::section( __( 'Your project', 'your-architect-archie' ) );
+		$inner .= self::answers_table( $state, array( 'Name', 'Email' ) );
+		$inner .= '<p style="margin:20px 0 0;font-size:14px;line-height:1.65;color:' . self::MUTED . ';">' . esc_html__( 'This is a saved quote, not a booking — you only go ahead once you submit. Questions? Just reply and the team will help.', 'your-architect-archie' ) . '</p>';
+		$inner .= '<p style="margin:14px 0 0;font-size:15px;color:' . self::INK . ';">— Your Architect</p>';
+
+		$noreply = self::from_email();
+		$headers = array( 'Content-Type: text/html; charset=UTF-8', sprintf( 'From: %s <%s>', 'Your Architect', $noreply ) );
+		$studio  = self::studio_recipients();
+		if ( ! empty( $studio[0] ) && is_email( $studio[0] ) ) {
+			$headers[] = sprintf( 'Reply-To: %s <%s>', 'Your Architect', $studio[0] );
+		}
+		$html = self::shell( __( 'Your quote', 'your-architect-archie' ), __( 'Your fixed-price quote', 'your-architect-archie' ), sprintf( esc_html__( 'Your saved fixed-price quote (%s).', 'your-architect-archie' ), $total ), $inner );
+		$ok   = wp_mail( (string) $row->email, 'Your Architect — your fixed-price quote', $html, $headers );
+		YAA_Email::log_sent( (int) $project_id, (string) $row->email, 'client', 'quote', 'Your Architect — your fixed-price quote', (bool) $ok, $html );
+		return (bool) $ok;
+	}
+
 	private static function client_html( $row, array $state, array $package ) {
 		$first = trim( (string) $row->name ) ? strtok( trim( (string) $row->name ), ' ' ) : 'there';
 		$total = YAA_Pricing::money( isset( $package['total'] ) ? (int) $package['total'] : (int) $row->total );

@@ -31,6 +31,7 @@ class YAA_Settings {
 			'session_daily_cap'     => 60,   // model turns per session per day (per-client DoS guard).
 			'terms_url'             => '',
 			'privacy_url'           => '',
+			'chat_url'              => '', // page where the [archie] chat lives; blank = home. Used by the emailed-quote "finish & submit" link.
 			'daily_token_cap'       => 500000, // soft cap; hard-stop new turns beyond it.
 			'ai_price_in'           => 3.0,  // est. cost per 1M input tokens (model's published rate).
 			'ai_price_out'          => 15.0, // est. cost per 1M output tokens.

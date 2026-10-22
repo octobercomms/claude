@@ -55,6 +55,7 @@ class YAA_Admin {
 				'notify_emails'      => sanitize_text_field( $in['notify_emails'] ?? '' ),
 				'terms_url'          => esc_url_raw( $in['terms_url'] ?? '' ),
 				'privacy_url'        => esc_url_raw( $in['privacy_url'] ?? '' ),
+				'chat_url'           => esc_url_raw( $in['chat_url'] ?? '' ),
 				'email_templates'    => $templates,
 				'arb_no'             => sanitize_text_field( $in['arb_no'] ?? '' ),
 				'company_no'         => sanitize_text_field( $in['company_no'] ?? '' ),
@@ -107,6 +108,7 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Also notify (extra emails)', 'your-architect-archie' ); ?></th><td><input type="text" name="notify_emails" class="regular-text" value="<?php echo esc_attr( $s['notify_emails'] ); ?>" placeholder="lawrence@…, info@…"><p class="description"><?php esc_html_e( 'Comma-separated. New-project and revision-request notifications go to all of these as well.', 'your-architect-archie' ); ?></p></td></tr>
 					<tr><th><?php esc_html_e( 'Terms of Service URL', 'your-architect-archie' ); ?></th><td><input type="url" name="terms_url" class="regular-text" value="<?php echo esc_attr( $s['terms_url'] ); ?>" placeholder="<?php echo esc_attr( home_url( '/terms-of-service/' ) ); ?>"><p class="description"><?php esc_html_e( 'Archie links here for refund/cancellation questions; also shown at submit.', 'your-architect-archie' ); ?></p></td></tr>
 					<tr><th><?php esc_html_e( 'Privacy Policy URL', 'your-architect-archie' ); ?></th><td><input type="url" name="privacy_url" class="regular-text" value="<?php echo esc_attr( $s['privacy_url'] ); ?>" placeholder="<?php echo esc_attr( home_url( '/privacy-policy/' ) ); ?>"><p class="description"><?php esc_html_e( 'Shown in the consent notice at submit.', 'your-architect-archie' ); ?></p></td></tr>
+					<tr><th><?php esc_html_e( 'Chat page URL', 'your-architect-archie' ); ?></th><td><input type="url" name="chat_url" class="regular-text" value="<?php echo esc_attr( isset( $s['chat_url'] ) ? $s['chat_url'] : '' ); ?>" placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>"><p class="description"><?php esc_html_e( 'The page where the Archie chat lives. The “Finish & submit” button in the emailed quote links here (with a secure resume token). Leave blank to use the home page.', 'your-architect-archie' ); ?></p></td></tr>
 					<tr><th><?php esc_html_e( 'ARB reg. no.', 'your-architect-archie' ); ?></th><td><input type="text" name="arb_no" value="<?php echo esc_attr( $s['arb_no'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Company no.', 'your-architect-archie' ); ?></th><td><input type="text" name="company_no" value="<?php echo esc_attr( $s['company_no'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Historic England API', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="historic_api_on" value="1" <?php checked( $s['historic_api_on'], 1 ); ?>> <?php esc_html_e( 'Use the live listed-building lookup (else heuristic).', 'your-architect-archie' ); ?></label></td></tr>

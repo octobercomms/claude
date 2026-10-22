@@ -38,6 +38,26 @@ class YAA_Project {
 		// Tables are created on activation; this catches plugin updates applied
 		// without a re-activation (cheap option check, dbDelta only on mismatch).
 		add_action( 'admin_init', array( 'YAA_DB', 'maybe_upgrade' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_resume' ) );
+	}
+
+	/**
+	 * Adopt a project from a tokenised resume link — used by the "Finish & submit"
+	 * button in the emailed quote so the person lands back on their saved quote
+	 * (and the terms + submit button) on any device, not just where they chatted.
+	 */
+	public static function maybe_resume() {
+		if ( empty( $_GET['yaa_resume'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return;
+		}
+		$token = sanitize_text_field( wp_unslash( $_GET['yaa_resume'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$row   = self::by_token( $token );
+		if ( $row && ! empty( $row->uuid ) && 'paid' !== (string) $row->status ) {
+			setcookie( self::COOKIE, (string) $row->uuid, array( 'expires' => time() + 180 * DAY_IN_SECONDS, 'path' => '/', 'samesite' => 'Lax', 'secure' => is_ssl(), 'httponly' => true ) );
+			$_COOKIE[ self::COOKIE ] = (string) $row->uuid;
+		}
+		wp_safe_redirect( remove_query_arg( 'yaa_resume' ) ); // strip the token so a refresh won't re-run it.
+		exit;
 	}
 
 	/** Resolve the current project from the cookie, creating one if needed. */

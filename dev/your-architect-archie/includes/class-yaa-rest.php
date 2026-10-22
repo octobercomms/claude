@@ -86,6 +86,9 @@ class YAA_Rest {
 		YAA_Project::set_state( $id, $state );
 		YAA_Project::set_contact( $id, isset( $state['name'] ) ? $state['name'] : '', $email );
 		YAA_Project::log_event( $id, 'email_saved' );
+		if ( class_exists( 'YAA_Followups' ) ) {
+			YAA_Followups::send_quote_copy( $id ); // actually email the quote now (deduped), as promised.
+		}
 		return new WP_REST_Response( array( 'ok' => true, 'message' => __( 'Saved — we\'ll email your quote to that address. You can keep going, or come back any time.', 'your-architect-archie' ) ) );
 	}
 
@@ -140,13 +143,20 @@ class YAA_Rest {
 		if ( $id && ! empty( $messages ) ) {
 			// Returning mid-chat — resume where they left off.
 			$state = YAA_Project::state( $id );
+			$pkg   = YAA_Project::package( $id );
+			$row   = YAA_Project::get( $id );
+			// Already have everything and not yet submitted (e.g. arriving from the
+			// emailed-quote "Finish & submit" link) → show the submit-ready state.
+			$ready = ! empty( $state['email'] ) && ! empty( $pkg['total'] ) && empty( $pkg['redirect'] )
+				&& $row && in_array( (string) $row->status, array( 'partial', 'quoted' ), true );
 			return new WP_REST_Response(
 				array(
 					'messages'    => $messages,
-					'package'     => YAA_Project::package( $id ),
+					'package'     => $pkg,
 					'options'     => YAA_Archie::suggested_options( $state ),
 					'placeholder' => YAA_Archie::input_hint( $state, false ),
 					'hasEmail'    => ! empty( $state['email'] ),
+					'done'        => (bool) $ready,
 					'msgCount'    => count( array_filter( $messages, function ( $m ) { return isset( $m['role'] ) && 'user' === $m['role']; } ) ),
 					'meta'        => self::meta(),
 					'nonce'       => $nonce,
