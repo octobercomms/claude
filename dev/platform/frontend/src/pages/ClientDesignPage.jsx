@@ -8,6 +8,9 @@ import { roWrite } from '../utils/readOnly';
 import { parsePsd, commonName } from '../utils/psdImport';
 import { psdToScene, imageUploader, hashIndex } from '../utils/psdToScene';
 import { rescaleScene } from '../utils/designScale';
+import {
+  renderPage, renderPsd, zipBlob, saveBlob, dataUrlBytes, pageFilename,
+} from '../utils/designExport';
 
 // Design — layered social posts, made here instead of in Canva or Express.
 //
@@ -306,6 +309,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [dragPage, setDragPage] = useState(null);   // page id being dragged
   const [dropAt, setDropAt] = useState(null);       // index it would land at
   const [moveFor, setMoveFor] = useState(null);     // page id whose move menu is open
+  const [exporting, setExporting] = useState('');
+  const [picked, setPicked] = useState([]);        // set ids ticked in the list
   const [psdOneSet, setPsdOneSet] = useState(false);
   const [psdSetName, setPsdSetName] = useState('');
   const [clientFonts, setClientFonts] = useState([]);
@@ -328,6 +333,17 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const pageRef = useRef(null);       // page id the canvas currently holds
   const dirtyRef = useRef(false);
   const warnedThumb = useRef(false);
+  const warnedNoPage = useRef(false);
+  const saveTimer = useRef(null);
+  // save() changes identity when its deps do; markDirty must not, because the
+  // canvas effect depends on it and rebuilding the canvas mid-edit is how an
+  // afternoon's work was lost once already. So the latest save is reached
+  // through a ref rather than through a dependency.
+  const saveRef = useRef(null);
+  // Scene snapshots for undo. Held in a ref so taking one never re-renders.
+  const history = useRef({ stack: [], index: -1, restoring: false });
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   const open = useCallback((id) => {
     const next = new URLSearchParams(params);
@@ -392,7 +408,50 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     setSelected(c.getActiveObject() || null);
   }, []);
 
-  const markDirty = useCallback(() => { dirtyRef.current = true; setDirty(true); }, []);
+  // Every edit saves, a beat after it stops. Fifteen seconds was a window in
+  // which switching tab, which unmounts this page, threw the work away.
+  const markDirty = useCallback(() => {
+    dirtyRef.current = true;
+    setDirty(true);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { if (dirtyRef.current) saveRef.current?.(); }, 1200);
+  }, []);
+
+  const pushHistory = useCallback(() => {
+    const c = fc.current;
+    const h = history.current;
+    if (!c || h.restoring) return;
+    const json = JSON.stringify(c.toJSON());
+    if (h.stack[h.index] === json) return;
+    h.stack = h.stack.slice(0, h.index + 1);
+    h.stack.push(json);
+    // Twenty steps back is more than anyone reaches for, and an unbounded
+    // stack on a long session is a memory leak nobody notices.
+    if (h.stack.length > 20) h.stack.shift();
+    h.index = h.stack.length - 1;
+    setCanUndo(h.index > 0);
+    setCanRedo(false);
+  }, []);
+
+  const stepHistory = useCallback(async (delta) => {
+    const c = fc.current;
+    const h = history.current;
+    const next = h.index + delta;
+    if (!c || next < 0 || next >= h.stack.length) return;
+    h.restoring = true;
+    h.index = next;
+    try {
+      await c.loadFromJSON(JSON.parse(h.stack[next]));
+      c.renderAll();
+    } finally { h.restoring = false; }
+    setCanUndo(h.index > 0);
+    setCanRedo(h.index < h.stack.length - 1);
+    dirtyRef.current = true;
+    setDirty(true);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { if (dirtyRef.current) saveRef.current?.(); }, 1200);
+    syncLayers();
+  }, [syncLayers]);
 
   // The canvas is built once per project and torn down only when the project
   // or its dimensions change.
@@ -419,7 +478,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     fc.current = c;
     const fit = fitFor(pw, ph);
     for (const ev of ['object:added', 'object:modified', 'object:removed', 'text:changed']) {
-      c.on(ev, () => { markDirty(); syncLayers(); });
+      c.on(ev, () => { markDirty(); syncLayers(); pushHistory(); });
     }
     // Every layer, however it arrived: added here, or revived from a saved
     // scene by loadFromJSON, which adds each object the same way.
@@ -434,7 +493,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       c.on(ev, () => clearGuides(c));
     }
     return () => { c.dispose(); fc.current = null; };
-  }, [projectId, pw, ph, markDirty, syncLayers]);
+  }, [projectId, pw, ph, markDirty, syncLayers, pushHistory]);
 
   // Put a page's scene on the canvas. Fonts are loaded first: a text layer
   // rendered before its face arrives measures at the fallback's metrics and
@@ -457,6 +516,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     c.renderAll();
     pageRef.current = id;
     dirtyRef.current = false; setDirty(false);
+    history.current = { stack: [JSON.stringify(c.toJSON())], index: 0, restoring: false };
+    setCanUndo(false); setCanRedo(false);
     syncLayers();
   }, [syncLayers]);
 
@@ -469,7 +530,17 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const save = useCallback(async ({ quiet = true } = {}) => {
     const c = fc.current;
     const id = pageRef.current;
-    if (!c || !id) return;
+    if (!c || !id) {
+      // Returning silently here means every save does nothing and says
+      // nothing, which reads as "it just doesn't save". Not falling back to
+      // the selected page on purpose: if the scene was never loaded onto the
+      // canvas, saving it would write an empty page over real work.
+      if (dirtyRef.current && !warnedNoPage.current) {
+        warnedNoPage.current = true;
+        toast('This page is not ready to save yet. Reload the tab if it keeps happening.', 'error');
+      }
+      return;
+    }
     setSaving(true);
     try {
       // A postage stamp for the page strip, not a copy of the artwork — and
@@ -478,7 +549,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       // post: PNG 258,254 characters, JPEG at this quality 26,443. The route
       // caps a thumbnail at 200,000, so every PNG of a finished post was
       // silently rejected and the blank first thumbnail stayed on the card.
-      const thumbnail = c.toDataURL({ format: 'jpeg', quality: 0.72, multiplier: 220 / Math.max(c.width, 1) });
+      //
+      // Best effort, and never allowed to take the save with it. Reading
+      // pixels off a canvas that holds a picture the browser treats as
+      // cross-origin throws, and when that throw was inside the same try as
+      // the save, a preview nobody asked for cost the work itself.
+      let thumbnail = null;
+      try {
+        thumbnail = c.toDataURL({ format: 'jpeg', quality: 0.72, multiplier: 220 / Math.max(c.width, 1) });
+      } catch { /* the scene still saves; the strip keeps the thumbnail it has */ }
+
       const saved = await api.put(`/design/pages/${id}`, { scene: c.toJSON(), thumbnail });
       dirtyRef.current = false; setDirty(false);
       // The server keeps the previous thumbnail rather than failing the save
@@ -490,7 +570,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       }
       // Held separately rather than merged into `project`: replacing that
       // object is what used to tear the canvas down mid-edit.
-      setThumbs(t => ({ ...t, [id]: thumbnail }));
+      if (thumbnail) setThumbs(t => ({ ...t, [id]: thumbnail }));
       if (!quiet) toast('Saved');
     } catch (e) { toast('Save failed: ' + e.message, 'error'); }
     finally { setSaving(false); }
@@ -498,10 +578,21 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
   // Autosave, and save before switching page or leaving. Design work that
   // vanishes on a reload is the same failure as a lost recording.
+  useEffect(() => { saveRef.current = save; }, [save]);
+
+  // A backstop behind the per-edit save, for the case where one failed.
   useEffect(() => {
     const t = setInterval(() => { if (dirtyRef.current) save(); }, 15000);
     return () => clearInterval(t);
   }, [save]);
+
+  // Leaving the Design tab unmounts this page. Without this, everything since
+  // the last save went with it, which is exactly what happened when a colour
+  // was set and the tab switched before the interval came round.
+  useEffect(() => () => {
+    clearTimeout(saveTimer.current);
+    if (dirtyRef.current) saveRef.current?.();
+  }, []);
 
   useEffect(() => {
     if (!project) return undefined;
@@ -619,7 +710,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
   // setSelected(null) then setSelected(o) is how the panel re-reads a property
   // it does not otherwise know has changed; the object identity is unchanged.
-  const reread = (c, o) => { c.renderAll(); markDirty(); setSelected(o); bump(); };
+  const reread = (c, o) => { c.renderAll(); markDirty(); pushHistory(); setSelected(o); bump(); };
 
   function setProp(key, value) {
     const c = fc.current; const o = c?.getActiveObject();
@@ -712,10 +803,15 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     const onKey = (e) => {
       const c = fc.current;
       const o = c?.getActiveObject();
-      if (!c || !o || o.isEditing) return;
+      if (!c || o?.isEditing) return;
       const el = e.target;
       if (el?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el?.tagName)) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateLayer(); }
+      // Undo needs no selection; everything below it acts on one.
+      if (!((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') && !o) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        stepHistory(e.shiftKey ? 1 : -1);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateLayer(); }
       else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         for (const t of members(o)) c.remove(t);
@@ -724,7 +820,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [projectId, duplicateLayer, markDirty, syncLayers]);
+  }, [projectId, duplicateLayer, markDirty, syncLayers, stepHistory]);
 
   async function exportPage(scale = 2) {
     const c = fc.current;
@@ -852,6 +948,47 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       const p = await api.post(`/design/clients/${clientId}/projects`, { name: name.trim() || 'Untitled' });
       await loadProjects(); open(p.id);
     } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ── getting work back out ─────────────────────────────────────────────────
+  //
+  // One zip, one folder per set, one file per page. PSD keeps the layers, so
+  // a design made here opens in Photoshop as the thing it is rather than as a
+  // flat picture — which is the whole reason this exists and not just the
+  // image export.
+  async function exportSets(ids, format, scale = 1) {
+    const list = (projects || []).filter(p2 => ids.includes(p2.id));
+    if (!list.length) return;
+    const files = {};
+    let done = 0;
+    try {
+      for (const p2 of list) {
+        setExporting(`${p2.name} (${done + 1} of ${list.length})…`);
+        const full = await api.get(`/design/projects/${p2.id}`);
+        const pages = full.pages || [];
+        const size = { width: p2.width, height: p2.height };
+        for (let i = 0; i < pages.length; i += 1) {
+          const scene = pages[i].scene;
+          if (format === 'psd') {
+            files[pageFilename(p2.name, i, pages.length, 'psd')] =
+              await renderPsd(scene, size, { ensureFont });
+          } else {
+            const url = await renderPage(scene, size, { ensureFont, format, scale });
+            files[pageFilename(p2.name, i, pages.length, format === 'jpeg' ? 'jpg' : 'png')] =
+              dataUrlBytes(url);
+          }
+        }
+        done += 1;
+      }
+      const stamp = new Date().toISOString().slice(0, 10);
+      const name = list.length === 1
+        ? `${list[0].name} ${stamp}.zip`
+        : `designs ${stamp}.zip`;
+      saveBlob(zipBlob(files), name.replace(/[^\w .()-]+/g, '-'));
+      toast(`Exported ${Object.keys(files).length} file${Object.keys(files).length === 1 ? '' : 's'}`);
+    } catch (e) {
+      toast(`Export failed: ${e.message}`, 'error');
+    } finally { setExporting(''); }
   }
 
   async function renameProject(p) {
@@ -999,6 +1136,25 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         {psdBusy && (
           <div className="card" style={{ marginTop: 'var(--s4)' }}>{psdBusy}</div>
         )}
+        {exporting && (
+          <div className="card" style={{ marginTop: 'var(--s4)' }}>Exporting {exporting}</div>
+        )}
+
+        {picked.length > 0 && !exporting && (
+          <div className="card" style={{ marginTop: 'var(--s4)', padding: 'var(--s4)' }}>
+            <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
+              <strong>{picked.length} set{picked.length === 1 ? '' : 's'} selected</strong>
+              <button onClick={() => exportSets(picked, 'png', 1)} className="btn btn-primary btn-sm">PNG</button>
+              <button onClick={() => exportSets(picked, 'jpeg', 1)} className="btn btn-secondary btn-sm">JPEG</button>
+              <button onClick={() => exportSets(picked, 'psd')} className="btn btn-secondary btn-sm">PSD, with layers</button>
+              <button onClick={() => setPicked([])} className="btn btn-secondary btn-sm">Clear</button>
+            </div>
+            <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
+              A zip with a folder per set and a file per page. PSD keeps the layers, so a design
+              made here opens in Photoshop as the thing it is.
+            </div>
+          </div>
+        )}
 
         {psdFiles && !psdBusy && (
           <div className="card" style={{ marginTop: 'var(--s4)', padding: 'var(--s4)' }}>
@@ -1114,6 +1270,10 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                   <div className="body-sm text-subtle">{p.page_count} page{p.page_count === 1 ? '' : 's'} · {p.width}×{p.height}</div>
                 </div>
                 <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
+                  <input type="checkbox" checked={picked.includes(p.id)} title={`Select “${p.name}” for export`}
+                    aria-label={`Select ${p.name} for export`}
+                    onChange={e => setPicked(prev => (e.target.checked
+                      ? [...prev, p.id] : prev.filter(x => x !== p.id)))} />
                   <button onClick={() => renameProject(p)} className="btn-icon btn-icon-sm"
                     title={`Rename “${p.name}”`} aria-label={`Rename ${p.name}`}>✎</button>
                   <button onClick={() => duplicateProject(p)} className="btn-icon btn-icon-sm"
@@ -1165,7 +1325,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         <div className="row" style={{ gap: 'var(--s2)' }}>
           <span className="body-sm text-subtle">{saving ? 'Saving…' : dirty ? 'Unsaved' : 'Saved'}</span>
           <button onClick={() => save({ quiet: false })} disabled={saving} className="btn btn-secondary btn-sm">Save</button>
-          <button onClick={() => exportPage(2)} className="btn btn-primary btn-sm">Export PNG</button>
+          <button onClick={() => exportPage(2)} className="btn btn-secondary btn-sm"
+            title="This page only, at twice the size">This page</button>
+          <select className="input" value="" aria-label="Export this whole set"
+            style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
+            onChange={e => { if (e.target.value) { exportSets([project.id], e.target.value); e.target.value = ''; } }}>
+            <option value="">Export set…</option>
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="psd">PSD, with layers</option>
+          </select>
         </div>
       </div>
 

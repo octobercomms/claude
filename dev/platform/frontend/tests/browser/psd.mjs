@@ -253,6 +253,69 @@ try {
     naming.order.join() === 'ADF 2026-1.psd,ADF 2026-6.psd,ADF 2026-44.psd',
     naming.order.join(' '));
 
+  // --- the round trip: PSD in, OMI, PSD out, read back ---------------------
+  //
+  // The point of the PSD export is that nothing made here is stuck here, and
+  // the only honest way to check that is to read the export back with the
+  // same parser that reads Photoshop's own files.
+  const trip = await page.evaluate(async () => {
+    const res = await fetch('fixture.psd');
+    const parsed = await window.psdImport.parsePsd(
+      new File([await res.blob()], 'ADF 2026-6.psd'));
+    const { scene } = await window.psdImport.psdToScene(parsed, {
+      uploadImage: async (l) => URL.createObjectURL(l.blob),
+      ensureFont: async () => {},
+      fonts: ['GT America'],
+    });
+    const size = { width: parsed.width, height: parsed.height };
+    const bytes = await window.designExport.renderPsd(scene, size, { ensureFont: async () => {} });
+    const back = await window.psdImport.parsePsd(
+      new File([bytes], 'exported.psd', { type: 'image/vnd.adobe.photoshop' }));
+    return {
+      bytes: bytes.length,
+      size: { w: back.width, h: back.height },
+      layers: back.layers.length,
+      wasLayers: parsed.layers.length,
+      texts: back.layers.filter(l => l.kind === 'text').map(l => l.text),
+      textFont: (back.layers.find(l => l.kind === 'text') || {}).family,
+      images: back.layers.filter(l => l.kind === 'image').length,
+      helpers: {
+        order: [0, 9, 43].map(i => window.designExport.pageFilename('ADF 2026', i, 44, 'png')),
+        font: window.designExport.psFontName('GT America', 700),
+        hex: window.designExport.rgbOf('#f2c100'),
+        rgba: window.designExport.rgbOf('rgba(0, 0, 0, 0.35)'),
+      },
+      zip: (await window.designExport.zipBlob({ 'a.png': new Uint8Array([1, 2, 3]) })).size,
+    };
+  });
+
+  check('the exported PSD is a real file', trip.bytes > 1000, `${trip.bytes} bytes`);
+  check('at the page size', trip.size.w === 1080 && trip.size.h === 1350, JSON.stringify(trip.size));
+  check('with a layer per layer, not one flattened picture',
+    trip.layers === trip.wasLayers,
+    `${trip.wasLayers} went in, ${trip.layers} came back`);
+  check('text comes back as text',
+    trip.texts.some(t => /ARCHITECTURE TOUR/.test(t)),
+    JSON.stringify(trip.texts));
+  check('and keeps its line break',
+    trip.texts.some(t => t.split('\n').length === 2), JSON.stringify(trip.texts));
+  check('and its typeface',
+    trip.textFont === 'GT America', String(trip.textFont));
+  check('the images come back too', trip.images >= 2, String(trip.images));
+
+  check('pages are named so they sort the way the set reads',
+    trip.helpers.order[0].endsWith(' 01.png')
+    && trip.helpers.order[1].endsWith(' 10.png')
+    && trip.helpers.order[2].endsWith(' 44.png'),
+    trip.helpers.order.join(' | '));
+  check('a typeface is written back in the shape Photoshop expects',
+    trip.helpers.font === 'GTAmerica-Bold', trip.helpers.font);
+  check('colours convert from hex and from rgba',
+    trip.helpers.hex.r === 242 && trip.helpers.hex.g === 193 && trip.helpers.hex.b === 0
+    && trip.helpers.rgba.r === 0,
+    JSON.stringify(trip.helpers));
+  check('the zip is produced', trip.zip > 0, `${trip.zip} bytes`);
+
   check('nothing threw', problems.length === 0, problems.join('\n  '));
 } catch (e) {
   fail += 1;

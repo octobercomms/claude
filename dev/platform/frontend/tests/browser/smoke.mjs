@@ -160,6 +160,24 @@ try {
   check('and the canvas actually has it drawn on it', (await darkness()) < 220,
     'the shade block darkens the lower half of the page');
 
+  // --- every edit saves, without being asked ------------------------------
+  // Fifteen seconds was a window in which switching tab, which unmounts this
+  // page, threw the work away. Nothing has been clicked but Text and Shade.
+  await page.waitForTimeout(1800);
+  check('an edit saves on its own', saves >= 1,
+    `${saves} PUTs after an edit and no Save click`);
+
+  // --- undo ----------------------------------------------------------------
+  const before = await darkness();
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(600);
+  check('undo takes the last layer back off', (await darkness()) > before + 20,
+    `darkness ${before} -> ${await darkness()}; the shade block should be gone`);
+  await page.keyboard.press('Control+Shift+z');
+  await page.waitForTimeout(600);
+  check('and redo puts it back', (await darkness()) < 220,
+    `darkness ${await darkness()}`);
+
   // 4. The one that cost a real afternoon. save() used to replace the project
   //    state object; the canvas effect depended on its identity, disposed the
   //    canvas and rebuilt it empty, throwing away everything added since.
@@ -172,7 +190,7 @@ try {
   await page.evaluate(() => document.querySelector('.canvas-container')?.setAttribute('data-smoke', '1'));
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(800);
-  check('the save reached the server', saves >= 1, `${saves} PUTs seen`);
+  check('the save reached the server', saves >= 2, `${saves} PUTs seen`);
   check('the work is still on the canvas after a save', (await darkness()) < 220,
     'this is the autosave-wipes-the-canvas regression');
   check('and the canvas was never torn down and rebuilt',
@@ -181,6 +199,9 @@ try {
 
   // 5. Nothing threw along the way.
   // --- the client's own colours, one click away ---------------------------
+  // Restoring a scene clears the selection, so pick a layer again first.
+  await page.getByText('Shape', { exact: true }).first().click();
+  await page.waitForTimeout(300);
   // The shade block is the selected layer here, and until now it had no way
   // to change its colour at all.
   const swatch = page.getByRole('button', { name: 'Brand colour #f2c100' }).first();

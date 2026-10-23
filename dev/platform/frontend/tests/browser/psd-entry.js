@@ -2,6 +2,8 @@
 // module from src/utils, bundled the way the app bundles it.
 import { parsePsd, fitFontSize, mapFont, resolveFamily, commonName } from '../../src/utils/psdImport';
 import { psdToScene, hashIndex } from '../../src/utils/psdToScene';
+import { renderPsd, renderPage, pageFilename, psFontName, rgbOf, zipBlob } from '../../src/utils/designExport';
 
 window.psdImport = { parsePsd, fitFontSize, mapFont, resolveFamily, psdToScene, hashIndex, commonName };
+window.designExport = { renderPsd, renderPage, pageFilename, psFontName, rgbOf, zipBlob };
 window.__ready = true;
