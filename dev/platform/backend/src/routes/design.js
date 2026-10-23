@@ -205,13 +205,16 @@ router.put('/pages/:id', express.json({ limit: '8mb' }), async (req, res) => {
     await loadProject(req, src[0].project_id);
 
     const scene = (req.body && typeof req.body.scene === 'object' && req.body.scene) || {};
+    const thumb = cleanThumb(req.body?.thumbnail);
     const { rows } = await pool.query(
       'UPDATE design_pages SET scene = $1, thumbnail = COALESCE($2, thumbnail) WHERE id = $3 RETURNING *',
-      [scene, cleanThumb(req.body?.thumbnail), req.params.id]
+      [scene, thumb, req.params.id]
     );
     // Touch the project so the list sorts by genuine last activity.
     await pool.query('UPDATE design_projects SET updated_at = NOW() WHERE id = $1', [src[0].project_id]);
-    res.json(rows[0]);
+    // Keeping the old thumbnail is right — a save must never fail over a
+    // preview — but doing it silently let a stale card sit there for days.
+    res.json({ ...rows[0], thumbnail_rejected: !!req.body?.thumbnail && !thumb });
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 

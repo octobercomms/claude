@@ -215,6 +215,28 @@ check('a face that fails to load stays retryable',
     tdz.length === 0, tdz.join('; '));
 }
 
+// --- the preview keeps up ----------------------------------------------------
+//
+// These posts are a full-bleed photograph, and PNG is the wrong codec for one.
+// Measured in Chromium on a 1080x1350 photographic post: the PNG thumbnail is
+// 258,254 characters and the JPEG 26,443. The route caps a thumbnail at
+// 200,000, so every PNG of a finished post was rejected and the blank first
+// thumbnail stayed on the card — with the save itself succeeding, so nothing
+// ever said a word.
+check('the thumbnail is a JPEG',
+  /format: 'jpeg', quality: [0-9.]+/.test(page),
+  'a PNG of a photographic post is ten times larger than the cap allows');
+check('a save still never fails over its preview',
+  /thumbnail = COALESCE\(\$2, thumbnail\)/.test(route),
+  'losing the scene because the preview was too big would be far worse');
+check('but a rejected preview is reported rather than swallowed',
+  /thumbnail_rejected: !!req\.body\?\.thumbnail && !thumb/.test(route)
+  && /thumbnail_rejected/.test(page),
+  'silently keeping the old one is how a stale card sits there for days');
+check('and the list is refetched when the editor closes',
+  /if \(!openId\) \{ setProject\(null\); loadProjects\(\); return; \}/.test(page),
+  'the list is fetched once on mount, so its cover and page count stay as they were');
+
 // --- the editing a social post actually needs --------------------------------
 check('a property set reaches the layers in a multi-selection',
   /for \(const t of members\(o\)\) t\.set\(key, value\)/.test(page),
