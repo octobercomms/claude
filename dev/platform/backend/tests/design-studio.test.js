@@ -277,6 +277,33 @@ check('a picture from another site says why it cannot be recoloured',
   /catch \{ t\.filters = \[\]; refused = true; \}/.test(page),
   'reading pixels off a tainted canvas throws, and failing silently reads as the feature being broken');
 
+// --- you can see what you are dragging ---------------------------------------
+//
+// Handles are drawn in canvas coordinates and the canvas is then scaled down
+// to fit, so Fabric's defaults arrive shrunk by more than half. Measured on a
+// 1080x1350 page: a 13px handle lands as 6px and the 1px border as 0.46px.
+check('handles are scaled back up by the amount the page is scaled down',
+  /cornerSize: Math\.round\(13 \/ fit\)/.test(page) && /borderScaleFactor: 2 \/ fit/.test(page),
+  'left at the defaults the frame is a sub-pixel hairline');
+check('the canvas and the layout share one definition of that scale',
+  /const fitFor = \(w, h\) =>/.test(page) && (page.match(/620 \//g) || []).length === 2,
+  'two copies drift, and then the handles sit somewhere other than the layer');
+check('a text layer has no vertical handles',
+  /if \(isTextObj\(o\)\) o\.setControlsVisibility\(\{ mt: false, mb: false \}\)/.test(page),
+  'they only stretch the glyphs, and the top one sits under the rotate handle');
+check('the selection frame is not the colour of the snap guides',
+  /borderColor: '#2d7ff9'/.test(page) && /strokeStyle = '#ff2d6f'/.test(page),
+  'one says where this layer is and the other what it lined up with; they appear together');
+
+check('a corner drag is written back into the real font size',
+  /o\.set\(\{ fontSize: o\.fontSize \* s, width: o\.width \* s, scaleX: 1, scaleY: 1 \}\)/.test(page),
+  'Fabric scales a text layer rather than resizing it, so the size box went on reading 92 while it rendered at 138');
+check('but only when the drag was uniform',
+  /o\.scaleX !== o\.scaleY\) return;/.test(page),
+  'holding shift stretches the glyphs on purpose, and there is no honest font size for that');
+check('and the box width can be typed',
+  /onCommit=\{v => setProp\('width', Math\.round\(v\)\)\}/.test(page));
+
 // --- the icon actions still say what they do ---------------------------------
 check('a glyph-only action carries a label',
   (page.match(/btn-icon/g) || []).length >= 4

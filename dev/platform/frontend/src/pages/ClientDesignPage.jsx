@@ -92,6 +92,55 @@ const isImageObj = (o) => !!o && (o.type === 'image' || o.type === 'Image');
 // on it silently does nothing. Everything below applies to its members.
 const members = (o) => (typeof o?.getObjects === 'function' ? o.getObjects() : [o]);
 
+// The page is drawn at this fraction of its real size to fit the screen. Used
+// by the canvas and by the layout, which must agree or the handles land in the
+// wrong place.
+const fitFor = (w, h) => Math.min(620 / w, 620 / h, 1);
+
+// Selection handles are drawn in canvas coordinates and the whole canvas is
+// then scaled down to fit, so Fabric's defaults arrive tiny: measured on a
+// 1080x1350 page, a 13px handle lands as 6px on screen and the 1px border as
+// 0.46px, a sub-pixel hairline. Scale them back up so they are the size they
+// were meant to be, and make them read against a photograph rather than
+// against white.
+function styleControls(o, fit) {
+  if (!o || !fit) return;
+  o.set({
+    cornerSize: Math.round(13 / fit),
+    touchCornerSize: Math.round(30 / fit),
+    borderScaleFactor: 2 / fit,
+    padding: Math.round(4 / fit),
+    transparentCorners: false,
+    cornerStyle: 'circle',
+    cornerColor: '#ffffff',
+    cornerStrokeColor: '#1b5fc1',
+    // Blue, deliberately not the pink the snap guides use: one is where this
+    // layer is, the other is what it has lined up with, and they appear at the
+    // same moment.
+    borderColor: '#2d7ff9',
+  });
+  // A text layer's height comes from its text and line height. The top and
+  // bottom handles only stretch the glyphs, and the top one sits under the
+  // rotate handle, so dragging to resize catches rotate instead.
+  if (isTextObj(o)) o.setControlsVisibility({ mt: false, mb: false });
+}
+
+// A corner drag scales a text layer rather than resizing it, so the size box
+// goes on reading 92 while the headline renders at 138. Bake the scale back
+// into the real properties. Checked in Chromium: 92 at scale 1.5 and 138 at
+// scale 1 render to an identical height, so nothing moves on screen.
+//
+// Only when the drag was uniform. Holding shift stretches the glyphs on
+// purpose, and there is no honest font size for that.
+function bakeTextScale(c, o) {
+  if (!isTextObj(o) || o.scaleX === 1 || o.scaleX !== o.scaleY) return;
+  const s = o.scaleX;
+  o.set({ fontSize: o.fontSize * s, width: o.width * s, scaleX: 1, scaleY: 1 });
+  o.initDimensions?.();
+  o.setCoords();
+  c.requestRenderAll();
+}
+
 const SNAP_TOL_RATIO = 0.006;   // ~6px on a 1080 page, ~13px on A4
 
 function snapTargets(c, moving) {
@@ -300,9 +349,14 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       preserveObjectStacking: true,   // selecting a layer must not raise it
     });
     fc.current = c;
+    const fit = fitFor(pw, ph);
     for (const ev of ['object:added', 'object:modified', 'object:removed', 'text:changed']) {
       c.on(ev, () => { markDirty(); syncLayers(); });
     }
+    // Every layer, however it arrived: added here, or revived from a saved
+    // scene by loadFromJSON, which adds each object the same way.
+    c.on('object:added', (e) => styleControls(e.target, fit));
+    c.on('object:modified', (e) => bakeTextScale(c, e.target));
     for (const ev of ['selection:created', 'selection:updated', 'selection:cleared']) {
       c.on(ev, syncLayers);
     }
@@ -715,7 +769,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const isText = sel.length > 0 && sel.every(isTextObj);
   const isImage = sel.length > 0 && sel.every(isImageObj);
   const fx = isImage ? fxOf(sel[0]) : { invert: false, tint: null };
-  const fit = Math.min(620 / project.width, 620 / project.height, 1);
+  const fit = fitFor(project.width, project.height);
 
   return (
     <div style={{ marginTop: 'var(--s4)' }}>
@@ -902,6 +956,22 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                       onClick={() => setProp('underline', !selected.underline)}>U</button>
                     <button title="UPPER CASE" className="btn btn-secondary btn-sm" onClick={setCase('upper')}>AA</button>
                     <button title="Sentence case" className="btn btn-secondary btn-sm" onClick={setCase('sentence')}>Aa</button>
+                  </div>
+
+                  <div className="row" style={{ gap: 'var(--s2)', alignItems: 'flex-end' }}>
+                    <label className="body-sm text-subtle" style={{ flex: 1 }}>
+                      Box width
+                      <NumField value={Math.round(selected.width || 0)} min={40} max={project.width * 2}
+                        step={10} onCommit={v => setProp('width', Math.round(v))} />
+                    </label>
+                    <button className="btn btn-secondary btn-sm" title="Span the page, inside the margins"
+                      onClick={() => {
+                        const c = fc.current; const o = c?.getActiveObject();
+                        if (!c || !o) return;
+                        const m = c.width * 0.08;
+                        for (const t of members(o)) { if (isTextObj(t)) t.set({ width: c.width - m * 2, left: m }); }
+                        reread(c, o);
+                      }}>Span</button>
                   </div>
 
                   <div className="row" style={{ gap: 'var(--s2)' }}>
