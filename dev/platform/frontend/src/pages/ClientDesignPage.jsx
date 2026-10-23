@@ -314,6 +314,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [exporting, setExporting] = useState('');
   const [picked, setPicked] = useState([]);        // set ids ticked in the list
   const [psdOneSet, setPsdOneSet] = useState(false);
+  // A set to add the pages to instead of making new ones. '' means make
+  // new ones, which is what the two radios above it choose between.
+  const [psdInto, setPsdInto] = useState('');
   const [psdSetName, setPsdSetName] = useState('');
   const [clientFonts, setClientFonts] = useState([]);
   const [dragOver, setDragOver] = useState(false);
@@ -506,7 +509,11 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   // identity of the project object. Same reason as the canvas effect above: a
   // re-render must never be able to reload the canvas from a stale scene.
   const pagesRef = useRef([]);
-  useEffect(() => { pagesRef.current = project?.pages || []; }, [project]);
+  const projectRef = useRef(null);
+  useEffect(() => {
+    pagesRef.current = project?.pages || [];
+    projectRef.current = project || null;
+  }, [project]);
 
   const showPage = useCallback(async (id) => {
     const c = fc.current;
@@ -905,6 +912,11 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     const sizes = new Set(ok.map(r => `${r.parsed.width}x${r.parsed.height}`));
     setPsdSetName(shared);
     setPsdOneSet(ok.length > 1 && sizes.size === 1 && !!shared);
+    // Reading files while a set is open means the pages are nearly always
+    // meant for that set, so it is the default when the sizes allow it.
+    const open1 = projectRef.current;
+    setPsdInto(open1 && sizes.size === 1 && ok.length
+      && [...sizes][0] === `${open1.width}x${open1.height}` ? open1.id : '');
   }
 
   async function runImport() {
@@ -922,7 +934,22 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     // height, so pages of different sizes cannot share one, and the choice
     // was made before the ticks could change.
     const sameSize = new Set(chosen.map(r => `${r.parsed.width}x${r.parsed.height}`)).size === 1;
-    const oneSet = psdOneSet && chosen.length > 1 && sameSize;
+
+    // Adding to a set that already exists. Its size is fixed, so files that do
+    // not match it are refused rather than quietly made into sets of their own,
+    // which is the kind of helpfulness that leaves forty stray sets behind.
+    const into = psdInto ? (projects || []).find(p2 => p2.id === psdInto) : null;
+    if (psdInto && !into) {
+      toast('That set is no longer there. Pick another.', 'error');
+      return;
+    }
+    if (into && !(sameSize
+      && chosen[0].parsed.width === into.width && chosen[0].parsed.height === into.height)) {
+      toast(`“${into.name}” is ${into.width}×${into.height}. These files do not all match it.`, 'error');
+      return;
+    }
+
+    const oneSet = !into && psdOneSet && chosen.length > 1 && sameSize;
     let done = 0;
 
     // One set, a page per file. A set has one size, so this is only offered
@@ -934,6 +961,15 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       setPsdBusy(`Importing ${row.file.name} (${done + 1} of ${chosen.length})…`);
       try {
         const { scene } = await psdToScene(row.parsed, { uploadImage, ensureFont, fonts: families });
+
+        // Into an existing set, every file is a new page: the set's own pages
+        // are already somebody's work and none of them is a blank to fill.
+        if (into) {
+          const pg = await api.post(`/design/projects/${into.id}/pages`, {});
+          if (pg.id) await api.put(`/design/pages/${pg.id}`, { scene });
+          done += 1;
+          continue;
+        }
 
         if (oneSet && !sharedProject) {
           sharedProject = await api.post(`/design/clients/${clientId}/projects`, {
@@ -970,10 +1006,17 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     setPsdBusy('');
     setPsdFiles(null);
     await loadProjects();
+    // The open set has new pages the editor has not seen; re-read it so the
+    // strip shows them without a reload.
+    if (into && projectRef.current && projectRef.current.id === into.id) {
+      setProject(await api.get(`/design/projects/${into.id}`));
+    }
     if (done) {
-      toast(oneSet
-        ? `Imported ${done} page${done === 1 ? '' : 's'} into one set`
-        : `Imported ${done} set${done === 1 ? '' : 's'}`);
+      toast(into
+        ? `Added ${done} page${done === 1 ? '' : 's'} to ${into.name}`
+        : oneSet
+          ? `Imported ${done} page${done === 1 ? '' : 's'} into one set`
+          : `Imported ${done} set${done === 1 ? '' : 's'}`);
     }
   }
 
@@ -1150,6 +1193,126 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
   if (readOnly) return <div className="card" style={{ marginTop: 'var(--s4)' }}>Design is agency-only.</div>;
 
+  // The review panel, shown in both places files can be dropped: the set
+  // list and inside an open set. Same panel, same destination control, so
+  // nothing is written before it has been looked at either way.
+  const psdReview = psdFiles && !psdBusy ? (
+    <div className="card" style={{ marginTop: 'var(--s4)', padding: 'var(--s4)' }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--s3)' }}>
+              <strong>{psdFiles.length} file{psdFiles.length === 1 ? '' : 's'} read</strong>
+              <span className="body-sm text-subtle">
+                For this client. Nothing has been saved yet.
+              </span>
+            </div>
+
+            <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+              {psdFiles.map((r, i) => {
+                const texts = r.parsed ? r.parsed.layers.filter(l => l.kind === 'text').length : 0;
+                const images = r.parsed ? r.parsed.layers.filter(l => l.kind === 'image').length : 0;
+                return (
+                  <label key={r.file.name + i} className="row"
+                    style={{ gap: 'var(--s3)', alignItems: 'baseline', flexWrap: 'wrap', opacity: r.error ? 0.6 : 1 }}>
+                    <input type="checkbox" checked={r.include} disabled={!!r.error}
+                      onChange={e => setPsdFiles(prev => prev.map((p2, j) => (j === i ? { ...p2, include: e.target.checked } : p2)))} />
+                    <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere' }}>{r.parsed ? r.parsed.name : r.file.name}</span>
+                    {r.error ? (
+                      <span className="body-sm" style={{ color: 'var(--negative)' }}>{r.error}</span>
+                    ) : (
+                      <span className="body-sm text-subtle">
+                        {r.parsed.width}×{r.parsed.height} ·{' '}
+                        {/* The number worth looking at: text that stayed text.
+                            Zero means Adobe flattened the type on export and
+                            the headlines will have to be retyped. */}
+                        <strong style={{ color: texts ? 'var(--positive)' : 'var(--warning)' }}>
+                          {texts} editable text
+                        </strong>{' '}
+                        · {images} image{images === 1 ? '' : 's'}
+                        {r.parsed.notes.length ? ` · ${r.parsed.notes.length} flattened` : ''}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            {(() => {
+              const ok = psdFiles.filter(r => r.include && r.parsed);
+              const sizes = new Set(ok.map(r => `${r.parsed.width}×${r.parsed.height}`));
+              const canCombine = ok.length > 1 && sizes.size === 1;
+              // A set has one size, so only sets of that size can take these
+              // pages. Offering the rest would be offering an error.
+              const fits = sizes.size === 1 && ok.length
+                ? (projects || []).filter(p2 => `${p2.width}×${p2.height}` === [...sizes][0])
+                : [];
+              return (
+                <div style={{ marginTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s3)' }}>
+                  <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
+                      <input type="radio" name="psd-grouping" checked={!psdInto && (!psdOneSet || !canCombine)}
+                        onChange={() => { setPsdInto(''); setPsdOneSet(false); }} />
+                      <span>One set per file</span>
+                    </label>
+                    <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center', opacity: canCombine ? 1 : 0.5 }}>
+                      <input type="radio" name="psd-grouping" checked={!psdInto && psdOneSet && canCombine}
+                        disabled={!canCombine} onChange={() => { setPsdInto(''); setPsdOneSet(true); }} />
+                      <span>One set, a page per file</span>
+                    </label>
+                    <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center', opacity: fits.length ? 1 : 0.5 }}>
+                      <input type="radio" name="psd-grouping" checked={!!psdInto}
+                        disabled={!fits.length}
+                        onChange={() => setPsdInto((fits[0] || {}).id || '')} />
+                      <span>Add to a set I already have</span>
+                    </label>
+                    {!psdInto && psdOneSet && canCombine && (
+                      <input className="input" value={psdSetName} placeholder="Name this set"
+                        onChange={e => setPsdSetName(e.target.value)} style={{ maxWidth: 260 }} />
+                    )}
+                    {!!psdInto && (
+                      <select className="input" value={psdInto} aria-label="The set to add these pages to"
+                        style={{ maxWidth: 280 }} onChange={e => setPsdInto(e.target.value)}>
+                        {fits.map(p2 => (
+                          <option key={p2.id} value={p2.id}>
+                            {p2.name} · {p2.page_count} page{p2.page_count === 1 ? '' : 's'}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  {!fits.length && sizes.size === 1 && !!ok.length && (
+                    <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                      No set of {[...sizes][0]} to add these to yet.
+                    </div>
+                  )}
+                  {ok.length > 1 && sizes.size > 1 && (
+                    // A set has one size, so this is a real limit rather than a
+                    // preference: pages of different sizes cannot share one.
+                    <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                      These are {[...sizes].join(', ')}. Only files of one size can share a set,
+                      so they will come in separately.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
+              <button onClick={runImport} className="btn btn-primary btn-sm"
+                disabled={!psdFiles.some(r => r.include && r.parsed)}>
+                {(() => {
+                  const n = psdFiles.filter(r => r.include && r.parsed).length;
+                  const sizes = new Set(psdFiles.filter(r => r.include && r.parsed).map(r => `${r.parsed.width}x${r.parsed.height}`));
+                  const dest = psdInto ? (projects || []).find(p2 => p2.id === psdInto) : null;
+                  if (dest) return `Add ${n} page${n === 1 ? '' : 's'} to ${dest.name}`;
+                  return psdOneSet && n > 1 && sizes.size === 1
+                    ? `Import ${n} pages into one set`
+                    : `Import ${n} set${n === 1 ? '' : 's'}`;
+                })()}
+              </button>
+              <button onClick={() => setPsdFiles(null)} className="btn btn-secondary btn-sm">Cancel</button>
+            </div>
+          </div>
+  ) : null;
+
   if (!project) {
     return (
       <div>
@@ -1192,94 +1355,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           </div>
         )}
 
-        {psdFiles && !psdBusy && (
-          <div className="card" style={{ marginTop: 'var(--s4)', padding: 'var(--s4)' }}>
-            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--s3)' }}>
-              <strong>{psdFiles.length} file{psdFiles.length === 1 ? '' : 's'} read</strong>
-              <span className="body-sm text-subtle">
-                For this client. Nothing has been saved yet.
-              </span>
-            </div>
+        {psdReview}
 
-            <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-              {psdFiles.map((r, i) => {
-                const texts = r.parsed ? r.parsed.layers.filter(l => l.kind === 'text').length : 0;
-                const images = r.parsed ? r.parsed.layers.filter(l => l.kind === 'image').length : 0;
-                return (
-                  <label key={r.file.name + i} className="row"
-                    style={{ gap: 'var(--s3)', alignItems: 'baseline', flexWrap: 'wrap', opacity: r.error ? 0.6 : 1 }}>
-                    <input type="checkbox" checked={r.include} disabled={!!r.error}
-                      onChange={e => setPsdFiles(prev => prev.map((p2, j) => (j === i ? { ...p2, include: e.target.checked } : p2)))} />
-                    <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere' }}>{r.parsed ? r.parsed.name : r.file.name}</span>
-                    {r.error ? (
-                      <span className="body-sm" style={{ color: 'var(--negative)' }}>{r.error}</span>
-                    ) : (
-                      <span className="body-sm text-subtle">
-                        {r.parsed.width}×{r.parsed.height} ·{' '}
-                        {/* The number worth looking at: text that stayed text.
-                            Zero means Adobe flattened the type on export and
-                            the headlines will have to be retyped. */}
-                        <strong style={{ color: texts ? 'var(--positive)' : 'var(--warning)' }}>
-                          {texts} editable text
-                        </strong>{' '}
-                        · {images} image{images === 1 ? '' : 's'}
-                        {r.parsed.notes.length ? ` · ${r.parsed.notes.length} flattened` : ''}
-                      </span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-
-            {(() => {
-              const ok = psdFiles.filter(r => r.include && r.parsed);
-              const sizes = new Set(ok.map(r => `${r.parsed.width}×${r.parsed.height}`));
-              const canCombine = ok.length > 1 && sizes.size === 1;
-              return (
-                <div style={{ marginTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s3)' }}>
-                  <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
-                      <input type="radio" name="psd-grouping" checked={!psdOneSet || !canCombine}
-                        onChange={() => setPsdOneSet(false)} />
-                      <span>One set per file</span>
-                    </label>
-                    <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center', opacity: canCombine ? 1 : 0.5 }}>
-                      <input type="radio" name="psd-grouping" checked={psdOneSet && canCombine}
-                        disabled={!canCombine} onChange={() => setPsdOneSet(true)} />
-                      <span>One set, a page per file</span>
-                    </label>
-                    {psdOneSet && canCombine && (
-                      <input className="input" value={psdSetName} placeholder="Name this set"
-                        onChange={e => setPsdSetName(e.target.value)} style={{ maxWidth: 260 }} />
-                    )}
-                  </div>
-                  {ok.length > 1 && sizes.size > 1 && (
-                    // A set has one size, so this is a real limit rather than a
-                    // preference: pages of different sizes cannot share one.
-                    <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
-                      These are {[...sizes].join(', ')}. Only files of one size can share a set,
-                      so they will come in separately.
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
-              <button onClick={runImport} className="btn btn-primary btn-sm"
-                disabled={!psdFiles.some(r => r.include && r.parsed)}>
-                {(() => {
-                  const n = psdFiles.filter(r => r.include && r.parsed).length;
-                  const sizes = new Set(psdFiles.filter(r => r.include && r.parsed).map(r => `${r.parsed.width}x${r.parsed.height}`));
-                  return psdOneSet && n > 1 && sizes.size === 1
-                    ? `Import ${n} pages into one set`
-                    : `Import ${n} set${n === 1 ? '' : 's'}`;
-                })()}
-              </button>
-              <button onClick={() => setPsdFiles(null)} className="btn btn-secondary btn-sm">Cancel</button>
-            </div>
-          </div>
-        )}
         {projects === null ? (
           <div className="card" style={{ marginTop: 'var(--s4)' }}>Loading…</div>
         ) : !projects.length ? (
@@ -1381,6 +1458,10 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         </div>
       </div>
 
+      {psdBusy && <div className="card" style={{ marginTop: 'var(--s4)' }}>{psdBusy}</div>}
+      {exporting && <div className="card" style={{ marginTop: 'var(--s4)' }}>Exporting {exporting}</div>}
+      {psdReview}
+
       <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr 230px', gap: 'var(--s4)', marginTop: 'var(--s4)', alignItems: 'start' }}>
         {/* left: add things */}
         <div className="card" style={{ padding: 'var(--s3)' }}>
@@ -1388,6 +1469,14 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
             <button onClick={addText} className="btn btn-secondary btn-sm">Text</button>
             <button onClick={addBand} className="btn btn-secondary btn-sm">Shade block</button>
+            {/* Photoshop files straight into the set that is open. Same review
+                step as the set list, so nothing lands unseen. */}
+            <label className="btn btn-secondary btn-sm" style={{ textAlign: 'center', cursor: 'pointer' }}
+              title={`Add Photoshop files to “${project.name}” as pages`}>
+              Import PSD
+              <input type="file" accept=".psd" multiple style={{ display: 'none' }}
+                onChange={e => { readPsds(e.target.files); e.target.value = ''; }} />
+            </label>
             <label className="btn btn-secondary btn-sm" style={{ textAlign: 'center', cursor: 'pointer' }}>
               Upload image
               <input type="file" accept="image/*" style={{ display: 'none' }}

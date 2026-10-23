@@ -471,7 +471,7 @@ check('nothing is written until the files have been looked at',
   && !/runImport\(\)/.test(page.slice(page.indexOf('async function readPsds('), page.indexOf('async function runImport('))),
   'an import that silently creates twenty wrong sets is worse than one that creates none');
 check('a campaign can come in as one set with a page per file',
-  /const oneSet = psdOneSet && chosen\.length > 1 && sameSize;/.test(page)
+  /const oneSet = !into && psdOneSet && chosen\.length > 1 && sameSize;/.test(page)
   && /api\.post\(`\/design\/projects\/\$\{project\.id\}\/pages`/.test(page),
   'forty posts from one campaign as forty separate sets is not how the work is organised');
 check('and only when every file is the same size',
@@ -536,6 +536,29 @@ check('and a single page exports in every format the set does',
   /onChange=\{e => \{ if \(e\.target\.value\) \{ exportPage\(e\.target\.value\)/.test(page)
   && /renderPsd\(c\.toJSON\(\)/.test(page),
   'exporting one page as a layered PSD was the obvious thing the old button could not do');
+
+// --- importing into a set that already exists --------------------------------
+check('a PSD import can go into an existing set',
+  /Add to a set I already have/.test(page) && /const \[psdInto, setPsdInto\]/.test(page),
+  'otherwise every import makes new sets and the campaign is split across them');
+check('and only sets of the files\' own size are offered',
+  /\(projects \|\| \[\]\)\.filter\(p2 => `\$\{p2\.width\}×\$\{p2\.height\}` === \[\.\.\.sizes\]\[0\]\)/.test(page),
+  'a set has one size, so offering the rest is offering an error');
+check('the size is checked again before anything is written',
+  /chosen\[0\]\.parsed\.width === into\.width && chosen\[0\]\.parsed\.height === into\.height/.test(page),
+  'the ticks can change after the destination was chosen');
+check('each file becomes a new page rather than overwriting one',
+  /if \(into\) \{[\s\S]{0,160}projects\/\$\{into\.id\}\/pages/.test(page),
+  'the blank first page only exists in a set this import just made');
+check('the editor imports into the set that is open',
+  /title=\{`Add Photoshop files to “\$\{project\.name\}” as pages`\}/.test(page),
+  'with a set open, that set is where the files are meant to go');
+check('and the open set is the default destination',
+  /setPsdInto\(open1 &&/.test(page));
+check('the review panel is the same one in both places',
+  /const psdReview = psdFiles && !psdBusy \?/.test(page)
+  && (page.match(/\{psdReview\}/g) || []).length === 2,
+  'two copies drift, and the one nobody looks at is the one that writes the wrong thing');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
