@@ -470,8 +470,12 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   // destroys work is the whole bug; these three primitives are what the canvas
   // actually needs.
   const projectId = project?.id;
-  const pw = project?.width;
-  const ph = project?.height;
+  // The size being drawn. It is the page's, not the set's: a set holds pages
+  // of different sizes now, so the set's width and height are only the size a
+  // new page is made at.
+  const page = (project?.pages || []).find(p2 => p2.id === pageId) || null;
+  const pw = page?.width || project?.width;
+  const ph = page?.height || project?.height;
 
   // How big the page is drawn. `fit` is what makes a 1080x1350 page sit in
   // the frame at all; zoom overrides it with an absolute scale, so 100% means
@@ -493,11 +497,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   // means nothing here.
   useEffect(() => { setZoom(null); }, [projectId]);
 
+  // Built once per set, not per page size. Rebuilding it on a size change
+  // would dispose the canvas mid-edit, which is the regression that cost an
+  // afternoon the first time; showPage resizes it instead.
+  const firstSize = useRef({ w: pw, h: ph });
+  firstSize.current = fc.current ? firstSize.current : { w: pw, h: ph };
   useEffect(() => {
     if (!projectId || !canvasEl.current) return undefined;
     const c = new Canvas(canvasEl.current, {
-      width: pw,
-      height: ph,
+      width: firstSize.current.w,
+      height: firstSize.current.h,
       backgroundColor: '#ffffff',
       preserveObjectStacking: true,   // selecting a layer must not raise it
     });
@@ -521,7 +530,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       c.on(ev, () => clearGuides(c));
     }
     return () => { c.dispose(); fc.current = null; };
-  }, [projectId, pw, ph, markDirty, syncLayers, pushHistory]);
+  }, [projectId, markDirty, syncLayers, pushHistory]);
 
   // Put a page's scene on the canvas. Fonts are loaded first: a text layer
   // rendered before its face arrives measures at the fallback's metrics and
@@ -540,6 +549,12 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     const c = fc.current;
     const page = pagesRef.current.find(p => p.id === id);
     if (!c || !page) return;
+    // The page's own size, before anything is drawn on it. A scene loaded onto
+    // a canvas of the wrong size lands at the wrong place and the first save
+    // writes that back.
+    if (page.width && page.height && (c.width !== page.width || c.height !== page.height)) {
+      c.setDimensions({ width: page.width, height: page.height });
+    }
     const scene = page.scene && Object.keys(page.scene).length ? page.scene : null;
     const families = [...new Set((scene?.objects || []).map(o => o.fontFamily).filter(Boolean))];
     await Promise.all(families.map(ensureFont));
@@ -892,8 +907,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       setExporting('This page…');
       await document.fonts.ready;
       if (format === 'psd') {
-        const bytes = await renderPsd(c.toJSON(), { width: project.width, height: project.height },
-          { ensureFont });
+        const bytes = await renderPsd(c.toJSON(), { width: pw, height: ph }, { ensureFont });
         saveBlob(new Blob([bytes], { type: 'image/vnd.adobe.photoshop' }), `${base}.psd`);
       } else {
         const url = c.toDataURL({
@@ -938,18 +952,17 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
     // A campaign arrives as several files sharing a name. Default those into
     // one set, because that is what they are; anything else stays one set per
-    // file. Pages in a set share the set's dimensions, so files of different
-    // sizes cannot be one set at all.
+    // file. Sizes do not come into it: a page carries its own, so a campaign
+    // that arrived as posts and stories is still one set.
     const ok = rows.filter(r => r.parsed);
     const shared = commonName(ok.map(r => r.file.name));
-    const sizes = new Set(ok.map(r => `${r.parsed.width}x${r.parsed.height}`));
     setPsdSetName(shared);
-    setPsdOneSet(ok.length > 1 && sizes.size === 1 && !!shared);
+    setPsdOneSet(ok.length > 1 && !!shared);
     // Reading files while a set is open means the pages are nearly always
-    // meant for that set, so it is the default when the sizes allow it.
+    // meant for that set. Their sizes no longer come into it: each page keeps
+    // the size of the file it came from.
     const open1 = projectRef.current;
-    setPsdInto(open1 && sizes.size === 1 && ok.length
-      && [...sizes][0] === `${open1.width}x${open1.height}` ? open1.id : '');
+    setPsdInto(open1 && ok.length ? open1.id : '');
   }
 
   async function runImport() {
@@ -963,26 +976,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     });
     const families = [...clientFonts.map(f => f.name), ...FONTS.map(f => f.name)];
 
-    // Checked here, not just when the radio was set: a set has one width and
-    // height, so pages of different sizes cannot share one, and the choice
-    // was made before the ticks could change.
-    const sameSize = new Set(chosen.map(r => `${r.parsed.width}x${r.parsed.height}`)).size === 1;
-
-    // Adding to a set that already exists. Its size is fixed, so files that do
-    // not match it are refused rather than quietly made into sets of their own,
-    // which is the kind of helpfulness that leaves forty stray sets behind.
+    // Adding to a set that already exists. A page carries its own size now, so
+    // there is nothing for the files to match: six files across two sizes are
+    // six pages in one set, which is what a campaign actually is.
     const into = psdInto ? (projects || []).find(p2 => p2.id === psdInto) : null;
     if (psdInto && !into) {
       toast('That set is no longer there. Pick another.', 'error');
       return;
     }
-    if (into && !(sameSize
-      && chosen[0].parsed.width === into.width && chosen[0].parsed.height === into.height)) {
-      toast(`“${into.name}” is ${into.width}×${into.height}. These files do not all match it.`, 'error');
-      return;
-    }
 
-    const oneSet = !into && psdOneSet && chosen.length > 1 && sameSize;
+    const oneSet = !into && psdOneSet && chosen.length > 1;
     let done = 0;
 
     // One set, a page per file. A set has one size, so this is only offered
@@ -998,7 +1001,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         // Into an existing set, every file is a new page: the set's own pages
         // are already somebody's work and none of them is a blank to fill.
         if (into) {
-          const pg = await api.post(`/design/projects/${into.id}/pages`, {});
+          const pg = await api.post(`/design/projects/${into.id}/pages`,
+            { width: row.parsed.width, height: row.parsed.height });
           if (pg.id) await api.put(`/design/pages/${pg.id}`, { scene });
           done += 1;
           continue;
@@ -1026,8 +1030,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           const full = await api.get(`/design/projects/${project.id}`);
           pageId = full.pages && full.pages[0] && full.pages[0].id;
           firstPageUsed = true;
+          // The blank page a new set is created with is the set's size, which
+          // is the first file's. A later file of another shape gets its own
+          // page below, so only this one needs saying.
+          if (pageId && (full.width !== row.parsed.width || full.height !== row.parsed.height)) {
+            await api.put(`/design/pages/${pageId}/size`,
+              { width: row.parsed.width, height: row.parsed.height });
+          }
         } else {
-          const pg = await api.post(`/design/projects/${project.id}/pages`, {});
+          const pg = await api.post(`/design/projects/${project.id}/pages`,
+            { width: row.parsed.width, height: row.parsed.height });
           pageId = pg.id;
         }
         if (pageId) await api.put(`/design/pages/${pageId}`, { scene });
@@ -1092,9 +1104,15 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         setExporting(`${p2.name} (${done + 1} of ${list.length})…`);
         const full = await api.get(`/design/projects/${p2.id}`);
         const pages = full.pages || [];
-        const size = { width: p2.width, height: p2.height };
         for (let i = 0; i < pages.length; i += 1) {
           const scene = pages[i].scene;
+          // Each page at its own size. A set can hold a post and the story cut
+          // from it, and rendering both at the set's size would letterbox one
+          // of them in the file that goes out.
+          const size = {
+            width: pages[i].width || p2.width,
+            height: pages[i].height || p2.height,
+          };
           if (format === 'psd') {
             files[pageFilename(p2.name, i, pages.length, 'psd')] =
               await renderPsd(scene, size, { ensureFont });
@@ -1158,6 +1176,36 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     finally { setPsdBusy(''); }
   }
 
+  // Resize one page. The scene is rescaled here rather than on the server
+  // because only the editor knows how a text layer's size and box move
+  // together; the server stores the number and nothing else.
+  async function resizePage(w, h) {
+    if (!page || (w === pw && h === ph)) return;
+    const c = fc.current;
+    setPsdBusy(`Resizing this page to ${w}×${h}…`);
+    try {
+      if (dirtyRef.current) await save();
+      const scene = rescaleScene(c ? c.toJSON() : page.scene, { width: pw, height: ph }, { width: w, height: h });
+      await api.put(`/design/pages/${page.id}/size`, { width: w, height: h });
+      if (scene && scene.objects) await api.put(`/design/pages/${page.id}`, { scene });
+      const fresh = await api.get(`/design/projects/${project.id}`);
+      setProject(fresh);
+      // Put the rescaled scene on the canvas at its new size, rather than
+      // leaving the old one there until something else reloads it.
+      if (c) {
+        c.setDimensions({ width: w, height: h });
+        if (scene && scene.objects) await c.loadFromJSON(scene);
+        c.renderAll();
+        history.current = { stack: [JSON.stringify(c.toJSON())], index: 0, restoring: false };
+        setCanUndo(false); setCanRedo(false);
+        syncLayers();
+      }
+      await loadProjects();
+      toast(`This page is now ${w}×${h}`);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPsdBusy(''); }
+  }
+
   async function duplicateProject(p) {
     try { await api.post(`/design/projects/${p.id}/duplicate`, {}); await loadProjects(); toast('Duplicated'); }
     catch (e) { toast(e.message, 'error'); }
@@ -1175,10 +1223,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     return p;
   };
 
-  async function addPage() {
+  // A new page is the size of the one you are on, which is nearly always what
+  // is wanted, unless another is asked for.
+  async function addPage(size) {
     if (dirtyRef.current) await save();
-    try { const pg = await api.post(`/design/projects/${project.id}/pages`, {}); await refreshProject(); setPageId(pg.id); }
-    catch (e) { toast(e.message, 'error'); }
+    const body = size || { width: pw, height: ph };
+    try {
+      const pg = await api.post(`/design/projects/${project.id}/pages`, body);
+      await refreshProject();
+      setPageId(pg.id);
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function duplicatePage(id) {
@@ -1211,8 +1265,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   // Move a page into another set. The server refuses a set of a different
   // size or another client's, so only the ones that will be accepted are
   // offered.
-  const movableInto = (projects || []).filter(p2 =>
-    p2.id !== project?.id && p2.width === project?.width && p2.height === project?.height);
+  // Every other set of this client. A page carries its own size, so there is
+  // nothing left for the destination to be wrong about.
+  const movableInto = (projects || []).filter(p2 => p2.id !== project?.id);
 
   async function movePage(id, targetId) {
     setMoveFor(null);
@@ -1285,12 +1340,11 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
             {(() => {
               const ok = psdFiles.filter(r => r.include && r.parsed);
               const sizes = new Set(ok.map(r => `${r.parsed.width}×${r.parsed.height}`));
-              const canCombine = ok.length > 1 && sizes.size === 1;
-              // A set has one size, so only sets of that size can take these
-              // pages. Offering the rest would be offering an error.
-              const fits = sizes.size === 1 && ok.length
-                ? (projects || []).filter(p2 => `${p2.width}×${p2.height}` === [...sizes][0])
-                : [];
+              // Pages carry their own size, so a batch of any shape can be
+              // one set and any set can take it. This used to be filtered to
+              // sets matching the files, back when a set was a single size.
+              const canCombine = ok.length > 1;
+              const fits = ok.length ? (projects || []) : [];
               return (
                 <div style={{ marginTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s3)' }}>
                   <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1311,11 +1365,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                       <span>Add to a set I already have</span>
                     </label>
                     {!fits.length && !!ok.length && (
-                      <span className="body-sm text-subtle">
-                        {sizes.size > 1
-                          ? 'one size at a time'
-                          : `no ${[...sizes][0]} set yet`}
-                      </span>
+                      <span className="body-sm text-subtle">no other set yet</span>
                     )}
                     {!psdInto && psdOneSet && canCombine && (
                       <input className="input" value={psdSetName} placeholder="Name this set"
@@ -1333,26 +1383,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                     )}
                   </div>
                   {ok.length > 1 && sizes.size > 1 && (
-                    // A set has one size, so this is a real limit rather than a
-                    // preference: pages of different sizes cannot share one.
-                    // Saying so is not enough on its own: the way out is to
-                    // pick a size, and doing that by hand means unticking the
-                    // odd ones out of a list of forty.
                     <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
-                      These are {[...sizes].join(', ')}. Only files of one size can share a set,
-                      so as they stand they will come in separately, and an existing set cannot
-                      take them.
-                      <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
-                        {[...sizes].map(sz => (
-                          <button key={sz} type="button" className="btn btn-secondary btn-sm"
-                            onClick={() => setPsdFiles(prev => prev.map(r2 => ({
-                              ...r2,
-                              include: !!r2.parsed && `${r2.parsed.width}×${r2.parsed.height}` === sz,
-                            })))}>
-                            Only {sz} ({ok.filter(r2 => `${r2.parsed.width}×${r2.parsed.height}` === sz).length})
-                          </button>
-                        ))}
-                      </div>
+                      These are {[...sizes].join(', ')}. Each page keeps the size of the file it
+                      came from, so one set can hold the post and the story cut from it.
                     </div>
                   )}
                 </div>
@@ -1364,10 +1397,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                 disabled={!psdFiles.some(r => r.include && r.parsed)}>
                 {(() => {
                   const n = psdFiles.filter(r => r.include && r.parsed).length;
-                  const sizes = new Set(psdFiles.filter(r => r.include && r.parsed).map(r => `${r.parsed.width}x${r.parsed.height}`));
                   const dest = psdInto ? (projects || []).find(p2 => p2.id === psdInto) : null;
                   if (dest) return `Add ${n} page${n === 1 ? '' : 's'} to ${dest.name}`;
-                  return psdOneSet && n > 1 && sizes.size === 1
+                  return psdOneSet && n > 1
                     ? `Import ${n} pages into one set`
                     : `Import ${n} set${n === 1 ? '' : 's'}`;
                 })()}
@@ -1520,32 +1552,49 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           <strong>{project.name}</strong>
           <button onClick={() => renameProject(project)} className="btn-icon btn-icon-sm"
             title="Rename this set" aria-label="Rename this set">✎</button>
-          <select className="input" value={`${project.width}x${project.height}`} title="Resize this set"
-            aria-label="Resize this set" style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
+          {/* The size of the page in front of you, not of the set. A set
+              holds pages of different sizes, so resizing one of them is the
+              everyday action and resizing all of them is the rarer one, at
+              the bottom of the list. */}
+          <select className="input" value={`${pw}x${ph}`} title="Resize this page"
+            aria-label="Resize this page" style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
             onChange={e => {
               let value = e.target.value;
+              const whole = value.startsWith('all:');
+              if (whole) value = value.slice(4);
               if (value === 'custom') {
-                const typed = window.prompt(
-                  'Size in pixels, as width x height', `${project.width}x${project.height}`);
+                const typed = window.prompt('Size in pixels, as width x height', `${pw}x${ph}`);
                 if (typed === null) return;
                 const asked = cleanSize(...String(typed).toLowerCase().split('x'));
                 if (!asked) { toast('A size between 50 and 8000 pixels, both sides.', 'error'); return; }
                 value = `${asked.width}x${asked.height}`;
               }
               const [w, h] = value.split('x').map(Number);
-              if (w === project.width && h === project.height) return;
-              if (window.confirm(
-                `Resize “${project.name}” to ${w}×${h}?\n\n`
-                + `Every page is scaled to fit and centred, which keeps the proportions but `
-                + `leaves space to fill where the shape changes. Worth checking each page after.`)) {
-                resizeProject(w, h);
+              if (whole) {
+                if (window.confirm(
+                  `Resize every page in “${project.name}” to ${w}×${h}?\n\n`
+                  + `Each page is scaled to fit and centred, which keeps the proportions but `
+                  + `leaves space to fill where the shape changes. Pages given a size of their `
+                  + `own are brought back to this one. Worth checking each page after.`)) {
+                  resizeProject(w, h);
+                }
+                return;
               }
+              if (w === pw && h === ph) return;
+              resizePage(w, h);
             }}>
-            <option value={`${project.width}x${project.height}`}>{project.width}×{project.height}</option>
+            <option value={`${pw}x${ph}`}>{pw}×{ph}</option>
             {PRESETS
-              .filter(p2 => p2.w !== project.width || p2.h !== project.height)
+              .filter(p2 => p2.w !== pw || p2.h !== ph)
               .map(p2 => <option key={p2.label} value={`${p2.w}x${p2.h}`}>{p2.label} · {p2.w}×{p2.h}</option>)}
             <option value="custom">Custom…</option>
+            <option value={`all:${pw}x${ph}`}>Every page · the size of this one</option>
+            <option value="all:custom">Every page · a size I type…</option>
+            {PRESETS.map(p2 => (
+              <option key={`all-${p2.label}`} value={`all:${p2.w}x${p2.h}`}>
+                Every page · {p2.label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="row" style={{ gap: 'var(--s2)' }}>
@@ -1687,7 +1736,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                   onKeyDown={e => { if (e.key === 'Enter') goToPage(pg.id); }}
                   title={`Page ${i + 1} — drag to reorder`}
                   style={{
-                    width: 64, aspectRatio: `${project.width}/${project.height}`,
+                    width: 64, aspectRatio: `${pg.width || project.width}/${pg.height || project.height}`,
                     cursor: dragPage ? 'grabbing' : 'grab',
                     opacity: dragPage === pg.id ? 0.4 : 1,
                     border: `var(--border-w) solid ${pg.id === pageId ? 'var(--accent)' : 'var(--card-border)'}`,
@@ -1738,7 +1787,23 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                   borderLeft: dropAt === project.pages.length ? '2px solid var(--accent)' : '2px dashed var(--card-border)',
                 }} aria-hidden="true" />
             )}
-            <button onClick={addPage} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s5)' }}>+ Page</button>
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s5)', alignItems: 'center' }}>
+              <button onClick={() => addPage()} className="btn btn-secondary btn-sm">+ Page</button>
+              <select className="input" value="" aria-label="Add a page at another size"
+                title="Add a page at another size"
+                style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
+                onChange={e => {
+                  if (!e.target.value) return;
+                  const [w, h] = e.target.value.split('x').map(Number);
+                  e.target.value = '';
+                  addPage({ width: w, height: h });
+                }}>
+                <option value="">at another size…</option>
+                {PRESETS.map(p2 => (
+                  <option key={p2.label} value={`${p2.w}x${p2.h}`}>{p2.label} · {p2.w}×{p2.h}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

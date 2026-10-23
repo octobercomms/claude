@@ -7,7 +7,7 @@
 //   initdb + start a server, then
 //   createdb designtest
 //   psql -d designtest -f <this file's header SQL, see SCHEMA below>
-//   psql -d designtest -f migrations/208_design_studio.sql
+//   (the migrations are applied by the test itself)
 //   DB_HOST=/tmp DB_PORT=55432 DB_NAME=designtest DB_USER=postgres \
 //     node tests/design-routes.db.test.js
 //
@@ -68,8 +68,17 @@ const check = (name, ok, detail) => {
 // A 1x1 JPEG, which is all that is needed to prove the bytes survive the trip.
 const JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q==';
 
+// The migrations themselves, not a copy of them. A hand-written schema in a
+// test is a schema that drifts from the one the product runs on, and the
+// drift shows up as a passing test over a broken column.
+const fs = require('fs');
+const MIGRATIONS = ['208_design_studio.sql', '209_design_page_sizes.sql'];
+
 (async () => {
   await pool.query(SCHEMA);
+  for (const file of MIGRATIONS) {
+    await pool.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', file), 'utf8'));
+  }
   const { rows: cl } = await pool.query("INSERT INTO clients (name) VALUES ('Scratch') RETURNING id");
   const clientId = cl[0].id;
 
@@ -154,14 +163,72 @@ const JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQg
   const back = await request(app).put(`/api/design/pages/${pageId}/project`).send({ project_id: pid });
   check('and moves back', back.status === 200);
 
-  const sizeClash = await request(app).put(`/api/design/pages/${pageId}/project`)
+  // A page carries its own size now, so a set of another size takes it and
+  // the page arrives the size it already was. This used to be refused, back
+  // when every page in a set had to be the set's size.
+  const intoStory = await request(app).put(`/api/design/pages/${pageId}/project`)
     .send({ project_id: wrongSize.body.id });
-  check('a set of a different size refuses the page', sizeClash.status === 400,
-    'the scene is drawn at its set\u2019s size, so it would land somewhere else');
+  check('a set of a different size takes the page', intoStory.status === 200,
+    JSON.stringify(intoStory.body));
+  const storyNow = await request(app).get(`/api/design/projects/${wrongSize.body.id}`);
+  const landed = (storyNow.body.pages || []).find(p2 => p2.id === pageId);
+  check('and the page keeps the size it was made at',
+    landed && landed.width === 1080 && landed.height === 1350,
+    landed && `${landed.width}x${landed.height} in a 1080x1920 set`);
+  await request(app).put(`/api/design/pages/${pageId}/project`).send({ project_id: pid });
   const crossClient = await request(app).put(`/api/design/pages/${pageId}/project`)
     .send({ project_id: elsewhere.body.id });
   check('and so does another client\u2019s set', crossClient.status === 400,
     'its images are brand assets served under its own client\u2019s path');
+
+  // --- a page's own size ----------------------------------------------------
+  const sized = await request(app).post(`/api/design/clients/${clientId}/projects`)
+    .send({ name: 'Mixed', width: 1080, height: 1350 });
+  const sizedId = sized.body.id;
+  const inherits = (await request(app).get(`/api/design/projects/${sizedId}`)).body.pages[0];
+  check('a page with no size of its own reports the set\u2019s',
+    inherits.width === 1080 && inherits.height === 1350,
+    `${inherits.width}x${inherits.height}`);
+
+  const story = await request(app).post(`/api/design/projects/${sizedId}/pages`)
+    .send({ width: 1080, height: 1920 });
+  check('a page can be added at another size',
+    story.status === 201 && story.body.width === 1080 && story.body.height === 1920,
+    JSON.stringify(story.body));
+  const mixed = await request(app).get(`/api/design/projects/${sizedId}`);
+  check('so one set holds both',
+    mixed.body.pages.length === 2
+    && mixed.body.pages[0].height === 1350 && mixed.body.pages[1].height === 1920,
+    mixed.body.pages.map(p2 => `${p2.width}x${p2.height}`).join(', '));
+
+  const resized = await request(app).put(`/api/design/pages/${inherits.id}/size`)
+    .send({ width: 1080, height: 1080 });
+  check('a page resizes on its own', resized.status === 200 && resized.body.height === 1080,
+    JSON.stringify(resized.body));
+  const siblings = await request(app).get(`/api/design/projects/${sizedId}`);
+  check('without touching the page beside it',
+    siblings.body.pages[1].height === 1920,
+    siblings.body.pages.map(p2 => `${p2.width}x${p2.height}`).join(', '));
+
+  const silly = await request(app).put(`/api/design/pages/${inherits.id}/size`)
+    .send({ width: 99999, height: 2 });
+  check('a size outside the bounds is clamped rather than stored',
+    silly.body.width === 8000 && silly.body.height === 50,
+    JSON.stringify(silly.body));
+
+  // Resizing the set means all of it, including pages given a size of their
+  // own; otherwise "resize this set" quietly means "resize some of it".
+  await request(app).patch(`/api/design/projects/${sizedId}`).send({ width: 1200, height: 1200 });
+  const flattened = await request(app).get(`/api/design/projects/${sizedId}`);
+  check('resizing the set takes every page with it',
+    flattened.body.pages.every(p2 => p2.width === 1200 && p2.height === 1200),
+    flattened.body.pages.map(p2 => `${p2.width}x${p2.height}`).join(', '));
+
+  const dupSet = await request(app).post(`/api/design/projects/${sizedId}/duplicate`).send({});
+  const dupPages = (await request(app).get(`/api/design/projects/${dupSet.body.id}`)).body.pages;
+  check('a duplicated set keeps each page\u2019s size',
+    dupPages.length === 2 && dupPages.every(p2 => p2.width === 1200),
+    dupPages.map(p2 => `${p2.width}x${p2.height}`).join(', '));
 
   const onlyPage = await request(app).get(`/api/design/projects/${other.body.id}`);
   const lone = await request(app).post(`/api/design/clients/${clientId}/projects`).send({ name: 'Lone' });
