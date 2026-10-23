@@ -64,6 +64,31 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
     <p class="description" id="oe-export-note" style="margin:4px 0 0<?php echo $event_filter ? '' : ';display:none'; ?>">
         <?php echo esc_html(sprintf(__('Exports are filtered to: %s', 'october-events'), $event_filter ? (get_the_title($event_filter) ?: ('#' . $event_filter)) : '')); ?>
     </p>
+
+    <?php if (! empty($card_fill_result)) : ?>
+        <div class="notice notice-success is-dismissible"><p>
+            <?php echo esc_html(sprintf(
+                /* translators: 1: number of names filled, 2: number of orders checked */
+                __('Filled %1$d of %2$d missing names from card details.', 'october-events'),
+                (int) $card_fill_result['filled'],
+                (int) $card_fill_result['checked']
+            )); ?>
+        </p></div>
+    <?php endif; ?>
+    <?php if (! empty($card_fill_count)) :
+        $backfill_url = wp_nonce_url(admin_url('admin-post.php?action=oe_backfill_card_names' . $ev_arg), 'oe_backfill_card_names'); ?>
+        <p style="margin:8px 0 0">
+            <a class="button" href="<?php echo esc_url($backfill_url); ?>"
+               onclick="return confirm('<?php echo esc_js(__('Look up the cardholder name for paid orders that have no name, and fill it in? This updates those orders and may take a moment.', 'october-events')); ?>');">
+                <?php echo esc_html(sprintf(
+                    /* translators: %d: number of paid orders missing a name */
+                    _n('Fill %d missing name from card details', 'Fill %d missing names from card details', (int) $card_fill_count, 'october-events'),
+                    (int) $card_fill_count
+                )); ?>
+            </a>
+            <span class="description" style="margin-left:6px"><?php esc_html_e('Paid card orders only. Existing names are never changed.', 'october-events'); ?></span>
+        </p>
+    <?php endif; ?>
     <?php \OE\Admin\Admin::tickets_tabs('orders'); ?>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
 
