@@ -277,6 +277,15 @@ check('a picture from another site says why it cannot be recoloured',
   /catch \{ t\.filters = \[\]; refused = true; \}/.test(page),
   'reading pixels off a tainted canvas throws, and failing silently reads as the feature being broken');
 
+// --- the icon actions still say what they do ---------------------------------
+check('a glyph-only action carries a label',
+  (page.match(/btn-icon/g) || []).length >= 4
+  && (page.match(/aria-label=\{`(Duplicate|Delete)/g) || []).length >= 4,
+  'a bare glyph is unreadable to a screen reader and ambiguous on hover without a title');
+check('and the destructive one is marked as such',
+  /btn-icon btn-icon-sm danger/.test(page),
+  'delete and duplicate sitting side by side as identical grey glyphs is how a set gets deleted by accident');
+
 // --- it is not loaded by people who never open it ----------------------------
 check('the editor is code-split',
   /lazy\(\(\) => import\('\.\/ClientDesignPage'\)\)/.test(tab),

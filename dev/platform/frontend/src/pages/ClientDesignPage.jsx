@@ -698,8 +698,10 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                 <div style={{ fontWeight: 700, marginTop: 'var(--s2)' }}>{p.name}</div>
                 <div className="body-sm text-subtle">{p.page_count} page{p.page_count === 1 ? '' : 's'} · {p.width}×{p.height}</div>
                 <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
-                  <button onClick={() => duplicateProject(p)} className="btn btn-secondary btn-sm">Duplicate</button>
-                  <button onClick={() => deleteProject(p)} className="btn btn-secondary btn-sm">Delete</button>
+                  <button onClick={() => duplicateProject(p)} className="btn-icon btn-icon-sm"
+                    title={`Duplicate “${p.name}”`} aria-label={`Duplicate ${p.name}`}>⧉</button>
+                  <button onClick={() => deleteProject(p)} className="btn-icon btn-icon-sm danger"
+                    title={`Delete “${p.name}”`} aria-label={`Delete ${p.name}`}>✕</button>
                 </div>
               </div>
             ))}
@@ -795,9 +797,11 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                 </div>
                 <div className="body-sm text-subtle">{i + 1}</div>
                 <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                  <button onClick={() => duplicatePage(pg.id)} title="Duplicate this page" className="btn btn-secondary btn-sm" style={{ padding: '0 var(--s2)' }}>⧉</button>
+                  <button onClick={() => duplicatePage(pg.id)} title={`Duplicate page ${i + 1}`}
+                    aria-label={`Duplicate page ${i + 1}`} className="btn-icon btn-icon-sm">⧉</button>
                   {project.pages.length > 1 && (
-                    <button onClick={() => deletePage(pg.id)} title="Delete this page" className="btn btn-secondary btn-sm" style={{ padding: '0 var(--s2)' }}>×</button>
+                    <button onClick={() => deletePage(pg.id)} title={`Delete page ${i + 1}`}
+                      aria-label={`Delete page ${i + 1}`} className="btn-icon btn-icon-sm danger">✕</button>
                   )}
                 </div>
               </div>
