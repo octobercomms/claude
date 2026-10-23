@@ -8,9 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint:hooks": "eslint 'src/**/*.jsx' 'src/**/*.js'",
-    "test:browser": "vite build --config tests/browser/vite.config.js && node tests/browser/smoke.mjs"
+    "test:browser": "vite build --config tests/browser/vite.config.js && node tests/browser/smoke.mjs && node tests/browser/psd.mjs"
   },
   "dependencies": {
+    "ag-psd": "^31.0.3",
     "fabric": "^6.7.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
