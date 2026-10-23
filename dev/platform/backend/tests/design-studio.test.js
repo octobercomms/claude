@@ -606,5 +606,26 @@ check('and one click keeps a single size',
   /Only \{sz\} \(\{ok\.filter/.test(page),
   'unticking the odd ones out by hand is the part nobody should do across forty files');
 
+// --- zoom --------------------------------------------------------------------
+check('the canvas is drawn at the zoom, not the fit',
+  /transform: `scale\(\$\{scale\}\)`/.test(page)
+  && /const scale = zoom \|\| fit;/.test(page));
+check('selection handles are resized when the zoom changes',
+  /c\.getObjects\(\)\.forEach\(o => styleControls\(o, scale\)\)/.test(page),
+  'handles are drawn in page coordinates, so otherwise they grow and shrink with the zoom');
+check('and a layer added after a zoom gets handles for it',
+  /styleControls\(e\.target, scaleRef\.current\)/.test(page),
+  'the scale from when the set was opened is not the scale in front of the person');
+check('the zoom resets when a different set is opened',
+  /useEffect\(\(\) => \{ setZoom\(null\); \}, \[projectId\]\);/.test(page),
+  'a different set is a different page size, so the old zoom means nothing');
+check('a pinch zooms the page rather than the browser',
+  /if \(!e\.ctrlKey && !e\.metaKey\) return;/.test(page)
+  && /e\.key === '0'/.test(page),
+  'the browser owns these gestures until the page takes them');
+check('the frame scrolls once the page is bigger than it',
+  /height: 660, overflow: 'auto'/.test(page) && /margin: 'auto'/.test(page),
+  'centring a zoomed page with flex clips its top-left corner out of reach');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

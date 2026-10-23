@@ -8,7 +8,7 @@ import { roWrite } from '../utils/readOnly';
 import { parsePsd, commonName } from '../utils/psdImport';
 import { psdToScene, imageUploader, hashIndex } from '../utils/psdToScene';
 import { rescaleScene } from '../utils/designScale';
-import { PRESETS, cleanSize } from '../utils/designSizes';
+import { PRESETS, cleanSize, nextZoom } from '../utils/designSizes';
 import {
   renderPage, renderPsd, zipBlob, saveBlob, dataUrlBytes, pageFilename,
 } from '../utils/designExport';
@@ -312,6 +312,10 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [psdInto, setPsdInto] = useState('');
   // The set being created: name and size, before it exists.
   const [draft, setDraft] = useState(null);
+  // null means fitted to the frame; a number is an absolute scale.
+  const [zoom, setZoom] = useState(null);
+  // The live scale, for handlers that outlive the render that set it.
+  const scaleRef = useRef(1);
   const [psdSetName, setPsdSetName] = useState('');
   const [clientFonts, setClientFonts] = useState([]);
   const [dragOver, setDragOver] = useState(false);
@@ -469,6 +473,26 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const pw = project?.width;
   const ph = project?.height;
 
+  // How big the page is drawn. `fit` is what makes a 1080x1350 page sit in
+  // the frame at all; zoom overrides it with an absolute scale, so 100% means
+  // one page pixel per screen pixel rather than "a bit bigger than before".
+  const fit = pw && ph ? fitFor(pw, ph) : 1;
+  const scale = zoom || fit;
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  // Handles are drawn in page coordinates and the whole canvas is then scaled,
+  // so every layer's controls have to be resized when the scale changes or
+  // they grow and shrink with the zoom instead of staying the size they read
+  // best at.
+  useEffect(() => {
+    const c = fc.current;
+    if (!c) return;
+    c.getObjects().forEach(o => styleControls(o, scale));
+    c.renderAll();
+  }, [scale]);
+  // A different set is a different page size, so a zoom from the last one
+  // means nothing here.
+  useEffect(() => { setZoom(null); }, [projectId]);
+
   useEffect(() => {
     if (!projectId || !canvasEl.current) return undefined;
     const c = new Canvas(canvasEl.current, {
@@ -478,13 +502,15 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       preserveObjectStacking: true,   // selecting a layer must not raise it
     });
     fc.current = c;
-    const fit = fitFor(pw, ph);
     for (const ev of ['object:added', 'object:modified', 'object:removed', 'text:changed']) {
       c.on(ev, () => { markDirty(); syncLayers(); pushHistory(); });
     }
     // Every layer, however it arrived: added here, or revived from a saved
     // scene by loadFromJSON, which adds each object the same way.
-    c.on('object:added', (e) => styleControls(e.target, fit));
+    // Through a ref, not the scale at the time this canvas was built: a
+    // layer added after a zoom needs handles sized for the zoom in front
+    // of the person, not the one from when the set was opened.
+    c.on('object:added', (e) => styleControls(e.target, scaleRef.current));
     c.on('object:modified', (e) => bakeTextScale(c, e.target));
     for (const ev of ['selection:created', 'selection:updated', 'selection:cleared']) {
       c.on(ev, syncLayers);
@@ -826,6 +852,18 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       if (!c || o?.isEditing) return;
       const el = e.target;
       if (el?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el?.tagName)) return;
+      // Zoom, like undo, needs no selection. The browser's own zoom is on
+      // these keys, so preventDefault is what makes them reach the page
+      // rather than the window.
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault(); setZoom(z => nextZoom(z || scaleRef.current, 1)); return;
+        }
+        if (e.key === '-' || e.key === '_') {
+          e.preventDefault(); setZoom(z => nextZoom(z || scaleRef.current, -1)); return;
+        }
+        if (e.key === '0') { e.preventDefault(); setZoom(null); return; }
+      }
       // Undo needs no selection; everything below it acts on one.
       if (!((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') && !o) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
@@ -1472,7 +1510,6 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const isText = sel.length > 0 && sel.every(isTextObj);
   const isImage = sel.length > 0 && sel.every(isImageObj);
   const fx = isImage ? fxOf(sel[0]) : { invert: false, tint: null };
-  const fit = fitFor(project.width, project.height);
 
   return (
     <div style={{ marginTop: 'var(--s4)' }}>
@@ -1583,16 +1620,48 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
+            onWheel={e => {
+              // Trackpad pinch arrives as a wheel event with ctrlKey set. Only
+              // then: a plain wheel has to keep scrolling the page it is over.
+              if (!e.ctrlKey && !e.metaKey) return;
+              e.preventDefault();
+              setZoom(nextZoom(scaleRef.current, e.deltaY < 0 ? 1 : -1));
+            }}
             style={{
               background: 'var(--surface-sunken)', borderRadius: 'var(--r-md)', padding: 'var(--s4)',
               display: 'flex', justifyContent: 'center',
+              height: 660, overflow: 'auto',
               outline: dragOver ? '2px dashed var(--accent)' : 'none', outlineOffset: -4,
             }}>
-            <div ref={dropEl} style={{ width: project.width * fit, height: project.height * fit, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,.18)' }}>
-              <div style={{ transform: `scale(${fit})`, transformOrigin: 'top left' }}>
+            {/* margin:auto on the page inside a flex scroller centres it while
+                it is smaller than the frame and lets it scroll from the top
+                left once it is bigger, which the usual centring clips. */}
+            <div ref={dropEl} style={{
+              margin: 'auto', flex: '0 0 auto',
+              width: project.width * scale, height: project.height * scale,
+              overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,.18)',
+            }}>
+              <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
                 <canvas ref={canvasEl} />
               </div>
             </div>
+          </div>
+
+          <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center', marginTop: 'var(--s2)' }}>
+            <button onClick={() => setZoom(nextZoom(scale, -1))} className="btn btn-secondary btn-sm"
+              title="Zoom out (⌘−)" aria-label="Zoom out">−</button>
+            <span className="body-sm text-subtle" aria-live="polite"
+              style={{ minWidth: 52, textAlign: 'center' }}>
+              {Math.round(scale * 100)}%
+            </span>
+            <button onClick={() => setZoom(nextZoom(scale, 1))} className="btn btn-secondary btn-sm"
+              title="Zoom in (⌘+)" aria-label="Zoom in">+</button>
+            <button onClick={() => setZoom(null)}
+              className={zoom === null ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+              title="Fit the page in the frame (⌘0)">Fit</button>
+            <button onClick={() => setZoom(1)}
+              className={zoom === 1 ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+              title="One page pixel per screen pixel">100%</button>
           </div>
 
           {/* pages */}
