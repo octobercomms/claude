@@ -445,28 +445,6 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     } catch (e) { toast('Upload failed: ' + e.message, 'error'); }
   }
 
-  // Duplicate and delete from the keyboard, which is how this work is actually
-  // done. Suppressed while a text layer is being typed into or a panel field
-  // has focus, or Backspace would delete the layer instead of a character.
-  useEffect(() => {
-    if (!projectId) return undefined;
-    const onKey = (e) => {
-      const c = fc.current;
-      const o = c?.getActiveObject();
-      if (!c || !o || o.isEditing) return;
-      const el = e.target;
-      if (el?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el?.tagName)) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateLayer(); }
-      else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        for (const t of members(o)) c.remove(t);
-        c.discardActiveObject(); c.renderAll(); markDirty(); syncLayers();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [projectId, duplicateLayer, markDirty, syncLayers]);
-
   // Drop onto the canvas: a file from the desktop, an asset dragged off the
   // rail, or an image dragged out of another tab. The wrapper is CSS-scaled,
   // so the drop point is converted back into page coordinates from its own
@@ -588,6 +566,28 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     if (refused) toast('That picture came from another site, so its pixels cannot be read. Upload it to this client’s assets first.', 'error');
     reread(c, o);
   };
+
+  // Duplicate and delete from the keyboard, which is how this work is actually
+  // done. Suppressed while a text layer is being typed into or a panel field
+  // has focus, or Backspace would delete the layer instead of a character.
+  useEffect(() => {
+    if (!projectId) return undefined;
+    const onKey = (e) => {
+      const c = fc.current;
+      const o = c?.getActiveObject();
+      if (!c || !o || o.isEditing) return;
+      const el = e.target;
+      if (el?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el?.tagName)) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateLayer(); }
+      else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        for (const t of members(o)) c.remove(t);
+        c.discardActiveObject(); c.renderAll(); markDirty(); syncLayers();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [projectId, duplicateLayer, markDirty, syncLayers]);
 
   async function exportPage(scale = 2) {
     const c = fc.current;

@@ -182,6 +182,39 @@ check('a face that fails to load stays retryable',
   /catch \{ loaded\.delete\(name\); \}/.test(page),
   'leaving it in the loaded set means it never loads again this session');
 
+// --- the crash a build cannot see --------------------------------------------
+//
+// A useEffect whose dependency array names a const that is declared further
+// down the component throws "Cannot access X before initialization" on every
+// render. There is no conditional path and no bad input: the component is
+// simply dead. `vite build` compiles it happily, the rules-of-hooks lint does
+// not look at it, and a regex guard for the feature itself passes because the
+// code is all present and correct — in the wrong order.
+//
+// This shipped once and took the whole Design tab down, including the empty
+// project list. The guard is the general property: nothing named in a
+// dependency array may be declared below the hook that names it.
+//
+// It reads the file as one component. If this page ever grows a second one,
+// a prop in the first that shares a name with a const in the second would
+// read as a violation here; split the scan by component at that point.
+{
+  const decl = {};
+  for (const m of page.matchAll(/^ {2}const (\w+) = (?:useCallback|useMemo|async |\()/gm)) {
+    if (decl[m[1]] === undefined) decl[m[1]] = m.index;
+  }
+  const tdz = [];
+  for (const m of page.matchAll(/\}, \[([^\]]*)\]\)/g)) {
+    for (const name of m[1].split(',').map(x => x.trim()).filter(Boolean)) {
+      if (decl[name] !== undefined && decl[name] > m.index) {
+        tdz.push(`${name} is used in a dependency array before its declaration`);
+      }
+    }
+  }
+  check('nothing in a dependency array is declared below the hook that uses it',
+    tdz.length === 0, tdz.join('; '));
+}
+
 // --- the editing a social post actually needs --------------------------------
 check('a property set reaches the layers in a multi-selection',
   /for \(const t of members\(o\)\) t\.set\(key, value\)/.test(page),
