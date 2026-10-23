@@ -182,6 +182,46 @@ check('a face that fails to load stays retryable',
   /catch \{ loaded\.delete\(name\); \}/.test(page),
   'leaving it in the loaded set means it never loads again this session');
 
+// --- the editing a social post actually needs --------------------------------
+check('a property set reaches the layers in a multi-selection',
+  /for \(const t of members\(o\)\) t\.set\(key, value\)/.test(page),
+  'an ActiveSelection wraps the layers rather than being one, so setting a property on it does nothing at all');
+check('case is changed by rewriting the text',
+  /t\.text\.toUpperCase\(\)/.test(page),
+  'Fabric has no text-transform, and the export has to be what the layer holds');
+check('align works off the bounding box',
+  /const b = o\.getBoundingRect\(\);[\s\S]{0,200}c\.width - b\.width - b\.left/.test(page),
+  'using left/width alone is wrong for a rotated or scaled layer and disagrees with snapping');
+
+check('a layer duplicates', /const duplicateLayer = useCallback/.test(page));
+check('and from the keyboard', /e\.key\.toLowerCase\(\) === 'd'/.test(page));
+check('a multi-selection is discarded before its members are cloned',
+  /c\.discardActiveObject\(\);\n\s*const copies = \[\]/.test(page),
+  'members hold coordinates relative to the selection while it exists, so a clone taken then lands in the wrong place');
+check('the keyboard is deaf while text is being typed',
+  /if \(!c \|\| !o \|\| o\.isEditing\) return;/.test(page)
+  && /\['INPUT', 'TEXTAREA', 'SELECT'\]\.includes\(el\?\.tagName\)/.test(page),
+  'otherwise Backspace deletes the layer instead of a character');
+
+// --- recolouring a graphic ---------------------------------------------------
+// A black logo on a white post is the case this exists for. Invert flips a flat
+// file; a tint at full alpha replaces every visible pixel and leaves the alpha
+// channel alone, which is what a cut-out logo needs. Both are real Fabric
+// filters, so they serialise into the scene and come back on reload.
+check('invert and recolour are Fabric filters, not a CSS trick',
+  /new filters\.Invert\(\)/.test(page) && /new filters\.BlendColor\(/.test(page),
+  'a CSS filter would not survive the scene, the thumbnail or the exported PNG');
+check('the tint is at full alpha and in tint mode',
+  /mode: 'tint', alpha: 1/.test(page),
+  'anything less leaves the original colour showing through, and another mode does not preserve transparency');
+const fxList = page.slice(page.indexOf('t.filters = ['), page.indexOf('try { t.applyFilters()'));
+check('the filter list is rebuilt from the wanted state, not appended to',
+  fxList.length > 0 && !/t\.filters/.test(fxList.slice(1)) && /next\.invert/.test(fxList) && /next\.tint/.test(fxList),
+  'appending stacks a second invert on the first and the logo flips back');
+check('a picture from another site says why it cannot be recoloured',
+  /catch \{ t\.filters = \[\]; refused = true; \}/.test(page),
+  'reading pixels off a tainted canvas throws, and failing silently reads as the feature being broken');
+
 // --- it is not loaded by people who never open it ----------------------------
 check('the editor is code-split',
   /lazy\(\(\) => import\('\.\/ClientDesignPage'\)\)/.test(tab),
