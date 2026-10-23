@@ -8,6 +8,7 @@ import { roWrite } from '../utils/readOnly';
 import { parsePsd, commonName } from '../utils/psdImport';
 import { psdToScene, imageUploader, hashIndex } from '../utils/psdToScene';
 import { rescaleScene } from '../utils/designScale';
+import { PRESETS, cleanSize } from '../utils/designSizes';
 import {
   renderPage, renderPsd, zipBlob, saveBlob, dataUrlBytes, pageFilename,
 } from '../utils/designExport';
@@ -31,14 +32,6 @@ import {
 // fallback face because the font was linked rather than loaded.
 
 // Sizes worth having to hand. Anything else goes in the custom boxes.
-const PRESETS = [
-  { label: 'Instagram portrait', w: 1080, h: 1350 },
-  { label: 'Instagram square', w: 1080, h: 1080 },
-  { label: 'Story / Reel', w: 1080, h: 1920 },
-  { label: 'LinkedIn', w: 1200, h: 627 },
-  { label: 'A4 portrait', w: 2480, h: 3508 },
-];
-
 // A short list rather than all 1,800 Google families: a picker nobody can
 // scroll is not a feature. Brockmann is the house face and is already served
 // by the platform, so it needs no loading.
@@ -317,6 +310,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   // A set to add the pages to instead of making new ones. '' means make
   // new ones, which is what the two radios above it choose between.
   const [psdInto, setPsdInto] = useState('');
+  // The set being created: name and size, before it exists.
+  const [draft, setDraft] = useState(null);
   const [psdSetName, setPsdSetName] = useState('');
   const [clientFonts, setClientFonts] = useState([]);
   const [dragOver, setDragOver] = useState(false);
@@ -1020,12 +1015,26 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     }
   }
 
-  async function newProject() {
-    const name = window.prompt('Name this set of posts', 'New campaign');
-    if (name === null) return;
+  // A set's size is fixed once pages are built on it, and changing it later
+  // rescales every page. Asking at the point of creation costs one dropdown
+  // and saves that.
+  async function createProject() {
+    const size = draft.size === 'custom'
+      ? cleanSize(draft.w, draft.h)
+      : cleanSize(...draft.size.split('x'));
+    if (!size) {
+      toast('A size between 50 and 8000 pixels, both sides.', 'error');
+      return;
+    }
     try {
-      const p = await api.post(`/design/clients/${clientId}/projects`, { name: name.trim() || 'Untitled' });
-      await loadProjects(); open(p.id);
+      const p = await api.post(`/design/clients/${clientId}/projects`, {
+        name: draft.name.trim() || 'Untitled',
+        width: size.width,
+        height: size.height,
+      });
+      setDraft(null);
+      await loadProjects();
+      open(p.id);
     } catch (e) { toast(e.message, 'error'); }
   }
 
@@ -1263,6 +1272,13 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                         onChange={() => setPsdInto((fits[0] || {}).id || '')} />
                       <span>Add to a set I already have</span>
                     </label>
+                    {!fits.length && !!ok.length && (
+                      <span className="body-sm text-subtle">
+                        {sizes.size > 1
+                          ? 'one size at a time'
+                          : `no ${[...sizes][0]} set yet`}
+                      </span>
+                    )}
                     {!psdInto && psdOneSet && canCombine && (
                       <input className="input" value={psdSetName} placeholder="Name this set"
                         onChange={e => setPsdSetName(e.target.value)} style={{ maxWidth: 260 }} />
@@ -1278,17 +1294,27 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                       </select>
                     )}
                   </div>
-                  {!fits.length && sizes.size === 1 && !!ok.length && (
-                    <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
-                      No set of {[...sizes][0]} to add these to yet.
-                    </div>
-                  )}
                   {ok.length > 1 && sizes.size > 1 && (
                     // A set has one size, so this is a real limit rather than a
                     // preference: pages of different sizes cannot share one.
+                    // Saying so is not enough on its own: the way out is to
+                    // pick a size, and doing that by hand means unticking the
+                    // odd ones out of a list of forty.
                     <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
                       These are {[...sizes].join(', ')}. Only files of one size can share a set,
-                      so they will come in separately.
+                      so as they stand they will come in separately, and an existing set cannot
+                      take them.
+                      <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
+                        {[...sizes].map(sz => (
+                          <button key={sz} type="button" className="btn btn-secondary btn-sm"
+                            onClick={() => setPsdFiles(prev => prev.map(r2 => ({
+                              ...r2,
+                              include: !!r2.parsed && `${r2.parsed.width}×${r2.parsed.height}` === sz,
+                            })))}>
+                            Only {sz} ({ok.filter(r2 => `${r2.parsed.width}×${r2.parsed.height}` === sz).length})
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1328,7 +1354,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
               <input type="file" accept=".psd" multiple style={{ display: 'none' }}
                 onChange={e => { readPsds(e.target.files); e.target.value = ''; }} />
             </label>
-            <button {...roWrite(readOnly, { onClick: newProject })} className="btn btn-primary btn-sm">+ New set</button>
+            <button {...roWrite(readOnly, { onClick: () => setDraft({ name: 'New campaign', size: '1080x1350', w: 1080, h: 1350 }) })}
+              className="btn btn-primary btn-sm">+ New set</button>
           </div>
         </div>
 
@@ -1351,6 +1378,44 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
             <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
               A zip with a folder per set and a file per page. PSD keeps the layers, so a design
               made here opens in Photoshop as the thing it is.
+            </div>
+          </div>
+        )}
+
+        {draft && (
+          <div className="card" style={{ marginTop: 'var(--s4)', padding: 'var(--s4)' }}>
+            <strong>New set</strong>
+            <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap', marginTop: 'var(--s3)' }}>
+              <input className="input" value={draft.name} aria-label="Name this set"
+                placeholder="Name this set" style={{ maxWidth: 280 }} autoFocus
+                onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
+              <select className="input" value={draft.size} aria-label="Size"
+                style={{ width: 'auto' }}
+                onChange={e => setDraft(d => ({ ...d, size: e.target.value }))}>
+                {PRESETS.map(p2 => (
+                  <option key={p2.label} value={`${p2.w}x${p2.h}`}>
+                    {p2.label} · {p2.w}×{p2.h}
+                  </option>
+                ))}
+                <option value="custom">Custom…</option>
+              </select>
+              {draft.size === 'custom' && (
+                <span className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
+                  <input className="input" type="number" value={draft.w} aria-label="Width in pixels"
+                    min={50} max={8000} style={{ width: 90 }}
+                    onChange={e => setDraft(d => ({ ...d, w: e.target.value }))} />
+                  <span className="body-sm text-subtle">×</span>
+                  <input className="input" type="number" value={draft.h} aria-label="Height in pixels"
+                    min={50} max={8000} style={{ width: 90 }}
+                    onChange={e => setDraft(d => ({ ...d, h: e.target.value }))} />
+                  <span className="body-sm text-subtle">pixels</span>
+                </span>
+              )}
+              <button onClick={createProject} className="btn btn-primary btn-sm">Create</button>
+              <button onClick={() => setDraft(null)} className="btn btn-secondary btn-sm">Cancel</button>
+            </div>
+            <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
+              Every page in the set is this size. Changing it later rescales the pages you have.
             </div>
           </div>
         )}
@@ -1421,7 +1486,17 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           <select className="input" value={`${project.width}x${project.height}`} title="Resize this set"
             aria-label="Resize this set" style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
             onChange={e => {
-              const [w, h] = e.target.value.split('x').map(Number);
+              let value = e.target.value;
+              if (value === 'custom') {
+                const typed = window.prompt(
+                  'Size in pixels, as width x height', `${project.width}x${project.height}`);
+                if (typed === null) return;
+                const asked = cleanSize(...String(typed).toLowerCase().split('x'));
+                if (!asked) { toast('A size between 50 and 8000 pixels, both sides.', 'error'); return; }
+                value = `${asked.width}x${asked.height}`;
+              }
+              const [w, h] = value.split('x').map(Number);
+              if (w === project.width && h === project.height) return;
               if (window.confirm(
                 `Resize “${project.name}” to ${w}×${h}?\n\n`
                 + `Every page is scaled to fit and centred, which keeps the proportions but `
@@ -1433,6 +1508,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
             {PRESETS
               .filter(p2 => p2.w !== project.width || p2.h !== project.height)
               .map(p2 => <option key={p2.label} value={`${p2.w}x${p2.h}`}>{p2.label} · {p2.w}×{p2.h}</option>)}
+            <option value="custom">Custom…</option>
           </select>
         </div>
         <div className="row" style={{ gap: 'var(--s2)' }}>

@@ -79,5 +79,19 @@ const psd = {
   ],
 };
 
+// A second file of a different shape, for the case that matters on the set
+// list: a batch of mixed sizes, which no single set can take.
+const tall = {
+  width: 1080, height: 1920,
+  children: [
+    { name: 'Layer 0', left: 0, top: 0, right: 1080, bottom: 1920,
+      imageData: img(1080, 1920, [20, 20, 20]) },
+  ],
+};
+
 fs.writeFileSync(process.argv[2] || 'fixture.psd', Buffer.from(writePsdBuffer(psd)));
 console.log('written', process.argv[2] || 'fixture.psd');
+if (process.argv[3]) {
+  fs.writeFileSync(process.argv[3], Buffer.from(writePsdBuffer(tall)));
+  console.log('written', process.argv[3]);
+}

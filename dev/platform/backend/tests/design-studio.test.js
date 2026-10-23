@@ -575,5 +575,36 @@ check('the overlay keeps the layer\'s own alpha',
   /'source-atop'/.test(parser),
   'a plain fill turns a cut-out logo into a solid rectangle');
 
+// --- picking a size ----------------------------------------------------------
+const sizes = codeOnly(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'utils', 'designSizes.js'), 'utf8'));
+check('the sizes are named the way a brief names them',
+  /Instagram portrait/.test(sizes) && /Story \/ Reel/.test(sizes)
+  && /A4 portrait/.test(sizes) && /US Letter portrait/.test(sizes),
+  'nobody briefs a post as 1080x1350');
+check('print sizes are at 300dpi',
+  /w: 2480, h: 3508/.test(sizes) && /w: 2550, h: 3300/.test(sizes),
+  'a screen-sized A4 prints soft and the mistake only shows up on paper');
+check('a size is validated before it reaches the database',
+  /v >= 50 && v <= 8000/.test(sizes) && /Number\.isFinite\(v\)/.test(sizes),
+  'the size reaches every page built on the set; a typo means remaking it');
+check('a new set is given its size when it is made',
+  /aria-label="Size"/.test(page) && /width: size\.width/.test(page),
+  'otherwise every set is whatever the default happens to be');
+check('and a size that is not on the list can be typed',
+  (page.match(/value="custom"/g) || []).length === 2,
+  'on both the new-set form and the resize dropdown');
+check('resizing to the size it already is does nothing',
+  /if \(w === project\.width && h === project\.height\) return;/.test(page),
+  'a no-op rescale of every page in the set is not a no-op');
+
+// --- a batch of mixed sizes --------------------------------------------------
+check('a mixed batch says why an existing set cannot take it',
+  /one size at a time/.test(page),
+  'a greyed-out option with no reason beside it reads as broken');
+check('and one click keeps a single size',
+  /Only \{sz\} \(\{ok\.filter/.test(page),
+  'unticking the odd ones out by hand is the part nobody should do across forty files');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
