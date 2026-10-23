@@ -28,6 +28,25 @@
 
 const BREAKS = /\r\n|\r|\n/g;
 
+// "ADF 2026-44.psd" and "ADF 2026-39.psd" -> "ADF 2026". A campaign's files
+// are nearly always named for the campaign, so their shared prefix is the set
+// name without anyone having to type it.
+export function commonName(names) {
+  const list = (names || []).map(n => String(n).replace(/\.psd$/i, ''));
+  if (!list.length) return '';
+  if (list.length === 1) return list[0];
+  let i = 0;
+  while (i < list[0].length && list.every(n => n[i] === list[0][i])) i += 1;
+  // Walk back out of a number the prefix cut in half: "Q4 launch 01" and
+  // "Q4 launch 02" share "Q4 launch 0", and that stray 0 is half an index,
+  // not part of the name. "ADF 2026-1" and "ADF 2026-44" share "ADF 2026-",
+  // which stops at the separator, so 2026 is left alone.
+  while (i > 0 && /\d/.test(list[0][i] || '') && /\d/.test(list[0][i - 1])) i -= 1;
+  const prefix = list[0].slice(0, i).replace(/[\s\-_.]+$/, '').trim();
+  return prefix.length >= 3 ? prefix : '';
+}
+
+
 // 'GTAmerica-Bold' -> { family: 'GT America', weight: 700, italic: false }
 export function mapFont(postscriptName) {
   const raw = String(postscriptName || '').trim();

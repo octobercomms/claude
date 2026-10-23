@@ -362,6 +362,21 @@ check('nothing is written until the files have been looked at',
   /async function readPsds\(/.test(page) && /async function runImport\(/.test(page)
   && !/runImport\(\)/.test(page.slice(page.indexOf('async function readPsds('), page.indexOf('async function runImport('))),
   'an import that silently creates twenty wrong sets is worse than one that creates none');
+check('a campaign can come in as one set with a page per file',
+  /const oneSet = psdOneSet && chosen\.length > 1 && sameSize;/.test(page)
+  && /api\.post\(`\/design\/projects\/\$\{project\.id\}\/pages`/.test(page),
+  'forty posts from one campaign as forty separate sets is not how the work is organised');
+check('and only when every file is the same size',
+  /const sameSize = new Set\(chosen\.map[\s\S]{0,80}\)\.size === 1;/.test(page)
+  && /psdOneSet && chosen\.length > 1 && sameSize/.test(page),
+  'a set has one width and height; checked where the import runs, not only where the radio was set');
+check('pages are ordered by number rather than by string',
+  /numeric: true/.test(page) && /byName\.compare\(a\.file\.name, b\.file\.name\)/.test(page),
+  'a plain sort puts -44 before -6');
+check('the set is named from what the files have in common',
+  /commonName\(ok\.map\(r => r\.file\.name\)\)/.test(page),
+  'nobody should have to retype the campaign name that is already on every file');
+
 check('and the review shows how much text survived',
   /editable text/.test(page) && /texts \? 'var\(--positive\)' : 'var\(--warning\)'/.test(page),
   'zero means Adobe flattened the type and every headline will need retyping');

@@ -5,7 +5,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { roWrite } from '../utils/readOnly';
-import { parsePsd } from '../utils/psdImport';
+import { parsePsd, commonName } from '../utils/psdImport';
 import { psdToScene, imageUploader, hashIndex } from '../utils/psdToScene';
 
 // Design — layered social posts, made here instead of in Canva or Express.
@@ -151,6 +151,10 @@ function bakeTextScale(c, o) {
 const thumbSrc = (pageId, v) =>
   `/api/design/pages/${pageId}/thumbnail?v=${encodeURIComponent(v || '')}`;
 
+// Files come off a picker in whatever order the OS felt like. A campaign's
+// pages should read 6, 39, 40, 44 rather than 39, 40, 44, 6.
+const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
 const SNAP_TOL_RATIO = 0.006;   // ~6px on a 1080 page, ~13px on A4
 
 function snapTargets(c, moving) {
@@ -258,6 +262,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [allAssets, setAllAssets] = useState([]);   // every row, for the hash index
   const [psdFiles, setPsdFiles] = useState(null);   // parsed PSDs awaiting import
   const [psdBusy, setPsdBusy] = useState('');
+  const [psdOneSet, setPsdOneSet] = useState(false);
+  const [psdSetName, setPsdSetName] = useState('');
   const [clientFonts, setClientFonts] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(null);   // the selected fabric object
@@ -707,7 +713,18 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       }
     }
     setPsdBusy('');
+    rows.sort((a, b) => byName.compare(a.file.name, b.file.name));
     setPsdFiles(rows);
+
+    // A campaign arrives as several files sharing a name. Default those into
+    // one set, because that is what they are; anything else stays one set per
+    // file. Pages in a set share the set's dimensions, so files of different
+    // sizes cannot be one set at all.
+    const ok = rows.filter(r => r.parsed);
+    const shared = commonName(ok.map(r => r.file.name));
+    const sizes = new Set(ok.map(r => `${r.parsed.width}x${r.parsed.height}`));
+    setPsdSetName(shared);
+    setPsdOneSet(ok.length > 1 && sizes.size === 1 && !!shared);
   }
 
   async function runImport() {
@@ -721,19 +738,50 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     });
     const families = [...clientFonts.map(f => f.name), ...FONTS.map(f => f.name)];
 
+    // Checked here, not just when the radio was set: a set has one width and
+    // height, so pages of different sizes cannot share one, and the choice
+    // was made before the ticks could change.
+    const sameSize = new Set(chosen.map(r => `${r.parsed.width}x${r.parsed.height}`)).size === 1;
+    const oneSet = psdOneSet && chosen.length > 1 && sameSize;
     let done = 0;
+
+    // One set, a page per file. A set has one size, so this is only offered
+    // when every file agrees on it.
+    let sharedProject = null;
+    let firstPageUsed = false;
+
     for (const row of chosen) {
       setPsdBusy(`Importing ${row.file.name} (${done + 1} of ${chosen.length})…`);
       try {
         const { scene } = await psdToScene(row.parsed, { uploadImage, ensureFont, fonts: families });
-        const project = await api.post(`/design/clients/${clientId}/projects`, {
-          name: row.parsed.name,
-          width: row.parsed.width,
-          height: row.parsed.height,
-        });
-        const full = await api.get(`/design/projects/${project.id}`);
-        const page = full.pages && full.pages[0];
-        if (page) await api.put(`/design/pages/${page.id}`, { scene });
+
+        if (oneSet && !sharedProject) {
+          sharedProject = await api.post(`/design/clients/${clientId}/projects`, {
+            name: psdSetName.trim() || row.parsed.name,
+            width: row.parsed.width,
+            height: row.parsed.height,
+          });
+        }
+        const project = oneSet
+          ? sharedProject
+          : await api.post(`/design/clients/${clientId}/projects`, {
+            name: row.parsed.name,
+            width: row.parsed.width,
+            height: row.parsed.height,
+          });
+
+        // A new set is created holding one blank page, so the first file goes
+        // onto that one and the rest add their own.
+        let pageId;
+        if (!oneSet || !firstPageUsed) {
+          const full = await api.get(`/design/projects/${project.id}`);
+          pageId = full.pages && full.pages[0] && full.pages[0].id;
+          firstPageUsed = true;
+        } else {
+          const pg = await api.post(`/design/projects/${project.id}/pages`, {});
+          pageId = pg.id;
+        }
+        if (pageId) await api.put(`/design/pages/${pageId}`, { scene });
         done += 1;
       } catch (e) {
         toast(`${row.file.name}: ${e.message}`, 'error');
@@ -742,7 +790,11 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     setPsdBusy('');
     setPsdFiles(null);
     await loadProjects();
-    if (done) toast(`Imported ${done} set${done === 1 ? '' : 's'}`);
+    if (done) {
+      toast(oneSet
+        ? `Imported ${done} page${done === 1 ? '' : 's'} into one set`
+        : `Imported ${done} set${done === 1 ? '' : 's'}`);
+    }
   }
 
   async function newProject() {
@@ -824,7 +876,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--s3)' }}>
               <strong>{psdFiles.length} file{psdFiles.length === 1 ? '' : 's'} read</strong>
               <span className="body-sm text-subtle">
-                Each becomes one set, for this client. Nothing has been saved yet.
+                For this client. Nothing has been saved yet.
               </span>
             </div>
 
@@ -858,10 +910,50 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
               })}
             </div>
 
-            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}>
+            {(() => {
+              const ok = psdFiles.filter(r => r.include && r.parsed);
+              const sizes = new Set(ok.map(r => `${r.parsed.width}×${r.parsed.height}`));
+              const canCombine = ok.length > 1 && sizes.size === 1;
+              return (
+                <div style={{ marginTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s3)' }}>
+                  <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
+                      <input type="radio" name="psd-grouping" checked={!psdOneSet || !canCombine}
+                        onChange={() => setPsdOneSet(false)} />
+                      <span>One set per file</span>
+                    </label>
+                    <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center', opacity: canCombine ? 1 : 0.5 }}>
+                      <input type="radio" name="psd-grouping" checked={psdOneSet && canCombine}
+                        disabled={!canCombine} onChange={() => setPsdOneSet(true)} />
+                      <span>One set, a page per file</span>
+                    </label>
+                    {psdOneSet && canCombine && (
+                      <input className="input" value={psdSetName} placeholder="Name this set"
+                        onChange={e => setPsdSetName(e.target.value)} style={{ maxWidth: 260 }} />
+                    )}
+                  </div>
+                  {ok.length > 1 && sizes.size > 1 && (
+                    // A set has one size, so this is a real limit rather than a
+                    // preference: pages of different sizes cannot share one.
+                    <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                      These are {[...sizes].join(', ')}. Only files of one size can share a set,
+                      so they will come in separately.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
               <button onClick={runImport} className="btn btn-primary btn-sm"
                 disabled={!psdFiles.some(r => r.include && r.parsed)}>
-                Import {psdFiles.filter(r => r.include && r.parsed).length} set{psdFiles.filter(r => r.include && r.parsed).length === 1 ? '' : 's'}
+                {(() => {
+                  const n = psdFiles.filter(r => r.include && r.parsed).length;
+                  const sizes = new Set(psdFiles.filter(r => r.include && r.parsed).map(r => `${r.parsed.width}x${r.parsed.height}`));
+                  return psdOneSet && n > 1 && sizes.size === 1
+                    ? `Import ${n} pages into one set`
+                    : `Import ${n} set${n === 1 ? '' : 's'}`;
+                })()}
               </button>
               <button onClick={() => setPsdFiles(null)} className="btn btn-secondary btn-sm">Cancel</button>
             </div>

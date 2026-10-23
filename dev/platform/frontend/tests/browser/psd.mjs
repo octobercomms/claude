@@ -223,6 +223,36 @@ try {
     scene.scrim && Math.abs(scene.scrim.opacity - 0.35) < 0.02,
     JSON.stringify(scene.scrim));
 
+  // --- grouping a campaign's files into one set ----------------------------
+  const naming = await page.evaluate(() => {
+    const c = window.psdImport.commonName;
+    const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    return {
+      // the five files October actually selected
+      campaign: c(['ADF 2026-1.psd', 'ADF 2026-2.psd', 'ADF 2026-3.psd', 'ADF 2026-6.psd', 'ADF 2026-44.psd']),
+      // a prefix that stops mid-number: the stray 0 is half an index
+      midNumber: c(['Q4 launch 01.psd', 'Q4 launch 02.psd']),
+      // a year at the end of a name is part of the name, not an index
+      year: c(['Spring2026a.psd', 'Spring2026b.psd']),
+      single: c(['ADF AH&L 2026-6.psd']),
+      unrelated: c(['ADF 2026-44.psd', 'Caro spring-2.psd']),
+      order: ['ADF 2026-44.psd', 'ADF 2026-6.psd', 'ADF 2026-1.psd'].sort((a, b) => coll.compare(a, b)),
+    };
+  });
+
+  check("a campaign's files name their set",
+    naming.campaign === 'ADF 2026', JSON.stringify(naming.campaign));
+  check('a prefix that cuts a number in half is walked back',
+    naming.midNumber === 'Q4 launch', JSON.stringify(naming.midNumber));
+  check('but a year at the end of a name is kept',
+    naming.year === 'Spring2026', JSON.stringify(naming.year));
+  check('one file keeps its own name', naming.single === 'ADF AH&L 2026-6');
+  check('unrelated files are not grouped',
+    naming.unrelated === '', JSON.stringify(naming.unrelated));
+  check('pages are ordered by number, not by string',
+    naming.order.join() === 'ADF 2026-1.psd,ADF 2026-6.psd,ADF 2026-44.psd',
+    naming.order.join(' '));
+
   check('nothing threw', problems.length === 0, problems.join('\n  '));
 } catch (e) {
   fail += 1;
