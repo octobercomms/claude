@@ -1111,7 +1111,7 @@ final class Admin {
             foreach ($recipients as $to) {
                 if (! is_email($to)) { $failed++; continue; }
                 $subj = $this->broadcast_merge($subject, __('there', 'october-events'), $event_title);
-                $html = nl2br(esc_html($this->broadcast_merge($body, __('there', 'october-events'), $event_title)));
+                $html = $this->broadcast_html($body, __('there', 'october-events'), $event_title);
                 if (\OE\Mail\Transactional::send('event_broadcast', ['email' => $to, 'name' => ''], [], $subj, $html)) { $sent++; } else { $failed++; }
             }
             set_transient('oe_evt_msg_' . get_current_user_id(), ['test' => true, 'sent' => $sent, 'failed' => $failed, 'draft' => $draft], 60);
@@ -1134,7 +1134,7 @@ final class Admin {
             if (! is_email($r['email'])) { continue; }
             $name = (string) $r['name'];
             $subj = $this->broadcast_merge($subject, $name, $event_title);
-            $html = nl2br(esc_html($this->broadcast_merge($body, $name, $event_title)));
+            $html = $this->broadcast_html($body, $name, $event_title);
             if (\OE\Mail\Transactional::send('event_broadcast', ['email' => $r['email'], 'name' => $name], [], $subj, $html)) { $sent++; } else { $failed++; }
         }
         delete_transient($lock);
@@ -1148,6 +1148,15 @@ final class Admin {
     private function broadcast_merge(string $text, string $name, string $event_title): string {
         $name = trim($name) !== '' ? trim($name) : __('there', 'october-events');
         return str_replace(['{name}', '{event}'], [$name, $event_title], $text);
+    }
+
+    /**
+     * Build the HTML body for a broadcast email from the plain-text compose box:
+     * merge the tags, escape it, turn bare URLs and email addresses into links,
+     * then keep the author's line breaks.
+     */
+    private function broadcast_html(string $body, string $name, string $event_title): string {
+        return nl2br(make_clickable(esc_html($this->broadcast_merge($body, $name, $event_title))));
     }
 
     private function redirect_guided(): void {
