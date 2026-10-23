@@ -47,9 +47,28 @@ const FONTS = [
 // layer is in the right face rather than a fallback that reflows a moment
 // later. document.fonts.ready is what makes the export reliable too.
 const loaded = new Set(['Brockmann']);
+
+// A client's own faces, uploaded to their brand kit as kind 'font'. Keyed by
+// the family name the picker shows, so ensureFont can serve an uploaded face
+// and a Google one through the same call.
+const uploadedFonts = new Map();   // family -> url
+
+const FONT_FILE_RE = /\.(ttf|otf|woff2?|eot)$/i;
+const familyOf = (a) => String(a.name || a.url).split('/').pop()
+  .replace(FONT_FILE_RE, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded font';
+
 async function ensureFont(name) {
   if (loaded.has(name)) return;
   loaded.add(name);
+  const uploaded = uploadedFonts.get(name);
+  if (uploaded) {
+    try {
+      const face = new FontFace(name, `url("${uploaded}")`);
+      await face.load();
+      document.fonts.add(face);
+    } catch { loaded.delete(name); }   // leave it retryable rather than stuck
+    return;
+  }
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name)}:wght@400;600;700;800&display=swap`;
@@ -57,6 +76,77 @@ async function ensureFont(name) {
   try { await document.fonts.load(`700 24px "${name}"`); await document.fonts.ready; }
   catch { /* the face will fall back; nothing to recover */ }
 }
+
+// ── snapping ────────────────────────────────────────────────────────────────
+//
+// One mechanism covers both things worth having: drag a layer near the page's
+// edge, centre or corner and it locks to it; drag it near another layer and it
+// lines up with that layer's edges or centre. The candidates are the page's
+// own three lines per axis plus every other object's three, and the moving
+// object offers its own three, so "left edges flush", "centred on the page"
+// and "both headlines on the same baseline" all fall out of one comparison.
+
+const SNAP_TOL_RATIO = 0.006;   // ~6px on a 1080 page, ~13px on A4
+
+function snapTargets(c, moving) {
+  const xs = [0, c.width / 2, c.width];
+  const ys = [0, c.height / 2, c.height];
+  for (const o of c.getObjects()) {
+    if (o === moving || o.visible === false) continue;
+    const r = o.getBoundingRect();
+    xs.push(r.left, r.left + r.width / 2, r.left + r.width);
+    ys.push(r.top, r.top + r.height / 2, r.top + r.height);
+  }
+  return { xs, ys };
+}
+
+function nearest(mine, targets, tol) {
+  let best = null;
+  for (const m of mine) {
+    for (const t of targets) {
+      const d = Math.abs(t - m);
+      if (d <= tol && (best === null || d < best.d)) best = { d, shift: t - m, at: t };
+    }
+  }
+  return best;
+}
+
+function snapMoving(c, obj) {
+  if (!obj) return;
+  const tol = Math.max(3, c.width * SNAP_TOL_RATIO);
+  const b = obj.getBoundingRect();
+  const { xs, ys } = snapTargets(c, obj);
+  const x = nearest([b.left, b.left + b.width / 2, b.left + b.width], xs, tol);
+  const y = nearest([b.top, b.top + b.height / 2, b.top + b.height], ys, tol);
+  // Shift left/top by the bounding box's delta rather than assigning a
+  // position: that is origin-agnostic, and a text layer, a rotated image and
+  // a rectangle do not share an origin.
+  if (x) obj.set('left', obj.left + x.shift);
+  if (y) obj.set('top', obj.top + y.shift);
+  if (x || y) obj.setCoords();
+  c.ocGuides = [...(x ? [{ x: x.at }] : []), ...(y ? [{ y: y.at }] : [])];
+}
+
+// Guides are painted onto the live canvas context after each render rather
+// than added as objects, so they cannot reach the scene JSON, the thumbnail
+// or the export. They are cleared the moment the drag ends.
+function drawGuides(c) {
+  const lines = c.ocGuides;
+  if (!lines || !lines.length) return;
+  const ctx = c.getContext();
+  ctx.save();
+  ctx.strokeStyle = '#ff2d6f';
+  ctx.lineWidth = Math.max(1, c.width / 540);
+  for (const l of lines) {
+    ctx.beginPath();
+    if (l.x !== undefined) { ctx.moveTo(l.x, 0); ctx.lineTo(l.x, c.height); }
+    else { ctx.moveTo(0, l.y); ctx.lineTo(c.width, l.y); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+const clearGuides = (c) => { if (c.ocGuides?.length) { c.ocGuides = []; c.requestRenderAll(); } };
 
 export default function ClientDesignPage({ embedded = false, clientId: clientIdProp } = {}) {
   const { id: routeId } = useParams();
@@ -70,12 +160,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [project, setProject] = useState(null);
   const [pageId, setPageId] = useState(null);
   const [assets, setAssets] = useState([]);
+  const [clientFonts, setClientFonts] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(null);   // the selected fabric object
   const [layers, setLayers] = useState([]);
   const [dirty, setDirty] = useState(false);
+  const [thumbs, setThumbs] = useState({});   // page id -> freshly saved thumbnail
   const [saving, setSaving] = useState(false);
 
   const canvasEl = useRef(null);
+  const dropEl = useRef(null);       // the scaled wrapper, for drop coordinates
   const fc = useRef(null);            // the fabric canvas
   const pageRef = useRef(null);       // page id the canvas currently holds
   const dirtyRef = useRef(false);
@@ -100,8 +194,22 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     // { items }. Both are easy to get wrong from memory; checked against
     // routes/brandAssets.js.
     api.get(`/brand/clients/${clientId}/assets`)
-      .then(r => setAssets((Array.isArray(r) ? r : (r?.items || [])).filter(a => a.url)))
-      .catch(() => setAssets([]));
+      .then(async (r) => {
+        const all = (Array.isArray(r) ? r : (r?.items || [])).filter(a => a.url);
+        const isFont = (a) => a.kind === 'font' || FONT_FILE_RE.test(a.url);
+        // The rail is an image rail. An uploaded .ttf left in it renders as a
+        // broken image, which is exactly what the first release did.
+        setAssets(all.filter(a => !isFont(a) && a.kind !== 'b_roll_clip'));
+        const fonts = all.filter(isFont).map(a => ({ name: familyOf(a), url: a.url }));
+        setClientFonts(fonts);
+        for (const f of fonts) uploadedFonts.set(f.name, f.url);
+        // Register them now rather than on first use: the asset fetch races
+        // the scene load, and a scene that already uses an uploaded face must
+        // not render at the fallback's metrics.
+        await Promise.all(fonts.map(f => ensureFont(f.name)));
+        fc.current?.requestRenderAll();
+      })
+      .catch(() => { setAssets([]); setClientFonts([]); });
   }, [clientId]);
 
   useEffect(() => {
@@ -124,11 +232,25 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
   const markDirty = useCallback(() => { dirtyRef.current = true; setDirty(true); }, []);
 
+  // The canvas is built once per project and torn down only when the project
+  // or its dimensions change.
+  //
+  // This used to depend on the whole `project` object, and save() replaced that
+  // object on every autosave to carry a new thumbnail. So every fifteen
+  // seconds the canvas was disposed, rebuilt, and reloaded from the scene
+  // fetched when the project was opened — silently throwing away everything
+  // added since. Depending on the identity of a state object in an effect that
+  // destroys work is the whole bug; these three primitives are what the canvas
+  // actually needs.
+  const projectId = project?.id;
+  const pw = project?.width;
+  const ph = project?.height;
+
   useEffect(() => {
-    if (!project || !canvasEl.current) return undefined;
+    if (!projectId || !canvasEl.current) return undefined;
     const c = new Canvas(canvasEl.current, {
-      width: project.width,
-      height: project.height,
+      width: pw,
+      height: ph,
       backgroundColor: '#ffffff',
       preserveObjectStacking: true,   // selecting a layer must not raise it
     });
@@ -139,15 +261,26 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     for (const ev of ['selection:created', 'selection:updated', 'selection:cleared']) {
       c.on(ev, syncLayers);
     }
+    c.on('object:moving', (e) => snapMoving(c, e.target));
+    c.on('after:render', () => drawGuides(c));
+    for (const ev of ['mouse:up', 'object:modified', 'selection:cleared']) {
+      c.on(ev, () => clearGuides(c));
+    }
     return () => { c.dispose(); fc.current = null; };
-  }, [project, markDirty, syncLayers]);
+  }, [projectId, pw, ph, markDirty, syncLayers]);
 
   // Put a page's scene on the canvas. Fonts are loaded first: a text layer
   // rendered before its face arrives measures at the fallback's metrics and
   // wraps in the wrong place.
+  // Pages are read through a ref so that loading a scene is not wired to the
+  // identity of the project object. Same reason as the canvas effect above: a
+  // re-render must never be able to reload the canvas from a stale scene.
+  const pagesRef = useRef([]);
+  useEffect(() => { pagesRef.current = project?.pages || []; }, [project]);
+
   const showPage = useCallback(async (id) => {
     const c = fc.current;
-    const page = project?.pages?.find(p => p.id === id);
+    const page = pagesRef.current.find(p => p.id === id);
     if (!c || !page) return;
     const scene = page.scene && Object.keys(page.scene).length ? page.scene : null;
     const families = [...new Set((scene?.objects || []).map(o => o.fontFamily).filter(Boolean))];
@@ -158,9 +291,11 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     pageRef.current = id;
     dirtyRef.current = false; setDirty(false);
     syncLayers();
-  }, [project, syncLayers]);
+  }, [syncLayers]);
 
-  useEffect(() => { if (pageId) showPage(pageId); }, [pageId, showPage]);
+  // Only when the page actually changes, or the canvas is rebuilt for a new
+  // project. Not on every render.
+  useEffect(() => { if (pageId && projectId) showPage(pageId); }, [pageId, projectId, showPage]);
 
   // ── saving ─────────────────────────────────────────────────────────────────
 
@@ -174,7 +309,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
       const thumbnail = c.toDataURL({ format: 'png', multiplier: 220 / Math.max(c.width, 1) });
       await api.put(`/design/pages/${id}`, { scene: c.toJSON(), thumbnail });
       dirtyRef.current = false; setDirty(false);
-      setProject(p => p && ({ ...p, pages: p.pages.map(pg => pg.id === id ? { ...pg, thumbnail } : pg) }));
+      // Held separately rather than merged into `project`: replacing that
+      // object is what used to tear the canvas down mid-edit.
+      setThumbs(t => ({ ...t, [id]: thumbnail }));
       if (!quiet) toast('Saved');
     } catch (e) { toast('Save failed: ' + e.message, 'error'); }
     finally { setSaving(false); }
@@ -192,7 +329,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     const warn = (e) => { if (dirtyRef.current) { e.preventDefault(); e.returnValue = 'You have unsaved changes.'; return e.returnValue; } return undefined; };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [project]);
+  }, [projectId]);
 
   async function goToPage(id) {
     if (id === pageId) return;
@@ -202,7 +339,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
   // ── editing ────────────────────────────────────────────────────────────────
 
-  async function addImage(url, { fill = false } = {}) {
+  async function addImage(url, { fill = false, at = null } = {}) {
     const c = fc.current;
     if (!c) return;
     try {
@@ -216,7 +353,13 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         c.sendObjectToBack(img);
       } else {
         const s = Math.min(1, (c.width * 0.4) / img.width);
-        img.set({ scaleX: s, scaleY: s, left: c.width * 0.08, top: c.height * 0.08 });
+        // Dropped images land centred under the cursor; clicked ones sit in
+        // the top-left so a run of clicks does not stack in one spot.
+        img.set({
+          scaleX: s, scaleY: s,
+          left: at ? at.x - (img.width * s) / 2 : c.width * 0.08,
+          top: at ? at.y - (img.height * s) / 2 : c.height * 0.08,
+        });
         c.add(img);
         c.setActiveObject(img);
       }
@@ -247,7 +390,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     c.add(r); c.setActiveObject(r); c.renderAll();
   }
 
-  async function uploadAsset(file) {
+  async function uploadAsset(file, place = { fill: true }) {
     if (!file) return;
     const fd = new FormData();
     fd.append('file', file);
@@ -256,8 +399,36 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     try {
       const a = await api.postForm(`/brand/clients/${clientId}/assets`, fd);
       setAssets(prev => [a, ...prev]);
-      if (a.url) addImage(a.url, { fill: true });
+      if (a.url) await addImage(a.url, place);
     } catch (e) { toast('Upload failed: ' + e.message, 'error'); }
+  }
+
+  // Drop onto the canvas: a file from the desktop, an asset dragged off the
+  // rail, or an image dragged out of another tab. The wrapper is CSS-scaled,
+  // so the drop point is converted back into page coordinates from its own
+  // measured width rather than from the `fit` used to draw it.
+  const canvasPoint = (e) => {
+    const box = dropEl.current?.getBoundingClientRect();
+    if (!box || !box.width || !pw) return null;
+    const s = box.width / pw;
+    return { x: (e.clientX - box.left) / s, y: (e.clientY - box.top) / s };
+  };
+
+  async function onDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    const at = canvasPoint(e);
+    const fromRail = e.dataTransfer.getData('text/oc-asset');
+    if (fromRail) { await addImage(fromRail, { at }); return; }
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length) {
+      // Dropped files are uploaded to this client's assets, so the image is
+      // reusable on every later post rather than living in one scene.
+      for (const f of files) await uploadAsset(f, { at });
+      return;
+    }
+    const uri = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').trim();
+    if (/^https?:\/\//.test(uri)) await addImage(uri, { at });
   }
 
   const act = (fn) => () => { const c = fc.current; const o = c?.getActiveObject(); if (c && o) { fn(c, o); c.renderAll(); markDirty(); syncLayers(); } };
@@ -412,10 +583,15 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           </div>
 
           <div className="caption" style={{ marginTop: 'var(--s4)' }}>This client’s assets</div>
-          <div className="body-sm text-subtle" style={{ marginBottom: 'var(--s2)' }}>Click to place. Shift-click fills the page.</div>
+          <div className="body-sm text-subtle" style={{ marginBottom: 'var(--s2)' }}>
+            Drag onto the page, or click to place. Shift-click fills the page.
+            Files dropped on the page are uploaded here too.
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s2)', maxHeight: 300, overflowY: 'auto' }}>
             {assets.map(a => (
-              <img key={a.id} src={a.url} alt={a.name} title={`${a.name} — shift-click to fill the page`}
+              <img key={a.id} src={a.url} alt={a.name} title={`${a.name} — drag onto the page, or shift-click to fill it`}
+                draggable
+                onDragStart={e => e.dataTransfer.setData('text/oc-asset', a.url)}
                 onClick={e => addImage(a.url, { fill: e.shiftKey })}
                 style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', cursor: 'pointer', padding: 2 }} />
             ))}
@@ -425,8 +601,16 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
         {/* middle: the canvas */}
         <div>
-          <div style={{ background: 'var(--surface-sunken)', borderRadius: 'var(--r-md)', padding: 'var(--s4)', display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: project.width * fit, height: project.height * fit, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,.18)' }}>
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            style={{
+              background: 'var(--surface-sunken)', borderRadius: 'var(--r-md)', padding: 'var(--s4)',
+              display: 'flex', justifyContent: 'center',
+              outline: dragOver ? '2px dashed var(--accent)' : 'none', outlineOffset: -4,
+            }}>
+            <div ref={dropEl} style={{ width: project.width * fit, height: project.height * fit, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,.18)' }}>
               <div style={{ transform: `scale(${fit})`, transformOrigin: 'top left' }}>
                 <canvas ref={canvasEl} />
               </div>
@@ -444,7 +628,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                     border: `var(--border-w) solid ${pg.id === pageId ? 'var(--accent)' : 'var(--card-border)'}`,
                     borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--surface)',
                   }}>
-                  {pg.thumbnail && <img src={pg.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  {(thumbs[pg.id] || pg.thumbnail) && <img src={thumbs[pg.id] || pg.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                 </div>
                 <div className="body-sm text-subtle">{i + 1}</div>
                 <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
@@ -495,7 +679,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                 <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   <select className="input" value={selected.fontFamily || 'Brockmann'}
                     onChange={async e => { await ensureFont(e.target.value); setProp('fontFamily', e.target.value); }}>
-                    {FONTS.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+                    {[...clientFonts, ...FONTS]
+                      .filter((f, i, all) => all.findIndex(g => g.name === f.name) === i)
+                      .map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
                   </select>
                   <div className="row" style={{ gap: 'var(--s2)' }}>
                     <input className="input" type="number" min="8" max="400" value={Math.round(selected.fontSize || 48)}
