@@ -83,6 +83,8 @@ jobs:
         run: node tests/recording-upload.test.js
       - name: Guard — a deploy reaches the browser, and names its build
         run: node tests/deploy-visibility.test.js
+      - name: Guard — the design studio keeps the work
+        run: node tests/design-studio.test.js
       - name: Syntax check every service and route
         run: |
           set -e

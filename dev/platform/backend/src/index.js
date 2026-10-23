@@ -216,6 +216,7 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/tender', require('./routes/tender'));
 app.use('/api/prospecting', require('./routes/prospecting'));
 app.use('/api/outreach', require('./routes/outreach'));
+app.use('/api/design', require('./routes/design'));
 app.use('/api/press', require('./routes/press'));
 app.use('/api/pr', require('./routes/pr'));
 app.use('/api/pr-portal', require('./routes/prPortal')); // public, token-gated
