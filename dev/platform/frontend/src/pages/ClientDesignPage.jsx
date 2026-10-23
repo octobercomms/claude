@@ -141,6 +141,14 @@ function bakeTextScale(c, o) {
   c.requestRenderAll();
 }
 
+// A thumbnail is fetched as an image, not carried inline in the JSON. The
+// version is the page's updated_at, so the URL changes exactly when the
+// picture does and the browser can cache each one indefinitely. A list of a
+// hundred sets was otherwise 2.6MB of base64 on every visit, none of it
+// cacheable.
+const thumbSrc = (pageId, v) =>
+  `/api/design/pages/${pageId}/thumbnail?v=${encodeURIComponent(v || '')}`;
+
 const SNAP_TOL_RATIO = 0.006;   // ~6px on a 1080 page, ~13px on A4
 
 function snapTargets(c, moving) {
@@ -742,15 +750,21 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'var(--s4)', marginTop: 'var(--s4)' }}>
             {projects.map(p => (
               <div key={p.id} className="card" style={{ padding: 'var(--s3)' }}>
+                {/* The whole card opens the set, title included: clicking the
+                    name is what everyone tries first. The two icon actions sit
+                    outside it, so they are not nested inside a button. */}
                 <div onClick={() => open(p.id)} role="button" tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter') open(p.id); }}
-                  style={{ cursor: 'pointer', aspectRatio: `${p.width}/${p.height}`, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {p.cover
-                    ? <img src={p.cover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span className="body-sm text-subtle">Empty</span>}
+                  style={{ cursor: 'pointer' }}>
+                  <div style={{ aspectRatio: `${p.width}/${p.height}`, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {p.cover_page_id
+                      ? <img src={thumbSrc(p.cover_page_id, p.cover_updated_at)} alt="" loading="lazy"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span className="body-sm text-subtle">Empty</span>}
+                  </div>
+                  <div style={{ fontWeight: 700, marginTop: 'var(--s2)' }}>{p.name}</div>
+                  <div className="body-sm text-subtle">{p.page_count} page{p.page_count === 1 ? '' : 's'} · {p.width}×{p.height}</div>
                 </div>
-                <div style={{ fontWeight: 700, marginTop: 'var(--s2)' }}>{p.name}</div>
-                <div className="body-sm text-subtle">{p.page_count} page{p.page_count === 1 ? '' : 's'} · {p.width}×{p.height}</div>
                 <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
                   <button onClick={() => duplicateProject(p)} className="btn-icon btn-icon-sm"
                     title={`Duplicate “${p.name}”`} aria-label={`Duplicate ${p.name}`}>⧉</button>
@@ -838,7 +852,12 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
           {/* pages */}
           <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            {project.pages.map((pg, i) => (
+            {project.pages.map((pg, i) => {
+              // The freshly saved one, held locally for the moment between
+              // saving and the page row being refetched; otherwise the stored
+              // one, by URL.
+              const stamp = thumbs[pg.id] || (pg.has_thumbnail ? thumbSrc(pg.id, pg.updated_at) : null);
+              return (
               <div key={pg.id} style={{ textAlign: 'center' }}>
                 <div onClick={() => goToPage(pg.id)} role="button" tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter') goToPage(pg.id); }}
@@ -847,7 +866,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                     border: `var(--border-w) solid ${pg.id === pageId ? 'var(--accent)' : 'var(--card-border)'}`,
                     borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--surface)',
                   }}>
-                  {(thumbs[pg.id] || pg.thumbnail) && <img src={thumbs[pg.id] || pg.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  {stamp && <img src={stamp} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                 </div>
                 <div className="body-sm text-subtle">{i + 1}</div>
                 <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
@@ -859,7 +878,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
             <button onClick={addPage} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s5)' }}>+ Page</button>
           </div>
         </div>

@@ -81,8 +81,27 @@ check('the scene is stored whole as JSONB',
   /scene\s+JSONB NOT NULL/.test(migration),
   'modelling Fabric layers as rows means tracking every property it knows about');
 check('thumbnails are validated and capped',
-  /MAX_THUMB_CHARS/.test(route) && /startsWith\('data:image\/'\)/.test(route),
+  /MAX_THUMB_CHARS/.test(route) && /THUMB_RE\.test\(t\)/.test(route),
   'an uncapped data URL in a column is how a row reaches megabytes and the list stops loading');
+check('and are raster types only',
+  /\^data:image\\\/\(png\|jpeg\|webp\);base64,/.test(route),
+  'the thumbnail is served back with its own Content-Type, so data:image/svg+xml would be stored XSS on the API origin');
+check('a thumbnail is served as an image, not carried in the JSON',
+  /router\.get\('\/pages\/:id\/thumbnail'/.test(route) && /thumbSrc\(/.test(page),
+  'a hundred sets with a 26KB cover each is 2.6MB per visit, none of it cacheable');
+check('with a private, immutable cache keyed to the save time',
+  /Cache-Control', 'private, max-age=31536000, immutable'/.test(route)
+  && /\?v=\$\{encodeURIComponent\(v \|\| ''\)\}/.test(page),
+  'public would let a shared cache hand one client\u2019s artwork to another');
+{
+  const listQuery = route.slice(route.indexOf('SELECT p.*'), route.indexOf('ORDER BY p.updated_at DESC'));
+  check('the project list selects no thumbnail bytes at all',
+    listQuery.length > 0 && !/thumbnail/.test(listQuery.replace(/thumbnail IS NOT NULL/g, '')),
+    'embedding one cover per set is what made a hundred sets 2.6MB; it names the page instead');
+}
+check('and no page payload carries the blob',
+  /PAGE_COLS/.test(route) && !/SELECT \* FROM design_pages/.test(route),
+  'SELECT * puts 26KB of base64 into every page row of every response');
 check('a malformed id is a 404 rather than a database error',
   /UUID_RE\.test/.test(route));
 

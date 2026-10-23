@@ -28,10 +28,21 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // needs a postage stamp, and an uncapped data URL in a JSON column is how a
 // row grows to megabytes and the project list stops loading.
 const MAX_THUMB_CHARS = 200_000;
+// Three raster types only. A thumbnail is written by the editor, but it is
+// stored verbatim and later served back with its own Content-Type, and
+//'data:image/svg+xml' would make that a stored-XSS hole on the API origin.
+const THUMB_RE = /^data:image\/(png|jpeg|webp);base64,/;
 const cleanThumb = (t) => {
-  if (typeof t !== 'string' || !t.startsWith('data:image/')) return null;
+  if (typeof t !== 'string' || !THUMB_RE.test(t)) return null;
   return t.length > MAX_THUMB_CHARS ? null : t;
 };
+
+// A page row without its thumbnail. The blob is 26KB of base64 and no screen
+// needs it inline: it is fetched as an image from the route below, so the
+// browser caches it and a list of a hundred sets stays a list, not 2.6MB of
+// JSON.
+const PAGE_COLS = `id, project_id, sort_order, scene, created_at, updated_at,
+                   (thumbnail IS NOT NULL) AS has_thumbnail`;
 
 // Every route below works on a project, so resolve it once and check the
 // caller may see its client. A project with no client is agency-level and
@@ -52,9 +63,14 @@ router.get('/clients/:clientId/projects', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT p.*,
               (SELECT COUNT(*) FROM design_pages dp WHERE dp.project_id = p.id)::int AS page_count,
-              (SELECT dp.thumbnail FROM design_pages dp
-                WHERE dp.project_id = p.id ORDER BY dp.sort_order LIMIT 1) AS cover
+              cover.id AS cover_page_id,
+              cover.updated_at AS cover_updated_at
          FROM design_projects p
+         LEFT JOIN LATERAL (
+           SELECT dp.id, dp.updated_at FROM design_pages dp
+            WHERE dp.project_id = p.id AND dp.thumbnail IS NOT NULL
+            ORDER BY dp.sort_order LIMIT 1
+         ) cover ON TRUE
         WHERE p.client_id = $1
         ORDER BY p.updated_at DESC`,
       [req.params.clientId]
@@ -85,7 +101,7 @@ router.get('/projects/:id', async (req, res) => {
   try {
     const project = await loadProject(req, req.params.id);
     const { rows } = await pool.query(
-      'SELECT * FROM design_pages WHERE project_id = $1 ORDER BY sort_order, created_at',
+      `SELECT ${PAGE_COLS} FROM design_pages WHERE project_id = $1 ORDER BY sort_order, created_at`,
       [project.id]
     );
     res.json({ ...project, pages: rows });
@@ -159,7 +175,7 @@ router.post('/projects/:id/pages', express.json(), async (req, res) => {
   try {
     const project = await loadProject(req, req.params.id);
     const { rows } = await pool.query(
-      'INSERT INTO design_pages (project_id, sort_order) VALUES ($1, $2) RETURNING *',
+      `INSERT INTO design_pages (project_id, sort_order) VALUES ($1, $2) RETURNING ${PAGE_COLS}`,
       [project.id, await nextOrder(project.id)]
     );
     res.status(201).json(rows[0]);
@@ -173,7 +189,10 @@ router.post('/pages/:id/duplicate', async (req, res) => {
   const client = await pool.connect();
   try {
     if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Page not found' });
-    const { rows: src } = await pool.query('SELECT * FROM design_pages WHERE id = $1', [req.params.id]);
+    // Named columns, not *: the thumbnail is read here only to copy it into
+    // the new row, and it must never leak into a response payload.
+    const { rows: src } = await pool.query(
+      'SELECT project_id, sort_order, scene, thumbnail FROM design_pages WHERE id = $1', [req.params.id]);
     if (!src.length) return res.status(404).json({ error: 'Page not found' });
     await loadProject(req, src[0].project_id);
 
@@ -184,7 +203,7 @@ router.post('/pages/:id/duplicate', async (req, res) => {
     );
     const { rows } = await client.query(
       `INSERT INTO design_pages (project_id, sort_order, scene, thumbnail)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
+       VALUES ($1, $2, $3, $4) RETURNING ${PAGE_COLS}`,
       [src[0].project_id, src[0].sort_order + 1, src[0].scene, src[0].thumbnail]
     );
     await client.query('COMMIT');
@@ -207,7 +226,8 @@ router.put('/pages/:id', express.json({ limit: '8mb' }), async (req, res) => {
     const scene = (req.body && typeof req.body.scene === 'object' && req.body.scene) || {};
     const thumb = cleanThumb(req.body?.thumbnail);
     const { rows } = await pool.query(
-      'UPDATE design_pages SET scene = $1, thumbnail = COALESCE($2, thumbnail) WHERE id = $3 RETURNING *',
+      `UPDATE design_pages SET scene = $1, thumbnail = COALESCE($2, thumbnail)
+        WHERE id = $3 RETURNING ${PAGE_COLS}`,
       [scene, thumb, req.params.id]
     );
     // Touch the project so the list sorts by genuine last activity.
@@ -216,6 +236,31 @@ router.put('/pages/:id', express.json({ limit: '8mb' }), async (req, res) => {
     // preview — but doing it silently let a stale card sit there for days.
     res.json({ ...rows[0], thumbnail_rejected: !!req.body?.thumbnail && !thumb });
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Serve a thumbnail as an image rather than embedding it in JSON.
+//
+// The editor asks for it with ?v=<the page's updated_at>, so a given URL's
+// bytes never change and the browser can hold it forever. Private, because it
+// is one client's artwork and no shared cache has any business with it.
+router.get('/pages/:id/thumbnail', async (req, res) => {
+  try {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).end();
+    const { rows } = await pool.query(
+      'SELECT project_id, thumbnail, updated_at FROM design_pages WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).end();
+    await loadProject(req, rows[0].project_id);   // throws 403/404 as usual
+    const m = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/i.exec(rows[0].thumbnail || '');
+    if (!m) return res.status(404).end();
+
+    const etag = `"${new Date(rows[0].updated_at).getTime()}"`;
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    res.setHeader('Content-Type', m[1]);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('ETag', etag);
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.end(Buffer.from(m[2], 'base64'));
+  } catch (err) { res.status(err.status || 500).end(); }
 });
 
 router.delete('/pages/:id', async (req, res) => {

@@ -14,7 +14,7 @@
 #     failure mode is a plausible wrong name rather than a crash
 #
 # The database-backed suites (press-segments, press-audience-routes,
-# contact-country) are not here yet: migration 001 creates schema_migrations,
+# contact-country, design-routes.db) are not here yet: migration 001 creates schema_migrations,
 # which migrations/run.js has already created, so a bootstrap from empty fails
 # and CI has no schema to run against. Worth fixing; until then those suites run
 # locally against a scratch database.
@@ -47,6 +47,16 @@ jobs:
         run: npm run lint:hooks
       - name: Build
         run: npm run build
+      # Neither of the two steps above renders anything. The Design tab shipped
+      # broken twice in one afternoon on crashes both of them compiled happily:
+      # a dependency array naming a const declared below it, and the autosave
+      # that disposed the canvas and reloaded a stale scene. This step mounts
+      # the page in Chromium, adds layers, saves, and checks the work is still
+      # on the canvas. See tests/browser/smoke.mjs.
+      - name: Chromium for the browser test
+        run: npx playwright install --with-deps chromium
+      - name: Guard — the Design page renders and keeps your work
+        run: npm run test:browser
 
   backend:
     runs-on: ubuntu-latest
