@@ -139,8 +139,8 @@ if ($membership_pitch === '') {
     <div class="oct-section oct-section--details">
       <h6 class="oct-section__title"><?php esc_html_e('Your Details', 'october-events'); ?></h6>
       <div class="oct-field-group">
-        <label for="oct-name" class="oct-label"><?php esc_html_e('Name', 'october-events'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-events'); ?></span></label>
-        <div class="oct-field-input"><input type="text" id="oct-name" name="oct_name" class="oct-input" placeholder="<?php esc_attr_e('Your full name', 'october-events'); ?>" autocomplete="name"></div>
+        <label for="oct-name" class="oct-label"><?php esc_html_e('Name', 'october-events'); ?> <span class="oct-required" aria-hidden="true">*</span></label>
+        <div class="oct-field-input"><input type="text" id="oct-name" name="oct_name" class="oct-input" required placeholder="<?php esc_attr_e('Your full name', 'october-events'); ?>" autocomplete="name"></div>
       </div>
       <div class="oct-field-group">
         <label for="oct-email" class="oct-label"><?php esc_html_e('Email', 'october-events'); ?> <span class="oct-required" aria-hidden="true">*</span></label>

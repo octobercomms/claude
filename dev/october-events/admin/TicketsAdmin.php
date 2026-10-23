@@ -1551,7 +1551,7 @@ final class TicketsAdmin {
                 }
             }
             if ($b['lead'] === '') {
-                $b['lead'] = sprintf(__('No name on file (order #%d)', 'october-events'), $b['order_id']);
+                $b['lead'] = __('No attendee name provided', 'october-events');
             }
         }
         unset($b);

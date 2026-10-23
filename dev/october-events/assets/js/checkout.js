@@ -244,11 +244,20 @@
         .appendTo($fields);
     }
     $section.show();
+    syncLeadAttendee();
   }
   function getAttendeeNames() {
     var names = [];
     $('#oct-attendee-names-fields .oct-attendee-name').each(function () { names.push($(this).val().trim()); });
     return names;
+  }
+  /* Mirror the buyer's name into the first attendee field by default. It stays
+     editable (they may be buying for someone else), so once that field has been
+     hand-edited we never overwrite it. */
+  function syncLeadAttendee() {
+    var $first = $('#oct-attendee-names-fields .oct-attendee-name').first();
+    if (!$first.length || $first.data('touched')) { return; }
+    $first.val($('#oct-name').val().trim());
   }
 
   /* ---- T&Cs ---- */
@@ -374,8 +383,13 @@
   function bindAbandonCapture() {
     state.abandonKey = newSessionKey();
     $('#oct-email, #oct-name').on('input', function () { scheduleAbandon('details'); });
+    // Keep the first attendee field mirroring the buyer's name until it's edited.
+    $('#oct-name').on('input', syncLeadAttendee);
     // Attendee-name inputs are injected dynamically — capture via delegation.
-    $(document).on('input', '.oct-attendee-name', function () { scheduleAbandon('details'); });
+    $(document).on('input', '.oct-attendee-name', function () {
+      if ($(this).is($('#oct-attendee-names-fields .oct-attendee-name').first())) { $(this).data('touched', true); }
+      scheduleAbandon('details');
+    });
     // Save on exit and when the tab is hidden (mobile: pagehide is the reliable one).
     $(window).on('pagehide', beaconAbandon);
     document.addEventListener('visibilitychange', function () {
@@ -460,6 +474,7 @@
     if (state.processing) { return; }
     var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
     if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); $('#oct-free-errors').text('Please enter a valid email address.').show(); return; }
+    if (!name) { $('#oct-name').addClass('error').focus(); $('#oct-free-errors').text('Please enter your name.').show(); return; }
     if (!readCart().length) { $('#oct-free-errors').text('Please choose at least one ticket.').show(); return; }
     if (!checkTerms()) { return; }
     $('#oct-free-errors').hide(); setProcessing(true, '#oct-register-free');
@@ -495,6 +510,7 @@
     if (state.processing) { return; }
     var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
     if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); showCardError('Please enter a valid email address.'); return; }
+    if (!name) { $('#oct-name').addClass('error').focus(); showCardError('Please enter your name.'); return; }
     if (!readCart().length) { showCardError('Please choose at least one ticket.'); return; }
     if (!checkTerms()) { showCardError('Please agree to the Terms & Conditions.'); return; }
     // Free ticket + membership: the $5 membership is the only charge — take the
@@ -563,6 +579,7 @@
     var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
     $err.hide().text('');
     if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); fail('Please enter a valid email address.'); return; }
+    if (!name) { $('#oct-name').addClass('error').focus(); fail('Please enter your name.'); return; }
     if (!readCart().length) { fail('Please choose at least one ticket.'); return; }
     if (!checkTerms()) { fail('Please agree to the Terms & Conditions.'); return; }
     if (joiningEffective()) { fail('Pay-over-time isn’t available with the membership rate — choose the standard ticket, or pay by card.'); return; }
@@ -650,7 +667,9 @@
     join_init_failed: 'We couldn’t start the membership signup. Please try again, or use a different card.',
     membership_incomplete: 'Your membership payment didn’t complete. Please try again.',
     order_context_lost: 'Your membership was set up but we lost the registration details — please contact us before trying again.',
-    already_member: 'You’re already a member — just complete your free registration below.'
+    already_member: 'You’re already a member — just complete your free registration below.',
+    name_required: 'Please enter your name.',
+    email_required: 'Please enter a valid email address.'
   };
   // The server may send a friendly `message`, a known error code, or (for priced
   // errors) an already-human sentence — prefer them in that order.
@@ -670,6 +689,7 @@
   function validateForPayment(showErr) {
     var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
     if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); showErr('Please enter a valid email address.'); return null; }
+    if (!name) { $('#oct-name').addClass('error').focus(); showErr('Please enter your name.'); return null; }
     if (!readCart().length) { showErr('Please choose at least one ticket.'); return null; }
     if (!checkTerms()) { showErr('Please agree to the Terms & Conditions.'); return null; }
     return { email: email, name: name };

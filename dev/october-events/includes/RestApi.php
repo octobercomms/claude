@@ -794,6 +794,9 @@ final class RestApi {
 
         $cart  = array_map(static fn($l) => ['type' => $l['type'], 'qty' => $l['qty']], $priced['lines']);
         $buyer = ['email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name'))];
+        if ($buyer['name'] === '') {
+            return new \WP_REST_Response(['error' => 'name_required'], 400);
+        }
 
         $cents = (int) round($priced['total'] * 100);
         if ($cents < 50) {
@@ -888,6 +891,9 @@ final class RestApi {
         }
 
         $buyer     = ['email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name'))];
+        if ($buyer['name'] === '') {
+            return new \WP_REST_Response(['error' => 'name_required'], 400);
+        }
         $attendees = $this->attendee_names_param($req);
         $att_json  = wp_json_encode($attendees) ?: '[]';
         while (strlen($att_json) > 480 && $attendees) { array_pop($attendees); $att_json = wp_json_encode($attendees) ?: '[]'; }
