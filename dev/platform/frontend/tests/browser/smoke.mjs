@@ -49,8 +49,12 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 const PROJECT = '22222222-2222-4222-8222-222222222222';
 const PAGE = '33333333-3333-4333-8333-333333333333';
+const PAGE2 = '44444444-4444-4444-8444-444444444444';
+const PROJECT2 = '55555555-5555-4555-8555-555555555555';
 
 let saves = 0;
+let reorder = null;   // the ids the strip asked the server to store
+let movedTo = null;   // { page, project } from a move
 
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
@@ -77,15 +81,30 @@ await page.route('**/api/**', async (route) => {
   if (p === '/api/auth/me') return json({ id: 'u1', name: 'Test', role: 'admin' });
   if (p.endsWith('/assets')) return json([]);
   if (p === `/api/design/clients/${CLIENT}/projects`) {
-    return json({ items: [{ id: PROJECT, name: 'Tours Social Posts', width: 1080, height: 1350,
-      page_count: 1, cover_page_id: null, cover_updated_at: null, updated_at: '2026-10-23T12:00:00Z' }] });
+    return json({ items: [
+      { id: PROJECT, name: 'Tours Social Posts', width: 1080, height: 1350,
+        page_count: 2, cover_page_id: null, cover_updated_at: null, updated_at: '2026-10-23T12:00:00Z' },
+      // same size, so the strip may offer it as somewhere to move a page
+      { id: PROJECT2, name: 'ADF 2026', width: 1080, height: 1350,
+        page_count: 1, cover_page_id: null, cover_updated_at: null, updated_at: '2026-10-23T11:00:00Z' },
+    ] });
   }
   if (p === `/api/design/projects/${PROJECT}`) {
     return json({ id: PROJECT, client_id: CLIENT, name: 'Tours Social Posts', width: 1080, height: 1350,
-      pages: [{ id: PAGE, project_id: PROJECT, sort_order: 0, scene: {}, has_thumbnail: false,
-        updated_at: '2026-10-23T12:00:00Z' }] });
+      pages: [
+        { id: PAGE, project_id: PROJECT, sort_order: 0, scene: {}, has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
+        { id: PAGE2, project_id: PROJECT, sort_order: 1, scene: {}, has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
+      ] });
   }
-  if (p === `/api/design/pages/${PAGE}` && route.request().method() === 'PUT') {
+  if (p === `/api/design/projects/${PROJECT}/page-order` && route.request().method() === 'PUT') {
+    reorder = JSON.parse(route.request().postData() || '{}').ids;
+    return json({ ok: true });
+  }
+  if (/\/api\/design\/pages\/[^/]+\/project$/.test(p) && route.request().method() === 'PUT') {
+    movedTo = { page: p.split('/')[4], project: JSON.parse(route.request().postData() || '{}').project_id };
+    return json({ ok: true });
+  }
+  if (/^\/api\/design\/pages\/[^/]+$/.test(p) && route.request().method() === 'PUT') {
     saves += 1;
     return json({ id: PAGE, has_thumbnail: true, thumbnail_rejected: false,
       updated_at: new Date().toISOString() });
@@ -152,6 +171,28 @@ try {
     'a dispose replaces the container, so the marker goes with it');
 
   // 5. Nothing threw along the way.
+  // --- the page strip: reorder by dragging, and move to another set -------
+  const thumbs = page.locator('[title^="Page "]');
+  check('every page is in the strip', (await thumbs.count()) === 2,
+    `${await thumbs.count()} thumbnails`);
+
+  await thumbs.nth(1).dragTo(thumbs.nth(0));
+  await page.waitForTimeout(400);
+  check('dragging a page reorders the set',
+    Array.isArray(reorder) && reorder.length === 2 && reorder[0] === PAGE2,
+    `server was sent: ${JSON.stringify(reorder)}`);
+
+  await page.getByRole('button', { name: /Move page .* to another set/ }).first().click();
+  await page.waitForTimeout(200);
+  const target = page.getByText('ADF 2026', { exact: true });
+  check('the move menu offers the other set of the same size',
+    await target.isVisible().catch(() => false));
+  await target.click();
+  await page.waitForTimeout(400);
+  check('and moving sends the page to it',
+    movedTo && movedTo.project === PROJECT2,
+    JSON.stringify(movedTo));
+
   check('nothing threw', problems.length === 0, problems.join('\n  '));
 } catch (e) {
   fail += 1;

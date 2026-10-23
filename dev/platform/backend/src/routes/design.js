@@ -277,6 +277,58 @@ router.delete('/pages/:id', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// Move a page into another set.
+//
+// Two refusals, both structural rather than fussy. A page's scene is drawn at
+// its set's size, so moving it into a set of different dimensions would put
+// the artwork somewhere other than where it was made. And a set must keep at
+// least one page, the same rule delete follows, or the editor opens onto
+// nothing.
+router.put('/pages/:id/project', express.json(), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Page not found' });
+    const { rows: src } = await pool.query(
+      'SELECT project_id FROM design_pages WHERE id = $1', [req.params.id]);
+    if (!src.length) return res.status(404).json({ error: 'Page not found' });
+
+    const from = await loadProject(req, src[0].project_id);
+    const to = await loadProject(req, req.body?.project_id);
+    if (from.id === to.id) return res.json({ ok: true, project_id: to.id });
+    // A scene points at brand assets served under its own client's path, so a
+    // page moved to another client's set would render as broken images for
+    // anyone who can only see that client.
+    if (from.client_id !== to.client_id) {
+      return res.status(400).json({ error: 'A page can only move between sets for the same client.' });
+    }
+    if (from.width !== to.width || from.height !== to.height) {
+      return res.status(400).json({
+        error: `“${to.name}” is ${to.width}×${to.height} and this page is ${from.width}×${from.height}.`,
+      });
+    }
+    const { rows: count } = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM design_pages WHERE project_id = $1', [from.id]);
+    if (count[0].n <= 1) {
+      return res.status(400).json({ error: 'A set needs at least one page, so its last one cannot be moved out.' });
+    }
+
+    await client.query('BEGIN');
+    const { rows: next } = await client.query(
+      'SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM design_pages WHERE project_id = $1', [to.id]);
+    await client.query(
+      'UPDATE design_pages SET project_id = $1, sort_order = $2 WHERE id = $3',
+      [to.id, next[0].n, req.params.id]);
+    // Both sets changed, so both should sort to the top of the list as
+    // genuinely-just-worked-on.
+    await client.query('UPDATE design_projects SET updated_at = NOW() WHERE id = ANY($1)', [[from.id, to.id]]);
+    await client.query('COMMIT');
+    res.json({ ok: true, project_id: to.id });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(err.status || 500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
 // Reorder by sending the page ids in their new order.
 router.put('/projects/:id/page-order', express.json(), async (req, res) => {
   const client = await pool.connect();
