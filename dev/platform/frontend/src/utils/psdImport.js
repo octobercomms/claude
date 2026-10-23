@@ -17,7 +17,12 @@
 //     imports as the full rectangle it was cut out of. The mask is baked into
 //     the layer's alpha here instead.
 //
-//  4. The reported font size cannot be trusted. Across two files it was right
+//  4. A background's colour is not in its pixels. Express writes the layer
+//     white and puts the colour in a Color Overlay effect, so reading pixels
+//     alone imports a white background and the colour appears to vanish. One
+//     of October's files: white pixels, solidFill rgb(209,73,0).
+//
+//  5. The reported font size cannot be trusted. Across two files it was right
 //     in one and 33% too large in the other (86.67 reported where the ink
 //     bounds imply ~62), and in a third it came back null. The recorded bounds
 //     were right in all of them, so type is fitted to its box and the reported
@@ -106,6 +111,32 @@ function maskToAlpha(maskCanvas) {
   return out;
 }
 
+// A Color Overlay, if one is switched on.
+//
+// This is what Adobe Express writes when a background is given a colour: the
+// layer's own pixels stay white and the colour lives in the effect. An
+// importer that reads pixels alone brings in a white background and the
+// colour looks like it never came through. Found by reading one of October's
+// own files: white pixels, solidFill rgb(209,73,0).
+//
+// Only `normal` is applied. Another blend mode depends on what is underneath,
+// which a per-layer import does not have, and a wrong guess is worse than the
+// note saying it was left out.
+export function colourOverlay(effects) {
+  const list = effects && effects.solidFill;
+  const fx = Array.isArray(list) ? list.find(f => f && f.enabled !== false && f.color) : null;
+  if (!fx) return null;
+  const mode = fx.blendMode || 'normal';
+  if (mode !== 'normal') return null;
+  const o = fx.opacity;
+  const opacity = typeof o === 'number' ? (o > 1 ? o / 100 : o) : 1;
+  const c = fx.color;
+  return {
+    colour: `rgb(${Math.round(c.r)}, ${Math.round(c.g)}, ${Math.round(c.b)})`,
+    opacity: Math.max(0, Math.min(1, opacity)),
+  };
+}
+
 // Draw one layer's pixels, with its mask applied, at its own size.
 function layerCanvas(layer) {
   if (!layer.canvas) return null;
@@ -130,6 +161,19 @@ function layerCanvas(layer) {
     fctx.drawImage(alpha, (m.left || 0) - (layer.left || 0), (m.top || 0) - (layer.top || 0));
     ctx.globalCompositeOperation = 'destination-in';
     ctx.drawImage(field, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // Painted after the mask, over the pixels that survived it. source-atop
+  // keeps the layer's own alpha, so a cut-out shape stays cut out rather than
+  // becoming a filled rectangle.
+  const overlay = colourOverlay(layer.effects);
+  if (overlay) {
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.globalAlpha = overlay.opacity;
+    ctx.fillStyle = overlay.colour;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
   return out;
@@ -260,7 +304,11 @@ export async function parsePsd(file, { flattenGroups = true } = {}) {
       if (c) {
         await addImage(layer.name, c, layer.left, layer.top, layer.opacity);
         if (layer.mask) notes.push(`${layer.name || 'A layer'}: mask baked into the image`);
-        if (layer.effects) notes.push(`${layer.name || 'A layer'}: layer effects are flattened`);
+        if (layer.effects) {
+          notes.push(colourOverlay(layer.effects)
+            ? `${layer.name || 'A layer'}: colour overlay applied, other effects flattened`
+            : `${layer.name || 'A layer'}: layer effects are flattened`);
+        }
       }
     }
   };

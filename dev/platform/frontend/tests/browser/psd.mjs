@@ -79,8 +79,23 @@ try {
       maskSample = { kept: px(10, 10), cut: px(bmp.width - 10, 10) };
     }
 
+    // What colour a layer actually imported as, read from its own pixels.
+    const pixel = async (name) => {
+      const l = parsed.layers.find(x => x.name === name);
+      if (!l || !l.blob) return null;
+      const bmp = await createImageBitmap(l.blob);
+      const c = document.createElement('canvas');
+      c.width = bmp.width; c.height = bmp.height;
+      c.getContext('2d').drawImage(bmp, 0, 0);
+      const d = c.getContext('2d').getImageData(2, 2, 1, 1).data;
+      return [d[0], d[1], d[2], d[3]].join(',');
+    };
+
     return {
       size: { w: parsed.width, h: parsed.height },
+      overlayOn: await pixel('Layer 0'),
+      overlayOff: await pixel('Overlay off'),
+      maskedOverlay: await pixel('Raster 4'),
       names: parsed.layers.map(l => `${l.kind}:${l.name}`),
       logo: parsed.layers.find(l => l.name === 'Group'),
       scrim: parsed.layers.find(l => l.name === 'Rectangle'),
@@ -117,6 +132,21 @@ try {
   check('a layer mask is baked into the image',
     r.maskSample && r.maskSample.kept > 200 && r.maskSample.cut === 0,
     r.maskSample && `kept alpha ${r.maskSample.kept}, cut alpha ${r.maskSample.cut}`);
+
+  // --- the colour that is not in the pixels --------------------------------
+  // Adobe Express writes a background white and puts its colour in a Color
+  // Overlay. Reading pixels alone imports a white page and the brand colour
+  // looks like it never came through.
+  check('a colour overlay is applied to the layer it is on',
+    r.overlayOn === '209,73,0,255',
+    `imported rgba(${r.overlayOn}), expected the overlay's 209,73,0`);
+  check('and a switched-off one is ignored',
+    r.overlayOff === '90,120,70,255',
+    `imported rgba(${r.overlayOff}); a disabled effect must not repaint anything`);
+  check('a cut-out stays cut out under an overlay',
+    r.maskSample && r.maskSample.cut === 0 && r.maskedOverlay === '0,90,180,255',
+    `cut alpha ${r.maskSample && r.maskSample.cut}, kept pixel rgba(${r.maskedOverlay}); `
+    + 'the overlay must repaint the colour without filling the cut-away half');
 
   check('opacity is kept', r.scrim && Math.abs(r.scrim.opacity - 0.35) < 0.01,
     r.scrim && String(r.scrim.opacity));
