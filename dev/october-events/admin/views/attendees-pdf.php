@@ -3,7 +3,7 @@
  * Printable attendee sheet — a standalone, branded HTML page the browser saves
  * as PDF (matches the ticket/door print pattern; no server-side PDF library).
  *
- * @var array<int,object> $rows        attendee rows
+ * @var array<int,array{lead:string,event_id:int,tickets:array<int,array{guest:string,num:string,type:string,event_id:int}>}> $blocks  one block per order
  * @var string            $brand       brand name
  * @var string            $accent      accent hex (brand color)
  * @var string            $ink         accent-on hex (text/foreground on the accent)
@@ -11,7 +11,6 @@
  * @var string            $title       event title (or "All events")
  * @var string            $generated   human date/time generated
  * @var int               $total       total attendees
- * @var int               $checked_in  checked-in count
  */
 defined('ABSPATH') || exit;
 ?><!doctype html>
@@ -34,12 +33,10 @@ defined('ABSPATH') || exit;
     table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
     thead th { text-align: left; border-bottom: 2px solid #1a1a1a; padding: 8px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
     tbody td { padding: 8px 6px; border-bottom: 1px solid #e2e2e2; vertical-align: top; }
-    tbody tr:nth-child(even) { background: #faf9f6; }
-    .tick { width: 34px; text-align: center; }
-    .box { display: inline-block; width: 15px; height: 15px; border: 1.5px solid #888; border-radius: 3px; }
-    .in { color: #2e7d32; font-weight: 700; }
-    .no { color: #999; }
+    tbody tr.block-start td { border-top: 2px solid #d4d2cc; }
+    .lead { font-weight: 700; }
     .num { white-space: nowrap; color: #666; }
+    .type { color: #333; }
     .toolbar { max-width: 900px; margin: 0 auto 18px; }
     .toolbar button { font-size: 14px; font-weight: 700; padding: 10px 20px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-on); cursor: pointer; }
     .empty { padding: 40px; text-align: center; color: #999; }
@@ -48,7 +45,6 @@ defined('ABSPATH') || exit;
         .noprint { display: none !important; }
         thead { display: table-header-group; }
         tbody tr { page-break-inside: avoid; }
-        tbody tr:nth-child(even) { background: #f2f2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
     @page { margin: 14mm; }
 </style>
@@ -67,7 +63,6 @@ defined('ABSPATH') || exit;
     </div>
     <div class="meta">
         <span><strong><?php echo (int) $total; ?></strong> <?php esc_html_e('attendees', 'october-events'); ?></span>
-        <span><strong><?php echo (int) $checked_in; ?></strong> <?php esc_html_e('checked in', 'october-events'); ?></span>
         <span><?php echo esc_html(sprintf(__('Generated %s', 'october-events'), $generated)); ?></span>
     </div>
 
@@ -77,27 +72,37 @@ defined('ABSPATH') || exit;
         <table>
             <thead>
                 <tr>
-                    <th class="tick"><?php esc_html_e('In', 'october-events'); ?></th>
                     <th><?php esc_html_e('Attendee', 'october-events'); ?></th>
-                    <th><?php esc_html_e('Ticket type', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Guests', 'october-events'); ?></th>
                     <th><?php esc_html_e('Ticket', 'october-events'); ?></th>
                     <?php if (! $event) : ?><th><?php esc_html_e('Event', 'october-events'); ?></th><?php endif; ?>
-                    <th><?php esc_html_e('Buyer', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Ticket type', 'october-events'); ?></th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($rows as $r) :
-                    $name = (string) $r->attendee_name !== '' ? (string) $r->attendee_name : (string) $r->buyer;
-                    $done = (int) $r->scans > 0;
-                    ?>
-                    <tr>
-                        <td class="tick"><?php echo $done ? '<span class="in">✓</span>' : '<span class="box"></span>'; ?></td>
-                        <td><?php echo esc_html($name); ?></td>
-                        <td><?php echo esc_html((string) $r->ticket_type_label); ?></td>
-                        <td class="num"><?php echo esc_html($r->ticket_number . '/' . $r->total_in_order); ?></td>
-                        <?php if (! $event) : ?><td><?php echo esc_html(get_the_title((int) $r->event_id) ?: ('#' . (int) $r->event_id)); ?></td><?php endif; ?>
-                        <td><?php echo esc_html((string) $r->buyer); ?></td>
-                    </tr>
+                <?php foreach ($blocks as $b) :
+                    $lead  = (string) $b['lead'];
+                    $span  = max(1, count($b['tickets']));
+                    $first = true;
+                    foreach ($b['tickets'] as $t) :
+                        $guest = (string) $t['guest'];
+                        // The Attendee column already carries the lead, so don't
+                        // echo it again as its own guest row; show only the other
+                        // names that share the order.
+                        $guest = ($guest !== '' && $guest !== $lead) ? $guest : '';
+                        ?>
+                        <tr class="<?php echo $first ? 'block-start' : ''; ?>">
+                            <?php if ($first) : ?>
+                                <td class="lead" rowspan="<?php echo (int) $span; ?>"><?php echo esc_html($lead); ?></td>
+                            <?php endif; ?>
+                            <td><?php echo esc_html($guest); ?></td>
+                            <td class="num"><?php echo esc_html((string) $t['num']); ?></td>
+                            <?php if (! $event) : ?>
+                                <?php if ($first) : ?><td rowspan="<?php echo (int) $span; ?>"><?php echo esc_html(get_the_title((int) $b['event_id']) ?: ('#' . (int) $b['event_id'])); ?></td><?php endif; ?>
+                            <?php endif; ?>
+                            <td class="type"><?php echo esc_html((string) $t['type']); ?></td>
+                        </tr>
+                    <?php $first = false; endforeach; ?>
                 <?php endforeach; ?>
             </tbody>
         </table>

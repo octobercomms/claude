@@ -155,9 +155,9 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                     data-type="<?php echo esc_attr(strtolower($a->type)); ?>"
                     data-price="<?php echo esc_attr((string) $a->price); ?>"
                     data-search="<?php echo esc_attr($search); ?>">
-                    <td><strong><?php echo esc_html($a->attendee ?: '—'); ?></strong>
+                    <td><strong><?php echo esc_html(\OE\Util\Names::tc((string) $a->attendee) ?: '—'); ?></strong>
                         <?php if ($a->email !== '') : ?><br><span class="description" style="font-size:12px"><?php echo esc_html($a->email); ?></span><?php endif; ?>
-                        <?php if ($a->buyer !== '' && $a->buyer !== $a->attendee) : ?><br><span class="description" style="font-size:11px"><?php echo esc_html(sprintf(__('bought by %s', 'october-events'), $a->buyer)); ?></span><?php endif; ?></td>
+                        <?php if ($a->buyer !== '' && $a->buyer !== $a->attendee) : ?><br><span class="description" style="font-size:11px"><?php echo esc_html(sprintf(__('bought by %s', 'october-events'), \OE\Util\Names::tc((string) $a->buyer))); ?></span><?php endif; ?></td>
                     <td><?php echo esc_html($a->type ?: '—'); ?></td>
                     <td style="text-align:right"><?php echo $a->price > 0 ? esc_html($cur_sym . number_format_i18n($a->price, 2)) : '<span class="description">' . esc_html__('Free', 'october-events') . '</span>'; ?></td>
                     <td>
@@ -294,7 +294,7 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                     $srch = strtolower(trim((string) $o->name . ' ' . (string) $o->email . ' ' . $ev_t));
                 ?>
                     <tr class="oe-tix-click" data-oe-detail="order" data-id="<?php echo (int) $o->order_id; ?>" data-event="<?php echo (int) $o->event_id; ?>" data-search="<?php echo esc_attr($srch); ?>">
-                        <td><strong><?php echo esc_html((string) $o->name ?: '—'); ?></strong>
+                        <td><strong><?php echo esc_html(\OE\Util\Names::tc((string) $o->name) ?: '—'); ?></strong>
                             <?php if ((string) $o->email !== '') : ?><br><span class="description"><?php echo esc_html((string) $o->email); ?></span><?php endif; ?>
                         </td>
                         <td><?php echo esc_html($ev_t); ?></td>
@@ -333,7 +333,7 @@ $oe_rev_display = $oe_sym !== '' ? $oe_sym . number_format($oe_rev) : number_for
                     $undo = wp_nonce_url(admin_url('admin-post.php?action=oe_checkin_undo&ticket_id=' . (int) $c->ticket_id . '&event_id=' . (int) $c->event_id . '&venue=' . rawurlencode($venue)), 'oe_checkin_undo');
                 ?>
                     <tr class="oe-tix-click" data-oe-detail="attendee" data-id="<?php echo (int) $c->ticket_id; ?>" data-event="<?php echo (int) $c->event_id; ?>" data-search="<?php echo esc_attr($srch); ?>">
-                        <td><strong><?php echo esc_html((string) $c->attendee_name ?: '—'); ?></strong>
+                        <td><strong><?php echo esc_html(\OE\Util\Names::tc((string) $c->attendee_name) ?: '—'); ?></strong>
                             <?php if ((string) $c->ticket_type_label !== '') : ?><br><span class="description"><?php echo esc_html((string) $c->ticket_type_label); ?></span><?php endif; ?>
                         </td>
                         <td><?php echo esc_html($ev_t); ?></td>

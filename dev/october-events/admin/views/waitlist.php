@@ -47,7 +47,7 @@ defined('ABSPATH') || exit;
             $notified = $w->status === 'notified'; ?>
             <tr>
                 <?php if (! $event_filter) : ?><td><?php echo esc_html(get_the_title((int) $w->event_id) ?: ('#' . (int) $w->event_id)); ?></td><?php endif; ?>
-                <td><?php echo esc_html((string) ($w->name ?? '') ?: '—'); ?></td>
+                <td><?php echo esc_html(\OE\Util\Names::tc((string) ($w->name ?? '')) ?: '—'); ?></td>
                 <td><?php echo esc_html((string) $w->email); ?></td>
                 <td><?php echo esc_html((string) ($w->ticket_type_label ?? '') ?: '—'); ?></td>
                 <td><span class="oe-status oe-status-<?php echo $notified ? 'approved' : 'pending'; ?>"><?php echo $notified ? esc_html__('Notified', 'october-events') : esc_html__('Waiting', 'october-events'); ?></span></td>
