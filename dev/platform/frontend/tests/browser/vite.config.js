@@ -7,5 +7,14 @@ import path from 'path';
 export default defineConfig({
   root: __dirname,
   plugins: [react()],
-  build: { outDir: path.join(__dirname, 'dist'), emptyOutDir: true },
+  build: {
+    outDir: path.join(__dirname, 'dist'),
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        design: path.join(__dirname, 'index.html'),
+        psd: path.join(__dirname, 'psd.html'),
+      },
+    },
+  },
 });
