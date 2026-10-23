@@ -331,27 +331,22 @@ fails the moment you ask it something. Tools present, answers absent.
 
 ### Option A: start it at login (recommended)
 
-```bash
-cat > ~/Library/LaunchAgents/com.thunderbird-cli.bridge.plist <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.thunderbird-cli.bridge</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/bin/bash</string>
-    <string>-lc</string>
-    <string>exec tb-bridge</string>
-  </array>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><false/>
-  <key>StandardOutPath</key><string>/tmp/tb-bridge.log</string>
-  <key>StandardErrorPath</key><string>/tmp/tb-bridge.err</string>
-</dict>
-</plist>
-PLIST
+Write the startup file. Python builds the plist, so it is valid by
+construction and the command survives pasting as one line:
 
+```bash
+python3 -c "import os,plistlib; p=os.path.expanduser('~/Library/LaunchAgents/com.thunderbird-cli.bridge.plist'); os.makedirs(os.path.dirname(p),exist_ok=True); plistlib.dump({'Label':'com.thunderbird-cli.bridge','ProgramArguments':['/bin/bash','-lc','exec tb-bridge'],'RunAtLoad':True,'KeepAlive':False,'StandardOutPath':'/tmp/tb-bridge.log','StandardErrorPath':'/tmp/tb-bridge.err'},open(p,'wb')); print('written:',p)"
+```
+
+Stop any bridge already running, or the next step hits "port in use":
+
+```bash
+pkill -f tb-bridge
+```
+
+Hand it to macOS:
+
+```bash
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.thunderbird-cli.bridge.plist
 ```
 
@@ -360,6 +355,23 @@ token. No second copy of the credential.
 
 `KeepAlive` is false on purpose: the bridge starts at login, and stopping it by
 hand keeps it stopped until you next log in. You keep an off switch.
+
+**Expect one transient failure.** Right after the swap, `tb health` returns
+`EXTENSION_DISCONNECTED`. The add-on held a WebSocket to the bridge you killed
+and needs to find the new one. It reconnects within a few seconds on its own;
+run `tb health` again. If it stays disconnected, restart Thunderbird. This
+happens only when replacing a running bridge. On a normal login both start
+fresh and find each other.
+
+**Then re-run the Step 7 check**, because the startup path has changed from
+your shell to launchd and the token has to survive that:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7700/health
+```
+
+`401` means the token loaded through `bash -lc`. `200` means launchd started
+the bridge with no auth, which is worth knowing immediately.
 
 To undo:
 
