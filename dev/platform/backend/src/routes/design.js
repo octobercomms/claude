@@ -1,8 +1,15 @@
 // Design studio — layered social posts made in OMI.
 //
-// A project is a set of posts at one size; a page is one post; a scene is the
-// Fabric.js canvas JSON for that page. See migration 208 for why the scene is
-// stored whole rather than modelled as layer rows.
+// A project is a set of posts; a page is one post; a scene is the Fabric.js
+// canvas JSON for that page. See migration 208 for why the scene is stored
+// whole rather than modelled as layer rows.
+//
+// A page carries its own size, which may differ from its set's. The set's
+// width and height are the size a new page is made at and what "resize this
+// set" sets; a page's own are NULL until it is given one. Migration 209 has
+// the reasoning, which is that a campaign arrives as posts and stories
+// together and splitting them into two sets is the same split with a label
+// on it.
 //
 // There is deliberately no template system. The way this work is actually done
 // is: build the first post, duplicate it, swap the photo and the headline. So
@@ -41,8 +48,19 @@ const cleanThumb = (t) => {
 // needs it inline: it is fetched as an image from the route below, so the
 // browser caches it and a list of a hundred sets stays a list, not 2.6MB of
 // JSON.
-const PAGE_COLS = `id, project_id, sort_order, scene, created_at, updated_at,
-                   (thumbnail IS NOT NULL) AS has_thumbnail`;
+// `width`/`height` are nullable on a page and mean "the size of the set", so
+// every read resolves them against it. Callers get one effective size and
+// never have to know which of the two rows it came from.
+const PAGE_COLS = `dp.id, dp.project_id, dp.sort_order, dp.scene, dp.created_at, dp.updated_at,
+                   COALESCE(dp.width, p.width)   AS width,
+                   COALESCE(dp.height, p.height) AS height,
+                   (dp.thumbnail IS NOT NULL) AS has_thumbnail`;
+const PAGE_FROM = 'design_pages dp JOIN design_projects p ON p.id = dp.project_id';
+
+const sane = (v, fallback) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? Math.min(8000, Math.max(50, n)) : fallback;
+};
 
 // Every route below works on a project, so resolve it once and check the
 // caller may see its client. A project with no client is agency-level and
@@ -101,7 +119,8 @@ router.get('/projects/:id', async (req, res) => {
   try {
     const project = await loadProject(req, req.params.id);
     const { rows } = await pool.query(
-      `SELECT ${PAGE_COLS} FROM design_pages WHERE project_id = $1 ORDER BY sort_order, created_at`,
+      `SELECT ${PAGE_COLS} FROM ${PAGE_FROM}
+        WHERE dp.project_id = $1 ORDER BY dp.sort_order, dp.created_at`,
       [project.id]
     );
     res.json({ ...project, pages: rows });
@@ -121,6 +140,14 @@ router.patch('/projects/:id', express.json(), async (req, res) => {
       'UPDATE design_projects SET name = $1, width = $2, height = $3 WHERE id = $4 RETURNING *',
       [name, width, height, project.id]
     );
+    // Resizing a set means every page in it, including the ones that had been
+    // given a size of their own. Leaving those behind would make "resize this
+    // set" quietly mean "resize some of this set", and the editor rescales
+    // every scene on the same action.
+    if (width !== project.width || height !== project.height) {
+      await pool.query('UPDATE design_pages SET width = NULL, height = NULL WHERE project_id = $1',
+        [project.id]);
+    }
     res.json(rows[0]);
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
@@ -149,8 +176,9 @@ router.post('/projects/:id/duplicate', express.json(), async (req, res) => {
     // pages would otherwise be forty round trips, and a partial copy is worse
     // than no copy.
     await client.query(
-      `INSERT INTO design_pages (project_id, sort_order, scene, thumbnail)
-       SELECT $1, sort_order, scene, thumbnail FROM design_pages WHERE project_id = $2`,
+      `INSERT INTO design_pages (project_id, sort_order, scene, thumbnail, width, height)
+       SELECT $1, sort_order, scene, thumbnail, width, height
+         FROM design_pages WHERE project_id = $2`,
       [rows[0].id, project.id]
     );
     await client.query('COMMIT');
@@ -171,14 +199,45 @@ const nextOrder = async (projectId) => {
   return rows[0].n;
 };
 
+// A new page is the set's size unless asked for another, which is what lets a
+// story sit beside the post it was cut from.
 router.post('/projects/:id/pages', express.json(), async (req, res) => {
   try {
     const project = await loadProject(req, req.params.id);
-    const { rows } = await pool.query(
-      `INSERT INTO design_pages (project_id, sort_order) VALUES ($1, $2) RETURNING ${PAGE_COLS}`,
-      [project.id, await nextOrder(project.id)]
+    const asked = req.body?.width !== undefined || req.body?.height !== undefined;
+    const width = asked ? sane(req.body?.width, project.width) : null;
+    const height = asked ? sane(req.body?.height, project.height) : null;
+    const { rows: made } = await pool.query(
+      `INSERT INTO design_pages (project_id, sort_order, width, height)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [project.id, await nextOrder(project.id), width, height]
     );
+    const { rows } = await pool.query(
+      `SELECT ${PAGE_COLS} FROM ${PAGE_FROM} WHERE dp.id = $1`, [made[0].id]);
     res.status(201).json(rows[0]);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Resize one page.
+//
+// The scene is NOT rescaled here. The editor rescales what is on the canvas
+// and saves it in the same breath, because only it knows how a text layer's
+// size and box have to move together; doing half of it in SQL would leave the
+// artwork at one size and the page at another.
+router.put('/pages/:id/size', express.json(), async (req, res) => {
+  try {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Page not found' });
+    const { rows: src } = await pool.query(
+      'SELECT project_id FROM design_pages WHERE id = $1', [req.params.id]);
+    if (!src.length) return res.status(404).json({ error: 'Page not found' });
+    const project = await loadProject(req, src[0].project_id);
+    const width = sane(req.body?.width, project.width);
+    const height = sane(req.body?.height, project.height);
+    await pool.query('UPDATE design_pages SET width = $1, height = $2 WHERE id = $3',
+      [width, height, req.params.id]);
+    const { rows } = await pool.query(
+      `SELECT ${PAGE_COLS} FROM ${PAGE_FROM} WHERE dp.id = $1`, [req.params.id]);
+    res.json(rows[0]);
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
@@ -192,7 +251,8 @@ router.post('/pages/:id/duplicate', async (req, res) => {
     // Named columns, not *: the thumbnail is read here only to copy it into
     // the new row, and it must never leak into a response payload.
     const { rows: src } = await pool.query(
-      'SELECT project_id, sort_order, scene, thumbnail FROM design_pages WHERE id = $1', [req.params.id]);
+      'SELECT project_id, sort_order, scene, thumbnail, width, height FROM design_pages WHERE id = $1',
+      [req.params.id]);
     if (!src.length) return res.status(404).json({ error: 'Page not found' });
     await loadProject(req, src[0].project_id);
 
@@ -201,12 +261,15 @@ router.post('/pages/:id/duplicate', async (req, res) => {
       'UPDATE design_pages SET sort_order = sort_order + 1 WHERE project_id = $1 AND sort_order > $2',
       [src[0].project_id, src[0].sort_order]
     );
-    const { rows } = await client.query(
-      `INSERT INTO design_pages (project_id, sort_order, scene, thumbnail)
-       VALUES ($1, $2, $3, $4) RETURNING ${PAGE_COLS}`,
-      [src[0].project_id, src[0].sort_order + 1, src[0].scene, src[0].thumbnail]
+    const { rows: made } = await client.query(
+      `INSERT INTO design_pages (project_id, sort_order, scene, thumbnail, width, height)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [src[0].project_id, src[0].sort_order + 1, src[0].scene, src[0].thumbnail,
+        src[0].width, src[0].height]
     );
     await client.query('COMMIT');
+    const { rows } = await pool.query(
+      `SELECT ${PAGE_COLS} FROM ${PAGE_FROM} WHERE dp.id = $1`, [made[0].id]);
     res.status(201).json(rows[0]);
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -225,11 +288,12 @@ router.put('/pages/:id', express.json({ limit: '8mb' }), async (req, res) => {
 
     const scene = (req.body && typeof req.body.scene === 'object' && req.body.scene) || {};
     const thumb = cleanThumb(req.body?.thumbnail);
-    const { rows } = await pool.query(
-      `UPDATE design_pages SET scene = $1, thumbnail = COALESCE($2, thumbnail)
-        WHERE id = $3 RETURNING ${PAGE_COLS}`,
+    await pool.query(
+      `UPDATE design_pages SET scene = $1, thumbnail = COALESCE($2, thumbnail) WHERE id = $3`,
       [scene, thumb, req.params.id]
     );
+    const { rows } = await pool.query(
+      `SELECT ${PAGE_COLS} FROM ${PAGE_FROM} WHERE dp.id = $1`, [req.params.id]);
     // Touch the project so the list sorts by genuine last activity.
     await pool.query('UPDATE design_projects SET updated_at = NOW() WHERE id = $1', [src[0].project_id]);
     // Keeping the old thumbnail is right — a save must never fail over a
@@ -279,11 +343,13 @@ router.delete('/pages/:id', async (req, res) => {
 
 // Move a page into another set.
 //
-// Two refusals, both structural rather than fussy. A page's scene is drawn at
-// its set's size, so moving it into a set of different dimensions would put
-// the artwork somewhere other than where it was made. And a set must keep at
-// least one page, the same rule delete follows, or the editor opens onto
-// nothing.
+// A page carries its own size, so there is no longer anything to check about
+// the set it is going to: it arrives the size it already was and the strip
+// draws it at that size. What remains is the rule delete follows, that a set
+// must keep at least one page or the editor opens onto nothing.
+//
+// A page that was the size of its old set has to be given that size on the
+// way out, or it would silently take on the new set's instead.
 router.put('/pages/:id/project', express.json(), async (req, res) => {
   const client = await pool.connect();
   try {
@@ -301,11 +367,6 @@ router.put('/pages/:id/project', express.json(), async (req, res) => {
     if (from.client_id !== to.client_id) {
       return res.status(400).json({ error: 'A page can only move between sets for the same client.' });
     }
-    if (from.width !== to.width || from.height !== to.height) {
-      return res.status(400).json({
-        error: `“${to.name}” is ${to.width}×${to.height} and this page is ${from.width}×${from.height}.`,
-      });
-    }
     const { rows: count } = await pool.query(
       'SELECT COUNT(*)::int AS n FROM design_pages WHERE project_id = $1', [from.id]);
     if (count[0].n <= 1) {
@@ -316,8 +377,11 @@ router.put('/pages/:id/project', express.json(), async (req, res) => {
     const { rows: next } = await client.query(
       'SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM design_pages WHERE project_id = $1', [to.id]);
     await client.query(
-      'UPDATE design_pages SET project_id = $1, sort_order = $2 WHERE id = $3',
-      [to.id, next[0].n, req.params.id]);
+      `UPDATE design_pages
+          SET project_id = $1, sort_order = $2,
+              width = COALESCE(width, $4), height = COALESCE(height, $5)
+        WHERE id = $3`,
+      [to.id, next[0].n, req.params.id, from.width, from.height]);
     // Both sets changed, so both should sort to the top of the list as
     // genuinely-just-worked-on.
     await client.query('UPDATE design_projects SET updated_at = NOW() WHERE id = ANY($1)', [[from.id, to.id]]);

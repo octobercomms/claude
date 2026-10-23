@@ -122,8 +122,12 @@ await page.route('**/api/**', async (route) => {
   if (p === `/api/design/projects/${PROJECT}` && route.request().method() === 'GET') {
     return json({ id: PROJECT, client_id: CLIENT, name: 'Tours Social Posts', width: 1080, height: 1350,
       pages: [
-        { id: PAGE, project_id: PROJECT, sort_order: 0, scene: {}, has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
-        { id: PAGE2, project_id: PROJECT, sort_order: 1, scene: {}, has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
+        // Two sizes in one set, which is the point of per-page sizes: the
+        // post and the story cut from it.
+        { id: PAGE, project_id: PROJECT, sort_order: 0, scene: {}, width: 1080, height: 1350,
+          has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
+        { id: PAGE2, project_id: PROJECT, sort_order: 1, scene: {}, width: 1080, height: 1920,
+          has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
       ] });
   }
   if (p === `/api/design/projects/${PROJECT}` && route.request().method() === 'PATCH') {
@@ -386,10 +390,32 @@ try {
   check('and the layer images reached the brand library', assetsPosted > 0,
     `${assetsPosted} uploads`);
 
+  // --- a page's own size ----------------------------------------------------
+  // A set holds pages of different sizes, so the canvas belongs to the page
+  // rather than the set. Switching pages has to resize it, and resize it in
+  // place: rebuilding the canvas is the regression that threw away work.
+  const canvasSize = () => page.evaluate(() => {
+    const c = document.querySelector('canvas');
+    return `${c.width}x${c.height}`;
+  });
+  check('the canvas is the size of the page on screen', (await canvasSize()) === '1080x1350',
+    await canvasSize());
+  await page.evaluate(() => document.querySelector('.canvas-container')?.setAttribute('data-size', '1'));
+  await page.locator('[title^="Page 2"]').click();
+  await page.waitForTimeout(900);
+  check('and it changes when a page of another size is opened',
+    (await canvasSize()) === '1080x1920', await canvasSize());
+  check('without the canvas being torn down and rebuilt',
+    await page.evaluate(() => !!document.querySelector('.canvas-container[data-size]')),
+    'a dispose replaces the container, and takes any unsaved work with it');
+  await page.locator('[title^="Page 1"]').click();
+  await page.waitForTimeout(900);
+  check('and back again', (await canvasSize()) === '1080x1350', await canvasSize());
+
   // --- a batch of mixed sizes on the set list ------------------------------
-  // Six files of two sizes is what a real campaign looks like. No set can take
-  // them as they stand, and the screen has to say why beside the control that
-  // is off, then give a way out that is not unticking files by hand.
+  // Six files of two sizes is what a real campaign looks like: the post and
+  // the story cut from it. They belong in one set, and each page keeps the
+  // size of the file it came from.
   await page.getByRole('button', { name: '← All sets' }).click();
   await page.waitForTimeout(600);
   await page.locator('input[type=file][accept=".psd"]')
@@ -397,28 +423,44 @@ try {
   await page.waitForTimeout(4000);
 
   const intoRadio = page.getByRole('radio', { name: 'Add to a set I already have' });
-  check('mixed sizes cannot go into one existing set',
-    await intoRadio.isDisabled(),
-    'a set has one size; this is a real limit, not a preference');
-  check('and the screen says why, beside the control that is off',
-    await page.getByText('one size at a time').isVisible().catch(() => false),
-    'a greyed-out option with no reason reads as broken');
-
-  const only = page.getByRole('button', { name: /^Only 1080×1350/ });
-  check('with one click to keep just one size',
-    await only.isVisible().catch(() => false),
-    'unticking the odd ones out by hand is the part nobody should do across forty files');
-  await only.click();
-  await page.waitForTimeout(400);
-  check('and then an existing set will take them',
+  check('a mixed batch can still go into an existing set',
     !(await intoRadio.isDisabled()),
-    'the destination should open up once the batch agrees on a size');
+    'a page carries its own size, so there is nothing for the files to match');
+  check('and the screen says what will happen to the sizes',
+    await page.getByText(/Each page keeps the size of the file/).isVisible().catch(() => false));
+
+  const asOne = page.getByRole('radio', { name: 'One set, a page per file' });
+  check('two sizes can be one set',
+    !(await asOne.isDisabled()),
+    'splitting a campaign by size is the split this change exists to remove');
+
+  const sizedPages = [];
+  await page.route('**/api/design/projects/*/pages', async (route) => {
+    if (route.request().method() === 'POST') {
+      const body = JSON.parse(route.request().postData() || '{}');
+      sizedPages.push(`${body.width}x${body.height}`);
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ id: `mixed-${sizedPages.length}`, width: body.width, height: body.height }) });
+    }
+    return route.fallback();
+  });
+  await intoRadio.click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /^Add 2 pages to / }).click();
+  await page.waitForTimeout(6000);
+  check('and each page is made at the size of its own file',
+    sizedPages.includes('1080x1350') && sizedPages.includes('1080x1920'),
+    `pages asked for: ${JSON.stringify(sizedPages)}`);
 
   // --- a new set is given its size when it is made -------------------------
   // The size reaches every page built on the set, and changing it later
   // rescales all of them, so asking at creation is the cheap moment.
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForTimeout(300);
+  // The import above closed the review panel itself; dismiss it only if
+  // something left it open.
+  if (await page.getByRole('button', { name: 'Cancel' }).isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.waitForTimeout(300);
+  }
   await page.getByRole('button', { name: '+ New set' }).click();
   await page.waitForTimeout(300);
   await page.getByRole('textbox', { name: 'Name this set' }).fill('Stories');

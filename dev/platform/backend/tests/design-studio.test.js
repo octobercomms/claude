@@ -69,7 +69,7 @@ check('the copy lands next to its source, not at the end',
   /sort_order = sort_order \+ 1 WHERE project_id = \$1 AND sort_order > \$2/.test(route),
   'appending to the end loses the order the work was done in');
 check('a whole project duplicates in one statement',
-  /INSERT INTO design_pages[\s\S]{0,120}SELECT \$1, sort_order, scene, thumbnail FROM design_pages/.test(route),
+  /INSERT INTO design_pages[\s\S]{0,200}SELECT \$1, sort_order, scene, thumbnail, width, height/.test(route),
   'a read-then-write loop over twenty pages is forty round trips and can half-finish');
 check('both copies are transactional',
   (route.match(/ROLLBACK/g) || []).length >= 3,
@@ -153,8 +153,10 @@ const canvasDeps = depsAfter('new Canvas(');
 check('the canvas is not rebuilt when the project object is replaced',
   canvasDeps !== null && !/\bproject\b/.test(canvasDeps),
   `the canvas effect depends on: ${canvasDeps} — a state object's identity there disposes the canvas mid-edit`);
-check('and it is rebuilt when the size genuinely changes',
-  /\bpw\b/.test(canvasDeps || '') && /\bph\b/.test(canvasDeps || ''));
+check('and it is resized rather than rebuilt when the page size changes',
+  !/\bpw\b/.test(canvasDeps || '')
+  && /c\.setDimensions\(\{ width: page\.width, height: page\.height \}\)/.test(page),
+  'disposing the canvas mid-edit is the regression that cost an afternoon; a page is now resized in place');
 
 const showPageDeps = depsAfter('const showPage = useCallback');
 check('loading a scene is not wired to the project object either',
@@ -420,17 +422,18 @@ check('and a failure puts it back',
   /catch \(e\) \{\n\s*toast\(e\.message, 'error'\);\n\s*await refreshProject\(\);/.test(page));
 
 check('a page moves to another set', /router\.put\('\/pages\/:id\/project'/.test(route));
-check('but not into one of a different size',
-  /from\.width !== to\.width \|\| from\.height !== to\.height/.test(route),
-  "a scene is drawn at its set's size, so it would land somewhere other than where it was made");
+check('a set of another size takes it, keeping the page\u2019s own',
+  !/from\.width !== to\.width/.test(route)
+  && /width = COALESCE\(width, \$4\), height = COALESCE\(height, \$5\)/.test(route),
+  'a page that had no size of its own would otherwise take on the new set\u2019s');
 check('nor into another client\u2019s',
   /from\.client_id !== to\.client_id/.test(route),
   "its images are brand assets served under its own client's path, so they would 403 for that client");
 check('and a set keeps its last page',
   /A set needs at least one page/.test(route));
-check('only the sets that will accept the page are offered',
-  /p2\.width === project\?\.width && p2\.height === project\?\.height/.test(page),
-  'offering a move the server will refuse is an error message where a disabled option belongs');
+check('every other set of this client is offered',
+  /\(projects \|\| \[\]\)\.filter\(p2 => p2\.id !== project\?\.id\)/.test(page),
+  'a page carries its own size, so there is nothing left for the destination to be wrong about');
 
 // --- bringing a Photoshop file in --------------------------------------------
 //
@@ -471,13 +474,13 @@ check('nothing is written until the files have been looked at',
   && !/runImport\(\)/.test(page.slice(page.indexOf('async function readPsds('), page.indexOf('async function runImport('))),
   'an import that silently creates twenty wrong sets is worse than one that creates none');
 check('a campaign can come in as one set with a page per file',
-  /const oneSet = !into && psdOneSet && chosen\.length > 1 && sameSize;/.test(page)
+  /const oneSet = !into && psdOneSet && chosen\.length > 1;/.test(page)
   && /api\.post\(`\/design\/projects\/\$\{project\.id\}\/pages`/.test(page),
   'forty posts from one campaign as forty separate sets is not how the work is organised');
-check('and only when every file is the same size',
-  /const sameSize = new Set\(chosen\.map[\s\S]{0,80}\)\.size === 1;/.test(page)
-  && /psdOneSet && chosen\.length > 1 && sameSize/.test(page),
-  'a set has one width and height; checked where the import runs, not only where the radio was set');
+check('whatever sizes the files are',
+  !/sameSize/.test(page)
+  && /\{ width: row\.parsed\.width, height: row\.parsed\.height \}/.test(page),
+  'the post and the story cut from it belong in one set, each page its own size');
 check('pages are ordered by number rather than by string',
   /numeric: true/.test(page) && /byName\.compare\(a\.file\.name, b\.file\.name\)/.test(page),
   'a plain sort puts -44 before -6');
@@ -541,12 +544,12 @@ check('and a single page exports in every format the set does',
 check('a PSD import can go into an existing set',
   /Add to a set I already have/.test(page) && /const \[psdInto, setPsdInto\]/.test(page),
   'otherwise every import makes new sets and the campaign is split across them');
-check('and only sets of the files\' own size are offered',
-  /\(projects \|\| \[\]\)\.filter\(p2 => `\$\{p2\.width\}×\$\{p2\.height\}` === \[\.\.\.sizes\]\[0\]\)/.test(page),
-  'a set has one size, so offering the rest is offering an error');
-check('the size is checked again before anything is written',
-  /chosen\[0\]\.parsed\.width === into\.width && chosen\[0\]\.parsed\.height === into\.height/.test(page),
-  'the ticks can change after the destination was chosen');
+check('and the files\' sizes do not narrow the choice',
+  !/\[\.\.\.sizes\]\[0\]/.test(page),
+  'a page carries its own size, so any set can take any file');
+check('a page made for a file is made at that file\u2019s size',
+  /projects\/\$\{into\.id\}\/pages`,\s*\n\s*\{ width: row\.parsed\.width, height: row\.parsed\.height \}/.test(page),
+  'otherwise it takes the set\u2019s size and the artwork lands somewhere else on it');
 check('each file becomes a new page rather than overwriting one',
   /if \(into\) \{[\s\S]{0,160}projects\/\$\{into\.id\}\/pages/.test(page),
   'the blank first page only exists in a set this import just made');
@@ -595,16 +598,29 @@ check('and a size that is not on the list can be typed',
   (page.match(/value="custom"/g) || []).length === 2,
   'on both the new-set form and the resize dropdown');
 check('resizing to the size it already is does nothing',
-  /if \(w === project\.width && h === project\.height\) return;/.test(page),
-  'a no-op rescale of every page in the set is not a no-op');
+  /if \(w === pw && h === ph\) return;/.test(page),
+  'a no-op rescale of the page is not a no-op');
+check('the size control acts on the page, not the set',
+  /aria-label="Resize this page"/.test(page) && /resizePage\(w, h\)/.test(page),
+  'a set holds pages of different sizes, so resizing one of them is the everyday action');
+check('and resizing the whole set is still reachable',
+  /Every page · the size of this one/.test(page) && /resizeProject\(w, h\)/.test(page));
+check('a new page is the size of the one you are on',
+  /const body = size \|\| \{ width: pw, height: ph \};/.test(page),
+  'nearly always what is wanted, and the dropdown beside it covers the rest');
+check('each page in a set exports at its own size',
+  /width: pages\[i\]\.width \|\| p2\.width/.test(page),
+  'rendering a story at the set\u2019s size letterboxes it in the file that goes out');
+check('and the strip draws each page in its own shape',
+  /aspectRatio: `\$\{pg\.width \|\| project\.width\}\/\$\{pg\.height \|\| project\.height\}`/.test(page));
 
 // --- a batch of mixed sizes --------------------------------------------------
-check('a mixed batch says why an existing set cannot take it',
-  /one size at a time/.test(page),
-  'a greyed-out option with no reason beside it reads as broken');
-check('and one click keeps a single size',
-  /Only \{sz\} \(\{ok\.filter/.test(page),
-  'unticking the odd ones out by hand is the part nobody should do across forty files');
+check('a mixed batch is no longer a problem to explain',
+  /Each page keeps the size of the file it/.test(page)
+  && !/one size at a time/.test(page),
+  'what used to be a refusal is now just what happens');
+check('and every set is offered as a destination',
+  /const fits = ok\.length \? \(projects \|\| \[\]\) : \[\];/.test(page));
 
 // --- zoom --------------------------------------------------------------------
 check('the canvas is drawn at the zoom, not the fit',
