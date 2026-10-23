@@ -19,6 +19,7 @@
 import { chromium } from 'playwright';
 import http from 'node:http';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,6 +30,11 @@ if (!fs.existsSync(path.join(dist, 'index.html'))) {
   console.error('No build to test. Run: npx vite build --config tests/browser/vite.config.js');
   process.exit(1);
 }
+
+// The same PSD the import tests use. Importing into an open set is the one
+// part of the import that only exists in the editor, so it is exercised here
+// rather than in the parser's own suite.
+execFileSync(process.execPath, [path.join(here, 'psd-fixture.mjs'), path.join(dist, 'fixture.psd')]);
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.json': 'application/json' };
@@ -56,6 +62,9 @@ let saves = 0;
 let renamed = null;   // the name a rename sent
 let reorder = null;   // the ids the strip asked the server to store
 let movedTo = null;   // { page, project } from a move
+let pagesAdded = [];  // project ids a new page was created in
+let scenesPut = 0;    // pages written with a scene
+let assetsPosted = 0; // layer images uploaded to the brand library
 
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
@@ -80,6 +89,16 @@ await page.route('**/api/**', async (route) => {
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
   if (p === '/api/auth/me') return json({ id: 'u1', name: 'Test', role: 'admin' });
+  if (p.endsWith('/assets') && route.request().method() === 'POST') {
+    assetsPosted += 1;
+    return json({ id: `a${assetsPosted}`, kind: 'product_image', name: 'Layer',
+      url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      metadata: {} });
+  }
+  if (/^\/api\/design\/projects\/[^/]+\/pages$/.test(p) && route.request().method() === 'POST') {
+    pagesAdded.push(p.split('/')[4]);
+    return json({ id: `new-page-${pagesAdded.length}`, project_id: p.split('/')[4], sort_order: 9 });
+  }
   if (p.endsWith('/assets')) {
     // A palette from the Brand tab, which is where the swatches come from.
     return json([{ id: 'pal1', kind: 'palette', name: 'Brand', url: null,
@@ -115,6 +134,7 @@ await page.route('**/api/**', async (route) => {
   }
   if (/^\/api\/design\/pages\/[^/]+$/.test(p) && route.request().method() === 'PUT') {
     saves += 1;
+    if ((JSON.parse(route.request().postData() || '{}').scene || {}).objects) scenesPut += 1;
     return json({ id: PAGE, has_thumbnail: true, thumbnail_rejected: false,
       updated_at: new Date().toISOString() });
   }
@@ -287,6 +307,35 @@ try {
   check('and moving sends the page to it',
     movedTo && movedTo.project === PROJECT2,
     JSON.stringify(movedTo));
+
+  // --- importing a PSD into the set that is open --------------------------
+  // The destination is the part worth testing: the files have to become pages
+  // of this set rather than a set of their own, and they have to be new pages
+  // rather than written over the ones already there.
+  const was = { pages: pagesAdded.length, scenes: scenesPut };
+  await page.locator('input[type=file][accept=".psd"]')
+    .setInputFiles(path.join(dist, 'fixture.psd'));
+  await page.waitForTimeout(3000);
+  check('the editor reviews a PSD before writing anything',
+    await page.getByText(/file read/).isVisible().catch(() => false),
+    'the review step is what stops forty wrong pages appearing unasked');
+  check('and nothing was written yet', pagesAdded.length === was.pages);
+
+  const addBtn = page.getByRole('button', { name: /^Add 1 page to / });
+  check('the open set is the default destination',
+    await addBtn.isVisible().catch(() => false),
+    'reading files with a set open nearly always means pages for that set');
+
+  await addBtn.click();
+  await page.waitForTimeout(4000);
+  check('the pages go into the open set', pagesAdded.slice(was.pages).every(id => id === PROJECT)
+    && pagesAdded.length === was.pages + 1,
+    `pages created in: ${JSON.stringify(pagesAdded)}`);
+  check('as new pages, not over the ones already there',
+    scenesPut > was.scenes,
+    `${scenesPut} scenes written, was ${was.scenes}`);
+  check('and the layer images reached the brand library', assetsPosted > 0,
+    `${assetsPosted} uploads`);
 
   check('nothing threw', problems.length === 0, problems.join('\n  '));
 } catch (e) {
