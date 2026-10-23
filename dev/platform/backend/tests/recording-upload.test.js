@@ -185,5 +185,49 @@ check('it refuses an empty title',
   /if \(!title\) return res\.status\(400\)/.test(route),
   'blanking a title loses the only handle on the video');
 
+// --- the recording cannot be lost ------------------------------------------
+// The upload fixes above stop a save failing. These stop a recording being
+// destroyed when something else goes wrong, which is what actually happened on
+// 21 Oct: the upload was refused, the page later released the blob, and the
+// only copy in existence went with it.
+
+check('a copy is written to disk the moment recording stops',
+  /rec\.onstop[\s\S]{0,600}keepLocalCopy[\s\S]{0,200}saveBlobToDisk/.test(page),
+  'disk first, before a byte is sent: a file on disk cannot be taken away by a server limit, a cache or a page reset');
+// Source order would prove nothing about execution order (and the first
+// attempt at this matched `saveClients` instead of `save`). The property that
+// matters is that the disk copy does not live inside the upload path, so no
+// upload failure can skip it.
+const saveBody = (() => {
+  const at = page.indexOf('async function save() {');
+  if (at < 0) return null;
+  const end = page.indexOf('\n  }', at);
+  return end < 0 ? null : page.slice(at, end);
+})();
+check('the save function was found', !!saveBody);
+check('the disk copy does not depend on the upload succeeding',
+  !!saveBody && !/saveBlobToDisk/.test(saveBody) && /postFormProgress/.test(saveBody),
+  'a disk write reached only after a successful upload would not have helped on 21 Oct');
+check('that preference defaults to on, including when storage is unreadable',
+  /localStorage\.getItem\('omi\.recorder\.keepLocal'\) !== '0'/.test(page)
+    && /catch \{ return true;/.test(page),
+  'a private window or blocked storage must fail safe, not silently off');
+check('the operator is told a copy exists, and where',
+  /Saved to your Downloads as/.test(pageRaw));
+
+check('leaving with an unsaved recording is challenged',
+  /addEventListener\('beforeunload'/.test(page) && /returnValue/.test(page),
+  'a reload took 30 minutes of filming with it and said nothing');
+check('the guard is only armed while there is something to lose',
+  /phase === 'preview' \|\| phase === 'saving'\) && !!blobRef\.current/.test(page),
+  'warning on every navigation trains the operator to click through it');
+
+check('the create step checks what came back before using it',
+  /typeof created\.upload\.path !== 'string'/.test(page),
+  'reading .path off undefined gives a TypeError naming neither the call nor the response');
+check('and its message says the recording is safe',
+  /Your recording is safe/.test(pageRaw),
+  'the one thing the operator needs to know at that moment');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

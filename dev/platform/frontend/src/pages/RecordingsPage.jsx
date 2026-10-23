@@ -68,6 +68,23 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   // motionless "Uploading…" for minutes with no way to tell progress from a
   // stall.
   const [uploadPct, setUploadPct] = useState(null);
+  // Keep a copy on disk the moment recording stops, before anything is sent.
+  //
+  // On 21 Oct 2026 a 30-minute walkthrough was destroyed: the upload was
+  // refused by a limit nobody set, the page later let go of the blob, and the
+  // only copy in existence was in that tab's memory. A file on disk cannot be
+  // taken away by a server limit, a cache, or a page reset, so this defaults
+  // on. Per-browser preference, so it is localStorage rather than a setting.
+  const [keepLocalCopy, setKeepLocalCopy] = useState(() => {
+    try { return localStorage.getItem('omi.recorder.keepLocal') !== '0'; }
+    catch { return true; }  // private window, blocked storage: fail safe, not off
+  });
+  useEffect(() => {
+    try { localStorage.setItem('omi.recorder.keepLocal', keepLocalCopy ? '1' : '0'); }
+    catch { /* nothing to do; the default is on either way */ }
+  }, [keepLocalCopy]);
+  // Set once a copy has actually been written, so the UI can say so.
+  const [localCopyName, setLocalCopyName] = useState(null);
   const fileImportRef = useRef(null);
 
   const recorderRef = useRef(null);
@@ -243,6 +260,14 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
         setPreviewUrl(URL.createObjectURL(blob));
         setPhase('preview');
         stopAllTracks();
+        // Disk first, before a single byte is sent anywhere. This runs inside
+        // the click that stopped the recording, so the browser treats it as
+        // user-initiated. If it is blocked anyway the Download button below is
+        // still there, and the leave-guard still fires.
+        if (keepLocalCopy) {
+          try { setLocalCopyName(saveBlobToDisk(blob, autoFilename())); }
+          catch { /* the button and the guard remain */ }
+        }
       };
       recorderRef.current = rec;
       rec.start();
@@ -279,9 +304,27 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
   }
 
+  // Don't let a reload or a closed tab take an unsaved recording silently.
+  // This is what was missing on 21 Oct: the page went back to idle, the blob
+  // was released, and 30 minutes of filming went with it. The browser shows
+  // its own standard wording; the text below is required but not displayed by
+  // modern browsers.
+  useEffect(() => {
+    const atRisk = (phase === 'preview' || phase === 'saving') && !!blobRef.current;
+    if (!atRisk) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = 'Your recording has not been saved yet.';
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [phase]);
+
   function discard() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null); blobRef.current = null; setTitle(''); setSaveError(null); setPhase('idle');
+    setPreviewUrl(null); blobRef.current = null; setTitle(''); setSaveError(null);
+    setLocalCopyName(null); setPhase('idle');
   }
 
   async function save() {
@@ -290,6 +333,17 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     setPhase('saving');
     try {
       const created = await api.post('/recordings', { title: title.trim() || 'Untitled recording', mime: 'video/webm', client_id: clientId || undefined });
+      // Check the shape before using it. On 21 Oct this step produced
+      // "Cannot read properties of undefined (reading 'path')" — a TypeError
+      // that named neither the call nor what came back, and cost four rounds
+      // of guessing. The endpoint returns { id, upload: { mode, path },
+      // share_path }; anything else is reported with what actually arrived.
+      if (!created || typeof created !== 'object' || !created.id || !created.upload || typeof created.upload.path !== 'string') {
+        const got = created && typeof created === 'object'
+          ? `keys: ${Object.keys(created).join(', ') || '(none)'}`
+          : `a ${created === null ? 'null' : typeof created}`;
+        throw new Error(`The server did not return somewhere to upload to (${got}). Your recording is safe — press Download to keep it.`);
+      }
       // Remember the row so a failed upload can take it back out. The row is
       // created before the bytes are sent, so without this every failed attempt
       // leaves a permanent entry in the library that says "uploading", plays
@@ -327,21 +381,37 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     }
   }
 
-  // Hand the recording to the operator as a file. Works whatever the upload
-  // did, because it reads the blob already in the page.
-  function downloadLocal() {
-    if (!blobRef.current) return;
-    const url = URL.createObjectURL(blobRef.current);
+  // Write a blob to the operator's disk. Works whatever the upload did,
+  // because it reads what is already in the page.
+  function saveBlobToDisk(blob, filename) {
+    if (!blob) return null;
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const base = (title.trim() || 'recording').replace(/[^\w .-]+/g, '-').slice(0, 80);
-    a.download = `${base}.webm`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
     // Give the download a moment to start before dropping the URL; revoking
     // immediately cancels it in Chrome.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return filename;
+  }
+
+  // A filename for a recording that has no title yet — at stop time the
+  // operator has not typed one.
+  function autoFilename() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `october-recording-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+      + `-${p(d.getHours())}${p(d.getMinutes())}.webm`;
+  }
+
+  // The Download button: named from the title once there is one.
+  function downloadLocal() {
+    if (!blobRef.current) return;
+    const base = (title.trim() || 'recording').replace(/[^\w .-]+/g, '-').slice(0, 80);
+    setLocalCopyName(saveBlobToDisk(blobRef.current, `${base}.webm`));
   }
 
   async function transcribeOne(rec) {
@@ -527,6 +597,11 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                 <input type="checkbox" checked={withMic} onChange={e => setWithMic(e.target.checked)} />
                 Record my microphone (narration)
               </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}
+                title="The file lands in your Downloads the moment you press stop, before anything is uploaded. Nothing that goes wrong afterwards can lose it.">
+                <input type="checkbox" checked={keepLocalCopy} onChange={e => setKeepLocalCopy(e.target.checked)} />
+                Keep a copy on my computer
+              </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s4)' }}>
                 <input type="checkbox" checked={withCam} onChange={e => setWithCam(e.target.checked)} />
                 Show my camera (a bubble in the corner)
@@ -576,6 +651,15 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                     {saveError} It is still held on this page, so you can try Save again, or press Download
                     to keep the file. Do not close this tab until you have one or the other.
                   </div>
+                </div>
+              )}
+              {localCopyName && (
+                <div className="body-sm" style={{
+                  marginTop: 'var(--s3)', padding: 'var(--s2) var(--s3)',
+                  background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)',
+                  color: 'var(--positive)', fontWeight: 600,
+                }}>
+                  ✓ Saved to your Downloads as {localCopyName}. Whatever happens next, this recording is safe.
                 </div>
               )}
               <div style={{ marginTop: 'var(--s3)' }}>
