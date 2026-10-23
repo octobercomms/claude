@@ -1522,7 +1522,7 @@ final class TicketsAdmin {
             $oid = (int) $r->order_id;
             if (! isset($blocks[$oid])) {
                 $lead = $pick((string) $r->buyer, $card_name((string) $r->payment_id));
-                $blocks[$oid] = ['lead' => $lead, 'event_id' => (int) $r->event_id, 'tickets' => []];
+                $blocks[$oid] = ['lead' => $lead, 'order_id' => $oid, 'event_id' => (int) $r->event_id, 'tickets' => []];
             }
             $guest = $pick((string) $r->attendee_name, (string) $r->buyer, $card_name((string) $r->payment_id));
             $blocks[$oid]['tickets'][] = [
@@ -1534,17 +1534,37 @@ final class TicketsAdmin {
         }
         $blocks = array_values($blocks);
 
+        // When neither a buyer nor a card name was captured (free/comped tiers
+        // have no card payment to read a name from), promote the first named
+        // ticket holder to lead the block, so a guest-only group still has a
+        // head and sorts by a real name. An order with no name anywhere gets a
+        // traceable placeholder rather than a silent gap on a security list.
+        foreach ($blocks as &$b) {
+            $b['named'] = $b['lead'] !== '';
+            if (! $b['named']) {
+                foreach ($b['tickets'] as $t) {
+                    if ($t['guest'] !== '') {
+                        $b['lead']  = $t['guest'];
+                        $b['named'] = true;
+                        break;
+                    }
+                }
+            }
+            if ($b['lead'] === '') {
+                $b['lead'] = sprintf(__('No name on file (order #%d)', 'october-events'), $b['order_id']);
+            }
+        }
+        unset($b);
+
         // A door list is for finding a name, so order it alphabetically by the
         // lead (keeping each party's block intact). In the all-events view the
-        // event stays the primary grouping; nameless blocks sink to the bottom.
+        // event stays the primary grouping; the still-unnamed blocks sink last.
         usort($blocks, static function (array $a, array $b): int {
             if ($a['event_id'] !== $b['event_id']) {
                 return $a['event_id'] <=> $b['event_id'];
             }
-            $a_blank = $a['lead'] === '' ? 1 : 0;
-            $b_blank = $b['lead'] === '' ? 1 : 0;
-            if ($a_blank !== $b_blank) {
-                return $a_blank <=> $b_blank;
+            if ($a['named'] !== $b['named']) {
+                return $a['named'] ? -1 : 1;
             }
             return strnatcasecmp($a['lead'], $b['lead']);
         });
