@@ -12,6 +12,7 @@ use OE\Ticketing\Orders;
 use OE\Ticketing\TicketTypes;
 use OE\Ticketing\Ics;
 use OE\Planning\Events;
+use OE\Util\Names;
 
 $event_id = (int) $ticket->event_id;
 $event    = get_the_title($event_id) ?: (string) ($ticket->event_label ?? '');
@@ -19,7 +20,7 @@ $logo     = TicketTypes::logo_url($event_id);
 $sched    = $event_id ? Ics::day_schedule($event_id) : [];
 $when     = $sched ? '' : ($event_id ? Ics::when_label($event_id) : '');
 $type     = (string) $ticket->ticket_type_label;
-$name     = (string) $ticket->attendee_name;
+$name     = Names::tc((string) $ticket->attendee_name);
 $num      = str_pad((string) (int) $ticket->ticket_number, 2, '0', STR_PAD_LEFT);
 $of       = (int) ($ticket->total_in_order ?? 1);
 $checked  = isset($ticket->id) && (int) $ticket->id > 0 ? Orders::checked_in((int) $ticket->id) : false;

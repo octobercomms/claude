@@ -15,7 +15,7 @@
 defined('ABSPATH') || exit;
 
 $cur_sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
-$name    = (string) ($t->attendee_name ?: ($order->name ?? '')) ?: __('Attendee', 'october-events');
+$name    = \OE\Util\Names::tc((string) ($t->attendee_name ?: ($order->name ?? ''))) ?: __('Attendee', 'october-events');
 $email   = (string) ($t->attendee_email ?: ($order->email ?? ''));
 $checked = ! empty($scans);
 $oid     = (int) $t->order_id;

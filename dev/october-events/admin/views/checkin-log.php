@@ -345,14 +345,14 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
             $last  = get_date_from_gmt((string) $r->last_at, 'M j, Y g:i a'); ?>
             <tr>
                 <?php if (! $event_filter) : ?><td><?php echo esc_html(get_the_title((int) $r->event_id) ?: ('#' . (int) $r->event_id)); ?></td><?php endif; ?>
-                <td><?php echo esc_html((string) ($r->attendee_name ?? '') ?: '—'); ?></td>
+                <td><?php echo esc_html(\OE\Util\Names::tc((string) ($r->attendee_name ?? '')) ?: '—'); ?></td>
                 <td><?php echo esc_html((string) ($r->ticket_type_label ?? '') ?: '—'); ?></td>
                 <td><?php echo esc_html(((int) ($r->ticket_number ?? 1)) . ' / ' . ((int) ($r->total_in_order ?? 1))); ?></td>
                 <td><?php echo esc_html((string) ($r->venue_name ?? '') ?: __('(no venue)', 'october-events')); ?></td>
                 <td><?php if ($rescans > 0) : ?><span title="<?php echo esc_attr(sprintf(__('Scanned %d times at this door', 'october-events'), (int) $r->scans)); ?>" style="display:inline-block;background:#f3d9a6;color:#7a5a12;font-weight:700;font-size:12px;padding:1px 8px;border-radius:999px"><?php echo esc_html('×' . $rescans); ?></span><?php else : ?><span style="color:#bbb">—</span><?php endif; ?></td>
                 <td><?php echo esc_html($first); ?><?php if ($rescans > 0 && $last !== $first) : ?><br><span style="font-size:11px;color:#888"><?php echo esc_html(sprintf(__('last %s', 'october-events'), $last)); ?></span><?php endif; ?></td>
                 <td>
-                    <?php $attendee_lbl = (string) ($r->attendee_name ?? '') ?: __('this attendee', 'october-events'); ?>
+                    <?php $attendee_lbl = \OE\Util\Names::tc((string) ($r->attendee_name ?? '')) ?: __('this attendee', 'october-events'); ?>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('<?php echo esc_js(sprintf(__('Remove the check-in for %s at this door?', 'october-events'), $attendee_lbl)); ?>');" style="margin:0">
                         <input type="hidden" name="action" value="oe_checkin_undo">
                         <input type="hidden" name="ticket_id" value="<?php echo (int) $r->ticket_id; ?>">

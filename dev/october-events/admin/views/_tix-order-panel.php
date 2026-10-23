@@ -37,7 +37,7 @@ $status_pill = ['paid' => 'pos', 'refunded' => 'warn', 'cancelled' => 'neu', 'co
 ?>
 <div class="oe-slide-head">
     <div><h2><?php echo esc_html(sprintf(__('Order #%d', 'october-events'), $oid)); ?></h2>
-        <p class="oe-tixp-sub"><?php echo esc_html(trim((string) $order->name)) ?: esc_html__('No name', 'october-events'); ?><?php echo $placed ? ' · ' . esc_html(sprintf(__('placed %s', 'october-events'), wp_date('M j, Y', $placed))) : ''; ?></p>
+        <p class="oe-tixp-sub"><?php echo esc_html(\OE\Util\Names::tc((string) $order->name)) ?: esc_html__('No name', 'october-events'); ?><?php echo $placed ? ' · ' . esc_html(sprintf(__('placed %s', 'october-events'), wp_date('M j, Y', $placed))) : ''; ?></p>
     </div>
     <button type="button" class="oe-slide-x" data-oe-slide-close aria-label="<?php esc_attr_e('Close', 'october-events'); ?>">×</button>
 </div>
@@ -132,7 +132,7 @@ $status_pill = ['paid' => 'pos', 'refunded' => 'warn', 'cancelled' => 'neu', 'co
     <div class="oe-tixp-group">
         <?php if ($tickets) : foreach ($tickets as $tk) : ?>
             <a href="#" class="oe-tixp-trow" data-oe-detail="attendee" data-id="<?php echo (int) $tk->id; ?>">
-                <span><strong><?php echo esc_html((string) ($tk->ticket_type_label ?: '—')); ?></strong><?php echo (string) $tk->attendee_name !== '' ? ' · ' . esc_html((string) $tk->attendee_name) : ''; ?></span>
+                <span><strong><?php echo esc_html((string) ($tk->ticket_type_label ?: '—')); ?></strong><?php echo (string) $tk->attendee_name !== '' ? ' · ' . esc_html(\OE\Util\Names::tc((string) $tk->attendee_name)) : ''; ?></span>
                 <span class="oe-tixp-when"><?php esc_html_e('Open →', 'october-events'); ?></span>
             </a>
         <?php endforeach; else : ?>

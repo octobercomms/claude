@@ -1368,7 +1368,7 @@ final class TicketsAdmin {
         foreach ($rows as $r) {
             fputcsv($out, [
                 get_the_title((int) $r->event_id) ?: ('#' . (int) $r->event_id),
-                (string) ($r->attendee_name ?? ''),
+                \OE\Util\Names::tc((string) ($r->attendee_name ?? '')),
                 (string) ($r->ticket_type_label ?? ''),
                 ((int) ($r->ticket_number ?? 1)) . '/' . ((int) ($r->total_in_order ?? 1)),
                 (string) ($r->venue_name ?? ''),
@@ -1440,11 +1440,11 @@ final class TicketsAdmin {
             $attendee_email = (string) ($r->attendee_email ?? '') !== '' ? (string) $r->attendee_email : (string) $r->email;
             fputcsv($out, [
                 get_the_title((int) $r->event_id),
-                $r->attendee_name,
+                \OE\Util\Names::tc((string) $r->attendee_name),
                 $attendee_email,
                 $r->ticket_type_label,
                 $r->ticket_number . '/' . $r->total_in_order,
-                $r->buyer,
+                \OE\Util\Names::tc((string) $r->buyer),
                 $r->email,
                 $r->order_id,
                 $r->ticket_status,
@@ -1474,7 +1474,7 @@ final class TicketsAdmin {
         return $wpdb->get_results(
             "SELECT ti.id, ti.attendee_name, ti.attendee_email, ti.ticket_type_label, ti.ticket_number, ti.total_in_order,
                     ti.token, ti.status AS ticket_status, o.id AS order_id, o.event_id, o.email, o.name AS buyer,
-                    o.status AS order_status, o.created_at,
+                    o.payment_id, o.status AS order_status, o.created_at,
                     (SELECT COUNT(*) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS scans,
                     (SELECT MIN(ck.scanned_at) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS first_scan,
                     (SELECT ck.venue_name FROM {$c} ck WHERE ck.ticket_id = ti.id ORDER BY ck.id ASC LIMIT 1) AS venue
@@ -1497,12 +1497,43 @@ final class TicketsAdmin {
         $title      = $event ? (get_the_title($event) ?: ('#' . $event)) : __('All events', 'october-events');
         $generated  = wp_date('j M Y, H:i');
         $total      = count($rows);
-        $checked_in = 0;
-        foreach ($rows as $r) {
-            if ((int) $r->scans > 0) {
-                $checked_in++;
+
+        // The name on the card, resolved once per order and only when neither an
+        // attendee name nor a buyer name was captured — a last-resort identity
+        // for a security list. Cached so each order hits Stripe at most once.
+        $card_cache = [];
+        $card_name = function (string $payment_id) use (&$card_cache): string {
+            $payment_id = trim($payment_id);
+            if ($payment_id === '' || strpos($payment_id, 'pi_') !== 0 || ! \OE\Connectors\StripeConnector::is_ready()) {
+                return '';
             }
+            if (! array_key_exists($payment_id, $card_cache)) {
+                $card = \OE\Connectors\StripeConnector::payment_card_details($payment_id);
+                $card_cache[$payment_id] = is_array($card) ? (string) ($card['name'] ?? '') : '';
+            }
+            return $card_cache[$payment_id];
+        };
+
+        // Group the admissions by order: the buyer leads each block and every
+        // ticket's attendee is a guest row beneath. Query order is preserved.
+        $pick = static fn(string ...$vals): string => \OE\Util\Names::tc((string) (array_values(array_filter(array_map('trim', $vals), static fn($v) => $v !== ''))[0] ?? ''));
+        $blocks = [];
+        foreach ($rows as $r) {
+            $oid = (int) $r->order_id;
+            if (! isset($blocks[$oid])) {
+                $lead = $pick((string) $r->buyer, $card_name((string) $r->payment_id));
+                $blocks[$oid] = ['lead' => $lead, 'event_id' => (int) $r->event_id, 'tickets' => []];
+            }
+            $guest = $pick((string) $r->attendee_name, (string) $r->buyer, $card_name((string) $r->payment_id));
+            $blocks[$oid]['tickets'][] = [
+                'guest'    => $guest,
+                'num'      => $r->ticket_number . '/' . $r->total_in_order,
+                'type'     => (string) $r->ticket_type_label,
+                'event_id' => (int) $r->event_id,
+            ];
         }
+        $blocks = array_values($blocks);
+
         nocache_headers();
         header('Content-Type: text/html; charset=utf-8');
         require OE_DIR . 'admin/views/attendees-pdf.php';
