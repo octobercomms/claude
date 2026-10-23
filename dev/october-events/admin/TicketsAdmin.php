@@ -1534,6 +1534,21 @@ final class TicketsAdmin {
         }
         $blocks = array_values($blocks);
 
+        // A door list is for finding a name, so order it alphabetically by the
+        // lead (keeping each party's block intact). In the all-events view the
+        // event stays the primary grouping; nameless blocks sink to the bottom.
+        usort($blocks, static function (array $a, array $b): int {
+            if ($a['event_id'] !== $b['event_id']) {
+                return $a['event_id'] <=> $b['event_id'];
+            }
+            $a_blank = $a['lead'] === '' ? 1 : 0;
+            $b_blank = $b['lead'] === '' ? 1 : 0;
+            if ($a_blank !== $b_blank) {
+                return $a_blank <=> $b_blank;
+            }
+            return strnatcasecmp($a['lead'], $b['lead']);
+        });
+
         nocache_headers();
         header('Content-Type: text/html; charset=utf-8');
         require OE_DIR . 'admin/views/attendees-pdf.php';
