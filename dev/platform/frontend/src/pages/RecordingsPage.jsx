@@ -16,12 +16,27 @@ const fmtDur = s => {
 const fmtSize = b => (b == null ? '' : b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : (b / 1e6).toFixed(1) + ' MB');
 const fmtDate = d => { const t = new Date(d); return isNaN(t) ? '' : t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); };
 
-// Pick the best WebM profile the browser can actually record.
+// Pick the best container the browser can actually record, MP4 first.
+//
+// WebM used to be the only option, and it is a poor one to hand someone: macOS
+// cannot open it in QuickTime, Keynote or Final Cut, so every recording needed
+// converting before it could be used. Chrome has recorded MP4 since 126, so
+// ask for it and fall back only where it genuinely is not available.
 function pickMime() {
-  const opts = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  const opts = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',   // H.264 + AAC: plays everywhere
+    'video/mp4',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+  ];
   if (typeof MediaRecorder === 'undefined') return null;
   return opts.find(m => MediaRecorder.isTypeSupported(m)) || null;
 }
+
+// The container, without the codec parameters: 'video/mp4' or 'video/webm'.
+const baseMime = (m) => (String(m || '').split(';')[0].trim() || 'video/webm');
+const extFor = (m) => (baseMime(m) === 'video/mp4' ? 'mp4' : 'webm');
 
 export default function RecordingsPage({ embedded = false, clientId = null, onSendToEdit } = {}) {
   const toast = useToast();
@@ -97,6 +112,10 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   const livePreviewRef = useRef(null);
   const liveStreamRef = useRef(null);  // the stream to show in the live preview
   const rafRef = useRef(null);        // camera-composite draw loop
+  const mimeRef = useRef('video/webm'); // what MediaRecorder actually produced
+  const rvfcRef = useRef(null);       // requestVideoFrameCallback handle
+  const keepAliveRef = useRef(null);  // backstop timer for the composite
+  const lastDrawRef = useRef(0);
   const pausedMsRef = useRef(0);       // total paused time
   const pauseStartRef = useRef(0);
   const pausedRef = useRef(false);
@@ -144,6 +163,8 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   function stopAllTracks() {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    if (keepAliveRef.current) { clearInterval(keepAliveRef.current); keepAliveRef.current = null; }
+    rvfcRef.current = null;  // cancelling needs the element; dropping the handle stops rescheduling
     streamsRef.current.forEach(s => s.getTracks().forEach(t => t.stop()));
     streamsRef.current = [];
   }
@@ -203,8 +224,35 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
         if (cfg.shape === 'square') { roundRect(bx, by, d, d, Math.round(d * 0.22)); ctx.stroke(); }
         else { ctx.beginPath(); ctx.arc(bx + d / 2, by + d / 2, d / 2, 0, Math.PI * 2); ctx.stroke(); }
       } catch { /* a frame not ready yet */ }
-      rafRef.current = requestAnimationFrame(draw);
+      lastDrawRef.current = Date.now();
+      schedule();
     };
+
+    // Drive the loop from decoded screen frames, not from requestAnimationFrame.
+    //
+    // rAF stops firing altogether while the tab is hidden or fully covered,
+    // and a screen recording is precisely the case where the operator switches
+    // away to demonstrate something. The canvas then stops being redrawn, so
+    // captureStream emits no new frames, while the microphone track carries on
+    // untouched: the video freezes a few minutes in and the audio continues to
+    // the end. requestVideoFrameCallback fires per decoded frame of the screen
+    // capture instead, which keeps running when the page is not visible.
+    const schedule = () => {
+      if (typeof screenVideo.requestVideoFrameCallback === 'function') {
+        rvfcRef.current = screenVideo.requestVideoFrameCallback(draw);
+      } else {
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    };
+
+    // Backstop. If frames stop arriving for any other reason (the shared
+    // surface is static, the element stalls), keep the captured track alive
+    // rather than letting it go silent. Timers are throttled in a hidden tab
+    // but not stopped, so this floor holds even then.
+    keepAliveRef.current = setInterval(() => {
+      if (Date.now() - lastDrawRef.current > 400) draw();
+    }, 400);
+
     draw();
     return canvas.captureStream(30).getVideoTracks()[0];
   }
@@ -252,9 +300,13 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
 
       chunksRef.current = [];
       const rec = new MediaRecorder(stream, { mimeType: mime });
+      // What the browser actually gave us, which can differ from what we asked
+      // for. Everything downstream reads this: the blob type, the file
+      // extension and the mime stored against the recording.
+      mimeRef.current = rec.mimeType || mime;
       rec.ondataavailable = e => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
       rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const blob = new Blob(chunksRef.current, { type: baseMime(mimeRef.current) });
         blobRef.current = blob;
         durationRef.current = Math.max(0, (Date.now() - startedRef.current - pausedMsRef.current) / 1000);
         setPreviewUrl(URL.createObjectURL(blob));
@@ -270,7 +322,11 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
         }
       };
       recorderRef.current = rec;
-      rec.start();
+      // Flush every few seconds instead of holding the whole recording in one
+      // buffer until stop. A 30-minute screen capture is hundreds of megabytes,
+      // and one unbroken allocation is where a long recording is most likely to
+      // drop frames under memory pressure.
+      rec.start(5000);
       startedRef.current = Date.now();
       pausedMsRef.current = 0; pauseStartRef.current = 0; pausedRef.current = false; setPaused(false);
       setElapsed(0);
@@ -332,7 +388,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     setSaveError(null);
     setPhase('saving');
     try {
-      const created = await api.post('/recordings', { title: title.trim() || 'Untitled recording', mime: 'video/webm', client_id: clientId || undefined });
+      const created = await api.post('/recordings', { title: title.trim() || 'Untitled recording', mime: baseMime(mimeRef.current), client_id: clientId || undefined });
       // Check the shape before using it. On 21 Oct this step produced
       // "Cannot read properties of undefined (reading 'path')" — a TypeError
       // that named neither the call nor what came back, and cost four rounds
@@ -350,7 +406,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       // nothing, and hands out a share link to an empty page.
       pendingRowRef.current = created.id;
       const fd = new FormData();
-      fd.append('file', blobRef.current, 'recording.webm');
+      fd.append('file', blobRef.current, `recording.${extFor(mimeRef.current)}`);
       setUploadPct(0);
       await api.postFormProgress(created.upload.path, fd, (p) => setUploadPct(p.percent));
       await api.post(`/recordings/${created.id}/finalize`, { duration_s: Math.round(durationRef.current) });
@@ -404,14 +460,14 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     const d = new Date();
     const p = (n) => String(n).padStart(2, '0');
     return `october-recording-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-      + `-${p(d.getHours())}${p(d.getMinutes())}.webm`;
+      + `-${p(d.getHours())}${p(d.getMinutes())}.${extFor(mimeRef.current)}`;
   }
 
   // The Download button: named from the title once there is one.
   function downloadLocal() {
     if (!blobRef.current) return;
     const base = (title.trim() || 'recording').replace(/[^\w .-]+/g, '-').slice(0, 80);
-    setLocalCopyName(saveBlobToDisk(blobRef.current, `${base}.webm`));
+    setLocalCopyName(saveBlobToDisk(blobRef.current, `${base}.${extFor(mimeRef.current)}`));
   }
 
   async function transcribeOne(rec) {

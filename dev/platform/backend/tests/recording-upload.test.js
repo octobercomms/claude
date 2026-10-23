@@ -229,5 +229,44 @@ check('and its message says the recording is safe',
   /Your recording is safe/.test(pageRaw),
   'the one thing the operator needs to know at that moment');
 
+// --- the recording is usable, and does not freeze --------------------------
+
+check('MP4 is recorded wherever the browser can',
+  /'video\/mp4;codecs=avc1[^']*'/.test(page) && page.indexOf('video/mp4') < page.indexOf('video/webm;codecs=vp9'),
+  'macOS cannot open WebM in QuickTime, Keynote or Final Cut, so every recording needed converting first');
+check('the container is carried through, not assumed',
+  !/'video\/webm'\s*\}\);/.test(page) && /baseMime\(mimeRef\.current\)/.test(page),
+  'a hardcoded webm mime mislabels an MP4 recording to the store and the player');
+check('the file extension follows the container',
+  /extFor\(mimeRef\.current\)/.test(page),
+  'an MP4 named .webm is a file macOS still refuses to open');
+check('the store knows the MP4 extension',
+  /'video\/mp4'\s*:\s*'mp4'/.test(store));
+
+// The freeze. rAF does not fire while the tab is hidden, and a screen
+// recording is exactly when the operator switches away. The canvas composite
+// then stops being redrawn, captureStream emits nothing, and the microphone
+// track runs on alone: video frozen, audio to the end.
+// Target the call, not the name. The first version of this check matched the
+// trailing comment on the `rvfcRef` declaration, so removing the actual call
+// left it green — codeOnly keeps a code line whole, trailing comment included.
+check('the camera composite is not driven by requestAnimationFrame alone',
+  /screenVideo\.requestVideoFrameCallback\(draw\)/.test(page),
+  'rAF stops in a hidden tab, which freezes the video and leaves the audio running');
+check('rAF remains only as the fallback',
+  /typeof screenVideo\.requestVideoFrameCallback === 'function'/.test(page)
+    && /requestAnimationFrame\(draw\)/.test(page),
+  'browsers without the frame callback still need a loop');
+check('a stalled composite still emits frames',
+  /keepAliveRef\.current = setInterval/.test(page) && /lastDrawRef/.test(page),
+  'without a floor the captured track goes silent whenever frames stop arriving');
+check('both loops are torn down when recording ends',
+  /clearInterval\(keepAliveRef\.current\)/.test(page) && /cancelAnimationFrame\(rafRef\.current\)/.test(page),
+  'a draw loop left running after stop keeps the camera and the CPU busy');
+
+check('data is flushed during recording, not held to the end',
+  /rec\.start\(5000\)/.test(page),
+  'one unbroken buffer for a 30-minute capture is where frames get dropped under memory pressure');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
