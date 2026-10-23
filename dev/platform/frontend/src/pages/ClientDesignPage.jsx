@@ -262,6 +262,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [allAssets, setAllAssets] = useState([]);   // every row, for the hash index
   const [psdFiles, setPsdFiles] = useState(null);   // parsed PSDs awaiting import
   const [psdBusy, setPsdBusy] = useState('');
+  const [dragPage, setDragPage] = useState(null);   // page id being dragged
+  const [dropAt, setDropAt] = useState(null);       // index it would land at
+  const [moveFor, setMoveFor] = useState(null);     // page id whose move menu is open
   const [psdOneSet, setPsdOneSet] = useState(false);
   const [psdSetName, setPsdSetName] = useState('');
   const [clientFonts, setClientFonts] = useState([]);
@@ -835,6 +838,46 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     catch (e) { toast(e.message, 'error'); }
   }
 
+  // Reorder by dragging a page along the strip. The new order is applied
+  // locally first so the strip does not lurch while the request is in flight,
+  // then the server is told; a failure refetches, which puts it back.
+  async function dropPage(index) {
+    const c = fc.current;
+    const ids = project.pages.map(p2 => p2.id);
+    const from = ids.indexOf(dragPage);
+    setDragPage(null); setDropAt(null);
+    if (from < 0 || index === null || index === from || index === from + 1) return;
+    const next = ids.filter(id => id !== dragPage);
+    next.splice(index > from ? index - 1 : index, 0, dragPage);
+    setProject(p2 => ({ ...p2, pages: next.map(id => p2.pages.find(q => q.id === id)) }));
+    try {
+      if (dirtyRef.current && c) await save();
+      await api.put(`/design/projects/${project.id}/page-order`, { ids: next });
+    } catch (e) {
+      toast(e.message, 'error');
+      await refreshProject();
+    }
+  }
+
+  // Move a page into another set. The server refuses a set of a different
+  // size or another client's, so only the ones that will be accepted are
+  // offered.
+  const movableInto = (projects || []).filter(p2 =>
+    p2.id !== project?.id && p2.width === project?.width && p2.height === project?.height);
+
+  async function movePage(id, targetId) {
+    setMoveFor(null);
+    if (dirtyRef.current) await save();
+    try {
+      await api.put(`/design/pages/${id}/project`, { project_id: targetId });
+      const p2 = await refreshProject();
+      if (id === pageId) setPageId(p2.pages?.[0]?.id || null);
+      await loadProjects();
+      const to = movableInto.find(x => x.id === targetId);
+      toast(`Moved to “${to ? to.name : 'the other set'}”`);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   async function deletePage(id) {
     if (!window.confirm('Delete this page?')) return;
     try {
@@ -1077,28 +1120,72 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
               // one, by URL.
               const stamp = thumbs[pg.id] || (pg.has_thumbnail ? thumbSrc(pg.id, pg.updated_at) : null);
               return (
-              <div key={pg.id} style={{ textAlign: 'center' }}>
+              <div key={pg.id} style={{ textAlign: 'center', position: 'relative' }}
+                onDragOver={e => { if (dragPage) { e.preventDefault(); setDropAt(e.nativeEvent.offsetX > 32 ? i + 1 : i); } }}
+                onDrop={e => { e.preventDefault(); dropPage(dropAt); }}>
+                {/* Where the dragged page would land. A line between the
+                    thumbnails rather than a highlight on one, because the
+                    answer to "where does it go" is a gap, not a page. */}
+                {dragPage && dropAt === i && (
+                  <div style={{ position: 'absolute', left: -5, top: 0, bottom: 24, width: 2, background: 'var(--accent)' }} />
+                )}
                 <div onClick={() => goToPage(pg.id)} role="button" tabIndex={0}
+                  draggable onDragStart={() => setDragPage(pg.id)}
+                  onDragEnd={() => { setDragPage(null); setDropAt(null); }}
                   onKeyDown={e => { if (e.key === 'Enter') goToPage(pg.id); }}
+                  title={`Page ${i + 1} — drag to reorder`}
                   style={{
-                    width: 64, aspectRatio: `${project.width}/${project.height}`, cursor: 'pointer',
+                    width: 64, aspectRatio: `${project.width}/${project.height}`,
+                    cursor: dragPage ? 'grabbing' : 'grab',
+                    opacity: dragPage === pg.id ? 0.4 : 1,
                     border: `var(--border-w) solid ${pg.id === pageId ? 'var(--accent)' : 'var(--card-border)'}`,
                     borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--surface)',
                   }}>
-                  {stamp && <img src={stamp} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  {stamp && <img src={stamp} alt="" loading="lazy" draggable={false}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                 </div>
                 <div className="body-sm text-subtle">{i + 1}</div>
                 <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                   <button onClick={() => duplicatePage(pg.id)} title={`Duplicate page ${i + 1}`}
                     aria-label={`Duplicate page ${i + 1}`} className="btn-icon btn-icon-sm">⧉</button>
+                  {project.pages.length > 1 && movableInto.length > 0 && (
+                    <button onClick={() => setMoveFor(moveFor === pg.id ? null : pg.id)}
+                      title={`Move page ${i + 1} to another set`}
+                      aria-label={`Move page ${i + 1} to another set`}
+                      className="btn-icon btn-icon-sm">⇥</button>
+                  )}
                   {project.pages.length > 1 && (
                     <button onClick={() => deletePage(pg.id)} title={`Delete page ${i + 1}`}
                       aria-label={`Delete page ${i + 1}`} className="btn-icon btn-icon-sm danger">✕</button>
                   )}
                 </div>
+                {moveFor === pg.id && (
+                  <div className="card" style={{
+                    position: 'absolute', zIndex: 5, top: '100%', left: 0, minWidth: 190,
+                    padding: 'var(--s2)', textAlign: 'left',
+                  }}>
+                    <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Move to</div>
+                    {movableInto.map(t => (
+                      <div key={t.id} role="button" tabIndex={0}
+                        onClick={() => movePage(pg.id, t.id)}
+                        onKeyDown={e => { if (e.key === 'Enter') movePage(pg.id, t.id); }}
+                        style={{ padding: 'var(--s2)', borderRadius: 'var(--r-sm)', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>
+                        {t.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               );
             })}
+            {dragPage && (
+              <div onDragOver={e => { e.preventDefault(); setDropAt(project.pages.length); }}
+                onDrop={e => { e.preventDefault(); dropPage(dropAt); }}
+                style={{
+                  width: 24, alignSelf: 'stretch', minHeight: 64,
+                  borderLeft: dropAt === project.pages.length ? '2px solid var(--accent)' : '2px dashed var(--card-border)',
+                }} aria-hidden="true" />
+            )}
             <button onClick={addPage} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s5)' }}>+ Page</button>
           </div>
         </div>

@@ -324,6 +324,29 @@ check('but only when the drag was uniform',
 check('and the box width can be typed',
   /onCommit=\{v => setProp\('width', Math\.round\(v\)\)\}/.test(page));
 
+// --- arranging pages ---------------------------------------------------------
+check('pages reorder by dragging',
+  /async function dropPage\(/.test(page) && /page-order/.test(page) && /draggable onDragStart/.test(page),
+  'the reorder route existed from the first release and nothing called it');
+check('the new order shows before the server has confirmed it',
+  /setProject\(p2 => \(\{ \.\.\.p2, pages: next\.map/.test(page),
+  'otherwise the strip lurches back and forth while the request is in flight');
+check('and a failure puts it back',
+  /catch \(e\) \{\n\s*toast\(e\.message, 'error'\);\n\s*await refreshProject\(\);/.test(page));
+
+check('a page moves to another set', /router\.put\('\/pages\/:id\/project'/.test(route));
+check('but not into one of a different size',
+  /from\.width !== to\.width \|\| from\.height !== to\.height/.test(route),
+  "a scene is drawn at its set's size, so it would land somewhere other than where it was made");
+check('nor into another client\u2019s',
+  /from\.client_id !== to\.client_id/.test(route),
+  "its images are brand assets served under its own client's path, so they would 403 for that client");
+check('and a set keeps its last page',
+  /A set needs at least one page/.test(route));
+check('only the sets that will accept the page are offered',
+  /p2\.width === project\?\.width && p2\.height === project\?\.height/.test(page),
+  'offering a move the server will refuse is an error message where a disabled option belongs');
+
 // --- bringing a Photoshop file in --------------------------------------------
 //
 // The behaviour is covered by a browser run (tests/browser/psd.mjs) against a

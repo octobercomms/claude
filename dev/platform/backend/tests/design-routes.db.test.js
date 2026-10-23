@@ -131,6 +131,57 @@ const JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQg
   check('a duplicated page has the thumbnail', dup.body.has_thumbnail === true && !('thumbnail' in dup.body));
   check('and serves it', (await request(app).get(`/api/design/pages/${dup.body.id}/thumbnail`)).status === 200);
 
+  // --- moving a page between sets ------------------------------------------
+  const other = await request(app).post(`/api/design/clients/${clientId}/projects`)
+    .send({ name: 'Other', width: 1080, height: 1350 });
+  const wrongSize = await request(app).post(`/api/design/clients/${clientId}/projects`)
+    .send({ name: 'Story', width: 1080, height: 1920 });
+  const otherClient = await pool.query("INSERT INTO clients (name) VALUES ('Elsewhere') RETURNING id");
+  const elsewhere = await request(app).post(`/api/design/clients/${otherClient.rows[0].id}/projects`)
+    .send({ name: 'Theirs', width: 1080, height: 1350 });
+
+  const moved = await request(app).put(`/api/design/pages/${pageId}/project`)
+    .send({ project_id: other.body.id });
+  check('a page moves to another set', moved.status === 200,
+    JSON.stringify(moved.body));
+  const movedProj = await request(app).get(`/api/design/projects/${other.body.id}`);
+  check('and lands at the end of it',
+    movedProj.body.pages.length === 2 && movedProj.body.pages[1].id === pageId,
+    movedProj.body.pages.map(p2 => p2.id).join(', '));
+  check('it keeps its thumbnail through the move',
+    (await request(app).get(`/api/design/pages/${pageId}/thumbnail`)).status === 200);
+
+  const back = await request(app).put(`/api/design/pages/${pageId}/project`).send({ project_id: pid });
+  check('and moves back', back.status === 200);
+
+  const sizeClash = await request(app).put(`/api/design/pages/${pageId}/project`)
+    .send({ project_id: wrongSize.body.id });
+  check('a set of a different size refuses the page', sizeClash.status === 400,
+    'the scene is drawn at its set\u2019s size, so it would land somewhere else');
+  const crossClient = await request(app).put(`/api/design/pages/${pageId}/project`)
+    .send({ project_id: elsewhere.body.id });
+  check('and so does another client\u2019s set', crossClient.status === 400,
+    'its images are brand assets served under its own client\u2019s path');
+
+  const onlyPage = await request(app).get(`/api/design/projects/${other.body.id}`);
+  const lone = await request(app).post(`/api/design/clients/${clientId}/projects`).send({ name: 'Lone' });
+  const loneFull = await request(app).get(`/api/design/projects/${lone.body.id}`);
+  const lastOut = await request(app).put(`/api/design/pages/${loneFull.body.pages[0].id}/project`)
+    .send({ project_id: other.body.id });
+  check('a set will not give up its last page', lastOut.status === 400,
+    `${onlyPage.body.pages.length} pages in the target; source had 1`);
+
+  // --- reordering ------------------------------------------------------------
+  const toOrder = await request(app).get(`/api/design/projects/${pid}`);
+  const ids = toOrder.body.pages.map(p2 => p2.id);
+  const reordered = await request(app).put(`/api/design/projects/${pid}/page-order`)
+    .send({ ids: [...ids].reverse() });
+  check('pages reorder', reordered.status === 200);
+  const after2 = await request(app).get(`/api/design/projects/${pid}`);
+  check('and the new order sticks',
+    after2.body.pages.map(p2 => p2.id).join() === [...ids].reverse().join(),
+    after2.body.pages.map(p2 => p2.id).join(' '));
+
   const blank = await request(app).post(`/api/design/clients/${clientId}/projects`).send({ name: 'Blank' });
   const after = await request(app).get(`/api/design/clients/${clientId}/projects`);
   check('a set with no thumbnails has no cover',
