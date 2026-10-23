@@ -99,6 +99,89 @@ check('and before an export is rasterised',
 check('a background image covers the page rather than stretching',
   /Math\.max\(c\.width \/ img\.width, c\.height \/ img\.height\)/.test(page));
 
+// --- the work cannot be lost, part two: the effect that destroyed it ---------
+//
+// This is the bug that cost a real afternoon's work. save() replaced the
+// `project` state object on every autosave to carry a fresh thumbnail; the
+// canvas effect depended on that object's identity, so every fifteen seconds
+// the canvas was disposed, rebuilt, and reloaded from the scene fetched when
+// the project was opened. Everything added since went silently.
+//
+// The guard is the general property, not the specific line: an effect that
+// tears the canvas down must not be wired to the identity of a state object.
+
+const bodyOf = (needle) => {
+  const i = page.indexOf(needle);
+  if (i < 0) return '';
+  const j = page.indexOf('}, [', i);
+  return j < 0 ? page.slice(i) : page.slice(i, j);
+};
+const depsAfter = (needle) => {
+  const i = page.indexOf(needle);
+  if (i < 0) return null;
+  const j = page.indexOf('}, [', i);
+  if (j < 0) return null;
+  return page.slice(j + 4, page.indexOf(']', j));
+};
+
+const canvasDeps = depsAfter('new Canvas(');
+check('the canvas is not rebuilt when the project object is replaced',
+  canvasDeps !== null && !/\bproject\b/.test(canvasDeps),
+  `the canvas effect depends on: ${canvasDeps} — a state object's identity there disposes the canvas mid-edit`);
+check('and it is rebuilt when the size genuinely changes',
+  /\bpw\b/.test(canvasDeps || '') && /\bph\b/.test(canvasDeps || ''));
+
+const showPageDeps = depsAfter('const showPage = useCallback');
+check('loading a scene is not wired to the project object either',
+  showPageDeps !== null && !/\bproject\b/.test(showPageDeps),
+  `showPage depends on: ${showPageDeps} — this is what reloaded the stale scene`);
+check('so its pages are read through a ref', /pagesRef\.current\.find/.test(page));
+
+check('autosave does not replace the project object',
+  !/setProject\(/.test(bodyOf('const save = useCallback')),
+  'that is the write that triggered the whole chain');
+check('a fresh thumbnail is held separately',
+  /setThumbs\(t => \(\{ \.\.\.t, \[id\]: thumbnail \}\)\)/.test(page));
+
+// --- placing and aligning ----------------------------------------------------
+check('a layer snaps while it is dragged',
+  /c\.on\('object:moving', \(e\) => snapMoving\(c, e\.target\)\)/.test(page));
+check('the candidates are the page and every other layer',
+  /const xs = \[0, c\.width \/ 2, c\.width\]/.test(page)
+  && /for \(const o of c\.getObjects\(\)\)[\s\S]{0,200}r\.left \+ r\.width \/ 2/.test(page),
+  'corners come from the page lines, aligning text to text from the object lines');
+check('the moving layer offers its own three lines per axis',
+  /nearest\(\[b\.left, b\.left \+ b\.width \/ 2, b\.left \+ b\.width\]/.test(page),
+  'without the centre and the far edge, only the left edge ever snaps');
+check('snapping shifts rather than assigns a position',
+  /obj\.set\('left', obj\.left \+ x\.shift\)/.test(page),
+  'assigning left is wrong for any object whose origin is not top-left');
+check('guides cannot reach the scene, the thumbnail or the export',
+  /c\.getContext\(\)/.test(page) && !/new Line\(/.test(page) && /ocGuides = \[\]/.test(page),
+  'a guide added as a canvas object would be saved and rasterised into the PNG');
+
+check('images can be dropped onto the page', /onDrop=\{onDrop\}/.test(page));
+check('a dropped file is kept as a client asset, not only in the scene',
+  /for \(const f of files\) await uploadAsset\(f, \{ at \}\)/.test(page),
+  'the point of the rail is that an image uploaded once is reusable on every post');
+check('the drop point is measured from the element, not from the display scale',
+  /box\.width \/ pw/.test(page),
+  'the wrapper is CSS-scaled, so a drop read in screen pixels lands in the wrong place');
+check('assets drag off the rail as well',
+  /dataTransfer\.setData\('text\/oc-asset'/.test(page));
+
+// --- the client's own fonts --------------------------------------------------
+check('uploaded font files are kept out of the image rail',
+  /!isFont\(a\)/.test(page),
+  'a .ttf in an image rail renders as a broken image, which is what shipped first');
+check('and are loaded as real faces',
+  /new FontFace\(name,/.test(page) && /document\.fonts\.add\(face\)/.test(page));
+check('the picker offers them above the Google families',
+  /\[\.\.\.clientFonts, \.\.\.FONTS\]/.test(page));
+check('a face that fails to load stays retryable',
+  /catch \{ loaded\.delete\(name\); \}/.test(page),
+  'leaving it in the loaded set means it never loads again this session');
+
 // --- it is not loaded by people who never open it ----------------------------
 check('the editor is code-split',
   /lazy\(\(\) => import\('\.\/ClientDesignPage'\)\)/.test(tab),
