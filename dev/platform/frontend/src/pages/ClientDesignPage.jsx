@@ -5,6 +5,8 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { roWrite } from '../utils/readOnly';
+import { parsePsd } from '../utils/psdImport';
+import { psdToScene, imageUploader, hashIndex } from '../utils/psdToScene';
 
 // Design — layered social posts, made here instead of in Canva or Express.
 //
@@ -253,6 +255,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [project, setProject] = useState(null);
   const [pageId, setPageId] = useState(null);
   const [assets, setAssets] = useState([]);
+  const [allAssets, setAllAssets] = useState([]);   // every row, for the hash index
+  const [psdFiles, setPsdFiles] = useState(null);   // parsed PSDs awaiting import
+  const [psdBusy, setPsdBusy] = useState('');
   const [clientFonts, setClientFonts] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(null);   // the selected fabric object
@@ -299,6 +304,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         const isFont = (a) => a.kind === 'font' || FONT_FILE_RE.test(a.url);
         // The rail is an image rail. An uploaded .ttf left in it renders as a
         // broken image, which is exactly what the first release did.
+        setAllAssets(all);
         setAssets(all.filter(a => !isFont(a) && a.kind !== 'b_roll_clip'));
         const fonts = all.filter(isFont).map(a => ({ name: familyOf(a), url: a.url }));
         setClientFonts(fonts);
@@ -309,7 +315,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         await Promise.all(fonts.map(f => ensureFont(f.name)));
         fc.current?.requestRenderAll();
       })
-      .catch(() => { setAssets([]); setClientFonts([]); });
+      .catch(() => { setAssets([]); setAllAssets([]); setClientFonts([]); });
   }, [clientId]);
 
   useEffect(() => {
@@ -679,6 +685,66 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
 
   // ── project actions ────────────────────────────────────────────────────────
 
+  // ── importing a Photoshop file ────────────────────────────────────────────
+  //
+  // Parsing happens here in the browser, so a 200MB PSD never crosses the
+  // network. Each file is read and reported on first; nothing is written until
+  // the list has been looked at, because an import that silently creates
+  // twenty wrong sets is worse than one that creates none.
+
+  async function readPsds(files) {
+    const list = Array.from(files || []).filter(f => /\.psd$/i.test(f.name));
+    if (!list.length) return;
+    setPsdBusy('Reading…');
+    const rows = [];
+    for (const file of list) {
+      setPsdBusy(`Reading ${file.name}…`);
+      try {
+        const parsed = await parsePsd(file);
+        rows.push({ file, parsed, include: true, error: null });
+      } catch (e) {
+        rows.push({ file, parsed: null, include: false, error: e.message || String(e) });
+      }
+    }
+    setPsdBusy('');
+    setPsdFiles(rows);
+  }
+
+  async function runImport() {
+    const chosen = (psdFiles || []).filter(r => r.include && r.parsed);
+    if (!chosen.length) return;
+    const uploadImage = imageUploader({
+      clientId,
+      api,
+      existing: hashIndex(allAssets),
+      onUpload: (a) => setAllAssets(prev => [a, ...prev]),
+    });
+    const families = [...clientFonts.map(f => f.name), ...FONTS.map(f => f.name)];
+
+    let done = 0;
+    for (const row of chosen) {
+      setPsdBusy(`Importing ${row.file.name} (${done + 1} of ${chosen.length})…`);
+      try {
+        const { scene } = await psdToScene(row.parsed, { uploadImage, ensureFont, fonts: families });
+        const project = await api.post(`/design/clients/${clientId}/projects`, {
+          name: row.parsed.name,
+          width: row.parsed.width,
+          height: row.parsed.height,
+        });
+        const full = await api.get(`/design/projects/${project.id}`);
+        const page = full.pages && full.pages[0];
+        if (page) await api.put(`/design/pages/${page.id}`, { scene });
+        done += 1;
+      } catch (e) {
+        toast(`${row.file.name}: ${e.message}`, 'error');
+      }
+    }
+    setPsdBusy('');
+    setPsdFiles(null);
+    await loadProjects();
+    if (done) toast(`Imported ${done} set${done === 1 ? '' : 's'}`);
+  }
+
   async function newProject() {
     const name = window.prompt('Name this set of posts', 'New campaign');
     if (name === null) return;
@@ -738,8 +804,69 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
             Layered posts for this client. Build one, duplicate it, swap the photo and the headline.
             Images and logos you upload are kept here and reusable on every post.
           </p>
-          <button {...roWrite(readOnly, { onClick: newProject })} className="btn btn-primary btn-sm">+ New set</button>
+          <div className="row" style={{ gap: 'var(--s2)' }}>
+            <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}
+              title="Bring designs over from Photoshop or Adobe Express">
+              Import PSD
+              <input type="file" accept=".psd" multiple style={{ display: 'none' }}
+                onChange={e => { readPsds(e.target.files); e.target.value = ''; }} />
+            </label>
+            <button {...roWrite(readOnly, { onClick: newProject })} className="btn btn-primary btn-sm">+ New set</button>
+          </div>
         </div>
+
+        {psdBusy && (
+          <div className="card" style={{ marginTop: 'var(--s4)' }}>{psdBusy}</div>
+        )}
+
+        {psdFiles && !psdBusy && (
+          <div className="card" style={{ marginTop: 'var(--s4)', padding: 'var(--s4)' }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--s3)' }}>
+              <strong>{psdFiles.length} file{psdFiles.length === 1 ? '' : 's'} read</strong>
+              <span className="body-sm text-subtle">
+                Each becomes one set, for this client. Nothing has been saved yet.
+              </span>
+            </div>
+
+            <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+              {psdFiles.map((r, i) => {
+                const texts = r.parsed ? r.parsed.layers.filter(l => l.kind === 'text').length : 0;
+                const images = r.parsed ? r.parsed.layers.filter(l => l.kind === 'image').length : 0;
+                return (
+                  <label key={r.file.name + i} className="row"
+                    style={{ gap: 'var(--s3)', alignItems: 'baseline', flexWrap: 'wrap', opacity: r.error ? 0.6 : 1 }}>
+                    <input type="checkbox" checked={r.include} disabled={!!r.error}
+                      onChange={e => setPsdFiles(prev => prev.map((p2, j) => (j === i ? { ...p2, include: e.target.checked } : p2)))} />
+                    <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere' }}>{r.parsed ? r.parsed.name : r.file.name}</span>
+                    {r.error ? (
+                      <span className="body-sm" style={{ color: 'var(--negative)' }}>{r.error}</span>
+                    ) : (
+                      <span className="body-sm text-subtle">
+                        {r.parsed.width}×{r.parsed.height} ·{' '}
+                        {/* The number worth looking at: text that stayed text.
+                            Zero means Adobe flattened the type on export and
+                            the headlines will have to be retyped. */}
+                        <strong style={{ color: texts ? 'var(--positive)' : 'var(--warning)' }}>
+                          {texts} editable text
+                        </strong>{' '}
+                        · {images} image{images === 1 ? '' : 's'}
+                        {r.parsed.notes.length ? ` · ${r.parsed.notes.length} flattened` : ''}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}>
+              <button onClick={runImport} className="btn btn-primary btn-sm"
+                disabled={!psdFiles.some(r => r.include && r.parsed)}>
+                Import {psdFiles.filter(r => r.include && r.parsed).length} set{psdFiles.filter(r => r.include && r.parsed).length === 1 ? '' : 's'}
+              </button>
+              <button onClick={() => setPsdFiles(null)} className="btn btn-secondary btn-sm">Cancel</button>
+            </div>
+          </div>
+        )}
         {projects === null ? (
           <div className="card" style={{ marginTop: 'var(--s4)' }}>Loading…</div>
         ) : !projects.length ? (

@@ -25,6 +25,7 @@ const codeOnly = (src) => src
 
 const read = (...p) => codeOnly(fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8'));
 const route = read('src', 'routes', 'design.js');
+const brandRoute = read('src', 'routes', 'brandAssets.js');
 const migration = read('migrations', '208_design_studio.sql');
 const index = read('src', 'index.js');
 const pageRaw = fs.readFileSync(
@@ -322,6 +323,48 @@ check('but only when the drag was uniform',
   'holding shift stretches the glyphs on purpose, and there is no honest font size for that');
 check('and the box width can be typed',
   /onCommit=\{v => setProp\('width', Math\.round\(v\)\)\}/.test(page));
+
+// --- bringing a Photoshop file in --------------------------------------------
+//
+// The behaviour is covered by a browser run (tests/browser/psd.mjs) against a
+// real PSD, because it is canvas work. These are the structural properties a
+// later edit could undo without that run noticing.
+const sceneBuilder = codeOnly(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'utils', 'psdToScene.js'), 'utf8'));
+const parser = codeOnly(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'utils', 'psdImport.js'), 'utf8'));
+
+check('the PSD library is loaded only when a file is actually opened',
+  /await import\('ag-psd'\)/.test(parser),
+  '811KB on the main chunk for a feature most sessions never touch');
+check('parsing happens in the browser',
+  /file\.arrayBuffer\(\)/.test(parser) && !/multer|formidable/.test(route),
+  'a 200MB PSD should not cross the network, and the server should not need a native image library');
+
+check('the scene is serialised by Fabric, not hand-written',
+  /new StaticCanvas\(/.test(sceneBuilder) && /canvas\.toJSON\(\)/.test(sceneBuilder),
+  "Fabric's JSON has required fields that move between releases; a hand-rolled object opens as a blank page");
+check('type is fitted to its recorded box',
+  /fitFontSize\(measure, box, layer\.reportedSize\)/.test(sceneBuilder),
+  'the reported size was right in one real file and a third too large in another');
+check('and a layer with no bounds still gets a real box',
+  /const width = box \? box \+ 1 : Math\.ceil\(measure\(fontSize\)\) \+ 2;/.test(sceneBuilder),
+  'at Fabric\u2019s minimum width the box stretches to the longest unbreakable word, which is not where the text was');
+
+check('layer images are deduplicated by content',
+  /seen\.get\(layer\.hash\)/.test(sceneBuilder) && /crypto\.subtle\.digest\('SHA-256'/.test(parser),
+  'one logo across forty posts would otherwise be forty uploads on the first import');
+check('and the hash is validated before it is stored',
+  /\^\[0-9a-f\]\{64\}\$/.test(brandRoute) && /sha256/.test(brandRoute),
+  'it comes from the browser and is only ever a lookup key');
+
+check('nothing is written until the files have been looked at',
+  /async function readPsds\(/.test(page) && /async function runImport\(/.test(page)
+  && !/runImport\(\)/.test(page.slice(page.indexOf('async function readPsds('), page.indexOf('async function runImport('))),
+  'an import that silently creates twenty wrong sets is worse than one that creates none');
+check('and the review shows how much text survived',
+  /editable text/.test(page) && /texts \? 'var\(--positive\)' : 'var\(--warning\)'/.test(page),
+  'zero means Adobe flattened the type and every headline will need retyping');
 
 // --- the icon actions still say what they do ---------------------------------
 check('a glyph-only action carries a label',

@@ -150,6 +150,79 @@ try {
   check('flattened effects are reported rather than silently dropped',
     r.notes.some(n => /effects/.test(n)), r.notes.join(' | '));
 
+  // --- the whole path: parsed layers -> a scene the editor can open --------
+  //
+  // Built from numbers copied out of a real export (ADF AH&L 2026-6) rather
+  // than from the fixture. ag-psd does not write bounds onto a text layer, so
+  // a round-tripped fixture has none — and the bounds are exactly what the
+  // scene builder has to get right, because the reported font size is wrong
+  // as often as not. The fixture proves the parser; this proves the builder.
+  const scene = await page.evaluate(async () => {
+    const res = await fetch('fixture.psd');
+    const file = new File([await res.blob()], 'ADF 2026-44.psd');
+    const parsed = await window.psdImport.parsePsd(file);
+
+    // Real layer, real numbers: 86.67 reported, in a box 694 wide.
+    parsed.layers = parsed.layers.map(l => (
+      /ARCHITECTURE/.test(l.text || '')
+        ? { ...l, left: 89, top: 889, width: 694, height: 145, reportedSize: 86.66666 }
+        : l));
+
+    const { scene } = await window.psdImport.psdToScene(parsed, {
+      uploadImage: async (layer) => URL.createObjectURL(layer.blob),
+      ensureFont: async () => {},
+      fonts: ['Brockmann', 'GT America', 'Inter'],
+    });
+    const objs = scene.objects || [];
+    const headline = objs.find(o => /textbox/i.test(o.type) && /ARCHITECTURE/.test(o.text));
+    return {
+      canvas: { w: scene.width ?? null, h: scene.height ?? null },
+      types: objs.map(o => String(o.type).toLowerCase()),
+      count: objs.length,
+      headline: headline && {
+        left: Math.round(headline.left), top: Math.round(headline.top),
+        width: Math.round(headline.width), fontSize: headline.fontSize,
+        family: headline.fontFamily, weight: headline.fontWeight,
+        fill: headline.fill, lines: headline.text.split('\n').length,
+      },
+      // the scrim, to prove opacity and placement survive serialisation
+      scrim: (() => {
+        const img = objs.filter(o => /image/i.test(o.type))
+          .find(o => Math.round(o.top) === 899);
+        return img && { top: Math.round(img.top), opacity: Math.round(img.opacity * 100) / 100 };
+      })(),
+      hasJsonSrc: objs.filter(o => /image/i.test(o.type)).every(o => typeof o.src === 'string'),
+      // the fixture's other text layer, which really does arrive boundless
+      noBounds: (() => {
+        const o = objs.find(x => /textbox/i.test(x.type) && /MA!/.test(x.text));
+        return o && { width: Math.round(o.width), fontSize: o.fontSize };
+      })(),
+    };
+  });
+
+  check('the scene is built as real Fabric objects',
+    scene.types.filter(t => /textbox/.test(t)).length === 2
+    && scene.types.filter(t => /image/.test(t)).length >= 3,
+    `objects: ${scene.types.join(', ')}`);
+  check('every image carries a source', scene.hasJsonSrc);
+  check('the headline keeps its position and box',
+    scene.headline && scene.headline.left === 89 && scene.headline.top === 889
+    && Math.abs(scene.headline.width - 695) <= 2,
+    JSON.stringify(scene.headline));
+  check('it is sized to the box rather than to the reported 86.67',
+    scene.headline && scene.headline.fontSize > 20 && scene.headline.fontSize < 80,
+    scene.headline && `fontSize ${scene.headline.fontSize} — the reported 86.67 overflows a 694px box`);
+  check('a text layer with no bounds still gets a real box',
+    scene.noBounds && scene.noBounds.width > 50 && scene.noBounds.fontSize > 10,
+    JSON.stringify(scene.noBounds));
+  check('it keeps its weight, colour and two lines',
+    scene.headline && scene.headline.weight === 700
+    && scene.headline.fill === 'rgb(254, 254, 254)' && scene.headline.lines === 2,
+    JSON.stringify(scene.headline));
+  check('the scrim keeps its opacity through serialisation',
+    scene.scrim && Math.abs(scene.scrim.opacity - 0.35) < 0.02,
+    JSON.stringify(scene.scrim));
+
   check('nothing threw', problems.length === 0, problems.join('\n  '));
 } catch (e) {
   fail += 1;
