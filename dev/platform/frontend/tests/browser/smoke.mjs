@@ -240,6 +240,49 @@ try {
     (await page.locator('input[title="Fill colour"]').inputValue()) === '#f2c100',
     await page.locator('input[title="Fill colour"]').inputValue());
 
+  // --- zoom ----------------------------------------------------------------
+  // The canvas is drawn in page coordinates and CSS-scaled to fit, so zoom is
+  // that scale. The part worth testing is not the number on screen but that
+  // the page is really bigger and that clicks still land where they look.
+  const pageBox = () => page.evaluate(
+    () => { const r = document.querySelector('.canvas-container').getBoundingClientRect();
+      return Math.round(r.width); });
+  const fitted = await pageBox();
+  check('a fitted page is scaled down to the frame', fitted > 0 && fitted <= 640,
+    `${fitted}px wide for a 1080px page`);
+
+  await page.getByRole('button', { name: '100%' }).click();
+  await page.waitForTimeout(400);
+  const full = await pageBox();
+  check('100% draws a page pixel per screen pixel', Math.abs(full - 1080) <= 2,
+    `${full}px, expected 1080`);
+
+  await page.getByRole('button', { name: 'Zoom out' }).click();
+  await page.waitForTimeout(300);
+  const out = await pageBox();
+  check('zooming out steps down the ladder', Math.abs(out - 810) <= 2,
+    `${out}px, expected 1080 x 0.75`);
+
+  // Clicking through a CSS transform is where a hand-rolled zoom goes wrong:
+  // the page looks right and every click lands somewhere else.
+  await page.getByText('Shape', { exact: true }).first().click();
+  await page.waitForTimeout(200);
+  const hit = await page.evaluate(() => {
+    const el = document.querySelector('.canvas-container');
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.8 };
+  });
+  await page.mouse.click(hit.x, hit.y);
+  await page.waitForTimeout(300);
+  check('and a click at a zoom still lands on the layer under it',
+    await page.locator('input[title="Fill colour"]').count() > 0,
+    'the shade block covers the lower half; selecting it shows the fill control');
+
+  await page.getByRole('button', { name: 'Fit' }).click();
+  await page.waitForTimeout(300);
+  check('Fit comes back to the frame', Math.abs((await pageBox()) - fitted) <= 2,
+    `${await pageBox()}px, expected ${fitted}`);
+
   // --- the page's own background ------------------------------------------
   // A full-bleed graphic covers the background, so a control that needs the
   // background selected is a control you reach by dragging the artwork away.

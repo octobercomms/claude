@@ -21,3 +21,18 @@ export function cleanSize(w, h) {
   const ok = (v) => Number.isFinite(v) && v >= 50 && v <= 8000;
   return ok(n(w)) && ok(n(h)) ? { width: n(w), height: n(h) } : null;
 }
+
+// Zoom steps. A fixed ladder rather than a multiplier so the same presses
+// always land on the same sizes, and 100% is one of them: judging type at
+// 46%, which is where a 1080x1350 page sits when it is fitted to the frame,
+// is how a headline ships two points too small.
+export const ZOOMS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+
+export function nextZoom(current, direction) {
+  const eps = 1e-4;
+  if (direction > 0) {
+    return ZOOMS.find(z => z > current + eps) ?? ZOOMS[ZOOMS.length - 1];
+  }
+  const below = ZOOMS.filter(z => z < current - eps);
+  return below.length ? below[below.length - 1] : ZOOMS[0];
+}
