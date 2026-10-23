@@ -130,7 +130,15 @@ router.post('/clients/:clientId/assets', upload.single('file'), async (req, res)
         req.params.clientId, kind,
         name || req.file.originalname,
         url,
-        JSON.stringify({ size: req.file.size, mimetype: req.file.mimetype, originalname: req.file.originalname }),
+        JSON.stringify({
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          originalname: req.file.originalname,
+          // Content hash, sent by the PSD importer. A logo that appears on
+          // forty posts is one file on disk and one row here, not forty.
+          // Validated rather than trusted: it is only ever a lookup key.
+          ...(/^[0-9a-f]{64}$/.test(String(req.body.sha256 || '')) ? { sha256: req.body.sha256 } : {}),
+        }),
       ]
     );
     res.status(201).json(rows[0]);
