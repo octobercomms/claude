@@ -34,7 +34,8 @@ if (!fs.existsSync(path.join(dist, 'index.html'))) {
 // The same PSD the import tests use. Importing into an open set is the one
 // part of the import that only exists in the editor, so it is exercised here
 // rather than in the parser's own suite.
-execFileSync(process.execPath, [path.join(here, 'psd-fixture.mjs'), path.join(dist, 'fixture.psd')]);
+execFileSync(process.execPath, [path.join(here, 'psd-fixture.mjs'),
+  path.join(dist, 'fixture.psd'), path.join(dist, 'fixture-tall.psd')]);
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.json': 'application/json' };
@@ -65,6 +66,7 @@ let movedTo = null;   // { page, project } from a move
 let pagesAdded = [];  // project ids a new page was created in
 let scenesPut = 0;    // pages written with a scene
 let assetsPosted = 0; // layer images uploaded to the brand library
+let madeProject = null; // the body a new set was created with
 
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
@@ -103,6 +105,10 @@ await page.route('**/api/**', async (route) => {
     // A palette from the Brand tab, which is where the swatches come from.
     return json([{ id: 'pal1', kind: 'palette', name: 'Brand', url: null,
       metadata: { colors: ['#f2c100', '#111111'] } }]);
+  }
+  if (p === `/api/design/clients/${CLIENT}/projects` && route.request().method() === 'POST') {
+    madeProject = JSON.parse(route.request().postData() || '{}');
+    return json({ id: PROJECT, name: madeProject.name, width: madeProject.width, height: madeProject.height });
   }
   if (p === `/api/design/clients/${CLIENT}/projects`) {
     return json({ items: [
@@ -336,6 +342,53 @@ try {
     `${scenesPut} scenes written, was ${was.scenes}`);
   check('and the layer images reached the brand library', assetsPosted > 0,
     `${assetsPosted} uploads`);
+
+  // --- a batch of mixed sizes on the set list ------------------------------
+  // Six files of two sizes is what a real campaign looks like. No set can take
+  // them as they stand, and the screen has to say why beside the control that
+  // is off, then give a way out that is not unticking files by hand.
+  await page.getByRole('button', { name: '← All sets' }).click();
+  await page.waitForTimeout(600);
+  await page.locator('input[type=file][accept=".psd"]')
+    .setInputFiles([path.join(dist, 'fixture.psd'), path.join(dist, 'fixture-tall.psd')]);
+  await page.waitForTimeout(4000);
+
+  const intoRadio = page.getByRole('radio', { name: 'Add to a set I already have' });
+  check('mixed sizes cannot go into one existing set',
+    await intoRadio.isDisabled(),
+    'a set has one size; this is a real limit, not a preference');
+  check('and the screen says why, beside the control that is off',
+    await page.getByText('one size at a time').isVisible().catch(() => false),
+    'a greyed-out option with no reason reads as broken');
+
+  const only = page.getByRole('button', { name: /^Only 1080×1350/ });
+  check('with one click to keep just one size',
+    await only.isVisible().catch(() => false),
+    'unticking the odd ones out by hand is the part nobody should do across forty files');
+  await only.click();
+  await page.waitForTimeout(400);
+  check('and then an existing set will take them',
+    !(await intoRadio.isDisabled()),
+    'the destination should open up once the batch agrees on a size');
+
+  // --- a new set is given its size when it is made -------------------------
+  // The size reaches every page built on the set, and changing it later
+  // rescales all of them, so asking at creation is the cheap moment.
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: '+ New set' }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('textbox', { name: 'Name this set' }).fill('Stories');
+  await page.getByRole('combobox', { name: 'Size' }).selectOption('1080x1920');
+  await page.waitForTimeout(200);
+  check('a new set is named and sized before it exists',
+    await page.getByRole('button', { name: 'Create' }).isVisible().catch(() => false));
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.waitForTimeout(800);
+  check('and the size reaches the server',
+    madeProject && madeProject.name === 'Stories'
+    && madeProject.width === 1080 && madeProject.height === 1920,
+    JSON.stringify(madeProject));
 
   check('nothing threw', problems.length === 0, problems.join('\n  '));
 } catch (e) {
