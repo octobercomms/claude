@@ -274,9 +274,12 @@ check('a multi-selection is discarded before its members are cloned',
   /c\.discardActiveObject\(\);\n\s*const copies = \[\]/.test(page),
   'members hold coordinates relative to the selection while it exists, so a clone taken then lands in the wrong place');
 check('the keyboard is deaf while text is being typed',
-  /if \(!c \|\| !o \|\| o\.isEditing\) return;/.test(page)
+  /if \(!c \|\| o\?\.isEditing\) return;/.test(page)
   && /\['INPUT', 'TEXTAREA', 'SELECT'\]\.includes\(el\?\.tagName\)/.test(page),
   'otherwise Backspace deletes the layer instead of a character');
+check('but undo does not need a selected layer',
+  /if \(!\(\(e\.metaKey \|\| e\.ctrlKey\) && e\.key\.toLowerCase\(\) === 'z'\) && !o\) return;/.test(page),
+  'undoing the delete of the only selected layer would otherwise be impossible');
 
 // --- recolouring a graphic ---------------------------------------------------
 // A black logo on a white post is the case this exists for. Invert flips a flat
@@ -323,6 +326,55 @@ check('but only when the drag was uniform',
   'holding shift stretches the glyphs on purpose, and there is no honest font size for that');
 check('and the box width can be typed',
   /onCommit=\{v => setProp\('width', Math\.round\(v\)\)\}/.test(page));
+
+// --- the work is never the thing that is lost --------------------------------
+const exporter = codeOnly(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'utils', 'designExport.js'), 'utf8'));
+
+check('every edit saves, a beat after it stops',
+  /saveTimer\.current = setTimeout\(\(\) => \{ if \(dirtyRef\.current\) saveRef\.current\?\.\(\); \}, 1200\);/.test(page),
+  'a fifteen-second window is one in which switching tab, which unmounts this page, loses the work');
+check('and leaving the tab saves on the way out',
+  /useEffect\(\(\) => \(\) => \{\n\s*clearTimeout\(saveTimer\.current\);\n\s*if \(dirtyRef\.current\) saveRef\.current\?\.\(\);/.test(page),
+  'the Design tab is unmounted when another Produce tab is chosen');
+check('the latest save is reached through a ref, not a dependency',
+  /saveRef\.current = save;/.test(page) && /const markDirty = useCallback\([\s\S]{0,420}\}, \[\]\);/.test(page),
+  'markDirty is a dependency of the canvas effect, and rebuilding the canvas mid-edit lost an afternoon once');
+check('a thumbnail that cannot be made does not cost the scene',
+  /try \{\n\s*thumbnail = c\.toDataURL/.test(page) && /let thumbnail = null;/.test(page),
+  'reading pixels off a tainted canvas throws, and that throw used to abandon the whole save');
+check('and a page that is not ready says so rather than failing mutely',
+  /if \(dirtyRef\.current && !warnedNoPage\.current\) \{[\s\S]{0,200}toast\(/.test(page),
+  '"nothing is saving" with no error is the worst way to find this out');
+
+check('undo and redo', /const stepHistory = useCallback/.test(page)
+  && /e\.key\.toLowerCase\(\) === 'z'/.test(page));
+check('history is bounded', /if \(h\.stack\.length > 20\) h\.stack\.shift\(\);/.test(page),
+  'an unbounded stack on a long session is a leak nobody notices');
+check('restoring a snapshot does not push one back',
+  /if \(!c \|\| h\.restoring\) return;/.test(page));
+
+// --- getting the work back out -----------------------------------------------
+check('a set exports as images or as a layered PSD',
+  /function exportSets\(ids, format/.test(page) && /renderPsd\(/.test(page) && /zipBlob\(/.test(page));
+check('the PSD keeps a layer per layer',
+  /export async function psdLayers/.test(exporter) && /objects\.forEach\(\(o, j\) => o\.set\('visible', j === i\)\)/.test(exporter),
+  'a flat picture with a .psd extension is not an escape route');
+check('and text goes back as text',
+  /layer\.text = \{/.test(exporter) && /o\.text\.replace\(\/\\n\/g, '\\r'\)/.test(exporter),
+  "Photoshop ends a line with a carriage return, the same thing the importer had to learn");
+check('fonts are loaded before anything is rasterised',
+  /await Promise\.all\(families\.map\(ensureFont\)\)/.test(exporter),
+  'a headline rasterised before its face arrives goes out in the fallback');
+check('layers are cropped to what they cover',
+  /crop\.getContext\('2d'\)\.drawImage\(/.test(exporter),
+  'ten full-page layers on a 1080x1350 page is 58MB of raw pixels');
+check('the browser PSD writer is used, not the Node one',
+  /writePsdUint8Array/.test(exporter) && !/writePsdBuffer/.test(exporter),
+  "writePsdBuffer wants Node's Buffer and throws in a browser");
+check('pages are named so they sort the way the set reads',
+  /String\(index \+ 1\)\.padStart\(width, '0'\)/.test(exporter),
+  'page 9 before page 10, and both before page 44');
 
 // --- naming, resizing, and the client's own colours --------------------------
 const scaler = codeOnly(fs.readFileSync(
