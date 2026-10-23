@@ -6,6 +6,10 @@ and what to do if you see something else.
 Total time: about 20 minutes. You will use Terminal. Nothing here touches your
 email passwords.
 
+Verified end to end on macOS with Thunderbird 158, Node 24 and bash, against a
+14-account setup. The notes marked **In practice** record what actually happened
+rather than what the upstream README claims.
+
 For the condensed reference version, see `setup.md` in this folder.
 
 ---
@@ -31,27 +35,22 @@ with a text prompt appears. You type a line, press Enter, and it does the thing.
 
 ## Step 1: Check you have Node
 
-In Terminal, type this and press Enter:
-
 ```bash
 node --version
 ```
 
-**You should see** a version number starting with `v18`, `v20` or higher, for
-example `v20.11.0`.
+**You should see** a version number starting with `v18` or higher.
 
-**If you see "command not found"** you need Node first. Easiest route:
+**If you see "command not found"** you need Node first:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install node
 ```
 
-The first line installs Homebrew, a package manager, and takes a few minutes.
-It will ask for your Mac password. Type it (the characters will not appear, that
-is normal) and press Enter. Then run `node --version` again.
-
-**If you see v16 or lower**, run `brew upgrade node`.
+The first line installs Homebrew and takes a few minutes. It will ask for your
+Mac password. Type it (the characters will not appear, that is normal) and press
+Enter. Then run `node --version` again.
 
 ---
 
@@ -59,8 +58,7 @@ is normal) and press Enter. Then run `node --version` again.
 
 Thunderbird → menu bar → Thunderbird → About Thunderbird.
 
-**You need 128 or higher.** If the number is lower, update Thunderbird before
-going further, otherwise the add-on will refuse to install.
+**You need 128 or higher.** Below that, the add-on will refuse to install.
 
 ---
 
@@ -70,250 +68,251 @@ going further, otherwise the add-on will refuse to install.
 npm install -g thunderbird-cli thunderbird-cli-bridge thunderbird-cli-mcp
 ```
 
-**You should see** a few lines ending with something like
-`added 3 packages in 4s`.
+**You should see** something like `added 100 packages in 3s`. The count is high
+because of dependencies; three packages plus what they pull in.
 
-**If you see an EACCES permission error**, run it again with `sudo` in front and
-enter your Mac password:
+**If you see an EACCES permission error**, run it again with `sudo` in front.
 
-```bash
-sudo npm install -g thunderbird-cli thunderbird-cli-bridge thunderbird-cli-mcp
-```
-
-Confirm the version you got:
+Confirm what you got:
 
 ```bash
 npm list -g --depth=0 | grep thunderbird
 ```
 
-**You should see** `thunderbird-cli@1.1.0` or higher on each line.
+**You should see** `1.1.0` or higher on all three lines.
 
-**If you see 1.0.x**, stop. Those versions have a security hole described in
-`setup.md`. Run `npm install -g thunderbird-cli@latest thunderbird-cli-bridge@latest thunderbird-cli-mcp@latest`
+**If you see 1.0.x**, stop. Those versions have the security hole described at
+the bottom of this page. Run
+`npm install -g thunderbird-cli@latest thunderbird-cli-bridge@latest thunderbird-cli-mcp@latest`
 and check again.
 
 ---
 
 ## Step 4: Make a security token
 
-This is a long random password that stops anything else on your Mac, or any
-website you visit, from talking to the bridge and reading your mail. The bridge
-and Claude both need the same one.
+This is a long random password that stops anything else on your Mac, and any
+website you visit, from talking to the bridge and reading your mail.
 
-Generate it and save it to your shell profile in one go:
-
-```bash
-echo "export TB_AUTH_TOKEN=\"$(openssl rand -hex 32)\"" >> ~/.zshrc
-source ~/.zshrc
-```
-
-Now print it, because you will need to paste it into the Claude Desktop config
-later:
+**First find out which shell you use.** macOS defaults to zsh, but accounts
+created before Catalina often still run bash, and the two read different startup
+files. Writing to the wrong one means the token silently never loads.
 
 ```bash
-echo $TB_AUTH_TOKEN
+echo $SHELL
 ```
 
-**You should see** 64 characters of letters and numbers. Copy it somewhere
-temporarily, your password manager rather than a note.
+This command writes to whichever file is actually yours:
 
-**If nothing prints**, the `source` line did not take. Close Terminal, open a
-new window, and run `echo $TB_AUTH_TOKEN` again.
+```bash
+PROFILE="$HOME/.zshrc"
+[ "$(basename "$SHELL")" = "bash" ] && PROFILE="$HOME/.bash_profile"
+echo "export TB_AUTH_TOKEN=\"$(openssl rand -hex 32)\"" >> "$PROFILE"
+source "$PROFILE"
+echo "written to: $PROFILE"
+echo "token is ${#TB_AUTH_TOKEN} characters"
+```
+
+**You should see** the profile path and `token is 64 characters`.
+
+**If it says 0 characters**, the `source` did not take. Close Terminal, open a
+new window, and run `echo ${#TB_AUTH_TOKEN}` again.
 
 Treat this string like a password. It does not go in any file inside this repo,
-and it does not go in a Slack message or an email.
+in a chat window, in Slack, or in an email. To read it later when you genuinely
+need the value, use `echo $TB_AUTH_TOKEN`.
+
+**If you have already exposed it**, replacing it costs nothing as long as the
+bridge has not started:
+
+```bash
+sed -i '' '/TB_AUTH_TOKEN/d' "$PROFILE"
+echo "export TB_AUTH_TOKEN=\"$(openssl rand -hex 32)\"" >> "$PROFILE"
+source "$PROFILE"
+```
 
 ---
 
 ## Step 5: Install the Thunderbird add-on
 
 1. Go to https://github.com/vitalio-sh/thunderbird-cli/releases
-2. Under the release marked **Latest** (v1.1.0), click to expand **Assets**.
+2. Under the release marked **Latest**, expand **Assets**
 3. Download **`thunderbird_ai_bridge-2.1.0-tb.xpi`** (about 9 KB). Your browser
    may warn about the file type. Keep it.
-4. In Thunderbird: menu bar → Tools → Add-ons and Themes.
-5. Click the **gear icon** near the top right, then
-   **Install Add-on From File…**
-6. Pick the `.xpi` file you downloaded, usually in your Downloads folder.
-7. Thunderbird will ask for permission. Read what it asks for, then click **Add**.
+4. Thunderbird → menu bar → **Tools** → **Add-ons and Themes**
+5. **Gear icon** near the top right → **Install Add-on From File…**
+6. Pick the `.xpi` from your Downloads folder
+7. Read the permissions it asks for, then **Add**
 
-**You should see** the add-on listed under Extensions, enabled.
+**You should see** "Thunderbird AI Bridge" under Extensions with its toggle
+switched on.
 
-**If Thunderbird refuses it as unverified or corrupt**, do not force it. The
-same release also carries `thunderbird-cli-2.1.0.xpi`; try that one. If both
-fail, stop and tell me, because that points at a signing problem upstream rather
-than anything you did wrong.
+**If Thunderbird refuses it as unverified or corrupt**, do not force it. The same
+release carries `thunderbird-cli-2.1.0.xpi`; try that. If both fail, that points
+at a signing problem upstream rather than anything you did.
 
 ---
 
 ## Step 6: Start the bridge and test it
 
-Leave Thunderbird open. In Terminal:
+Leave Thunderbird open.
 
 ```bash
 tb-bridge
 ```
 
-**You should see** a few startup lines mentioning `127.0.0.1`, port `7700` and
-port `7701`, then it sits there doing nothing. That is correct. **Leave this
-window open.** The bridge only runs while this window runs.
+**You should see** startup lines mentioning `127.0.0.1`, port `7700` and port
+`7701`, then it sits there doing nothing. That is correct. **Leave this window
+open.** The bridge only runs while this window runs.
 
 **If you see "port in use"**, the bridge is already running in another window.
-Find it, or close the other one.
 
-Now open a **second** Terminal window (Cmd+N) and test:
+Open a **second** Terminal window (Cmd+N):
 
 ```bash
 tb health
 ```
 
-**You should see** JSON with a status of ok or healthy.
+**You should see** `"ok": true` with a version and `"thunderbird": true`.
 
 ```bash
 tb stats
 ```
 
-**You should see** your accounts and unread counts. **This is the moment it
-either works or it does not.** If you see your real inboxes listed, the hard
-part is done.
+**You should see** your accounts with unread and message counts. **This is the
+moment it either works or it does not.**
 
 **If `tb health` says connection refused**, the bridge window is not running.
-Go back and start it.
 
-**If it returns 401 Unauthorized**, the token does not match. Close both Terminal
-windows, open a new one, and start again from `tb-bridge`. Both windows need to
-have read the same `~/.zshrc`.
+**If it returns 401**, the two windows are not reading the same token. Close
+both, open a new one, start again from `tb-bridge`.
 
-**If `tb stats` works but shows no accounts**, the add-on is not installed or not
-enabled. Check Step 5.
+**If `tb stats` works but shows no accounts**, the add-on is not installed or
+not enabled.
+
+**In practice:** let Thunderbird finish syncing before trusting any counts. Its
+status bar shows progress, and mid-sync numbers move under you.
 
 ---
 
-## Step 7a: Wire up Claude Code (terminal)
+## Step 7: Verify the bridge is actually enforcing the token
 
-Open `.mcp.json` at the root of this repo in a text editor. Find the `shadcn`
-block. Add a comma after its closing brace, then paste the `thunderbird` block
-so the file reads like this:
-
-```json
-{
-  "mcpServers": {
-    "magic": {
-      "command": "npx",
-      "args": ["-y", "@21st-dev/magic@latest"],
-      "env": {
-        "API_KEY": "..."
-      }
-    },
-    "shadcn": {
-      "command": "npx",
-      "args": ["-y", "shadcn@latest", "mcp"]
-    },
-    "thunderbird": {
-      "command": "npx",
-      "args": ["-y", "thunderbird-cli-mcp"],
-      "env": {
-        "TB_BRIDGE_HOST": "127.0.0.1",
-        "TB_BRIDGE_PORT": "7700",
-        "TB_AUTH_TOKEN": "${TB_AUTH_TOKEN:-}"
-      }
-    }
-  }
-}
-```
-
-Note what is **not** there: the token itself. `${TB_AUTH_TOKEN:-}` means "read it
-from the shell", which keeps it out of git.
-
-Check you have not broken the file:
+`tb health` succeeding does not prove authentication is on. This matters: a
+bridge running without auth gives anything on your Mac unrestricted access to
+every mailbox. Versions before 1.1.0 shipped exactly that.
 
 ```bash
-python3 -c "import json;json.load(open('.mcp.json'));print('valid')"
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7700/health
 ```
 
-**You should see** `valid`. If you see a JSON error, you have a misplaced comma
-or brace. The commas go *between* blocks, never after the last one.
+That calls the bridge directly with no token attached.
 
-Then start Claude Code from this repo folder:
+- **`401`** is correct. Auth is on.
+- **`200`** means the bridge is open to anything. Ctrl+C it immediately and
+  check that `TB_AUTH_TOKEN` was set in the shell you started it from.
+
+Do not skip this step.
+
+---
+
+## Step 8a: Wire up Claude Code (terminal)
+
+Use the CLI rather than editing JSON by hand:
 
 ```bash
-cd /path/to/your/claude/repo
+claude mcp add thunderbird -s user \
+  -e TB_BRIDGE_HOST=127.0.0.1 \
+  -e TB_BRIDGE_PORT=7700 \
+  -- npx -y thunderbird-cli-mcp
+```
+
+**You should see** `Added stdio MCP server thunderbird ... to user config`.
+
+`-s user` makes it available in every Claude Code session rather than one
+project folder, which suits email since mail is not project-specific.
+
+Note what is absent: the token. The MCP subprocess inherits `TB_AUTH_TOKEN` from
+your shell, so it never reaches a config file.
+
+Check it:
+
+```bash
 claude
 ```
 
-Type `/mcp` and press Enter.
+Type `/mcp`. **You should see** `thunderbird · connected · 12 tools`.
 
-**You should see** `thunderbird` in the list, marked connected.
+**If it connects but tool calls return 401**, the token did not inherit. This
+fallback works but writes the credential into `~/.claude.json`:
+
+```bash
+claude mcp remove thunderbird -s user
+claude mcp add thunderbird -s user \
+  -e TB_BRIDGE_HOST=127.0.0.1 \
+  -e TB_BRIDGE_PORT=7700 \
+  -e TB_AUTH_TOKEN="$TB_AUTH_TOKEN" \
+  -- npx -y thunderbird-cli-mcp
+```
+
+Try the inheriting version first.
 
 ---
 
-## Step 7b: Wire up Claude Desktop
+## Step 8b: Wire up Claude Desktop
 
 Desktop does not read your shell profile, so the token has to sit in the config
 file as plain text. That is a real downside. Anything that reads your home
 folder will find it.
 
-Open the config file:
+**Do not paste a config block over this file.** It holds your app preferences
+as well, and overwriting loses them. Back it up and let a script insert the key:
 
 ```bash
-open -a TextEdit ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
+cp ~/Library/Application\ Support/Claude/claude_desktop_config.json \
+   ~/Desktop/claude_config_backup.json 2>/dev/null
 
-**If the file does not exist**, create it:
-
-```bash
-mkdir -p ~/Library/Application\ Support/Claude
-touch ~/Library/Application\ Support/Claude/claude_desktop_config.json
-open -a TextEdit ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
-
-If the file is empty, paste this whole thing. If it already has an `mcpServers`
-section, add only the `thunderbird` block inside it.
-
-```json
-{
-  "mcpServers": {
-    "thunderbird": {
-      "command": "npx",
-      "args": ["-y", "thunderbird-cli-mcp"],
-      "env": {
+python3 - <<'EOF'
+import json, os
+p = os.path.expanduser("~/Library/Application Support/Claude/claude_desktop_config.json")
+try:
+    d = json.load(open(p))
+except (FileNotFoundError, ValueError):
+    d = {}
+d.setdefault("mcpServers", {})["thunderbird"] = {
+    "command": "npx",
+    "args": ["-y", "thunderbird-cli-mcp"],
+    "env": {
         "TB_BRIDGE_HOST": "127.0.0.1",
         "TB_BRIDGE_PORT": "7700",
-        "TB_AUTH_TOKEN": "PASTE_YOUR_TOKEN_HERE"
-      }
-    }
-  }
+        "TB_AUTH_TOKEN": os.environ["TB_AUTH_TOKEN"],
+    },
 }
-```
+os.makedirs(os.path.dirname(p), exist_ok=True)
+json.dump(d, open(p, "w"), indent=2)
+print("ok, mcpServers now has:", list(d["mcpServers"]))
+EOF
 
-Replace `PASTE_YOUR_TOKEN_HERE` with the 64-character string from Step 4. Keep
-the quote marks around it. Save and close.
-
-Lock the file down so other accounts on the Mac cannot read it:
-
-```bash
 chmod 600 ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
-**Quit Claude Desktop fully** (Cmd+Q, not the red close button) and reopen it.
+It reads the token from your shell, so you never type it. **You should see**
+`ok, mcpServers now has: ['thunderbird']`, and a backup on your Desktop.
 
-**You should see** a tools or connectors indicator showing Thunderbird
-available. Ask it "how many unread emails do I have?" as a test.
+**Quit Claude Desktop fully** with Cmd+Q, not the red close button, then reopen.
+The close button leaves it running and it will not reload the config.
 
 ---
 
-## Step 8: Confirm it works end to end
+## Step 9: Confirm it works end to end
 
-With the bridge window running and Thunderbird open, ask Claude:
+With the bridge running and Thunderbird open, ask Claude:
 
-> How many unread emails do I have, and what are the five most recent subject lines?
+> Using the thunderbird tools, how many unread emails are in <one small account>,
+> and list the 5 most recent subject lines from its inbox.
 
-**You should get** real numbers and real subjects.
+Scope the first test to a **small** account. On a large one, the truncation bug
+below muddies the result and you will not know whether the fault is your setup.
 
-**If Claude says it has no email tools**, the config did not load. Fully quit and
-reopen the app. For Claude Code, check `/mcp`.
-
-**If Claude says the bridge is unreachable**, your `tb-bridge` window has closed.
+**You should get** real senders, subjects and dates.
 
 ---
 
@@ -328,21 +327,19 @@ Run it only while you are using it. A program with permanent access to every
 client mailbox, sitting there for weeks, is a risk worth avoiding for the sake
 of one Terminal command.
 
-To save typing, add a shortcut:
+Shortcut, using whichever profile Step 4 reported:
 
 ```bash
-echo 'alias mail-on="tb-bridge"' >> ~/.zshrc
-source ~/.zshrc
+echo 'alias mail-on="tb-bridge"' >> "$PROFILE"
+source "$PROFILE"
 ```
-
-Then `mail-on` starts it.
 
 ---
 
 ## Optional: read-only for the first fortnight
 
-Sensible while you work out whether this earns its place. Add this to
-`.claude/settings.json` in the repo:
+Sensible while you work out whether this earns its place. In
+`~/.claude/settings.json`:
 
 ```json
 {
@@ -358,12 +355,25 @@ Sensible while you work out whether this earns its place. Add this to
 }
 ```
 
-Claude will then search and read but write nothing. Delete the block when you
-are ready. Note this covers Claude Code only; Desktop permissions are managed in
-the app.
+Claude will then search and read but write nothing. This covers Claude Code
+only; Desktop permissions are managed in the app.
 
 Even without it, compose and reply save **drafts**. Nothing sends unless Claude
 is explicitly told to send.
+
+---
+
+## Two different 401s
+
+Easy to confuse, and they mean opposite things.
+
+| Token | Authenticates | Lives in | Symptom |
+|---|---|---|---|
+| `TB_AUTH_TOKEN` | Claude to your local bridge | your shell profile | `tb` commands return 401; MCP tool calls fail |
+| Claude OAuth | You to Anthropic | managed by the app | "Please run /login · OAuth access token has been revoked" |
+
+A `/login` message is the second one. Your Thunderbird setup is unaffected; run
+`/login` and carry on.
 
 ---
 
@@ -373,16 +383,34 @@ is explicitly told to send.
 |---|---|---|
 | `command not found: tb` | Packages not installed, or npm's folder is not on your path | Redo Step 3 |
 | `connection refused` | Bridge is not running | Run `tb-bridge` |
-| `401 Unauthorized` | Token mismatch between bridge and Claude | New Terminal window, restart bridge; check Desktop config has the right token |
-| `port in use` | Bridge already running elsewhere | Find the other window, or Ctrl+C it |
+| `401` from `tb` | Token mismatch between bridge and client | New Terminal window, restart bridge |
+| `200` from the Step 7 curl | Bridge running with no auth | Ctrl+C now; check `TB_AUTH_TOKEN` is set |
+| "Please run /login" | Claude's own auth, not the bridge | `/login` |
+| `port in use` | Bridge already running elsewhere | Find the other window |
 | `tb stats` shows no accounts | Add-on missing or disabled | Check Thunderbird → Add-ons |
-| Claude has no email tools | Config not loaded | Fully quit and reopen the app |
-| Times look an hour or two out | Known upstream bug, timestamps come back as UTC | Adjust by hand; do not trust it for scheduling |
-| Body search hangs or returns nothing | Known upstream bug on large mailboxes | Search by sender, subject or date instead |
-| Replies arrive as plain text | Known upstream bug, HTML flag ignored | Send formatted replies from Thunderbird yourself |
+| Token prints as 0 characters | Written to the wrong shell profile | Redo Step 4, check `echo $SHELL` |
+| Times look an hour or two out | Upstream bug, timestamps come back as UTC | Adjust by hand; do not trust for scheduling |
+| Body search hangs or returns nothing | Upstream bug on large mailboxes | Search by sender, subject or date instead |
+| Replies arrive as plain text | Upstream bug, HTML flag ignored | Send formatted replies from Thunderbird |
 
-The last three are faults in the tool, not in your setup. They are logged
-upstream as issues 28, 12 and 29.
+The last three are faults in the tool, not your setup. Logged upstream as issues
+28, 12 and 29.
+
+---
+
+## At large scale
+
+On mailboxes in the hundreds of thousands of messages, two upstream bugs stop
+being academic:
+
+- **Body search** (#12) times out. Search by sender, subject or date range, and
+  always scope to one account.
+- **Truncation before sorting** (#15, #24) means "the latest 20" may not be the
+  latest 20. Verify anything time-sensitive in Thunderbird itself.
+
+Also worth knowing: `tb stats` reports unread **per account across all folders**,
+not per inbox. A four-figure unread count usually includes archive and junk
+folders. Ask for the inbox specifically when that is what you mean.
 
 ---
 
@@ -394,5 +422,6 @@ read your mail through. That is fixed, and the maintainer found and fixed it
 himself, which counts for something. It still tells you the security model came
 second.
 
-So: latest version only, token always set, bridge running only when in use, and
-drafts rather than direct send. Those four habits carry nearly all the risk.
+So: latest version only, token always set, Step 7 verified, bridge running only
+when in use, and drafts rather than direct send. Those habits carry nearly all
+the risk.
