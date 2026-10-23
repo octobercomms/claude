@@ -215,6 +215,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const fc = useRef(null);            // the fabric canvas
   const pageRef = useRef(null);       // page id the canvas currently holds
   const dirtyRef = useRef(false);
+  const warnedThumb = useRef(false);
 
   const open = useCallback((id) => {
     const next = new URLSearchParams(params);
@@ -255,7 +256,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   }, [clientId]);
 
   useEffect(() => {
-    if (!openId) { setProject(null); return; }
+    // Leaving the editor: refresh the list, or its cover and page count stay
+    // as they were when this page first loaded.
+    if (!openId) { setProject(null); loadProjects(); return; }
     api.get(`/design/projects/${openId}`)
       .then(p => { setProject(p); setPageId(p.pages?.[0]?.id || null); })
       .catch(e => { toast(e.message, 'error'); open(null); });
@@ -347,10 +350,22 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     if (!c || !id) return;
     setSaving(true);
     try {
-      // A postage stamp for the page strip, not a copy of the artwork.
-      const thumbnail = c.toDataURL({ format: 'png', multiplier: 220 / Math.max(c.width, 1) });
-      await api.put(`/design/pages/${id}`, { scene: c.toJSON(), thumbnail });
+      // A postage stamp for the page strip, not a copy of the artwork — and
+      // a JPEG, because these posts are a full-bleed photograph and PNG is the
+      // wrong codec for one. Measured in Chromium on a 1080x1350 photographic
+      // post: PNG 258,254 characters, JPEG at this quality 26,443. The route
+      // caps a thumbnail at 200,000, so every PNG of a finished post was
+      // silently rejected and the blank first thumbnail stayed on the card.
+      const thumbnail = c.toDataURL({ format: 'jpeg', quality: 0.72, multiplier: 220 / Math.max(c.width, 1) });
+      const saved = await api.put(`/design/pages/${id}`, { scene: c.toJSON(), thumbnail });
       dirtyRef.current = false; setDirty(false);
+      // The server keeps the previous thumbnail rather than failing the save
+      // when one is too big. Say so once, because the failure is otherwise
+      // invisible: the work is saved and only the preview quietly rots.
+      if (saved?.thumbnail_rejected && !warnedThumb.current) {
+        warnedThumb.current = true;
+        toast('Your work is saved, but the preview image was too large to store.', 'error');
+      }
       // Held separately rather than merged into `project`: replacing that
       // object is what used to tear the canvas down mid-edit.
       setThumbs(t => ({ ...t, [id]: thumbnail }));
