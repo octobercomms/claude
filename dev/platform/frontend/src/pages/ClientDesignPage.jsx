@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { roWrite } from '../utils/readOnly';
 import { parsePsd, commonName } from '../utils/psdImport';
 import { psdToScene, imageUploader, hashIndex } from '../utils/psdToScene';
+import { rescaleScene } from '../utils/designScale';
 
 // Design — layered social posts, made here instead of in Canva or Express.
 //
@@ -155,6 +156,27 @@ const thumbSrc = (pageId, v) =>
 // pages should read 6, 39, 40, 44 rather than 39, 40, 44, 6.
 const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+// Colours the client's brand kit already holds. Stored as metadata-only
+// assets of kind 'palette' from the Brand tab, so they are already loaded
+// with everything else.
+// An <input type="color"> only speaks hex, and a layer's fill may be rgba.
+const hexOf = (v) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : '#000000');
+
+export function paletteColours(assets) {
+  const out = [];
+  for (const a of assets || []) {
+    if (a.kind !== 'palette') continue;
+    for (const c of (a.metadata && a.metadata.colors) || []) {
+      const hex = typeof c === 'string' ? c : (c && (c.hex || c.value));
+      if (typeof hex === 'string' && /^#?[0-9a-f]{3,8}$/i.test(hex.trim())) {
+        const v = hex.trim().startsWith('#') ? hex.trim() : `#${hex.trim()}`;
+        if (!out.includes(v)) out.push(v);
+      }
+    }
+  }
+  return out;
+}
+
 const SNAP_TOL_RATIO = 0.006;   // ~6px on a 1080 page, ~13px on A4
 
 function snapTargets(c, moving) {
@@ -247,6 +269,25 @@ function NumField({ value, min, max, step = 1, title, onCommit }) {
   );
 }
 
+// A row of the client's own colours beside a colour input. Clicking one is
+// the whole point: nobody should be eyedropping a brand yellow out of a
+// screenshot every time they set a headline.
+function Swatches({ colours, onPick, current }) {
+  if (!colours.length) return null;
+  return (
+    <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
+      {colours.map(c => (
+        <button key={c} type="button" onClick={() => onPick(c)} title={c} aria-label={`Brand colour ${c}`}
+          style={{
+            width: 20, height: 20, padding: 0, cursor: 'pointer', borderRadius: 'var(--r-sm)',
+            background: c,
+            border: `2px solid ${String(current || '').toLowerCase() === c.toLowerCase() ? 'var(--text)' : 'var(--card-border)'}`,
+          }} />
+      ))}
+    </div>
+  );
+}
+
 export default function ClientDesignPage({ embedded = false, clientId: clientIdProp } = {}) {
   const { id: routeId } = useParams();
   const clientId = clientIdProp || routeId;
@@ -309,13 +350,17 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     // routes/brandAssets.js.
     api.get(`/brand/clients/${clientId}/assets`)
       .then(async (r) => {
-        const all = (Array.isArray(r) ? r : (r?.items || [])).filter(a => a.url);
+        // Every row, files and metadata-only alike. A palette has no url at
+        // all, so filtering on one here is how the brand colours never
+        // reached the editor.
+        const all = Array.isArray(r) ? r : (r?.items || []);
+        const files = all.filter(a => a.url);
         const isFont = (a) => a.kind === 'font' || FONT_FILE_RE.test(a.url);
         // The rail is an image rail. An uploaded .ttf left in it renders as a
         // broken image, which is exactly what the first release did.
         setAllAssets(all);
-        setAssets(all.filter(a => !isFont(a) && a.kind !== 'b_roll_clip'));
-        const fonts = all.filter(isFont).map(a => ({ name: familyOf(a), url: a.url }));
+        setAssets(files.filter(a => !isFont(a) && a.kind !== 'b_roll_clip'));
+        const fonts = files.filter(isFont).map(a => ({ name: familyOf(a), url: a.url }));
         setClientFonts(fonts);
         for (const f of fonts) uploadedFonts.set(f.name, f.url);
         // Register them now rather than on first use: the asset fetch races
@@ -809,6 +854,47 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     } catch (e) { toast(e.message, 'error'); }
   }
 
+  async function renameProject(p) {
+    const name = window.prompt('Rename this set', p.name);
+    if (name === null || !name.trim() || name.trim() === p.name) return;
+    try {
+      await api.patch(`/design/projects/${p.id}`, { name: name.trim() });
+      await loadProjects();
+      if (project && project.id === p.id) setProject(prev => ({ ...prev, name: name.trim() }));
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // Resize a set, and bring its pages with it.
+  //
+  // Everything is scaled by the smaller of the two ratios and centred, so a
+  // design keeps its proportions and nothing is cropped. That is a starting
+  // point rather than a finished re-layout: going from a square to a story
+  // leaves bands of space that only a person can decide what to do with, and
+  // pretending otherwise would quietly wreck the artwork.
+  async function resizeProject(w, h) {
+    if (!project || (w === project.width && h === project.height)) return;
+    const from = { width: project.width, height: project.height };
+    const to = { width: w, height: h };
+    setPsdBusy(`Resizing to ${w}×${h}…`);
+    try {
+      if (dirtyRef.current) await save();
+      // One fetch, not one per page: the scenes are not in the project the
+      // editor is holding, which carries only has_thumbnail and the size.
+      const full = await api.get(`/design/projects/${project.id}`);
+      for (const row of full.pages || []) {
+        const scene = rescaleScene(row.scene, from, to);
+        if (!scene || !scene.objects) continue;
+        await api.put(`/design/pages/${row.id}`, { scene });
+      }
+      await api.patch(`/design/projects/${project.id}`, { width: w, height: h });
+      const fresh = await api.get(`/design/projects/${project.id}`);
+      setProject(fresh);
+      await loadProjects();
+      toast(`Resized to ${w}×${h}`);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPsdBusy(''); }
+  }
+
   async function duplicateProject(p) {
     try { await api.post(`/design/projects/${p.id}/duplicate`, {}); await loadProjects(); toast('Duplicated'); }
     catch (e) { toast(e.message, 'error'); }
@@ -1028,6 +1114,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                   <div className="body-sm text-subtle">{p.page_count} page{p.page_count === 1 ? '' : 's'} · {p.width}×{p.height}</div>
                 </div>
                 <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
+                  <button onClick={() => renameProject(p)} className="btn-icon btn-icon-sm"
+                    title={`Rename “${p.name}”`} aria-label={`Rename ${p.name}`}>✎</button>
                   <button onClick={() => duplicateProject(p)} className="btn-icon btn-icon-sm"
                     title={`Duplicate “${p.name}”`} aria-label={`Duplicate ${p.name}`}>⧉</button>
                   <button onClick={() => deleteProject(p)} className="btn-icon btn-icon-sm danger"
@@ -1041,6 +1129,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     );
   }
 
+  const brandColours = paletteColours(allAssets);
   const sel = selected ? members(selected) : [];
   const isText = sel.length > 0 && sel.every(isTextObj);
   const isImage = sel.length > 0 && sel.every(isImageObj);
@@ -1054,7 +1143,24 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         <div className="row" style={{ gap: 'var(--s3)', alignItems: 'center' }}>
           <button onClick={async () => { if (dirtyRef.current) await save(); open(null); }} className="btn btn-secondary btn-sm">← All sets</button>
           <strong>{project.name}</strong>
-          <span className="body-sm text-subtle">{project.width}×{project.height}</span>
+          <button onClick={() => renameProject(project)} className="btn-icon btn-icon-sm"
+            title="Rename this set" aria-label="Rename this set">✎</button>
+          <select className="input" value={`${project.width}x${project.height}`} title="Resize this set"
+            aria-label="Resize this set" style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
+            onChange={e => {
+              const [w, h] = e.target.value.split('x').map(Number);
+              if (window.confirm(
+                `Resize “${project.name}” to ${w}×${h}?\n\n`
+                + `Every page is scaled to fit and centred, which keeps the proportions but `
+                + `leaves space to fill where the shape changes. Worth checking each page after.`)) {
+                resizeProject(w, h);
+              }
+            }}>
+            <option value={`${project.width}x${project.height}`}>{project.width}×{project.height}</option>
+            {PRESETS
+              .filter(p2 => p2.w !== project.width || p2.h !== project.height)
+              .map(p2 => <option key={p2.label} value={`${p2.w}x${p2.h}`}>{p2.label} · {p2.w}×{p2.h}</option>)}
+          </select>
         </div>
         <div className="row" style={{ gap: 'var(--s2)' }}>
           <span className="body-sm text-subtle">{saving ? 'Saving…' : dirty ? 'Unsaved' : 'Saved'}</span>
@@ -1274,6 +1380,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                       <option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option>
                     </select>
                   </div>
+                  <Swatches colours={brandColours} current={selected.fill}
+                    onPick={c => setProp('fill', c)} />
 
                   <div className="row" style={{ gap: 2, flexWrap: 'wrap' }}>
                     <button title="Italic" className="btn btn-secondary btn-sm" style={{ fontStyle: 'italic' }}
@@ -1315,6 +1423,22 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                 </div>
               )}
 
+              {!isText && !isImage && (
+                <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                  <div className="caption">Fill</div>
+                  <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
+                    {/* A shade block is created semi-transparent, which a colour
+                        input cannot represent. It shows the colour and the
+                        opacity slider above handles the rest. */}
+                    <input type="color" value={hexOf(selected.fill)} title="Fill colour"
+                      onChange={e => setProp('fill', e.target.value)} />
+                    <span className="body-sm text-subtle" style={{ flex: 1 }}>Block colour</span>
+                  </div>
+                  <Swatches colours={brandColours} current={hexOf(selected.fill)}
+                    onPick={c => setProp('fill', c)} />
+                </div>
+              )}
+
               {isImage && (
                 <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   <div className="caption">Graphic</div>
@@ -1331,6 +1455,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                         className="btn btn-secondary btn-sm">Reset</button>
                     )}
                   </div>
+                  <Swatches colours={brandColours} current={fx.tint}
+                    onPick={c => setImageFx({ tint: c })} />
                   <div className="body-sm text-subtle">
                     Invert flips a flat black logo to white. Recolour paints a cut-out logo one
                     colour and keeps its transparency.
