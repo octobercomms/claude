@@ -183,17 +183,12 @@ async function pollState() {
  * opt-outs never happen.
  */
 async function pollOneInbox(inbox) {
-  const port = Number(inbox.port) || 993;
 
-  // Loaded lazily so a missing optional dependency cannot crash startup.
-  const { ImapFlow } = require('imapflow');
-  const client = new ImapFlow({
-    host: String(inbox.host).trim(),
-    port,
-    secure: port === 993,
-    auth: { user: String(inbox.username).trim(), pass: String(inbox.password).trim() },
-    logger: false,
-  });
+  // Through the shared factory, which attaches the 'error' listener ImapFlow
+  // needs. Without one, a socket error arriving after this poll has finished
+  // reaches process.on('uncaughtException') instead of the per-mailbox
+  // handling below.
+  const client = inboxes.imapClient(inbox);
 
   let matched = 0;
   let scanned = 0;
@@ -359,7 +354,7 @@ async function pollOneInbox(inbox) {
       lock.release();
     }
   } finally {
-    await client.logout();
+    await client.logout().catch(() => {});
   }
   await inboxes.recordState(inbox.id, {
     last_run_at: new Date(), last_ok_at: new Date(), last_error: null,
@@ -449,19 +444,12 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
   const windowDays = Math.min(730, Math.max(1, Number(days) || 90));
   const cap = Math.min(10000, Math.max(1, Number(limit) || 2000));
   const sendingDomain = await getSetting('OUTREACH_SENDING_DOMAIN').catch(() => null);
-  const { ImapFlow } = require('imapflow');
-
   let scanned = 0; let queued = 0; let autoReplies = 0; let contacts = 0; let reread = 0;
   const per = [];
   const errors = [];
 
   for (const inbox of list) {
-    const port = Number(inbox.port) || 993;
-    const client = new ImapFlow({
-      host: String(inbox.host).trim(), port, secure: port === 993,
-      auth: { user: String(inbox.username).trim(), pass: String(inbox.password).trim() },
-      logger: false,
-    });
+    const client = inboxes.imapClient(inbox);
     let boxScanned = 0; let boxQueued = 0;
     try {
       await client.connect();

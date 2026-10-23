@@ -255,10 +255,7 @@ async function testConnection(input = {}) {
     label = input.label;
   }
 
-  const { ImapFlow } = require('imapflow');
-  const client = new ImapFlow({
-    host, port, secure: port === 993, auth: { user: username, pass: password }, logger: false,
-  });
+  const client = imapClient({ host, port, username, password, label });
   try {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
@@ -274,7 +271,46 @@ async function testConnection(input = {}) {
   }
 }
 
+/**
+ * An IMAP client that cannot take the process down.
+ *
+ * ImapFlow is an EventEmitter, and Node throws an 'error' event that nobody
+ * is listening for. Every client in this codebase was built without a
+ * listener, so a socket-level error — one that arrives outside the awaited
+ * call, after a poll has finished with its connection — reached
+ * process.on('uncaughtException') instead of the per-mailbox error handling
+ * that already exists.
+ *
+ * The count is what gave it away: 94 "Socket timeout" errors in a day against
+ * a reply poll that runs every 15 minutes, which is 96 runs. One per poll.
+ *
+ * Only the listener is added. The timeouts are left at ImapFlow's own
+ * defaults, because shortening them to "fix" a timeout would cut off slow
+ * mailboxes mid-fetch, and nothing here is evidence that the defaults are
+ * wrong.
+ */
+function imapClient(inbox, onError) {
+  const { ImapFlow } = require('imapflow');
+  const port = Number(inbox.port) || 993;
+  const client = new ImapFlow({
+    host: String(inbox.host).trim(),
+    port,
+    secure: port === 993,
+    auth: { user: String(inbox.username).trim(), pass: String(inbox.password).trim() },
+    logger: false,
+  });
+  client.on('error', (err) => {
+    console.warn('[IMAP]', inbox.label || inbox.host, err && err.message);
+    // The caller's own handling of a failed mailbox still runs; this is the
+    // path for errors that arrive when nothing is awaiting them.
+    if (typeof onError === 'function') {
+      try { onError(err); } catch { /* reporting a failure must not fail */ }
+    }
+  });
+  return client;
+}
+
 module.exports = {
   list, create, update, remove, withCredentials, activeWithCredentials,
-  recordState, testConnection, importLegacyOnce, describeImapError,
+  recordState, testConnection, importLegacyOnce, describeImapError, imapClient,
 };
