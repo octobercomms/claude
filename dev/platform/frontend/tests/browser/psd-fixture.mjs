@@ -32,16 +32,33 @@ const glyph = (x) => ({
 const psd = {
   width: 1080, height: 1350,
   children: [
+    // The background, exactly as Adobe Express writes one: white pixels, with
+    // the real colour in a Color Overlay effect. A disabled overlay sits
+    // beside it, because Express writes every effect slot and only the
+    // enabled flag says which of them count.
     { name: 'Layer 0', left: 0, top: 0, right: 1080, bottom: 1350,
-      imageData: img(1080, 1350, [90, 120, 70]),
-      effects: { dropShadow: [{ enabled: true }] } },
+      imageData: img(1080, 1350, [255, 255, 255]),
+      effects: {
+        dropShadow: [{ enabled: true }],
+        solidFill: [{ enabled: true, color: { r: 209, g: 73, b: 0 }, opacity: 1, blendMode: 'normal' }],
+      } },
+    // Same idea, switched off: this one must stay the colour of its pixels.
+    { name: 'Overlay off', left: 0, top: 1300, right: 40, bottom: 1340,
+      imageData: img(40, 40, [90, 120, 70]),
+      effects: {
+        solidFill: [{ enabled: false, color: { r: 0, g: 255, b: 0 }, opacity: 1, blendMode: 'normal' }],
+      } },
     { name: 'Rectangle', left: 0, top: 899, right: 1080, bottom: 1350,
       imageData: img(1080, 451, [0, 0, 0]), opacity: 0.35 },
     { name: 'Hidden thing', left: 0, top: 0, right: 100, bottom: 100,
       imageData: img(100, 100, [255, 0, 0]), hidden: true },
     // a masked layer: full rectangle, half of it cut away
+    // It also carries an overlay, so the two have to agree: the colour is
+    // repainted and the cut-away half stays cut away rather than being filled
+    // back in as a solid rectangle.
     { name: 'Raster 4', left: 60, top: 429, right: 287, bottom: 658,
       imageData: img(227, 229, [200, 30, 30]),
+      effects: { solidFill: [{ enabled: true, color: { r: 0, g: 90, b: 180 }, opacity: 1, blendMode: 'normal' }] },
       mask: { left: 60, top: 429, right: 287, bottom: 658, imageData: maskHalf(227, 229), defaultColor: 0 } },
     // a wordmark exported as one shape per letter, nested three groups deep
     { name: 'Group', opened: false, children: [

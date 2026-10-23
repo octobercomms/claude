@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint:hooks": "eslint 'src/**/*.jsx' 'src/**/*.js'",
     "test:browser": "vite build --config tests/browser/vite.config.js && node tests/browser/smoke.mjs && node tests/browser/psd.mjs",
-    "test:units": "node tests/designScale.test.mjs"
+    "test:units": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "ag-psd": "^31.0.3",

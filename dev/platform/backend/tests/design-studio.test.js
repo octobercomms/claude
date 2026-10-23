@@ -560,5 +560,20 @@ check('the review panel is the same one in both places',
   && (page.match(/\{psdReview\}/g) || []).length === 2,
   'two copies drift, and the one nobody looks at is the one that writes the wrong thing');
 
+// --- the colour that is not in the pixels ------------------------------------
+check('a colour overlay is read as the layer\'s colour',
+  /export function colourOverlay/.test(parser)
+  && /const overlay = colourOverlay\(layer\.effects\)/.test(parser),
+  'Express writes a background white and puts its colour in the effect');
+check('and only when it is switched on',
+  /f\.enabled !== false && f\.color/.test(parser),
+  'every effect slot is written; the flag is what says which ones paint');
+check('a blend mode that needs what is underneath is left alone',
+  /if \(mode !== 'normal'\) return null;/.test(parser),
+  'a per-layer import has nothing underneath to blend with, so a guess would be wrong');
+check('the overlay keeps the layer\'s own alpha',
+  /'source-atop'/.test(parser),
+  'a plain fill turns a cut-out logo into a solid rectangle');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
