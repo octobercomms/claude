@@ -97,6 +97,8 @@ jobs:
         run: node tests/deploy-visibility.test.js
       - name: Guard — the design studio keeps the work
         run: node tests/design-studio.test.js
+      - name: Guard — an IMAP socket error cannot take the backend down
+        run: node tests/imap-client.test.js
       - name: Syntax check every service and route
         run: |
           set -e

@@ -127,19 +127,12 @@ async function scan({ days = 180, limit = 3000, inboxId = null, user = null } = 
 
   const windowDays = Math.min(1095, Math.max(1, Number(days) || 180));
   const cap = Math.min(20000, Math.max(1, Number(limit) || 3000));
-  const { ImapFlow } = require('imapflow');
-
   let scanned = 0; let found = 0; let optOuts = 0; let alreadyHandled = 0; let refreshed = 0;
   const per = [];
   const errors = [];
 
   for (const inbox of list) {
-    const port = Number(inbox.port) || 993;
-    const client = new ImapFlow({
-      host: String(inbox.host).trim(), port, secure: port === 993,
-      auth: { user: String(inbox.username).trim(), pass: String(inbox.password).trim() },
-      logger: false,
-    });
+    const client = inboxes.imapClient(inbox);
     let boxScanned = 0; let boxFound = 0;
     try {
       await client.connect();
