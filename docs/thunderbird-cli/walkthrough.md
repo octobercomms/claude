@@ -318,21 +318,81 @@ below muddies the result and you will not know whether the fault is your setup.
 
 ## Daily use
 
-**Starting up:** open Thunderbird, open Terminal, run `tb-bridge`, leave it.
+Three pieces are involved, and only one of them needs your attention:
 
-**Shutting down:** click the bridge window and press Ctrl+C. Email access stops
-immediately.
+| Piece | Starts how | Survives reboot |
+|---|---|---|
+| Thunderbird add-on | With Thunderbird | Yes |
+| MCP server | Claude launches it | Yes, nothing to do |
+| **Bridge** | You start it | **No. This is the one** |
 
-Run it only while you are using it. A program with permanent access to every
-client mailbox, sitting there for weeks, is a risk worth avoiding for the sake
-of one Terminal command.
+When the bridge is down, Claude still lists the Thunderbird tools and then
+fails the moment you ask it something. Tools present, answers absent.
 
-Shortcut, using whichever profile Step 4 reported:
+### Option A: start it at login (recommended)
 
 ```bash
-echo 'alias mail-on="tb-bridge"' >> "$PROFILE"
+cat > ~/Library/LaunchAgents/com.thunderbird-cli.bridge.plist <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.thunderbird-cli.bridge</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>exec tb-bridge</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><false/>
+  <key>StandardOutPath</key><string>/tmp/tb-bridge.log</string>
+  <key>StandardErrorPath</key><string>/tmp/tb-bridge.err</string>
+</dict>
+</plist>
+PLIST
+
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.thunderbird-cli.bridge.plist
+```
+
+It runs through `bash -lc`, so it reads your shell profile and picks up the
+token. No second copy of the credential.
+
+`KeepAlive` is false on purpose: the bridge starts at login, and stopping it by
+hand keeps it stopped until you next log in. You keep an off switch.
+
+To undo:
+
+```bash
+launchctl bootout gui/$(id -u)/com.thunderbird-cli.bridge
+rm ~/Library/LaunchAgents/com.thunderbird-cli.bridge.plist
+```
+
+### Option B: start it by hand
+
+Using whichever profile Step 4 reported:
+
+```bash
+echo 'alias mail-on="nohup tb-bridge > ~/.tb-bridge.log 2>&1 & echo bridge started"' >> "$PROFILE"
+echo 'alias mail-off="pkill -f tb-bridge && echo bridge stopped"' >> "$PROFILE"
+echo 'alias mail-status="pgrep -f tb-bridge >/dev/null && echo running || echo stopped"' >> "$PROFILE"
 source "$PROFILE"
 ```
+
+`mail-on` after each reboot, then close Terminal freely. These aliases work
+alongside Option A: `mail-off` and `mail-status` apply either way.
+
+### Keeping it current
+
+The case for leaving the bridge running rests on being on a patched version, so
+this is the part that matters:
+
+```bash
+npm update -g thunderbird-cli thunderbird-cli-bridge thunderbird-cli-mcp
+```
+
+Monthly, in your calendar rather than your memory. Also click **Watch** on the
+GitHub repo. If a vulnerability is disclosed, stop the bridge that day.
 
 ---
 
@@ -422,6 +482,28 @@ read your mail through. That is fixed, and the maintainer found and fixed it
 himself, which counts for something. It still tells you the security model came
 second.
 
-So: latest version only, token always set, Step 7 verified, bridge running only
-when in use, and drafts rather than direct send. Those habits carry nearly all
-the risk.
+What that leaves, once the setup above is done:
+
+**Already handled.** The bridge binds to 127.0.0.1, so nothing on your network
+reaches it. Auth is enforced, which Step 7 proves rather than assumes. The
+browser attack classes that made the old versions dangerous are patched.
+
+**Not a strong argument.** "A local process might steal the token." Any process
+running as you already reads the Thunderbird profile directory and the Claude
+Desktop config. The bridge adds little to an attacker who is that far in, so
+uptime is not the lever it first appears to be.
+
+**The live one.** Young code from a single maintainer, with one serious flaw
+found five weeks before this was written. Unknown bugs are plausible, and a
+patched version is what the rest of this rests on.
+
+So the controls that carry the risk, in order:
+
+1. Stay on the current version. Monthly `npm update`, in a calendar.
+2. Watch the repo, and stop the bridge the day anything is disclosed.
+3. Verify Step 7 again after any update.
+4. Keep drafts rather than direct send.
+
+Running the bridge continuously is a reasonable call once those four hold.
+Running an outdated copy of it is not, whether it is up for an hour a week or
+all month.
