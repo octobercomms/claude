@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Canvas, FabricImage, Textbox, Rect } from 'fabric';
+import { Canvas, FabricImage, Textbox, Rect, filters } from 'fabric';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -86,6 +86,12 @@ async function ensureFont(name) {
 // object offers its own three, so "left edges flush", "centred on the page"
 // and "both headlines on the same baseline" all fall out of one comparison.
 
+const isTextObj = (o) => !!o && ['textbox', 'Textbox', 'i-text', 'IText', 'text', 'Text'].includes(o.type);
+const isImageObj = (o) => !!o && (o.type === 'image' || o.type === 'Image');
+// An ActiveSelection wraps the layers rather than being one, so a property set
+// on it silently does nothing. Everything below applies to its members.
+const members = (o) => (typeof o?.getObjects === 'function' ? o.getObjects() : [o]);
+
 const SNAP_TOL_RATIO = 0.006;   // ~6px on a 1080 page, ~13px on A4
 
 function snapTargets(c, moving) {
@@ -148,6 +154,36 @@ function drawGuides(c) {
 
 const clearGuides = (c) => { if (c.ocGuides?.length) { c.ocGuides = []; c.requestRenderAll(); } };
 
+// A number box that can be cleared and typed into.
+//
+// A plainly controlled <input type="number"> whose value comes off the Fabric
+// object fights the person using it: clearing the box parses as NaN, clamping
+// on every keystroke turns a typed "120" into "8" at the first digit, and the
+// value React writes back overwrites what was half-typed. So the draft is held
+// locally, every parseable keystroke reaches the canvas, and the clamp happens
+// on blur.
+function NumField({ value, min, max, step = 1, title, onCommit }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  return (
+    <input
+      className="input" type="number" min={min} max={max} step={step} title={title}
+      value={draft}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const v = Number(e.target.value);
+        if (e.target.value !== '' && Number.isFinite(v)) onCommit(v);
+      }}
+      onBlur={() => {
+        const v = Number(draft);
+        const next = Number.isFinite(v) && draft !== '' ? Math.min(max, Math.max(min, v)) : value;
+        setDraft(String(next));
+        onCommit(next);
+      }}
+    />
+  );
+}
+
 export default function ClientDesignPage({ embedded = false, clientId: clientIdProp } = {}) {
   const { id: routeId } = useParams();
   const clientId = clientIdProp || routeId;
@@ -167,6 +203,12 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [dirty, setDirty] = useState(false);
   const [thumbs, setThumbs] = useState({});   // page id -> freshly saved thumbnail
   const [saving, setSaving] = useState(false);
+  // Fabric mutates the selected object in place, so its identity never
+  // changes and React has nothing to compare. Without this counter,
+  // setSelected(o) is a no-op, the panel never re-renders, and a controlled
+  // input is written straight back to the value it had — which is exactly
+  // what made the font and size boxes look broken.
+  const [, bump] = useReducer(x => x + 1, 0);
 
   const canvasEl = useRef(null);
   const dropEl = useRef(null);       // the scaled wrapper, for drop coordinates
@@ -403,6 +445,28 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     } catch (e) { toast('Upload failed: ' + e.message, 'error'); }
   }
 
+  // Duplicate and delete from the keyboard, which is how this work is actually
+  // done. Suppressed while a text layer is being typed into or a panel field
+  // has focus, or Backspace would delete the layer instead of a character.
+  useEffect(() => {
+    if (!projectId) return undefined;
+    const onKey = (e) => {
+      const c = fc.current;
+      const o = c?.getActiveObject();
+      if (!c || !o || o.isEditing) return;
+      const el = e.target;
+      if (el?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el?.tagName)) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateLayer(); }
+      else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        for (const t of members(o)) c.remove(t);
+        c.discardActiveObject(); c.renderAll(); markDirty(); syncLayers();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [projectId, duplicateLayer, markDirty, syncLayers]);
+
   // Drop onto the canvas: a file from the desktop, an asset dragged off the
   // rail, or an image dragged out of another tab. The wrapper is CSS-scaled,
   // so the drop point is converted back into page coordinates from its own
@@ -438,11 +502,92 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const toBack = act((c, o) => c.sendObjectToBack(o));
   const remove = act((c, o) => { c.remove(o); c.discardActiveObject(); });
 
+  // setSelected(null) then setSelected(o) is how the panel re-reads a property
+  // it does not otherwise know has changed; the object identity is unchanged.
+  const reread = (c, o) => { c.renderAll(); markDirty(); setSelected(o); bump(); };
+
   function setProp(key, value) {
     const c = fc.current; const o = c?.getActiveObject();
     if (!c || !o) return;
-    o.set(key, value); c.renderAll(); markDirty(); setSelected(null); setSelected(o);
+    for (const t of members(o)) t.set(key, value);
+    reread(c, o);
   }
+
+  // Upper case and sentence case rather than a text-transform: Fabric has no
+  // such property, and what is exported has to be what the layer holds.
+  const setCase = (mode) => () => {
+    const c = fc.current; const o = c?.getActiveObject();
+    if (!c || !o) return;
+    for (const t of members(o)) {
+      if (!isTextObj(t) || typeof t.text !== 'string') continue;
+      t.set('text', mode === 'upper'
+        ? t.text.toUpperCase()
+        : t.text.charAt(0).toUpperCase() + t.text.slice(1).toLowerCase());
+    }
+    reread(c, o);
+  };
+
+  // Align the layer to the page. Worked through the bounding box so it is
+  // right for a rotated or scaled layer, and so it agrees with snapping.
+  const alignPage = (where) => () => {
+    const c = fc.current; const o = c?.getActiveObject();
+    if (!c || !o) return;
+    const b = o.getBoundingRect();
+    const dx = { left: -b.left, hcentre: (c.width - b.width) / 2 - b.left, right: c.width - b.width - b.left }[where];
+    const dy = { top: -b.top, vcentre: (c.height - b.height) / 2 - b.top, bottom: c.height - b.height - b.top }[where];
+    if (dx !== undefined) o.set('left', o.left + dx);
+    if (dy !== undefined) o.set('top', o.top + dy);
+    o.setCoords();
+    reread(c, o);
+  };
+
+  // Copy a layer. A multi-selection is discarded first because its members
+  // hold coordinates relative to the selection while it exists, and a clone
+  // taken then lands in the wrong place.
+  const duplicateLayer = useCallback(async () => {
+    const c = fc.current; const o = c?.getActiveObject();
+    if (!c || !o) return;
+    const targets = members(o);
+    c.discardActiveObject();
+    const copies = [];
+    for (const t of targets) {
+      const copy = await t.clone();
+      const step = c.width * 0.03;
+      copy.set({ left: (copy.left || 0) + step, top: (copy.top || 0) + step });
+      c.add(copy);
+      copies.push(copy);
+    }
+    if (copies.length === 1) c.setActiveObject(copies[0]);
+    c.renderAll(); markDirty(); syncLayers();
+  }, [markDirty, syncLayers]);
+
+  // Recolouring a graphic, which covers the black-logo-on-a-white-post case
+  // without a second upload. Invert flips a flat file; a tint at full alpha
+  // replaces every visible pixel and leaves the alpha channel alone, which is
+  // what a cut-out logo needs.
+  const fxOf = (o) => ({
+    invert: (o?.filters || []).some(f => f?.type === 'Invert'),
+    tint: (o?.filters || []).find(f => f?.type === 'BlendColor')?.color || null,
+  });
+
+  const setImageFx = (patch) => {
+    const c = fc.current; const o = c?.getActiveObject();
+    if (!c || !o) return;
+    let refused = false;
+    for (const t of members(o)) {
+      if (!isImageObj(t)) continue;
+      const next = { ...fxOf(t), ...patch };
+      t.filters = [
+        ...(next.invert ? [new filters.Invert()] : []),
+        ...(next.tint ? [new filters.BlendColor({ color: next.tint, mode: 'tint', alpha: 1 })] : []),
+      ];
+      // A picture dragged in from another site taints the canvas, and reading
+      // its pixels throws. Say so rather than failing silently.
+      try { t.applyFilters(); } catch { t.filters = []; refused = true; }
+    }
+    if (refused) toast('That picture came from another site, so its pixels cannot be read. Upload it to this client’s assets first.', 'error');
+    reread(c, o);
+  };
 
   async function exportPage(scale = 2) {
     const c = fc.current;
@@ -549,7 +694,10 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     );
   }
 
-  const isText = selected && (selected.type === 'textbox' || selected.type === 'Textbox');
+  const sel = selected ? members(selected) : [];
+  const isText = sel.length > 0 && sel.every(isTextObj);
+  const isImage = sel.length > 0 && sel.every(isImageObj);
+  const fx = isImage ? fxOf(sel[0]) : { invert: false, tint: null };
   const fit = Math.min(620 / project.width, 620 / project.height, 1);
 
   return (
@@ -672,20 +820,47 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                 <button onClick={raise} title="Forward" className="btn btn-secondary btn-sm">↑</button>
                 <button onClick={lower} title="Backward" className="btn btn-secondary btn-sm">↓</button>
                 <button onClick={toBack} title="Send to back" className="btn btn-secondary btn-sm">⤓</button>
-                <button onClick={remove} title="Delete layer" className="btn btn-secondary btn-sm">🗑</button>
+                <button onClick={duplicateLayer} title="Duplicate this layer (⌘D)" className="btn btn-secondary btn-sm">⧉</button>
+                <button onClick={remove} title="Delete layer (⌫)" className="btn btn-secondary btn-sm">🗑</button>
               </div>
+
+              <div className="caption" style={{ marginTop: 'var(--s3)' }}>Align to page</div>
+              <div className="row" style={{ gap: 2, marginTop: 2, flexWrap: 'wrap' }}>
+                <button onClick={alignPage('left')} title="Left edge" className="btn btn-secondary btn-sm">⇤</button>
+                <button onClick={alignPage('hcentre')} title="Centred across" className="btn btn-secondary btn-sm">↔</button>
+                <button onClick={alignPage('right')} title="Right edge" className="btn btn-secondary btn-sm">⇥</button>
+                <button onClick={alignPage('top')} title="Top edge" className="btn btn-secondary btn-sm">⇡</button>
+                <button onClick={alignPage('vcentre')} title="Centred down" className="btn btn-secondary btn-sm">↕</button>
+                <button onClick={alignPage('bottom')} title="Bottom edge" className="btn btn-secondary btn-sm">⇣</button>
+              </div>
+
+              <div className="caption" style={{ marginTop: 'var(--s3)' }}>
+                Opacity {Math.round((selected.opacity ?? 1) * 100)}%
+              </div>
+              <input type="range" min="0" max="100" style={{ width: '100%' }}
+                value={Math.round((selected.opacity ?? 1) * 100)}
+                onChange={e => setProp('opacity', Number(e.target.value) / 100)} />
 
               {isText && (
                 <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   <select className="input" value={selected.fontFamily || 'Brockmann'}
-                    onChange={async e => { await ensureFont(e.target.value); setProp('fontFamily', e.target.value); }}>
+                    onChange={async (e) => {
+                      // Read it first. Loading a face is awaited, and by the
+                      // time it resolves React has written the controlled
+                      // value back, so e.target.value is the old family again.
+                      const family = e.target.value;
+                      await ensureFont(family);
+                      setProp('fontFamily', family);
+                    }}>
                     {[...clientFonts, ...FONTS]
                       .filter((f, i, all) => all.findIndex(g => g.name === f.name) === i)
                       .map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
                   </select>
                   <div className="row" style={{ gap: 'var(--s2)' }}>
-                    <input className="input" type="number" min="8" max="400" value={Math.round(selected.fontSize || 48)}
-                      onChange={e => setProp('fontSize', parseInt(e.target.value, 10) || 48)} style={{ width: 80 }} title="Size" />
+                    <div style={{ width: 80 }}>
+                      <NumField value={Math.round(selected.fontSize || 48)} min={8} max={400} title="Size"
+                        onCommit={v => setProp('fontSize', Math.round(v))} />
+                    </div>
                     <select className="input" value={String(selected.fontWeight || 400)}
                       onChange={e => setProp('fontWeight', parseInt(e.target.value, 10))} style={{ flex: 1 }}>
                       <option value="400">Regular</option><option value="600">Semibold</option>
@@ -699,6 +874,51 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
                       onChange={e => setProp('textAlign', e.target.value)} style={{ flex: 1 }}>
                       <option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option>
                     </select>
+                  </div>
+
+                  <div className="row" style={{ gap: 2, flexWrap: 'wrap' }}>
+                    <button title="Italic" className="btn btn-secondary btn-sm" style={{ fontStyle: 'italic' }}
+                      onClick={() => setProp('fontStyle', selected.fontStyle === 'italic' ? 'normal' : 'italic')}>I</button>
+                    <button title="Underline" className="btn btn-secondary btn-sm" style={{ textDecoration: 'underline' }}
+                      onClick={() => setProp('underline', !selected.underline)}>U</button>
+                    <button title="UPPER CASE" className="btn btn-secondary btn-sm" onClick={setCase('upper')}>AA</button>
+                    <button title="Sentence case" className="btn btn-secondary btn-sm" onClick={setCase('sentence')}>Aa</button>
+                  </div>
+
+                  <div className="row" style={{ gap: 'var(--s2)' }}>
+                    <label className="body-sm text-subtle" style={{ flex: 1 }}>
+                      Line height
+                      <NumField value={Number(selected.lineHeight ?? 1.16).toFixed(2)} min={0.6} max={3} step={0.05}
+                        onCommit={v => setProp('lineHeight', v)} />
+                    </label>
+                    <label className="body-sm text-subtle" style={{ flex: 1 }}>
+                      Letter spacing
+                      <NumField value={Math.round(selected.charSpacing || 0)} min={-200} max={800} step={10}
+                        onCommit={v => setProp('charSpacing', Math.round(v))} />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {isImage && (
+                <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                  <div className="caption">Graphic</div>
+                  <button onClick={() => setImageFx({ invert: !fx.invert })}
+                    className={fx.invert ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}>
+                    {fx.invert ? 'Inverted' : 'Invert'}
+                  </button>
+                  <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
+                    <input type="color" value={fx.tint || '#ffffff'} title="Recolour this graphic"
+                      onChange={e => setImageFx({ tint: e.target.value })} />
+                    <span className="body-sm text-subtle" style={{ flex: 1 }}>Recolour</span>
+                    {(fx.tint || fx.invert) && (
+                      <button onClick={() => setImageFx({ tint: null, invert: false })}
+                        className="btn btn-secondary btn-sm">Reset</button>
+                    )}
+                  </div>
+                  <div className="body-sm text-subtle">
+                    Invert flips a flat black logo to white. Recolour paints a cut-out logo one
+                    colour and keeps its transparency.
                   </div>
                 </div>
               )}
