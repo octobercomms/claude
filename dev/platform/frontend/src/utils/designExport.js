@@ -80,6 +80,23 @@ export async function psdLayers(scene, size, { ensureFont } = {}) {
   const visibility = objects.map(o => o.visible !== false);
   const layers = [];
 
+  // The page background is not an object, so it has no turn in the loop below
+  // and would be dropped. It goes in as the bottom layer, which is what it is.
+  const bg = typeof canvas.backgroundColor === 'string' ? canvas.backgroundColor : null;
+  if (bg) {
+    const plate = document.createElement('canvas');
+    plate.width = size.width;
+    plate.height = size.height;
+    const pctx = plate.getContext('2d');
+    pctx.fillStyle = bg;
+    pctx.fillRect(0, 0, size.width, size.height);
+    layers.push({
+      name: 'Background',
+      left: 0, top: 0, right: size.width, bottom: size.height,
+      canvas: plate, opacity: 1,
+    });
+  }
+
   for (let i = 0; i < objects.length; i += 1) {
     objects.forEach((o, j) => o.set('visible', j === i));
     canvas.renderAll();

@@ -268,6 +268,9 @@ try {
       fonts: ['GT America'],
     });
     const size = { width: parsed.width, height: parsed.height };
+    // The page background is not an object, so it only survives the export if
+    // something puts it in deliberately.
+    scene.background = '#f2c100';
     const bytes = await window.designExport.renderPsd(scene, size, { ensureFont: async () => {} });
     const back = await window.psdImport.parsePsd(
       new File([bytes], 'exported.psd', { type: 'image/vnd.adobe.photoshop' }));
@@ -279,6 +282,18 @@ try {
       texts: back.layers.filter(l => l.kind === 'text').map(l => l.text),
       textFont: (back.layers.find(l => l.kind === 'text') || {}).family,
       images: back.layers.filter(l => l.kind === 'image').length,
+      background: await (async () => {
+        const plate = back.layers.find(l => l.kind === 'image'
+          && l.left === 0 && l.top === 0
+          && l.width === size.width && l.height === size.height);
+        if (!plate) return null;
+        const bmp = await createImageBitmap(plate.blob);
+        const cv = document.createElement('canvas');
+        cv.width = 1; cv.height = 1;
+        cv.getContext('2d').drawImage(bmp, 0, 0, 1, 1, 0, 0, 1, 1);
+        const d = cv.getContext('2d').getImageData(0, 0, 1, 1).data;
+        return [d[0], d[1], d[2]].join(',');
+      })(),
       helpers: {
         order: [0, 9, 43].map(i => window.designExport.pageFilename('ADF 2026', i, 44, 'png')),
         font: window.designExport.psFontName('GT America', 700),
@@ -292,8 +307,11 @@ try {
   check('the exported PSD is a real file', trip.bytes > 1000, `${trip.bytes} bytes`);
   check('at the page size', trip.size.w === 1080 && trip.size.h === 1350, JSON.stringify(trip.size));
   check('with a layer per layer, not one flattened picture',
-    trip.layers === trip.wasLayers,
-    `${trip.wasLayers} went in, ${trip.layers} came back`);
+    trip.layers === trip.wasLayers + 1,
+    `${trip.wasLayers} went in, ${trip.layers} came back (the extra is the background plate)`);
+  check('and the page background comes out as the bottom layer',
+    trip.background === '242,193,0',
+    `bottom plate rgb(${trip.background}); it is not an object, so nothing else carries it`);
   check('text comes back as text',
     trip.texts.some(t => /ARCHITECTURE TOUR/.test(t)),
     JSON.stringify(trip.texts));

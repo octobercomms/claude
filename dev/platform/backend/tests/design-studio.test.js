@@ -113,8 +113,13 @@ check('selecting a layer does not reorder it',
 check('fonts are loaded before a scene is rendered',
   /await Promise\.all\(families\.map\(ensureFont\)\)/.test(page),
   'text rendered before its face arrives measures at the fallback metrics and wraps wrong');
+// Both branches of the page export rasterise, so both have to be downstream of
+// the font wait, not only whichever one the regex happened to reach first.
+const exportBody = (page.match(/async function exportPage\([\s\S]*?\n  \}\n/) || [''])[0];
 check('and before an export is rasterised',
-  /await document\.fonts\.ready;[\s\S]{0,120}toDataURL/.test(page),
+  /await document\.fonts\.ready;/.test(exportBody)
+  && exportBody.indexOf('document.fonts.ready') < exportBody.indexOf('toDataURL')
+  && exportBody.indexOf('document.fonts.ready') < exportBody.indexOf('renderPsd'),
   'this is where a graphic silently goes out in the wrong typeface');
 check('a background image covers the page rather than stretching',
   /Math\.max\(c\.width \/ img\.width, c\.height \/ img\.height\)/.test(page));
@@ -499,6 +504,38 @@ check('the editor is code-split',
   'Fabric is 300KB; nobody who never opens this tab should download it');
 check('with something on screen while it loads', /Suspense/.test(tab));
 check('and it is agency-only', /readOnly \? \[\] : \[\{ key: 'design'/.test(tab));
+
+// --- the page's own background ----------------------------------------------
+//
+// A full-bleed graphic sits over the background, so with no control of its own
+// the only way to reach the colour was to move whatever was on top of it.
+check('the page background has a control that needs no selection',
+  /setPageColour\(/.test(page)
+  && /aria-label="Page background colour"/.test(page),
+  'otherwise the only way to change it is to drag the artwork off it first');
+check('and it sits outside the selected-layer panel',
+  page.indexOf('aria-label="Page background colour"') < page.indexOf('{selected && ('),
+  'inside it, the control disappears the moment nothing is selected, which is the case it exists for');
+check('it is a real canvas background, not a layer',
+  /c\.backgroundColor = colour/.test(page),
+  'a full-bleed rectangle pretending to be a background is one more thing to select by accident');
+check('changing it saves and is undoable',
+  /c\.backgroundColor = colour;[\s\S]{0,200}markDirty\(\);[\s\S]{0,40}pushHistory\(\)/.test(page));
+check('the brand palette is offered for it',
+  /<Swatches colours=\{brandColours\} current=\{pageBg\}/.test(page));
+check('and the background reaches a layered export',
+  /canvas\.backgroundColor === 'string'/.test(exporter)
+  && /name: 'Background'/.test(exporter),
+  'it is not an object, so the per-object loop never sees it and the PSD opens transparent');
+
+// --- the two export controls read the same way round ------------------------
+check('page and set export are both named dropdowns',
+  /Export this page…/.test(page) && /Export all \{project\.pages\.length\} pages…/.test(page),
+  '"This page" beside "Export set…" read as two different kinds of thing');
+check('and a single page exports in every format the set does',
+  /onChange=\{e => \{ if \(e\.target\.value\) \{ exportPage\(e\.target\.value\)/.test(page)
+  && /renderPsd\(c\.toJSON\(\)/.test(page),
+  'exporting one page as a layered PSD was the obvious thing the old button could not do');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
