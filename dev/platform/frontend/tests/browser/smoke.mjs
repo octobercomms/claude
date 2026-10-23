@@ -53,6 +53,7 @@ const PAGE2 = '44444444-4444-4444-8444-444444444444';
 const PROJECT2 = '55555555-5555-4555-8555-555555555555';
 
 let saves = 0;
+let renamed = null;   // the name a rename sent
 let reorder = null;   // the ids the strip asked the server to store
 let movedTo = null;   // { page, project } from a move
 
@@ -79,7 +80,11 @@ await page.route('**/api/**', async (route) => {
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
   if (p === '/api/auth/me') return json({ id: 'u1', name: 'Test', role: 'admin' });
-  if (p.endsWith('/assets')) return json([]);
+  if (p.endsWith('/assets')) {
+    // A palette from the Brand tab, which is where the swatches come from.
+    return json([{ id: 'pal1', kind: 'palette', name: 'Brand', url: null,
+      metadata: { colors: ['#f2c100', '#111111'] } }]);
+  }
   if (p === `/api/design/clients/${CLIENT}/projects`) {
     return json({ items: [
       { id: PROJECT, name: 'Tours Social Posts', width: 1080, height: 1350,
@@ -89,12 +94,16 @@ await page.route('**/api/**', async (route) => {
         page_count: 1, cover_page_id: null, cover_updated_at: null, updated_at: '2026-10-23T11:00:00Z' },
     ] });
   }
-  if (p === `/api/design/projects/${PROJECT}`) {
+  if (p === `/api/design/projects/${PROJECT}` && route.request().method() === 'GET') {
     return json({ id: PROJECT, client_id: CLIENT, name: 'Tours Social Posts', width: 1080, height: 1350,
       pages: [
         { id: PAGE, project_id: PROJECT, sort_order: 0, scene: {}, has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
         { id: PAGE2, project_id: PROJECT, sort_order: 1, scene: {}, has_thumbnail: false, updated_at: '2026-10-23T12:00:00Z' },
       ] });
+  }
+  if (p === `/api/design/projects/${PROJECT}` && route.request().method() === 'PATCH') {
+    renamed = JSON.parse(route.request().postData() || '{}');
+    return json({ id: PROJECT, name: renamed.name || 'Tours Social Posts' });
   }
   if (p === `/api/design/projects/${PROJECT}/page-order` && route.request().method() === 'PUT') {
     reorder = JSON.parse(route.request().postData() || '{}').ids;
@@ -171,6 +180,26 @@ try {
     'a dispose replaces the container, so the marker goes with it');
 
   // 5. Nothing threw along the way.
+  // --- the client's own colours, one click away ---------------------------
+  // The shade block is the selected layer here, and until now it had no way
+  // to change its colour at all.
+  const swatch = page.getByRole('button', { name: 'Brand colour #f2c100' }).first();
+  check('the brand palette shows beside the colour picker',
+    await swatch.isVisible().catch(() => false),
+    'the colours are already in the brand kit; nobody should eyedrop them out of a screenshot');
+  await swatch.click();
+  await page.waitForTimeout(250);
+  check('and clicking one sets the colour',
+    (await page.locator('input[type=color]').first().inputValue()) === '#f2c100',
+    await page.locator('input[type=color]').first().inputValue());
+
+  // --- renaming a set ------------------------------------------------------
+  page.once('dialog', d => d.accept('Tours renamed'));
+  await page.getByRole('button', { name: 'Rename this set' }).click();
+  await page.waitForTimeout(400);
+  check('a set can be renamed', renamed && renamed.name === 'Tours renamed',
+    JSON.stringify(renamed));
+
   // --- the page strip: reorder by dragging, and move to another set -------
   const thumbs = page.locator('[title^="Page "]');
   check('every page is in the strip', (await thumbs.count()) === 2,

@@ -53,6 +53,8 @@ jobs:
       # that disposed the canvas and reloaded a stale scene. This step mounts
       # the page in Chromium, adds layers, saves, and checks the work is still
       # on the canvas. See tests/browser/smoke.mjs.
+      - name: Guard — resizing a set does not wreck its pages
+        run: npm run test:units
       - name: Chromium for the browser test
         run: npx playwright install --with-deps chromium
       - name: Guard — the Design page renders and keeps your work

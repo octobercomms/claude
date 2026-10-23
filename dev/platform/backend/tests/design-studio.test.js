@@ -324,6 +324,34 @@ check('but only when the drag was uniform',
 check('and the box width can be typed',
   /onCommit=\{v => setProp\('width', Math\.round\(v\)\)\}/.test(page));
 
+// --- naming, resizing, and the client's own colours --------------------------
+const scaler = codeOnly(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'utils', 'designScale.js'), 'utf8'));
+
+check('a set can be renamed', /async function renameProject\(/.test(page)
+  && /api\.patch\(`\/design\/projects\/\$\{p\.id\}`, \{ name/.test(page));
+check('a set can be resized', /async function resizeProject\(/.test(page));
+check('resizing keeps the proportions and centres what is there',
+  /Math\.min\(to\.width \/ from\.width, to\.height \/ from\.height\)/.test(scaler)
+  && /\(to\.width - from\.width \* s\) \/ 2/.test(scaler),
+  'stretching to the new shape would distort every photo in the set');
+check('and text is rescaled by its font size, not by object scale',
+  /next\.fontSize = o\.fontSize \* scale;[\s\S]{0,160}next\.scaleX = 1;/.test(scaler),
+  'scaling the object instead leaves the panel reading 92 while the headline renders at 46');
+check('the resize maths is covered by its own run',
+  fs.existsSync(path.join(__dirname, '..', '..', 'frontend', 'tests', 'designScale.test.mjs')),
+  'a mistake here is invisible until someone opens a design and finds it wrecked');
+
+check('the brand palette reaches the editor',
+  /export function paletteColours/.test(page) && /a\.kind !== 'palette'/.test(page));
+check('and metadata-only assets are not filtered out on the way',
+  /const all = Array\.isArray\(r\) \? r : \(r\?\.items \|\| \[\]\);/.test(page)
+  && /const files = all\.filter\(a => a\.url\);/.test(page),
+  'a palette has no url, so filtering on one is how the colours never arrived');
+check('a shape has a fill control at all',
+  /\{!isText && !isImage && \(/.test(page) && /Block colour/.test(page),
+  'a shade block could be placed and then never recoloured');
+
 // --- arranging pages ---------------------------------------------------------
 check('pages reorder by dragging',
   /async function dropPage\(/.test(page) && /page-order/.test(page) && /draggable onDragStart/.test(page),
