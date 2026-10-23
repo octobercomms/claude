@@ -80,6 +80,7 @@ final class Admin {
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
         add_action('admin_post_oe_import_brevo', [$this, 'handle_import_brevo']);
         add_action('admin_post_oe_cleanup_contacts', [$this, 'handle_cleanup_contacts']);
+        add_action('admin_post_oe_backfill_card_names', [$this, 'handle_backfill_card_names']);
         add_action('admin_init', [$this, 'maybe_export_csv']);
         add_filter('admin_title', [$this, 'filter_tickets_title'], 10, 2);
         Settings::get_instance()->init();
@@ -1219,6 +1220,47 @@ final class Admin {
         check_admin_referer('oe_rebuild_contacts');
         \OE\Mail\Contacts::backfill();
         wp_safe_redirect(add_query_arg('rebuilt', '1', admin_url('admin.php?page=oe-contacts')));
+        exit;
+    }
+
+    /**
+     * One-off: fill the buyer name on paid orders that have none, from the name
+     * on the card (via Stripe). Only ever fills a blank — an existing name is
+     * never overwritten — so it is safe to re-run. Free/comp orders have no card
+     * and are left as they are.
+     */
+    public function handle_backfill_card_names(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_backfill_card_names');
+        $event = isset($_REQUEST['event']) ? absint($_REQUEST['event']) : 0;
+        $back  = add_query_arg(['page' => 'oe-tickets', 'event' => $event ?: false], admin_url('admin.php'));
+
+        $filled = $checked = 0;
+        if (\OE\Connectors\StripeConnector::is_ready()) {
+            global $wpdb;
+            $orders = \OE\Ticketing\Schema::orders();
+            foreach (\OE\Ticketing\Orders::nameless_card_orders($event) as $row) {
+                $checked++;
+                $card = \OE\Connectors\StripeConnector::payment_card_details((string) $row->payment_id);
+                $name = trim((string) ($card['name'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+                $wpdb->update(
+                    $orders,
+                    ['name' => $name, 'updated_at' => current_time('mysql', true)],
+                    ['id' => (int) $row->id],
+                    ['%s', '%s'],
+                    ['%d']
+                );
+                $filled++;
+            }
+        }
+        \OE\AuditLog::record('backfill_card_names', $event, 'event', 'filled:' . $filled . '/' . $checked);
+        set_transient('oe_cardfill_' . get_current_user_id(), ['filled' => $filled, 'checked' => $checked], 60);
+        wp_safe_redirect($back);
         exit;
     }
 

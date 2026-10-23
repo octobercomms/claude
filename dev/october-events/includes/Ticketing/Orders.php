@@ -89,6 +89,26 @@ final class Orders {
     }
 
     /**
+     * Paid orders that carry a Stripe card payment but no buyer name — the
+     * candidates for the one-off "fill missing names from card" backfill.
+     * Honours the event filter (0 = all events).
+     *
+     * @return array<int,object> rows of {id, payment_id}
+     */
+    public static function nameless_card_orders(int $event = 0): array {
+        global $wpdb;
+        $o = Schema::orders();
+        // Underscore is a LIKE wildcard, so escape it to match a literal "pi_".
+        $where = $event ? $wpdb->prepare('AND event_id = %d', $event) : '';
+        return $wpdb->get_results(
+            "SELECT id, payment_id FROM {$o}
+             WHERE status = 'paid' AND (name IS NULL OR name = '')
+               AND payment_id LIKE 'pi\\_%' {$where}
+             ORDER BY id ASC"
+        ) ?: [];
+    }
+
+    /**
      * Distinct registration-email counts for several events in one query, so the
      * compose screen doesn't fire a COUNT per event (N+1).
      *

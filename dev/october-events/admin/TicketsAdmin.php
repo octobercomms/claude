@@ -617,6 +617,17 @@ final class TicketsAdmin {
             delete_transient('oe_evt_msg_' . get_current_user_id());
         }
 
+        // One-off "fill missing names from card" backfill: how many paid orders
+        // (within the current event filter) still have no buyer name but carry a
+        // card we could read one from, plus the flash result from a just-run fill.
+        $card_fill_count  = \OE\Connectors\StripeConnector::is_ready()
+            ? count(Orders::nameless_card_orders($event_filter))
+            : 0;
+        $card_fill_result = get_transient('oe_cardfill_' . get_current_user_id());
+        if ($card_fill_result !== false) {
+            delete_transient('oe_cardfill_' . get_current_user_id());
+        }
+
         require OE_DIR . 'admin/views/registrations.php';
     }
 
