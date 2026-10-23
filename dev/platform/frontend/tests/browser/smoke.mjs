@@ -211,8 +211,53 @@ try {
   await swatch.click();
   await page.waitForTimeout(250);
   check('and clicking one sets the colour',
-    (await page.locator('input[type=color]').first().inputValue()) === '#f2c100',
-    await page.locator('input[type=color]').first().inputValue());
+    (await page.locator('input[title="Fill colour"]').inputValue()) === '#f2c100',
+    await page.locator('input[title="Fill colour"]').inputValue());
+
+  // --- the page's own background ------------------------------------------
+  // A full-bleed graphic covers the background, so a control that needs the
+  // background selected is a control you reach by dragging the artwork away.
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.querySelector('.canvas-container')?.setAttribute('data-bg', '1'));
+  const bgSwatch = page.getByRole('button', { name: 'Page background #f2c100' });
+  check('the background colour is set without selecting anything',
+    await bgSwatch.isVisible().catch(() => false),
+    'it is not a layer, so there is nothing to select');
+
+  const corner = () => page.evaluate(() => {
+    const c = document.querySelector('canvas');
+    const d = c.getContext('2d').getImageData(2, 2, 1, 1).data;
+    return [d[0], d[1], d[2]].join(',');
+  });
+
+  // Let the edit before this one finish saving first. Without the pause the
+  // next assertion counts a PUT the colour change had nothing to do with, and
+  // passes with the save wiring taken out — checked by taking it out.
+  await page.waitForTimeout(2000);
+  const bgSaves = saves;
+
+  await bgSwatch.click();
+  await page.waitForTimeout(300);
+  check('and the page behind the layers changes colour', (await corner()) === '242,193,0',
+    `top-left pixel rgb(${await corner()}), expected the brand yellow`);
+  check('the canvas survived it', await page.evaluate(
+    () => !!document.querySelector('.canvas-container[data-bg]')));
+
+  await page.waitForTimeout(1600);
+  check('changing the background saves on its own', saves > bgSaves,
+    `${saves} PUTs, was ${bgSaves} before the colour changed`);
+
+  // Undo alone proves little: stepping back to any earlier state leaves a
+  // white corner whether or not the colour was ever recorded. Redo is the
+  // half that fails when it was not.
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(600);
+  check('and undo takes the colour back off', (await corner()) !== '242,193,0',
+    `top-left pixel rgb(${await corner()})`);
+  await page.keyboard.press('Control+Shift+z');
+  await page.waitForTimeout(600);
+  check('and redo puts it back', (await corner()) === '242,193,0',
+    `top-left pixel rgb(${await corner()}); the colour was never put on the undo stack`);
 
   // --- renaming a set ------------------------------------------------------
   page.once('dialog', d => d.accept('Tours renamed'));

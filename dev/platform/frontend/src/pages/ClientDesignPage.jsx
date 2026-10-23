@@ -163,7 +163,7 @@ const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base'
 // assets of kind 'palette' from the Brand tab, so they are already loaded
 // with everything else.
 // An <input type="color"> only speaks hex, and a layer's fill may be rgba.
-const hexOf = (v) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : '#000000');
+const hexOf = (v, fallback = '#000000') => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : fallback);
 
 export function paletteColours(assets) {
   const out = [];
@@ -275,12 +275,14 @@ function NumField({ value, min, max, step = 1, title, onCommit }) {
 // A row of the client's own colours beside a colour input. Clicking one is
 // the whole point: nobody should be eyedropping a brand yellow out of a
 // screenshot every time they set a headline.
-function Swatches({ colours, onPick, current }) {
+// `what` names what the row paints, so two rows on screen at once are told
+// apart by a screen reader instead of both reading "Brand colour".
+function Swatches({ colours, onPick, current, what = 'Brand colour' }) {
   if (!colours.length) return null;
   return (
     <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
       {colours.map(c => (
-        <button key={c} type="button" onClick={() => onPick(c)} title={c} aria-label={`Brand colour ${c}`}
+        <button key={c} type="button" onClick={() => onPick(c)} title={c} aria-label={`${what} ${c}`}
           style={{
             width: 20, height: 20, padding: 0, cursor: 'pointer', borderRadius: 'var(--r-sm)',
             background: c,
@@ -316,6 +318,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const [clientFonts, setClientFonts] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(null);   // the selected fabric object
+  const [pageBg, setPageBg] = useState('#ffffff');  // the page's own background colour
   const [layers, setLayers] = useState([]);
   const [dirty, setDirty] = useState(false);
   const [thumbs, setThumbs] = useState({});   // page id -> freshly saved thumbnail
@@ -406,6 +409,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     // Topmost first, which is how a layers panel reads.
     setLayers(c.getObjects().slice().reverse());
     setSelected(c.getActiveObject() || null);
+    setPageBg(hexOf(c.backgroundColor, '#ffffff'));
   }, []);
 
   // Every edit saves, a beat after it stops. Fifteen seconds was a window in
@@ -719,6 +723,20 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     reread(c, o);
   }
 
+  // The page's own background, which is not a layer and so has no selection to
+  // make. Before this it could only be changed by dropping a full-bleed block
+  // behind everything, which meant moving whatever graphic sat on top of it
+  // just to reach the colour underneath.
+  function setPageColour(colour) {
+    const c = fc.current;
+    if (!c) return;
+    c.backgroundColor = colour;
+    setPageBg(colour);
+    c.renderAll();
+    markDirty();
+    pushHistory();
+  }
+
   // Upper case and sentence case rather than a text-transform: Fabric has no
   // such property, and what is exported has to be what the layer holds.
   const setCase = (mode) => () => {
@@ -822,15 +840,33 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     return () => window.removeEventListener('keydown', onKey);
   }, [projectId, duplicateLayer, markDirty, syncLayers, stepHistory]);
 
-  async function exportPage(scale = 2) {
+  // The page on screen, in the same three formats the whole set exports in.
+  // It reads from the live canvas rather than the saved scene, so what comes
+  // out is what is in front of you including an edit made a second ago.
+  async function exportPage(format = 'png') {
     const c = fc.current;
     if (!c) return;
-    await document.fonts.ready;
-    const url = c.toDataURL({ format: 'png', multiplier: scale });
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(project.name || 'design').replace(/[^\w .-]+/g, '-')}-${(project.pages.findIndex(p => p.id === pageId) + 1)}.png`;
-    document.body.appendChild(a); a.click(); a.remove();
+    const base = `${(project.name || 'design').replace(/[^\w .-]+/g, '-')}`
+      + `-${project.pages.findIndex(p2 => p2.id === pageId) + 1}`;
+    try {
+      setExporting('This page…');
+      await document.fonts.ready;
+      if (format === 'psd') {
+        const bytes = await renderPsd(c.toJSON(), { width: project.width, height: project.height },
+          { ensureFont });
+        saveBlob(new Blob([bytes], { type: 'image/vnd.adobe.photoshop' }), `${base}.psd`);
+      } else {
+        const url = c.toDataURL({
+          format: format === 'jpeg' ? 'jpeg' : 'png',
+          quality: format === 'jpeg' ? 0.92 : undefined,
+          multiplier: 2,
+        });
+        saveBlob(new Blob([dataUrlBytes(url)], { type: `image/${format}` }),
+          `${base}.${format === 'jpeg' ? 'jpg' : 'png'}`);
+      }
+    } catch (e) {
+      toast(`Export failed: ${e.message}`, 'error');
+    } finally { setExporting(''); }
   }
 
   // ── project actions ────────────────────────────────────────────────────────
@@ -1325,12 +1361,19 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         <div className="row" style={{ gap: 'var(--s2)' }}>
           <span className="body-sm text-subtle">{saving ? 'Saving…' : dirty ? 'Unsaved' : 'Saved'}</span>
           <button onClick={() => save({ quiet: false })} disabled={saving} className="btn btn-secondary btn-sm">Save</button>
-          <button onClick={() => exportPage(2)} className="btn btn-secondary btn-sm"
-            title="This page only, at twice the size">This page</button>
-          <select className="input" value="" aria-label="Export this whole set"
+          <select className="input" value="" aria-label="Export this page"
+            title="Just the page on screen" style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
+            onChange={e => { if (e.target.value) { exportPage(e.target.value); e.target.value = ''; } }}>
+            <option value="">Export this page…</option>
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="psd">PSD, with layers</option>
+          </select>
+          <select className="input" value="" aria-label="Export every page in this set"
+            title="Every page in this set, as a zip"
             style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
             onChange={e => { if (e.target.value) { exportSets([project.id], e.target.value); e.target.value = ''; } }}>
-            <option value="">Export set…</option>
+            <option value="">Export all {project.pages.length} pages…</option>
             <option value="png">PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="psd">PSD, with layers</option>
@@ -1465,9 +1508,20 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
           </div>
         </div>
 
-        {/* right: layers and the selected layer */}
+        {/* right: the page itself, then layers and the selected layer */}
         <div className="card" style={{ padding: 'var(--s3)' }}>
-          <div className="caption">Layers</div>
+          <div className="caption">Page</div>
+          <div style={{ marginTop: 'var(--s2)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+            <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
+              <input type="color" value={pageBg} title="Background colour"
+                aria-label="Page background colour"
+                onChange={e => setPageColour(e.target.value)} />
+              <span className="body-sm text-subtle" style={{ flex: 1 }}>Background</span>
+            </div>
+            <Swatches colours={brandColours} current={pageBg} onPick={setPageColour} what="Page background" />
+          </div>
+
+          <div className="caption" style={{ marginTop: 'var(--s3)' }}>Layers</div>
           <div style={{ maxHeight: 220, overflowY: 'auto', marginTop: 'var(--s2)' }}>
             {layers.map((o, i) => {
               const active = o === selected;
