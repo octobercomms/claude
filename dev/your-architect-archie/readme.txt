@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.22
+Stable tag: 0.7.23
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,21 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.23 =
+* Optional phone number. After the email question, Archie now asks softly for a
+  phone number as a just-in-case ("if a quick question came up that might hold
+  your drawings up…"), with tap-to-skip. It's genuinely optional — never blocks
+  finishing — and shows on the project record and the studio/client emails when
+  given.
+* Terms as a question + auto-submit. When the quote is ready, Archie asks the
+  client to confirm they're happy with the Terms and Privacy Policy, with an
+  "I agree — submit my project" button in the chat. On agreement the Save & submit
+  button runs a short visible countdown ("Submitting in 0:05 · send now") and
+  submits itself — or sends instantly if they click it. The button stays for
+  anyone who'd rather just press it, and typing another message cancels the
+  countdown so they can keep editing. Consent timestamp recorded at submit. This
+  targets quote-ready leads who never pressed submit.
 
 = 0.7.22 =
 * Secret keys can now be cleared. Each secret field (Claude, Stripe, Brevo, SMTP
