@@ -322,9 +322,23 @@ class YAA_Rest {
 		YAA_Project::recover_by_address( $id, (string) $state['postcode'], $addr );
 
 		do_action( 'yaa_project_submitted', $id, $package );
-		YAA_Followups::notify_submit( $id, $package );
 
 		$ref = YAA_Project::make_ref( $id );
+
+		// Notifications are best-effort and are sent AFTER the response reaches the
+		// client, so a slow or hanging SMTP relay can neither delay the submission
+		// nor 500 it (a connection stall can trip PHP's max-execution-time, which a
+		// try/catch can't rescue). We flush the response first, then send.
+		add_action( 'shutdown', function () use ( $id, $package ) {
+			if ( function_exists( 'fastcgi_finish_request' ) ) {
+				fastcgi_finish_request();
+			}
+			try {
+				YAA_Followups::notify_submit( $id, $package );
+			} catch ( \Throwable $e ) {
+				error_log( 'YAA notify_submit failed for project ' . (int) $id . ': ' . $e->getMessage() );
+			}
+		}, 20 );
 
 		// Payment is not taken at submit — Tiam approve the project first, then send
 		// the client a secure portal link to pay. So no immediate checkout URL here.

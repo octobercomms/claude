@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.24
+Stable tag: 0.7.25
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.25 =
+* Fixed a critical error on submit. Project submission could fail with a WordPress
+  "critical error" when the notification emails were slow or errored (e.g. a
+  hanging SMTP relay tripping the max-execution-time limit). The studio/client
+  notifications are now sent AFTER the response reaches the client and are fully
+  isolated — a mail problem can no longer delay or break a submission the customer
+  has already completed. The project reference is also generated before sending.
+* The chat no longer shows a raw error or a false "Submitted ✓" if a submit ever
+  does fail — it now shows a friendly "please try again" message and re-enables the
+  button.
+* Phone question no longer shows tap buttons (they made no sense for a phone number). Archie now asks it as a plain open question and tells the person they can simply type "no" to skip it.
 
 = 0.7.24 =
 * Tightened the optional phone question wording — dropped the apologetic "no problem if you'd rather stick to email" line. It's still optional (tap to skip), just asked plainly rather than apologetically.

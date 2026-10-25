@@ -353,7 +353,12 @@ class YAA_Email {
 
 		$tracked = self::inject_tracking( (string) $a['html'], $email_id );
 		$headers = ! empty( $a['headers'] ) ? (array) $a['headers'] : array( 'Content-Type: text/html; charset=UTF-8' );
-		$ok      = wp_mail( $to_raw, (string) $a['subject'], $tracked, $headers );
+		try {
+			$ok = wp_mail( $to_raw, (string) $a['subject'], $tracked, $headers );
+		} catch ( \Throwable $e ) {
+			error_log( 'YAA send_tracked wp_mail failed (' . (string) $a['kind'] . '): ' . $e->getMessage() );
+			$ok = false;
+		}
 
 		$wpdb->update(
 			YAA_DB::emails_table(),
