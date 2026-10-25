@@ -119,8 +119,9 @@ class YAA_Archie {
 			'7) their rough timeframe;',
 			'8) their name (first name is fine) — ask for this warmly, on its own, so the team knows who they are speaking to. Keep it to a single short question and do NOT ask for anything else (especially not their email) in the same message.',
 			'9) finally, the best email address to send their quote to. Ask for this as its OWN separate question, AFTER you already have their name — never bundle the name and the email into one message, and never ask for both at once. Frame it warmly: you would like to EMAIL them a copy of this fixed-price quote so they have it to keep, and it is how the team will confirm details and get back to them. This is how Your Architect contacts them, so an email really is needed — do NOT call it optional. Reassure them it is only ever used for their quote and their project, never marketing. If they hesitate, briefly explain why it matters and ask once more.',
+			'10) ONE optional extra, and only after you already have their email: ask softly for a phone number as a just-in-case. Word it in this spirit — "And if a quick question ever came up that might hold your drawings up, is there a number we could call just in case? No problem at all if you\'d rather we stick to email." Make it genuinely OPTIONAL: offer tappable replies like "Sure — here it is" and "Email is best". If they give one, set `phone`. If they decline or skip it, warmly move on and do NOT ask again. A phone number is a nice-to-have and must NEVER hold up finishing.',
 			'',
-			'FINISHING — once you have a UK postcode, a valid email and their name, warmly tell them their fixed-price quote is ready and everything is captured. Then DIRECT them to press the "Save & submit project" button to send it to our team — that button is their final go-ahead, and nothing goes to the team until they press it. Reassure them you\'ll email a copy of the quote to their address and the team will review it and get back to them to confirm the details. Do not mention the price, and do not claim it has already been submitted.',
+			'FINISHING — once you have a UK postcode, a valid email and their name (a phone number is a bonus, never required), warmly tell them their fixed-price quote is ready and everything is captured. Let them know there is just one quick confirmation step on screen to send it to our team — nothing goes to the team until they confirm it there. Reassure them you\'ll email a copy of the quote to their address and the team will review it and get back to them to confirm the details. Do not mention the price, and do not claim it has already been submitted.',
 			'',
 			'IF THEY NEED BUILDING REGULATIONS DRAWINGS, also gently establish (weave in naturally, do not interrogate): do they already have planning permission, or does the work even need it (you can advise); do they have approved planning drawings they could share; do they have a structural engineer already (if not, reassure we can find a trusted independent local one and coordinate); and would they like us to submit the building control pack to their local authority for them.',
 			'',
@@ -133,7 +134,7 @@ class YAA_Archie {
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
 			'- New dwellings and full RIBA services (concept to construction) or larger commissions are handled directly by Tiam Architects: include "newdwelling" in `services` if that is what they want, and point them to ' . $riba . ' at the end.',
 			'',
-			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Use `addServices` to add our services and `removeServices` to remove one (only when explicitly asked to remove that service); never re-send the whole cart. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given) and the property is in the UK. Do NOT require an uploaded file for done — existing drawings can be attached now or sent later. Never set done before you have the postcode and the email.',
+			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Use `addServices` to add our services and `removeServices` to remove one (only when explicitly asked to remove that service); never re-send the whole cart. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given) and the property is in the UK. Do NOT require an uploaded file for done — existing drawings can be attached now or sent later. Set `phone` only if they volunteer one; it is optional and must NEVER be required for done. Never set done before you have the postcode and the email.',
 		);
 
 		// Everything above is config-derived and identical every turn → it's the
@@ -277,6 +278,7 @@ class YAA_Archie {
 						'timeframe'   => array( 'type' => 'string' ),
 						'name'        => array( 'type' => 'string' ),
 						'email'       => array( 'type' => 'string' ),
+						'phone'       => array( 'type' => 'string', 'description' => 'optional phone number if they volunteer one — never required' ),
 						'done'        => array( 'type' => 'boolean' ),
 						'replies'     => array(
 							'type'        => 'array',
@@ -290,7 +292,7 @@ class YAA_Archie {
 	}
 
 	/** Fields the tool may write into state (`replies` is deliberately excluded — it drives the UI, not the record). */
-	private static $allowed = array( 'address', 'postcode', 'outsideUk', 'addServices', 'removeServices', 'services', 'service', 'advice', 'hasDrawings', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
+	private static $allowed = array( 'address', 'postcode', 'outsideUk', 'addServices', 'removeServices', 'services', 'service', 'advice', 'hasDrawings', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'phone', 'done' );
 
 	/**
 	 * No-model fast path for the opening data-capture steps (address → postcode →
@@ -932,6 +934,9 @@ class YAA_Archie {
 		}
 		$rows[] = array( 'Name', isset( $s['name'] ) && '' !== $s['name'] ? $s['name'] : null, true );
 		$rows[] = array( 'Email', isset( $s['email'] ) && '' !== $s['email'] ? $s['email'] : null, true );
+		if ( isset( $s['phone'] ) && '' !== $s['phone'] ) {
+			$rows[] = array( 'Phone', (string) $s['phone'], true );
+		}
 
 		$out = array();
 		foreach ( $rows as $r ) {

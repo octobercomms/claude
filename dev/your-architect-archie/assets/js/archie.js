@@ -36,6 +36,8 @@
   var userMsgCount = 0, emailSaved = false; // drives the always-on "Email me my quote" field.
   var lastTotal = 0; // latest quoted total, for the Meta "Lead" conversion value.
   var submitted = false, submitReadyShown = false;
+  var termsAccepted = false, countdownTimer = null, submitLabel = 'Save & submit project';
+  var TERMS_URL = D.termsUrl || '#', PRIV_URL = D.privacyUrl || '#';
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
 
@@ -112,7 +114,8 @@
     if (toggleTotal) toggleTotal.textContent = isRedirect ? 'POA' : money(pkg.total);
     londonChip.classList.toggle('show', !!pkg.london);
     redirectBanner.classList.toggle('show', isRedirect);
-    submitBtn.textContent = isRedirect ? 'Contact Tiam Architects' : 'Save & submit project';
+    submitLabel = isRedirect ? 'Contact Tiam Architects' : 'Save & submit project';
+    if (!countdownTimer) submitBtn.textContent = submitLabel; // don't clobber a running countdown
     submitBtn.disabled = !hasService;
     var meta = pkg.meta || {};
     if (mDelivery && meta.delivery) mDelivery.textContent = meta.delivery;
@@ -151,6 +154,7 @@
   function send(preset) {
     var text = typeof preset === 'string' ? preset : (input.value || '').trim();
     if (!text || busy || submitted) return;
+    cancelCountdown(); // a new message means they're still editing — don't auto-submit under them
     if (text.length > 1000) text = text.slice(0, 1000);
     if (typeof preset !== 'string') { input.value = ''; autoGrow(); }
     clearOptions();
@@ -199,7 +203,11 @@
     submitReadyShown = true;
     if (submitConsent && hasService) submitConsent.hidden = false;
     if (!submitBtn.disabled) submitBtn.classList.add('ready');
-    addMsg('bot', 'Your quote’s ready — press “Save &amp; submit project” below to send it to our team. You can also keep asking me questions or add another service first.', 'note');
+    addMsg('bot', 'Your quote’s ready. One last thing before I send it to our team — please confirm you’re happy with our ' +
+      '<a href="' + TERMS_URL + '" target="_blank" rel="noopener">Terms</a> and ' +
+      '<a href="' + PRIV_URL + '" target="_blank" rel="noopener">Privacy Policy</a>. ' +
+      'Tap below and I’ll submit your project — or you can keep asking me questions or add another service first.' +
+      '<div style="margin-top:12px"><button type="button" class="a-agree" style="background:#253E94;color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:.95rem">I agree — submit my project</button></div>', 'note');
     if (panel && window.matchMedia && window.matchMedia('(max-width:820px)').matches) panel.classList.add('open');
   }
 
@@ -225,8 +233,9 @@
   var pendingSubmit = false, submitOriginal = submitBtn.textContent;
   function doSubmit() {
     if (submitted) return;
-    submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Sending…';
-    post('submit', { marketing: (marketingOptIn && marketingOptIn.checked) ? 1 : 0 }).then(function (res) {
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; } // clicked during the countdown → send now
+    submitBtn.disabled = true; submitOriginal = submitLabel; submitBtn.textContent = 'Sending…';
+    post('submit', { marketing: (marketingOptIn && marketingOptIn.checked) ? 1 : 0, terms: termsAccepted ? 1 : 0 }).then(function (res) {
       var d = res.body || {};
       if (d.ineligible) {
         addMsg('bot', escapeHtml(d.message || 'Sorry — we only work on properties in the UK.'), 'note');
@@ -255,6 +264,37 @@
     }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
   }
   submitBtn.addEventListener('click', doSubmit);
+
+  // Terms-as-a-question → auto-submit with a visible countdown (the button stays,
+  // for anyone who'd rather click). Tapping "I agree" starts a short countdown on
+  // the submit button; it fires itself at zero, or the instant they click it. Any
+  // new message cancels it so they can keep editing their quote.
+  function fmtTime(s) { var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+  function cancelCountdown() {
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; if (!submitted) submitBtn.textContent = submitLabel; }
+  }
+  function startCountdown(secs) {
+    var left = secs;
+    submitBtn.classList.add('ready');
+    submitBtn.textContent = 'Submitting in ' + fmtTime(left) + ' · send now';
+    countdownTimer = setInterval(function () {
+      left--;
+      if (left <= 0) { clearInterval(countdownTimer); countdownTimer = null; doSubmit(); return; }
+      submitBtn.textContent = 'Submitting in ' + fmtTime(left) + ' · send now';
+    }, 1000);
+  }
+  function acceptTerms(btn) {
+    if (termsAccepted || submitted) return;
+    if (submitBtn.disabled) { addMsg('bot', 'Add a service to your quote first and I’ll send it right over.', 'note'); return; }
+    termsAccepted = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Agreed ✓'; }
+    addMsg('bot', 'Great — sending your project to the team now. You can tap the button to send it straight away.', 'note');
+    startCountdown(5);
+  }
+  msgList.addEventListener('click', function (e) {
+    var a = e.target.closest('.a-agree');
+    if (a) { acceptTerms(a); }
+  });
 
   // ---- Always-on "Email me my quote" (save for later) ----
   // Appears a couple of questions in, so anyone can capture their quote by email

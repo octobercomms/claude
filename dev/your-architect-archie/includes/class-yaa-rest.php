@@ -309,6 +309,9 @@ class YAA_Rest {
 		// Record the consent choice at the point of submission (their explicit GO).
 		$state['consentAt'] = current_time( 'mysql' );
 		$state['marketing'] = ! empty( $req->get_param( 'marketing' ) );
+		if ( ! empty( $req->get_param( 'terms' ) ) ) {
+			$state['termsAt'] = current_time( 'mysql' );
+		}
 		YAA_Project::set_state( $id, $state );
 
 		YAA_Project::set_status( $id, $redirect ? 'redirected' : 'submitted' );
