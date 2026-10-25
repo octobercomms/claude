@@ -825,11 +825,30 @@ JS;
 				<div class="yaa-notice ok"><?php esc_html_e( 'Deleted.', 'your-architect-archie' ); ?></div>
 			<?php endif; ?>
 
+			<?php
+			// Average questions answered across all real submissions (same base as the tiles).
+			global $wpdb;
+			$avg_pt   = YAA_DB::projects_table();
+			$avg_rows = $wpdb->get_results( "SELECT state_json FROM {$avg_pt} WHERE status <> 'recovered' LIMIT 2000" ); // phpcs:ignore WordPress.DB
+			$avg_sum  = 0;
+			$avg_cnt  = 0;
+			foreach ( (array) $avg_rows as $ar ) {
+				$st = json_decode( (string) $ar->state_json, true );
+				$a  = 0;
+				foreach ( YAA_Archie::answer_summary( is_array( $st ) ? $st : array() ) as $qq ) {
+					$a += $qq['answered'] ? 1 : 0;
+				}
+				$avg_sum += $a;
+				$avg_cnt++;
+			}
+			$avg_answered = $avg_cnt ? round( $avg_sum / $avg_cnt, 1 ) : 0;
+			?>
 			<div class="yaa-stats">
 				<div class="yaa-stat"><span class="n"><?php echo esc_html( $total_n ); ?></span><span class="l"><?php esc_html_e( 'All submissions', 'your-architect-archie' ); ?></span></div>
 				<div class="yaa-stat"><span class="n"><?php echo esc_html( $started_n ); ?></span><span class="l"><?php esc_html_e( 'Partial submissions', 'your-architect-archie' ); ?></span></div>
 				<div class="yaa-stat"><span class="n"><?php echo esc_html( $submitted_n ); ?></span><span class="l"><?php esc_html_e( 'Projects (submitted)', 'your-architect-archie' ); ?></span></div>
 				<div class="yaa-stat"><span class="n"><?php echo esc_html( $conv ); ?>%</span><span class="l"><?php esc_html_e( 'Conversion rate', 'your-architect-archie' ); ?></span></div>
+				<div class="yaa-stat"><span class="n"><?php echo esc_html( $avg_answered ); ?></span><span class="l"><?php esc_html_e( 'Avg questions answered', 'your-architect-archie' ); ?></span></div>
 			</div>
 
 			<div class="yaa-tabs">
@@ -1429,7 +1448,7 @@ JS;
 		.yaa-meta { color:var(--muted); margin:6px 0 0; }
 		.yaa-total-big { font-size:1.8rem; font-weight:800; color:var(--navy); white-space:nowrap; }
 		.yaa-btn { background:var(--navy); color:#fff !important; border-radius:8px; padding:8px 14px; text-decoration:none; font-weight:600; align-self:center; }
-		.yaa-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+		.yaa-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:18px; }
 		.yaa-stat { background:#fff; border:2px solid var(--line); border-radius:12px; padding:14px 16px; }
 		.yaa-stat .n { display:block; font-size:1.6rem; font-weight:800; color:var(--navy); }
 		.yaa-stat .l { color:var(--muted); font-size:.85rem; }
