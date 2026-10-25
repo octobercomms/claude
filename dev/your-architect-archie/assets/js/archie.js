@@ -237,6 +237,12 @@
     submitBtn.disabled = true; submitOriginal = submitLabel; submitBtn.textContent = 'Sending…';
     post('submit', { marketing: (marketingOptIn && marketingOptIn.checked) ? 1 : 0, terms: termsAccepted ? 1 : 0 }).then(function (res) {
       var d = res.body || {};
+      if (!res.ok) {
+        // Server error (e.g. 500) — don't claim success or dump raw HTML. Let them retry.
+        submitBtn.disabled = false; submitBtn.textContent = submitOriginal;
+        addMsg('bot', 'Sorry — something went wrong saving your project just then. Please press “' + submitOriginal + '” to try again, or reply here and we’ll sort it.', 'note');
+        return;
+      }
       if (d.ineligible) {
         addMsg('bot', escapeHtml(d.message || 'Sorry — we only work on properties in the UK.'), 'note');
         submitBtn.disabled = true; submitBtn.textContent = submitOriginal;
