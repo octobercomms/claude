@@ -43,11 +43,9 @@ class YAA_Followups {
 		}
 	}
 
-	/** noreply@<site-domain> — filterable. */
+	/** The configured From address (falls back to noreply@<domain>). Filterable. */
 	private static function from_email() {
-		$host = preg_replace( '/^www\./', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
-		$from = 'noreply@' . ( $host ? $host : 'yourarchitect.uk' );
-		return (string) apply_filters( 'yaa_notify_from_email', $from );
+		return YAA_Email::from_address();
 	}
 
 	/**

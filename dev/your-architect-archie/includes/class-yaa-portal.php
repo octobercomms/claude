@@ -102,8 +102,7 @@ class YAA_Portal {
 			return false;
 		}
 		$url  = self::magic_url( $project );
-		$host = preg_replace( '/^www\./', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
-		$from = 'noreply@' . ( $host ? $host : 'yourarchitect.uk' );
+		$from = YAA_Email::from_address();
 		$html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px">'
 			. '<div style="font-size:20px;font-weight:800;color:#253E94;margin-bottom:18px">Your Architect</div>'
 			. '<p style="line-height:1.6;color:#1a2233">Here\'s your secure sign-in link for your project portal. It keeps you signed in on this device for 7 days.</p>'
@@ -155,8 +154,7 @@ class YAA_Portal {
 	/** Alert the studio (the notify list) that a client asked for a revision. */
 	private static function notify_revision( $project, $message ) {
 		$to      = class_exists( 'YAA_Followups' ) ? YAA_Followups::studio_recipients() : array( get_option( 'admin_email' ) );
-		$host    = preg_replace( '/^www\./', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
-		$from    = 'noreply@' . ( $host ? $host : 'yourarchitect.uk' );
+		$from    = YAA_Email::from_address();
 		$who     = $project->name ? $project->name : ( $project->email ? $project->email : 'A client' );
 		$link    = admin_url( 'admin.php?page=' . YAA_Projects_Admin::SLUG . '&project=' . (int) $project->id );
 		$subject = 'Revision requested | ' . ( $project->ref ? $project->ref : $who );

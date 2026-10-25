@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.20
+Stable tag: 0.7.21
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.21 =
+* Every email now sends from the configured "Email from address" (Settings),
+  not a hardcoded noreply@. The client emails (quotes, summaries, resume nudges,
+  sign-in links, revision alerts) previously went out as noreply@<domain>, which
+  an authenticated SMTP relay (e.g. StackMail logging in as info@domain) can
+  reject because the mailbox doesn't exist. They now use the same real, relay-
+  accepted sender as the staged emails. Still overridable via the
+  yaa_notify_from_email filter.
 
 = 0.7.20 =
 * Built-in SMTP delivery (Archie → Settings → "Email delivery (SMTP)"). Route
