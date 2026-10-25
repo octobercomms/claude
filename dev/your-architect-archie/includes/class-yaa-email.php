@@ -696,6 +696,22 @@ class YAA_Email {
 	}
 
 	/**
+	 * The From address for plugin email. Uses the configured "Email from address"
+	 * (Settings) so every email — staged and ad-hoc alike — comes from one
+	 * authenticated mailbox the SMTP relay will accept (e.g. info@domain), instead
+	 * of a hardcoded noreply@ that may not exist on the mail host and get bounced.
+	 * Falls back to noreply@<domain>. Filterable via yaa_notify_from_email.
+	 */
+	public static function from_address() {
+		$set = sanitize_email( (string) YAA_Settings::get( 'email_from', '' ) );
+		if ( ! is_email( $set ) ) {
+			$host = preg_replace( '/^www\\./', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+			$set  = 'noreply@' . ( $host ? $host : 'yourarchitect.uk' );
+		}
+		return (string) apply_filters( 'yaa_notify_from_email', $set );
+	}
+
+	/**
 	 * Whether open tracking is trustworthy for a recipient's email provider. Open
 	 * pixels fire in the recipient's mail client, so some providers make the data
 	 * unreliable no matter how we send: Outlook / Hotmail block tracking images by
