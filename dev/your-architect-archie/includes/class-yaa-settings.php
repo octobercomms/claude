@@ -15,7 +15,7 @@ class YAA_Settings {
 	const OPTION = 'yaa_settings';
 
 	/** Keys whose values are encrypted at rest. */
-	const SECRETS = array( 'claude_api_key', 'stripe_secret_key', 'stripe_webhook_secret', 'brevo_api_key' );
+	const SECRETS = array( 'claude_api_key', 'stripe_secret_key', 'stripe_webhook_secret', 'brevo_api_key', 'smtp_pass' );
 
 	public static function defaults() {
 		return array(
@@ -40,6 +40,13 @@ class YAA_Settings {
 			'stripe_publishable'    => '',
 			'stripe_webhook_secret' => '',
 			'brevo_api_key'         => '',
+			'smtp_enabled'          => 0,          // route wp_mail through the SMTP relay below.
+			'smtp_host'             => '',         // e.g. smtp-relay.brevo.com
+			'smtp_port'             => 587,        // 587 = STARTTLS, 465 = SSL.
+			'smtp_secure'           => 'tls',      // 'tls' | 'ssl' | 'none'
+			'smtp_auth'             => 1,          // authenticate with username/password.
+			'smtp_user'             => '',         // SMTP login (often the from address or a relay login).
+			'smtp_pass'             => '',         // SMTP password / relay key (stored encrypted).
 			'email_from'            => get_option( 'admin_email' ),
 			'email_from_name'       => 'Your Architect',
 			'portal_page_id'        => 0,

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.19
+Stable tag: 0.7.20
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,20 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.20 =
+* Built-in SMTP delivery (Archie → Settings → "Email delivery (SMTP)"). Route
+  every email through an authenticated relay instead of raw server mail, so
+  quotes and summaries land reliably and pass SPF/DKIM — no separate WP Mail SMTP
+  plugin needed. Password stored encrypted; a one-click "Send test email" button
+  confirms it works. Leave the Brevo API key blank to send everything through the
+  relay (and get our own open/click tracking on the staged emails too).
+* "Limited stats" chip on the email log (row + detail panel) for recipients whose
+  provider makes open tracking unreliable — Outlook/Hotmail (blocks tracking
+  images, so opens under-count) and Apple iCloud/Mail Privacy Protection
+  (pre-loads images, so opens over-count). A reminder that, for those, clicks are
+  the honest signal. This is provider-level and the same whether we send via
+  Brevo or SMTP.
 
 = 0.7.19 =
 * Our own open + click tracking on **every** email the system sends — not just the

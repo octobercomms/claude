@@ -3,7 +3,7 @@
  * Plugin Name: Your Architect – Archie
  * Plugin URI: https://yourarchitect.uk
  * Description: Archie — the conversational, fixed-price project builder for Your Architect. A two-panel AI assistant (embeddable with [archie] or the Elementor widget) that builds a homeowner's drawing package and price through a short chat, opens a project record, and gates full drawings behind payment. Trading name of Tiam Architects LLP.
- * Version: 0.7.19
+ * Version: 0.7.20
  * Author: October Communications
  * Author URI: https://octobercomms.com
  * License: GPL-2.0-or-later
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'YAA_VERSION', '0.7.19' );
+define( 'YAA_VERSION', '0.7.20' );
 define( 'YAA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'YAA_URL', plugin_dir_url( __FILE__ ) );
 define( 'YAA_BASENAME', plugin_basename( __FILE__ ) );
@@ -41,6 +41,7 @@ require_once YAA_PATH . 'includes/class-yaa-archie.php';
 require_once YAA_PATH . 'includes/class-yaa-rest.php';
 require_once YAA_PATH . 'includes/class-yaa-shortcode.php';
 require_once YAA_PATH . 'includes/class-yaa-stripe.php';
+require_once YAA_PATH . 'includes/class-yaa-smtp.php';
 require_once YAA_PATH . 'includes/class-yaa-email.php';
 require_once YAA_PATH . 'includes/class-yaa-files.php';
 require_once YAA_PATH . 'includes/class-yaa-portal.php';
@@ -95,6 +96,7 @@ function yaa_boot() {
 	YAA_Rest::init();
 	YAA_Shortcode::init();
 	YAA_Stripe::init();
+	YAA_SMTP::init();
 	YAA_Email::init();
 	YAA_Files::init();
 	YAA_Portal::init();
