@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.23
+Stable tag: 0.7.24
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,9 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.24 =
+* Tightened the optional phone question wording — dropped the apologetic "no problem if you'd rather stick to email" line. It's still optional (tap to skip), just asked plainly rather than apologetically.
 
 = 0.7.23 =
 * Optional phone number. After the email question, Archie now asks softly for a
