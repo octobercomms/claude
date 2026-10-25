@@ -522,7 +522,14 @@ class YAA_Projects_Admin {
 			echo '<td>' . esc_html( $ts ? self::ago( $when ) : '—' ) . '<br><span class="yaa-emails-meta">' . esc_html( $ts ? date_i18n( 'j M Y, H:i', $ts ) : '' ) . '</span></td>';
 			echo '<td><span class="yaa-badge ' . ( $is_studio ? 'amber' : 'blue' ) . '">' . ( $is_studio ? esc_html__( 'To studio', 'your-architect-archie' ) : esc_html__( 'To client', 'your-architect-archie' ) ) . '</span></td>';
 			echo '<td><strong>' . esc_html( $kind ) . '</strong><br><span class="yaa-emails-meta">' . esc_html( (string) $r->subject ) . '</span></td>';
-			echo '<td>' . esc_html( (string) $r->recipient ) . '</td>';
+			echo '<td>' . esc_html( (string) $r->recipient );
+			if ( false === strpos( (string) $r->recipient, ',' ) ) {
+				$rel = YAA_Email::open_reliability( (string) $r->recipient );
+				if ( $rel ) {
+					echo ' <span class="yaa-badge amber" title="' . esc_attr( $rel['why'] ) . '">' . esc_html( $rel['label'] ) . '</span>';
+				}
+			}
+			echo '</td>';
 
 			echo '<td>';
 			if ( 'failed' === $r->status ) {
@@ -588,12 +595,14 @@ class YAA_Projects_Admin {
 		$opens     = (int) $em->opens;
 		$clicks    = (int) $em->clicks;
 		$proj      = YAA_Project::get( $em->project_id );
+		$rel       = ( false === strpos( (string) $em->recipient, ',' ) ) ? YAA_Email::open_reliability( (string) $em->recipient ) : null;
+		$relchip   = $rel ? ' <span class="yaa-badge amber" title="' . esc_attr( $rel['why'] ) . '">' . esc_html( $rel['label'] ) . '</span>' : '';
 
 		$h  = '<div class="yaa-dsec">';
 		$h .= '<div class="yaa-dsubject">' . esc_html( (string) $em->subject ) . '</div>';
 		$h .= '<table class="yaa-dmeta">';
 		$h .= '<tr><td>' . esc_html__( 'Type', 'your-architect-archie' ) . '</td><td><strong>' . esc_html( $kind ) . '</strong></td></tr>';
-		$h .= '<tr><td>' . esc_html__( 'To', 'your-architect-archie' ) . '</td><td>' . esc_html( (string) $em->recipient ) . ' <span class="yaa-badge ' . ( $is_studio ? 'amber' : 'blue' ) . '">' . ( $is_studio ? esc_html__( 'studio', 'your-architect-archie' ) : esc_html__( 'client', 'your-architect-archie' ) ) . '</span></td></tr>';
+		$h .= '<tr><td>' . esc_html__( 'To', 'your-architect-archie' ) . '</td><td>' . esc_html( (string) $em->recipient ) . ' <span class="yaa-badge ' . ( $is_studio ? 'amber' : 'blue' ) . '">' . ( $is_studio ? esc_html__( 'studio', 'your-architect-archie' ) : esc_html__( 'client', 'your-architect-archie' ) ) . '</span>' . $relchip . '</td></tr>';
 		$h .= '<tr><td>' . esc_html__( 'Sent', 'your-architect-archie' ) . '</td><td>' . esc_html( $when ? date_i18n( 'j M Y, H:i', strtotime( $when ) ) : '—' ) . '</td></tr>';
 		if ( $proj ) {
 			$purl = add_query_arg( array( 'page' => self::SLUG, 'project' => (int) $proj->id ), admin_url( 'admin.php' ) );

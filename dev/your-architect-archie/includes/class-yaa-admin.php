@@ -69,6 +69,13 @@ class YAA_Admin {
 				'stripe_publishable'    => sanitize_text_field( $in['stripe_publishable'] ?? '' ),
 				'stripe_webhook_secret' => isset( $in['stripe_webhook_secret'] ) ? $in['stripe_webhook_secret'] : '',
 				'brevo_api_key'         => isset( $in['brevo_api_key'] ) ? $in['brevo_api_key'] : '',
+				'smtp_enabled'          => empty( $in['smtp_enabled'] ) ? 0 : 1,
+				'smtp_host'             => sanitize_text_field( $in['smtp_host'] ?? '' ),
+				'smtp_port'             => (int) ( $in['smtp_port'] ?? 587 ),
+				'smtp_secure'           => in_array( ( $in['smtp_secure'] ?? 'tls' ), array( 'tls', 'ssl', 'none' ), true ) ? ( $in['smtp_secure'] ?? 'tls' ) : 'tls',
+				'smtp_auth'             => empty( $in['smtp_auth'] ) ? 0 : 1,
+				'smtp_user'             => sanitize_text_field( $in['smtp_user'] ?? '' ),
+				'smtp_pass'             => isset( $in['smtp_pass'] ) ? $in['smtp_pass'] : '',
 				'email_from'            => sanitize_email( $in['email_from'] ?? '' ),
 				'email_from_name'       => sanitize_text_field( $in['email_from_name'] ?? '' ),
 				'portal_page_id'        => (int) ( $in['portal_page_id'] ?? 0 ),
@@ -88,6 +95,16 @@ class YAA_Admin {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Archie Settings', 'your-architect-archie' ); ?></h1>
 			<?php if ( isset( $_GET['updated'] ) ) : ?><div class="notice notice-success"><p><?php esc_html_e( 'Saved.', 'your-architect-archie' ); ?></p></div><?php endif; ?>
+			<?php
+			if ( isset( $_GET['smtp_test'] ) ) :
+				$tr  = get_transient( 'yaa_smtp_test_' . get_current_user_id() );
+				$to  = $tr && false !== strpos( (string) $tr, '|' ) ? substr( (string) $tr, strpos( (string) $tr, '|' ) + 1 ) : '';
+				if ( '1' === $_GET['smtp_test'] ) : ?>
+					<div class="notice notice-success"><p><?php echo esc_html( sprintf( __( 'Test email sent to %s. Check it arrived (and which inbox tab it landed in).', 'your-architect-archie' ), $to ) ); ?></p></div>
+				<?php else : ?>
+					<div class="notice notice-error"><p><?php echo esc_html( sprintf( __( 'Test email to %s failed — WordPress/PHPMailer could not send it. Check the host, port, encryption and login below.', 'your-architect-archie' ), $to ) ); ?></p></div>
+				<?php endif; ?>
+			<?php endif; ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="yaa_save_settings">
 				<?php wp_nonce_field( 'yaa_settings' ); ?>
@@ -115,10 +132,26 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Stripe secret key', 'your-architect-archie' ); ?></th><td><input type="password" name="stripe_secret_key" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'stripe_secret_key' ) ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Stripe publishable key', 'your-architect-archie' ); ?></th><td><input type="text" name="stripe_publishable" class="regular-text" value="<?php echo esc_attr( $s['stripe_publishable'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Stripe webhook secret', 'your-architect-archie' ); ?></th><td><input type="password" name="stripe_webhook_secret" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'stripe_webhook_secret' ) ); ?>"><p class="description"><?php echo esc_html( 'Endpoint: ' . rest_url( 'yaa/v1/stripe-webhook' ) ); ?></p></td></tr>
-					<tr><th><?php esc_html_e( 'Brevo API key', 'your-architect-archie' ); ?></th><td><input type="password" name="brevo_api_key" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'brevo_api_key' ) ); ?>"><p class="description"><?php esc_html_e( 'Transactional email + open/click tracking. Blank = send via WordPress mail.', 'your-architect-archie' ); ?> <?php echo esc_html( 'Webhook: ' . rest_url( 'yaa/v1/brevo-webhook' ) ); ?></p></td></tr>
+					<tr><th><?php esc_html_e( 'Brevo API key', 'your-architect-archie' ); ?></th><td><input type="password" name="brevo_api_key" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'brevo_api_key' ) ); ?>"><p class="description"><?php esc_html_e( 'Only the staged approval / preview / receipt emails use this (via the Brevo API). Leave it blank to route everything through the SMTP relay below, which also gives those emails our own open/click tracking.', 'your-architect-archie' ); ?> <?php echo esc_html( 'Webhook: ' . rest_url( 'yaa/v1/brevo-webhook' ) ); ?></p></td></tr>
 					<tr><th><?php esc_html_e( 'Email from address', 'your-architect-archie' ); ?></th><td><input type="email" name="email_from" class="regular-text" value="<?php echo esc_attr( $s['email_from'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Email from name', 'your-architect-archie' ); ?></th><td><input type="text" name="email_from_name" class="regular-text" value="<?php echo esc_attr( $s['email_from_name'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Client portal page', 'your-architect-archie' ); ?></th><td><?php wp_dropdown_pages( array( 'name' => 'portal_page_id', 'selected' => (int) $s['portal_page_id'], 'show_option_none' => __( '— auto —', 'your-architect-archie' ), 'option_none_value' => 0 ) ); ?><p class="description"><?php esc_html_e( 'Page containing the [archie_portal] shortcode (auto-created on activation).', 'your-architect-archie' ); ?></p></td></tr>
+				</table>
+
+				<h2><?php esc_html_e( 'Email delivery (SMTP)', 'your-architect-archie' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Send all of Archie\'s mail through an authenticated SMTP relay instead of raw server mail, so quotes and summaries land reliably and pass SPF/DKIM. For Brevo\'s free relay: host smtp-relay.brevo.com, port 587, STARTTLS, login = your Brevo SMTP user, password = your Brevo SMTP key. Save, then send a test below.', 'your-architect-archie' ); ?></p>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'Use SMTP relay', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="smtp_enabled" value="1" <?php checked( (int) $s['smtp_enabled'], 1 ); ?>> <?php esc_html_e( 'Route every email through the relay below.', 'your-architect-archie' ); ?></label></td></tr>
+					<tr><th><?php esc_html_e( 'SMTP host', 'your-architect-archie' ); ?></th><td><input type="text" name="smtp_host" class="regular-text" value="<?php echo esc_attr( $s['smtp_host'] ); ?>" placeholder="smtp-relay.brevo.com"></td></tr>
+					<tr><th><?php esc_html_e( 'Port', 'your-architect-archie' ); ?></th><td><input type="number" name="smtp_port" value="<?php echo esc_attr( $s['smtp_port'] ); ?>" style="width:7em"></td></tr>
+					<tr><th><?php esc_html_e( 'Encryption', 'your-architect-archie' ); ?></th><td><select name="smtp_secure">
+						<option value="tls" <?php selected( $s['smtp_secure'], 'tls' ); ?>><?php esc_html_e( 'STARTTLS (port 587)', 'your-architect-archie' ); ?></option>
+						<option value="ssl" <?php selected( $s['smtp_secure'], 'ssl' ); ?>><?php esc_html_e( 'SSL/TLS (port 465)', 'your-architect-archie' ); ?></option>
+						<option value="none" <?php selected( $s['smtp_secure'], 'none' ); ?>><?php esc_html_e( 'None', 'your-architect-archie' ); ?></option>
+					</select></td></tr>
+					<tr><th><?php esc_html_e( 'Authenticate', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="smtp_auth" value="1" <?php checked( (int) $s['smtp_auth'], 1 ); ?>> <?php esc_html_e( 'Log in with the username and password below (usually yes).', 'your-architect-archie' ); ?></label></td></tr>
+					<tr><th><?php esc_html_e( 'SMTP username', 'your-architect-archie' ); ?></th><td><input type="text" name="smtp_user" class="regular-text" autocomplete="off" value="<?php echo esc_attr( $s['smtp_user'] ); ?>"></td></tr>
+					<tr><th><?php esc_html_e( 'SMTP password / key', 'your-architect-archie' ); ?></th><td><input type="password" name="smtp_pass" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'smtp_pass' ) ); ?>"><p class="description"><?php esc_html_e( 'Stored encrypted. Leave blank to keep the saved value.', 'your-architect-archie' ); ?></p></td></tr>
 				</table>
 
 				<h2><?php esc_html_e( 'Client email templates', 'your-architect-archie' ); ?></h2>
@@ -142,6 +175,14 @@ class YAA_Admin {
 					<?php endforeach; ?>
 				</table>
 				<?php submit_button(); ?>
+			</form>
+			<h2><?php esc_html_e( 'Test email delivery', 'your-architect-archie' ); ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="yaa_smtp_test">
+				<?php wp_nonce_field( 'yaa_smtp_test' ); ?>
+				<input type="email" name="smtp_test_to" class="regular-text" placeholder="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>">
+				<button type="submit" class="button"><?php esc_html_e( 'Send test email', 'your-architect-archie' ); ?></button>
+				<p class="description"><?php esc_html_e( 'Sends a test using the saved settings above. Save any changes first. Blank = send to your own admin address.', 'your-architect-archie' ); ?></p>
 			</form>
 			<p class="description"><?php esc_html_e( 'Embed Archie on any page with the [archie] shortcode or the "Archie" Elementor widget.', 'your-architect-archie' ); ?></p>
 		</div>

@@ -694,4 +694,37 @@ class YAA_Email {
 			YAA_Project::log_event( $row->project_id, 'email_clicked', $meta );
 		}
 	}
+
+	/**
+	 * Whether open tracking is trustworthy for a recipient's email provider. Open
+	 * pixels fire in the recipient's mail client, so some providers make the data
+	 * unreliable no matter how we send: Outlook / Hotmail block tracking images by
+	 * default (opens under-count), and Apple Mail Privacy Protection pre-loads them
+	 * (opens over-count). For those, clicks are the honest signal. Returns
+	 * array{ label, why } or null when opens are broadly reliable. This is
+	 * provider-level — identical whether we send via Brevo or our own SMTP.
+	 */
+	public static function open_reliability( $email ) {
+		$email = strtolower( trim( (string) $email ) );
+		$at    = strrpos( $email, '@' );
+		if ( false === $at ) {
+			return null;
+		}
+		$domain = substr( $email, $at + 1 );
+		foreach ( array( 'outlook.', 'hotmail.', 'live.', 'msn.', 'windowslive.', 'passport.' ) as $p ) {
+			if ( 0 === strpos( $domain, $p ) ) {
+				return array(
+					'label' => __( 'Limited stats', 'your-architect-archie' ),
+					'why'   => __( 'Outlook / Hotmail blocks tracking images by default, so an "open" often won\'t register even when the email is read. Trust clicks over opens for this recipient.', 'your-architect-archie' ),
+				);
+			}
+		}
+		if ( in_array( $domain, array( 'icloud.com', 'me.com', 'mac.com' ), true ) ) {
+			return array(
+				'label' => __( 'Limited stats', 'your-architect-archie' ),
+				'why'   => __( 'Apple Mail Privacy Protection can pre-load images, so an "open" may show even if the email was never read. Trust clicks over opens for this recipient.', 'your-architect-archie' ),
+			);
+		}
+		return null;
+	}
 }
