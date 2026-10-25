@@ -89,6 +89,22 @@ class YAA_Settings {
 		update_option( self::OPTION, $raw, false );
 	}
 
+	/** Explicitly wipe one or more stored secrets (leaving a secret field blank keeps it; this clears it). */
+	public static function clear_secrets( array $keys ) {
+		$raw = get_option( self::OPTION, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+		$changed = false;
+		foreach ( $keys as $k ) {
+			if ( in_array( $k, self::SECRETS, true ) && ! empty( $raw[ $k ] ) ) {
+				$raw[ $k ] = '';
+				$changed = true;
+			}
+		}
+		if ( $changed ) {
+			update_option( self::OPTION, $raw, false );
+		}
+	}
+
 	/** Whether a secret is set (without exposing it). */
 	public static function has_secret( $key ) {
 		$raw = get_option( self::OPTION, array() );

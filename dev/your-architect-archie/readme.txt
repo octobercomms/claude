@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.21
+Stable tag: 0.7.22
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.22 =
+* Secret keys can now be cleared. Each secret field (Claude, Stripe, Brevo, SMTP
+  password) shows a "Clear this key" tickbox when a value is stored — tick it and
+  save to remove the key. Previously a blank field kept the saved value, so there
+  was no way to unset one (e.g. to turn Brevo off and route everything via SMTP).
+* New "Avg questions answered" stat tile on the Archie Projects list — the mean
+  number of questions answered across all submissions, so you can see at a glance
+  how far people get into the chat, not just whether they finished.
 
 = 0.7.21 =
 * Every email now sends from the configured "Email from address" (Settings),
