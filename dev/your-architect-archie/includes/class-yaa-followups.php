@@ -97,8 +97,15 @@ class YAA_Followups {
 		}
 
 		$admin_html = self::admin_html( $row, $state, $package );
-		$ok = wp_mail( $to, $subject, $admin_html, $headers );
-		YAA_Email::log_sent( $project_id, is_array( $to ) ? implode( ', ', $to ) : (string) $to, 'studio', 'notify_submit', $subject, (bool) $ok, $admin_html );
+		YAA_Email::send_tracked( array(
+			'project_id'     => (int) $project_id,
+			'to'             => $to,
+			'recipient_type' => 'studio',
+			'kind'           => 'notify_submit',
+			'subject'        => $subject,
+			'html'           => $admin_html,
+			'headers'        => $headers,
+		) );
 
 		// ---- Visitor confirmation ----
 		if ( is_email( $email ) ) {
@@ -112,8 +119,15 @@ class YAA_Followups {
 				$client_headers[] = sprintf( 'Reply-To: %s <%s>', 'Your Architect', $studio[0] );
 			}
 			$client_html = self::client_html( $row, $state, $package );
-			$ok = wp_mail( $email, 'Your Architect — your project summary', $client_html, $client_headers );
-			YAA_Email::log_sent( $project_id, $email, 'client', 'client_summary', 'Your Architect — your project summary', (bool) $ok, $client_html );
+			YAA_Email::send_tracked( array(
+				'project_id'     => (int) $project_id,
+				'to'             => $email,
+				'recipient_type' => 'client',
+				'kind'           => 'client_summary',
+				'subject'        => 'Your Architect — your project summary',
+				'html'           => $client_html,
+				'headers'        => $client_headers,
+			) );
 		}
 	}
 
@@ -244,9 +258,16 @@ class YAA_Followups {
 			$headers[] = sprintf( 'Reply-To: %s <%s>', 'Your Architect', $studio[0] );
 		}
 		$html = self::shell( __( 'Your quote', 'your-architect-archie' ), __( 'Your fixed-price quote', 'your-architect-archie' ), sprintf( esc_html__( 'Your saved fixed-price quote (%s).', 'your-architect-archie' ), $total ), $inner );
-		$ok   = wp_mail( (string) $row->email, 'Your Architect — your fixed-price quote', $html, $headers );
-		YAA_Email::log_sent( (int) $project_id, (string) $row->email, 'client', 'quote', 'Your Architect — your fixed-price quote', (bool) $ok, $html );
-		return (bool) $ok;
+		$res = YAA_Email::send_tracked( array(
+			'project_id'     => (int) $project_id,
+			'to'             => (string) $row->email,
+			'recipient_type' => 'client',
+			'kind'           => 'quote',
+			'subject'        => 'Your Architect — your fixed-price quote',
+			'html'           => $html,
+			'headers'        => $headers,
+		) );
+		return ! empty( $res['ok'] );
 	}
 
 	private static function client_html( $row, array $state, array $package ) {
@@ -442,9 +463,34 @@ class YAA_Followups {
 			if ( ! is_email( $email ) ) {
 				continue;
 			}
-			$resume_body = "Your saved project is ready whenever you are — just head back and Archie will resume.\n\n— Your Architect\n";
-			$ok = wp_mail( $email, 'Your Architect — pick up where you left off', $resume_body, array( 'Content-Type: text/plain; charset=UTF-8' ) );
-			YAA_Email::log_sent( (int) $p->id, $email, 'client', 'resume', 'Your Architect — pick up where you left off', (bool) $ok, nl2br( esc_html( $resume_body ) ) );
+			$token = YAA_Project::ensure_token( (int) $p->id );
+			$chat  = (string) YAA_Settings::get( 'chat_url', '' );
+			if ( '' === $chat ) {
+				$chat = home_url( '/' );
+			}
+			$link  = add_query_arg( 'yaa_resume', rawurlencode( (string) $token ), $chat );
+			$first = trim( (string) $p->name ) ? strtok( trim( (string) $p->name ), ' ' ) : 'there';
+			$inner = '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:' . self::INK . ';">' . sprintf( esc_html__( 'Hi %s,', 'your-architect-archie' ), esc_html( $first ) ) . '</p>'
+				. '<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:' . self::INK . ';">' . esc_html__( 'Your saved project with Your Architect is ready whenever you are — pick up exactly where you left off and Archie will have everything you told us so far.', 'your-architect-archie' ) . '</p>'
+				. self::button( $link, __( 'Pick up where you left off', 'your-architect-archie' ) )
+				. '<p style="margin:18px 0 0;font-size:14px;line-height:1.65;color:' . self::MUTED . ';">' . esc_html__( 'No rush — your quote is saved. If now is not the time, just reply and let us know how we can help.', 'your-architect-archie' ) . '</p>'
+				. '<p style="margin:14px 0 0;font-size:15px;color:' . self::INK . ';">— Your Architect</p>';
+			$html    = self::shell( __( 'Your project', 'your-architect-archie' ), __( 'Pick up where you left off', 'your-architect-archie' ), __( 'Your saved project is ready whenever you are.', 'your-architect-archie' ), $inner );
+			$noreply = self::from_email();
+			$headers = array( 'Content-Type: text/html; charset=UTF-8', sprintf( 'From: %s <%s>', 'Your Architect', $noreply ) );
+			$studio  = self::studio_recipients();
+			if ( ! empty( $studio[0] ) && is_email( $studio[0] ) ) {
+				$headers[] = sprintf( 'Reply-To: %s <%s>', 'Your Architect', $studio[0] );
+			}
+			YAA_Email::send_tracked( array(
+				'project_id'     => (int) $p->id,
+				'to'             => $email,
+				'recipient_type' => 'client',
+				'kind'           => 'resume',
+				'subject'        => 'Your Architect — pick up where you left off',
+				'html'           => $html,
+				'headers'        => $headers,
+			) );
 			YAA_Project::log_event( (int) $p->id, 'followup_sent' );
 		}
 	}
