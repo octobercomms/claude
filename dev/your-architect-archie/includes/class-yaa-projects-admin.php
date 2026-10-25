@@ -48,6 +48,8 @@ class YAA_Projects_Admin {
 		add_action( 'admin_post_yaa_projects_bulk_delete', array( __CLASS__, 'act_bulk_delete' ) );
 		add_action( 'admin_post_yaa_projects_export', array( __CLASS__, 'act_export_csv' ) );
 		add_action( 'admin_post_yaa_project_print', array( __CLASS__, 'act_print' ) );
+		add_action( 'admin_post_yaa_email_resend', array( __CLASS__, 'act_email_resend' ) );
+		add_action( 'wp_ajax_yaa_email_detail', array( __CLASS__, 'ajax_email_detail' ) );
 	}
 
 	/** Permanently delete a submission/project and everything attached to it. */
@@ -354,6 +356,32 @@ class YAA_Projects_Admin {
 		self::back( $pid, is_wp_error( $res ) ? 'send_failed' : 'sent' );
 	}
 
+	/** Re-deliver a logged email (quote copies regenerate fresh). */
+	public static function act_email_resend() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_email_resend' ) ) {
+			wp_die( 'Nope' );
+		}
+		$eid = (int) ( $_POST['email_id'] ?? 0 );
+		$res = $eid ? YAA_Email::resend( $eid ) : new WP_Error( 'yaa_no_email', 'No email specified.' );
+		if ( is_wp_error( $res ) ) {
+			set_transient( 'yaa_send_err_' . get_current_user_id(), $res->get_error_message(), 120 );
+		}
+		wp_safe_redirect( add_query_arg( array( 'page' => 'yaa-emails', 'notice' => is_wp_error( $res ) ? 'resend_failed' : 'resent' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/** admin-ajax: return the detail-panel HTML for one email (drawer content). */
+	public static function ajax_email_detail() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			status_header( 403 );
+			wp_die( '', '', array( 'response' => 403 ) );
+		}
+		check_ajax_referer( 'yaa_email_detail' );
+		$id = isset( $_GET['email'] ) ? (int) $_GET['email'] : 0;
+		echo self::email_detail_html( $id ); // phpcs:ignore WordPress.Security.EscapeOutput
+		wp_die();
+	}
+
 	public static function menu() {
 		add_menu_page(
 			__( 'Archie Projects', 'your-architect-archie' ),
@@ -421,87 +449,311 @@ class YAA_Projects_Admin {
 			self::render_email_detail( $view_id );
 			return;
 		}
+
 		$rows   = YAA_Email::recent_log( 300 );
 		$labels = self::email_kind_labels();
-		?>
-		<div class="wrap yaa-wrap">
-			<h1><?php esc_html_e( 'Email log', 'your-architect-archie' ); ?></h1>
-			<p class="yaa-emails-meta"><?php esc_html_e( 'Every email the system has sent — staged client emails, new-enquiry and revision alerts to the studio, quote summaries, portal sign-in links and payment receipts. Newest first, last 300.', 'your-architect-archie' ); ?></p>
-			<?php if ( empty( $rows ) ) : ?>
-				<div class="yaa-card"><p class="yaa-emails-meta"><?php esc_html_e( 'No emails have been sent yet.', 'your-architect-archie' ); ?></p></div>
-			<?php else : ?>
-			<table class="wp-list-table widefat fixed striped" style="margin-top:12px">
-				<thead>
-					<tr>
-						<th style="width:140px"><?php esc_html_e( 'When', 'your-architect-archie' ); ?></th>
-						<th style="width:110px"><?php esc_html_e( 'Direction', 'your-architect-archie' ); ?></th>
-						<th><?php esc_html_e( 'Email', 'your-architect-archie' ); ?></th>
-						<th><?php esc_html_e( 'Recipient', 'your-architect-archie' ); ?></th>
-						<th style="width:120px"><?php esc_html_e( 'Project', 'your-architect-archie' ); ?></th>
-						<th style="width:80px"><?php esc_html_e( 'Status', 'your-architect-archie' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-				<?php foreach ( $rows as $r ) :
-					$is_studio = ( 'studio' === $r->recipient_type );
-					$kind      = isset( $labels[ $r->kind ] ) ? $labels[ $r->kind ] : ucfirst( str_replace( '_', ' ', (string) $r->kind ) );
-					$when      = $r->sent_at ? $r->sent_at : $r->created;
-					$ts        = $when ? strtotime( $when ) : 0;
-					$proj      = $r->project_ref ? $r->project_ref : ( $r->project_name ? $r->project_name : ( $r->project_id ? '#' . (int) $r->project_id : '—' ) );
-					$purl      = add_query_arg( array( 'page' => self::SLUG, 'project' => (int) $r->project_id ), admin_url( 'admin.php' ) );
-				?>
-					<tr>
-						<td><?php echo esc_html( $ts ? self::ago( $when ) : '—' ); ?><br><span class="yaa-emails-meta"><?php echo esc_html( $ts ? date_i18n( 'j M Y, H:i', $ts ) : '' ); ?></span></td>
-						<td><span class="yaa-badge <?php echo $is_studio ? 'amber' : 'blue'; ?>"><?php echo $is_studio ? esc_html__( 'To studio', 'your-architect-archie' ) : esc_html__( 'To client', 'your-architect-archie' ); ?></span></td>
-						<td><a href="<?php echo esc_url( add_query_arg( array( 'page' => 'yaa-emails', 'email' => (int) $r->id ), admin_url( 'admin.php' ) ) ); ?>"><strong><?php echo esc_html( $kind ); ?></strong></a><br><span class="yaa-emails-meta"><?php echo esc_html( (string) $r->subject ); ?></span></td>
-						<td><?php echo esc_html( (string) $r->recipient ); ?></td>
-						<td><?php if ( $r->project_id ) : ?><a href="<?php echo esc_url( $purl ); ?>"><?php echo esc_html( $proj ); ?></a><?php else : ?><?php echo esc_html( $proj ); ?><?php endif; ?></td>
-						<td><?php if ( 'failed' === $r->status ) : ?><span class="yaa-badge red"><?php esc_html_e( 'Failed', 'your-architect-archie' ); ?></span><?php else : ?><span class="yaa-badge green"><?php esc_html_e( 'Sent', 'your-architect-archie' ); ?></span><?php endif; ?></td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-			<?php endif; ?>
-		</div>
-		<?php
+		$stats  = YAA_Email::log_stats();
+		$notice = isset( $_GET['notice'] ) ? sanitize_key( wp_unslash( $_GET['notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$err    = get_transient( 'yaa_send_err_' . get_current_user_id() );
+		if ( $err ) {
+			delete_transient( 'yaa_send_err_' . get_current_user_id() );
+		}
+		$ajax  = admin_url( 'admin-ajax.php' );
+		$nonce = wp_create_nonce( 'yaa_email_detail' );
+
+		echo '<div class="wrap yaa-wrap yaa-emails-page">';
+		self::emails_style();
+		echo '<h1>' . esc_html__( 'Email log', 'your-architect-archie' ) . '</h1>';
+
+		if ( 'resent' === $notice ) {
+			echo '<div class="yaa-enote ok">' . esc_html__( 'Email resent — it will show as a new row below once delivered.', 'your-architect-archie' ) . '</div>';
+		} elseif ( 'resend_failed' === $notice ) {
+			echo '<div class="yaa-enote err">' . esc_html__( 'That email could not be resent.', 'your-architect-archie' );
+			if ( $err ) {
+				echo ' <span style="font-weight:400">' . esc_html( (string) $err ) . '</span>';
+			}
+			echo '</div>';
+		}
+
+		echo '<p class="yaa-emails-meta">' . esc_html__( 'Every email the system has sent, with our own open + click tracking. Click any row to see full delivery details and exactly when it was opened or clicked. Newest first, last 300.', 'your-architect-archie' ) . '</p>';
+
+		// Headline stats.
+		$tiles = array(
+			array( 'n' => number_format_i18n( $stats['sent'] ),    'l' => __( 'Delivered', 'your-architect-archie' ),          'cls' => '' ),
+			array( 'n' => number_format_i18n( $stats['opened'] ) . ' <small>(' . (int) $stats['open_rate'] . '%)</small>',   'l' => __( 'Opened at least once', 'your-architect-archie' ), 'cls' => 'green' ),
+			array( 'n' => number_format_i18n( $stats['clicked'] ) . ' <small>(' . (int) $stats['click_rate'] . '%)</small>', 'l' => __( 'Clicked a link', 'your-architect-archie' ),        'cls' => 'blue' ),
+			array( 'n' => number_format_i18n( $stats['failed'] ),  'l' => __( 'Failed to send', 'your-architect-archie' ),     'cls' => ( $stats['failed'] > 0 ? 'red' : '' ) ),
+		);
+		echo '<div class="yaa-estats">';
+		foreach ( $tiles as $t ) {
+			echo '<div class="yaa-estat ' . esc_attr( $t['cls'] ) . '"><span class="n">' . wp_kses_post( $t['n'] ) . '</span><span class="l">' . esc_html( $t['l'] ) . '</span></div>';
+		}
+		echo '</div>';
+
+		if ( empty( $rows ) ) {
+			echo '<div class="yaa-card"><p class="yaa-emails-meta">' . esc_html__( 'No emails have been sent yet.', 'your-architect-archie' ) . '</p></div></div>';
+			return;
+		}
+
+		echo '<table class="wp-list-table widefat fixed striped yaa-etable" style="margin-top:12px">';
+		echo '<thead><tr>'
+			. '<th style="width:140px">' . esc_html__( 'When', 'your-architect-archie' ) . '</th>'
+			. '<th style="width:96px">' . esc_html__( 'Direction', 'your-architect-archie' ) . '</th>'
+			. '<th>' . esc_html__( 'Email', 'your-architect-archie' ) . '</th>'
+			. '<th>' . esc_html__( 'Recipient', 'your-architect-archie' ) . '</th>'
+			. '<th style="width:170px">' . esc_html__( 'Engagement', 'your-architect-archie' ) . '</th>'
+			. '<th style="width:110px">' . esc_html__( 'Project', 'your-architect-archie' ) . '</th>'
+			. '<th style="width:74px">' . esc_html__( 'Status', 'your-architect-archie' ) . '</th>'
+			. '<th style="width:96px"></th>'
+			. '</tr></thead><tbody>';
+
+		$admin_post = admin_url( 'admin-post.php' );
+		foreach ( $rows as $r ) {
+			$is_studio = ( 'studio' === $r->recipient_type );
+			$kind      = isset( $labels[ $r->kind ] ) ? $labels[ $r->kind ] : ucfirst( str_replace( '_', ' ', (string) $r->kind ) );
+			$when      = $r->sent_at ? $r->sent_at : $r->created;
+			$ts        = $when ? strtotime( $when ) : 0;
+			$proj      = $r->project_ref ? $r->project_ref : ( $r->project_name ? $r->project_name : ( $r->project_id ? '#' . (int) $r->project_id : '—' ) );
+			$purl      = add_query_arg( array( 'page' => self::SLUG, 'project' => (int) $r->project_id ), admin_url( 'admin.php' ) );
+			$opens     = (int) $r->opens;
+			$clicks    = (int) $r->clicks;
+
+			echo '<tr class="yaa-erow" data-email="' . (int) $r->id . '" tabindex="0" role="button">';
+			echo '<td>' . esc_html( $ts ? self::ago( $when ) : '—' ) . '<br><span class="yaa-emails-meta">' . esc_html( $ts ? date_i18n( 'j M Y, H:i', $ts ) : '' ) . '</span></td>';
+			echo '<td><span class="yaa-badge ' . ( $is_studio ? 'amber' : 'blue' ) . '">' . ( $is_studio ? esc_html__( 'To studio', 'your-architect-archie' ) : esc_html__( 'To client', 'your-architect-archie' ) ) . '</span></td>';
+			echo '<td><strong>' . esc_html( $kind ) . '</strong><br><span class="yaa-emails-meta">' . esc_html( (string) $r->subject ) . '</span></td>';
+			echo '<td>' . esc_html( (string) $r->recipient ) . '</td>';
+
+			echo '<td>';
+			if ( 'failed' === $r->status ) {
+				echo '<span class="yaa-emails-meta">—</span>';
+			} elseif ( $opens || $clicks ) {
+				if ( $opens ) {
+					echo '<span class="yaa-badge green">' . sprintf( esc_html__( 'Opened %d×', 'your-architect-archie' ), $opens ) . '</span> ';
+				}
+				if ( $clicks ) {
+					echo '<span class="yaa-badge blue">' . sprintf( esc_html__( 'Clicked %d×', 'your-architect-archie' ), $clicks ) . '</span>';
+				}
+			} else {
+				echo '<span class="yaa-badge grey">' . esc_html__( 'Not yet opened', 'your-architect-archie' ) . '</span>';
+			}
+			echo '</td>';
+
+			echo '<td>';
+			if ( $r->project_id ) {
+				echo '<a class="yaa-noopen" href="' . esc_url( $purl ) . '">' . esc_html( $proj ) . '</a>';
+			} else {
+				echo esc_html( $proj );
+			}
+			echo '</td>';
+
+			echo '<td>' . ( 'failed' === $r->status ? '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>' : '<span class="yaa-badge green">' . esc_html__( 'Sent', 'your-architect-archie' ) . '</span>' ) . '</td>';
+
+			echo '<td>';
+			echo '<form class="yaa-noopen" method="post" action="' . esc_url( $admin_post ) . '" onsubmit="return confirm(\'Resend this email now?\');">';
+			echo '<input type="hidden" name="action" value="yaa_email_resend">';
+			echo '<input type="hidden" name="email_id" value="' . (int) $r->id . '">';
+			echo wp_nonce_field( 'yaa_email_resend', '_wpnonce', true, false );
+			echo '<button type="submit" class="button button-small yaa-noopen">' . esc_html__( 'Resend', 'your-architect-archie' ) . '</button>';
+			echo '</form>';
+			echo '</td>';
+
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
+
+		// Slide-in detail drawer.
+		echo '<div class="yaa-drawer-ov" id="yaa-drawer-ov"></div>';
+		echo '<aside class="yaa-drawer" id="yaa-drawer" aria-hidden="true">';
+		echo '<header class="yaa-drawer-head"><strong>' . esc_html__( 'Email details', 'your-architect-archie' ) . '</strong>';
+		echo '<button type="button" class="yaa-drawer-x" id="yaa-drawer-close" aria-label="' . esc_attr__( 'Close', 'your-architect-archie' ) . '">&times;</button></header>';
+		echo '<div class="yaa-drawer-body" id="yaa-drawer-body"></div>';
+		echo '</aside>';
+
+		self::emails_script( $ajax, $nonce );
+		echo '</div>';
 	}
 
-	/** The actual email behind one log row: delivery details + the message as sent. */
+	/** The detail panel for one email — delivery facts, open/click history, body. */
+	public static function email_detail_html( $id ) {
+		$em = YAA_Email::get( $id );
+		if ( ! $em ) {
+			return '<p class="yaa-emails-meta" style="padding:18px">' . esc_html__( 'That email could not be found.', 'your-architect-archie' ) . '</p>';
+		}
+		$labels    = self::email_kind_labels();
+		$kind      = isset( $labels[ $em->kind ] ) ? $labels[ $em->kind ] : ucfirst( str_replace( '_', ' ', (string) $em->kind ) );
+		$when      = $em->sent_at ? $em->sent_at : $em->created;
+		$is_studio = ( 'studio' === $em->recipient_type );
+		$events    = YAA_Email::engagement( (int) $em->id );
+		$opens     = (int) $em->opens;
+		$clicks    = (int) $em->clicks;
+		$proj      = YAA_Project::get( $em->project_id );
+
+		$h  = '<div class="yaa-dsec">';
+		$h .= '<div class="yaa-dsubject">' . esc_html( (string) $em->subject ) . '</div>';
+		$h .= '<table class="yaa-dmeta">';
+		$h .= '<tr><td>' . esc_html__( 'Type', 'your-architect-archie' ) . '</td><td><strong>' . esc_html( $kind ) . '</strong></td></tr>';
+		$h .= '<tr><td>' . esc_html__( 'To', 'your-architect-archie' ) . '</td><td>' . esc_html( (string) $em->recipient ) . ' <span class="yaa-badge ' . ( $is_studio ? 'amber' : 'blue' ) . '">' . ( $is_studio ? esc_html__( 'studio', 'your-architect-archie' ) : esc_html__( 'client', 'your-architect-archie' ) ) . '</span></td></tr>';
+		$h .= '<tr><td>' . esc_html__( 'Sent', 'your-architect-archie' ) . '</td><td>' . esc_html( $when ? date_i18n( 'j M Y, H:i', strtotime( $when ) ) : '—' ) . '</td></tr>';
+		if ( $proj ) {
+			$purl = add_query_arg( array( 'page' => self::SLUG, 'project' => (int) $proj->id ), admin_url( 'admin.php' ) );
+			$pl   = $proj->ref ? $proj->ref : ( $proj->name ? $proj->name : ( '#' . (int) $proj->id ) );
+			$h   .= '<tr><td>' . esc_html__( 'Project', 'your-architect-archie' ) . '</td><td><a href="' . esc_url( $purl ) . '">' . esc_html( $pl ) . '</a></td></tr>';
+		}
+		$h .= '<tr><td>' . esc_html__( 'Status', 'your-architect-archie' ) . '</td><td>' . ( 'failed' === $em->status ? '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>' : '<span class="yaa-badge green">' . esc_html__( 'Sent', 'your-architect-archie' ) . '</span>' ) . '</td></tr>';
+		$h .= '</table></div>';
+
+		// Engagement history.
+		$h .= '<div class="yaa-dsec"><div class="yaa-dh">' . esc_html__( 'Engagement', 'your-architect-archie' ) . '</div>';
+		$h .= '<div class="yaa-dkpis">';
+		$h .= '<div class="yaa-dkpi"><span class="n">' . (int) $opens . '</span><span class="l">' . esc_html__( 'opens', 'your-architect-archie' ) . '</span></div>';
+		$h .= '<div class="yaa-dkpi"><span class="n">' . (int) $clicks . '</span><span class="l">' . esc_html__( 'clicks', 'your-architect-archie' ) . '</span></div>';
+		$h .= '</div>';
+		if ( 'failed' === $em->status ) {
+			$h .= '<p class="yaa-emails-meta">' . esc_html__( 'This email failed to send, so there is nothing to track.', 'your-architect-archie' ) . '</p>';
+		} elseif ( empty( $events ) ) {
+			$h .= '<p class="yaa-emails-meta">' . esc_html__( 'No opens or clicks recorded yet. (Open tracking relies on the recipient loading images — Gmail and Apple Mail can hide or delay this, so a blank here does not always mean unread.)', 'your-architect-archie' ) . '</p>';
+		} else {
+			$h .= '<ul class="yaa-dtl">';
+			foreach ( array_reverse( $events ) as $ev ) {
+				$is_click = ( 'click' === $ev['action'] );
+				$label    = $is_click ? esc_html__( 'Clicked a link', 'your-architect-archie' ) : esc_html__( 'Opened', 'your-architect-archie' );
+				$h       .= '<li class="' . ( $is_click ? 'click' : 'open' ) . '"><span class="yaa-dtl-dot"></span>';
+				$h       .= '<span class="yaa-dtl-main"><strong>' . $label . '</strong>';
+				if ( $is_click && ! empty( $ev['url'] ) ) {
+					$h .= '<span class="yaa-dtl-url">' . esc_html( $ev['url'] ) . '</span>';
+				}
+				$h .= '</span>';
+				$h .= '<span class="yaa-dtl-when">' . esc_html( date_i18n( 'j M Y, H:i', strtotime( $ev['at'] ) ) ) . '</span>';
+				$h .= '</li>';
+			}
+			$h .= '</ul>';
+		}
+		$h .= '</div>';
+
+		// Resend.
+		$h .= '<div class="yaa-dsec"><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'Resend this email now?\');">';
+		$h .= '<input type="hidden" name="action" value="yaa_email_resend"><input type="hidden" name="email_id" value="' . (int) $em->id . '">';
+		$h .= wp_nonce_field( 'yaa_email_resend', '_wpnonce', true, false );
+		$h .= '<button type="submit" class="button button-primary">' . esc_html__( 'Resend this email', 'your-architect-archie' ) . '</button>';
+		$h .= ' <span class="yaa-emails-meta">' . esc_html__( 'Quote copies are regenerated with the latest price; others re-send exactly as stored.', 'your-architect-archie' ) . '</span>';
+		$h .= '</form></div>';
+
+		// The message as sent.
+		$h .= '<div class="yaa-dsec"><div class="yaa-dh">' . esc_html__( 'Message', 'your-architect-archie' ) . '</div>';
+		if ( '' !== trim( (string) $em->body ) ) {
+			$h .= '<iframe sandbox="" title="' . esc_attr__( 'Email preview', 'your-architect-archie' ) . '" class="yaa-dframe" srcdoc="' . esc_attr( (string) $em->body ) . '"></iframe>';
+		} else {
+			$h .= '<p class="yaa-emails-meta">' . esc_html__( 'The full message was not stored for this email (it predates message logging).', 'your-architect-archie' ) . '</p>';
+		}
+		$h .= '</div>';
+
+		return $h;
+	}
+
+	/** Legacy standalone page (no-JS fallback for ?page=yaa-emails&email=ID). */
 	private static function render_email_detail( $id ) {
-		$em     = YAA_Email::get( $id );
-		$labels = self::email_kind_labels();
-		$back   = add_query_arg( array( 'page' => 'yaa-emails' ), admin_url( 'admin.php' ) );
-		?>
-		<div class="wrap yaa-wrap">
-			<h1><?php esc_html_e( 'Email', 'your-architect-archie' ); ?></h1>
-			<p><a href="<?php echo esc_url( $back ); ?>">&larr; <?php esc_html_e( 'Back to the email log', 'your-architect-archie' ); ?></a></p>
-			<?php if ( ! $em ) : ?>
-				<div class="yaa-card"><p class="yaa-emails-meta"><?php esc_html_e( 'That email could not be found.', 'your-architect-archie' ); ?></p></div>
-			<?php else :
-				$kind = isset( $labels[ $em->kind ] ) ? $labels[ $em->kind ] : ucfirst( str_replace( '_', ' ', (string) $em->kind ) );
-				$when = $em->sent_at ? $em->sent_at : $em->created;
-				$is_studio = ( 'studio' === $em->recipient_type );
-			?>
-				<div class="yaa-card">
-					<table style="width:100%;border-collapse:collapse;font-size:.92rem">
-						<tr><td style="padding:6px 0;color:#6b7280;width:120px"><?php esc_html_e( 'Type', 'your-architect-archie' ); ?></td><td style="padding:6px 0;font-weight:600"><?php echo esc_html( $kind ); ?></td></tr>
-						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'Subject', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo esc_html( (string) $em->subject ); ?></td></tr>
-						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'To', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo esc_html( (string) $em->recipient ); ?> <span class="yaa-badge <?php echo $is_studio ? 'amber' : 'blue'; ?>"><?php echo $is_studio ? esc_html__( 'studio', 'your-architect-archie' ) : esc_html__( 'client', 'your-architect-archie' ); ?></span></td></tr>
-						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'When', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo esc_html( $when ? date_i18n( 'j M Y, H:i', strtotime( $when ) ) : '—' ); ?></td></tr>
-						<tr><td style="padding:6px 0;color:#6b7280"><?php esc_html_e( 'Status', 'your-architect-archie' ); ?></td><td style="padding:6px 0"><?php echo 'failed' === $em->status ? '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>' : '<span class="yaa-badge green">' . esc_html__( 'Sent', 'your-architect-archie' ) . '</span>'; ?></td></tr>
-					</table>
-				</div>
-				<div class="yaa-card">
-					<h2 style="margin-top:0"><?php esc_html_e( 'Message', 'your-architect-archie' ); ?></h2>
-					<?php if ( '' !== trim( (string) $em->body ) ) : ?>
-						<iframe sandbox="" title="<?php esc_attr_e( 'Email preview', 'your-architect-archie' ); ?>" style="width:100%;min-height:560px;border:1px solid #e7eaef;border-radius:8px;background:#fff" srcdoc="<?php echo esc_attr( (string) $em->body ); ?>"></iframe>
-					<?php else : ?>
-						<p class="yaa-emails-meta"><?php esc_html_e( 'The full message wasn\'t stored for this email (it predates message logging). The subject and delivery details above are recorded.', 'your-architect-archie' ); ?></p>
-					<?php endif; ?>
-				</div>
-			<?php endif; ?>
-		</div>
-		<?php
+		$back = add_query_arg( array( 'page' => 'yaa-emails' ), admin_url( 'admin.php' ) );
+		echo '<div class="wrap yaa-wrap yaa-emails-page">';
+		self::emails_style();
+		echo '<h1>' . esc_html__( 'Email', 'your-architect-archie' ) . '</h1>';
+		echo '<p><a href="' . esc_url( $back ) . '">&larr; ' . esc_html__( 'Back to the email log', 'your-architect-archie' ) . '</a></p>';
+		echo '<div class="yaa-card" style="max-width:760px">' . self::email_detail_html( (int) $id ) . '</div>';
+		echo '</div>';
+	}
+
+	/** Inline styles for the email log + detail drawer (scoped to .yaa-emails-page). */
+	private static function emails_style() {
+		echo <<<CSS
+<style>
+.yaa-emails-page{ --navy:#253E94; --blue:#2f5fe0; --ink:#1a2233; --muted:#6b7488; --line:#e6e9f2; --bg:#f6f8fd; }
+.yaa-emails-page h1{ color:var(--navy); }
+.yaa-emails-page .yaa-emails-meta{ color:var(--muted); font-size:.85rem; }
+.yaa-enote{ border-radius:10px; padding:10px 14px; margin:10px 0; font-weight:600; }
+.yaa-enote.ok{ background:#e5f6ec; color:#0f7a3d; }
+.yaa-enote.err{ background:#fdecec; color:#c0392b; }
+.yaa-estats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:14px 0 4px; }
+.yaa-estat{ background:#fff; border:2px solid var(--line); border-radius:12px; padding:14px 16px; }
+.yaa-estat .n{ display:block; font-size:1.6rem; font-weight:800; color:var(--navy); line-height:1.1; }
+.yaa-estat .n small{ font-size:.9rem; font-weight:700; color:var(--muted); }
+.yaa-estat .l{ color:var(--muted); font-size:.82rem; }
+.yaa-estat.green .n{ color:#0f7a3d; } .yaa-estat.blue .n{ color:var(--blue); } .yaa-estat.red .n{ color:#b42318; }
+.yaa-etable tbody tr{ cursor:pointer; }
+.yaa-etable tbody tr:hover{ background:var(--bg); }
+.yaa-etable .yaa-badge{ font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:999px; display:inline-block; }
+.yaa-badge.amber{ background:#fff4e5; color:#a15c00; } .yaa-badge.blue{ background:#e8f0fe; color:#2456c8; }
+.yaa-badge.green{ background:#e5f6ec; color:#0f7a3d; } .yaa-badge.red{ background:#fde8e8; color:#b42318; }
+.yaa-badge.grey{ background:#eef0f4; color:#5b6472; }
+.yaa-etable form{ margin:0; }
+.yaa-drawer-ov{ position:fixed; inset:0; background:rgba(16,22,40,.35); opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:99998; }
+.yaa-drawer-ov.open{ opacity:1; pointer-events:auto; }
+.yaa-drawer{ position:fixed; top:0; right:0; height:100vh; width:min(560px,94vw); background:#fff; box-shadow:-18px 0 50px rgba(16,22,40,.22); transform:translateX(102%); transition:transform .24s cubic-bezier(.4,0,.2,1); z-index:99999; display:flex; flex-direction:column; }
+.yaa-drawer.open{ transform:translateX(0); }
+.yaa-drawer-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:2px solid var(--line); color:var(--navy); font-size:1.05rem; }
+.yaa-drawer-x{ background:none; border:0; font-size:1.7rem; line-height:1; color:var(--muted); cursor:pointer; padding:0 4px; }
+.yaa-drawer-x:hover{ color:var(--navy); }
+.yaa-drawer-body{ overflow-y:auto; padding:6px 20px 28px; }
+.yaa-dsec{ padding:16px 0; border-bottom:1px solid var(--line); }
+.yaa-dsec:last-child{ border-bottom:0; }
+.yaa-dsubject{ font-size:1.05rem; font-weight:800; color:var(--ink); margin-bottom:10px; }
+.yaa-dh{ font-size:.74rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--blue); margin-bottom:10px; }
+.yaa-dmeta{ width:100%; border-collapse:collapse; font-size:.9rem; }
+.yaa-dmeta td{ padding:5px 0; vertical-align:top; }
+.yaa-dmeta td:first-child{ color:var(--muted); width:92px; }
+.yaa-dkpis{ display:flex; gap:12px; margin-bottom:12px; }
+.yaa-dkpi{ background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 18px; text-align:center; min-width:76px; }
+.yaa-dkpi .n{ display:block; font-size:1.5rem; font-weight:800; color:var(--navy); line-height:1; }
+.yaa-dkpi .l{ color:var(--muted); font-size:.76rem; }
+.yaa-dtl{ list-style:none; margin:0; padding:0; }
+.yaa-dtl li{ display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid #eef1f7; }
+.yaa-dtl li:last-child{ border-bottom:0; }
+.yaa-dtl-dot{ width:9px; height:9px; border-radius:999px; background:#0f7a3d; margin-top:5px; flex:0 0 auto; }
+.yaa-dtl li.click .yaa-dtl-dot{ background:var(--blue); }
+.yaa-dtl-main{ display:flex; flex-direction:column; gap:2px; }
+.yaa-dtl-main strong{ color:var(--ink); font-weight:700; font-size:.9rem; }
+.yaa-dtl-url{ color:var(--muted); font-size:.78rem; word-break:break-all; }
+.yaa-dtl-when{ margin-left:auto; color:var(--muted); font-size:.82rem; white-space:nowrap; }
+.yaa-dframe{ width:100%; min-height:460px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+@media (max-width:782px){ .yaa-estats{ grid-template-columns:repeat(2,1fr); } }
+</style>
+CSS;
+	}
+
+	/** Inline JS for the slide-in drawer (fetches email_detail_html over admin-ajax). */
+	private static function emails_script( $ajax, $nonce ) {
+		echo <<<JS
+<script>
+(function(){
+	var ajax = "{$ajax}", nonce = "{$nonce}";
+	var ov = document.getElementById('yaa-drawer-ov');
+	var dr = document.getElementById('yaa-drawer');
+	var bd = document.getElementById('yaa-drawer-body');
+	if ( ! ov || ! dr || ! bd ) { return; }
+	function shut(){ dr.classList.remove('open'); ov.classList.remove('open'); dr.setAttribute('aria-hidden','true'); }
+	function load(id){
+		ov.classList.add('open'); dr.classList.add('open'); dr.setAttribute('aria-hidden','false');
+		bd.innerHTML = '<p class="yaa-emails-meta" style="padding:18px">Loading…</p>';
+		fetch( ajax + '?action=yaa_email_detail&_wpnonce=' + encodeURIComponent(nonce) + '&email=' + encodeURIComponent(id), { credentials:'same-origin' } )
+			.then(function(r){ return r.text(); })
+			.then(function(html){ bd.innerHTML = html; })
+			.catch(function(){ bd.innerHTML = '<p class="yaa-emails-meta" style="padding:18px">Could not load this email.</p>'; });
+	}
+	document.querySelectorAll('.yaa-erow').forEach(function(tr){
+		tr.addEventListener('click', function(e){
+			if ( e.target.closest('.yaa-noopen') ) { return; }
+			load( tr.getAttribute('data-email') );
+		});
+		tr.addEventListener('keydown', function(e){
+			if ( e.key === 'Enter' || e.key === ' ' ) { e.preventDefault(); load( tr.getAttribute('data-email') ); }
+		});
+	});
+	ov.addEventListener('click', shut);
+	var x = document.getElementById('yaa-drawer-close');
+	if ( x ) { x.addEventListener('click', shut); }
+	document.addEventListener('keydown', function(e){ if ( e.key === 'Escape' ) { shut(); } });
+})();
+</script>
+JS;
 	}
 
 	// ---- List ----

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.18
+Stable tag: 0.7.19
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,22 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.19 =
+* Our own open + click tracking on **every** email the system sends — not just the
+  staged client emails. Quote copies, new-enquiry and revision alerts, portal
+  sign-in links, project summaries and resume nudges now all carry a tracking
+  pixel and click-wrapped links, so engagement is visible whether or not an ESP
+  is configured. (Opens rely on image loading — Gmail/Apple Mail can hide or
+  inflate them — so clicks are the stronger signal.)
+* Every open and click is recorded as its own timestamped event, so you can see
+  exactly when a recipient opened a message and how many times — not just a
+  single first-seen time.
+* Rebuilt the Email log: headline stats (delivered, opened %, clicked %, failed),
+  an Engagement column on each row, a per-row **Resend** button, and clicking a
+  row now slides in a detail panel on the right (full delivery facts, the
+  open/click history with timestamps, and the message as sent) instead of loading
+  a separate page. Resending a quote regenerates it with the latest price.
 
 = 0.7.18 =
 * Fixed the "Projects (submitted)" and "Conversion rate" tiles on the Projects
