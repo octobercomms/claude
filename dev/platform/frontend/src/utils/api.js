@@ -38,6 +38,26 @@ async function request(path, options = {}) {
     throw new Error('Could not reach the server — check your connection or try again in a moment.');
   }
 
+  // A redirected POST is a GET, silently.
+  //
+  // fetch follows 301/302/303 by default and the spec turns the method into
+  // GET when it does, dropping the body. The call then returns whatever the
+  // GET endpoint answers with, which for a create endpoint is the list — and
+  // the caller is left reading a list where it expected the thing it just
+  // made. On 26 Oct 2026 a recording failed to save with "the server did not
+  // return somewhere to upload to (keys: 0, 1, 2, 3)", which is the shape of
+  // a four-item array: the recordings list, answered to a create.
+  //
+  // Whether that is what happened is not provable after the fact, because
+  // nothing recorded it. It is now: a mutating request that came back from a
+  // different URL says so, by name.
+  if (res.redirected && !['GET', 'HEAD'].includes(method)) {
+    throw new Error(
+      `The ${method} to ${BASE}${path} was redirected to ${res.url}, which turns it into a GET `
+      + 'and drops what was sent. Nothing was saved. This is a server routing fault, not your input.'
+    );
+  }
+
   if (res.status === 401) {
     // Cookie missing/expired — bounce to login. Nothing to clear client-side
     // (the token is httpOnly and owned by the server).

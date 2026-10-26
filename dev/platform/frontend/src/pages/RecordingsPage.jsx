@@ -395,10 +395,19 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       // of guessing. The endpoint returns { id, upload: { mode, path },
       // share_path }; anything else is reported with what actually arrived.
       if (!created || typeof created !== 'object' || !created.id || !created.upload || typeof created.upload.path !== 'string') {
-        const got = created && typeof created === 'object'
-          ? `keys: ${Object.keys(created).join(', ') || '(none)'}`
-          : `a ${created === null ? 'null' : typeof created}`;
-        throw new Error(`The server did not return somewhere to upload to (${got}). Your recording is safe — press Download to keep it.`);
+        // Say what came back in terms of what it means, not what it looks
+        // like. "keys: 0, 1, 2, 3" is what this printed on 26 Oct 2026, and it
+        // took reading the route to work out that those are array indices and
+        // that an array from this endpoint is the recordings list — a create
+        // answered by a list, which is what a redirected POST returns.
+        const got = Array.isArray(created)
+          ? `the server answered the create with a list of ${created.length} recording`
+            + `${created.length === 1 ? '' : 's'}, which is what the list endpoint returns, `
+            + 'so the create never ran'
+          : created && typeof created === 'object'
+            ? `the server answered with an object holding ${Object.keys(created).join(', ') || 'nothing'}`
+            : `the server answered with ${created === null ? 'null' : `a ${typeof created}`}`;
+        throw new Error(`Could not start the upload: ${got}. Your recording is safe — press Download to keep it.`);
       }
       // Remember the row so a failed upload can take it back out. The row is
       // created before the bytes are sent, so without this every failed attempt
