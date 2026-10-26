@@ -7,7 +7,7 @@
  * Author:      OctoberComms
  * Text Domain: woo-bulk-editor
  * Requires at least: 6.0
- * Requires PHP: 8.0
+ * Requires PHP: 8.3
  * WC requires at least: 7.0
  */
 

@@ -5,7 +5,7 @@
  * Description:        Logs building improvement works for Trinity Court, tracks status, priority, quoted cost and a running total, groups works into programmes (epics / initiatives / sprints), attaches quote documents, exports to XLS and PDF, and lets residents vote and comment. Display anywhere with the [trinity_projects] shortcode.
  * Version:           1.3.0
  * Requires at least: 6.0
- * Requires PHP:      7.4
+ * Requires PHP:      8.3
  * Author:            October Communications
  * Author URI:        https://octobercomms.com/
  * License:           GPL-2.0-or-later

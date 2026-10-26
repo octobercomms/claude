@@ -23,6 +23,7 @@ const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const pool = require('../db');
+const { phpSupport } = require('../utils/phpSupport');
 
 // Resolve the repo layout from this file: services → src → backend → platform.
 const BACKEND_DIR = path.join(__dirname, '..', '..');         // dev/platform/backend
@@ -260,6 +261,56 @@ function checkDependencies() {
   });
 }
 
+// H3 — the PHP running on client WordPress sites.
+//
+// This is the only check here that looks outside the platform, and it is the
+// one that would have answered the question nobody could answer on 21 Oct
+// 2026: two unauthenticated RCEs in PHP (CVE-2026-109618, CVE-2026-109619,
+// CVSSv4 9.2) were published with exploits demonstrated through WordPress, and
+// October ships plugins to client sites with no record of what they run.
+//
+// A site on an end-of-life branch cannot be patched for it at all, which is
+// why that is a fail rather than a warning. A branch whose fixes stop within
+// four months is a warning: it is working today and is a dated commitment.
+async function checkClientPhp() {
+  const id = 'H3', area = 'Client sites', title = 'No client site on an unsupported PHP';
+  let rows;
+  try {
+    ({ rows } = await pool.query(
+      `SELECT c.name AS client, n.php_version, n.versions_seen_at
+         FROM connectors n JOIN clients c ON c.id = n.client_id
+        WHERE n.connector_type = 'wordpress_plugin' AND n.status = 'active'`
+    ));
+  } catch (e) {
+    return unknown(id, area, title, `Could not read the connector list: ${e.message}`);
+  }
+  if (!rows.length) return unknown(id, area, title, 'No WordPress site is connected, so there is nothing to report.');
+
+  const unreported = rows.filter(r => !r.php_version);
+  const seen = rows.filter(r => r.php_version)
+    .map(r => ({ client: r.client, ...phpSupport(r.php_version), version: r.php_version }));
+  const eol = seen.filter(r => r.state === 'eol');
+  const ending = seen.filter(r => r.state === 'ending');
+  const name = (r) => `${r.client} (PHP ${r.version})`;
+  const tail = unreported.length
+    ? ` ${unreported.length} site${unreported.length === 1 ? ' has' : 's have'} not reported a version yet.`
+    : '';
+
+  if (eol.length) {
+    return fail(id, area, title, 'critical',
+      `${eol.length} of ${rows.length} connected site${rows.length === 1 ? '' : 's'} run an end-of-life PHP: `
+      + `${eol.map(name).join(', ')}. These receive no security fixes at all.${tail}`,
+      'Move each site to PHP 8.3 or later. An end-of-life branch cannot be patched, so upgrading is the only remedy.');
+  }
+  if (ending.length) {
+    return warn(id, area, title, 'medium',
+      `${ending.map(r => `${name(r)}, fixes stop ${r.endsOn}`).join('; ')}.${tail}`,
+      'Schedule the move to PHP 8.3 or later before that date.');
+  }
+  return ok(id, area, title,
+    `All ${seen.length} reporting site${seen.length === 1 ? '' : 's'} are on a supported PHP.${tail}`);
+}
+
 const CHECKS = [
   checkPasswordHashing, checkJwtSecret, checkLoginRateLimit, checkTokenStorage,
   checkClientScoping, checkAdminGuard,
@@ -269,6 +320,7 @@ const CHECKS = [
   checkGlobalRateLimit, checkCors, checkHelmet,
   checkNginxHeaders, checkNginxCsp,
   checkDependencies,
+  checkClientPhp,
 ];
 
 // Run every check (resilient), tally, derive an overall risk level.

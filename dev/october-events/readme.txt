@@ -1,7 +1,7 @@
 === October Events ===
 Contributors: octobercomms
 Requires at least: 6.0
-Requires PHP: 7.4
+Requires PHP: 8.3
 Stable tag: 1.204.0
 License: GPL-2.0-or-later
 
