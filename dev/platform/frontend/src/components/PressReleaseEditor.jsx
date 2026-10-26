@@ -648,8 +648,25 @@ export default function PressReleaseEditor({
     api.get(`/pr/press-releases/${pr.id}/detector-detail`).then(setDetail).catch(() => {});
   }, [pr.id, pr.pangram_checked_at]);
 
+  /**
+   * Put what is on screen into the database before asking the server about it.
+   *
+   * The detector, the brief and the claim check all read body_html from the
+   * row, so an unsaved edit is invisible to them. For the detector that was
+   * worse than invisible: the text it read was unchanged, so its fingerprint
+   * matched the last check and it answered from cache with "Unchanged since
+   * the last check". Edit a paragraph, press Check again, and it told you
+   * nothing had changed.
+   */
+  async function flush() {
+    const row = await onSave({ quiet: true });
+    if (!row) toast('Could not save, so nothing was sent to check.', 'error');
+    return !!row;
+  }
+
   async function runDetector() {
     if (!pr.id) { toast('Save the release first.', 'info'); return; }
+    if (!(await flush())) return;
     setDetecting(true);
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/detect`, {});
@@ -667,6 +684,7 @@ export default function PressReleaseEditor({
 
   async function buildBrief() {
     if (!pr.id) { toast('Save the release first.', 'info'); return; }
+    if (!(await flush())) return;
     setBuilding(true);
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/brief`, {});
@@ -680,6 +698,7 @@ export default function PressReleaseEditor({
 
   async function checkClaims() {
     if (!pr.id) return;
+    if (!(await flush())) return;
     setChecking(true);
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/check-claims`, {});
@@ -1167,7 +1186,9 @@ export default function PressReleaseEditor({
       </Section>
 
       <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button className="btn btn-primary" disabled={saving} onClick={onSave}>{saving ? 'Saving…' : 'Save'}</button>
+        {/* Called with no argument on purpose: onSave takes options now, and
+            passing it straight to onClick hands it the click event. */}
+        <button className="btn btn-primary" disabled={saving} onClick={() => onSave()}>{saving ? 'Saving…' : 'Save'}</button>
         <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
         <div style={{ flex: 1 }} />
         {/* The pitch gate used to be "a client approved it". It is now "the
