@@ -10,7 +10,7 @@
  * Text Domain: october-events
  * Domain Path: /languages
  * Requires at least: 6.0
- * Requires PHP: 7.4
+ * Requires PHP: 8.3
  *
  * Architecture notes (see docs/october-events/README.md for full detail):
  *   - The festival site already manages `events` and `volunteer` as JetEngine

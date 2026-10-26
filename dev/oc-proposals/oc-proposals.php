@@ -10,7 +10,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: oc-proposals
  * Requires at least: 6.0
- * Requires PHP: 7.4
+ * Requires PHP: 8.3
  *
  * Repo app folder: dev/oc-proposals/ — WordPress plugin slug: oc-proposals.
  * Releases are tagged `ocp-v<version>`; the built-in self-updater installs them,

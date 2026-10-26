@@ -68,6 +68,14 @@ router.post('/pair', async (req, res) => {
       );
     }
 
+    // The runtime, from the moment of pairing, so a site that has not pushed
+    // an event yet still answers "what is it running".
+    const paired = await pool.query(
+      `SELECT id FROM connectors WHERE client_id = $1 AND connector_type = 'wordpress_plugin' LIMIT 1`,
+      [clientId]
+    );
+    if (paired.rows.length) noteRuntime(paired.rows[0].id, req.body, null);
+
     // Burn the token.
     await pool.query(`UPDATE pairing_tokens SET used_at = NOW() WHERE token = $1`, [token]);
 
@@ -120,11 +128,50 @@ async function verifySignature(req, res, next) {
     req.omiConnectorId = rows[0].id;
     req.omiConnectorStatus = rows[0].status;
     req.omiMonthlyCap = Number(creds.monthly_cap_usd) > 0 ? Number(creds.monthly_cap_usd) : null;
+    // Every signed push carries what the site is running. Recorded here, after
+    // the signature has been checked, so an unauthenticated caller cannot
+    // write a version into a client's row.
+    noteRuntime(rows[0].id, req.body, req.get('X-OMI-Version'));
     next();
   } catch (err) {
     console.error('[wp-connect] signature check failed:', err.message);
     return res.status(500).json({ message: 'Signature verification failed.' });
   }
+}
+
+// What the site is running, kept current.
+//
+// The answer to "which client sites are exposed to a PHP vulnerability" used
+// to be a round of phone calls. The plugin now states its runtime on every
+// push, so this writes only when something changed or the record is a day old
+// — a write on every event would be thousands of pointless updates a day.
+//
+// Fire and forget: a failure here must never cost the event that carried it.
+// Versions are strings from a client site, so they are bounded before storing.
+const vstr = (v) => {
+  const s = String(v == null ? '' : v).trim().slice(0, 40);
+  return /^[\w.\-+]{1,40}$/.test(s) ? s : null;
+};
+
+function noteRuntime(connectorId, body, pluginHeader) {
+  const php = vstr(body && body.php_version);
+  const wp = vstr(body && body.wp_version);
+  const plugin = vstr((body && body.plugin_version) || pluginHeader);
+  if (!php && !wp && !plugin) return;
+  pool.query(
+    `UPDATE connectors
+        SET php_version = COALESCE($2, php_version),
+            wp_version = COALESCE($3, wp_version),
+            plugin_version = COALESCE($4, plugin_version),
+            versions_seen_at = NOW()
+      WHERE id = $1
+        AND (php_version IS DISTINCT FROM COALESCE($2, php_version)
+          OR wp_version IS DISTINCT FROM COALESCE($3, wp_version)
+          OR plugin_version IS DISTINCT FROM COALESCE($4, plugin_version)
+          OR versions_seen_at IS NULL
+          OR versions_seen_at < NOW() - INTERVAL '1 day')`,
+    [connectorId, php, wp, plugin]
+  ).catch(e => console.warn('[wp-connect] could not record runtime versions:', e.message));
 }
 
 // ─── EVENT INGEST ────────────────────────────────────────────────────────────

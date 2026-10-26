@@ -3,7 +3,7 @@ Contributors: architourian
 Tags: stripe, payments, payment link, invoicing, tours
 Requires at least: 5.8
 Tested up to: 6.5
-Requires PHP: 7.4
+Requires PHP: 8.3
 Stable tag: 1.1.0
 License: GPL-2.0-or-later
 

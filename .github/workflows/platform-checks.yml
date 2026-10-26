@@ -99,6 +99,8 @@ jobs:
         run: node tests/design-studio.test.js
       - name: Guard — an IMAP socket error cannot take the backend down
         run: node tests/imap-client.test.js
+      - name: Guard — PHP support dates are right, so a client site is not called safe
+        run: node tests/php-support.test.js
       - name: Syntax check every service and route
         run: |
           set -e

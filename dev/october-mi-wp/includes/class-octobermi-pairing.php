@@ -48,6 +48,7 @@ class OctoberMI_Pairing {
 			'site_url'   => home_url(),
 			'site_name'  => get_bloginfo( 'name' ),
 			'wp_version' => get_bloginfo( 'version' ),
+			'php_version' => PHP_VERSION,
 			'plugin_version' => OCTOBERMI_VERSION,
 		) );
 
