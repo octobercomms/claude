@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint:hooks": "eslint 'src/**/*.jsx' 'src/**/*.js'",
-    "test:browser": "vite build --config tests/browser/vite.config.js && node tests/browser/smoke.mjs && node tests/browser/psd.mjs",
+    "test:browser": "vite build --config tests/browser/vite.config.js && node tests/browser/smoke.mjs && node tests/browser/psd.mjs && node tests/browser/highlight.mjs",
     "test:units": "node --test tests/*.test.mjs"
   },
   "dependencies": {

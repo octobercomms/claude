@@ -109,5 +109,84 @@ ok(/savePR\(extra, \{ quiet = false \} = \{\}\)/.test(parent)
 ok(/onClick=\{\(\) => onSave\(\)\}/.test(editor),
   'the Save button passes no argument, so a click event cannot land in the options');
 
-console.log(failures ? `\n${failures} FAILED` : '\nall passed');
-process.exit(failures ? 1 : 0);
+// --- putting the detector's segments back where they came from ----------------
+//
+// The segment list was only ever shown as cards in the rail, which left 32
+// quotations to hunt for by eye in the release. These locate each one in the
+// text so it can be marked, and report the ones that are no longer there.
+//
+// Both sides of the comparison start from the same stripHtml, so the fixtures
+// below build the segment the way the route does: strip the body, then slice
+// out of the result. That is the real round trip, not an approximation of it.
+async function segments() {
+  const m = await import(require('url').pathToFileURL(
+    require('../src/services/humanity').MODULE_PATH).href);
+  const { stripHtml, flatten, locateSegment } = m;
+
+  const BODY = '<p>In 2011 Gavi Wolf co-founded Indiewalls in Brooklyn.</p>'
+    + '<p>The company has paid more than $10&nbsp;million directly to independent artists.</p>'
+    + '<p>“Clients were paying for the service,” says Wolf.</p>'
+    + '<p>Fifteen years later the company’s programs run in six countries.</p>';
+  const plain = stripHtml(BODY);
+  const hay = flatten(plain);
+  const find = (seg) => locateSegment(hay, plain, seg);
+
+  console.log('\nA segment is found in the text it came from');
+  const seg = plain.slice(plain.indexOf('The company'), plain.indexOf('artists.') + 8);
+  const hit = find(seg);
+  ok(hit && hit.length === 1, 'one paragraph, one needle');
+  ok(hit && plain.includes(hit[0]), 'and the needle is the release’s own characters');
+
+  console.log('\nA segment running across a paragraph break comes back split');
+  const across = plain.slice(plain.indexOf('In 2011'), plain.indexOf('artists.') + 8);
+  const split = find(across);
+  ok(split && split.length === 2, 'two needles, because a mark cannot span two paragraphs');
+  ok(split && split.every((t) => !/\n/.test(t)), 'and neither carries a line break');
+
+  console.log('\nTypography that survived one path and not the other is not an edit');
+  ok(find('"Clients were paying for the service," says Wolf.'),
+    'straight quotes match the curly ones in the release');
+  ok(find('more than $10 million directly'), 'a non-breaking space matches an ordinary one');
+  ok(find("later the company's programs run"), 'a straight apostrophe matches a typographic one');
+  // Defensive rather than observed: the detector has not been seen to re-space
+  // what it sends back. If it ever does, a doubled space would otherwise read
+  // as the passage having been rewritten.
+  ok(find('has paid  more  than $10 million'), 'and a run of spaces is not a difference');
+
+  console.log('\nA passage that is no longer there reports as gone, which is the point');
+  ok(find('Wolf tried renting art to hotels and offices.') === null,
+    'text that was rewritten or cut is not located');
+  ok(find('short') === null, 'and a fragment too short to place is not guessed at');
+
+  console.log('\nThe editor wires both of them to the page');
+  const fs = require('fs');
+  const path = require('path');
+  const ed = fs.readFileSync(path.join(__dirname, '..', '..', 'frontend', 'src',
+    'components', 'PressReleaseEditor.jsx'), 'utf8');
+  ok(/cls: 'oc-machine'/.test(ed), 'there is a layer for what the detector flagged');
+  const hl = fs.readFileSync(path.join(__dirname, '..', '..', 'frontend', 'src',
+    'utils', 'releaseHighlight.js'), 'utf8');
+  ok(/mark\.oc-bare, mark\.oc-tell, mark\.oc-fact, mark\.oc-machine/.test(hl),
+    'and unmark strips it, so our marks are never saved into the release');
+  ok(/found: !!lines/.test(ed) && /rewritten since this check/.test(ed),
+    'a flagged passage that has gone says so on its card');
+  ok(/function goToSegment\(i\)/.test(ed) && /data-oc-doc/.test(ed),
+    'and a card jumps to the passage it names');
+
+  // Paint order, which decides whether the layer appears at all. A detector
+  // segment runs to a whole paragraph, so anything painted before it has
+  // already split the text nodes it needs to match against, and it silently
+  // marks nothing. tests/browser/highlight.mjs proves that in a real DOM; this
+  // holds the order the editor actually declares.
+  const keys = [...ed.slice(ed.indexOf('const LAYERS = ['), ed.indexOf('\n];'))
+    .matchAll(/key: '(\w+)'/g)].map((m) => m[1]);
+  ok(keys[0] === 'machine', `the detector's segments are painted first · ${keys.join(' > ')}`);
+  ok(keys.indexOf('thin') < keys.indexOf('phrasing'),
+    'and a whole sentence still goes down before the phrases inside it');
+}
+
+segments().then(() => {
+  console.log(failures ? `\n${failures} FAILED` : '\nall passed');
+  process.exit(failures ? 1 : 0);
+}).catch((e) => { console.log('  FAIL ', e.message); process.exit(1); });
+

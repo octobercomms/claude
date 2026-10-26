@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         design: path.join(__dirname, 'index.html'),
         psd: path.join(__dirname, 'psd.html'),
+        highlight: path.join(__dirname, 'highlight.html'),
       },
     },
   },

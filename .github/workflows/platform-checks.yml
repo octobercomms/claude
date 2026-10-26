@@ -101,6 +101,8 @@ jobs:
         run: node tests/imap-client.test.js
       - name: Guard — PHP support dates are right, so a client site is not called safe
         run: node tests/php-support.test.js
+      - name: Guard — the detector reads what is on screen, and says where it is
+        run: node tests/pangram.test.js
       - name: Syntax check every service and route
         run: |
           set -e

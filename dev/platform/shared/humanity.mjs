@@ -77,6 +77,58 @@ export function stripHtml(html) {
 }
 
 /**
+ * Flatten text for comparison, keeping a map back to the original.
+ *
+ * `map[i]` is the index in the source of the character that produced `text[i]`,
+ * so a match found in the flattened copy can be sliced out of the original.
+ */
+export function flatten(src) {
+  let text = '';
+  const map = [];
+  let space = false;
+  for (let i = 0; i < src.length; i += 1) {
+    let c = src[i];
+    if (c === '‘' || c === '’' || c === 'ʼ') c = "'";
+    else if (c === '“' || c === '”') c = '"';
+    else if (c === '–' || c === '—') c = '-';
+    if (/\s/.test(c)) {
+      if (space) continue;
+      c = ' ';
+      space = true;
+    } else space = false;
+    text += c;
+    map.push(i);
+  }
+  return { text, map };
+}
+
+/**
+ * Find one detector segment in the operator's own text.
+ *
+ * Both sides start from the same stripHtml, so an exact match is the normal
+ * case. They are compared flattened anyway, because a quote or a dash that
+ * survived one path and not the other would otherwise read as an edit, and
+ * "edited since the check" is a claim this panel makes to your face.
+ *
+ * What comes back is a slice of the ORIGINAL text, so the needles handed to the
+ * highlighter are the document's own characters rather than the detector's. It
+ * is split on paragraph breaks because a segment can run across one and the
+ * highlighter marks inside a single text node at a time.
+ *
+ * null means the passage is no longer in the release: rewritten, moved or cut
+ * since the check that flagged it.
+ */
+export function locateSegment(hay, plain, segment) {
+  const needle = flatten(String(segment || '')).text.trim();
+  if (needle.length < 12) return null;
+  const at = hay.text.indexOf(needle);
+  if (at < 0) return null;
+  const from = hay.map[at];
+  const to = hay.map[at + needle.length - 1] + 1;
+  return plain.slice(from, to).split(/\n+/).map((t) => t.trim()).filter((t) => t.length > 12);
+}
+
+/**
  * Drop the parts that are boilerplate rather than reporting, so a long "About"
  * paragraph cannot dilute the density of the release itself.
  */
