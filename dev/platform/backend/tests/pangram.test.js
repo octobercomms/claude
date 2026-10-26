@@ -78,5 +78,36 @@ ok(/credits/i.test(pangram.describeStatus(402, '')), '402 names the credits');
 ok(/not enabled/i.test(pangram.describeStatus(403, '')), '403 names the model entitlement');
 ok(/rate limit/i.test(pangram.describeStatus(429, '')), '429 names the rate limit');
 
+// --- the check has to see what is on screen -----------------------------------
+//
+// The server reads body_html from the row, so an unsaved edit is invisible to
+// it. For the detector that was worse than invisible: the stored text was
+// unchanged, its fingerprint matched the last check, and the answer came back
+// from cache saying "Unchanged since the last check". Edit a paragraph, press
+// Check again, and it reported that nothing had changed.
+//
+// Every server-side action on a release has the same shape, so all three flush
+// the editor first.
+const fs = require('fs');
+const path = require('path');
+const editor = fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'components', 'PressReleaseEditor.jsx'), 'utf8');
+
+console.log('\nThe editor saves before it asks the server about the text');
+ok(/async function flush\(\)/.test(editor) && /onSave\(\{ quiet: true \}\)/.test(editor),
+  'there is one flush, and it saves quietly');
+ok((editor.match(/if \(!\(await flush\(\)\)\) return;/g) || []).length === 3,
+  'the detector, the brief and the claim check all use it');
+ok(/Could not save, so nothing was sent to check/.test(editor),
+  'a failed save stops the call rather than billing a check on stale text');
+
+const parent = fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'pages', 'ClientPRPage.jsx'), 'utf8');
+ok(/savePR\(extra, \{ quiet = false \} = \{\}\)/.test(parent)
+  && /if \(!extra && !quiet\)/.test(parent),
+  'the parent can save without a toast for each of those three');
+ok(/onClick=\{\(\) => onSave\(\)\}/.test(editor),
+  'the Save button passes no argument, so a click event cannot land in the options');
+
 console.log(failures ? `\n${failures} FAILED` : '\nall passed');
 process.exit(failures ? 1 : 0);

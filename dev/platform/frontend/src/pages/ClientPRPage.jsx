@@ -190,7 +190,10 @@ export default function ClientPRPage() {
   async function openRelease(rid) {
     try { setPr(await api.get(`/pr/press-releases/${rid}`)); } catch (e) { toast(e.message, 'error'); }
   }
-  async function savePR(extra) {
+  // `quiet` is for the saves nobody asked for: the detector, the brief and the
+  // claim check all read body_html from the database, so each has to flush the
+  // editor first, and a "Saved" toast before every one of them is noise.
+  async function savePR(extra, { quiet = false } = {}) {
     if (!pr) return;
     setPrSaving(true);
     try {
@@ -203,7 +206,7 @@ export default function ClientPRPage() {
       };
       const row = await api.patch(`/pr/press-releases/${pr.id}`, body);
       setPr(row);
-      if (!extra) { toast('Saved', 'success'); loadReleases(); }
+      if (!extra && !quiet) { toast('Saved', 'success'); loadReleases(); }
       return row;
     } catch (e) { toast(e.message, 'error'); }
     finally { setPrSaving(false); }
@@ -615,7 +618,7 @@ export default function ClientPRPage() {
           {pr ? (
             <PressReleaseEditor
               pr={pr} setPr={setPr} clientId={id} readOnly={readOnly} saving={prSaving}
-              onSave={() => savePR()}
+              onSave={(opts) => savePR(null, opts)}
               onCancel={() => { setPr(null); loadReleases(); }}
               onCreateCampaign={createPitchCampaign}
             />
