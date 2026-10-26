@@ -117,7 +117,11 @@ jobs:
             # platform-deploy.yml's `on: push` filter; the gate test reads both
             # files and fails if they drift apart.
             touches_platform=false
-            if printf '%s\n' "$files" | grep -qE '^(dev/platform/|dev/october-mi-shopify/|\.github/workflows/platform-deploy\.yml$)'; then
+            # Keep in step with the paths in platform-deploy.yml. october-mi-wp
+            # counts because the platform builds and serves that plugin's zip
+            # from the deployed source, so a release reaches sites only once
+            # the box has it.
+            if printf '%s\n' "$files" | grep -qE '^(dev/platform/|dev/october-mi-shopify/|dev/october-mi-wp/|\.github/workflows/platform-deploy\.yml$)'; then
               touches_platform=true
             fi
 
