@@ -26,8 +26,17 @@ on:
       # Only deploy when something in the platform actually changed. A PR
       # that only touches /docs or another app's plugin doesn't need a
       # platform restart.
+      #
+      # october-mi-wp is here because the platform IS its distribution point:
+      # routes/integrations.js builds the plugin zip from the deployed source
+      # and serves the version manifest its self-updater polls. Without this
+      # line a plugin release sat on main, the box kept serving the previous
+      # zip, and every paired site stayed on the old version — which is what
+      # happened to 1.8.3 on 26 Oct 2026, a release whose whole point was to
+      # start reporting PHP versions after two unauthenticated RCEs in PHP.
       - 'dev/platform/**'
       - 'dev/october-mi-shopify/**'
+      - 'dev/october-mi-wp/**'
       - '.github/workflows/platform-deploy.yml'
   workflow_dispatch: {}
 
