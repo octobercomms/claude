@@ -388,7 +388,17 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     setSaveError(null);
     setPhase('saving');
     try {
-      const created = await api.post('/recordings', { title: title.trim() || 'Untitled recording', mime: baseMime(mimeRef.current), client_id: clientId || undefined });
+      // The trailing slash is load-bearing. Something in front of the backend
+      // 301s /api/recordings to /api/recordings/, and fetch follows a 301 by
+      // turning the POST into a GET and dropping the body — so the create
+      // arrived as a list request and came back as the recordings list. Asking
+      // for the URL the server already wants skips the redirect entirely.
+      // Express strips the mount path either way, so the route is the same one.
+      //
+      // This is a workaround for a routing fault that has not been found yet;
+      // the redirect itself is still wrong and api.js reports it by name if it
+      // happens anywhere else.
+      const created = await api.post('/recordings/', { title: title.trim() || 'Untitled recording', mime: baseMime(mimeRef.current), client_id: clientId || undefined });
       // Check the shape before using it. On 21 Oct this step produced
       // "Cannot read properties of undefined (reading 'path')" — a TypeError
       // that named neither the call nor what came back, and cost four rounds
