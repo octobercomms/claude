@@ -429,6 +429,18 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **The press-release highlighter paints longest needle first, and the order
+  is load-bearing.** `LAYERS` in `PressReleaseEditor.jsx` is a paint order, not
+  a list: each pass splits the text nodes the next pass has to match against,
+  so a layer added at the end of the array marks nothing whenever an earlier
+  layer is on. The detector layer was written that way and looked exactly like
+  a detector finding nothing. `vite build` compiled it and the lint passed it;
+  only `tests/browser/highlight.mjs`, which runs the real module in a real DOM,
+  catches it. Add a layer at the position its needle length earns.
+- **`tests/pangram.test.js` was never in CI** until 26 Oct 2026, so every
+  assertion in it predating that date had never run on a runner. Adding a test
+  file is half the job; the other half is the `run:` line in
+  `.github/workflows/platform-checks.yml`.
 - **`new Anthropic()` anywhere is invisible to every cap.** `callClaude` holds
   the global hard cap, so a service that constructs the SDK itself is unseen
   by it, by the per-task cap and by the Pause switch — while still recording
