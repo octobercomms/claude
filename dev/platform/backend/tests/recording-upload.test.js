@@ -293,5 +293,24 @@ check('and still points at the recording that is safe',
   /press Download to keep it/.test(page),
   'the file is on the page and nothing else matters until it is off it');
 
+// --- the redirect, confirmed ------------------------------------------------
+//
+// The reporting added above did its job on 26 Oct 2026: "The POST to
+// /api/recordings was redirected to https://platform.octobercomms.com/api/
+// recordings/, which turns it into a GET and drops what was sent."
+//
+// Something in front of the backend adds a trailing slash. It is not in this
+// repo: nginx picks `location /api/` for the slashless URI and proxies it
+// untouched, and the backend has no redirect on that path. Until it is found,
+// the create asks for the URL the server already wants, which skips the
+// redirect. Express strips the mount path either way, so it is the same route
+// and the same handler.
+check('the create asks for the URL that does not redirect',
+  /api\.post\('\/recordings\/'/.test(page),
+  'without the trailing slash the POST is 301ed, becomes a GET, and the body is dropped');
+check('and the workaround says it is one',
+  /workaround for a routing fault that has not been found yet/.test(pageRaw),
+  'a silent trailing slash is the kind of thing that gets tidied away by the next person');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
