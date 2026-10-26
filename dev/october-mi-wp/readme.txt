@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.3
-Stable tag: 1.8.2
+Stable tag: 1.8.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,6 +45,16 @@ Built by October.
 4. (Optional) Add a GitHub update token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.8.3 =
+* Report the site's PHP and WordPress versions to the platform on every signed
+  push, so October can see which sites run a PHP that no longer receives
+  security fixes. Prompted by CVE-2026-109618 and CVE-2026-109619, two
+  unauthenticated RCEs in PHP published on 21 October 2026 with exploits
+  demonstrated through WordPress, when the only way to tell which sites were
+  exposed was to ask each one.
+* Requires PHP 8.3 or later. The previous minimum, 7.4, is end of life and
+  cannot receive that fix at all.
 
 = 1.0.0 =
 * First release. Outbound, firewall-friendly connection to the October Marketing
