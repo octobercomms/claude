@@ -171,8 +171,12 @@ export default function CaptionTemplates({ clientId, value, onChange, format = '
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
         gap: 'var(--s2)', marginTop: 'var(--s3)',
       }}>
+        {/* The whole row goes back to the caller, not only the id. A caller
+            that wants to name the chosen template would otherwise have to
+            derive a label from the id, and "institution-soft" is not what the
+            gallery calls it. */}
         {shown.map((t) => (
-          <button key={t.id} type="button" onClick={() => onChange?.(t.id)}
+          <button key={t.id} type="button" onClick={() => onChange?.(t.id, t)}
             style={{
               textAlign: 'left', background: 'none', border: 0, padding: 0, cursor: 'pointer',
             }}>

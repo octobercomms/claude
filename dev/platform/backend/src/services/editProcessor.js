@@ -16,6 +16,9 @@ const editJobs = require('./editJobs');
 const stillsReel = require('./stillsReel');
 const { recordApiCost } = require('./costLog');
 const { getSetting } = require('../utils/settings');
+// captions is required lazily where it is used: it reaches back into this
+// module for whisperWords, and requiring it at the top leaves a half-built
+// module object whose functions are all undefined.
 
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 const FFPROBE = process.env.FFPROBE_PATH || 'ffprobe';
@@ -51,6 +54,50 @@ async function probe(file) {
 
 // Target dimensions per aspect ratio. `original` (or unknown) → no reframe.
 const ASPECTS = { '9:16': [1080, 1920], '1:1': [1080, 1080], '4:5': [1080, 1350] };
+
+/**
+ * Which caption format a rendered frame is, by its actual shape.
+ *
+ * Chosen from the output's real dimensions rather than the requested aspect,
+ * for two reasons: "original" requests have no declared aspect at all, and a
+ * template designed against a 1080x1920 canvas sits wrong on a square frame.
+ * libass scales the ASS canvas to the video, so matching the ratio is what
+ * matters and matching the exact pixel size is not.
+ */
+function captionFormatFor(width, height) {
+  const formats = require('./captions').formats();
+  const ratio = (width && height) ? width / height : 9 / 16;
+  let best = 'vertical';
+  let bestGap = Infinity;
+  for (const f of Object.values(formats)) {
+    const gap = Math.abs((f.width / f.height) - ratio);
+    if (gap < bestGap) { bestGap = gap; best = f.id; }
+  }
+  return best;
+}
+
+/**
+ * An SRT built from word timings.
+ *
+ * The template path burns an ASS, which is internal to the render and thrown
+ * away. The .srt beside the video is a deliverable an operator uploads to
+ * YouTube or hands to a client, and a template render that silently stopped
+ * producing one would be a quiet loss of something that already worked.
+ */
+function srtFromWords(words, perLine = 7) {
+  const stamp = (t) => {
+    const ms = Math.max(0, Math.round(t * 1000));
+    const h = String(Math.floor(ms / 3600000)).padStart(2, '0');
+    const m = String(Math.floor(ms / 60000) % 60).padStart(2, '0');
+    const sec = String(Math.floor(ms / 1000) % 60).padStart(2, '0');
+    return `${h}:${m}:${sec},${String(ms % 1000).padStart(3, '0')}`;
+  };
+  const lines = [];
+  for (let i = 0; i < words.length; i += perLine) lines.push(words.slice(i, i + perLine));
+  return lines.map((g, i) =>
+    `${i + 1}\n${stamp(g[0].start)} --> ${stamp(g[g.length - 1].end)}\n`
+    + `${g.map((w) => w.word).join(' ').trim()}\n`).join('\n');
+}
 
 // Caption vertical margin: pos 0 (bottom) → 1 (top), in the 288-tall ASS canvas.
 // Kept in sync with the front-end preview (marginVFor).
@@ -231,7 +278,25 @@ async function whisperWords(audioPath, apiKey) {
 }
 
 // Render one job. Returns { outputPath, srtPath|null, durationS }.
-async function render(srcPath, ops, work, apiKey) {
+/** The client's brand assets, as captions.kitFromAssets expects them. */
+async function brandRowsFor(clientId) {
+  const pool = require('../db');
+  const { rows } = await pool.query(
+    `SELECT kind, name, metadata FROM brand_assets
+      WHERE client_id = $1 AND kind IN ('font', 'palette')`, [clientId]);
+  return rows;
+}
+
+/**
+ * @param deps test seam. The transcription is the one step in this pipeline
+ * that costs money and needs a network, and leaving it un-injectable would
+ * mean the template path could only ever be tested by paying for it, which in
+ * practice means not testing it.
+ */
+async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}) {
+  const transcribeWords = deps.whisperWords || whisperWords;
+  const transcribeSrt = deps.whisperSrt || whisperSrt;
+  const brandRows = deps.brandRowsFor || brandRowsFor;
   const trim = ops.trim || null;
   const cleanAudio = !!ops.clean_audio;
   const captions = !!ops.captions;
@@ -266,11 +331,39 @@ async function render(srcPath, ops, work, apiKey) {
 
   if (!captions) return { outputPath: base, srtPath: null, durationS };
 
-  // Pass 2 — captions. Extract audio → Whisper SRT → burn onto the video.
+  // Pass 2 — captions. Extract audio → Whisper → burn onto the video.
   if (!apiKey) throw new Error('Auto-captions need an OpenAI key — set OPENAI_API_KEY in Settings → AI.');
   const audio = path.join(work, 'audio.mp3');
   await run(FFMPEG, ['-y', '-i', base, '-vn', '-ac', '1', '-ar', '16000', '-f', 'mp3', audio]);
-  const srt = await whisperSrt(audio, apiKey);
+
+  // A chosen template takes the word-timed path: the same single Whisper call,
+  // asked for per word rather than per segment, compiled to ASS by the shared
+  // compiler that Shared's renders already use. One compiler, so a template
+  // cannot look like one thing in Produce and another in Shared.
+  //
+  // The size and position controls do not apply here and the screen hides
+  // them: a template that let its type size be overridden would stop meaning
+  // the same thing on every account, which is the whole reason the library
+  // exists.
+  if (ops.caption_template) {
+    const captions = require('./captions');
+    captions.preset(ops.caption_template);          // refuse an unknown template early
+    const timed = await transcribeWords(audio, apiKey);
+    if (!timed.length) return { outputPath: base, srtPath: null, durationS };
+
+    const kitRows = clientId ? await brandRows(clientId) : [];
+    const kit = captions.kitFromAssets(kitRows);
+    const formatId = captionFormatFor(meta.width, meta.height);
+    const final = path.join(work, 'captioned.mp4');
+    await captions.burn({ words: timed, templateId: ops.caption_template, kit,
+      formatId, source: base, outPath: final });
+
+    const srtPath = path.join(work, 'subs.srt');
+    fs.writeFileSync(srtPath, srtFromWords(timed));
+    return { outputPath: final, srtPath, durationS, words: timed, formatId };
+  }
+
+  const srt = await transcribeSrt(audio, apiKey);
   if (!srt) return { outputPath: base, srtPath: null, durationS };   // no speech → skip burn
 
   // Write the .srt in the work dir and run ffmpeg with cwd=work so the subtitles
@@ -314,7 +407,8 @@ async function processOne(job) {
       srcPath = await cutSegments(srcPath, segs, work);
       renderOps = { ...renderOps, trim: null };   // cuts already applied
     }
-    const { outputPath, srtPath, durationS } = await render(srcPath, renderOps, work, apiKey);
+    const { outputPath, srtPath, durationS } = await render(
+      srcPath, renderOps, work, apiKey, job.client_id);
 
     const outputUrl = editJobs.adoptFile(job.client_id, outputPath, '.mp4');
     const srtUrl = srtPath ? editJobs.adoptFile(job.client_id, srtPath, '.srt') : null;
@@ -364,4 +458,6 @@ async function processQueue() {
 
 function kick() { processQueue().catch(() => {}); }
 
-module.exports = { processQueue, kick, probe, whisperWords };
+module.exports = { processQueue, kick, probe, whisperWords,
+  // exported for the tests
+  render, captionFormatFor, srtFromWords };

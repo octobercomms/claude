@@ -474,15 +474,36 @@ progress is obvious on `platform.octobercomms.com`.
   than one missing row.
 - **`ClientVideoPage.jsx` is dead code and nothing imports it.** The Produce
   tab's Edit panel is `ClientEditPage.jsx`; `ClientVideoPage.jsx` is an older
-  studio page that no route reaches. Two features were mounted there and so
-  were never visible in the product: the reel checks (now moved to
-  `ClientEditPage`) and `CaptionTemplates`, the 31-template caption picker,
-  which is **still** only mounted on the dead page. The caption library is
-  reachable from Shared, where `socialCaptionRender` burns an ASS template; the
-  Produce edit pipeline still burns a plain Whisper SRT with its own size and
-  position controls and takes no template at all. Wiring the library into that
-  render is real work, not a re-mount. Before adding a panel anywhere, check
-  that something imports the page you are adding it to.
+  studio page that no route reaches. Both features that were mounted there, and
+  so were never visible in the product, now live on `ClientEditPage`: the reel
+  checks and `CaptionTemplates`. Before adding a panel anywhere, check that
+  something imports the page you are adding it to.
+- **Produce's edit pipeline has two caption paths, and the template one is the
+  fork to watch.** With `ops.caption_template` set, `editProcessor.render`
+  takes word-level Whisper and `captions.burn`, the same compiler Shared uses,
+  so a template cannot mean one thing in Produce and another in Shared. With no
+  template it keeps the old segment SRT and its size and position controls,
+  which the screen hides while a template is chosen because a template that let
+  its size be overridden would stop meaning the same thing on every account.
+  The failure mode is not a bad burn, it is the pipeline quietly staying on the
+  old path, which looks like a successful render; `tests/edit-captions.test.js`
+  compares frame hashes to catch exactly that.
+- **The caption format is chosen from the rendered frame, not the requested
+  aspect.** An "original" request declares no aspect at all, and a preset
+  measured against a 1080x1920 canvas sits wrong on a square one. libass scales
+  the ASS canvas to the video, so the aspect ratio is what must match and the
+  pixel size need not.
+- **`require('./captions')` at the top of `editProcessor` is a cycle.** captions
+  reaches back for `whisperWords`, so a top-level require leaves a half-built
+  module whose functions are all `undefined` and fails at the call rather than
+  at load. Require it inside the function, as the rest of the file does with
+  its services.
+- **An edit-pipeline render still produces no `client_assets` row and no reel
+  judgement.** Word timings now exist on the template path, so a judgement
+  could be recorded there, but an edit output has neither an asset row nor a
+  post, so the row could never join performance and would only inflate the
+  "awaiting numbers" count. Recording from there is worth doing only once edit
+  outputs land in the library.
 - **The reel checks are recorded at production time, not in the browser.**
   `reel_check_results` holds one row per reel produced, written by
   `services/reelOutcomes.record` from `socialCaptionRender`, where the words,

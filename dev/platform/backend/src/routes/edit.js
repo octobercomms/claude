@@ -70,6 +70,13 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     const combining = files.length > 1;
     const hasCuts = Array.isArray(ops.segments) ? ops.segments.length > 0 : (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0));
     const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original') || hasCuts || ops.clean_audio || ops.captions;
+    // Refuse an unknown caption template here rather than at render time. The
+    // renderer refuses it too, but by then the operator has waited for a job
+    // to reach the front of the queue to be told a name was wrong.
+    if (ops.caption_template) {
+      try { require('../services/captions').preset(ops.caption_template); }
+      catch { return res.status(400).json({ error: 'That caption template does not exist.' }); }
+    }
     if (!isDraft && !wantsSomething) return res.status(400).json({ error: 'Pick at least one edit (trim, clean audio, or captions).' });
 
     // Files are already on disk (streamed); reference them by served URL.
