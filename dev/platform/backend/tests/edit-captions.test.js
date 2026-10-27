@@ -101,6 +101,39 @@ function frameHash(video, at = '1.2') {
     });
   }
 
+  console.log('\nThe library’s rows can be opened by the tools beside them');
+  {
+    const editJobs = require('../src/services/editJobs');
+    const socialCaptionRender = require('../src/services/socialCaptionRender');
+    const cid = '11111111-1111-1111-1111-111111111111';
+    const dir = editJobs.clientDir(cid);
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'indexed.mp4');
+    fs.writeFileSync(file, 'not really a video');
+
+    await ok('an edit rendered in Produce resolves to its file on disk', () => {
+      // Edits are indexed in client_assets, so they appear in the Library
+      // beside recordings and captioned reels. Tighten, caption and scene
+      // render all find a clip through this one resolver, and it only knew
+      // the brand upload path: every edit in the library would have answered
+      // "that clip could not be found on disk".
+      assert.strictEqual(
+        socialCaptionRender.localPath(cid, { url: `/api/edit/file/${cid}/indexed.mp4` }),
+        file);
+    });
+    await ok('and a path that climbs out of the client’s directory does not', () => {
+      assert.strictEqual(
+        socialCaptionRender.localPath(cid, { url: `/api/edit/file/${cid}/../../etc/passwd` }),
+        null);
+    });
+    await ok('a url for a file that is gone resolves to nothing, not a path', () => {
+      assert.strictEqual(
+        socialCaptionRender.localPath(cid, { url: `/api/edit/file/${cid}/never-was.mp4` }),
+        null);
+    });
+    fs.unlinkSync(file);
+  }
+
   if (!have('ffmpeg')) {
     console.log('\nffmpeg missing: the render assertions would silently skip');
     process.exit(1);

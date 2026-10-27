@@ -33,6 +33,7 @@ const SOURCE_LABEL = {
   design: 'Designed',
   caption_render: 'Captioned',
   scene_render: 'Scene template',
+  edit_job: 'Edited in Produce',
   upload: 'Uploaded',
 };
 

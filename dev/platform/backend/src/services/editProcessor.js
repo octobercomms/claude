@@ -392,8 +392,15 @@ async function processOne(job) {
     // trim/clean/caption path doesn't apply.
     if (job.ops?.stills_reel) {
       const { reel, cost, clipCount } = await buildStillsReel(job, work);
+      // Measured before the file is adopted: adoptFile moves it, and probing
+      // the served URL afterwards would mean reading it back off disk by path
+      // a second time.
+      const reelMeta = await probe(reel);
+      const reelBytes = fs.statSync(reel).size;
       const outputUrl = editJobs.adoptFile(job.client_id, reel, '.mp4');
-      await editJobs.complete(job.id, { outputUrl, srtUrl: null, costUsd: cost });
+      await editJobs.complete(job.id, { outputUrl, srtUrl: null, costUsd: cost,
+        durationS: reelMeta.duration, width: reelMeta.width, height: reelMeta.height,
+        bytes: reelBytes });
       console.log(`[edit] ✓ stills reel ${job.id} done (${clipCount} clips, $${cost})`);
       return;
     }
@@ -410,6 +417,8 @@ async function processOne(job) {
     const { outputPath, srtPath, durationS } = await render(
       srcPath, renderOps, work, apiKey, job.client_id);
 
+    const outMeta = await probe(outputPath);
+    const outBytes = fs.statSync(outputPath).size;
     const outputUrl = editJobs.adoptFile(job.client_id, outputPath, '.mp4');
     const srtUrl = srtPath ? editJobs.adoptFile(job.client_id, srtPath, '.srt') : null;
 
@@ -418,7 +427,12 @@ async function processOne(job) {
       costUsd = +((durationS / 60) * WHISPER_USD_PER_MIN).toFixed(4);
       recordApiCost({ provider: 'openai', feature: 'edit_captions', costUsd, clientId: job.client_id, meta: { model: 'whisper-1', duration_s: Math.round(durationS) } });
     }
-    await editJobs.complete(job.id, { outputUrl, srtUrl, costUsd });
+    await editJobs.complete(job.id, { outputUrl, srtUrl, costUsd,
+      // The duration after the edit, not the source's: a trimmed clip that
+      // reported its original length would make the library lie about the one
+      // number an operator scans for.
+      durationS: outMeta.duration ?? durationS,
+      width: outMeta.width, height: outMeta.height, bytes: outBytes });
     console.log(`[edit] ✓ job ${job.id} done (${Math.round(durationS)}s)`);
   } catch (err) {
     console.error(`[edit] ✗ job ${job.id}: ${err.message}`);

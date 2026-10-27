@@ -498,12 +498,31 @@ progress is obvious on `platform.octobercomms.com`.
   module whose functions are all `undefined` and fails at the call rather than
   at load. Require it inside the function, as the rest of the file does with
   its services.
-- **An edit-pipeline render still produces no `client_assets` row and no reel
-  judgement.** Word timings now exist on the template path, so a judgement
-  could be recorded there, but an edit output has neither an asset row nor a
-  post, so the row could never join performance and would only inflate the
-  "awaiting numbers" count. Recording from there is worth doing only once edit
-  outputs land in the library.
+- **Every finished edit is indexed in the library, from `editJobs.complete`.**
+  One call site rather than one per branch of the renderer, stills reels
+  included, so no path produces a video and forgets to say so. The job is
+  marked done first and the library write is wrapped there as well as inside
+  `assets.record`: the guarantee that an index row cannot cost a two-minute
+  render is made locally rather than inherited from another file's promise.
+  `source` is `edit_job`, and that value has to be added in **three** places or
+  it fails in a different way at each: the `client_assets` CHECK constraint,
+  the `SOURCES` whitelist in `services/assets.js`, and `SOURCE_LABEL` in
+  `AssetLibrary.jsx`.
+- **Edits are served from the edit pipeline's own directory, not the brand
+  uploads.** `socialCaptionRender.localPath` is how Tighten, caption render and
+  scene render all find a clip, and it only understood
+  `/api/brand/file/...`. Once edits appear in the library, every one of them
+  answered "that clip could not be found on disk" when a tool next to it was
+  used. It now also resolves `/api/edit/file/...` through
+  `editJobs.diskPathForUrl`, which keeps the traversal guard. Any new place
+  that stores media under its own root needs the same line, or the library
+  will offer rows the tools beside them cannot open.
+- **An edit render still records no reel judgement.** Word timings exist on the
+  template path and the output now has an asset row, but it has no post, so the
+  judgement could not join performance until the asset is published. The reel
+  that actually goes out is judged on the caption-render path, with its post,
+  so recording here as well would add a second judgement for the same reel that
+  stays "awaiting numbers" for ever.
 - **The reel checks are recorded at production time, not in the browser.**
   `reel_check_results` holds one row per reel produced, written by
   `services/reelOutcomes.record` from `socialCaptionRender`, where the words,
