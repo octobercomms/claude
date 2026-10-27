@@ -11,6 +11,7 @@ const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const pool = require('../db');
 const videoProjects = require('../services/videoProjects');
+const captions = require('../services/captions');
 
 const router = express.Router();
 
@@ -145,5 +146,94 @@ router.delete('/projects/:id', projectAccess, async (req, res) => {
     res.status(204).end();
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// Set (or clear) the caption template a project renders with. Its own route
+// rather than a field on the run call, so changing the look does not re-run a
+// pipeline that has already produced a master.
+router.put('/projects/:id/caption-template', projectAccess, async (req, res) => {
+  try {
+    const id = req.body?.template_id ?? null;
+    // A template that is not in the library would render as nothing at all, so
+    // it is refused here rather than at the point of render.
+    if (id !== null) captions.preset(id);
+    await pool.query('UPDATE video_projects SET caption_template = $1 WHERE id = $2',
+      [id, req.params.id]);
+    res.json({ caption_template: id });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ── Caption templates ────────────────────────────────────────────────────────
+//
+// The library and the client's reading of it. Both are cheap and neither
+// renders anything: the picker paints its own swatches from the rows, and the
+// preview below is one still frame rather than a clip, because changes are free
+// until something is rendered and this is the screen where that is true.
+
+router.get('/caption-templates', (req, res) => {
+  try {
+    res.json({ templates: captions.templates(), formats: captions.formats() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// What a given client's brand kit makes of the library. Returns the kit itself
+// so the screen shows which colour was taken and, when one was refused for
+// being unreadable over footage, which one and why.
+router.get('/clients/:clientId/caption-kit',
+  requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT kind, name, metadata FROM brand_assets
+          WHERE client_id = $1 AND kind IN ('font', 'palette')`, [req.params.clientId]);
+      const kit = captions.kitFromAssets(rows);
+      res.json({
+        kit,
+        // The typeface is a family name, not a file. libass needs the file on
+        // disk and a client's webfont licence does not always permit that, so
+        // the screen has to be able to say "we have the name, not the font".
+        font_available: !kit.font ? null : false,
+        note: kit.rejected_accent
+          ? `${kit.rejected_accent} was left out: it cannot be read against a dark outline over footage.`
+          : null,
+      });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+// One still frame of a template, with this client's kit applied. No project and
+// no upload needed, so the picker previews against sample words before anyone
+// commits a video.
+// A GET, so the screen renders it with an ordinary <img src> and the browser
+// caches it. Nothing is stored and nothing is charged, so it is safely idempotent.
+router.get('/clients/:clientId/caption-preview',
+  requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+    const out = path.join(CLIPS_DIR, `preview-${crypto.randomBytes(8).toString('hex')}.png`);
+    try {
+      const templateId = req.query.template_id;
+      const formatId = req.query.format_id || 'vertical';
+      if (!templateId) return res.status(400).json({ error: 'template_id is required' });
+      const list = SAMPLE_WORDS;
+      const { rows } = await pool.query(
+        `SELECT kind, name, metadata FROM brand_assets
+          WHERE client_id = $1 AND kind IN ('font', 'palette')`, [req.params.clientId]);
+      const kit = req.query.skip_kit === '1' ? null : captions.kitFromAssets(rows);
+      await captions.previewFrame({ words: list, templateId, kit, formatId, outPath: out });
+      res.sendFile(out, (err) => {
+        fs.unlink(out, () => {});
+        if (err && !res.headersSent) res.status(500).end();
+      });
+    } catch (err) {
+      fs.unlink(out, () => {});
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+// Nine words with plausible timings, so a preview shows the motion rather than
+// a single word sitting still.
+const SAMPLE_WORDS = [
+  { word: 'Fifteen', start: 0.00, end: 0.42 }, { word: 'years', start: 0.42, end: 0.78 },
+  { word: 'later', start: 0.78, end: 1.12 }, { word: 'the', start: 1.12, end: 1.26 },
+  { word: 'company', start: 1.26, end: 1.80 }, { word: 'creates', start: 1.80, end: 2.22 },
+  { word: 'custom', start: 2.22, end: 2.64 }, { word: 'art', start: 2.64, end: 2.88 },
+  { word: 'programs', start: 2.88, end: 3.42 },
+];
 
 module.exports = router;

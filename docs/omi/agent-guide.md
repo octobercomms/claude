@@ -429,6 +429,34 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **Produce's caption templates are DATA, not components.** The 27 presets in
+  `shared/captions/presets.json` are ported from Capite (MIT, notice kept in
+  the file) and compiled to ASS by `shared/captions/compile.mjs`, which both
+  the backend renderer and the editor preview import so they cannot drift. A
+  28th template is one JSON row, as long as its `animationType` is one of the
+  engines the compiler implements. Do not add a template as a React
+  composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
+  three.
+- **Captions render with ffmpeg and libass, not Remotion, and the reason is a
+  bill.** Remotion's free licence covers organisations up to three people;
+  past that, a tool that renders video sits in their Automators tier at $100 a
+  month minimum. libass has no licence and no meter, and burns a 3.5s
+  1080x1920 clip in under two seconds against a headless-Chromium render.
+  Before putting anything new on Remotion, check the headcount.
+- **The 13 typefaces are vendored in `shared/captions/fonts/`** with their
+  licences, so a render is identical on a dev box, CI and the server. Do not
+  swap that for apt packages or a fontconfig lookup; the point is that the
+  same preset produces the same frame everywhere.
+- **A caption's body text stays near-white whatever the brand is.** Captions
+  sit over ungraded footage, so a client's mid-tone as body text disappears
+  over half the shots. The brand shows in the accent word and the typeface.
+  `captions.kitFromAssets` also refuses an accent that cannot be read against
+  a dark outline, and tells the screen which one it dropped.
+- **A test that SKIPs is a test that is not running.** `tests/captions.test.js`
+  skips its burn assertions when ffmpeg is absent, so `platform-checks.yml`
+  installs ffmpeg and fails the step if it is still missing. Any guard with a
+  skip path needs the same treatment or it reports green having checked
+  nothing.
 - **The press-release highlighter paints longest needle first, and the order
   is load-bearing.** `LAYERS` in `PressReleaseEditor.jsx` is a paint order, not
   a list: each pass splits the text nodes the next pass has to match against,

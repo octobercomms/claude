@@ -1,0 +1,191 @@
+/**
+ * Word-timed captions: the library, the client's kit, and the burn.
+ *
+ * The compiler itself lives in shared/captions/compile.mjs so the editor
+ * preview and this renderer produce the same file from the same inputs. This
+ * module is the part that needs a database and a disk: which templates exist,
+ * what a given client's brand kit makes of one, and running ffmpeg.
+ */
+const fs = require('fs');
+const path = require('path');
+const { execFile } = require('child_process');
+const { pathToFileURL } = require('url');
+
+const SHARED = path.join(__dirname, '..', '..', '..', 'shared', 'captions');
+const FONTS_DIR = path.join(SHARED, 'fonts');
+const PRESETS_PATH = path.join(SHARED, 'presets.json');
+
+// The config is read once. It is a file in the repo, not a table, because a
+// template is code's business: it ships with the compiler that understands its
+// animationType, and a template in the database could outlive the engine that
+// draws it.
+let _config = null;
+function config() {
+  if (!_config) _config = JSON.parse(fs.readFileSync(PRESETS_PATH, 'utf8'));
+  return _config;
+}
+
+let _compiler = null;
+async function compiler() {
+  if (!_compiler) _compiler = await import(pathToFileURL(path.join(SHARED, 'compile.mjs')).href);
+  return _compiler;
+}
+
+/** The library, in the shape the picker needs. Never the whole config. */
+function templates() {
+  const c = config();
+  return Object.values(c.styles).map((s) => ({
+    id: s.id,
+    name: s.name,
+    category: s.category || null,
+    description: s.description || '',
+    best_for: s.bestFor || '',
+    font: s.fontName,
+    animation: s.animationType,
+    // What the picker paints its own swatch from, so the list needs no renders.
+    swatch: { ink: s.primaryColor, accent: s.highlightColor, outline: s.outlineColor },
+  }));
+}
+
+function formats() { return config().outputFormats; }
+
+function preset(id) {
+  const s = config().styles[id];
+  if (!s) throw new Error(`No caption template "${id}"`);
+  return s;
+}
+
+// --- the client's kit ---------------------------------------------------------
+
+const hex = (c) => /^#?[0-9a-f]{3,8}$/i.test(String(c || '').trim());
+const norm = (c) => (String(c).trim().startsWith('#') ? String(c).trim() : `#${String(c).trim()}`);
+
+function rgb(c) {
+  const h = norm(c).slice(1);
+  const six = h.length === 3 ? h.split('').map((x) => x + x).join('') : h.slice(0, 6);
+  return [0, 2, 4].map((i) => parseInt(six.slice(i, i + 2), 16) || 0);
+}
+
+/** Relative luminance, so "is this readable" is a number rather than a feeling. */
+function luminance(c) {
+  const [r, g, b] = rgb(c).map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a, b) {
+  const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
+/** How far a colour is from grey. The brand's accent is its most saturated one. */
+function saturation(c) {
+  const [r, g, b] = rgb(c);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  return max === 0 ? 0 : (max - min) / max;
+}
+
+/**
+ * Turn a client's brand assets into a caption kit.
+ *
+ * One deliberate decision, and it is a design decision rather than a technical
+ * one: the BODY of a caption stays near-white with a dark outline whatever the
+ * brand is. Captions sit over footage nobody has graded yet, so a brand's own
+ * mid-tone as body text is a caption that disappears over half the shots. The
+ * brand shows in the accent word and in the typeface, which is where a viewer
+ * reads it anyway.
+ *
+ * The accent is the most saturated colour in the palette, and it is dropped if
+ * it cannot be read against the outline, because an unreadable accent is worse
+ * than the template's own.
+ */
+function kitFromAssets(assets, { minContrast = 2.2 } = {}) {
+  const list = Array.isArray(assets) ? assets : [];
+  const kit = {};
+
+  const font = list.find((a) => a.kind === 'font' && (a.metadata?.role === 'heading'))
+    || list.find((a) => a.kind === 'font');
+  // Only a family name is taken. The file itself is a separate problem: libass
+  // needs it on disk, and a client webfont licence does not always allow that.
+  if (font?.name) kit.font = String(font.name).replace(/\.(ttf|otf|woff2?)$/i, '').trim();
+
+  const palette = (list.find((a) => a.kind === 'palette')?.metadata?.colors || [])
+    .filter(hex).map(norm);
+  if (palette.length) {
+    const outline = '#000000';
+    const candidate = [...palette].sort((a, b) => saturation(b) - saturation(a))[0];
+    if (candidate && contrast(candidate, outline) >= minContrast) kit.accent = candidate;
+    else kit.rejected_accent = candidate || null;
+  }
+  return kit;
+}
+
+// --- rendering ----------------------------------------------------------------
+
+function run(bin, args) {
+  return new Promise((resolve, reject) => {
+    execFile(bin, args, { maxBuffer: 1 << 24 }, (err, stdout, stderr) => {
+      if (err) reject(new Error(`${path.basename(bin)}: ${String(stderr || err.message).slice(-400)}`));
+      else resolve(String(stdout || ''));
+    });
+  });
+}
+
+/** Write the ASS for a template, a client kit and a transcript. */
+async function toAss({ words, templateId, kit = null, formatId = 'vertical', perLine = 3, marginV }) {
+  const m = await compiler();
+  const format = formats()[formatId] || formats().vertical;
+  return m.compile({
+    words, preset: preset(templateId), kit, format, perLine,
+    marginV: marginV ?? Math.round(format.height * 0.17),
+  });
+}
+
+/**
+ * One still frame, which is what the operator approves before anything is
+ * rendered. Cheap on purpose: changes are free before the render, and this is
+ * the only screen where that is true.
+ */
+async function previewFrame({ words, templateId, kit, formatId = 'vertical', source = null, at, outPath }) {
+  const format = formats()[formatId] || formats().vertical;
+  const ass = await toAss({ words, templateId, kit, formatId });
+  const assPath = `${outPath}.ass`;
+  fs.writeFileSync(assPath, ass);
+  // Land on a word rather than between two, or the preview shows the template
+  // at rest and every template looks the same.
+  const mid = words.length ? words[Math.floor(words.length / 2)] : null;
+  const seek = at ?? (mid ? (mid.start + mid.end) / 2 : 1);
+  const input = source
+    ? ['-ss', String(seek), '-i', source]
+    : ['-f', 'lavfi', '-i', `color=c=0x101010:s=${format.width}x${format.height}:d=${seek + 1}:r=25`, '-ss', String(seek)];
+  try {
+    await run('ffmpeg', ['-y', '-loglevel', 'error', ...input,
+      '-vf', `subtitles=${assPath}:fontsdir=${FONTS_DIR}`,
+      '-frames:v', '1', outPath]);
+  } finally { fs.existsSync(assPath) && fs.unlinkSync(assPath); }
+  return outPath;
+}
+
+/** Burn captions into a clip. */
+async function burn({ words, templateId, kit, formatId = 'vertical', source, outPath }) {
+  const ass = await toAss({ words, templateId, kit, formatId });
+  const assPath = `${outPath}.ass`;
+  fs.writeFileSync(assPath, ass);
+  try {
+    await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', source,
+      '-vf', `subtitles=${assPath}:fontsdir=${FONTS_DIR}`,
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-pix_fmt', 'yuv420p', '-c:a', 'copy', outPath]);
+  } finally { fs.existsSync(assPath) && fs.unlinkSync(assPath); }
+  return outPath;
+}
+
+module.exports = {
+  templates, formats, preset, kitFromAssets, toAss, previewFrame, burn,
+  FONTS_DIR, PRESETS_PATH,
+  // exported for the tests
+  _internals: { contrast, saturation, luminance },
+};
