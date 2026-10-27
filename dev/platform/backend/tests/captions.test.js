@@ -251,6 +251,14 @@ async function main() {
       const c = await svc.sampleClip({ templateId: 'nordic-clean' });
       ok(c !== a, 'and the new example is a different file from the old one');
 
+      // The normalised house clip has no audio, so transcribing IT would always
+      // come back empty. The upload transcribes the original instead, and the
+      // fallback has to say which problem it hit rather than reporting silence.
+      let noAudio = null;
+      try { await svc.transcribeHouseClip(); } catch (e) { noAudio = e.message; }
+      ok(/no audio track|OpenAI key/.test(noAudio || ''),
+        `transcribing the stripped clip fails loudly: ${noAudio}`);
+
       let refused = null;
       try { await svc.sampleClip({ templateId: 'not-a-template' }); }
       catch (e) { refused = e.message; }

@@ -319,7 +319,11 @@ async function setHouseClip(srcPath) {
     '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart', tmp]);
   fs.renameSync(tmp, HOUSE_CLIP);
-  await transcribeHouseClip().catch((e) => {
+  // Transcribed from the ORIGINAL upload, not from what was just written. The
+  // normalise above drops the audio, so the house clip has no sound to read;
+  // transcribing it would always come back empty. Only the first four seconds
+  // are sent, because that is the part the examples show.
+  await transcribeHouseClip(srcPath).catch((e) => {
     // Never fail the upload over this. The clip is still usable; the captions
     // fall back to the generic line and the screen is told they are generic.
     console.error('[captions] sample clip not transcribed:', e.message);
@@ -332,14 +336,18 @@ async function setHouseClip(srcPath) {
 }
 
 /** Pull word timings off the house clip, so the examples say what he says. */
-async function transcribeHouseClip() {
+async function transcribeHouseClip(fromPath = null) {
   const { getSetting } = require('../utils/settings');
   const { whisperWords } = require('./editProcessor');
   const key = (await getSetting('OPENAI_API_KEY')) || process.env.OPENAI_API_KEY;
   if (!key) throw new Error('no OpenAI key, so the sample captions stay generic');
+  const src = fromPath || HOUSE_CLIP;
   const audio = `${HOUSE_CLIP}.mp3`;
   try {
-    await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', HOUSE_CLIP,
+    await run('ffprobe', ['-v', 'error', '-select_streams', 'a:0',
+      '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', src])
+      .then((out) => { if (!out.trim()) throw new Error('that clip has no audio track to transcribe'); });
+    await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-t', '4',
       '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio]);
     const words = await whisperWords(audio, key);
     fs.writeFileSync(HOUSE_WORDS, JSON.stringify(words));
