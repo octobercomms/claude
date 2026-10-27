@@ -195,6 +195,41 @@ async function whisperSrt(audioPath, apiKey) {
   return (await res.text()).trim();
 }
 
+/**
+ * The same transcription, asked for per WORD rather than per segment.
+ *
+ * A segment is a phrase and lands a caption on a phrase. Everything the
+ * template library does — a word changing colour, a box landing under the word
+ * being said — needs the word. One extra parameter, a different response
+ * format, same call and same bill.
+ *
+ * Returns [{ word, start, end }] in seconds, which is the shape
+ * shared/captions/compile.mjs takes.
+ */
+async function whisperWords(audioPath, apiKey) {
+  const buf = fs.readFileSync(audioPath);
+  const form = new FormData();
+  form.append('file', new Blob([buf]), 'audio.mp3');
+  form.append('model', process.env.WHISPER_MODEL || 'whisper-1');
+  form.append('response_format', 'verbose_json');
+  form.append('timestamp_granularities[]', 'word');
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST', headers: { Authorization: `Bearer ${apiKey}` }, body: form,
+  });
+  if (!res.ok) throw new Error(`Whisper ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const body = await res.json();
+  const words = Array.isArray(body.words) ? body.words : [];
+  // Not every model returns the word array even when asked. Saying so beats
+  // returning an empty transcript that renders as a video with no captions.
+  if (!words.length) {
+    throw new Error('Whisper returned no word timings. The model set in WHISPER_MODEL '
+      + 'may not support timestamp_granularities.');
+  }
+  return words
+    .map((w) => ({ word: String(w.word ?? '').trim(), start: Number(w.start), end: Number(w.end) }))
+    .filter((w) => w.word && Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start);
+}
+
 // Render one job. Returns { outputPath, srtPath|null, durationS }.
 async function render(srcPath, ops, work, apiKey) {
   const trim = ops.trim || null;
@@ -329,4 +364,4 @@ async function processQueue() {
 
 function kick() { processQueue().catch(() => {}); }
 
-module.exports = { processQueue, kick, probe };
+module.exports = { processQueue, kick, probe, whisperWords };

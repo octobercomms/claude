@@ -8,9 +8,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
-const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
+const { loadVisibleClientIds, requireClientAccess, assertClientAccess, requireAdmin } = require('../middleware/clientAccess');
 const pool = require('../db');
 const videoProjects = require('../services/videoProjects');
+const captions = require('../services/captions');
 
 const router = express.Router();
 
@@ -144,6 +145,153 @@ router.delete('/projects/:id', projectAccess, async (req, res) => {
     await pool.query('DELETE FROM video_projects WHERE id = $1', [req.params.id]);
     res.status(204).end();
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Set (or clear) the caption template a project renders with. Its own route
+// rather than a field on the run call, so changing the look does not re-run a
+// pipeline that has already produced a master.
+router.put('/projects/:id/caption-template', projectAccess, async (req, res) => {
+  try {
+    const id = req.body?.template_id ?? null;
+    // A template that is not in the library would render as nothing at all, so
+    // it is refused here rather than at the point of render.
+    if (id !== null) captions.preset(id);
+    await pool.query('UPDATE video_projects SET caption_template = $1 WHERE id = $2',
+      [id, req.params.id]);
+    res.json({ caption_template: id });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ── Caption templates ────────────────────────────────────────────────────────
+//
+// The library and the client's reading of it. Both are cheap and neither
+// renders anything: the picker paints its own swatches from the rows, and the
+// preview below is one still frame rather than a clip, because changes are free
+// until something is rendered and this is the screen where that is true.
+
+router.get('/caption-templates', (req, res) => {
+  try {
+    res.json({ templates: captions.templates(), formats: captions.formats() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// What a given client's brand kit makes of the library. Returns the kit itself
+// so the screen shows which colour was taken and, when one was refused for
+// being unreadable over footage, which one and why.
+router.get('/clients/:clientId/caption-kit',
+  requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT kind, name, metadata FROM brand_assets
+          WHERE client_id = $1 AND kind IN ('font', 'palette')`, [req.params.clientId]);
+      const kit = captions.kitFromAssets(rows);
+      res.json({
+        kit,
+        // The typeface is a family name, not a file. libass needs the file on
+        // disk and a client's webfont licence does not always permit that, so
+        // the screen has to be able to say "we have the name, not the font".
+        font_available: !kit.font ? null : false,
+        note: kit.rejected_accent
+          ? `${kit.rejected_accent} was left out: it cannot be read against a dark outline over footage.`
+          : null,
+      });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+// One still frame of a template, with this client's kit applied. No project and
+// no upload needed, so the picker previews against sample words before anyone
+// commits a video.
+// A GET, so the screen renders it with an ordinary <img src> and the browser
+// caches it. Nothing is stored and nothing is charged, so it is safely idempotent.
+router.get('/clients/:clientId/caption-preview',
+  requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+    const out = path.join(CLIPS_DIR, `preview-${crypto.randomBytes(8).toString('hex')}.png`);
+    try {
+      const templateId = req.query.template_id;
+      const formatId = req.query.format_id || 'vertical';
+      if (!templateId) return res.status(400).json({ error: 'template_id is required' });
+      const list = SAMPLE_WORDS;
+      const { rows } = await pool.query(
+        `SELECT kind, name, metadata FROM brand_assets
+          WHERE client_id = $1 AND kind IN ('font', 'palette')`, [req.params.clientId]);
+      const kit = req.query.skip_kit === '1' ? null : captions.kitFromAssets(rows);
+      await captions.previewFrame({ words: list, templateId, kit, formatId, outPath: out });
+      res.sendFile(out, (err) => {
+        fs.unlink(out, () => {});
+        if (err && !res.headersSent) res.status(500).end();
+      });
+    } catch (err) {
+      fs.unlink(out, () => {});
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+// Nine words with plausible timings, so a preview shows the motion rather than
+// a single word sitting still.
+const SAMPLE_WORDS = [
+  { word: 'Fifteen', start: 0.00, end: 0.42 }, { word: 'years', start: 0.42, end: 0.78 },
+  { word: 'later', start: 0.78, end: 1.12 }, { word: 'the', start: 1.12, end: 1.26 },
+  { word: 'company', start: 1.26, end: 1.80 }, { word: 'creates', start: 1.80, end: 2.22 },
+  { word: 'custom', start: 2.22, end: 2.64 }, { word: 'art', start: 2.64, end: 2.88 },
+  { word: 'programs', start: 2.88, end: 3.42 },
+];
+
+// ── The sample gallery ───────────────────────────────────────────────────────
+//
+// What a template does to real footage, which a colour swatch cannot show.
+// Every template over the same four seconds, so the comparison is fair.
+
+// The house clip itself, so the screen can say whether one has been uploaded
+// and show the operator what the examples are rendered over.
+router.get('/caption-sample-clip', (req, res) => {
+  const clip = captions.houseClip();
+  if (!clip) return res.status(404).json({ error: 'No sample clip uploaded yet.' });
+  res.sendFile(clip);
+});
+
+router.get('/caption-sample-status', (req, res) => {
+  const clip = captions.houseClip();
+  res.json({
+    uploaded: !!clip,
+    updated_at: clip ? fs.statSync(clip).mtime : null,
+    bytes: clip ? fs.statSync(clip).size : 0,
+  });
+});
+
+/**
+ * One template's example. `client_id` applies that client's kit; without it the
+ * template renders as its author drew it.
+ *
+ * A GET so the gallery is a plain <video src>, and cached on disk, so the first
+ * open of the page pays for the renders and nobody pays again.
+ */
+router.get('/caption-sample/:templateId.mp4', async (req, res) => {
+  try {
+    let kit = null;
+    if (req.query.client_id) {
+      assertClientAccess(req, req.query.client_id);
+      const { rows } = await pool.query(
+        `SELECT kind, name, metadata FROM brand_assets
+          WHERE client_id = $1 AND kind IN ('font', 'palette')`, [req.query.client_id]);
+      kit = captions.kitFromAssets(rows);
+    }
+    const file = await captions.sampleClip({ templateId: req.params.templateId, kit });
+    res.sendFile(file);
+  } catch (err) { res.status(err.status || 400).json({ error: err.message }); }
+});
+
+// Replace the clip every example is rendered over. Admin-only: it changes what
+// every operator sees on every client.
+router.post('/caption-sample-clip', requireAdmin, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file.' });
+  try {
+    await captions.setHouseClip(req.file.path);
+    res.json({ ok: true, cleared: true });
+  } catch (err) {
+    res.status(400).json({ error: `That file could not be read as video: ${err.message}` });
+  } finally {
+    fs.unlink(req.file.path, () => {});
+  }
 });
 
 module.exports = router;

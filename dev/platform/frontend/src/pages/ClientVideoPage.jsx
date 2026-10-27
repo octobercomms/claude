@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import ListDetail from '../components/shells/ListDetail';
+import CaptionTemplates from '../components/CaptionTemplates';
 
 // Video Studio (slice 1) — create an edit project, upload raw clips, and run
 // the auto-edit pipeline. Editing itself runs on the dedicated render worker
@@ -185,6 +186,28 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
                   )}
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteProject(active.id)}>Delete</button>
+              </div>
+
+              {/* Word-timed captions. Separate from the style preset above,
+                  which governs the edit; this governs what the words look like
+                  and is changeable without re-running the pipeline. */}
+              <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+                <CaptionTemplates
+                  clientId={id}
+                  value={active.caption_template || null}
+                  onChange={async (templateId) => {
+                    const next = active.caption_template === templateId ? null : templateId;
+                    setActive(a => ({ ...a, caption_template: next }));
+                    try {
+                      await api.put(`/video/projects/${active.id}/caption-template`, { template_id: next });
+                    } catch (e) {
+                      // Put it back rather than leaving the screen claiming a
+                      // choice the project does not have.
+                      setActive(a => ({ ...a, caption_template: active.caption_template || null }));
+                      toast(e.message, 'error');
+                    }
+                  }}
+                />
               </div>
 
               <div className="card" style={{ marginBottom: 'var(--s4)' }}>
