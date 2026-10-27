@@ -46,6 +46,14 @@ function localPath(clientId, { url, storage_key: key }) {
       const p = path.join(UPLOAD_ROOT, m[1], path.basename(m[2]));
       if (p.startsWith(UPLOAD_ROOT + path.sep) && fs.existsSync(p)) return p;
     }
+    // An edit rendered in Produce. These are served from the edit pipeline's
+    // own directory rather than the brand uploads, and since edits are indexed
+    // in the library they appear beside everything else: a tool that could not
+    // open the row the library offered it would be the library lying about
+    // what exists.
+    const edited = require('./editJobs').diskPathForUrl(url);
+    if (edited && fs.existsSync(edited)) return edited;
+
     // An external url (a provider's CDN) is handed to ffmpeg as-is; it reads
     // https directly and we would only be adding a download step.
     if (/^https?:\/\//.test(url)) return url;

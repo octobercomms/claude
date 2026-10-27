@@ -15,7 +15,7 @@ const pool = require('../db');
 
 const KINDS = ['video', 'image', 'audio', 'document'];
 const SOURCES = ['recording', 'video_project', 'social_media', 'ad_creative',
-  'design', 'caption_render', 'scene_render', 'upload'];
+  'design', 'caption_render', 'scene_render', 'upload', 'edit_job'];
 
 /** Guess a kind from a mime type or a filename, so callers rarely pass one. */
 function kindOf({ kind, mime, url, storage_key: key }) {

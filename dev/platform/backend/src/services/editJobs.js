@@ -154,11 +154,61 @@ async function claimNext(workerId) {
   return rows[0] || null;
 }
 
-async function complete(id, { outputUrl, srtUrl = null, costUsd = 0 }) {
+/**
+ * Mark a job done, and index its output in the client's asset library.
+ *
+ * One call site rather than one per branch of the renderer: every edit that
+ * finishes goes through here, the stills reels included, so there is no path
+ * that produces a video and forgets to say so. Before this, an edit existed
+ * only as a row in edit_jobs and was reachable by opening the Edit tab and
+ * nowhere else, which is exactly the invisibility client_assets was built to
+ * end.
+ *
+ * The library write never fails the job: assets.record returns null and logs
+ * rather than throwing, and the job is already marked done before it runs. An
+ * edit that rendered for two minutes must not be lost because an index row
+ * could not be written.
+ */
+async function complete(id, { outputUrl, srtUrl = null, costUsd = 0, durationS = null,
+  width = null, height = null, bytes = null } = {}) {
   await pool.query(
     `UPDATE edit_jobs SET status = 'done', output_url = $2, srt_url = $3, cost_usd = $4, error = NULL WHERE id = $1`,
     [id, outputUrl, srtUrl, costUsd]
   );
+
+  const { rows } = await pool.query(
+    'SELECT id, client_id, name, source_name, ops, created_by FROM edit_jobs WHERE id = $1', [id]);
+  const job = rows[0];
+  if (!job || !outputUrl) return;
+
+  const ops = job.ops || {};
+  // Wrapped here as well as inside assets.record. record's own guarantee is
+  // that it does not throw, but this call site is the one where throwing would
+  // cost a two-minute render that has already succeeded, so the guarantee is
+  // made locally rather than inherited from another file's promise.
+  try {
+    const assets = require('./assets');
+    await assets.record({
+      client_id: job.client_id, kind: 'video',
+      source: 'edit_job', source_id: job.id,
+      // The operator's own name first. "Edit" in a grid of thirty is no use to
+      // anyone, and the source filename is at least theirs.
+      title: job.name || job.source_name || 'Edit',
+      url: outputUrl, mime: 'video/mp4',
+      duration_s: durationS, width, height, bytes,
+      created_by: job.created_by || null,
+      metadata: {
+        aspect: ops.aspect || null,
+        caption_template: ops.caption_template || null,
+        captions: !!ops.captions,
+        clean_audio: !!ops.clean_audio,
+        stills_reel: !!ops.stills_reel,
+        srt_url: srtUrl,
+      },
+    });
+  } catch (err) {
+    console.error('[edit] could not index a finished edit:', err.message);
+  }
 }
 
 async function fail(id, error) {
