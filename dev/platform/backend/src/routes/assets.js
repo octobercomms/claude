@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const scenes = require('../services/scenes');
+const silenceCut = require('../services/silenceCut');
 const socialCaptionRender = require('../services/socialCaptionRender');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
@@ -139,5 +140,60 @@ router.post('/clients/:clientId/scene-render',
       res.status(400).json({ error: err.message });
     }
   });
+
+// ── Silence and filler removal ───────────────────────────────────────────────
+//
+// Two steps on purpose. `propose` says what it would take out and changes
+// nothing; `apply` renders exactly the spans it is handed. An automatic cut
+// that removes a deliberate pause is worse than no cut at all, because it is
+// harder to notice than it is to fix.
+
+router.post('/assets/:id/cut-proposal', assetAccess, async (req, res) => {
+  try {
+    if (req.asset.kind !== 'video') return res.status(400).json({ error: 'That asset is not a video.' });
+    const source = socialCaptionRender.localPath(req.asset.client_id, req.asset);
+    if (!source) return res.status(400).json({ error: 'That clip could not be found on disk.' });
+    const plan = await silenceCut.propose({
+      source, words: req.body?.words || null, options: req.body?.options || {} });
+    res.json(plan);
+  } catch (err) {
+    console.error('[silence] proposal failed:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/assets/:id/cut-apply', assetAccess, async (req, res) => {
+  try {
+    const keep = req.body?.keep;
+    if (!Array.isArray(keep) || !keep.length) {
+      return res.status(400).json({ error: 'Nothing to keep. Run the proposal first.' });
+    }
+    if (req.asset.kind !== 'video') return res.status(400).json({ error: 'That asset is not a video.' });
+    const clientId = req.asset.client_id;
+    const source = socialCaptionRender.localPath(clientId, req.asset);
+    if (!source) return res.status(400).json({ error: 'That clip could not be found on disk.' });
+
+    const dir = path.join(UPLOAD_ROOT, clientId);
+    fs.mkdirSync(dir, { recursive: true });
+    const name = `tightened-${Date.now()}-${crypto.randomBytes(3).toString('hex')}.mp4`;
+    const out = await silenceCut.apply({ source, keep, outPath: path.join(dir, name) });
+
+    // A new asset rather than a replacement. The original is what the operator
+    // compares against, and an edit that overwrote its own source would make
+    // "put it back" impossible.
+    const asset = await assets.record({
+      client_id: clientId, source: 'upload', source_id: name,
+      title: `${req.asset.title || 'Clip'} · tightened`,
+      url: `/api/brand/file/${clientId}/${name}`, mime: 'video/mp4',
+      duration_s: out.seconds, bytes: out.bytes, created_by: req.user?.id || null,
+      metadata: { tightened_from: req.asset.id, spans: out.spans,
+        was_s: Number(req.asset.duration_s) || null },
+    });
+    res.status(201).json({ asset, ...out });
+  } catch (err) {
+    console.error('[silence] apply failed:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
 
 module.exports = router;
