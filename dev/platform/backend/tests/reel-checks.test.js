@@ -57,8 +57,12 @@ async function main() {
     'a reel that starts at 2.4s fails');
   ok(by(checkReel({ timings: say(GOOD, { start: 0.9 }), edit: {} }), 'hook_timing').pass === true,
     'and one that starts at 0.9s passes');
-  ok(by(checkReel({ timings: [], edit: {} }), 'hook_timing').pass === false,
-    'no audio at all is not a pass');
+  // Null rather than false, and the distinction matters on screen: an edit
+  // whose words have not been timed yet is unjudged, not badly made. This read
+  // false until the editor's panel turned out to be running on an empty
+  // transcript, which showed an amber dot against reels that open perfectly.
+  ok(by(checkReel({ timings: [], edit: {} }), 'hook_timing').pass === null,
+    'no audio at all is not judged either way');
 
   console.log('\nThe hook has to state something checkable');
   ok(by(checkReel({ timings: say('For two hundred years every map showed a continent'), edit: {} }),

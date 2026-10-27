@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import StillsReelPanel from '../components/edit/StillsReelPanel';
+import ReelChecks from '../components/ReelChecks';
 
 // Edit — a guided video editor. Upload one clip (trim / clean audio / captions)
 // or several (combined into one video first), rendered server-side with ffmpeg +
@@ -436,6 +437,32 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                     <span>bottom</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Does this reel do the seven things that make a reel work, and
+                what has each of those been worth on this client's own reels?
+                Advisory, never blocking: a checklist that stops you rendering
+                gets switched off within a fortnight.
+
+                It sits above the render button because that is where the
+                decision is, and it judges what the browser already knows: the
+                length after trimming, and whether captions are being burned.
+                The four checks that read the words wait for the transcript,
+                which does not exist until the render transcribes, and they show
+                as unjudged rather than failed until then. */}
+            {clips.length > 0 && (
+              <div style={{ borderTop: 'var(--border-w) solid var(--card-border)',
+                paddingTop: 'var(--s3)' }}>
+                <ReelChecks
+                  clientId={clientId}
+                  timings={[]}
+                  edit={{
+                    duration_s: keptDuration || null,
+                    caption_template: captions ? 'auto-captions' : null,
+                    brand: client?.name || null,
+                  }}
+                />
               </div>
             )}
 

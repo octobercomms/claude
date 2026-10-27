@@ -16,6 +16,7 @@ const path = require('path');
 const crypto = require('crypto');
 const scenes = require('../services/scenes');
 const silenceCut = require('../services/silenceCut');
+const reelOutcomes = require('../services/reelOutcomes');
 const socialCaptionRender = require('../services/socialCaptionRender');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
@@ -195,5 +196,26 @@ router.post('/assets/:id/cut-apply', assetAccess, async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+
+/**
+ * What the reel checks have been worth for this client.
+ *
+ * Read-only, and deliberately cheap enough for a panel to call on open: two
+ * queries and arithmetic. It answers per check whether the reels that passed it
+ * did better than the reels that did not, how many reels are behind that, and
+ * what it is still too early to say.
+ */
+router.get('/clients/:clientId/reel-outcomes',
+  requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+    try {
+      const days = req.query.days ? Number(req.query.days) : undefined;
+      const measure = req.query.measure === 'interaction_multiple'
+        ? 'interaction_multiple' : 'reach_multiple';
+      res.json(await reelOutcomes.learn(req.params.clientId, { days, measure }));
+    } catch (err) {
+      console.error('[reel-checks] outcomes failed:', err.message);
+      res.status(400).json({ error: err.message });
+    }
+  });
 
 module.exports = router;

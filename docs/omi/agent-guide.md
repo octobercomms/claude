@@ -472,6 +472,46 @@ progress is obvious on `platform.octobercomms.com`.
   `assets.record` NEVER throws at its caller: a render that discarded a
   finished video because the library was briefly unreachable would be far worse
   than one missing row.
+- **`ClientVideoPage.jsx` is dead code and nothing imports it.** The Produce
+  tab's Edit panel is `ClientEditPage.jsx`; `ClientVideoPage.jsx` is an older
+  studio page that no route reaches. Two features were mounted there and so
+  were never visible in the product: the reel checks (now moved to
+  `ClientEditPage`) and `CaptionTemplates`, the 31-template caption picker,
+  which is **still** only mounted on the dead page. The caption library is
+  reachable from Shared, where `socialCaptionRender` burns an ASS template; the
+  Produce edit pipeline still burns a plain Whisper SRT with its own size and
+  position controls and takes no template at all. Wiring the library into that
+  render is real work, not a re-mount. Before adding a panel anywhere, check
+  that something imports the page you are adding it to.
+- **The reel checks are recorded at production time, not in the browser.**
+  `reel_check_results` holds one row per reel produced, written by
+  `services/reelOutcomes.record` from `socialCaptionRender`, where the words,
+  the template and the duration are all in hand. The panel in the editor runs
+  on every keystroke against an unfinished edit; that judgement is worth
+  nothing and is never stored. `reelOutcomes.learn` puts those rows beside
+  `socialBaseline.score` and reports, per check, the median baseline multiple
+  of the reels that passed against those that did not.
+- **A rule change splits the population, and `RULES_FINGERPRINT` is what keeps
+  the two apart.** It is derived from the hype list, the self-promotion list,
+  the fact regex, `THRESHOLDS` and the check keys read off `checkReel` itself,
+  rather than hand-versioned, because a constant to bump is a constant to
+  forget and forgetting it is silent. Change any rule and every row written
+  before it stops being pooled; the panel says how many were excluded. If you
+  add a threshold, put it in `THRESHOLDS` and read it from there, or the
+  fingerprint will claim to cover a number it does not.
+- **`Number(null)` is 0, and that nearly turned a withheld baseline into a reel
+  that reached nothing.** `socialBaseline` refuses to quote a multiple under
+  five comparable posts, so the field comes back null; coercing before testing
+  it put those reels into whichever arm they belonged to with a value of zero
+  and dragged that arm's median down. Test the raw value for null, undefined
+  and empty string before `Number()`. The same trap applies anywhere a nullable
+  numeric column meets `Number.isFinite`.
+- **A check that nothing varies on is not a result.** If every reel passed it,
+  there is no comparison and the passing arm's median must never be printed as
+  a lift. Equally, a real sample with no difference is itself the finding: the
+  rule does not predict anything for that client, which is worth saying before
+  anyone optimises for it.
+
 - **A cut plan must be told the file's length.** `planCuts` works from word
   timings, and a transcript ends at the last word Whisper heard. Without
   `media_s` the plan ends there too, so anything after it is dropped silently
