@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../utils/api';
 
 /**
@@ -19,15 +19,41 @@ import { api } from '../utils/api';
 const LINE = 'var(--border-w) solid var(--card-border)';
 const CAP = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' };
 
-/** What the template looks like, without rendering it. */
-function Swatch({ sw, font, active }) {
+/**
+ * What the template looks like.
+ *
+ * Two modes, and the difference matters. The swatch is drawn from the template
+ * row, so showing twenty-seven costs nothing. The example is the template
+ * burned over real footage, which is the only thing that answers the questions
+ * an operator actually has: does it clear the speaker's face, does it hold up
+ * over a bright shot, is the motion too much for this client.
+ *
+ * Examples are muted, looping and play on hover, because twenty-seven clips all
+ * playing at once is unreadable and twenty-seven that need clicking is worse.
+ */
+function Swatch({ sw, font, active, exampleSrc }) {
+  const ref = useRef(null);
+  const box = {
+    height: exampleSrc ? 150 : 72, borderRadius: 'var(--r-sm)', border: LINE,
+    background: 'var(--surface-sunken, #141414)', overflow: 'hidden',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    outline: active ? '2px solid var(--accent)' : 'none', outlineOffset: 2,
+  };
+  if (exampleSrc) {
+    return (
+      <div style={box}
+        onMouseEnter={() => ref.current?.play().catch(() => {})}
+        onMouseLeave={() => { if (ref.current) { ref.current.pause(); ref.current.currentTime = 2.4; } }}>
+        <video ref={ref} src={exampleSrc} muted loop playsInline preload="metadata"
+          // Land on a word rather than between two, or every example shows the
+          // template at rest and they all look the same.
+          onLoadedMetadata={(e) => { e.currentTarget.currentTime = 2.4; }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      </div>
+    );
+  }
   return (
-    <div style={{
-      height: 72, borderRadius: 'var(--r-sm)', border: LINE,
-      background: 'var(--surface-sunken, #141414)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      outline: active ? '2px solid var(--accent)' : 'none', outlineOffset: 2,
-    }}>
+    <div style={box}>
       <span style={{ fontFamily: `"${font}", system-ui`, fontWeight: 800, fontSize: 17, letterSpacing: -0.2 }}>
         <span style={{ color: sw.accent }}>custom</span>
         <span style={{ color: sw.ink, marginLeft: 5 }}>art</span>
@@ -42,12 +68,19 @@ export default function CaptionTemplates({ clientId, value, onChange, format = '
   const [error, setError] = useState(null);
   const [withKit, setWithKit] = useState(true);
   const [filter, setFilter] = useState('');
+  const [sample, setSample] = useState(null);     // is there a clip to render examples over
+  const [showExamples, setShowExamples] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const selected = value || null;
 
   useEffect(() => {
     api.get('/video/caption-templates')
       .then((r) => setTemplates(r.templates || []))
       .catch((e) => setError(e.message));
+  }, []);
+
+  useEffect(() => {
+    api.get('/video/caption-sample-status').then(setSample).catch(() => setSample(null));
   }, []);
 
   useEffect(() => {
@@ -64,6 +97,16 @@ export default function CaptionTemplates({ clientId, value, onChange, format = '
       .toLowerCase().includes(q));
   }, [templates, filter]);
 
+  // The examples are rendered over the house clip and cached on the server, so
+  // the first open of this screen pays for them once and nobody pays again.
+  // Keyed on the clip's own timestamp, so replacing it refreshes every example
+  // rather than leaving the gallery describing footage nobody uses.
+  const exampleFor = (id) => (sample?.uploaded && showExamples
+    ? `/api/video/caption-sample/${encodeURIComponent(id)}.mp4`
+      + `?v=${encodeURIComponent(sample.updated_at || '')}`
+      + (clientId && withKit ? `&client_id=${encodeURIComponent(clientId)}` : '')
+    : null);
+
   // Cache-busting is deliberate: the frame depends on the client's kit, which
   // changes when their brand assets do, and a stale preview is a wrong answer.
   const previewSrc = selected && clientId
@@ -77,8 +120,17 @@ export default function CaptionTemplates({ clientId, value, onChange, format = '
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s2)', flexWrap: 'wrap' }}>
         <span style={{ fontWeight: 700 }}>Caption template</span>
-        <input className="input" style={{ width: 200 }} placeholder="Filter…"
-          value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <span className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
+          {sample?.uploaded && (
+            <label style={{ ...CAP, display: 'inline-flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showExamples}
+                onChange={(e) => setShowExamples(e.target.checked)} />
+              Show examples
+            </label>
+          )}
+          <input className="input" style={{ width: 180 }} placeholder="Filter…"
+            value={filter} onChange={(e) => setFilter(e.target.value)} />
+        </span>
       </div>
 
       {/* What the client's own kit contributed, and what it could not. */}
@@ -124,7 +176,8 @@ export default function CaptionTemplates({ clientId, value, onChange, format = '
             style={{
               textAlign: 'left', background: 'none', border: 0, padding: 0, cursor: 'pointer',
             }}>
-            <Swatch sw={t.swatch} font={t.font} active={selected === t.id} />
+            <Swatch sw={t.swatch} font={t.font} active={selected === t.id}
+              exampleSrc={exampleFor(t.id)} />
             <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginTop: 4 }}>{t.name}</div>
             <div style={{ ...CAP, lineHeight: 1.35 }}>{t.animation} · {t.font}</div>
             {t.best_for ? <div style={{ ...CAP, lineHeight: 1.35 }}>{t.best_for}</div> : null}
@@ -134,6 +187,34 @@ export default function CaptionTemplates({ clientId, value, onChange, format = '
       {!shown.length && templates.length
         ? <div style={{ ...CAP, marginTop: 'var(--s2)' }}>Nothing matches &ldquo;{filter}&rdquo;.</div>
         : null}
+
+      {/* The clip every example is rendered over. One clip for the whole
+          platform on purpose: comparing templates is only fair when they are
+          all doing the same four seconds. */}
+      <div style={{ ...CAP, marginTop: 'var(--s3)', paddingTop: 'var(--s2)', borderTop: LINE, lineHeight: 1.5 }}>
+        {sample?.uploaded
+          ? <>Examples are rendered over the house sample clip, last replaced{' '}
+            {new Date(sample.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}.</>
+          : <>No sample clip yet, so the grid shows colour swatches. Upload four seconds of a
+            talking head and every template gets a moving example.</>}
+        <label className="btn btn-secondary btn-sm" style={{ marginLeft: 'var(--s2)', cursor: uploading ? 'wait' : 'pointer' }}>
+          {uploading ? 'Preparing…' : sample?.uploaded ? 'Replace clip' : 'Upload a clip'}
+          <input type="file" accept="video/*" style={{ display: 'none' }} disabled={uploading}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              setUploading(true);
+              try {
+                const body = new FormData();
+                body.append('file', file);
+                await api.postForm('/video/caption-sample-clip', body);
+                const next = await api.get('/video/caption-sample-status');
+                setSample(next);
+              } catch (err) { setError(err.message); } finally { setUploading(false); }
+            }} />
+        </label>
+      </div>
 
       {previewSrc && (
         <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>

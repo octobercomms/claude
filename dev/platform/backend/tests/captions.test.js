@@ -206,6 +206,60 @@ async function main() {
   ok(!svc.kitFromAssets([{ kind: 'palette', metadata: { colors: ['nonsense', ''] } }]).accent,
     'a palette of junk yields no accent');
 
+  // --- the sample gallery ------------------------------------------------------
+  //
+  // A swatch says what a template's colours are. It cannot say whether the
+  // caption clears the speaker's face or holds up over a bright shot, which is
+  // what an operator is choosing on. These check the machinery around that:
+  // mostly the cache, because a cache that serves a stale example is a gallery
+  // that quietly describes footage nobody uses any more.
+  if (ffmpeg) {
+    console.log('\nThe sample gallery renders over one clip and caches the result');
+    const sampleTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sample-'));
+    const stand = path.join(sampleTmp, 'stand.mp4');
+    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi',
+      '-i', 'gradients=s=540x960:d=4:speed=0.1:n=3:r=25', '-t', '4',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', stand], { stdio: 'ignore' });
+
+    const had = svc.houseClip();
+    const keep = had ? fs.readFileSync(had) : null;
+    try {
+      await svc.setHouseClip(stand);
+      ok(!!svc.houseClip(), 'an uploaded clip becomes the house clip');
+
+      const a = await svc.sampleClip({ templateId: 'nordic-clean' });
+      ok(fs.existsSync(a) && fs.statSync(a).size > 5000, 'and a template renders over it');
+
+      const again = await svc.sampleClip({ templateId: 'nordic-clean' });
+      ok(again === a, 'a second request is served from the cache, not re-rendered');
+
+      const skinned = await svc.sampleClip({ templateId: 'nordic-clean', kit: { accent: '#C8701E' } });
+      ok(skinned !== a, 'a client kit gets its own file rather than colliding with the house one');
+      ok(fs.statSync(skinned).size > 5000, 'and it renders too');
+
+      // The one that rots in silence. Without the clip in the key, replacing
+      // the footage leaves every example showing the old clip until somebody
+      // empties the folder by hand, and nobody thinks to.
+      const countBefore = fs.readdirSync(svc.CACHE_DIR).length;
+      await svc.setHouseClip(stand);
+      ok(countBefore > 0 && fs.readdirSync(svc.CACHE_DIR).length === 0,
+        'replacing the clip empties the cache');
+      const c = await svc.sampleClip({ templateId: 'nordic-clean' });
+      ok(c !== a, 'and the new example is a different file from the old one');
+
+      let refused = null;
+      try { await svc.sampleClip({ templateId: 'not-a-template' }); }
+      catch (e) { refused = e.message; }
+      ok(/not-a-template/.test(refused || ''),
+        'an unknown template is refused by name rather than rendering nothing');
+    } finally {
+      svc.clearSampleCache();
+      if (keep) fs.writeFileSync(svc.houseClip() || path.join(svc.SAMPLES_DIR, 'house.mp4'), keep);
+      else { const h = path.join(svc.SAMPLES_DIR, 'house.mp4'); fs.existsSync(h) && fs.unlinkSync(h); }
+      fs.rmSync(sampleTmp, { recursive: true, force: true });
+    }
+  }
+
   console.log(failures ? `\n${failures} FAILED` : '\nall passed');
   process.exit(failures ? 1 : 0);
 }

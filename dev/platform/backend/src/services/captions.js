@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
 const SHARED = path.join(__dirname, '..', '..', '..', 'shared', 'captions');
@@ -183,7 +184,116 @@ async function burn({ words, templateId, kit, formatId = 'vertical', source, out
   return outPath;
 }
 
+// --- the sample gallery -------------------------------------------------------
+//
+// A swatch says what a template's colours are. It does not say whether the
+// caption clears the speaker's face, whether it holds up over a bright shot, or
+// whether the motion is too much for a hotel's case study. Those are the
+// questions an operator is actually asking, and only moving footage answers
+// them, so each template gets a short example rendered over the same clip.
+//
+// Rendered once and cached on disk rather than committed: twenty-seven clips is
+// tens of megabytes, and they are derived from two things already in the repo.
+
+const SAMPLES_DIR = path.join(__dirname, '..', '..', 'video-samples');
+const CACHE_DIR = path.join(SAMPLES_DIR, 'cache');
+const HOUSE_CLIP = path.join(SAMPLES_DIR, 'house.mp4');
+
+/** Nine words with plausible timings, so an example shows motion, not a still. */
+const SAMPLE_WORDS = [
+  { word: 'Fifteen', start: 0.10, end: 0.52 }, { word: 'years', start: 0.52, end: 0.88 },
+  { word: 'later', start: 0.88, end: 1.22 }, { word: 'the', start: 1.22, end: 1.36 },
+  { word: 'company', start: 1.36, end: 1.90 }, { word: 'creates', start: 1.90, end: 2.32 },
+  { word: 'custom', start: 2.32, end: 2.74 }, { word: 'art', start: 2.74, end: 2.98 },
+  { word: 'programs', start: 2.98, end: 3.52 },
+];
+
+function houseClip() { return fs.existsSync(HOUSE_CLIP) ? HOUSE_CLIP : null; }
+
+/**
+ * A cache key that changes when anything the output depends on changes.
+ *
+ * The clip, the preset library and the client's kit all feed the frame, so all
+ * three are in the key. Without the clip's mtime, replacing house.mp4 would
+ * leave every example showing the old footage until someone emptied the folder
+ * by hand, and nobody would think to.
+ */
+function sampleKey(templateId, kit) {
+  const parts = [templateId];
+  const clip = houseClip();
+  parts.push(clip ? String(fs.statSync(clip).mtimeMs) : 'noclip');
+  parts.push(String(fs.statSync(PRESETS_PATH).mtimeMs));
+  parts.push(kit ? JSON.stringify(kit) : 'house');
+  return crypto.createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
+}
+
+/**
+ * One example clip, cached. Deliberately small: 540 wide, no audio, and only as
+ * long as the words last. This is a thumbnail that moves, not a deliverable.
+ */
+async function sampleClip({ templateId, kit = null, formatId = 'vertical' }) {
+  preset(templateId);                       // refuse an unknown id before any work
+  const source = houseClip();
+  if (!source) throw new Error('No sample clip. Upload one under Produce to see moving examples.');
+
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  const out = path.join(CACHE_DIR, `${templateId}-${sampleKey(templateId, kit)}.mp4`);
+  if (fs.existsSync(out) && fs.statSync(out).size > 1000) return out;
+
+  const format = formats()[formatId] || formats().vertical;
+  const ass = await toAss({ words: SAMPLE_WORDS, templateId, kit, formatId });
+  const assPath = `${out}.ass`;
+  fs.writeFileSync(assPath, ass);
+  const height = Math.round((540 / format.width) * format.height / 2) * 2;
+  try {
+    // Captions are burned at full size and the result scaled down, rather than
+    // burned onto a small frame: libass would otherwise hint the type at 540
+    // wide and the example would show a weight the real render never produces.
+    await run('ffmpeg', ['-y', '-loglevel', 'error', '-t', '4', '-i', source,
+      '-vf', `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,`
+        + `crop=${format.width}:${format.height},setsar=1,`
+        + `subtitles=${assPath}:fontsdir=${FONTS_DIR},scale=540:${height}`,
+      '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '30',
+      '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out]);
+  } catch (e) {
+    fs.existsSync(out) && fs.unlinkSync(out);
+    throw e;
+  } finally { fs.existsSync(assPath) && fs.unlinkSync(assPath); }
+  return out;
+}
+
+/**
+ * Take whatever clip the operator uploads and make it the house sample.
+ *
+ * Normalised on the way in rather than stored as given: a 200MB ProRes file and
+ * a phone video have to produce the same four seconds, or the gallery is as
+ * slow as the worst thing anyone has uploaded. Dropping the audio is part of
+ * that, and a gallery that makes noise when you scroll it is nobody's idea.
+ */
+async function setHouseClip(srcPath) {
+  fs.mkdirSync(SAMPLES_DIR, { recursive: true });
+  const tmp = `${HOUSE_CLIP}.incoming.mp4`;
+  await run('ffmpeg', ['-y', '-loglevel', 'error', '-t', '4', '-i', srcPath,
+    '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
+    '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+    '-pix_fmt', 'yuv420p', '-movflags', '+faststart', tmp]);
+  fs.renameSync(tmp, HOUSE_CLIP);
+  // Every cached example was rendered over the old footage, so none of them
+  // describes the library any more.
+  clearSampleCache();
+  return HOUSE_CLIP;
+}
+
+function clearSampleCache() {
+  if (!fs.existsSync(CACHE_DIR)) return 0;
+  const files = fs.readdirSync(CACHE_DIR);
+  for (const f of files) { try { fs.unlinkSync(path.join(CACHE_DIR, f)); } catch { /* gone already */ } }
+  return files.length;
+}
+
 module.exports = {
+  sampleClip, setHouseClip, clearSampleCache, houseClip, SAMPLE_WORDS,
+  SAMPLES_DIR, CACHE_DIR,
   templates, formats, preset, kitFromAssets, toAss, previewFrame, burn,
   FONTS_DIR, PRESETS_PATH,
   // exported for the tests

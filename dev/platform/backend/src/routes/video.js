@@ -8,7 +8,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
-const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
+const { loadVisibleClientIds, requireClientAccess, assertClientAccess, requireAdmin } = require('../middleware/clientAccess');
 const pool = require('../db');
 const videoProjects = require('../services/videoProjects');
 const captions = require('../services/captions');
@@ -235,5 +235,63 @@ const SAMPLE_WORDS = [
   { word: 'custom', start: 2.22, end: 2.64 }, { word: 'art', start: 2.64, end: 2.88 },
   { word: 'programs', start: 2.88, end: 3.42 },
 ];
+
+// ── The sample gallery ───────────────────────────────────────────────────────
+//
+// What a template does to real footage, which a colour swatch cannot show.
+// Every template over the same four seconds, so the comparison is fair.
+
+// The house clip itself, so the screen can say whether one has been uploaded
+// and show the operator what the examples are rendered over.
+router.get('/caption-sample-clip', (req, res) => {
+  const clip = captions.houseClip();
+  if (!clip) return res.status(404).json({ error: 'No sample clip uploaded yet.' });
+  res.sendFile(clip);
+});
+
+router.get('/caption-sample-status', (req, res) => {
+  const clip = captions.houseClip();
+  res.json({
+    uploaded: !!clip,
+    updated_at: clip ? fs.statSync(clip).mtime : null,
+    bytes: clip ? fs.statSync(clip).size : 0,
+  });
+});
+
+/**
+ * One template's example. `client_id` applies that client's kit; without it the
+ * template renders as its author drew it.
+ *
+ * A GET so the gallery is a plain <video src>, and cached on disk, so the first
+ * open of the page pays for the renders and nobody pays again.
+ */
+router.get('/caption-sample/:templateId.mp4', async (req, res) => {
+  try {
+    let kit = null;
+    if (req.query.client_id) {
+      assertClientAccess(req, req.query.client_id);
+      const { rows } = await pool.query(
+        `SELECT kind, name, metadata FROM brand_assets
+          WHERE client_id = $1 AND kind IN ('font', 'palette')`, [req.query.client_id]);
+      kit = captions.kitFromAssets(rows);
+    }
+    const file = await captions.sampleClip({ templateId: req.params.templateId, kit });
+    res.sendFile(file);
+  } catch (err) { res.status(err.status || 400).json({ error: err.message }); }
+});
+
+// Replace the clip every example is rendered over. Admin-only: it changes what
+// every operator sees on every client.
+router.post('/caption-sample-clip', requireAdmin, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file.' });
+  try {
+    await captions.setHouseClip(req.file.path);
+    res.json({ ok: true, cleared: true });
+  } catch (err) {
+    res.status(400).json({ error: `That file could not be read as video: ${err.message}` });
+  } finally {
+    fs.unlink(req.file.path, () => {});
+  }
+});
 
 module.exports = router;

@@ -437,6 +437,12 @@ progress is obvious on `platform.octobercomms.com`.
   engines the compiler implements. Do not add a template as a React
   composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
   three.
+- **The caption gallery renders every template over ONE clip**
+  (`backend/video-samples/house.mp4`, replaceable from the Produce screen by an
+  admin) and caches the results in `video-samples/cache/`, which is gitignored.
+  The cache key carries the clip's mtime AND the presets file's, so replacing
+  either refreshes every example. Drop that and the gallery goes on describing
+  footage nobody uses, silently, which is the failure this is built around.
 - **Captions render with ffmpeg and libass, not Remotion, and the reason is a
   bill.** Remotion's free licence covers organisations up to three people;
   past that, a tool that renders video sits in their Automators tier at $100 a
