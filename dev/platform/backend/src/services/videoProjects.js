@@ -6,6 +6,7 @@
 // live in one place. See docs/omi/video-autoedit-plan.md.
 
 const pool = require('../db');
+const assets = require('./assets');
 const crypto = require('crypto');
 
 // Short-lived signed public URL for a finished master, so an external fetcher
@@ -230,11 +231,26 @@ async function applyClipProbe(clipId, { duration_s, width, height } = {}) {
 }
 
 async function patchProject(projectId, { score, output_url } = {}) {
-  await pool.query(
+  const { rows } = await pool.query(
     `UPDATE video_projects SET score = COALESCE($2, score), output_url = COALESCE($3, output_url), updated_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1 RETURNING client_id, name, output_url, style_preset, score`,
     [projectId, score ?? null, output_url ?? null]
   );
+  // Index it the moment an output exists. Before the library, a finished edit
+  // was reachable only by opening the project that made it, so nothing else in
+  // OMI could offer it: not the scheduler, not another section, not a search.
+  //
+  // The output_url check is about log noise rather than correctness: this
+  // function is also called to record a QA score alone, and assets.record
+  // would refuse those anyway, loudly, on every grade submission.
+  const p = rows[0];
+  if (p?.output_url) {
+    await assets.record({
+      client_id: p.client_id, source: 'video_project', source_id: String(projectId),
+      title: p.name || 'Untitled edit', url: p.output_url, mime: 'video/mp4',
+      metadata: { style_preset: p.style_preset, score: p.score },
+    });
+  }
 }
 
 // Grade stage outcome. The worker submits a QA score; if it's below the bar and

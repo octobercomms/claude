@@ -233,6 +233,10 @@ app.use('/api/leads', require('./routes/leads'));
 app.use('/api/proposals', require('./routes/proposals'));
 app.use('/api/booking', require('./routes/booking'));
 app.use('/api/video', require('./routes/video'));
+// The client asset library: what every tool in Produce, and every production
+// step in Shared, has made. Mounted at the root rather than under a section,
+// because it belongs to no one section.
+app.use('/api', require('./routes/assets'));
 app.use('/api/ai-visibility', require('./routes/aiVisibility'));
 app.use('/api/ai-seo', require('./routes/aiSeo'));
 app.use('/api/clarity', require('./routes/clarity'));

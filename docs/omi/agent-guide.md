@@ -437,6 +437,21 @@ progress is obvious on `platform.octobercomms.com`.
   engines the compiler implements. Do not add a template as a React
   composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
   three.
+- **`client_assets` is the index of everything October has produced**, and the
+  only thing that can answer "what have we made for this client". The five
+  producing tables (`social_post_media`, `recordings`, `video_projects`,
+  `design_pages`, `ad_creative_images`) each stay the record of their own
+  production run; this is what makes them findable. Any new producer must call
+  `assets.record` or its output is invisible outside the tool that made it.
+  `assets.record` NEVER throws at its caller: a render that discarded a
+  finished video because the library was briefly unreachable would be far worse
+  than one missing row.
+- **Two clients in a backfill fixture, never one.** The `client_assets`
+  backfill joins through `social_posts` and `ad_creatives` to reach a client,
+  and with a single post or a single creative a cross join produces the right
+  answer by luck. Both mutations passed against a one-client fixture and failed
+  against two. Any test of a join that supplies a foreign key needs at least
+  two rows on the far side.
 - **The `measured` presets were read off October's own reference reels**, not
   ported. Ten museum reels (Rijksmuseum, Getty, The Met, the Bodleian) were
   analysed pixel by pixel: box opacity from the box against the background

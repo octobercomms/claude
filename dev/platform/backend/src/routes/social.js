@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const assets = require('../services/assets');
 const { authenticate } = require('../middleware/auth');
 const {
   loadVisibleClientIds, requireClientAccess, assertClientAccess,
@@ -33,6 +34,42 @@ function verifyBriefToken(postId, token) {
 const users = require('../services/users');
 
 const router = express.Router();
+
+/**
+ * Save a produced asset against its post AND into the client's library.
+ *
+ * One helper rather than four call sites, because the library is only worth
+ * having if everything lands in it: before this, Shared's production wrote to
+ * social_post_media alone, which carries no client_id, so a reel made here was
+ * reachable only by opening the post that made it. Nothing else in OMI could
+ * offer it.
+ *
+ * The post row stays the record of the production run. The library row is the
+ * index, and it never fails the request: see services/assets.js.
+ */
+async function savePostMedia(post, { kind, provider, url, duration_sec: durationSec, metadata = {} }) {
+  const { rows } = await pool.query(
+    `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [post.id, kind, provider, url, durationSec ?? null, JSON.stringify(metadata)],
+  );
+  const media = rows[0];
+  await assets.record({
+    client_id: post.client_id,
+    // 'motion' and 'video' are both video once they are files on disk; the
+    // distinction belongs to the pipeline that made them, not to a library
+    // someone is browsing.
+    kind: kind === 'audio' ? 'audio' : 'video',
+    source: 'social_media', source_id: media.id,
+    title: metadata.on_screen_text || metadata.script?.slice(0, 80)
+      || `${kind === 'audio' ? 'Voiceover' : 'Video'} for a social post`,
+    url, duration_s: durationSec ?? null,
+    metadata: { ...metadata, provider, post_id: post.id, media_kind: kind },
+  });
+  return media;
+}
+
+
 
 // Public, signed media proxy for the social autopilot. Meta's publish
 // endpoints (image_url / video_url) need a URL they can fetch from the
@@ -328,12 +365,11 @@ router.post('/posts/:id/video', async (req, res) => {
       script: finalScript, actor_id,
       aspect_ratio: aspect_ratio || (post.kind === 'reel' || post.kind === 'story' ? '9:16' : '1:1'),
     });
-    const { rows: row } = await pool.query(
-      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
-       VALUES ($1, 'video', 'arcads', $2, $3, $4) RETURNING *`,
-      [post.id, result.url, result.duration_sec, JSON.stringify({ actor_id: result.actor_id, job_id: result.job_id, script: finalScript })]
-    );
-    res.status(201).json({ media: row[0] });
+    const media = await savePostMedia(post, {
+      kind: 'video', provider: 'arcads', url: result.url, duration_sec: result.duration_sec,
+      metadata: { actor_id: result.actor_id, job_id: result.job_id, script: finalScript },
+    });
+    res.status(201).json({ media });
   } catch (err) {
     console.error('[social] arcads video failed:', err.message);
     res.status(502).json({ error: err.message });
@@ -351,12 +387,11 @@ router.post('/posts/:id/voiceover', async (req, res) => {
     if (!finalScript) return res.status(400).json({ error: 'No script — either pass one or fill out the storyboard.' });
 
     const result = await elevenlabs.generateVoiceover({ text: finalScript, voice_id, client_id: post.client_id });
-    const { rows: row } = await pool.query(
-      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
-       VALUES ($1, 'audio', 'elevenlabs', $2, $3, $4) RETURNING *`,
-      [post.id, result.url, result.duration_sec, JSON.stringify({ voice_id: result.voice_id, script: finalScript })]
-    );
-    res.status(201).json({ media: row[0] });
+    const media = await savePostMedia(post, {
+      kind: 'audio', provider: 'elevenlabs', url: result.url, duration_sec: result.duration_sec,
+      metadata: { voice_id: result.voice_id, script: finalScript },
+    });
+    res.status(201).json({ media });
   } catch (err) {
     console.error('[social] elevenlabs voiceover failed:', err.message);
     res.status(502).json({ error: err.message });
@@ -431,15 +466,10 @@ router.post('/posts/:id/render-templates', async (req, res) => {
     for (const frame of targets) {
       try {
         const result = await remotionRender.renderFrameForPost(post, frame, brandAssets);
-        const { rows: row } = await pool.query(
-          `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
-           VALUES ($1, 'motion', 'remotion', $2, $3, $4) RETURNING *`,
-          [
-            post.id, result.url, result.duration_sec,
-            JSON.stringify({ style: frame.style, frame: frame.frame, on_screen_text: frame.on_screen_text }),
-          ]
-        );
-        rendered.push(row[0]);
+        rendered.push(await savePostMedia(post, {
+          kind: 'motion', provider: 'remotion', url: result.url, duration_sec: result.duration_sec,
+          metadata: { style: frame.style, frame: frame.frame, on_screen_text: frame.on_screen_text },
+        }));
       } catch (err) {
         console.error(`[remotion] frame ${frame.frame} (${frame.style}) failed:`, err.message);
         rendered.push({ style: frame.style, frame: frame.frame, error: err.message });
@@ -471,12 +501,11 @@ router.post('/posts/:id/stitch-reel', async (req, res) => {
     );
 
     const result = await remotionRender.renderStoryboardReel(post, brandAssets);
-    const { rows: row } = await pool.query(
-      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
-       VALUES ($1, 'motion', 'remotion', $2, $3, $4) RETURNING *`,
-      [post.id, result.url, result.duration_sec, JSON.stringify({ stitched: true, frames: frames.length })]
-    );
-    res.status(201).json({ media: row[0] });
+    const media = await savePostMedia(post, {
+      kind: 'motion', provider: 'remotion', url: result.url, duration_sec: result.duration_sec,
+      metadata: { stitched: true, frames: frames.length },
+    });
+    res.status(201).json({ media });
   } catch (err) {
     console.error('[remotion] stitch-reel failed:', err);
     res.status(502).json({ error: err.message });
