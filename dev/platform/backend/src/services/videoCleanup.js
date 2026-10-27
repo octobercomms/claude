@@ -34,7 +34,14 @@ async function runCleanup() {
     if (!olderThan(fp, cutoff)) continue;
     try { fs.unlinkSync(fp); masters++; } catch { /* ignore */ }
     const m = f.match(/^(\d+)-master\.mp4$/);
-    if (m) await pool.query('UPDATE video_projects SET output_url = NULL WHERE id = $1', [m[1]]).catch(() => {});
+    if (m) {
+      await pool.query('UPDATE video_projects SET output_url = NULL WHERE id = $1', [m[1]]).catch(() => {});
+      // And the library row, which is a claim that this file exists. Clearing
+      // output_url stops the Video Studio offering a dead download; it does
+      // nothing for the Library, the scheduler, or anything else that reads
+      // client_assets.
+      await require('./assets').archiveBySource('video_project', m[1]).catch(() => {});
+    }
   }
 
   return { clips, masters, retentionDays: RETENTION_DAYS };
