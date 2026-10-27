@@ -81,6 +81,28 @@ const FACT = new RegExp(
   + `|\\b${WRITTEN}(\\s+${WRITTEN})*\\s+(years?|centur\\w+|decades?|months?|days?|times?|`
   + 'per cent|%|metres?|miles?|people|objects?|maps?|copies|editions?))', 'i');
 
+/**
+ * Does this text say any of these phrases?
+ *
+ * Whole phrase, case-insensitive, on word boundaries. "Garden design" matches
+ * "our garden design practice" and not "gardens designed", which is a real
+ * miss and a deliberate one: stemming would also match "designer gardens" and
+ * every near-miss it invents is a keyword the reel does not actually say.
+ *
+ * Returns what matched rather than a boolean, because an operator asking "does
+ * this reel carry a term we rank for" wants to know which one.
+ */
+function phrasesIn(text, phrases) {
+  const haystack = ` ${String(text || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ')} `;
+  const found = [];
+  for (const raw of (Array.isArray(phrases) ? phrases : [])) {
+    const needle = String(raw || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim();
+    if (!needle) continue;
+    if (haystack.includes(` ${needle} `)) found.push(String(raw));
+  }
+  return found;
+}
+
 function words(text) {
   return String(text || '').trim().split(/\s+/).filter(Boolean);
 }
@@ -116,6 +138,12 @@ export function checkReel(input) {
   const hypeFound = has(hook, HYPE);
   const selfFound = has(transcript, SELF_PROMOTION);
   const brand = String(ed.brand || '').trim().toLowerCase();
+
+  // The terms this client is trying to be found for, and where a reel can say
+  // them: out loud, or on the screen. Both count, because both are read.
+  const keywords = Array.isArray(ed.keywords) ? ed.keywords.filter(Boolean) : [];
+  const onScreen = String(ed.on_screen_text || '');
+  const termsFound = keywords.length ? phrasesIn(`${transcript} ${onScreen}`, keywords) : [];
   const brandHits = brand
     ? (transcript.toLowerCase().match(new RegExp(`\\b${brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g')) || []).length
     : 0;
@@ -185,6 +213,22 @@ export function checkReel(input) {
       rule: 'The zoom reveal: wide view, push into the detail, land the fact.',
     },
     {
+      key: 'says_a_term_we_rank_for',
+      label: 'Says something people search for',
+      // Null when the client tracks no keywords: a reel cannot fail a test
+      // that has nothing to test it against, and an amber dot on every reel
+      // for every client without an SEO setup is how a panel gets ignored.
+      pass: keywords.length ? termsFound.length > 0 : null,
+      detail: !keywords.length
+        ? 'No tracked search terms for this client yet.'
+        : termsFound.length
+          ? `Says: ${termsFound.slice(0, 3).join(', ')}`
+          : `None of ${keywords.length} tracked terms are said or on screen.`,
+      rule: 'The words spoken and on screen are what the platform reads to decide who '
+        + 'to show a reel to. A term nobody searches is a term nobody finds, and forcing '
+        + 'one in is worse than missing it.',
+    },
+    {
       key: 'length',
       label: 'Thirty to forty-five seconds',
       pass: duration > 0
@@ -207,7 +251,9 @@ export function checkReel(input) {
     // prediction that a reel will travel; it is a statement that it does the
     // seven things, which is all these can honestly claim.
     unknown,
-    verdict: passed === checks.length ? 'all_seven'
+    // Not 'all_seven'. A verdict named after a count is a verdict that lies
+    // the first time a check is added, and one just was.
+    verdict: passed === checks.length ? 'all'
       : unknown ? 'early'
         : passed >= 5 ? 'most' : 'early',
     transcript_words: list.length,

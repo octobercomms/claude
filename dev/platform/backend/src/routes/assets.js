@@ -199,6 +199,23 @@ router.post('/assets/:id/cut-apply', assetAccess, async (req, res) => {
 });
 
 /**
+ * The search terms this client tracks, for the reel checks panel.
+ *
+ * Its own route rather than part of the outcomes payload: the panel needs
+ * these to judge the edit in front of the operator, which it does on every
+ * keystroke, while the outcomes are about reels already published.
+ */
+router.get('/clients/:clientId/reel-keywords',
+  requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+    try {
+      res.json({ keywords: await reelOutcomes.keywordsFor(req.params.clientId) });
+    } catch (err) {
+      console.error('[reel-checks] keywords failed:', err.message);
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+/**
  * What the reel checks have been worth for this client.
  *
  * Read-only, and deliberately cheap enough for a panel to call on open: two

@@ -77,7 +77,11 @@ async function publishedReel(clientId, batchId, { reach }) {
       words: words(90), template: 'institution', durationS: 30 });
     await ok('a judgement is recorded with the rules that made it', () => {
       assert.ok(first, 'nothing came back');
-      assert.strictEqual(first.total, 7);
+      // Read off the checker rather than pinned: a number here records how
+      // many checks existed the day it was written, and says nothing about
+      // whether the judgement was stored whole.
+      assert.strictEqual(first.total, first.checks.length);
+      assert.ok(first.total >= 7, `only ${first.total} checks recorded`);
       assert.match(first.rules_fingerprint, /^[0-9a-f]{8}$/);
     });
 

@@ -93,8 +93,16 @@ function Evidence({ outcome }) {
 export default function ReelChecks({ timings = [], edit = {}, defaultOpen = false,
   clientId = null }) {
   const [open, setOpen] = useState(defaultOpen);
-  const result = useMemo(() => checkReel({ timings, edit }), [timings, edit]);
   const [learned, setLearned] = useState(null);
+  const [keywords, setKeywords] = useState([]);
+
+  // The tracked terms join the edit rather than being checked separately, so
+  // the browser and the server judge a reel against exactly the same input.
+  // Declared after the state it reads: a const in a closure above its own
+  // useState throws at render, which neither the linter nor a build notices.
+  const result = useMemo(
+    () => checkReel({ timings, edit: { ...edit, keywords } }),
+    [timings, edit, keywords]);
 
   // One request, on open, and a failure is silent: the checks are the point and
   // they work without this. A panel that shows an error because the evidence
@@ -104,6 +112,9 @@ export default function ReelChecks({ timings = [], edit = {}, defaultOpen = fals
     let live = true;
     api.get(`/clients/${clientId}/reel-outcomes`)
       .then((r) => { if (live) setLearned(r); })
+      .catch(() => {});
+    api.get(`/clients/${clientId}/reel-keywords`)
+      .then((r) => { if (live) setKeywords(r.keywords || []); })
       .catch(() => {});
     return () => { live = false; };
   }, [clientId]);
@@ -152,9 +163,9 @@ export default function ReelChecks({ timings = [], edit = {}, defaultOpen = fals
           is worse than a number. */}
       <div style={{ ...CAP, marginTop: 'var(--s3)', paddingTop: 'var(--s2)',
         borderTop: LINE, lineHeight: 1.5 }}>
-        Seven of seven is not a prediction that a reel will travel. It says the reel does the
-        seven things, which is all these can honestly claim. The thresholds come from October&rsquo;s
-        own growth plan.
+        {result.total} of {result.total} is not a prediction that a reel will travel. It says the
+        reel does the {result.total} things, which is all these can honestly claim. The thresholds
+        come from October&rsquo;s own growth plan.
         {learned ? (
           <>
             {' '}

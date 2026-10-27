@@ -41,11 +41,67 @@ async function main() {
   console.log('A reel built the way the plan describes passes every check');
   const good = checkReel({
     timings: say(GOOD, { start: 0.3, wps: 2.6 }),
-    edit: { caption_template: 'institution', brand: 'Oculi Mundi' },
+    edit: { caption_template: 'institution', brand: 'Oculi Mundi',
+      // A term this client is trying to be found for, said out loud. Without
+      // one the keyword check is unjudgeable and this fixture would quietly
+      // stop testing a full pass.
+      keywords: ['map of the world', 'antique maps'] },
   });
   const failed = good.checks.filter((c) => !c.pass).map((c) => `${c.key}: ${c.detail}`);
-  ok(good.passed === 7, `seven of seven${failed.length ? `\n      ${failed.join('\n      ')}` : ''}`);
-  ok(good.verdict === 'all_seven', 'and the verdict says so');
+  ok(good.passed === good.total,
+    `all ${good.total}${failed.length ? `\n      ${failed.join('\n      ')}` : ''}`);
+  ok(good.verdict === 'all', 'and the verdict says so');
+
+  console.log('\nA reel has to say something people search for');
+  {
+    const k = ['garden design', 'planting plan'];
+    const said = checkReel({ timings: say('We spent two hundred hours on this garden design'),
+      edit: { duration_s: 30, keywords: k } });
+    ok(by(said, 'says_a_term_we_rank_for').pass === true, 'a tracked term said out loud counts');
+    ok(/garden design/.test(by(said, 'says_a_term_we_rank_for').detail),
+      'and the panel names which one, because that is the question being asked');
+
+    const onScreen = checkReel({ timings: say('We spent two hundred hours on it'),
+      edit: { duration_s: 30, keywords: k, on_screen_text: 'Planting plan, Surrey' } });
+    ok(by(onScreen, 'says_a_term_we_rank_for').pass === true,
+      'a term on screen counts too, because the platform reads it');
+
+    const missed = checkReel({ timings: say('We spent two hundred hours on this project'),
+      edit: { duration_s: 30, keywords: k } });
+    ok(by(missed, 'says_a_term_we_rank_for').pass === false,
+      'a reel that carries none of them does not pass');
+
+    const untracked = checkReel({ timings: say('We spent two hundred hours on this project'),
+      edit: { duration_s: 30 } });
+    ok(by(untracked, 'says_a_term_we_rank_for').pass === null,
+      'and a client tracking no terms is unjudged rather than failed');
+
+    // Whole phrase, on word boundaries. Stemming would match every near miss
+    // it invented, and a near miss is a term the reel does not say.
+    const partial = checkReel({ timings: say('We love gardens designed around light'),
+      edit: { duration_s: 30, keywords: k } });
+    ok(by(partial, 'says_a_term_we_rank_for').pass === false,
+      '"gardens designed" is not "garden design"');
+
+    // The case that actually tests the boundaries, and the common one: short
+    // single-word terms are everywhere in a tracked keyword list, and a
+    // substring match would find "design" inside "designer" and report a reel
+    // as carrying a term it never said.
+    const inside = checkReel({ timings: say('We are a designer of quiet interiors'),
+      edit: { duration_s: 30, keywords: ['design'] } });
+    ok(by(inside, 'says_a_term_we_rank_for').pass === false,
+      '"designer" does not contain the term "design"');
+
+    const punctuated = checkReel({ timings: say('This, our garden design, took a year'),
+      edit: { duration_s: 30, keywords: k } });
+    ok(by(punctuated, 'says_a_term_we_rank_for').pass === true,
+      'but punctuation between the words does not hide the phrase');
+
+    const empty = checkReel({ timings: say('Anything at all'),
+      edit: { duration_s: 30, keywords: ['', '   ', null] } });
+    ok(by(empty, 'says_a_term_we_rank_for').pass === false,
+      'and a list of blanks matches nothing rather than everything');
+  }
 
   console.log('\nEvery check carries the rule it came from');
   ok(good.checks.every((c) => c.rule && c.rule.length > 20),
@@ -153,9 +209,14 @@ async function main() {
   for (const input of [undefined, {}, { timings: null }, { timings: 'nope' },
     { timings: [], edit: null }]) {
     const r = checkReel(input);
-    if (!r || r.total !== 7) { ok(false, `broke on ${JSON.stringify(input)}`); break; }
+    // Read off the result rather than retyped: a count in a test is a count
+    // that disagrees with the code the first time a check is added, which is
+    // what happened here.
+    if (!r || r.total !== checkReel({}).total) {
+      ok(false, `broke on ${JSON.stringify(input)}`); break;
+    }
   }
-  ok(checkReel({}).total === 7, 'an empty reel still reports seven checks');
+  ok(checkReel({}).total === 8, 'an empty reel still reports every check');
   ok(checkReel({}).passed === 0, 'none of which pass');
   ok(checkReel({}).verdict === 'early', 'and the verdict says it is early, not failing');
 
@@ -165,7 +226,7 @@ async function main() {
   ok(/planning assumptions, not/.test(src),
     'the source records that the plan\'s figures are assumptions, not measurements');
   ok(!/score|out of 100/i.test(JSON.stringify(checkReel({}))),
-    'and the result is seven checks, not a score out of a hundred');
+    'and the result is a list of checks, not a score out of a hundred');
 
   console.log(failures ? `\n${failures} FAILED` : '\nall passed');
   process.exit(failures ? 1 : 0);

@@ -549,6 +549,25 @@ progress is obvious on `platform.octobercomms.com`.
   nothing and is never stored. `reelOutcomes.learn` puts those rows beside
   `socialBaseline.score` and reports, per check, the median baseline multiple
   of the reels that passed against those that did not.
+- **The eighth check reads the client's tracked search terms.**
+  `says_a_term_we_rank_for` asks whether the reel says, or puts on screen, any
+  of the client's active `seo_keywords` (top 60 by volume; a list of four
+  hundred makes the check true by accident). Matching is whole-phrase on word
+  boundaries, never substring: a tracked term like "design" would otherwise be
+  found inside "designer" and report a reel as carrying a term it never said.
+  Null when the client tracks nothing, because a reel cannot fail a test with
+  nothing to test against. The panel and `reelOutcomes.record` read the same
+  list from the same place, or a judgement taken on the server and one shown
+  in the browser would disagree about what the client is trying to be found
+  for. The rule deliberately does not push an operator to force a term in: on
+  October's clients that fights the register the rest of the checks protect.
+- **Adding a check splits the recorded population, by design.** The eighth one
+  moved the fingerprint from `f89b8c8b` to `c92e1bcc`, so every judgement taken
+  before it stopped pooling and the panel reports them as excluded. That is the
+  cost of a new rule and it is worth paying rarely. `verdict` is now `'all'`
+  rather than `'all_seven'`, and the panel's copy counts `result.total` instead
+  of saying "seven", because a name or a sentence with a count in it lies the
+  first time a check is added.
 - **A rule change splits the population, and `RULES_FINGERPRINT` is what keeps
   the two apart.** It is derived from the hype list, the self-promotion list,
   the fact regex, `THRESHOLDS` and the check keys read off `checkReel` itself,

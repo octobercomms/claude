@@ -219,8 +219,12 @@ function arms(key, nPass, nFail, mp, mf, fp = 'fp1') {
     ok('it covers every key the checker actually produces', () => {
       // Derived from checkReel rather than retyped, so a new check changes the
       // fingerprint and splits the population instead of joining it.
+      // Not a retyped count. The fingerprint's job is to change when the key
+      // list does, so pinning a number here would only record how many checks
+      // existed the day this was written.
       const keys = checkReel({}).checks.map((c) => c.key);
-      assert.strictEqual(keys.length, 7);
+      assert.ok(keys.length >= 7, `only ${keys.length} checks`);
+      assert.strictEqual(new Set(keys).size, keys.length, 'a key is duplicated');
       assert.ok(keys.includes('length'));
     });
     ok('and the thresholds it covers are the ones the checker reads', () => {
