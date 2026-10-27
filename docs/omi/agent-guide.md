@@ -437,6 +437,13 @@ progress is obvious on `platform.octobercomms.com`.
   engines the compiler implements. Do not add a template as a React
   composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
   three.
+- **A client's brand kit may change a caption's typeface, never its structure.**
+  `acceptsAccent: false` on the measured presets stops a client's accent being
+  applied to a template that highlights nothing. Letting it through turned the
+  box under the spoken word orange on `institution`, which is a creator caption
+  wearing an institution's clothes, and it is the opposite of why those presets
+  exist. A skin that could change size, weight or highlighting would make "the
+  Nordic one" mean something different on every account.
 - **`client_assets` is the index of everything October has produced**, and the
   only thing that can answer "what have we made for this client". The five
   producing tables (`social_post_media`, `recordings`, `video_projects`,

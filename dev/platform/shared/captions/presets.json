@@ -7,7 +7,8 @@
   "_shape": {
     "note": "A template is DATA. Everything that differs between two looks is a field here, so a 28th template is one row and no code. The four colour fields and fontName are the slots a client's brand kit fills; everything else is what the template itself owns.",
     "colours": "Hex, as authored. ASS wants BGR, which the compiler converts.",
-    "animationType": "One of the engines in captionCompiler.js: highlight, box, karaoke, scale, pop, bounce, glow."
+    "animationType": "One of the engines in captionCompiler.js: highlight, box, karaoke, scale, pop, bounce, glow.",
+    "acceptsAccent": "False when the template has no accented word at all. The measured presets set it because the reels they came from highlight nothing: applying a client's accent would add per-word highlighting to a template chosen precisely for not having any. The typeface still comes from the kit."
   },
   "styles": {
     "hormozi": {
@@ -655,7 +656,8 @@
       "wordsPerLine": 6,
       "previewText": "He had already drawn out",
       "bestFor": "Archive and collection storytelling",
-      "measuredFrom": "Bodleian reel: glyph run 25px at 1280 = 38 at 1920, box alpha 0.66"
+      "measuredFrom": "Bodleian reel: glyph run 25px at 1280 = 38 at 1920, box alpha 0.66",
+      "acceptsAccent": false
     },
     "institution-soft": {
       "id": "institution-soft",
@@ -681,7 +683,8 @@
       "wordsPerLine": 6,
       "previewText": "At the time, this doll's house",
       "bestFor": "Object and interiors films",
-      "measuredFrom": "Rijksmuseum doll's house: glyph run 27px at 1280 = 40 at 1920, box alpha 0.53"
+      "measuredFrom": "Rijksmuseum doll's house: glyph run 27px at 1280 = 40 at 1920, box alpha 0.53",
+      "acceptsAccent": false
     },
     "gallery": {
       "id": "gallery",
@@ -706,7 +709,8 @@
       "wordsPerLine": 6,
       "previewText": "a symbol of love.",
       "bestFor": "Talking head where the shot carries the frame",
-      "measuredFrom": "Rijksmuseum Vermeer and Getty colour: no box, glyph run 25-27px at 1280"
+      "measuredFrom": "Rijksmuseum Vermeer and Getty colour: no box, glyph run 25-27px at 1280",
+      "acceptsAccent": false
     },
     "gallery-quiet": {
       "id": "gallery-quiet",
@@ -731,7 +735,8 @@
       "wordsPerLine": 7,
       "previewText": "and we have a presentation copy here",
       "bestFor": "Long-form archive pieces",
-      "measuredFrom": "Rijksmuseum Vermeer, the smallest of the ten"
+      "measuredFrom": "Rijksmuseum Vermeer, the smallest of the ten",
+      "acceptsAccent": false
     }
   },
   "outputFormats": {

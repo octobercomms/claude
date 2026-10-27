@@ -1,6 +1,8 @@
 const express = require('express');
 const pool = require('../db');
 const assets = require('../services/assets');
+const captions = require('../services/captions');
+const socialCaptionRender = require('../services/socialCaptionRender');
 const { authenticate } = require('../middleware/auth');
 const {
   loadVisibleClientIds, requireClientAccess, assertClientAccess,
@@ -374,6 +376,74 @@ router.post('/posts/:id/video', async (req, res) => {
     console.error('[social] arcads video failed:', err.message);
     res.status(502).json({ error: err.message });
   }
+});
+
+/**
+ * Caption a video for this post, with the caption library.
+ *
+ * The source is anything already in the client's asset library, or a piece of
+ * media already attached to this post. Which means a reel made by any tool in
+ * Produce can be captioned here, in the client's own typeface and accent,
+ * without leaving the pipeline the post lives in.
+ *
+ * The transcription comes back with the response. A second template over the
+ * same video should not pay Whisper again, so the screen hands the words
+ * straight back on the next call.
+ */
+router.post('/posts/:id/caption-render', async (req, res) => {
+  const { asset_id: assetId, media_id: mediaId, template_id: templateId,
+    format_id: formatId = 'vertical', words, apply_kit: applyKit = true } = req.body || {};
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const post = rows[0];
+    assertClientAccess(req, post.client_id);
+    if (!templateId) return res.status(400).json({ error: 'Pick a caption template.' });
+
+    // Resolve the source, and refuse one belonging to another client rather
+    // than rendering it: an asset id is guessable and a post is not a reason
+    // to reach into a different account's library.
+    let source = null;
+    if (assetId) {
+      const a = await assets.get(assetId);
+      if (!a) return res.status(404).json({ error: 'No such asset' });
+      if (a.client_id !== post.client_id) {
+        return res.status(403).json({ error: 'That asset belongs to a different client.' });
+      }
+      if (a.kind !== 'video') return res.status(400).json({ error: 'That asset is not a video.' });
+      source = a;
+    } else if (mediaId) {
+      const { rows: m } = await pool.query(
+        'SELECT * FROM social_post_media WHERE id = $1 AND post_id = $2', [mediaId, post.id]);
+      if (!m.length) return res.status(404).json({ error: 'No such media on this post' });
+      source = m[0];
+    } else {
+      return res.status(400).json({ error: 'Pass an asset_id or a media_id to caption.' });
+    }
+
+    const out = await socialCaptionRender.captionForPost({
+      post, source, templateId, formatId, words: words || null,
+      applyKit: applyKit !== false, createdBy: req.user?.id || null,
+    });
+    res.status(201).json({ media: out.media, words: out.words });
+  } catch (err) {
+    console.error('[social] caption render failed:', err.message);
+    res.status(err.status || 502).json({ error: err.message });
+  }
+});
+
+// The templates and this client's kit, so the picker needs no second origin.
+router.get('/posts/:id/caption-options', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    assertClientAccess(req, rows[0].client_id);
+    res.json({
+      templates: captions.templates(),
+      formats: captions.formats(),
+      kit: await socialCaptionRender.kitFor(rows[0].client_id),
+    });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Per-post voiceover via ElevenLabs. Same defaulting logic as video.

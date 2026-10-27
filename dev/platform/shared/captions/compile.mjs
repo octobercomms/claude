@@ -55,7 +55,11 @@ export function skin(preset, kit) {
   if (kit.font) p.fontName = kit.font;
   if (kit.fontFallback) p.fontNameFallback = kit.fontFallback;
   if (kit.ink) p.primaryColor = kit.ink;
-  if (kit.accent) p.highlightColor = kit.accent;
+  // A template that highlights nothing must not start highlighting because a
+  // client has a brand colour. The measured presets were chosen for having no
+  // accented word; handing them one turns an institution caption into a
+  // creator caption, which is the opposite of why they exist.
+  if (kit.accent && p.acceptsAccent !== false) p.highlightColor = kit.accent;
   if (kit.outline) p.outlineColor = kit.outline;
   if (kit.shadow) p.shadowColor = kit.shadow;
   return p;
