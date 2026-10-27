@@ -35,8 +35,24 @@ async function mods() {
  * a finished reel must not be lost because the row that scores it could not be
  * written. A missing row costs one data point; a thrown error costs the render.
  */
+/**
+ * The search terms a client is tracking, most-searched first.
+ *
+ * Capped, because the check asks "does this reel say any of them" and a list
+ * of four hundred makes that true by accident. The ones with volume are the
+ * ones worth saying.
+ */
+async function keywordsFor(clientId, limit = 60) {
+  const { rows } = await pool.query(
+    `SELECT keyword FROM seo_keywords
+      WHERE client_id = $1 AND active = true
+      ORDER BY search_volume DESC NULLS LAST, keyword
+      LIMIT $2`, [clientId, limit]);
+  return rows.map((r) => r.keyword);
+}
+
 async function record({ clientId, assetId = null, postId = null, words = [],
-  template = null, durationS = null, brand = null }) {
+  template = null, durationS = null, brand = null, onScreenText = null }) {
   try {
     const { checks: mod } = await mods();
     // The "not the account talking about itself" check counts how often the
@@ -49,9 +65,14 @@ async function record({ clientId, assetId = null, postId = null, words = [],
       const { rows } = await pool.query('SELECT name FROM clients WHERE id = $1', [clientId]);
       name = rows[0]?.name || null;
     }
+    // The same terms the panel checks against, read here rather than passed
+    // in, so a judgement taken on the server and one shown in the browser
+    // cannot disagree about what this client is trying to be found for.
+    const terms = await keywordsFor(clientId);
     const result = mod.checkReel({
       timings: words,
-      edit: { duration_s: durationS, caption_template: template, brand: name },
+      edit: { duration_s: durationS, caption_template: template, brand: name,
+        keywords: terms, on_screen_text: onScreenText },
     });
     const slim = result.checks.map((c) => ({ key: c.key, pass: c.pass }));
     const { rows } = await pool.query(
@@ -130,4 +151,4 @@ async function learn(clientId, { days = 365, measure = 'reach_multiple' } = {}) 
   };
 }
 
-module.exports = { record, learn };
+module.exports = { record, learn, keywordsFor };

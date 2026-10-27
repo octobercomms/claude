@@ -144,6 +144,9 @@ async function captionForPost({ post, source, templateId, formatId = 'vertical',
   await reelOutcomes.record({
     clientId, assetId: asset?.id || null, postId: post.id, words: timed,
     template: templateId, durationS: Number(dur) || null,
+    // What the post puts on screen counts as said, for the check that asks
+    // whether a reel carries a term this client is trying to be found for.
+    onScreenText: post.hook || null,
   });
 
   // Handed back so a second template on the same video costs nothing: the
