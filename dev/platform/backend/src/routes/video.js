@@ -249,13 +249,18 @@ router.get('/caption-sample-clip', (req, res) => {
   res.sendFile(clip);
 });
 
-router.get('/caption-sample-status', (req, res) => {
-  const clip = captions.houseClip();
-  res.json({
-    uploaded: !!clip,
-    updated_at: clip ? fs.statSync(clip).mtime : null,
-    bytes: clip ? fs.statSync(clip).size : 0,
-  });
+router.get('/caption-sample-status', (req, res) => res.json(captions.sampleStatus()));
+
+// Transcribe the clip that is already there. Separate from the upload because
+// a clip can land before a key does, and re-uploading a video to fix captions
+// nobody could transcribe at the time is a silly thing to ask of anyone.
+router.post('/caption-sample-transcribe', requireAdmin, async (req, res) => {
+  try {
+    if (!captions.houseClip()) return res.status(400).json({ error: 'No sample clip yet.' });
+    const words = await captions.transcribeHouseClip();
+    captions.clearSampleCache();
+    res.json({ ok: true, words: words.length });
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 /**
