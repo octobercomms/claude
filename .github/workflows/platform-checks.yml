@@ -109,6 +109,8 @@ jobs:
       # step checks for it rather than assuming the install above worked.
       - name: Install ffmpeg for the render guards
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Guard — the reel checks do not fail the plan's own example hook
+        run: node tests/reel-checks.test.js
       - name: Guard — every scene template renders as long as it promised
         run: |
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
