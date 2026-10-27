@@ -508,6 +508,24 @@ progress is obvious on `platform.octobercomms.com`.
   it fails in a different way at each: the `client_assets` CHECK constraint,
   the `SOURCES` whitelist in `services/assets.js`, and `SOURCE_LABEL` in
   `AssetLibrary.jsx`.
+- **The seven-day retention sweep does NOT cover edits.** It deletes
+  `video-clips/` and `video-outputs/`, which belong to the Video Studio
+  (`video_projects`). Edit-pipeline outputs live in `uploads/<client>/edit/`
+  and nothing deletes them on a schedule; the only deletion is
+  `editJobs.remove`, when someone deletes the job. The Video Studio's own UI
+  line about files going after seven days describes that store, not this one.
+- **A library row is a claim that a file exists, and three things now keep it
+  honest.** `client_assets` has no foreign key to any producing table
+  (`source_id` is text, because they disagree about key types), so nothing
+  cascades and every path that removes a file has to say so itself:
+  `editJobs.remove` and `videoCleanup.runCleanup` both call
+  `assets.archiveBySource`, and `assets.sweepMissingFiles` runs nightly at
+  03:15 beside the retention sweep to catch whatever else. `GET
+  /api/assets-audit` (admin) reports the same count without changing anything.
+  What the sweep must never judge: a `storage_key` row, which the media store
+  resolves, and an external url, which `localPath` hands back unchanged so it
+  reads as present. If `localPath` ever stopped doing that, a sweep that looked
+  correct would archive every CDN-hosted asset overnight.
 - **Edits are served from the edit pipeline's own directory, not the brand
   uploads.** `socialCaptionRender.localPath` is how Tighten, caption render and
   scene render all find a clip, and it only understood

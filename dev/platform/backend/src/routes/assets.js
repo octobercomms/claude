@@ -8,7 +8,8 @@
  */
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
-const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
+const { loadVisibleClientIds, requireClientAccess, assertClientAccess,
+  requireAdmin } = require('../middleware/clientAccess');
 const assets = require('../services/assets');
 const pool = require('../db');
 const fs = require('fs');
@@ -217,5 +218,34 @@ router.get('/clients/:clientId/reel-outcomes',
       res.status(400).json({ error: err.message });
     }
   });
+
+/**
+ * How many library rows point at a file that is no longer there.
+ *
+ * Answers the only question that matters about an index: whether it is still
+ * telling the truth. GET reports without changing anything, so it is safe to
+ * look; POST archives what it found, which is what the nightly sweep does on
+ * its own at 03:15.
+ *
+ * Admin only. It reads across every client, which is not a question an
+ * account manager scoped to one of them should be able to ask.
+ */
+router.get('/assets-audit', requireAdmin, async (req, res) => {
+  try {
+    res.json(await assets.sweepMissingFiles({ dryRun: true }));
+  } catch (err) {
+    console.error('[assets] audit failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/assets-audit', requireAdmin, async (req, res) => {
+  try {
+    res.json(await assets.sweepMissingFiles());
+  } catch (err) {
+    console.error('[assets] sweep failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;

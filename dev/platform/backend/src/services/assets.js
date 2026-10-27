@@ -121,4 +121,76 @@ async function archive(id, archived = true) {
   return rows[0] || null;
 }
 
-module.exports = { record, list, counts, get, archive, kindOf, KINDS, SOURCES };
+
+/**
+ * Archive the library row for one producing record, by its own key.
+ *
+ * Callers that delete a thing know the (source, source_id) they recorded it
+ * under, not the library row's id. Without this they would have to query for
+ * it, which is the kind of step that gets skipped and leaves the library
+ * offering something that no longer exists.
+ *
+ * Archive rather than delete, for the same reason the column exists: "we made
+ * this and then removed it" is itself worth knowing, and a scheduled post that
+ * references the asset must not find a hole where its row was.
+ */
+async function archiveBySource(source, sourceId) {
+  if (!source || sourceId == null) return null;
+  const { rows } = await pool.query(
+    `UPDATE client_assets SET archived_at = NOW()
+      WHERE source = $1 AND source_id = $2 AND archived_at IS NULL
+      RETURNING *`, [source, String(sourceId)]);
+  return rows[0] || null;
+}
+
+/**
+ * Archive library rows whose file is no longer on disk.
+ *
+ * The library is a claim that something exists, and a claim it cannot keep is
+ * worse than no claim at all: a row that looks usable, offers itself to the
+ * scheduler, and answers "that clip could not be found on disk" when a tool
+ * next to it is used. Files go missing through paths that have nothing to do
+ * with the library: the Video Studio's own seven-day retention sweep deletes
+ * masters, and deleting an edit removes its output.
+ *
+ * Only rows whose file this process can actually look at are judged. Two
+ * things keep the rest out, and they are not the same thing:
+ *
+ *   - A storage_key with no url is resolved by the media store rather than by
+ *     a path, so the query never selects it.
+ *   - An external url belongs to a provider's CDN. localPath hands those back
+ *     unchanged rather than returning null, so they read as present and are
+ *     skipped. That, not the query's url filter, is what protects them; the
+ *     filter narrows the scan and keeps a row with some other url shape from
+ *     being judged on a path it never had.
+ *
+ * Judging either from here would archive assets that are perfectly fine.
+ */
+async function sweepMissingFiles({ dryRun = false } = {}) {
+  const fs = require('fs');
+  const socialCaptionRender = require('./socialCaptionRender');
+  const { rows } = await pool.query(
+    `SELECT id, client_id, source, url, title FROM client_assets
+      WHERE archived_at IS NULL
+        AND url IS NOT NULL
+        AND url LIKE '/api/%'`);
+
+  const missing = [];
+  for (const row of rows) {
+    // localPath returns null for anything it cannot resolve to a file that
+    // exists, which is exactly the question being asked.
+    if (socialCaptionRender.localPath(row.client_id, row)) continue;
+    missing.push(row);
+  }
+  if (!dryRun) {
+    for (const row of missing) {
+      await pool.query('UPDATE client_assets SET archived_at = NOW() WHERE id = $1', [row.id]);
+    }
+  }
+  const bySource = {};
+  for (const row of missing) bySource[row.source] = (bySource[row.source] || 0) + 1;
+  return { checked: rows.length, missing: missing.length, bySource, dryRun };
+}
+
+module.exports = { record, list, counts, get, archive, archiveBySource,
+  sweepMissingFiles, kindOf, KINDS, SOURCES };

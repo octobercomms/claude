@@ -130,6 +130,13 @@ async function remove(clientId, id) {
     const p = url && diskPathForUrl(url);
     if (p) fs.promises.unlink(p).catch(() => {});
   }
+  // The library row goes with it. client_assets has no foreign key to this
+  // table (source_id is text, because the producing tables disagree about key
+  // types), so nothing cascades: without this, deleting an edit leaves the
+  // library offering a row whose file was just unlinked.
+  if (rows[0]) {
+    await require('./assets').archiveBySource('edit_job', id).catch(() => {});
+  }
 }
 
 async function retry(clientId, id) {
