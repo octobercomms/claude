@@ -472,6 +472,23 @@ progress is obvious on `platform.octobercomms.com`.
   `assets.record` NEVER throws at its caller: a render that discarded a
   finished video because the library was briefly unreachable would be far worse
   than one missing row.
+- **A cut plan must be told the file's length.** `planCuts` works from word
+  timings, and a transcript ends at the last word Whisper heard. Without
+  `media_s` the plan ends there too, so anything after it is dropped silently
+  and the render looks like a successful edit. Three bugs in this one function,
+  each found by breaking the guarded line and watching the test stay green:
+  the hook guard suppressed whole cuts instead of clamping them (a 3s pause
+  starting 0.5s in survived untouched, the worst dead air in the reel); the
+  plan truncated at the last word, as above; and two cuts 20ms apart left two
+  20ms keep spans, which at 30fps is one video frame plus an audio click, twice.
+  `min_keep_s` merges them. A sliver shorter than `min_keep_s` is not speech.
+- **`apply` renders the spans it is handed, never a fresh plan.** The panel
+  computes `keep` from the cuts still ticked on screen and posts that. If the
+  route recomputed, a changed default between the proposal and the render would
+  cut something the operator never saw listed, which is the one difference
+  nobody checks for. Same reason the apply route records a NEW asset
+  (`metadata.tightened_from`) rather than overwriting its source.
+
 - **Two clients in a backfill fixture, never one.** The `client_assets`
   backfill joins through `social_posts` and `ad_creatives` to reach a client,
   and with a single post or a single creative a cross join produces the right

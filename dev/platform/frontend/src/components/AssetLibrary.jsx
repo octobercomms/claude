@@ -84,7 +84,7 @@ function Thumb({ asset }) {
 }
 
 export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind = null,
-  title = 'Asset library', compact = false }) {
+  title = 'Asset library', compact = false, refreshKey = 0 }) {
   const [data, setData] = useState({ assets: [], counts: {}, sources: [] });
   const [kind, setKind] = useState(fixedKind);
   const [source, setSource] = useState(null);
@@ -101,7 +101,10 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
     if (search.trim()) q.set('search', search.trim());
     api.get(`/clients/${clientId}/assets?${q}`)
       .then(setData).catch((e) => setError(e.message)).finally(() => setLoading(false));
-  }, [clientId, kind, source, search]);
+    // refreshKey is how a caller that has just made an asset says so. Without
+    // it a grid that filters on its own state never reloads, and the thing the
+    // operator produced a second ago is missing from the list of what exists.
+  }, [clientId, kind, source, search, refreshKey]);
 
   const counts = data.counts || {};
   const shown = data.assets || [];

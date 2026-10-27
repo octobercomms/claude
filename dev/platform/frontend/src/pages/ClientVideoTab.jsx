@@ -7,6 +7,7 @@ import ClientEditPage from './ClientEditPage';
 import ClientVisualisePage from './ClientVisualisePage';
 import TranscribePage from './TranscribePage';
 import AssetLibrary from '../components/AssetLibrary';
+import TightenEdit from '../components/TightenEdit';
 // Lazily loaded: the design editor pulls in Fabric.js, which is a large
 // dependency that nobody who never opens this tab should be made to download.
 const ClientDesignPage = lazy(() => import('./ClientDesignPage'));
@@ -24,6 +25,11 @@ export default function ClientVideoTab() {
   const canVisualise = !readOnly || !!user?.can_use_visualise;
   const [tab, setTab] = useTabParam('record', ['record', 'edit', 'design', 'visualise', 'transcribe', 'library']);
   const [client, setClient] = useState(null);
+  // The clip the operator has picked out of the library to work on. Held here
+  // rather than inside the library, because the library's job is to say what
+  // exists and this is a tool pointed at one of those things.
+  const [picked, setPicked] = useState(null);
+  const [made, setMade] = useState(0);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
@@ -58,9 +64,39 @@ export default function ClientVideoTab() {
       {tab === 'visualise' && canVisualise && <ClientVisualisePage embedded clientId={id} />}
       {tab === 'transcribe' && !readOnly && <TranscribePage embedded clientId={id} />}
       {tab === 'library' && (
-        <div className="card" style={{ marginTop: 'var(--s4)' }}>
-          <AssetLibrary clientId={id} title="Everything made for this client" />
-        </div>
+        <>
+          <div className="card" style={{ marginTop: 'var(--s4)' }}>
+            <AssetLibrary clientId={id} title="Everything made for this client"
+              refreshKey={made}
+              onPick={readOnly ? null : (a) => setPicked(a.kind === 'video' ? a : null)} />
+            {!readOnly && (
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)',
+                marginTop: 'var(--s3)' }}>
+                Pick a video to take the pauses and the fillers out of it.
+              </div>
+            )}
+          </div>
+
+          {picked && !readOnly && (
+            <div className="card" style={{ marginTop: 'var(--s3)' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)',
+                marginBottom: 'var(--s2)' }}>
+                {picked.title || 'Untitled'}
+                <button type="button" onClick={() => setPicked(null)}
+                  style={{ background: 'none', border: 0, padding: 0, marginLeft: 8,
+                    cursor: 'pointer', color: 'inherit', textDecoration: 'underline',
+                    fontSize: 'inherit' }}>
+                  pick another
+                </button>
+              </div>
+              {/* Keyed on the asset so switching clips clears the previous
+                  proposal. A plan from one video shown against another is the
+                  kind of mistake that renders before anyone notices. */}
+              <TightenEdit key={picked.id} asset={picked}
+                onTightened={() => { setMade((n) => n + 1); setPicked(null); }} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
