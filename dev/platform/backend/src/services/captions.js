@@ -152,16 +152,23 @@ async function toAss({ words, templateId, kit = null, formatId = 'vertical', per
  */
 async function previewFrame({ words, templateId, kit, formatId = 'vertical', source = null, at, outPath }) {
   const format = formats()[formatId] || formats().vertical;
-  const ass = await toAss({ words, templateId, kit, formatId });
+  const ass = await toAss({ words, templateId, kit, formatId,
+    perLine: preset(templateId).wordsPerLine || 3 });
   const assPath = `${outPath}.ass`;
   fs.writeFileSync(assPath, ass);
   // Land on a word rather than between two, or the preview shows the template
   // at rest and every template looks the same.
   const mid = words.length ? words[Math.floor(words.length / 2)] : null;
   const seek = at ?? (mid ? (mid.start + mid.end) / 2 : 1);
+  // The seek goes AFTER the input, deliberately. Seeking before it resets the
+  // output timestamps to zero, so the subtitles filter renders whatever is on
+  // screen at t=0 of the ASS rather than at the moment asked for — which made
+  // every preview show the same frame, usually an empty one. Output seeking is
+  // slower, and on a four-second sample that costs nothing worth having.
   const input = source
-    ? ['-ss', String(seek), '-i', source]
-    : ['-f', 'lavfi', '-i', `color=c=0x101010:s=${format.width}x${format.height}:d=${seek + 1}:r=25`, '-ss', String(seek)];
+    ? ['-i', source, '-ss', String(seek)]
+    : ['-f', 'lavfi', '-i', `color=c=0x101010:s=${format.width}x${format.height}:d=${seek + 1}:r=25`,
+      '-ss', String(seek)];
   try {
     await run('ffmpeg', ['-y', '-loglevel', 'error', ...input,
       '-vf', `subtitles=${assPath}:fontsdir=${FONTS_DIR}`,
@@ -172,7 +179,8 @@ async function previewFrame({ words, templateId, kit, formatId = 'vertical', sou
 
 /** Burn captions into a clip. */
 async function burn({ words, templateId, kit, formatId = 'vertical', source, outPath }) {
-  const ass = await toAss({ words, templateId, kit, formatId });
+  const ass = await toAss({ words, templateId, kit, formatId,
+    perLine: preset(templateId).wordsPerLine || 3 });
   const assPath = `${outPath}.ass`;
   fs.writeFileSync(assPath, ass);
   try {
@@ -198,6 +206,7 @@ async function burn({ words, templateId, kit, formatId = 'vertical', source, out
 const SAMPLES_DIR = path.join(__dirname, '..', '..', 'video-samples');
 const CACHE_DIR = path.join(SAMPLES_DIR, 'cache');
 const HOUSE_CLIP = path.join(SAMPLES_DIR, 'house.mp4');
+const HOUSE_WORDS = path.join(SAMPLES_DIR, 'house.words.json');
 
 /** Nine words with plausible timings, so an example shows motion, not a still. */
 const SAMPLE_WORDS = [
@@ -209,6 +218,35 @@ const SAMPLE_WORDS = [
 ];
 
 function houseClip() { return fs.existsSync(HOUSE_CLIP) ? HOUSE_CLIP : null; }
+
+/**
+ * What the person in the sample clip is actually saying.
+ *
+ * A gallery of talking-head examples whose captions do not match the lips
+ * reads as broken, and an operator judging a template would be judging the
+ * wrong thing. So the clip is transcribed when it is uploaded and the words
+ * are kept beside it. Without a key, or if the call fails, the generic sample
+ * line is used and `sampleStatus` says so rather than letting the screen imply
+ * these are the real words.
+ */
+function houseWords() {
+  try {
+    const w = JSON.parse(fs.readFileSync(HOUSE_WORDS, 'utf8'));
+    return Array.isArray(w) && w.length ? w : null;
+  } catch { return null; }
+}
+
+function sampleStatus() {
+  const clip = houseClip();
+  const words = houseWords();
+  return {
+    uploaded: !!clip,
+    updated_at: clip ? fs.statSync(clip).mtime : null,
+    bytes: clip ? fs.statSync(clip).size : 0,
+    transcribed: !!words,
+    word_count: words ? words.length : 0,
+  };
+}
 
 /**
  * A cache key that changes when anything the output depends on changes.
@@ -224,6 +262,7 @@ function sampleKey(templateId, kit) {
   parts.push(clip ? String(fs.statSync(clip).mtimeMs) : 'noclip');
   parts.push(String(fs.statSync(PRESETS_PATH).mtimeMs));
   parts.push(kit ? JSON.stringify(kit) : 'house');
+  parts.push(fs.existsSync(HOUSE_WORDS) ? String(fs.statSync(HOUSE_WORDS).mtimeMs) : 'nowords');
   return crypto.createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
@@ -241,7 +280,9 @@ async function sampleClip({ templateId, kit = null, formatId = 'vertical' }) {
   if (fs.existsSync(out) && fs.statSync(out).size > 1000) return out;
 
   const format = formats()[formatId] || formats().vertical;
-  const ass = await toAss({ words: SAMPLE_WORDS, templateId, kit, formatId });
+  const preset_ = preset(templateId);
+  const ass = await toAss({ words: houseWords() || SAMPLE_WORDS, templateId, kit, formatId,
+    perLine: preset_.wordsPerLine || 3 });
   const assPath = `${out}.ass`;
   fs.writeFileSync(assPath, ass);
   const height = Math.round((540 / format.width) * format.height / 2) * 2;
@@ -278,10 +319,32 @@ async function setHouseClip(srcPath) {
     '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart', tmp]);
   fs.renameSync(tmp, HOUSE_CLIP);
+  await transcribeHouseClip().catch((e) => {
+    // Never fail the upload over this. The clip is still usable; the captions
+    // fall back to the generic line and the screen is told they are generic.
+    console.error('[captions] sample clip not transcribed:', e.message);
+    try { fs.existsSync(HOUSE_WORDS) && fs.unlinkSync(HOUSE_WORDS); } catch { /* nothing to clear */ }
+  });
   // Every cached example was rendered over the old footage, so none of them
   // describes the library any more.
   clearSampleCache();
   return HOUSE_CLIP;
+}
+
+/** Pull word timings off the house clip, so the examples say what he says. */
+async function transcribeHouseClip() {
+  const { getSetting } = require('../utils/settings');
+  const { whisperWords } = require('./editProcessor');
+  const key = (await getSetting('OPENAI_API_KEY')) || process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('no OpenAI key, so the sample captions stay generic');
+  const audio = `${HOUSE_CLIP}.mp3`;
+  try {
+    await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', HOUSE_CLIP,
+      '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio]);
+    const words = await whisperWords(audio, key);
+    fs.writeFileSync(HOUSE_WORDS, JSON.stringify(words));
+    return words;
+  } finally { fs.existsSync(audio) && fs.unlinkSync(audio); }
 }
 
 function clearSampleCache() {
@@ -292,7 +355,8 @@ function clearSampleCache() {
 }
 
 module.exports = {
-  sampleClip, setHouseClip, clearSampleCache, houseClip, SAMPLE_WORDS,
+  sampleClip, setHouseClip, clearSampleCache, houseClip, houseWords, sampleStatus,
+  transcribeHouseClip, SAMPLE_WORDS,
   SAMPLES_DIR, CACHE_DIR,
   templates, formats, preset, kitFromAssets, toAss, previewFrame, burn,
   FONTS_DIR, PRESETS_PATH,

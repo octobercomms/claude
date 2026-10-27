@@ -41,7 +41,10 @@ async function main() {
   const vertical = cfg.outputFormats.vertical;
 
   console.log('The ported library arrived intact');
-  ok(Object.keys(styles).length === 27, '27 presets');
+  // Counted as the PORTED subset, not the total: the library grows every time a
+  // reel is measured, and a test that breaks on each addition teaches nothing.
+  const ported = Object.values(styles).filter((x) => x.category !== 'measured');
+  ok(ported.length === 27, `${ported.length} ported presets`);
   ok(/MIT/.test(cfg._source.licence) && /Capite/.test(cfg._source.notice),
     'and the licence they came under is recorded with them');
   ok(Object.values(styles).every((s) => s.fontName && s.fontSize && s.animationType),
@@ -175,7 +178,8 @@ async function main() {
 
   console.log('\nThe library is exposed without leaking the whole config');
   const list = svc.templates();
-  ok(list.length === 27 && list.every((t) => t.id && t.name && t.swatch?.accent),
+  ok(list.length === Object.keys(styles).length
+    && list.every((t) => t.id && t.name && t.swatch?.accent),
     'every row carries what the picker paints from, so the list needs no renders');
   ok(!('fontSize' in list[0]) && !('outlineSize' in list[0]),
     'and not the fields only the compiler needs');
@@ -259,6 +263,45 @@ async function main() {
       fs.rmSync(sampleTmp, { recursive: true, force: true });
     }
   }
+
+  // --- the presets measured from October's own reference reels ----------------
+  //
+  // These were not ported. Each came off the pixels of a reel October chose:
+  // box opacity read against the background behind it, glyph height in pixels
+  // scaled to 1920, colour sampled directly. What they have in common is the
+  // thing the ported library does not do at all — a phrase at a time, with no
+  // word-level animation, at roughly a third the type size.
+  console.log('\nThe measured presets behave unlike the ported ones, which is the point');
+  const measured = Object.values(styles).filter((x) => x.category === 'measured');
+  ok(measured.length === 4, `${measured.length} measured presets`);
+  ok(measured.every((x) => x.wordsPerLine >= 6),
+    'every one captions a phrase, not a word');
+  ok(measured.every((x) => x.fontSize <= 46) && Object.values(styles)
+    .filter((x) => x.category !== 'measured').every((x) => x.fontSize >= 90),
+    'and sets type at roughly a third the size of a creator template');
+  ok(measured.every((x) => x.measuredFrom),
+    'each records which reel it came from, so a wrong number can be traced');
+
+  console.log('\nA translucent box is possible, and is what the reels actually use');
+  const boxed = styles.institution;
+  const withBox = m.compile({ words: WORDS, preset: boxed, format: vertical });
+  const styleLine = withBox.split('\n').find((l) => l.startsWith('Style: '));
+  // 65% opaque black is alpha 89 in ASS, which counts transparency, not opacity.
+  ok(/&H59000000/.test(styleLine),
+    'the box alpha reaches the style line as ASS transparency');
+  const solid = m.compile({ words: WORDS, preset: { ...boxed, boxAlpha: 1 }, format: vertical });
+  ok(/&H00000000/.test(solid.split('\n').find((l) => l.startsWith('Style: '))),
+    'and a fully opaque box is still available');
+
+  console.log('\nA phrase caption wraps; a word-at-a-time one never does');
+  ok(/WrapStyle: 0/.test(withBox), 'phrase templates wrap onto a second line');
+  ok(/WrapStyle: 2/.test(m.compile({ words: WORDS, preset: styles.hormozi, format: vertical })),
+    'word templates do not, because three short words never need to');
+  // Without this the measured presets ran a seven-word caption edge to edge at
+  // 36px, which is a size nobody reads and not what any of the reels do.
+  const marginOf = (ass) => Number(ass.split('\n').find((l) => l.startsWith('Style: ')).split(',')[19]);
+  ok(marginOf(withBox) > marginOf(m.compile({ words: WORDS, preset: styles.hormozi, format: vertical })),
+    'and they are held further in from the edges so the break happens');
 
   console.log(failures ? `\n${failures} FAILED` : '\nall passed');
   process.exit(failures ? 1 : 0);

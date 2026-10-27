@@ -437,6 +437,24 @@ progress is obvious on `platform.octobercomms.com`.
   engines the compiler implements. Do not add a template as a React
   composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
   three.
+- **The `measured` presets were read off October's own reference reels**, not
+  ported. Ten museum reels (Rijksmuseum, Getty, The Met, the Bodleian) were
+  analysed pixel by pixel: box opacity from the box against the background
+  behind it, glyph height in pixels scaled to 1920, colour sampled directly.
+  The finding that matters: not one of the ten animates a single word, and all
+  ten set type at roughly a third the size of a creator template. The 27 ported
+  presets are the wrong library for that work; the four measured ones are the
+  right one. Each carries a `measuredFrom` line so a wrong number can be traced
+  back.
+- **The sample clip is transcribed on upload** so the gallery's captions match
+  the speaker's lips. Without an OpenAI key it falls back to a generic line and
+  `sampleStatus().transcribed` is false, which the screen shows rather than
+  implying the words are real.
+- **Seek AFTER the input when burning subtitles for a still.** `-ss` before
+  `-i` resets the output timestamps to zero, so the subtitles filter renders
+  whatever is on screen at t=0 of the ASS instead of the moment asked for.
+  Every caption preview showed the same frame, usually an empty one, and it
+  looked like a template that drew nothing.
 - **The caption gallery renders every template over ONE clip**
   (`backend/video-samples/house.mp4`, replaceable from the Produce screen by an
   admin) and caches the results in `video-samples/cache/`, which is gitignored.

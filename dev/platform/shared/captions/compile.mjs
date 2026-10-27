@@ -73,7 +73,8 @@ const ENGINES = {
   highlight: (p) => `\\c${toAss(p.highlightColor)}`,
   // A filled block behind the word. BorderStyle 3 draws the box from the
   // outline, so the outline colour becomes the fill and the text reverses out.
-  box: (p) => `\\c${toAss(p.primaryColor)}\\3c${toAss(p.highlightColor)}`,
+  box: (p) => `\\c${toAss(p.primaryColor)}\\3c${toAss(p.highlightColor,
+    p.boxAlpha != null ? Math.round(255 * (1 - p.boxAlpha)) : 0)}`,
   // A colour wipe across the word rather than a jump. \kf needs the duration in
   // centiseconds, which the caller passes in.
   karaoke: (p, ms) => `\\c${toAss(p.primaryColor)}\\2c${toAss(p.highlightColor)}\\kf${Math.max(1, Math.round(ms / 10))}`,
@@ -124,7 +125,12 @@ export function compile({ words, preset, kit = null, format, perLine = 3, margin
     'ScriptType: v4.00+',
     `PlayResX: ${W}`,
     `PlayResY: ${H}`,
-    'WrapStyle: 2',
+    // 2 is "never wrap", which is right for a word-at-a-time template where
+    // each line is three short words by construction. A phrase template needs
+    // 0, smart wrapping with balanced lines: the reels this was measured from
+    // all break a long caption across two lines, and a seven-word caption set
+    // on one line runs the width of the frame at a size nobody reads.
+    `WrapStyle: ${p.wordsPerLine && p.wordsPerLine > 4 ? 0 : 2}`,
     'ScaledBorderAndShadow: yes',
     'YCbCr Matrix: TV.709',
     '',
@@ -138,7 +144,13 @@ export function compile({ words, preset, kit = null, format, perLine = 3, margin
       p.fontSize,
       toAss(p.primaryColor),
       toAss(p.highlightColor),
-      toAss(p.outlineColor),
+      // A translucent box, when the template asks for one. Measured off the
+      // reels this library was extended from: the institutions sit their
+      // captions in black at 50 to 65 percent, never solid, so the shot stays
+      // readable behind the words.
+      toAss(p.outlineColor, p.animationType === 'box' || p.boxAlpha != null
+        ? Math.round(255 * (1 - (p.boxAlpha ?? 1)))
+        : 0),
       toAss(p.shadowColor, p.shadowAlpha ?? 0),
       p.bold ? -1 : 0,
       p.italic ? -1 : 0,
@@ -149,7 +161,10 @@ export function compile({ words, preset, kit = null, format, perLine = 3, margin
       p.outlineSize ?? 0,
       p.shadowDepth ?? 0,
       2,                      // bottom centre; MarginV lifts it off the edge
-      Math.round(W * 0.08), Math.round(W * 0.08), marginV,
+      // Phrase captions are kept well inside the frame so they break onto a
+      // second line rather than running edge to edge.
+      Math.round(W * (p.sideMarginPct ?? (p.wordsPerLine > 4 ? 0.17 : 0.08))),
+      Math.round(W * (p.sideMarginPct ?? (p.wordsPerLine > 4 ? 0.17 : 0.08))), marginV,
       1,
     ].join(','),
     '',
