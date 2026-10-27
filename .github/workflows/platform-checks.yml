@@ -113,6 +113,8 @@ jobs:
         run: node tests/reel-checks.test.js
       - name: Guard — a tightened edit keeps no sliver too short to watch
         run: node tests/silence-cut.test.js
+      - name: Guard — the reel checks are never scored on a mixture of rule sets
+        run: node tests/reel-outcomes.test.js
       - name: Guard — every scene template renders as long as it promised
         run: |
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \

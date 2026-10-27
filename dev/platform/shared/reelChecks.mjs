@@ -20,6 +20,20 @@
  */
 
 /**
+ * The thresholds that decide a pass, named here rather than left inline, so
+ * the fingerprint below covers them. A rule change that moved the words but
+ * not the numbers would otherwise read as the same rule set.
+ */
+export const THRESHOLDS = {
+  hook_before_s: 1.0,
+  hook_window_s: 3,
+  brand_mentions_max: 3,
+  words_per_second_max: 3.6,
+  duration_min_s: 20,
+  duration_max_s: 50,
+};
+
+/**
  * Hype, which is the thing a high-register account does not do.
  *
  * From the plan: "Low-register accounts hype ordinary facts. High-register
@@ -95,7 +109,7 @@ export function checkReel(input) {
   // The hook is everything said in the first three seconds, which is where the
   // plan says the decision is made: "people decide in two seconds whether to
   // follow".
-  const hookWords = list.filter((w) => w.start < 3);
+  const hookWords = list.filter((w) => w.start < THRESHOLDS.hook_window_s);
   const hook = hookWords.map((w) => w.word).join(' ');
 
   const first = list.length ? list[0].start : null;
@@ -110,7 +124,11 @@ export function checkReel(input) {
     {
       key: 'hook_timing',
       label: 'The hook lands inside one second',
-      pass: first !== null && first <= 1.0,
+      // Null, not false, with no transcript. An edit whose words have not been
+      // timed yet is unjudged, and an amber dot against a reel that opens
+      // perfectly well teaches an operator to ignore the panel just as fast as
+      // a false tick does.
+      pass: first === null ? null : first <= THRESHOLDS.hook_before_s,
       detail: first === null ? 'Nothing is said yet.'
         : `First word at ${first.toFixed(2)}s.`,
       rule: 'People decide in two seconds whether to follow.',
@@ -145,9 +163,9 @@ export function checkReel(input) {
       // Naming the brand once is attribution. Three times is an advert, and the
       // event and press vocabulary is the pattern the plan found at the bottom
       // of every performance list.
-      pass: transcript ? (selfFound.length === 0 && brandHits < 3) : null,
+      pass: transcript ? (selfFound.length === 0 && brandHits < THRESHOLDS.brand_mentions_max) : null,
       detail: selfFound.length ? `Reads as promotion: ${selfFound.slice(0, 3).join(', ')}`
-        : brandHits >= 3 ? `The brand is named ${brandHits} times.`
+        : brandHits >= THRESHOLDS.brand_mentions_max ? `The brand is named ${brandHits} times.`
           : 'About the subject, not the account.',
       rule: 'Event reminders, press reposts and guest announcements were the three '
         + 'worst-performing post types in the account\'s own analysis.',
@@ -157,15 +175,21 @@ export function checkReel(input) {
       label: 'One fact, carried to a payoff',
       // A reel that races is a list. The plan's own format is one error put on
       // screen and then traced, which is slow by construction.
-      pass: duration > 0 && list.length / duration <= 3.6,
-      detail: duration ? `${(list.length / duration).toFixed(1)} words a second.`
-        : 'No audio yet.',
+      pass: duration > 0 && list.length
+        ? list.length / duration <= THRESHOLDS.words_per_second_max : null,
+      // Words per second needs both, and a duration without a transcript
+      // reads as "0.0 words a second", which looks like a measurement of
+      // silence rather than the absence of one.
+      detail: duration && list.length ? `${(list.length / duration).toFixed(1)} words a second.`
+        : 'No transcript yet.',
       rule: 'The zoom reveal: wide view, push into the detail, land the fact.',
     },
     {
       key: 'length',
       label: 'Thirty to forty-five seconds',
-      pass: duration >= 20 && duration <= 50,
+      pass: duration > 0
+        ? (duration >= THRESHOLDS.duration_min_s && duration <= THRESHOLDS.duration_max_s)
+        : null,
       detail: duration ? `${Math.round(duration)}s.` : 'No duration yet.',
       rule: 'Thirty to forty seconds, from the plan\'s own format note.',
     },
@@ -192,3 +216,41 @@ export function checkReel(input) {
 }
 
 export const RULES = { HYPE, SELF_PROMOTION };
+
+/**
+ * A short, stable fingerprint of the rule set.
+ *
+ * Recorded beside every check result, because a recorded pass only means
+ * something next to the rules that granted it. Add a word to the hype list and
+ * every row written before that is answering a different question; pooling the
+ * two would produce a median over a mixture of rule sets, which is a number
+ * that looks like a measurement and is not.
+ *
+ * Derived rather than hand-versioned. A constant to bump is a constant to
+ * forget, and forgetting it is silent: the model keeps reporting, on a
+ * population it has quietly merged.
+ *
+ * FNV-1a rather than a crypto hash: this runs in the browser as well as on the
+ * server, it is not a security boundary, and a collision between two rule sets
+ * of this size is not a risk worth a dependency.
+ */
+function fnv1a(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+export const RULES_FINGERPRINT = fnv1a(JSON.stringify({
+  // Sorted, so reordering a list without changing it keeps the fingerprint and
+  // the population together.
+  hype: [...HYPE].sort(),
+  self: [...SELF_PROMOTION].sort(),
+  fact: FACT.source,
+  thresholds: THRESHOLDS,
+  // Read off the checker rather than retyped. A retyped list is a list that
+  // disagrees with the code the first time a check is added.
+  keys: checkReel({}).checks.map((c) => c.key),
+}));

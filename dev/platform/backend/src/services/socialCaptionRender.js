@@ -115,7 +115,7 @@ async function captionForPost({ post, source, templateId, formatId = 'vertical',
       JSON.stringify({ template: templateId, format: formatId, words: timed.length, kit })]);
   const media = rows[0];
 
-  await assets.record({
+  const asset = await assets.record({
     client_id: clientId, source: 'caption_render', source_id: media.id,
     title: `Captioned · ${captions.preset(templateId).name}`,
     url, mime: 'video/mp4',
@@ -124,6 +124,18 @@ async function captionForPost({ post, source, templateId, formatId = 'vertical',
     bytes: fs.statSync(outPath).size,
     created_by: createdBy,
     metadata: { template: templateId, format: formatId, post_id: post.id, words: timed.length },
+  });
+
+  // Judge the reel here, where the words, the template and the duration are
+  // all in hand, and record what the checks said. This is the only moment at
+  // which a judgement can be taken: the panel in the editor runs on every
+  // keystroke against an unfinished edit, and a reel is not a real thing until
+  // it renders. Without a row written now, no amount of engagement data can
+  // ever test the rules. Like assets.record, this never throws at us.
+  const reelOutcomes = require('./reelOutcomes');
+  await reelOutcomes.record({
+    clientId, assetId: asset?.id || null, postId: post.id, words: timed,
+    template: templateId, durationS: Number(dur) || null,
   });
 
   // Handed back so a second template on the same video costs nothing: the
