@@ -437,6 +437,13 @@ progress is obvious on `platform.octobercomms.com`.
   engines the compiler implements. Do not add a template as a React
   composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
   three.
+- **Never use ffmpeg's `dissolve` transition.** Despite the name it is a
+  per-pixel random-threshold dither, not a cross-fade, and the noise it makes
+  is uncompressible: the same 11-second reel was 6.24MB with `dissolve` and
+  0.54MB with `fade`. `tests/scenes.test.js` fails if any scene template takes
+  it, and flags any template exceeding 700KB a second, which is how this was
+  found. I guessed at the zoom headroom first and was wrong; measuring one
+  variable at a time found it in two minutes.
 - **A client's brand kit may change a caption's typeface, never its structure.**
   `acceptsAccent: false` on the measured presets stops a client's accent being
   applied to a template that highlights nothing. Letting it through turned the

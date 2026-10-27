@@ -103,11 +103,17 @@ jobs:
         run: node tests/php-support.test.js
       - name: Guard — the detector reads what is on screen, and says where it is
         run: node tests/pangram.test.js
-      # The caption guard burns real frames with libass, and it SKIPS when
+      # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
-      # the runner is given ffmpeg rather than trusted to have it.
-      - name: Install ffmpeg for the caption burn
+      # the runner is given ffmpeg rather than trusted to have it, and each
+      # step checks for it rather than assuming the install above worked.
+      - name: Install ffmpeg for the render guards
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Guard — every scene template renders as long as it promised
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the render assertions would silently skip'; exit 1; }
+          node tests/scenes.test.js
       - name: Guard — every caption template burns, and burns differently
         run: |
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
