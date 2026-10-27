@@ -437,6 +437,47 @@ progress is obvious on `platform.octobercomms.com`.
   engines the compiler implements. Do not add a template as a React
   composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
   three.
+- **The reel checks are advisory and say so on screen.** Seven deterministic
+  checks from October's growth plan, in `shared/reelChecks.mjs`. Two things
+  about them that took a correction to get right: a check that can only pass by
+  absence returns `null` rather than `true` when there is nothing to judge, so
+  an empty reel earns no green ticks (a tick there is how an operator learns to
+  ignore the panel); and the fact check recognises written numerals, because
+  the plan's own exemplar hook ("For two hundred years, every map of the world
+  showed a continent at the bottom") carries no digit at all and a check that
+  failed it would teach the wrong lesson on its first use.
+- **The plan's reach and conversion figures are assumptions, not measurements.**
+  The panel says this where an operator reads it. They become findings once
+  reach and watch time come back for thirty reels, and not before.
+- **Never use ffmpeg's `dissolve` transition.** Despite the name it is a
+  per-pixel random-threshold dither, not a cross-fade, and the noise it makes
+  is uncompressible: the same 11-second reel was 6.24MB with `dissolve` and
+  0.54MB with `fade`. `tests/scenes.test.js` fails if any scene template takes
+  it, and flags any template exceeding 700KB a second, which is how this was
+  found. I guessed at the zoom headroom first and was wrong; measuring one
+  variable at a time found it in two minutes.
+- **A client's brand kit may change a caption's typeface, never its structure.**
+  `acceptsAccent: false` on the measured presets stops a client's accent being
+  applied to a template that highlights nothing. Letting it through turned the
+  box under the spoken word orange on `institution`, which is a creator caption
+  wearing an institution's clothes, and it is the opposite of why those presets
+  exist. A skin that could change size, weight or highlighting would make "the
+  Nordic one" mean something different on every account.
+- **`client_assets` is the index of everything October has produced**, and the
+  only thing that can answer "what have we made for this client". The five
+  producing tables (`social_post_media`, `recordings`, `video_projects`,
+  `design_pages`, `ad_creative_images`) each stay the record of their own
+  production run; this is what makes them findable. Any new producer must call
+  `assets.record` or its output is invisible outside the tool that made it.
+  `assets.record` NEVER throws at its caller: a render that discarded a
+  finished video because the library was briefly unreachable would be far worse
+  than one missing row.
+- **Two clients in a backfill fixture, never one.** The `client_assets`
+  backfill joins through `social_posts` and `ad_creatives` to reach a client,
+  and with a single post or a single creative a cross join produces the right
+  answer by luck. Both mutations passed against a one-client fixture and failed
+  against two. Any test of a join that supplies a foreign key needs at least
+  two rows on the far side.
 - **The `measured` presets were read off October's own reference reels**, not
   ported. Ten museum reels (Rijksmuseum, Getty, The Met, the Bodleian) were
   analysed pixel by pixel: box opacity from the box against the background

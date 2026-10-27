@@ -6,6 +6,7 @@ import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import ListDetail from '../components/shells/ListDetail';
 import CaptionTemplates from '../components/CaptionTemplates';
+import ReelChecks from '../components/ReelChecks';
 
 // Video Studio (slice 1) — create an edit project, upload raw clips, and run
 // the auto-edit pipeline. Editing itself runs on the dedicated render worker
@@ -39,7 +40,14 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
   const [savingFolder, setSavingFolder] = useState(false);
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // The client's own name, so the reel checks can tell attribution from an
+  // advert: naming the brand once is the former, three times is the latter.
+  const [clientName, setClientName] = useState('');
   const fileRef = useRef(null);
+
+  useEffect(() => {
+    api.get(`/clients/${id}`).then((c) => setClientName(c?.name || '')).catch(() => {});
+  }, [id]);
 
   useEffect(() => {
     api.get(`/video/clients/${id}/projects`)
@@ -186,6 +194,20 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
                   )}
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteProject(active.id)}>Delete</button>
+              </div>
+
+              {/* Does this reel do the seven things that make a reel work?
+                  Advisory, never blocking: a checklist that stops you posting
+                  gets switched off within a fortnight. */}
+              <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+                <ReelChecks
+                  timings={active.caption_words || []}
+                  edit={{
+                    duration_s: active.duration_s,
+                    caption_template: active.caption_template,
+                    brand: clientName,
+                  }}
+                />
               </div>
 
               {/* Word-timed captions. Separate from the style preset above,
