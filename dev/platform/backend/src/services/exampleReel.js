@@ -31,8 +31,20 @@ const brollRender = require('./brollRender');
 const SHARED = path.join(__dirname, '..', '..', '..', 'shared');
 const CACHE_DIR = path.join(__dirname, '..', '..', 'video-samples', 'cache');
 
-/** The template the example is cut with. Measured for October, not a creator preset. */
+/** The template a single example is cut with, when only one is asked for. */
 const TEMPLATE = 'institution';
+
+/**
+ * The styles shown side by side, so what is possible is visible at a glance
+ * rather than inferred from a list of thirty-one names.
+ *
+ * Four of October's own measured presets and two creator ones. The creator
+ * pair is not padding: the whole argument for the measured presets is that
+ * they look different from what everybody else posts, and that argument is
+ * unreadable without something to compare against.
+ */
+const STYLES = ['institution', 'institution-soft', 'gallery', 'gallery-quiet',
+  'hormozi', 'karaoke'];
 
 function run(bin, args) {
   return new Promise((resolve, reject) => {
@@ -110,6 +122,10 @@ async function build({ templateId = TEMPLATE, source: sourceIn = null,
   // the cutaway is both the newest capability and the least obvious one.
   const missing = [];
   const work = `${out}.work`;
+  // Clear anything an interrupted build left here. The directory is named
+  // after the output, so a retry of the same key would otherwise start on top
+  // of half-written intermediates from a render that was killed.
+  fs.rmSync(work, { recursive: true, force: true });
   fs.mkdirSync(work, { recursive: true });
 
   try {
@@ -161,7 +177,10 @@ async function build({ templateId = TEMPLATE, source: sourceIn = null,
         + 'and the example will show one.');
     }
 
-    // 3. Captions, last, so they are burned over the finished picture.
+    // 3. Captions, last, so they are burned over the finished picture. This is
+    // the only step that differs between styles, which is why the cut above is
+    // rendered once and reused: six styles are six caption burns, not six
+    // whole edits.
     const captioned = path.join(work, 'captioned.mp4');
     if (words.length) {
       await captions.burn({ words, templateId, kit: null,
@@ -199,4 +218,50 @@ function status() {
   };
 }
 
-module.exports = { build, status, TEMPLATE, CACHE_DIR };
+/**
+ * The same reel in several styles, for comparison.
+ *
+ * Each style is a separate file because a browser can play six small videos
+ * side by side and cannot play one video six ways. They share everything
+ * except the caption burn, and each is cached on its own, so adding a style
+ * costs one burn rather than one edit.
+ *
+ * Built lazily, one at a time, and a style that fails does not take the rest
+ * with it: a comparison missing one row is worth more than an error page.
+ */
+async function buildSet({ templates = STYLES, lazy = false, ...rest } = {}) {
+  const out = [];
+  let shared = null;
+  // Lazily, the first style is built and the rest are only named. Each video
+  // element then fetches its own and builds it on demand, so the grid appears
+  // in the time of one render rather than six. On a cold cache that is the
+  // difference between twenty seconds and a minute and a half of blank panel,
+  // and a panel that shows nothing for ninety seconds reads as broken.
+  const toBuild = lazy ? templates.slice(0, 1) : templates;
+  for (const templateId of templates) {
+    if (!toBuild.includes(templateId)) {
+      out.push({ template: templateId, name: captions.preset(templateId).name, pending: true });
+      continue;
+    }
+    try {
+      // The source, transcript and cache directory pass straight through, so a
+      // caller testing this against a clip long enough to carry every step
+      // reaches the same code the house clip does.
+      const r = await build({ templateId, ...rest });
+      if (!shared) {
+        shared = { seconds: r.seconds, missing: r.missing, note: r.note,
+          // The steps every style shares, which is everything except its own
+          // caption line.
+          steps: r.steps.filter((s) => !/^captions in the/.test(s)) };
+      }
+      out.push({ template: templateId, name: r.template_name, seconds: r.seconds,
+        captioned: r.steps.some((s) => /^captions in the/.test(s)) });
+    } catch (err) {
+      console.error(`[example] ${templateId} failed:`, err.message);
+      out.push({ template: templateId, error: err.message });
+    }
+  }
+  return { styles: out, ...(shared || { steps: [], missing: [], note: null }) };
+}
+
+module.exports = { build, buildSet, status, TEMPLATE, STYLES, CACHE_DIR };

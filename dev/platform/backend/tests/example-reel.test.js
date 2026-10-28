@@ -87,6 +87,15 @@ function clip(dir, name, seconds) {
       assert.deepStrictEqual(r.missing, []));
     await ok('the compromise is stated rather than hidden', () =>
       assert.match(r.note, /punch-in on the same footage/));
+    await ok('the speaker can still be heard', () => {
+      // The example is silent if any render in the chain drops the audio, and
+      // a silent example of a talking head demonstrates the wrong thing. The
+      // tighten re-encodes to aac and the cutaway and the caption burn both
+      // copy it; one -an would end that quietly.
+      const streams = execFileSync('ffprobe', ['-v', 'error', '-show_entries',
+        'stream=codec_type', '-of', 'csv=p=0', r.path]).toString();
+      assert.match(streams, /audio/, `no audio track: ${streams.trim()}`);
+    });
 
     const again = await exampleReel.build({ source: long, words: WORDS, cacheDir });
     await ok('a second request is served from the cache, not re-rendered', () => {
@@ -126,6 +135,78 @@ function clip(dir, name, seconds) {
     });
     await ok('and the clip still comes back rather than an error', () =>
       assert.ok(fs.existsSync(r.path) && r.seconds > 20));
+  }
+
+  console.log('\nThe same reel in several styles');
+  {
+    const long = clip(work, 'set.mp4', 26);
+    // Four is enough to prove the shape without paying for six renders in CI.
+    const styles = ['institution', 'gallery', 'hormozi', 'karaoke'];
+    const started = Date.now();
+    const r = await exampleReel.buildSet({ templates: styles, source: long,
+      words: WORDS, cacheDir });
+    const firstPass = Date.now() - started;
+
+    await ok('every style comes back, named', () => {
+      assert.strictEqual(r.styles.length, styles.length);
+      for (const st of r.styles) {
+        assert.ok(!st.error, `${st.template}: ${st.error}`);
+        assert.ok(st.name, `${st.template} has no name`);
+      }
+    });
+    await ok('the shared steps are listed once, without the caption line', () => {
+      // Each style's caption burn is what differs; everything else is common,
+      // and repeating "captions in X" in a shared list would be wrong for
+      // five of the six.
+      assert.ok(!r.steps.some((s) => /^captions in the/.test(s)), JSON.stringify(r.steps));
+    });
+
+    const second = Date.now();
+    await exampleReel.buildSet({ templates: styles, source: long,
+      words: WORDS, cacheDir });
+    const cachedPass = Date.now() - second;
+    await ok('a second pass is served from the cache', () =>
+      assert.ok(cachedPass < firstPass / 2 || cachedPass < 400,
+        `first ${firstPass}ms, second ${cachedPass}ms`));
+
+    await ok('lazily, only the first is built and the rest are named', async () => {
+      // The grid has to appear in the time of one render. A panel that shows
+      // nothing while six render reads as broken, which is the opposite of
+      // what an example is for.
+      const lazyDir = path.join(work, 'lazy-cache');
+      const r2 = await exampleReel.buildSet({ templates: styles, lazy: true,
+        source: long, words: WORDS, cacheDir: lazyDir });
+      assert.strictEqual(r2.styles.length, styles.length);
+      assert.ok(!r2.styles[0].pending, 'the first should be built');
+      assert.ok(r2.styles.slice(1).every((st) => st.pending),
+        JSON.stringify(r2.styles.map((st) => [st.template, !!st.pending])));
+      assert.ok(r2.styles.every((st) => st.name), 'every style still has a name');
+      // One file on disk, not four: the rest build when they are asked for.
+      const built = fs.readdirSync(lazyDir).filter((f) => f.endsWith('.mp4'));
+      assert.strictEqual(built.length, 1, `${built.length} rendered`);
+    });
+
+    await ok('and two styles are different files', async () => {
+      const a = await exampleReel.build({ templateId: 'institution', source: long,
+        words: WORDS, cacheDir });
+      const b = await exampleReel.build({ templateId: 'hormozi', source: long,
+        words: WORDS, cacheDir });
+      assert.notStrictEqual(a.path, b.path);
+      // Same edit underneath, different caption burn: the sizes differ because
+      // the pictures differ, which is the whole claim the comparison makes.
+      assert.notStrictEqual(fs.statSync(a.path).size, fs.statSync(b.path).size);
+    });
+  }
+
+  console.log('\nA style that fails does not take the rest with it');
+  {
+    const long = clip(work, 'partial.mp4', 26);
+    const r = await exampleReel.buildSet({ templates: ['institution', 'no-such-template'],
+      source: long, words: WORDS, cacheDir });
+    await ok('the good one is still returned', () =>
+      assert.ok(r.styles.find((s) => s.template === 'institution' && !s.error)));
+    await ok('and the bad one is reported rather than thrown', () =>
+      assert.ok(r.styles.find((s) => s.template === 'no-such-template' && s.error)));
   }
 
   console.log('\nIt refuses what it cannot build');

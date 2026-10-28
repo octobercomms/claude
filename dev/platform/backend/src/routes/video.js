@@ -266,13 +266,20 @@ router.get('/example-reel-status', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/**
+ * The same reel in several styles.
+ *
+ * Six renders on a cold cache, so this is slow exactly once and instant after.
+ * The videos themselves are fetched one per style, because a browser plays six
+ * small files side by side and cannot play one file six ways.
+ */
 router.get('/example-reel.json', async (req, res) => {
   try {
     const exampleReel = require('../services/exampleReel');
-    const r = await exampleReel.build();
-    // The path never leaves the server: the screen asks for the video by url.
-    res.json({ steps: r.steps, missing: r.missing, seconds: r.seconds,
-      template: r.template, template_name: r.template_name, note: r.note });
+    // The paths never leave the server: the screen asks for each video by url.
+    // Lazy: the grid appears after one render and each tile builds itself as
+    // its video is requested.
+    res.json(await exampleReel.buildSet({ lazy: req.query.eager !== '1' }));
   } catch (err) {
     console.error('[example] build failed:', err.message);
     res.status(err.status || 400).json({ error: err.message });
@@ -282,7 +289,8 @@ router.get('/example-reel.json', async (req, res) => {
 router.get('/example-reel.mp4', async (req, res) => {
   try {
     const exampleReel = require('../services/exampleReel');
-    const r = await exampleReel.build();
+    const templateId = req.query.style || undefined;
+    const r = await exampleReel.build(templateId ? { templateId } : {});
     res.sendFile(r.path);
   } catch (err) {
     res.status(err.status || 400).json({ error: err.message });
