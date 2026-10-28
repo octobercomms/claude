@@ -589,9 +589,22 @@ progress is obvious on `platform.octobercomms.com`.
   rule does not predict anything for that client, which is worth saying before
   anyone optimises for it.
 
-- **The worked example is one finished reel, built from the house sample clip
-  and cached.** `services/exampleReel.js` runs the real tighten, cutaway and
-  caption steps and reports what it did AND what it could not demonstrate.
+- **The worked example is the same reel captioned several ways, built from the
+  house sample clip and cached.** The cut (tighten plus cutaway) is rendered
+  once and each style only re-burns captions over it, so six styles cost six
+  burns rather than six edits. `buildSet({ lazy: true })` builds the first and
+  names the rest; each video element then fetches its own and builds it on
+  demand, which is the difference between the grid appearing in seventeen
+  seconds and in ninety-one. A panel showing nothing for a minute and a half
+  reads as broken.
+- **Do not put `muted` on an example player.** The point of an example is the
+  finished thing, and a talking head with its sound off is not it. Audio
+  survives every render in the chain (the tighten re-encodes to aac, the
+  cutaway and the caption burn both copy it); `tests/example-reel.test.js`
+  probes for an audio track, because one stray `-an` would end that silently.
+- **The example reports what it could not demonstrate.**
+  `services/exampleReel.js` runs the real tighten, cutaway and caption steps
+  and reports what it did AND what it could not do.
   That second list is the point: an example that silently leaves out the
   cutaway teaches an operator that cutaways are not a thing this does. The
   cache key carries the sample clip's mtime, so replacing the clip retires the

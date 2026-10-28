@@ -48,9 +48,10 @@ export default function ExampleReel() {
   if (state === 'none') {
     return (
       <div style={{ ...CAP, lineHeight: 1.5 }}>
-        There is no worked example yet. Upload a sample clip under Produce and one is built
-        from it: a reel that has been captioned, tightened and had a cutaway laid in, so the
-        output is visible before you commit your own footage.
+        There are no worked examples yet. Upload a sample clip under Produce and they are
+        built from it: one reel, tightened and with a cutaway laid in, captioned six ways, so
+        the output is visible before you commit your own footage. Twenty seconds or more of
+        someone talking, transcribed, shows every step.
       </div>
     );
   }
@@ -59,13 +60,13 @@ export default function ExampleReel() {
     <div>
       {!open ? (
         <button type="button" className="btn btn-secondary btn-sm" onClick={reveal}>
-          See a finished example
+          See the same reel in six styles
         </button>
       ) : (
         <div>
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline',
             gap: 'var(--s2)', flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700 }}>A finished example</span>
+            <span style={{ fontWeight: 700 }}>The same reel, six ways</span>
             <button type="button" onClick={() => setOpen(false)}
               style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer',
                 ...CAP, textDecoration: 'underline' }}>Hide</button>
@@ -75,41 +76,71 @@ export default function ExampleReel() {
             <div style={{ ...CAP, color: 'var(--negative)', marginTop: 'var(--s2)' }}>
               {info.error}
             </div>
+          ) : !info ? (
+            <div style={{ ...CAP, marginTop: 'var(--s2)' }}>
+              Building it. Six styles render the first time and are cached after, so this
+              wait happens once.
+            </div>
           ) : (
-            <div className="row" style={{ gap: 'var(--s4)', marginTop: 'var(--s2)',
-              alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <video src="/api/video/example-reel.mp4" controls muted playsInline
-                style={{ width: 220, borderRadius: 'var(--r-sm)',
-                  border: 'var(--border-w) solid var(--card-border)' }} />
-              <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-                {!info ? (
-                  <div style={CAP}>Building it…</div>
-                ) : (
-                  <>
-                    <div style={{ ...CAP, lineHeight: 1.5 }}>What was done to it:</div>
-                    <ul style={{ ...CAP, margin: '4px 0 0', paddingLeft: 18, lineHeight: 1.6 }}>
-                      {info.steps?.length
-                        ? info.steps.map((s) => <li key={s}>{s}</li>)
-                        : <li>Nothing yet; see below.</li>}
-                    </ul>
-                    {info.missing?.length > 0 && (
+            <>
+              <div style={{ ...CAP, marginTop: 'var(--s2)', lineHeight: 1.6 }}>
+                The same clip, edited once and then captioned six ways. Every one of these
+                had {info.steps?.length
+                  ? info.steps.join(', ')
+                  : 'nothing done to it yet, for the reasons below'}.
+              </div>
+
+              {/* One player per style. A browser plays six small videos side by
+                  side and cannot play one video six ways, and seeing them
+                  together is the entire point of the comparison. */}
+              <div style={{ display: 'grid', marginTop: 'var(--s3)', gap: 'var(--s3)',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
+                {(info.styles || []).map((st) => (
+                  <div key={st.template}>
+                    {st.error ? (
+                      <div style={{ ...CAP, color: 'var(--negative)', lineHeight: 1.4 }}>
+                        {st.name || st.template}: {st.error}
+                      </div>
+                    ) : (
                       <>
-                        <div style={{ ...CAP, lineHeight: 1.5, marginTop: 'var(--s2)' }}>
-                          What this example cannot show, and why:
+                        {/* Not muted. The point of an example is the finished
+                            thing, and a reel with its sound off is not it. */}
+                        <video src={`/api/video/example-reel.mp4?style=${st.template}`}
+                          controls playsInline preload="metadata"
+                          style={{ width: '100%', borderRadius: 'var(--r-sm)',
+                            border: 'var(--border-w) solid var(--card-border)',
+                            background: '#000' }} />
+                        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700,
+                          marginTop: 4 }}>{st.name || st.template}</div>
+                        <div style={CAP}>
+                          {/* A pending style has not been rendered yet; its
+                              video element is what triggers the render, so the
+                              tile fills in on its own. Saying so beats a
+                              spinner that never explains itself. */}
+                          {st.pending ? 'renders when you play it'
+                            : st.captioned ? `${st.seconds}s` : 'no captions on this one'}
                         </div>
-                        <ul style={{ ...CAP, margin: '4px 0 0', paddingLeft: 18, lineHeight: 1.6 }}>
-                          {info.missing.map((m) => <li key={m}>{m}</li>)}
-                        </ul>
                       </>
                     )}
-                    {info.note && (
-                      <div style={{ ...CAP, marginTop: 'var(--s2)', lineHeight: 1.5,
-                        fontStyle: 'italic' }}>{info.note}</div>
-                    )}
-                  </>
-                )}
+                  </div>
+                ))}
               </div>
-            </div>
+
+              {info.missing?.length > 0 && (
+                <>
+                  <div style={{ ...CAP, lineHeight: 1.5, marginTop: 'var(--s3)' }}>
+                    What these examples cannot show, and why:
+                  </div>
+                  <ul style={{ ...CAP, margin: '4px 0 0', paddingLeft: 18, lineHeight: 1.6 }}>
+                    {info.missing.map((m) => <li key={m}>{m}</li>)}
+                  </ul>
+                </>
+              )}
+              {info.note && (
+                <div style={{ ...CAP, marginTop: 'var(--s2)', lineHeight: 1.5,
+                  fontStyle: 'italic' }}>{info.note}</div>
+              )}
+            </>
           )}
         </div>
       )}
