@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.28
+Stable tag: 0.7.29
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.29 =
+* Archie now knows the practice's credentials. When a visitor asks whether Your
+  Architect is a real or qualified architect, for the ARB registration number, who
+  the trading entity is, or in whose name invoices are issued, Archie states the
+  facts confidently — ARB registration 091365K & 091921G, Tiam Architects LLP,
+  company number OC437815 — instead of deflecting to "check the ARB website". The
+  numbers come from the ARB / Company fields in Settings, so they stay editable,
+  and Archie still offers arb.org.uk as independent verification.
 
 = 0.7.28 =
 * One-click updates — no more uploading zips. A GitHub Action now publishes each
