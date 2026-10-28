@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.26
+Stable tag: 0.7.27
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,11 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.27 =
+* Lighter, sharper Archie face. Swapped the 50KB PNG avatar used in the chat
+  header and on every message for the 8.8KB SVG of the same face — ~42KB less to
+  download on first load and crisper on high-resolution phone screens.
 
 = 0.7.26 =
 * Fixed the mobile chat being almost unusable. The embedded chat used a small
