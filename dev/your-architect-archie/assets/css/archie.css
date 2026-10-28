@@ -168,9 +168,21 @@
     font-family: inherit; font-weight: 700; font-size: 1rem; color: var(--navy); }
 .yaa .ob-shell .ob-panel-toggle .tt-amt { color: var(--orange); font-size: 1.2rem; }
 .yaa .ob-shell .ob-chat { border-right: 0; padding-bottom: 70px; }
-.yaa .archie-embed .ob-body { grid-template-columns: 1fr; height: auto; }
-.yaa .archie-embed .ob-chat { border-right: 0; border-bottom: 1px solid var(--line); height: 440px; }
-.yaa .archie-embed .ob-panel-toggle { display: none; }
+/* Embedded Archie on phones: become a full-height app with ONE inner scroll
+   (the messages). The old fixed-440px chat created a tiny scroll window nested
+   inside a scrolling page — the page and the chat fought each other, so you
+   couldn't scroll and only saw half a question. Mirrors the full-page shell. */
+.yaa .archie-embed { height: 100dvh; display: flex; flex-direction: column; border: 0; border-radius: 0; box-shadow: none; }
+.yaa .archie-embed .ob-body { grid-template-columns: 1fr; height: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.yaa .archie-embed .ob-chat { border-right: 0; border-bottom: 0; height: auto; flex: 1; min-height: 0; padding-bottom: 70px; }
+.yaa .archie-embed .ob-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; max-height: 62dvh;
+    border-top: 1.5px solid var(--line-2); border-top-left-radius: 18px; border-top-right-radius: 18px;
+    transform: translateY(calc(100% - 66px)); transition: transform .28s ease; }
+.yaa .archie-embed .ob-panel.open { transform: translateY(0); }
+.yaa .archie-embed .ob-panel-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%; padding: 20px 24px; background: none; border: 0; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 1rem; color: var(--navy); }
+.yaa .archie-embed .ob-panel-toggle .tt-amt { color: var(--orange); font-size: 1.2rem; }
 }
 .yaa .archie-badge { width: 24px; height: 24px; border-radius: 7px; background: var(--navy); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .yaa .archie-badge svg { width: 16px; height: 16px; }

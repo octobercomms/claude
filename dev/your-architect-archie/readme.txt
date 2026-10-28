@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.25
+Stable tag: 0.7.26
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.26 =
+* Fixed the mobile chat being almost unusable. The embedded chat used a small
+  fixed-height scroll box nested inside a scrolling page, so the two fought each
+  other — you couldn't scroll and could only see half of a question. On phones
+  Archie now fills the screen as a proper app: one scroll area for the
+  conversation, the composer pinned above it, and the price/"Save & submit" panel
+  as a tap-up sheet at the bottom (always reachable). Also dropped the heavy drop
+  shadow on mobile, which was hurting scroll performance.
 
 = 0.7.25 =
 * Fixed a critical error on submit. Project submission could fail with a WordPress
