@@ -33,7 +33,7 @@ class YAA_Shortcode {
 				'rest'       => esc_url_raw( rest_url( 'yaa/v1/' ) ),
 				'nonce'      => wp_create_nonce( 'yaa_rest' ),
 				'pricing'    => YAA_Pricing::public_data(),
-				'iconUrl'    => esc_url_raw( YAA_URL . 'assets/archie-icon.png' ),
+				'iconUrl'    => esc_url_raw( YAA_URL . 'assets/archie-icon.svg' ),
 				'termsUrl'   => esc_url_raw( YAA_Settings::get( 'terms_url', '' ) ? YAA_Settings::get( 'terms_url', '' ) : home_url( '/terms-of-service/' ) ),
 				'privacyUrl' => esc_url_raw( YAA_Settings::get( 'privacy_url', '' ) ? YAA_Settings::get( 'privacy_url', '' ) : home_url( '/privacy-policy/' ) ),
 			)
@@ -41,7 +41,7 @@ class YAA_Shortcode {
 	}
 
 	private static function face_svg() {
-		return '<img class="a-ico" src="' . esc_url( YAA_URL . 'assets/archie-icon.png' ) . '" alt="Archie">';
+		return '<img class="a-ico" src="' . esc_url( YAA_URL . 'assets/archie-icon.svg' ) . '" alt="Archie" width="40" height="40">';
 	}
 
 	public static function render( $atts = array() ) {

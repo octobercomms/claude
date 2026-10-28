@@ -3,7 +3,7 @@
  * Plugin Name: Your Architect – Archie
  * Plugin URI: https://yourarchitect.uk
  * Description: Archie — the conversational, fixed-price project builder for Your Architect. A two-panel AI assistant (embeddable with [archie] or the Elementor widget) that builds a homeowner's drawing package and price through a short chat, opens a project record, and gates full drawings behind payment. Trading name of Tiam Architects LLP.
- * Version: 0.7.25
+ * Version: 0.7.28
  * Author: October Communications
  * Author URI: https://octobercomms.com
  * License: GPL-2.0-or-later
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'YAA_VERSION', '0.7.25' );
+define( 'YAA_VERSION', '0.7.28' );
 define( 'YAA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'YAA_URL', plugin_dir_url( __FILE__ ) );
 define( 'YAA_BASENAME', plugin_basename( __FILE__ ) );
@@ -50,6 +50,7 @@ require_once YAA_PATH . 'includes/class-yaa-admin.php';
 require_once YAA_PATH . 'includes/class-yaa-pricing-admin.php';
 require_once YAA_PATH . 'includes/class-yaa-projects-admin.php';
 require_once YAA_PATH . 'includes/class-yaa-analytics.php';
+require_once YAA_PATH . 'includes/class-yaa-updater.php';
 
 /**
  * Activation: create the custom tables, the client-portal page, and the cron.
@@ -109,3 +110,22 @@ function yaa_boot() {
 	}
 }
 add_action( 'plugins_loaded', 'yaa_boot' );
+
+/**
+ * Self-updater: one-click plugin updates from the private GitHub repo, so new
+ * versions appear under Dashboard → Updates instead of being uploaded by hand.
+ * Only active once a GitHub token is saved in Archie → Settings.
+ */
+add_action( 'plugins_loaded', function () {
+	$repo  = YAA_Settings::get( 'github_repo', '' );
+	$token = YAA_Settings::get( 'github_token', '' );
+	if ( $repo && $token ) {
+		new YAA_Updater(
+			YAA_BASENAME,
+			YAA_VERSION,
+			$repo,
+			$token,
+			YAA_Settings::get( 'github_tag_prefix', 'yaa-v' )
+		);
+	}
+} );

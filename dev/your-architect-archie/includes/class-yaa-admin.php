@@ -14,6 +14,7 @@ class YAA_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_post_yaa_save_settings', array( __CLASS__, 'save' ) );
+		add_action( 'admin_post_yaa_test_update', array( __CLASS__, 'act_test_update' ) );
 	}
 
 	public static function menu() {
@@ -76,6 +77,9 @@ class YAA_Admin {
 				'smtp_auth'             => empty( $in['smtp_auth'] ) ? 0 : 1,
 				'smtp_user'             => sanitize_text_field( $in['smtp_user'] ?? '' ),
 				'smtp_pass'             => isset( $in['smtp_pass'] ) ? $in['smtp_pass'] : '',
+				'github_repo'           => sanitize_text_field( $in['github_repo'] ?? 'octobercomms/claude' ),
+				'github_token'          => isset( $in['github_token'] ) ? $in['github_token'] : '',
+				'github_tag_prefix'     => sanitize_text_field( $in['github_tag_prefix'] ?? 'yaa-v' ),
 				'email_from'            => sanitize_email( $in['email_from'] ?? '' ),
 				'email_from_name'       => sanitize_text_field( $in['email_from_name'] ?? '' ),
 				'portal_page_id'        => (int) ( $in['portal_page_id'] ?? 0 ),
@@ -87,6 +91,24 @@ class YAA_Admin {
 			YAA_Settings::clear_secrets( $clear );
 		}
 		wp_safe_redirect( add_query_arg( 'updated', '1', wp_get_referer() ) );
+		exit;
+	}
+
+	/** Diagnose the GitHub self-updater connection and report back on the settings page. */
+	public static function act_test_update() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_test_update' ) ) {
+			wp_die( 'Nope' );
+		}
+		$repo  = YAA_Settings::get( 'github_repo', '' );
+		$token = YAA_Settings::get( 'github_token', '' );
+		$res   = array( 'ok' => false, 'message' => __( 'Save a GitHub token first.', 'your-architect-archie' ) );
+		if ( $repo && $token && class_exists( 'YAA_Updater' ) ) {
+			$updater = new YAA_Updater( YAA_BASENAME, YAA_VERSION, $repo, $token, YAA_Settings::get( 'github_tag_prefix', 'yaa-v' ) );
+			$res     = $updater->diagnose();
+		}
+		set_transient( 'yaa_update_test_' . get_current_user_id(), $res, 120 );
+		$ref = wp_get_referer();
+		wp_safe_redirect( add_query_arg( 'update_test', ! empty( $res['ok'] ) ? '1' : '0', $ref ? $ref : admin_url( 'admin.php?page=yaa-settings' ) ) );
 		exit;
 	}
 
@@ -142,6 +164,21 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Client portal page', 'your-architect-archie' ); ?></th><td><?php wp_dropdown_pages( array( 'name' => 'portal_page_id', 'selected' => (int) $s['portal_page_id'], 'show_option_none' => __( '— auto —', 'your-architect-archie' ), 'option_none_value' => 0 ) ); ?><p class="description"><?php esc_html_e( 'Page containing the [archie_portal] shortcode (auto-created on activation).', 'your-architect-archie' ); ?></p></td></tr>
 				</table>
 
+				<h2><?php esc_html_e( 'Software updates', 'your-architect-archie' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'One-click plugin updates straight from the private repo — no more uploading zips. Paste a GitHub fine-grained token with "Contents: read" on the octobercomms/claude repo, Save, then use "Test update connection" below. New versions then appear under Dashboard → Updates like any other plugin.', 'your-architect-archie' ); ?></p>
+				<?php
+				if ( isset( $_GET['update_test'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification
+					$ut = get_transient( 'yaa_update_test_' . get_current_user_id() );
+					if ( is_array( $ut ) && ! empty( $ut['message'] ) ) :
+						?><div class="notice <?php echo ! empty( $ut['ok'] ) ? 'notice-success' : 'notice-error'; ?>"><p><?php echo esc_html( $ut['message'] ); ?></p></div><?php
+					endif;
+				endif;
+				?>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'GitHub repo', 'your-architect-archie' ); ?></th><td><input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr( $s['github_repo'] ); ?>" placeholder="octobercomms/claude"></td></tr>
+					<tr><th><?php esc_html_e( 'GitHub token', 'your-architect-archie' ); ?></th><td><input type="password" name="github_token" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'github_token' ) ); ?>"><?php if ( YAA_Settings::has_secret( 'github_token' ) ) : ?> <label style="margin-left:8px;white-space:nowrap"><input type="checkbox" name="clear_secrets[]" value="github_token"> <?php esc_html_e( 'Clear this key', 'your-architect-archie' ); ?></label><?php endif; ?><p class="description"><?php esc_html_e( 'Fine-grained token with Contents: read on this repo (Resource owner = octobercomms). Stored encrypted. Leave blank to keep the saved value.', 'your-architect-archie' ); ?></p></td></tr>
+				</table>
+
 				<h2><?php esc_html_e( 'Email delivery (SMTP)', 'your-architect-archie' ); ?></h2>
 				<p class="description"><?php esc_html_e( 'Send all of Archie\'s mail through an authenticated SMTP relay instead of raw server mail, so quotes and summaries land reliably and pass SPF/DKIM. For Brevo\'s free relay: host smtp-relay.brevo.com, port 587, STARTTLS, login = your Brevo SMTP user, password = your Brevo SMTP key. Save, then send a test below.', 'your-architect-archie' ); ?></p>
 				<table class="form-table" role="presentation">
@@ -187,6 +224,13 @@ class YAA_Admin {
 				<input type="email" name="smtp_test_to" class="regular-text" placeholder="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>">
 				<button type="submit" class="button"><?php esc_html_e( 'Send test email', 'your-architect-archie' ); ?></button>
 				<p class="description"><?php esc_html_e( 'Sends a test using the saved settings above. Save any changes first. Blank = send to your own admin address.', 'your-architect-archie' ); ?></p>
+			</form>
+			<h2><?php esc_html_e( 'Test update connection', 'your-architect-archie' ); ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="yaa_test_update">
+				<?php wp_nonce_field( 'yaa_test_update' ); ?>
+				<button type="submit" class="button"><?php esc_html_e( 'Test update connection', 'your-architect-archie' ); ?></button>
+				<p class="description"><?php esc_html_e( 'Checks the token can see this plugin\'s releases on GitHub. Save any changes first.', 'your-architect-archie' ); ?></p>
 			</form>
 			<p class="description"><?php esc_html_e( 'Embed Archie on any page with the [archie] shortcode or the "Archie" Elementor widget.', 'your-architect-archie' ); ?></p>
 		</div>

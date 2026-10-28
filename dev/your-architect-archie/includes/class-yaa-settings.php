@@ -15,7 +15,7 @@ class YAA_Settings {
 	const OPTION = 'yaa_settings';
 
 	/** Keys whose values are encrypted at rest. */
-	const SECRETS = array( 'claude_api_key', 'stripe_secret_key', 'stripe_webhook_secret', 'brevo_api_key', 'smtp_pass' );
+	const SECRETS = array( 'claude_api_key', 'stripe_secret_key', 'stripe_webhook_secret', 'brevo_api_key', 'smtp_pass', 'github_token' );
 
 	public static function defaults() {
 		return array(
@@ -52,6 +52,10 @@ class YAA_Settings {
 			'portal_page_id'        => 0,
 			'currency'              => 'gbp',
 			'historic_api_on'       => 0,
+			// Self-updater: one-click plugin updates from the private GitHub repo.
+			'github_repo'           => 'octobercomms/claude',
+			'github_token'          => '',   // fine-grained token, Contents: read (stored encrypted).
+			'github_tag_prefix'     => 'yaa-v',
 		);
 	}
 

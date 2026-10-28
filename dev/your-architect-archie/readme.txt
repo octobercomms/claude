@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.25
+Stable tag: 0.7.28
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,28 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.28 =
+* One-click updates — no more uploading zips. A GitHub Action now publishes each
+  new version as a release, and the plugin's new self-updater surfaces it under
+  Dashboard → Updates like any other plugin. One-time setup: install this version,
+  then in Archie → Settings → Software updates paste a GitHub fine-grained token
+  (Contents: read on the octobercomms/claude repo), Save, and hit "Test update
+  connection". After that, every future version is a one-click update.
+
+= 0.7.27 =
+* Lighter, sharper Archie face. Swapped the 50KB PNG avatar used in the chat
+  header and on every message for the 8.8KB SVG of the same face — ~42KB less to
+  download on first load and crisper on high-resolution phone screens.
+
+= 0.7.26 =
+* Fixed the mobile chat being almost unusable. The embedded chat used a small
+  fixed-height scroll box nested inside a scrolling page, so the two fought each
+  other — you couldn't scroll and could only see half of a question. On phones
+  Archie now fills the screen as a proper app: one scroll area for the
+  conversation, the composer pinned above it, and the price/"Save & submit" panel
+  as a tap-up sheet at the bottom (always reachable). Also dropped the heavy drop
+  shadow on mobile, which was hurting scroll performance.
 
 = 0.7.25 =
 * Fixed a critical error on submit. Project submission could fail with a WordPress
