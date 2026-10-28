@@ -589,6 +589,28 @@ progress is obvious on `platform.octobercomms.com`.
   rule does not predict anything for that client, which is worth saying before
   anyone optimises for it.
 
+- **B-roll planning proposes moments, never footage.** `shared/brollPlan.mjs`
+  reads the transcript and says where a cutaway belongs and why; the operator
+  picks the clip. Nothing in OMI knows what is inside a b-roll file, so a
+  planner that chose for them would place the wrong shot confidently and be
+  caught only on playback. Do not add clip matching without first giving the
+  library something real to match on; title matching on filenames is not it.
+  The defect worth remembering: the planner only proposed at sentence starts,
+  so somebody talking in one unbroken stretch for half a minute got nothing at
+  all, which is the reel that needs it most. Long sentences now carry
+  candidates inside them.
+- **The b-roll render overlays, it does not cut.** `brollRender.overlay` keeps
+  the base audio and swaps only the picture for each span, which is what b-roll
+  is; a trim-and-concat would drop the speaker mid-word. A clip shorter than
+  its span is clamped, never looped, and the result says which spans were
+  clipped so the screen can tell the operator. Eight cutaways is the cap: past
+  that the filter graph is long enough to be worth refusing rather than
+  debugging.
+- **Keep a panel mounted after it renders.** Both Produce panels cleared the
+  picked asset on success, which unmounted the panel along with the one line
+  saying what had just happened: the operator pressed go, waited, and watched
+  everything vanish without a word. They now keep the selection and bump a
+  refresh key instead.
 - **A cut plan must be told the file's length.** `planCuts` works from word
   timings, and a transcript ends at the last word Whisper heard. Without
   `media_s` the plan ends there too, so anything after it is dropped silently
