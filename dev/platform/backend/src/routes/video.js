@@ -251,6 +251,44 @@ router.get('/caption-sample-clip', (req, res) => {
 
 router.get('/caption-sample-status', (req, res) => res.json(captions.sampleStatus()));
 
+/**
+ * The worked example: one finished reel, so what the studio does is visible
+ * before anybody commits footage to it.
+ *
+ * Status first, which is cheap and tells the screen whether to offer the
+ * player at all. The video itself builds on first request and is cached, the
+ * same way the caption examples are.
+ */
+router.get('/example-reel-status', async (req, res) => {
+  try {
+    const exampleReel = require('../services/exampleReel');
+    res.json(exampleReel.status());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/example-reel.json', async (req, res) => {
+  try {
+    const exampleReel = require('../services/exampleReel');
+    const r = await exampleReel.build();
+    // The path never leaves the server: the screen asks for the video by url.
+    res.json({ steps: r.steps, missing: r.missing, seconds: r.seconds,
+      template: r.template, template_name: r.template_name, note: r.note });
+  } catch (err) {
+    console.error('[example] build failed:', err.message);
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
+router.get('/example-reel.mp4', async (req, res) => {
+  try {
+    const exampleReel = require('../services/exampleReel');
+    const r = await exampleReel.build();
+    res.sendFile(r.path);
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
 // Transcribe the clip that is already there. Separate from the upload because
 // a clip can land before a key does, and re-uploading a video to fix captions
 // nobody could transcribe at the time is a silly thing to ask of anyone.

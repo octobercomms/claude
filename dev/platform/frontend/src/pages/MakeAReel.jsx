@@ -5,6 +5,7 @@ import CaptionTemplates from '../components/CaptionTemplates';
 import ReelChecks from '../components/ReelChecks';
 import TightenEdit from '../components/TightenEdit';
 import BrollPlan from '../components/BrollPlan';
+import ExampleReel from '../components/ExampleReel';
 
 /**
  * One route through the tools, in the order a reel is actually made.
@@ -172,7 +173,15 @@ export default function MakeAReel({ clientId, clientName = '' }) {
             step reads the words, so a clip with no speech only gets as far as the edit.
           </div>
 
-          <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
+          {/* The output, before any input. Somebody who has never used this has
+              no idea what comes out the other end, and the tab names do not
+              tell them. */}
+          <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)',
+            borderTop: 'var(--border-w) solid var(--card-border)' }}>
+            <ExampleReel />
+          </div>
+
+          <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)', flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-sm" disabled={!!busy}
               onClick={() => fileRef.current?.click()}>
               {busy === 'upload' ? 'Uploading…' : 'Upload a clip'}
