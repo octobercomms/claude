@@ -6,6 +6,7 @@ import RecordingsPage from './RecordingsPage';
 import ClientEditPage from './ClientEditPage';
 import ClientVisualisePage from './ClientVisualisePage';
 import TranscribePage from './TranscribePage';
+import MakeAReel from './MakeAReel';
 import AssetLibrary from '../components/AssetLibrary';
 import TightenEdit from '../components/TightenEdit';
 import BrollPlan from '../components/BrollPlan';
@@ -24,7 +25,8 @@ export default function ClientVideoTab() {
   const { id } = useParams();
   const { readOnly, user } = useAuth();
   const canVisualise = !readOnly || !!user?.can_use_visualise;
-  const [tab, setTab] = useTabParam('record', ['record', 'edit', 'design', 'visualise', 'transcribe', 'library']);
+  const [tab, setTab] = useTabParam('reel',
+    ['reel', 'record', 'edit', 'design', 'visualise', 'transcribe', 'library']);
   const [client, setClient] = useState(null);
   // The clip the operator has picked out of the library to work on. Held here
   // rather than inside the library, because the library's job is to say what
@@ -38,7 +40,7 @@ export default function ClientVideoTab() {
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
   useEffect(() => {
-    if (readOnly && (tab === 'edit' || tab === 'transcribe' || tab === 'design')) setTab('record');
+    if (readOnly && (tab === 'reel' || tab === 'edit' || tab === 'transcribe' || tab === 'design')) setTab('record');
     if (tab === 'visualise' && !canVisualise) setTab('record');
   }, [readOnly, canVisualise, tab, setTab]);
 
@@ -48,6 +50,12 @@ export default function ClientVideoTab() {
       <header className="hero"><div><h1 className="display mt-2">Produce</h1></div></header>
 
       <SuiteTabs tabs={[
+        // First, and first on purpose. The tools that follow are the same
+        // tools; this is the one route through them in the order a reel is
+        // actually made, for an operator who should not have to know that
+        // captions live in Edit and the cutting lives behind a thumbnail in
+        // the Library.
+        ...(readOnly ? [] : [{ key: 'reel', label: 'Make a reel', fn: 'create', active: tab === 'reel', onClick: () => setTab('reel') }]),
         { key: 'record', label: 'Record', active: tab === 'record', onClick: () => setTab('record') },
         ...(readOnly ? [] : [{ key: 'edit', label: 'Edit', fn: 'create', active: tab === 'edit', onClick: () => setTab('edit') }]),
         ...(readOnly ? [] : [{ key: 'design', label: 'Design', fn: 'create', active: tab === 'design', onClick: () => setTab('design') }]),
@@ -58,6 +66,9 @@ export default function ClientVideoTab() {
         { key: 'library', label: 'Library', active: tab === 'library', onClick: () => setTab('library') },
       ]} />
 
+      {tab === 'reel' && !readOnly && (
+        <MakeAReel clientId={id} clientName={client?.name || ''} />
+      )}
       {tab === 'record' && <RecordingsPage embedded clientId={id} onSendToEdit={() => setTab('edit')} />}
       {tab === 'edit' && !readOnly && <ClientEditPage embedded clientId={id} />}
       {tab === 'design' && !readOnly && (

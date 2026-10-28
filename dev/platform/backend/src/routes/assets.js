@@ -201,6 +201,29 @@ router.post('/assets/:id/cut-apply', assetAccess, async (req, res) => {
 });
 
 /**
+ * The library row a producing record made.
+ *
+ * The walkthrough uses this the moment an edit job finishes: it holds the job
+ * id and needs the asset the render produced, so it can hand that asset to the
+ * next step. Scoped to the client like everything else here.
+ */
+router.get('/clients/:clientId/assets/by-source/:source/:sourceId',
+  requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+    try {
+      const row = await assets.bySource(req.params.source, req.params.sourceId);
+      // A row belonging to another client is not this request's to see, and
+      // saying "not found" rather than "forbidden" tells a caller nothing
+      // about what exists elsewhere.
+      if (!row || row.client_id !== req.params.clientId) {
+        return res.status(404).json({ error: 'No asset for that source yet.' });
+      }
+      res.json(row);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+/**
  * The search terms this client tracks, for the reel checks panel.
  *
  * Its own route rather than part of the outcomes payload: the panel needs

@@ -126,6 +126,49 @@ router.post('/clients/:clientId/edit/from-recording', requireClientAccess({ para
   }
 });
 
+/**
+ * Send a library asset into the editor as a draft.
+ *
+ * The same shape as from-recording, and for the same reason: the editor works
+ * on files in its own directory, so anything coming from elsewhere is copied
+ * in rather than referenced across stores. Without this, the only way into the
+ * editor was a fresh upload, which meant re-uploading footage October already
+ * had on the same disk.
+ */
+router.post('/clients/:clientId/edit/from-asset', requireClientAccess({ paramNames: ['clientId'] }),
+  express.json(), async (req, res) => {
+    try {
+      const assetId = req.body?.asset_id;
+      if (!assetId) return res.status(400).json({ error: 'asset_id required' });
+      const assets = require('../services/assets');
+      const socialCaptionRender = require('../services/socialCaptionRender');
+      const asset = await assets.get(assetId);
+      if (!asset || asset.client_id !== req.params.clientId) {
+        return res.status(404).json({ error: 'No such asset for this client.' });
+      }
+      if (asset.kind !== 'video') return res.status(400).json({ error: 'That asset is not a video.' });
+
+      const disk = socialCaptionRender.localPath(req.params.clientId, asset);
+      // An asset on a provider's CDN resolves to a url rather than a path, and
+      // the editor cannot trim something it cannot open.
+      if (!disk || !fs.existsSync(disk)) {
+        return res.status(409).json({ error: 'That clip is not on this server any more.' });
+      }
+
+      const url = editJobs.adoptFile(req.params.clientId, disk, path.extname(disk) || '.mp4');
+      const job = await editJobs.create(req.params.clientId, {
+        sourceName: asset.title || 'Clip', sourceUrl: url,
+        sourceMeta: { duration: asset.duration_s || null, from_asset: asset.id },
+        ops: {}, clips: [{ url, name: asset.title || 'Clip' }],
+        name: asset.title || null, status: 'draft', createdBy: req.user.id,
+      });
+      res.status(201).json(job);
+    } catch (err) {
+      console.error('[edit] from-asset failed:', err.message);
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
 // Motion vibes + a per-clip price estimate for the Stills → Reel panel.
 router.get('/stills-reel/options', (req, res) => {
   res.json({ motions: stillsReel.motionOptions(), aspects: REEL_ASPECTS, price_per_clip: stillsReel.priceFor(stillsReel.DEFAULT_MODEL) });
