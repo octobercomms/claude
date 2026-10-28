@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.27
+Stable tag: 0.7.28
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,14 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.28 =
+* One-click updates — no more uploading zips. A GitHub Action now publishes each
+  new version as a release, and the plugin's new self-updater surfaces it under
+  Dashboard → Updates like any other plugin. One-time setup: install this version,
+  then in Archie → Settings → Software updates paste a GitHub fine-grained token
+  (Contents: read on the octobercomms/claude repo), Save, and hit "Test update
+  connection". After that, every future version is a one-click update.
 
 = 0.7.27 =
 * Lighter, sharper Archie face. Swapped the 50KB PNG avatar used in the chat
