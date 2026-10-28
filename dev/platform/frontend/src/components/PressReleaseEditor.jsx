@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
-import { analyse, MOVES } from '@shared/humanity.mjs';
+import { analyse, MOVES, stripHtml, flatten, locateSegment } from '@shared/humanity.mjs';
+import { highlightLayers, unmark } from '../utils/releaseHighlight';
 
 /**
  * The release writing surface.
@@ -51,9 +52,18 @@ const DOC_STYLE = {
 };
 
 const LAYERS = [
-  // In paint order, which is not negotiable: the sentence layer has to go down
-  // before the phrase layers, because once a tell has split a text node the
-  // sentence around it no longer matches as one string.
+  // In paint order, which is not negotiable: longest needles first. Once a
+  // short needle has split a text node, the longer passage around it no longer
+  // matches as one string, so a layer painted late paints nothing at all.
+  //
+  // The detector's segments run to whole paragraphs and so go down first. It is
+  // also the only layer here that is not ours: it is Pangram's own segment list
+  // from the last paid check, painted back onto the passages it came from. It
+  // does NOT move as you type, and the panel says so where you can see it.
+  { key: 'machine', cls: 'oc-machine', label: 'Pangram: reads as machine-written',
+    swatch: 'var(--negative)', fix: 'the detector’s own call · only moves on a recheck', on: true },
+  // Then the sentence layer, before the phrase layers inside it, for the same
+  // reason.
   { key: 'thin', cls: 'oc-bare', label: 'No checkable fact', swatch: 'var(--warning)',
     fix: 'give it a fact, or cut it', on: true },
   { key: 'phrasing', cls: 'oc-tell', label: 'AI phrasing', swatch: 'var(--negative)',
@@ -128,97 +138,6 @@ function Field({ label, hint, value, onChange, rows, placeholder, ro }) {
   );
 }
 
-/**
- * Wrap every sentence that carries no checkable fact.
- *
- * Located by text match rather than character offset: a sentence is long and
- * distinctive enough to find, and a miss degrades to "not highlighted" instead
- * of to a wrongly placed highlight.
- */
-function markPass(doc, root, needles, cls) {
-  if (!needles.length) return;
-  const walker = doc.createTreeWalker(root, 4 /* SHOW_TEXT */);
-  const nodes = [];
-  let n;
-  while ((n = walker.nextNode())) nodes.push(n);
-  for (const node of nodes) {
-    if (node.parentNode && node.parentNode.nodeName === 'MARK'
-        && node.parentNode.getAttribute('class') === cls) continue;
-    const text = node.nodeValue;
-    const hits = [];
-    for (const needle of needles) {
-      let from = 0;
-      for (;;) {
-        const i = text.indexOf(needle, from);
-        if (i < 0) break;
-        // Whole words only, so "realm" does not fire inside "realms of".
-        const before = i === 0 ? '' : text[i - 1];
-        const after = text[i + needle.length] || '';
-        if (!/[\w'’]/.test(before) && !/[\w'’]/.test(after)) hits.push([i, i + needle.length]);
-        from = i + needle.length;
-      }
-    }
-    if (!hits.length) continue;
-    hits.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
-    const frag = doc.createDocumentFragment();
-    let cur = 0;
-    for (const [from, to] of hits) {
-      if (from < cur) continue;
-      if (from > cur) frag.appendChild(doc.createTextNode(text.slice(cur, from)));
-      const mark = doc.createElement('mark');
-      mark.setAttribute('class', cls);
-      mark.textContent = text.slice(from, to);
-      frag.appendChild(mark);
-      cur = to;
-    }
-    if (cur < text.length) frag.appendChild(doc.createTextNode(text.slice(cur)));
-    node.parentNode.replaceChild(frag, node);
-  }
-}
-
-/**
- * The three layers, painted in this order: sentences first, then the phrases
- * that sit inside them.
- *
- * Order matters and was learned the hard way. Almost every tell sits inside a
- * sentence carrying no fact, so a single pass with an outermost-wins rule
- * swallowed every underline. Each pass re-walks the text, including text now
- * inside an earlier mark, so the layers nest instead of competing.
- *
- * Located by text match rather than character offset, so a miss degrades to
- * "not marked" instead of to a mark in the wrong place.
- *
- * What is never marked: the structural tells — sentence rhythm, parallelism,
- * even paragraph length. The only way to act on a highlight there is to rough
- * the prose up on purpose, which is the one category detectors are trained to
- * catch. They stay in the diagnostic block, where you read them and do nothing.
- */
-function highlightLayers(html, layers) {
-  if (!html || typeof DOMParser === 'undefined') return html;
-  const passes = layers.filter((l) => l.needles.length);
-  if (!passes.length) return html;
-  try {
-    const doc = new DOMParser().parseFromString(`<div id="oc-root">${html}</div>`, 'text/html');
-    const root = doc.getElementById('oc-root');
-    for (const layer of passes) markPass(doc, root, layer.needles, layer.cls);
-    return root.innerHTML;
-  } catch { return html; }
-}
-
-/** Strip our own marks back out, so what is stored is the operator's HTML. */
-function unmark(html) {
-  if (typeof DOMParser === 'undefined') return html;
-  try {
-    const doc = new DOMParser().parseFromString(`<div id="oc-root">${html}</div>`, 'text/html');
-    const root = doc.getElementById('oc-root');
-    for (const m of [...root.querySelectorAll('mark.oc-bare, mark.oc-tell, mark.oc-fact')]) {
-      m.replaceWith(...m.childNodes);
-    }
-    root.normalize();
-    return root.innerHTML;
-  } catch { return html; }
-}
-
 /** Where the caret sits, counted in characters from the start of the element. */
 function caretOffset(root) {
   const sel = typeof window !== 'undefined' && window.getSelection();
@@ -289,13 +208,14 @@ function DocumentSurface({ html, onChange, readOnly, paintKey }) {
 
   if (readOnly) {
     return (
-      <div ref={ref} style={DOC_STYLE} dangerouslySetInnerHTML={{ __html: html }} />
+      <div ref={ref} data-oc-doc style={DOC_STYLE} dangerouslySetInnerHTML={{ __html: html }} />
     );
   }
 
   return (
     <div
       ref={ref}
+      data-oc-doc
       contentEditable
       suppressContentEditableWarning
       spellCheck
@@ -408,7 +328,7 @@ function AuthorshipBar({ ai, assisted, human }) {
   );
 }
 
-function PangramPanel({ raw }) {
+function PangramPanel({ raw, segments, rewritten, onGoTo }) {
   const windows = Array.isArray(raw?.windows) ? raw.windows : [];
   const total = windows.reduce((n, w) => n + (w.word_count || 0), 0) || 1;
   return (
@@ -435,16 +355,33 @@ function PangramPanel({ raw }) {
       {windows.length > 0 && (
         <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: LINE }}>
           <div style={{ ...CAP, marginBottom: 'var(--s2)' }}>
-            {windows.length} segment{windows.length === 1 ? '' : 's'}, in order. This is the part worth
-            acting on: it names which passages to go back into.
+            {windows.length} segment{windows.length === 1 ? '' : 's'}, in order. Each one is marked in
+            the release; click it to go there.
           </div>
+          {rewritten > 0 && (
+            <div style={{
+              ...CAP, marginBottom: 'var(--s2)', padding: 'var(--s2)', borderRadius: 'var(--r-sm)',
+              background: 'var(--warning-soft)', lineHeight: 1.5,
+            }}>
+              <strong>{rewritten}</strong> flagged passage{rewritten === 1 ? ' has' : 's have'} been
+              rewritten since this check, so the figure above no longer covers
+              {rewritten === 1 ? ' it' : ' them'}. Only a fresh check moves the number.
+            </div>
+          )}
           {windows.map((w, i) => {
             const st = segStyle(w.label);
             const share = Math.round(((w.word_count || 0) / total) * 100);
+            const here = segments?.[i]?.found;
             return (
-              <div key={i} style={{
-                borderLeft: `3px solid ${st.hue}`, paddingLeft: 'var(--s2)', marginBottom: 'var(--s2)',
-              }}>
+              <div key={i} role={here ? 'button' : undefined} tabIndex={here ? 0 : undefined}
+                onClick={here ? () => onGoTo(i) : undefined}
+                onKeyDown={here ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGoTo(i); } } : undefined}
+                style={{
+                  borderLeft: `3px solid ${here ? st.hue : 'var(--card-border)'}`,
+                  paddingLeft: 'var(--s2)', marginBottom: 'var(--s2)',
+                  cursor: here ? 'pointer' : 'default',
+                  opacity: here ? 1 : 0.6,
+                }}>
                 <div className="row" style={{ gap: 'var(--s2)', alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: st.hue }}>{w.label}</span>
                   <span style={CAP}>{w.confidence} confidence</span>
@@ -462,6 +399,11 @@ function PangramPanel({ raw }) {
                   <div style={{ ...CAP, color: 'var(--negative)', fontWeight: 700 }}>
                     flagged as humanised
                   </div>
+                )}
+                {/* Located from the text, not from the response: this passage
+                    is no longer in the release the way it was checked. */}
+                {segments && !here && (
+                  <div style={{ ...CAP, fontWeight: 700 }}>rewritten since this check</div>
                 )}
               </div>
             );
@@ -487,16 +429,20 @@ function PangramPanel({ raw }) {
  * layer switched off look identical on the page, and a count of zero is the
  * most useful thing the panel ever says.
  */
-function Legend({ layerOn, setLayerOn, marks, reading }) {
+function Legend({ layerOn, setLayerOn, marks, reading, flagged }) {
   const counts = {
     thin: reading.spans.filter((sp) => sp.bare && sp.words >= 6).length,
     phrasing: reading.tells.length,
     fact: reading.checkable,
+    // Passages the detector flagged that are still in the text. One it can no
+    // longer find has been rewritten, so there is nothing left to mark.
+    machine: flagged.filter((g) => g.found).length,
   };
   const sample = {
     thin: { borderBottom: '1px dotted var(--warning)', background: 'var(--warning-soft)' },
     phrasing: { borderBottom: '2px solid var(--negative)', background: 'var(--negative-soft)' },
     fact: { background: 'var(--positive-soft)', borderRadius: 2 },
+    machine: { textDecoration: 'underline wavy var(--negative)', textUnderlineOffset: 3 },
   };
   return (
     <div style={{
@@ -598,6 +544,40 @@ export default function PressReleaseEditor({
     [pr.body_html, brief, pr.brand],
   );
 
+  /**
+   * The detector's segments, placed back in the text they came from.
+   *
+   * The segment list is the useful half of a Pangram response and it was only
+   * ever shown as cards in the rail, which left you reading 32 quotations and
+   * hunting for each one in the release. Each segment is located in the
+   * document and marked where it sits.
+   *
+   * `found` is the other half of the answer. A flagged passage that is no
+   * longer in the text has been rewritten since the check, so the 74% on the
+   * dial no longer describes it. That is computed from the text, costs
+   * nothing, and is the only honest thing this panel can say about an edit
+   * before the next paid check.
+   */
+  const plain = useMemo(() => stripHtml(pr.body_html || ''), [pr.body_html]);
+
+  const segments = useMemo(() => {
+    const windows = Array.isArray(detail?.raw?.windows) ? detail.raw.windows : [];
+    const hay = flatten(plain);
+    return windows.map((w) => {
+      const lines = locateSegment(hay, plain, w.text);
+      return {
+        machine: !!w.label && !/human/i.test(w.label),
+        found: !!lines,
+        lines: lines || [],
+      };
+    });
+  }, [detail, plain]);
+
+  // How many of the passages the detector called machine-written are still in
+  // the release as it was checked.
+  const flagged = segments.filter((g) => g.machine);
+  const rewritten = flagged.filter((g) => !g.found).length;
+
   // What each layer marks, and how many of them there are. The legend shows the
   // count because a layer with nothing in it has to say so: an empty highlight
   // layer and a switched-off one look identical on the page.
@@ -610,7 +590,34 @@ export default function PressReleaseEditor({
       .sort((a, b) => b.length - a.length),
     fact: [...new Set(reading.items.map((i) => i.text).filter((t) => t && t.length > 1))]
       .sort((a, b) => b.length - a.length),
-  }), [reading]);
+    machine: [...new Set(segments.filter((g) => g.machine).flatMap((g) => g.lines))]
+      .sort((a, b) => b.length - a.length),
+  }), [reading, segments]);
+
+  /**
+   * Take me to that passage. The rail lists them in order; the release does not
+   * read in the order of a list, and scrolling a long release looking for a
+   * quoted fragment is the work this is meant to remove.
+   *
+   * The layer is switched on first if it was off, so the jump lands on a mark
+   * rather than in the middle of unmarked prose, and the paint has to happen
+   * before the element exists to scroll to.
+   */
+  function goToSegment(i) {
+    const first = segments[i]?.lines?.[0];
+    if (!first) return;
+    setLayerOn((m) => (m.machine ? m : { ...m, machine: true }));
+    const key = first.slice(0, 40);
+    const find = (tries) => {
+      const hit = [...document.querySelectorAll('[data-oc-doc] mark.oc-machine')]
+        .find((el) => el.textContent.includes(key));
+      if (!hit) { if (tries > 0) setTimeout(() => find(tries - 1), 120); return; }
+      hit.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      hit.classList.add('oc-flash');
+      setTimeout(() => hit.classList.remove('oc-flash'), 1800);
+    };
+    find(5);
+  }
 
   const html = useMemo(() => highlightLayers(
     pr.body_html || '',
@@ -648,8 +655,25 @@ export default function PressReleaseEditor({
     api.get(`/pr/press-releases/${pr.id}/detector-detail`).then(setDetail).catch(() => {});
   }, [pr.id, pr.pangram_checked_at]);
 
+  /**
+   * Put what is on screen into the database before asking the server about it.
+   *
+   * The detector, the brief and the claim check all read body_html from the
+   * row, so an unsaved edit is invisible to them. For the detector that was
+   * worse than invisible: the text it read was unchanged, so its fingerprint
+   * matched the last check and it answered from cache with "Unchanged since
+   * the last check". Edit a paragraph, press Check again, and it told you
+   * nothing had changed.
+   */
+  async function flush() {
+    const row = await onSave({ quiet: true });
+    if (!row) toast('Could not save, so nothing was sent to check.', 'error');
+    return !!row;
+  }
+
   async function runDetector() {
     if (!pr.id) { toast('Save the release first.', 'info'); return; }
+    if (!(await flush())) return;
     setDetecting(true);
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/detect`, {});
@@ -667,6 +691,7 @@ export default function PressReleaseEditor({
 
   async function buildBrief() {
     if (!pr.id) { toast('Save the release first.', 'info'); return; }
+    if (!(await flush())) return;
     setBuilding(true);
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/brief`, {});
@@ -680,6 +705,7 @@ export default function PressReleaseEditor({
 
   async function checkClaims() {
     if (!pr.id) return;
+    if (!(await flush())) return;
     setChecking(true);
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/check-claims`, {});
@@ -718,6 +744,18 @@ export default function PressReleaseEditor({
         mark.oc-fact {
           background: var(--positive-soft);
           border-radius: 2px;
+        }
+        /* Not ours and not live, so it reads differently from the three that
+           are: a wavy rule rather than a straight one, and no fill, so it can
+           sit under a tell without either becoming unreadable. */
+        mark.oc-machine {
+          text-decoration: underline wavy var(--negative);
+          text-underline-offset: 3px;
+          text-decoration-thickness: 1px;
+        }
+        mark.oc-machine.oc-flash {
+          background: var(--negative-soft);
+          transition: background 240ms ease;
         }
         .oc-release-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
         @media (min-width: 1100px) {
@@ -832,13 +870,14 @@ export default function PressReleaseEditor({
           <div style={{ minWidth: 0 }}>
             {tab === 'document' ? (
               <>
-                <Legend layerOn={layerOn} setLayerOn={setLayerOn} marks={marks} reading={reading} />
+                <Legend layerOn={layerOn} setLayerOn={setLayerOn} marks={marks}
+                  reading={reading} flagged={flagged} />
                 <DocumentSurface
                   html={pr.body_html ? html
                     : '<p style="color:var(--text-subtle)">Nothing written yet. Fill the fact sheet, then write it here.</p>'}
                   onChange={(v) => setPr((p) => ({ ...p, body_html: v }))}
                   readOnly={readOnly}
-                  paintKey={`${pr.id || 'new'}:${LAYERS.map((l) => (layerOn[l.key] ? 1 : 0)).join('')}`}
+                  paintKey={`${pr.id || 'new'}:${LAYERS.map((l) => (layerOn[l.key] ? 1 : 0)).join('')}:${marks.machine.length}`}
                 />
                 {!readOnly && (
                   <div style={{ ...CAP, marginTop: 'var(--s2)' }}>
@@ -909,7 +948,8 @@ export default function PressReleaseEditor({
                   )}
                 </div>
                 {detail?.raw?.windows || detail?.raw?.headline
-                  ? <PangramPanel raw={detail.raw} />
+                  ? <PangramPanel raw={detail.raw} segments={segments}
+                      rewritten={rewritten} onGoTo={goToSegment} />
                   : (
                     <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
                       A trained classifier, and the one a journalist is most likely to paste this into.
@@ -1167,7 +1207,9 @@ export default function PressReleaseEditor({
       </Section>
 
       <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button className="btn btn-primary" disabled={saving} onClick={onSave}>{saving ? 'Saving…' : 'Save'}</button>
+        {/* Called with no argument on purpose: onSave takes options now, and
+            passing it straight to onClick hands it the click event. */}
+        <button className="btn btn-primary" disabled={saving} onClick={() => onSave()}>{saving ? 'Saving…' : 'Save'}</button>
         <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
         <div style={{ flex: 1 }} />
         {/* The pitch gate used to be "a client approved it". It is now "the

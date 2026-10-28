@@ -28,9 +28,17 @@ dev/platform/backend/pdfs/
 # Uploads now spool into recordings-store/tmp first, so an interrupted upload
 # leaves a part-file behind; neither it nor a real recording belongs in git.
 dev/platform/backend/recordings-store/
+# Caption example clips, rendered on demand from video-samples/house.mp4 and the
+# preset library. Derived, tens of megabytes, and rebuilt in seconds.
+dev/platform/backend/video-samples/cache/
 *.zip
 .claude/worktrees/
 
 # Build/deploy artefacts — generated for handoff, not source
 # (release zips + generated client theme files handed to the user)
 releases/
+
+# Client media written at runtime by the video pipelines. Never committed: a
+# repository is not a media store, and these are a client's footage.
+dev/platform/backend/uploads/
+dev/platform/backend/video-samples/cache/

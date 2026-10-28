@@ -55,10 +55,18 @@ class OctoberMI_Client {
 		$timeout  = isset( $opts['timeout'] ) ? max( 1, (int) $opts['timeout'] ) : ( $blocking ? 15 : 5 );
 
 		// Envelope shared by every push, so the platform always has context.
+		//
+		// The two version fields are here rather than only at pairing because a
+		// host can change PHP at any time and a figure captured on the day a
+		// site was paired ages into a lie. Both are constants or a cached
+		// option, so the cost is a few bytes per push; the platform only writes
+		// them when they change.
 		$payload = array_merge( array(
-			'client_id' => $settings['client_id'],
-			'site_url'  => home_url(),
-			'sent_at'   => time(),
+			'client_id'   => $settings['client_id'],
+			'site_url'    => home_url(),
+			'php_version' => PHP_VERSION,
+			'wp_version'  => get_bloginfo( 'version' ),
+			'sent_at'     => time(),
 		), $payload );
 
 		$body      = wp_json_encode( $payload );

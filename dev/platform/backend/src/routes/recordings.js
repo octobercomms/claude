@@ -10,6 +10,7 @@ const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, assertClientAccess } = require('../middleware/clientAccess');
 const pool = require('../db');
+const assets = require('../services/assets');
 const mediaStore = require('../services/mediaStore');
 const loomFetch = require('../services/loomFetch');
 const transcribe = require('../services/recordingTranscribe');
@@ -136,6 +137,17 @@ router.post('/:id/finalize', express.json(), async (req, res) => {
       [duration, req.params.id, req.user?.id || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+    // Into the library, but only a recording about a client: a general one
+    // belongs to nobody's library and would clutter every client's.
+    const r = rows[0];
+    if (r.client_id) {
+      await assets.record({
+        client_id: r.client_id, source: 'recording', source_id: r.id,
+        title: r.title || 'Untitled recording', storage_key: r.storage_key,
+        mime: r.mime, duration_s: r.duration_s, bytes: r.size_bytes,
+        created_by: r.created_by,
+      });
+    }
     // Kick transcription in the background (no-ops without OPENAI_API_KEY).
     transcribe.transcribeInBackground(rows[0].id);
     res.json(present(rows[0]));

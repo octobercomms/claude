@@ -2,7 +2,7 @@
 Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
-Requires PHP: 7.4
+Requires PHP: 8.3
 Stable tag: 0.7.28
 License: GPLv2 or later
 

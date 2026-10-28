@@ -429,6 +429,307 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **Produce's caption templates are DATA, not components.** The 27 presets in
+  `shared/captions/presets.json` are ported from Capite (MIT, notice kept in
+  the file) and compiled to ASS by `shared/captions/compile.mjs`, which both
+  the backend renderer and the editor preview import so they cannot drift. A
+  28th template is one JSON row, as long as its `animationType` is one of the
+  engines the compiler implements. Do not add a template as a React
+  composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
+  three.
+- **The reel checks are advisory and say so on screen.** Seven deterministic
+  checks from October's growth plan, in `shared/reelChecks.mjs`. Two things
+  about them that took a correction to get right: a check that can only pass by
+  absence returns `null` rather than `true` when there is nothing to judge, so
+  an empty reel earns no green ticks (a tick there is how an operator learns to
+  ignore the panel); and the fact check recognises written numerals, because
+  the plan's own exemplar hook ("For two hundred years, every map of the world
+  showed a continent at the bottom") carries no digit at all and a check that
+  failed it would teach the wrong lesson on its first use.
+- **The plan's reach and conversion figures are assumptions, not measurements.**
+  The panel says this where an operator reads it. They become findings once
+  reach and watch time come back for thirty reels, and not before.
+- **Never use ffmpeg's `dissolve` transition.** Despite the name it is a
+  per-pixel random-threshold dither, not a cross-fade, and the noise it makes
+  is uncompressible: the same 11-second reel was 6.24MB with `dissolve` and
+  0.54MB with `fade`. `tests/scenes.test.js` fails if any scene template takes
+  it, and flags any template exceeding 700KB a second, which is how this was
+  found. I guessed at the zoom headroom first and was wrong; measuring one
+  variable at a time found it in two minutes.
+- **A client's brand kit may change a caption's typeface, never its structure.**
+  `acceptsAccent: false` on the measured presets stops a client's accent being
+  applied to a template that highlights nothing. Letting it through turned the
+  box under the spoken word orange on `institution`, which is a creator caption
+  wearing an institution's clothes, and it is the opposite of why those presets
+  exist. A skin that could change size, weight or highlighting would make "the
+  Nordic one" mean something different on every account.
+- **`client_assets` is the index of everything October has produced**, and the
+  only thing that can answer "what have we made for this client". The five
+  producing tables (`social_post_media`, `recordings`, `video_projects`,
+  `design_pages`, `ad_creative_images`) each stay the record of their own
+  production run; this is what makes them findable. Any new producer must call
+  `assets.record` or its output is invisible outside the tool that made it.
+  `assets.record` NEVER throws at its caller: a render that discarded a
+  finished video because the library was briefly unreachable would be far worse
+  than one missing row.
+- **`ClientVideoPage.jsx` is dead code and nothing imports it.** The Produce
+  tab's Edit panel is `ClientEditPage.jsx`; `ClientVideoPage.jsx` is an older
+  studio page that no route reaches. Both features that were mounted there, and
+  so were never visible in the product, now live on `ClientEditPage`: the reel
+  checks and `CaptionTemplates`. Before adding a panel anywhere, check that
+  something imports the page you are adding it to.
+- **Produce's edit pipeline has two caption paths, and the template one is the
+  fork to watch.** With `ops.caption_template` set, `editProcessor.render`
+  takes word-level Whisper and `captions.burn`, the same compiler Shared uses,
+  so a template cannot mean one thing in Produce and another in Shared. With no
+  template it keeps the old segment SRT and its size and position controls,
+  which the screen hides while a template is chosen because a template that let
+  its size be overridden would stop meaning the same thing on every account.
+  The failure mode is not a bad burn, it is the pipeline quietly staying on the
+  old path, which looks like a successful render; `tests/edit-captions.test.js`
+  compares frame hashes to catch exactly that.
+- **The caption format is chosen from the rendered frame, not the requested
+  aspect.** An "original" request declares no aspect at all, and a preset
+  measured against a 1080x1920 canvas sits wrong on a square one. libass scales
+  the ASS canvas to the video, so the aspect ratio is what must match and the
+  pixel size need not.
+- **`require('./captions')` at the top of `editProcessor` is a cycle.** captions
+  reaches back for `whisperWords`, so a top-level require leaves a half-built
+  module whose functions are all `undefined` and fails at the call rather than
+  at load. Require it inside the function, as the rest of the file does with
+  its services.
+- **Every finished edit is indexed in the library, from `editJobs.complete`.**
+  One call site rather than one per branch of the renderer, stills reels
+  included, so no path produces a video and forgets to say so. The job is
+  marked done first and the library write is wrapped there as well as inside
+  `assets.record`: the guarantee that an index row cannot cost a two-minute
+  render is made locally rather than inherited from another file's promise.
+  `source` is `edit_job`, and that value has to be added in **three** places or
+  it fails in a different way at each: the `client_assets` CHECK constraint,
+  the `SOURCES` whitelist in `services/assets.js`, and `SOURCE_LABEL` in
+  `AssetLibrary.jsx`.
+- **The seven-day retention sweep does NOT cover edits.** It deletes
+  `video-clips/` and `video-outputs/`, which belong to the Video Studio
+  (`video_projects`). Edit-pipeline outputs live in `uploads/<client>/edit/`
+  and nothing deletes them on a schedule; the only deletion is
+  `editJobs.remove`, when someone deletes the job. The Video Studio's own UI
+  line about files going after seven days describes that store, not this one.
+- **A library row is a claim that a file exists, and three things now keep it
+  honest.** `client_assets` has no foreign key to any producing table
+  (`source_id` is text, because they disagree about key types), so nothing
+  cascades and every path that removes a file has to say so itself:
+  `editJobs.remove` and `videoCleanup.runCleanup` both call
+  `assets.archiveBySource`, and `assets.sweepMissingFiles` runs nightly at
+  03:15 beside the retention sweep to catch whatever else. `GET
+  /api/assets-audit` (admin) reports the same count without changing anything.
+  What the sweep must never judge: a `storage_key` row, which the media store
+  resolves, and an external url, which `localPath` hands back unchanged so it
+  reads as present. If `localPath` ever stopped doing that, a sweep that looked
+  correct would archive every CDN-hosted asset overnight.
+- **Edits are served from the edit pipeline's own directory, not the brand
+  uploads.** `socialCaptionRender.localPath` is how Tighten, caption render and
+  scene render all find a clip, and it only understood
+  `/api/brand/file/...`. Once edits appear in the library, every one of them
+  answered "that clip could not be found on disk" when a tool next to it was
+  used. It now also resolves `/api/edit/file/...` through
+  `editJobs.diskPathForUrl`, which keeps the traversal guard. Any new place
+  that stores media under its own root needs the same line, or the library
+  will offer rows the tools beside them cannot open.
+- **An edit render still records no reel judgement.** Word timings exist on the
+  template path and the output now has an asset row, but it has no post, so the
+  judgement could not join performance until the asset is published. The reel
+  that actually goes out is judged on the caption-render path, with its post,
+  so recording here as well would add a second judgement for the same reel that
+  stays "awaiting numbers" for ever.
+- **The reel checks are recorded at production time, not in the browser.**
+  `reel_check_results` holds one row per reel produced, written by
+  `services/reelOutcomes.record` from `socialCaptionRender`, where the words,
+  the template and the duration are all in hand. The panel in the editor runs
+  on every keystroke against an unfinished edit; that judgement is worth
+  nothing and is never stored. `reelOutcomes.learn` puts those rows beside
+  `socialBaseline.score` and reports, per check, the median baseline multiple
+  of the reels that passed against those that did not.
+- **The eighth check reads the client's tracked search terms.**
+  `says_a_term_we_rank_for` asks whether the reel says, or puts on screen, any
+  of the client's active `seo_keywords` (top 60 by volume; a list of four
+  hundred makes the check true by accident). Matching is whole-phrase on word
+  boundaries, never substring: a tracked term like "design" would otherwise be
+  found inside "designer" and report a reel as carrying a term it never said.
+  Null when the client tracks nothing, because a reel cannot fail a test with
+  nothing to test against. The panel and `reelOutcomes.record` read the same
+  list from the same place, or a judgement taken on the server and one shown
+  in the browser would disagree about what the client is trying to be found
+  for. The rule deliberately does not push an operator to force a term in: on
+  October's clients that fights the register the rest of the checks protect.
+- **Adding a check splits the recorded population, by design.** The eighth one
+  moved the fingerprint from `f89b8c8b` to `c92e1bcc`, so every judgement taken
+  before it stopped pooling and the panel reports them as excluded. That is the
+  cost of a new rule and it is worth paying rarely. `verdict` is now `'all'`
+  rather than `'all_seven'`, and the panel's copy counts `result.total` instead
+  of saying "seven", because a name or a sentence with a count in it lies the
+  first time a check is added.
+- **A rule change splits the population, and `RULES_FINGERPRINT` is what keeps
+  the two apart.** It is derived from the hype list, the self-promotion list,
+  the fact regex, `THRESHOLDS` and the check keys read off `checkReel` itself,
+  rather than hand-versioned, because a constant to bump is a constant to
+  forget and forgetting it is silent. Change any rule and every row written
+  before it stops being pooled; the panel says how many were excluded. If you
+  add a threshold, put it in `THRESHOLDS` and read it from there, or the
+  fingerprint will claim to cover a number it does not.
+- **`Number(null)` is 0, and that nearly turned a withheld baseline into a reel
+  that reached nothing.** `socialBaseline` refuses to quote a multiple under
+  five comparable posts, so the field comes back null; coercing before testing
+  it put those reels into whichever arm they belonged to with a value of zero
+  and dragged that arm's median down. Test the raw value for null, undefined
+  and empty string before `Number()`. The same trap applies anywhere a nullable
+  numeric column meets `Number.isFinite`.
+- **A check that nothing varies on is not a result.** If every reel passed it,
+  there is no comparison and the passing arm's median must never be printed as
+  a lift. Equally, a real sample with no difference is itself the finding: the
+  rule does not predict anything for that client, which is worth saying before
+  anyone optimises for it.
+
+- **The worked example is one finished reel, built from the house sample clip
+  and cached.** `services/exampleReel.js` runs the real tighten, cutaway and
+  caption steps and reports what it did AND what it could not demonstrate.
+  That second list is the point: an example that silently leaves out the
+  cutaway teaches an operator that cutaways are not a thing this does. The
+  cache key carries the sample clip's mtime, so replacing the clip retires the
+  example rather than leaving an old render describing footage nobody uses.
+- **The house clip ships at four seconds and that is too short for an
+  example.** It is sized for caption swatches. The b-roll planner keeps the
+  opening and the ending on the speaker, so a four-second clip has no room in
+  between and the example honestly reports that it cannot show a cutaway. A
+  sample of twenty seconds or more of someone talking, transcribed, is what
+  makes the example show all three steps. The source and transcript are
+  injectable on `build()` precisely so tests can reach the paths the shipped
+  clip cannot.
+- **`video-samples/house.mp4` is tracked in git.** Standing in a longer clip to
+  verify something overwrites a committed binary, and `git status` is the only
+  thing that catches it. Back it up first, or inject the source instead.
+- **"Make a reel" is the route, not a pipeline.** `pages/MakeAReel.jsx` owns
+  no rendering of its own: it mounts the existing panels in the order a reel
+  is made (footage, edit, tighten, b-roll, finish), carries one clip between
+  them and lets any step be skipped. The tabs it walks through all still work
+  on their own. It exists because captions were chosen in Edit while the
+  cutting lived behind a thumbnail in the Library, and a tool nobody finds is
+  a tool nobody has.
+- **Rendering with chosen settings goes through `reopen`, not `render`.**
+  `POST /edit/clients/:id/edit/:id/render` queues a draft with the ops it was
+  *created* with, which for a fresh upload is `{}`. `reopen` copies the
+  footage into a new job carrying the ops you pass and queues that. The
+  walkthrough also needs `from-asset` to start from the library, which is the
+  same shape as `from-recording`: the editor only works on files in its own
+  directory, so anything from elsewhere is copied in.
+- **Stub Whisper at the network boundary, not on the export.**
+  `editProcessor.render` calls `whisperWords` through its closure, so patching
+  `module.exports.whisperWords` in a `-r` stub does nothing and the real
+  request goes out. Wrapping `globalThis.fetch` and intercepting
+  `openai.com/v1/audio/transcriptions` leaves every line of the pipeline
+  running for real; the multipart body's `response_format` says whether to
+  answer with words or an SRT. The `deps` argument on `render` is for tests,
+  not for the running server.
+- **B-roll planning proposes moments, never footage.** `shared/brollPlan.mjs`
+  reads the transcript and says where a cutaway belongs and why; the operator
+  picks the clip. Nothing in OMI knows what is inside a b-roll file, so a
+  planner that chose for them would place the wrong shot confidently and be
+  caught only on playback. Do not add clip matching without first giving the
+  library something real to match on; title matching on filenames is not it.
+  The defect worth remembering: the planner only proposed at sentence starts,
+  so somebody talking in one unbroken stretch for half a minute got nothing at
+  all, which is the reel that needs it most. Long sentences now carry
+  candidates inside them.
+- **The b-roll render overlays, it does not cut.** `brollRender.overlay` keeps
+  the base audio and swaps only the picture for each span, which is what b-roll
+  is; a trim-and-concat would drop the speaker mid-word. A clip shorter than
+  its span is clamped, never looped, and the result says which spans were
+  clipped so the screen can tell the operator. Eight cutaways is the cap: past
+  that the filter graph is long enough to be worth refusing rather than
+  debugging.
+- **Keep a panel mounted after it renders.** Both Produce panels cleared the
+  picked asset on success, which unmounted the panel along with the one line
+  saying what had just happened: the operator pressed go, waited, and watched
+  everything vanish without a word. They now keep the selection and bump a
+  refresh key instead.
+- **A cut plan must be told the file's length.** `planCuts` works from word
+  timings, and a transcript ends at the last word Whisper heard. Without
+  `media_s` the plan ends there too, so anything after it is dropped silently
+  and the render looks like a successful edit. Three bugs in this one function,
+  each found by breaking the guarded line and watching the test stay green:
+  the hook guard suppressed whole cuts instead of clamping them (a 3s pause
+  starting 0.5s in survived untouched, the worst dead air in the reel); the
+  plan truncated at the last word, as above; and two cuts 20ms apart left two
+  20ms keep spans, which at 30fps is one video frame plus an audio click, twice.
+  `min_keep_s` merges them. A sliver shorter than `min_keep_s` is not speech.
+- **`apply` renders the spans it is handed, never a fresh plan.** The panel
+  computes `keep` from the cuts still ticked on screen and posts that. If the
+  route recomputed, a changed default between the proposal and the render would
+  cut something the operator never saw listed, which is the one difference
+  nobody checks for. Same reason the apply route records a NEW asset
+  (`metadata.tightened_from`) rather than overwriting its source.
+
+- **Two clients in a backfill fixture, never one.** The `client_assets`
+  backfill joins through `social_posts` and `ad_creatives` to reach a client,
+  and with a single post or a single creative a cross join produces the right
+  answer by luck. Both mutations passed against a one-client fixture and failed
+  against two. Any test of a join that supplies a foreign key needs at least
+  two rows on the far side.
+- **The `measured` presets were read off October's own reference reels**, not
+  ported. Ten museum reels (Rijksmuseum, Getty, The Met, the Bodleian) were
+  analysed pixel by pixel: box opacity from the box against the background
+  behind it, glyph height in pixels scaled to 1920, colour sampled directly.
+  The finding that matters: not one of the ten animates a single word, and all
+  ten set type at roughly a third the size of a creator template. The 27 ported
+  presets are the wrong library for that work; the four measured ones are the
+  right one. Each carries a `measuredFrom` line so a wrong number can be traced
+  back.
+- **The sample clip is transcribed on upload** so the gallery's captions match
+  the speaker's lips. Without an OpenAI key it falls back to a generic line and
+  `sampleStatus().transcribed` is false, which the screen shows rather than
+  implying the words are real.
+- **Seek AFTER the input when burning subtitles for a still.** `-ss` before
+  `-i` resets the output timestamps to zero, so the subtitles filter renders
+  whatever is on screen at t=0 of the ASS instead of the moment asked for.
+  Every caption preview showed the same frame, usually an empty one, and it
+  looked like a template that drew nothing.
+- **The caption gallery renders every template over ONE clip**
+  (`backend/video-samples/house.mp4`, replaceable from the Produce screen by an
+  admin) and caches the results in `video-samples/cache/`, which is gitignored.
+  The cache key carries the clip's mtime AND the presets file's, so replacing
+  either refreshes every example. Drop that and the gallery goes on describing
+  footage nobody uses, silently, which is the failure this is built around.
+- **Captions render with ffmpeg and libass, not Remotion, and the reason is a
+  bill.** Remotion's free licence covers organisations up to three people;
+  past that, a tool that renders video sits in their Automators tier at $100 a
+  month minimum. libass has no licence and no meter, and burns a 3.5s
+  1080x1920 clip in under two seconds against a headless-Chromium render.
+  Before putting anything new on Remotion, check the headcount.
+- **The 13 typefaces are vendored in `shared/captions/fonts/`** with their
+  licences, so a render is identical on a dev box, CI and the server. Do not
+  swap that for apt packages or a fontconfig lookup; the point is that the
+  same preset produces the same frame everywhere.
+- **A caption's body text stays near-white whatever the brand is.** Captions
+  sit over ungraded footage, so a client's mid-tone as body text disappears
+  over half the shots. The brand shows in the accent word and the typeface.
+  `captions.kitFromAssets` also refuses an accent that cannot be read against
+  a dark outline, and tells the screen which one it dropped.
+- **A test that SKIPs is a test that is not running.** `tests/captions.test.js`
+  skips its burn assertions when ffmpeg is absent, so `platform-checks.yml`
+  installs ffmpeg and fails the step if it is still missing. Any guard with a
+  skip path needs the same treatment or it reports green having checked
+  nothing.
+- **The press-release highlighter paints longest needle first, and the order
+  is load-bearing.** `LAYERS` in `PressReleaseEditor.jsx` is a paint order, not
+  a list: each pass splits the text nodes the next pass has to match against,
+  so a layer added at the end of the array marks nothing whenever an earlier
+  layer is on. The detector layer was written that way and looked exactly like
+  a detector finding nothing. `vite build` compiled it and the lint passed it;
+  only `tests/browser/highlight.mjs`, which runs the real module in a real DOM,
+  catches it. Add a layer at the position its needle length earns.
+- **`tests/pangram.test.js` was never in CI** until 26 Oct 2026, so every
+  assertion in it predating that date had never run on a runner. Adding a test
+  file is half the job; the other half is the `run:` line in
+  `.github/workflows/platform-checks.yml`.
 - **`new Anthropic()` anywhere is invisible to every cap.** `callClaude` holds
   the global hard cap, so a service that constructs the SDK itself is unseen
   by it, by the per-task cap and by the Pause switch — while still recording

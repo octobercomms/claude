@@ -9,7 +9,7 @@
  * License:     GPL v2 or later
  * Text Domain: variant-showcase
  * Requires at least: 6.0
- * Requires PHP: 8.0
+ * Requires PHP: 8.3
  * WC requires at least: 7.0
  */
 

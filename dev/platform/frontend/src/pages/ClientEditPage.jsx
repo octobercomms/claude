@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import StillsReelPanel from '../components/edit/StillsReelPanel';
+import ReelChecks from '../components/ReelChecks';
+import CaptionTemplates from '../components/CaptionTemplates';
 
 // Edit — a guided video editor. Upload one clip (trim / clean audio / captions)
 // or several (combined into one video first), rendered server-side with ffmpeg +
@@ -61,6 +63,15 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
   const [cleanAudio, setCleanAudio] = useState(true);
   const [captions, setCaptions] = useState(true);
   const [capSize, setCapSize] = useState('medium');
+  // Which of the 31 caption templates this render burns, or null for the plain
+  // white captions the editor has always had. A template decides its own type,
+  // size and placement, so the size and position controls disappear while one
+  // is chosen rather than sitting there doing nothing.
+  const [capTemplate, setCapTemplate] = useState(null);
+  // The template's own name, carried so the column reads "Institution Soft"
+  // rather than the id it is stored under.
+  const [capTemplateName, setCapTemplateName] = useState(null);
+  const [pickingTemplate, setPickingTemplate] = useState(false);
   const [capPos, setCapPos] = useState(0);
   const [aspect, setAspect] = useState('original');
   const [safeZone, setSafeZone] = useState('off');
@@ -169,6 +180,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
       clean_audio: cleanAudio,
       captions,
       caption_style: { size: capSize, pos: capPos },
+      caption_template: capTemplate,
     };
   }
 
@@ -227,6 +239,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     setSegments(segs.map(s => ({ id: ++_uid, start: s.start || 0, end: s.end || 0 })));
     setCleanAudio(o.clean_audio !== false); setCaptions(!!o.captions);
     setCapSize(o.caption_style?.size || 'medium'); setCapPos(o.caption_style?.pos || 0);
+    setCapTemplate(o.caption_template || null); setCapTemplateName(null);
     setAspect(o.aspect || 'original');
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -316,7 +329,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                         <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 'var(--fs-caption)', fontWeight: 700, color: '#fff', textShadow: '0 1px 2px #000', textTransform: 'uppercase', letterSpacing: 0.3 }}>{b.label}</span>
                       </div>
                     ))}
-                    {captions && previewH > 0 && (() => {
+                    {captions && !capTemplate && previewH > 0 && (() => {
                       const fontPx = Math.max(9, previewH * (ASS_SIZE[capSize] || 24) / 288);
                       const marginPx = previewH * marginVFor(capPos) / 288;
                       return (
@@ -416,7 +429,47 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
               <input type="checkbox" checked={captions} onChange={e => setCaptions(e.target.checked)} /> Auto-captions
             </label>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 'var(--s6)' }}>burned onto the video + a .srt file</div>
+
+            {/* The template library, the same 31 presets Shared renders with and
+                compiled by the same compiler, so a template cannot mean one
+                thing here and another there. The grid needs room, so the
+                column carries the choice and the picker opens full width
+                under the editor. */}
             {captions && (
+              <div style={{ paddingLeft: 'var(--s6)' }}>
+                <div className="row" style={{ gap: 'var(--s2)', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>Style</span>
+                  <strong style={{ fontSize: 'var(--fs-body)' }}>
+                    {/* A reopened draft knows the id but not the name until the
+                        picker has been opened, so the id is tidied rather than
+                        printed raw. */}
+                    {capTemplate
+                      ? (capTemplateName
+                        || capTemplate.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+                      : 'Plain'}
+                  </strong>
+                  <button type="button" className="btn btn-secondary btn-sm"
+                    onClick={() => setPickingTemplate((v) => !v)}>
+                    {pickingTemplate ? 'Close' : capTemplate ? 'Change' : 'Choose a template'}
+                  </button>
+                  {capTemplate && (
+                    <button type="button" className="btn btn-ghost btn-sm"
+                      style={{ color: 'var(--text-subtle)' }}
+                      onClick={() => { setCapTemplate(null); setCapTemplateName(null); }}>
+                      Back to plain
+                    </button>
+                  )}
+                </div>
+                {capTemplate && (
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4, lineHeight: 1.4 }}>
+                    The template sets the type, the size and where it sits, and takes this
+                    client&rsquo;s brand colours where they are readable over footage.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {captions && !capTemplate && (
               <div style={{ display: 'flex', gap: 'var(--s5)', alignItems: 'flex-start', paddingLeft: 'var(--s6)', flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>Size</div>
@@ -439,6 +492,32 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
               </div>
             )}
 
+            {/* Does this reel do the seven things that make a reel work, and
+                what has each of those been worth on this client's own reels?
+                Advisory, never blocking: a checklist that stops you rendering
+                gets switched off within a fortnight.
+
+                It sits above the render button because that is where the
+                decision is, and it judges what the browser already knows: the
+                length after trimming, and whether captions are being burned.
+                The four checks that read the words wait for the transcript,
+                which does not exist until the render transcribes, and they show
+                as unjudged rather than failed until then. */}
+            {clips.length > 0 && (
+              <div style={{ borderTop: 'var(--border-w) solid var(--card-border)',
+                paddingTop: 'var(--s3)' }}>
+                <ReelChecks
+                  clientId={clientId}
+                  timings={[]}
+                  edit={{
+                    duration_s: keptDuration || null,
+                    caption_template: captions ? (capTemplate || 'plain') : null,
+                    brand: client?.name || null,
+                  }}
+                />
+              </div>
+            )}
+
             <div style={{ marginTop: 'var(--s1)' }}>
               <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || nothingChosen} onClick={() => submit(false)}>
                 {busy ? 'Starting…' : combining ? `Combine ${clips.length} & render` : 'Render edit'}
@@ -448,6 +527,25 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
               )}
               {capCost > 0 && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s2)', textAlign: 'center' }}>Est. ~${capCost.toFixed(2)} (captions)</div>}
             </div>
+          </div>
+        </div>
+      )}
+
+      {clips.length > 0 && captions && pickingTemplate && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <CaptionTemplates
+            clientId={clientId}
+            value={capTemplate}
+            format={aspect === '1:1' ? 'square' : aspect === '4:5' ? 'square' : 'vertical'}
+            onChange={(id, t) => {
+              setCapTemplate(id); setCapTemplateName(t?.name || null); setPickingTemplate(false);
+            }}
+          />
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)',
+            marginTop: 'var(--s3)', lineHeight: 1.5 }}>
+            Choosing a template replaces the plain captions and their size and position
+            controls. It costs no more to render: the transcription is the same call, asked
+            for per word rather than per line.
           </div>
         </div>
       )}

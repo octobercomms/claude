@@ -268,5 +268,49 @@ check('data is flushed during recording, not held to the end',
   /rec\.start\(5000\)/.test(page),
   'one unbroken buffer for a 30-minute capture is where frames get dropped under memory pressure');
 
+// --- a create answered by a list ---------------------------------------------
+//
+// On 26 Oct 2026 a 9-minute recording failed to save with "the server did not
+// return somewhere to upload to (keys: 0, 1, 2, 3)". Those are array indices:
+// the create endpoint had been answered with a four-item array, and the only
+// thing on that path returning a bare array is the recordings list. A POST
+// comes back as a list when it has been redirected, because fetch follows
+// 301/302/303 and the spec turns the method into GET and drops the body.
+//
+// Nothing recorded whether that is what happened, which is the actual defect:
+// the failure could not be diagnosed after the fact. Both halves below exist
+// so the next one names itself.
+check('a redirected mutating request is named as one',
+  /res\.redirected && !\['GET', 'HEAD'\]\.includes\(method\)/.test(api),
+  'fetch turns a redirected POST into a GET and drops the body, silently');
+check('and says nothing was saved',
+  /Nothing was saved/.test(api),
+  'the caller has to know whether to retry or whether it half-happened');
+check('a create answered with a list says so in those words',
+  /Array\.isArray\(created\)/.test(page) && /which is what the list endpoint returns/.test(page),
+  '"keys: 0, 1, 2, 3" is a shape; it took reading the route to learn it meant a list');
+check('and still points at the recording that is safe',
+  /press Download to keep it/.test(page),
+  'the file is on the page and nothing else matters until it is off it');
+
+// --- the redirect, confirmed ------------------------------------------------
+//
+// The reporting added above did its job on 26 Oct 2026: "The POST to
+// /api/recordings was redirected to https://platform.octobercomms.com/api/
+// recordings/, which turns it into a GET and drops what was sent."
+//
+// Something in front of the backend adds a trailing slash. It is not in this
+// repo: nginx picks `location /api/` for the slashless URI and proxies it
+// untouched, and the backend has no redirect on that path. Until it is found,
+// the create asks for the URL the server already wants, which skips the
+// redirect. Express strips the mount path either way, so it is the same route
+// and the same handler.
+check('the create asks for the URL that does not redirect',
+  /api\.post\('\/recordings\/'/.test(page),
+  'without the trailing slash the POST is 301ed, becomes a GET, and the body is dropped');
+check('and the workaround says it is one',
+  /workaround for a routing fault that has not been found yet/.test(pageRaw),
+  'a silent trailing slash is the kind of thing that gets tidied away by the next person');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

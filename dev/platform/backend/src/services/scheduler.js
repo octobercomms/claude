@@ -527,6 +527,14 @@ cron.schedule('15 3 * * *', async () => {
   try {
     const r = await require('./videoCleanup').runCleanup();
     if (r.clips || r.masters) console.log(`[video] retention sweep: removed ${r.clips} clip(s) + ${r.masters} master(s) older than ${r.retentionDays}d`);
+    // Then the library, which is a claim that each of its rows exists. Files
+    // go missing through paths that have nothing to do with it, so the two
+    // run together rather than the library being told about each one.
+    const a = await require('./assets').sweepMissingFiles();
+    if (a.missing) {
+      console.log(`[assets] archived ${a.missing} of ${a.checked} library row(s) whose file is gone: `
+        + Object.entries(a.bySource).map(([k, n]) => `${k} ${n}`).join(', '));
+    }
   } catch (err) {
     console.error('[video] retention sweep failed:', err.message);
   }
