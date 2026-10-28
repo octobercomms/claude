@@ -589,6 +589,28 @@ progress is obvious on `platform.octobercomms.com`.
   rule does not predict anything for that client, which is worth saying before
   anyone optimises for it.
 
+- **"Make a reel" is the route, not a pipeline.** `pages/MakeAReel.jsx` owns
+  no rendering of its own: it mounts the existing panels in the order a reel
+  is made (footage, edit, tighten, b-roll, finish), carries one clip between
+  them and lets any step be skipped. The tabs it walks through all still work
+  on their own. It exists because captions were chosen in Edit while the
+  cutting lived behind a thumbnail in the Library, and a tool nobody finds is
+  a tool nobody has.
+- **Rendering with chosen settings goes through `reopen`, not `render`.**
+  `POST /edit/clients/:id/edit/:id/render` queues a draft with the ops it was
+  *created* with, which for a fresh upload is `{}`. `reopen` copies the
+  footage into a new job carrying the ops you pass and queues that. The
+  walkthrough also needs `from-asset` to start from the library, which is the
+  same shape as `from-recording`: the editor only works on files in its own
+  directory, so anything from elsewhere is copied in.
+- **Stub Whisper at the network boundary, not on the export.**
+  `editProcessor.render` calls `whisperWords` through its closure, so patching
+  `module.exports.whisperWords` in a `-r` stub does nothing and the real
+  request goes out. Wrapping `globalThis.fetch` and intercepting
+  `openai.com/v1/audio/transcriptions` leaves every line of the pipeline
+  running for real; the multipart body's `response_format` says whether to
+  answer with words or an SRT. The `deps` argument on `render` is for tests,
+  not for the running server.
 - **B-roll planning proposes moments, never footage.** `shared/brollPlan.mjs`
   reads the transcript and says where a cutaway belongs and why; the operator
   picks the clip. Nothing in OMI knows what is inside a b-roll file, so a

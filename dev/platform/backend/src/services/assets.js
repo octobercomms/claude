@@ -123,6 +123,22 @@ async function archive(id, archived = true) {
 
 
 /**
+ * The library row one producing record made, by its own key.
+ *
+ * A caller that has just watched an edit job finish knows the job's id and
+ * nothing else; this is how it reaches the asset without scanning the whole
+ * library and guessing by timestamp, which is the kind of match that picks the
+ * wrong row the moment two renders finish together.
+ */
+async function bySource(source, sourceId) {
+  if (!source || sourceId == null) return null;
+  const { rows } = await pool.query(
+    'SELECT * FROM client_assets WHERE source = $1 AND source_id = $2',
+    [source, String(sourceId)]);
+  return rows[0] || null;
+}
+
+/**
  * Archive the library row for one producing record, by its own key.
  *
  * Callers that delete a thing know the (source, source_id) they recorded it
@@ -192,5 +208,5 @@ async function sweepMissingFiles({ dryRun = false } = {}) {
   return { checked: rows.length, missing: missing.length, bySource, dryRun };
 }
 
-module.exports = { record, list, counts, get, archive, archiveBySource,
+module.exports = { record, list, counts, get, bySource, archive, archiveBySource,
   sweepMissingFiles, kindOf, KINDS, SOURCES };
