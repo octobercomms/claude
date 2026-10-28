@@ -120,6 +120,11 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the render assertions would silently skip'; exit 1; }
           node tests/scenes.test.js
+      - name: Guard — the worked example says what it could not demonstrate
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the example assertions would silently skip'; exit 1; }
+          node tests/example-reel.test.js
       - name: Guard — b-roll lands in its span and the speaker comes back after
         run: |
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \

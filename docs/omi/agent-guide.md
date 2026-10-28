@@ -589,6 +589,24 @@ progress is obvious on `platform.octobercomms.com`.
   rule does not predict anything for that client, which is worth saying before
   anyone optimises for it.
 
+- **The worked example is one finished reel, built from the house sample clip
+  and cached.** `services/exampleReel.js` runs the real tighten, cutaway and
+  caption steps and reports what it did AND what it could not demonstrate.
+  That second list is the point: an example that silently leaves out the
+  cutaway teaches an operator that cutaways are not a thing this does. The
+  cache key carries the sample clip's mtime, so replacing the clip retires the
+  example rather than leaving an old render describing footage nobody uses.
+- **The house clip ships at four seconds and that is too short for an
+  example.** It is sized for caption swatches. The b-roll planner keeps the
+  opening and the ending on the speaker, so a four-second clip has no room in
+  between and the example honestly reports that it cannot show a cutaway. A
+  sample of twenty seconds or more of someone talking, transcribed, is what
+  makes the example show all three steps. The source and transcript are
+  injectable on `build()` precisely so tests can reach the paths the shipped
+  clip cannot.
+- **`video-samples/house.mp4` is tracked in git.** Standing in a longer clip to
+  verify something overwrites a committed binary, and `git status` is the only
+  thing that catches it. Back it up first, or inject the source instead.
 - **"Make a reel" is the route, not a pipeline.** `pages/MakeAReel.jsx` owns
   no rendering of its own: it mounts the existing panels in the order a reel
   is made (footage, edit, tighten, b-roll, finish), carries one clip between
