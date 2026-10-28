@@ -25,7 +25,7 @@ const KIND = {
 
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-export default function TightenEdit({ asset, onTightened = null }) {
+export default function TightenEdit({ asset, onTightened = null, onWords = null }) {
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -53,6 +53,10 @@ export default function TightenEdit({ asset, onTightened = null }) {
     try {
       const r = await api.post(`/assets/${asset.id}/cut-proposal`, { options: opts });
       setPlan(r); setDropped(new Set());
+      // Handed up so the b-roll planner beside this one works from the same
+      // transcript. Whisper is charged by the minute and this clip has just
+      // been paid for once.
+      if (r.words?.length) onWords?.(r.words);
     } catch (e) { setError(e.message); } finally { setBusy(null); }
   }
 

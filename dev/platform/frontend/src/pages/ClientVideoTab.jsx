@@ -8,6 +8,7 @@ import ClientVisualisePage from './ClientVisualisePage';
 import TranscribePage from './TranscribePage';
 import AssetLibrary from '../components/AssetLibrary';
 import TightenEdit from '../components/TightenEdit';
+import BrollPlan from '../components/BrollPlan';
 // Lazily loaded: the design editor pulls in Fabric.js, which is a large
 // dependency that nobody who never opens this tab should be made to download.
 const ClientDesignPage = lazy(() => import('./ClientDesignPage'));
@@ -30,6 +31,9 @@ export default function ClientVideoTab() {
   // exists and this is a tool pointed at one of those things.
   const [picked, setPicked] = useState(null);
   const [made, setMade] = useState(0);
+  // The transcript for the picked clip, paid for once and shared by both
+  // panels below.
+  const [words, setWords] = useState(null);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
@@ -68,7 +72,10 @@ export default function ClientVideoTab() {
           <div className="card" style={{ marginTop: 'var(--s4)' }}>
             <AssetLibrary clientId={id} title="Everything made for this client"
               refreshKey={made}
-              onPick={readOnly ? null : (a) => setPicked(a.kind === 'video' ? a : null)} />
+              onPick={readOnly ? null : (a) => {
+                setPicked(a.kind === 'video' ? a : null);
+                setWords(null);          // a different clip, a different transcript
+              }} />
             {!readOnly && (
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)',
                 marginTop: 'var(--s3)' }}>
@@ -92,8 +99,22 @@ export default function ClientVideoTab() {
               {/* Keyed on the asset so switching clips clears the previous
                   proposal. A plan from one video shown against another is the
                   kind of mistake that renders before anyone notices. */}
-              <TightenEdit key={picked.id} asset={picked}
-                onTightened={() => { setMade((n) => n + 1); setPicked(null); }} />
+              {/* The selection is deliberately kept after a render. Clearing it
+                  unmounted the panel along with the one line that said what had
+                  just happened, so an operator pressed go, waited, and watched
+                  the whole thing disappear without a word. */}
+              <TightenEdit key={picked.id} asset={picked} onWords={setWords}
+                onTightened={() => setMade((n) => n + 1)} />
+
+              {/* Cutting the dead air and planning the cutaways are the same
+                  sitting: both run on the transcript, and an operator who has
+                  just tightened a clip is looking at exactly the thing that
+                  wants b-roll. */}
+              <div style={{ marginTop: 'var(--s4)', paddingTop: 'var(--s3)',
+                borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                <BrollPlan key={`broll-${picked.id}`} asset={picked} clientId={id}
+                  words={words} onRendered={() => setMade((n) => n + 1)} />
+              </div>
             </div>
           )}
         </>

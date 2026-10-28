@@ -18,6 +18,8 @@ const crypto = require('crypto');
 const scenes = require('../services/scenes');
 const silenceCut = require('../services/silenceCut');
 const reelOutcomes = require('../services/reelOutcomes');
+const brollRender = require('../services/brollRender');
+const { pathToFileURL } = require('url');
 const socialCaptionRender = require('../services/socialCaptionRender');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
@@ -262,6 +264,89 @@ router.post('/assets-audit', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[assets] sweep failed:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Where this talking head wants something else on screen.
+ *
+ * Moments, never footage: nothing here knows what is inside a b-roll clip, and
+ * a proposal that guessed would place the wrong shot confidently. The operator
+ * chooses what goes in each moment, from their own library.
+ */
+router.post('/assets/:id/broll-proposal', assetAccess, async (req, res) => {
+  try {
+    if (req.asset.kind !== 'video') return res.status(400).json({ error: 'That asset is not a video.' });
+    const source = socialCaptionRender.localPath(req.asset.client_id, req.asset);
+    if (!source) return res.status(400).json({ error: 'That clip could not be found on disk.' });
+
+    // The transcript is the only input. Reuse the caller's words when they
+    // have them, which they do straight after a tighten, so one clip is never
+    // transcribed twice in a sitting.
+    const silenceCutService = require('../services/silenceCut');
+    const words = Array.isArray(req.body?.words) && req.body.words.length
+      ? req.body.words
+      : await silenceCutService.wordsFor(source, null);
+    const mediaS = await silenceCutService.durationOf(source);
+
+    const { planBroll } = await import(pathToFileURL(
+      path.join(__dirname, '..', '..', '..', 'shared', 'brollPlan.mjs')).href);
+    const plan = planBroll(words, { media_s: mediaS, ...(req.body?.options || {}) });
+    res.json({ ...plan, words });
+  } catch (err) {
+    console.error('[broll] proposal failed:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+/**
+ * Render the approved placements.
+ *
+ * Each placement names a library asset, which is resolved here rather than
+ * trusted from the browser: a path from a request body is a path someone can
+ * choose.
+ */
+router.post('/assets/:id/broll-apply', assetAccess, async (req, res) => {
+  try {
+    if (req.asset.kind !== 'video') return res.status(400).json({ error: 'That asset is not a video.' });
+    const clientId = req.asset.client_id;
+    const source = socialCaptionRender.localPath(clientId, req.asset);
+    if (!source) return res.status(400).json({ error: 'That clip could not be found on disk.' });
+
+    const wanted = Array.isArray(req.body?.placements) ? req.body.placements : [];
+    if (!wanted.length) return res.status(400).json({ error: 'Choose a clip for at least one moment.' });
+
+    const placements = [];
+    for (const p of wanted) {
+      const chosen = await assets.get(p.asset_id);
+      // Someone else's asset is not a file this request may reach, whatever
+      // the body says.
+      if (!chosen || chosen.client_id !== clientId) {
+        return res.status(400).json({ error: 'One of the chosen clips does not belong to this client.' });
+      }
+      const file = socialCaptionRender.localPath(clientId, chosen);
+      if (!file) return res.status(400).json({ error: `"${chosen.title || 'A clip'}" is not on disk any more.` });
+      placements.push({ from: p.from, to: p.to, file });
+    }
+
+    const dir = path.join(UPLOAD_ROOT, clientId);
+    fs.mkdirSync(dir, { recursive: true });
+    const name = `broll-${Date.now()}-${crypto.randomBytes(3).toString('hex')}.mp4`;
+    const out = await brollRender.overlay({ source, placements, outPath: path.join(dir, name) });
+
+    // A new asset beside the original, like every other edit: the operator
+    // compares the two and throws one away.
+    const asset = await assets.record({
+      client_id: clientId, source: 'upload', source_id: name,
+      title: `${req.asset.title || 'Clip'} · with b-roll`,
+      url: `/api/brand/file/${clientId}/${name}`, mime: 'video/mp4',
+      duration_s: out.seconds, bytes: out.bytes, created_by: req.user?.id || null,
+      metadata: { broll_from: req.asset.id, placements: out.placements },
+    });
+    res.status(201).json({ asset, ...out });
+  } catch (err) {
+    console.error('[broll] apply failed:', err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 
