@@ -52,11 +52,41 @@ export default function StrategistBriefingPanel({ clientId }) {
   const [steer, setSteer] = useState([]);
   const [steerText, setSteerText] = useState('');
 
-  const loadList = () => api.get(`/strategist/clients/${clientId}/briefings`)
-    .then(r => { setList(r); if (r.length && !selectedId) setSelectedId(r[0].id); })
+  // `pick` forces the newest briefing to be selected, which a client change
+  // must do. Without it the guard below keeps whatever was already selected.
+  //
+  // The functional updater matters: on a client change this runs in the same
+  // tick as the reset below, so a `selectedId` read from the closure would
+  // still be the previous client's and the guard would hold.
+  const loadList = (pick = false) => api.get(`/strategist/clients/${clientId}/briefings`)
+    .then(r => {
+      setList(r);
+      setSelectedId(cur => (pick || !cur) ? (r[0] ? r[0].id : null) : cur);
+    })
     .catch(e => toast(e.message, 'error'));
 
-  useEffect(() => { loadList(); setSettingsOpen(false); /* eslint-disable-line */ }, [clientId]);
+  // Switching client clears the briefing before fetching the new one.
+  //
+  // It did not, and that is how Architourian's Strategist came to show
+  // Falcon's queue word for word, down to "porcelain enamel cookware". The
+  // selected briefing id survived the client change, `loadList` would not
+  // replace it because one was already set, and the effect below never re-ran
+  // because the id had not changed — so the page kept rendering a briefing
+  // belonging to someone else.
+  //
+  // Nothing leaked: `/strategist/briefings/:id` calls `assertClientAccess`, so
+  // a viewer scoped to one client gets a 403. An admin can see both, so the
+  // API answered honestly and the frontend put the answer under the wrong
+  // name. Still the worst kind of wrong, because the page gives you no reason
+  // to doubt it.
+  useEffect(() => {
+    setList(null);
+    setSelected(null);
+    setSelectedId(null);
+    setSettingsOpen(false);
+    loadList(true);
+    /* eslint-disable-line */
+  }, [clientId]);
   // Escape shuts the drawer, the same contract the analyst panel has, so the
   // two slide-ins behave alike.
   useEffect(() => {
@@ -188,7 +218,13 @@ export default function StrategistBriefingPanel({ clientId }) {
     finally { setDownloading(null); }
   }
 
-  const completed = selected && selected.status === 'completed';
+  // The floor under the reset above. A briefing is only ever rendered on the
+  // client it belongs to, so the same class of bug cannot show a stale one
+  // again however the state gets out of step. The payload carries client_id;
+  // an older one without it is trusted, since the alternative is showing
+  // nothing on a briefing that is probably fine.
+  const mine = !selected || !selected.client_id || selected.client_id === clientId;
+  const completed = mine && selected && selected.status === 'completed';
   const sections = (completed && Array.isArray(selected.sections)) ? selected.sections : [];
   const recs = (completed && Array.isArray(selected.recommendations)) ? selected.recommendations : [];
   // Each pillar's analysis, keyed so a queue item opens its own. 'cross' items
@@ -261,9 +297,9 @@ export default function StrategistBriefingPanel({ clientId }) {
            settings strip at the foot now. */
         <div className="strategist-main one-col">
           <div>
-            {!selected && <div className="card" style={{ color: 'var(--text-subtle)' }}>Pick a briefing on the left.</div>}
-            {selected && selected.status === 'generating' && <div className="card" style={{ color: 'var(--text-subtle)' }}>Generating… five expert passes, usually a minute or two.</div>}
-            {selected && selected.status === 'failed' && (
+            {(!selected || !mine) && <div className="card" style={{ color: 'var(--text-subtle)' }}>Loading this client's briefing…</div>}
+            {mine && selected && selected.status === 'generating' && <div className="card" style={{ color: 'var(--text-subtle)' }}>Generating… five expert passes, usually a minute or two.</div>}
+            {mine && selected && selected.status === 'failed' && (
               <div className="card" style={{ color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Generation failed: {selected.error_message || 'unknown error'}</div>
             )}
             {completed && (<>

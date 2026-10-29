@@ -21,8 +21,11 @@ console.log('parseQueue');
 check('reads priority, action and rationale', () => {
   const q = parseQueue('- [CRUCIAL] Fix the Meta Pixel :: 4,360 clicks at zero conversions is a tracking failure.');
   assert.strictEqual(q.length, 1);
+  // Deep-equal on the whole item on purpose: it is the shape the generator
+  // and the database both depend on, so a field appearing or vanishing should
+  // break here rather than somewhere downstream. Adding `pillar` did.
   assert.deepStrictEqual(q[0], {
-    priority: 'crucial', carryTag: null,
+    priority: 'crucial', carryTag: null, pillar: null,
     text: 'Fix the Meta Pixel',
     rationale: '4,360 clicks at zero conversions is a tracking failure.',
   });
@@ -185,6 +188,65 @@ check('nothing open says so in words the model can use', () => {
   const block = openItemsBlock([], new Date());
   assert.match(block, /Nothing is currently open/);
   assert.ok(!/\[A1\]/.test(block));
+});
+
+console.log('\nthe pillar tag');
+
+check('an item carries the pillar it came from', () => {
+  // Falcon's first real queue came back nine items long with every row
+  // reading ACCOUNT-WIDE, because the line shape had nowhere to put the
+  // pillar and everything defaulted to cross. The chip that replaced the
+  // pillar filter was telling the account lead nothing.
+  const [a, b] = parseQueue('- [CRUCIAL][PAID] Cap UK PMax :: branded spend hides in the broad feed.\n- [CRUCIAL][OWNED] Audit 143 keywords :: pages mistargeted.');
+  assert.strictEqual(a.pillar, 'paid');
+  assert.strictEqual(b.pillar, 'owned');
+  assert.strictEqual(a.text, 'Cap UK PMax', 'the tag must not survive into the action');
+});
+
+check('the pillar and carry tags work in either order', () => {
+  const [a] = parseQueue('- [CRUCIAL][PAID][A1] Cap UK PMax :: why.');
+  const [b] = parseQueue('- [CRUCIAL][A1][PAID] Cap UK PMax :: why.');
+  for (const item of [a, b]) {
+    assert.strictEqual(item.pillar, 'paid');
+    assert.strictEqual(item.carryTag, 'A1');
+    assert.strictEqual(item.text, 'Cap UK PMax');
+  }
+});
+
+check('no pillar tag is null, not a guess', () => {
+  // The caller defaults this to `cross`, which is the honest answer for work
+  // that spans the account. Inferring a pillar from the words would put items
+  // in sections they did not come from.
+  const [a] = parseQueue('- [CRUCIAL] Validate attribution across the six stores :: no baseline until then.');
+  assert.strictEqual(a.pillar, null);
+});
+
+check('an unknown bracket is part of the action, not a dropped tag', () => {
+  // A greedy tag group would eat this and the item would read "call the dev".
+  const [a] = parseQueue('- [CRUCIAL] [Urgent] call the dev :: the pixel is dead.');
+  assert.strictEqual(a.text, '[Urgent] call the dev');
+  assert.strictEqual(a.pillar, null);
+});
+
+check('the pillar is case-insensitive, as the tags already were', () => {
+  const [a] = parseQueue('- [crucial][Owned] Fix the page :: why.');
+  assert.strictEqual(a.pillar, 'owned');
+});
+
+check('a carried item keeps its pillar when the model leaves the tag off', () => {
+  const open = [{ id: 'old-1', text: 'Fix the Pixel', pillar: 'paid', first_raised_at: '2026-10-01T00:00:00Z' }];
+  const { items } = reconcile(parseQueue('- [CRUCIAL][A1] Fix the Pixel :: still dead.'), open);
+  assert.strictEqual(items[0].pillar, 'paid', 'it must not drift to cross');
+  assert.strictEqual(items[0].carried_from, 'old-1');
+});
+
+check('and the model can move a carried item to another pillar', () => {
+  // It has just read all four analyses. If it says the item now belongs to
+  // Owned, that is a judgement, not a parse error.
+  const open = [{ id: 'old-1', text: 'Fix tracking', pillar: 'paid', first_raised_at: '2026-10-01T00:00:00Z' }];
+  const { items } = reconcile(parseQueue('- [CRUCIAL][OWNED][A1] Fix tracking :: it is a site problem.'), open);
+  assert.strictEqual(items[0].pillar, 'owned');
+  assert.strictEqual(items[0].carried_from, 'old-1', 'and it still keeps its age');
 });
 
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
