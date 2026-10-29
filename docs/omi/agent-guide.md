@@ -809,6 +809,45 @@ Each `.drawer-group` names one concern. The strip this replaced put the email
 toggle, the period and the recipients in one unlabelled row, so three unrelated
 settings read as one setting with three parts.
 
+#### The empty queue, and why a prompt is not a guarantee (29 Oct 2026)
+
+The first briefing generated under the tightened prompt came back with **no
+queue at all**: one line of prose and "Nothing on the queue from this
+briefing", on an account with a dead Pixel and three silent pillars.
+
+The cause was a sentence I wrote the same day. The synthesis prompt said:
+
+> If nothing material changed, write exactly one line saying so and nothing
+> else.
+
+**On a first briefing nothing has changed by definition**, so the model wrote
+the line and read "nothing else" as the whole output rather than the section.
+Five Claude passes, paid and owned recommendations sitting inside the pillar
+analyses, and every one of them discarded.
+
+Both halves are fixed:
+
+- **The prompt** scopes that sentence to its section, adds a first-briefing
+  branch (nothing has changed, so the queue is the entire deliverable and must
+  not be empty), and says the page has no figures below the prose, which is
+  what the model was writing about.
+- **The code** has a floor under it. `queueFor(synthMd, sections)` falls back
+  to the pillars' own recommendations when the synthesis wrote no queue, and
+  says so on each item's rationale rather than passing them off as a ranking
+  the strategist made. It fires **only into a vacuum**: with a synthesis queue
+  present the pillar items stay out, because two lists of the same work is the
+  failure they were kept out of the queue to avoid in the first place.
+
+**The lesson is the general one.** A prompt is a request, not a guarantee. When
+a model's output is load-bearing — when the page has nothing on it if the model
+omits a section — there has to be code that notices. `tests/strategist-fallback.test.js`
+guards it, in CI, mutation-tested both ways.
+
+`queueFor` exists as a named function for a reason: the fallback was first
+written inline in `generate`, where exercising it needs a database and five
+Claude calls, and **a mutation that disabled it passed every test**. Pull the
+decision out where it can be tested.
+
 #### The drawer took the chat, and the page kept Generate
 
 Second pass on the drawer, on the account lead's own read of it ("i like the

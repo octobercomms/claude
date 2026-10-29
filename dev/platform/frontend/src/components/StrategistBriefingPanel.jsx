@@ -290,7 +290,10 @@ export default function StrategistBriefingPanel({ clientId }) {
                 </div>
               ) : (
                 <div className="card body-sm" style={{ marginBottom: 'var(--s4)', color: 'var(--text-subtle)' }}>
-                  Nothing on the queue from this briefing.
+                  <strong>Nothing on the queue from this briefing.</strong> That means the strategist
+                  found nothing worth doing in the next 30 days, which on an active account is worth
+                  a second look: generate again, and if it comes back empty twice the connectors are
+                  the first place to check.
                 </div>
               )}
 
@@ -339,9 +342,10 @@ export default function StrategistBriefingPanel({ clientId }) {
             <div className="side-drawer-col">
               <div className="drawer-group drawer-chat">
                 <div className="caption drawer-group-head">Ask about this briefing</div>
-                <p className="body-xs text-subtle" style={{ marginBottom: 'var(--s3)' }}>
-                  This reads the briefing on the page. For live numbers on a particular section, use the analyst (the chat bubble, top right) while standing on it.
-                </p>
+                {/* No blurb here. StrategistChat prints its own, and mine
+                    contradicted it: I wrote "for live numbers use the analyst"
+                    above a line saying this chat pulls live data itself. Its
+                    line is the true one. */}
                 {/* Mounted only while the drawer is open: a closed drawer
                     should not be holding a conversation, and reopening on the
                     same client resumes the stored thread anyway. */}

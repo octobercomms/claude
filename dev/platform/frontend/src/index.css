@@ -1740,6 +1740,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .side-drawer-col + .side-drawer-col { border-left: var(--border-w) solid var(--card-border); }
 /* The thread fills its column rather than growing the page. */
 .drawer-chat { display: flex; flex-direction: column; min-height: 0; height: 100%; margin-bottom: 0; }
+/* The suggested questions are full sentences in a column half the drawer
+   wide, so they have to wrap. Left as nowrap buttons the longest one was
+   clipped mid-word at the column edge. */
+.drawer-chat .empty .btn { white-space: normal; height: auto; line-height: 1.4; padding-top: 7px; padding-bottom: 7px; }
 @media (max-width: 900px) {
   .side-drawer-split { display: block; overflow-y: auto; padding: var(--s5); }
   .side-drawer-col { overflow: visible; padding: 0; }
