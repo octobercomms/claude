@@ -535,6 +535,42 @@ Existing items were backfilled to their `created_at`, so historic briefings read
 honestly, but nothing has been *carried* yet. For the first week or two the tile
 will look quiet, and that is the data being young rather than an all-clear.
 
+### The queue is the panel's second view (29 Oct 2026)
+
+The analyst panel has **Chat** and **Queue**, a segmented pair in its header.
+The conversation is where you ask; the queue is what is already on your list.
+Both are scoped by the section you are standing in, so the switch is cheap and
+neither needs its own icon in a bar that already has three.
+
+I argued for a separate icon and was overruled; the call was the right one for
+a reason I had undervalued, which is that both views already share the same
+scoping, so the switch costs nothing. If it ever needs splitting out, the queue
+is a self-contained component and the split is small.
+
+- `GET /strategist/clients/:id/queue` returns open items from the latest
+  completed briefing only. Not "list briefings then fetch the newest": the
+  panel needs this on every page and cannot afford two round trips, nor the
+  synthesis and pillar analyses that make up the bulk of that payload.
+- **A pillar persona sees its own items plus `cross`.** An account-wide item is
+  relevant to every section by definition. The general `analyst` persona sees
+  everything.
+- **The count of what the scoping hid is shown**, with a button to reveal it.
+  Without that, a short list on Paid reads as "the account is quiet" when it is
+  only this pillar that is.
+- **Ticking writes to `PATCH /strategist/briefing-actions/:id`**, the same
+  endpoint the Strategy tab uses, so the two never disagree. The item then
+  leaves the list: the panel is a working list, and a ticked item belongs in
+  the briefing's history rather than in your way.
+- **The chat stays mounted while the queue shows**, hidden rather than
+  unmounted, so switching views does not throw away a half-typed question.
+  Mutation-tested: unmount it and the half-typed-question check fails.
+- Reopening the panel lands on Chat. The queue is a glance; the chat is where
+  you were working.
+
+The reasoning sits with each item here rather than behind a `?` as it does on
+the Strategy tab: the panel is a glance, and a glance that needs a click is not
+one.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First
