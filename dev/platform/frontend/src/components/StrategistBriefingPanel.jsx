@@ -177,20 +177,17 @@ export default function StrategistBriefingPanel({ clientId }) {
               changed rather than restating the account. */}
           <p className="body mt-3">What changed across the account since the last briefing, and the queue it leaves you. Generated weekly and emailed every Monday while <strong>Weekly email</strong> is ticked. A quiet week is a short briefing.</p>
         </div>
+        {/* One action in the header. The email toggle, the period, recipients,
+            downloads and the history all moved to a strip at the foot: they
+            are settings for a thing you read, and they were occupying the top
+            third of a page whose content started below the fold. The button
+            names its own period so the link to the setting stays visible. */}
         <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
-          {view === 'briefing' && <>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }} title="Include this client in the Monday email">
-              <input type="checkbox" checked={active} onChange={toggleActive} /> Weekly email
-            </label>
-            <select value={days} onChange={e => setDays(parseInt(e.target.value, 10))} className="input">
-              <option value={30}>Last 30 days</option>
-              <option value={60}>Last 60 days</option>
-              <option value={90}>Last 90 days</option>
-            </select>
+          {view === 'briefing' && (
             <button className="btn btn-primary" onClick={generate} disabled={generating}>
-              {generating ? 'Generating…' : '+ Generate briefing'}
+              {generating ? 'Generating…' : `+ Generate briefing · ${days} days`}
             </button>
-          </>}
+          )}
         </div>
       </div>
 
@@ -229,63 +226,16 @@ export default function StrategistBriefingPanel({ clientId }) {
     return (
       <>
 
-      {/* Steer the next briefing — the account lead's own thoughts inform generation */}
-      <div className="card body-sm" style={{ marginBottom: 'var(--s4)' }}>
-        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>
-          Steer the next briefing
-        </div>
-        <p className="caption" style={{ color: 'var(--text-subtle)', margin: '0 0 var(--s2)' }}>
-          Your thoughts, decisions and priorities. The strategist reads these and weights them when it next generates — add here, or use “Add to briefing” in Ask about this briefing.
-        </p>
-        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>
-          <textarea value={steerText} onChange={e => setSteerText(e.target.value)} rows={2}
-            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addSteer(); } }}
-            placeholder="e.g. We're pushing the autumn collection — lean into SEO and social, ease off paid until stock lands."
-            className="textarea" style={{ flex: 1 }} />
-          <button className="btn btn-secondary btn-sm" disabled={!steerText.trim()} onClick={addSteer}>Add</button>
-        </div>
-        {steer.length > 0 && (
-          <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-            {steer.map(n => (
-              <div key={n.id} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', fontSize: 'var(--fs-body)', lineHeight: 1.45 }}>
-                <span style={{ flex: 1 }}>
-                  {n.source === 'chat' && <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>from chat</span>}
-                  {n.text}
-                </span>
-                <button onClick={() => removeSteer(n.id)} title="Remove" className="btn-icon btn-icon-sm">×</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {!list && <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading…</div>}
       {list && list.length === 0 && !generating && (
         <div className="empty">No briefings yet. Click <strong>Generate briefing</strong> — Claude reviews the last {days} days across every pillar and writes your strategist's take. Takes a minute or two.</div>
       )}
 
       {list && list.length > 0 && (
-        <div className="strategist-main">
-          <div>
-            <div className="strategist-col-head">Briefings</div>
-            <div className="strategist-list">
-              {list.map(r => (
-                <button key={r.id} onClick={() => setSelectedId(r.id)} className={`briefing-card${selectedId === r.id ? ' active' : ''}`}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span className="briefing-date">{fmtDate(r.period_start)} – {fmtDate(r.period_end)}</span>
-                    {!r.read_at && r.status === 'completed' && <span className="briefing-dot" />}
-                  </div>
-                  <div className="briefing-meta">
-                    {r.status === 'generating' && '· Generating…'}
-                    {r.status === 'failed' && <span style={{ color: 'var(--negative)' }}>✗ Failed</span>}
-                    {r.status === 'completed' && <>{r.trigger === 'weekly_cron' ? 'weekly · ' : 'manual · '}{fmtRelative(r.generated_at)}</>}
-                  </div>
-                  <span className="briefing-del" onClick={(e) => destroy(r.id, e)} title="Delete">×</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
+        /* One column. The briefings list was a left rail taking a third of the
+           width to show a thing you pick once a week; it is a row in the
+           settings strip at the foot now. */
+        <div className="strategist-main one-col">
           <div>
             {!selected && <div className="card" style={{ color: 'var(--text-subtle)' }}>Pick a briefing on the left.</div>}
             {selected && selected.status === 'generating' && <div className="card" style={{ color: 'var(--text-subtle)' }}>Generating… five expert passes, usually a minute or two.</div>}
@@ -293,19 +243,6 @@ export default function StrategistBriefingPanel({ clientId }) {
               <div className="card" style={{ color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Generation failed: {selected.error_message || 'unknown error'}</div>
             )}
             {completed && (<>
-              {/* Downloads — internal briefing (PDF) + client-facing draft (Word) */}
-              <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap', alignItems: 'center' }}>
-                <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('internal', 'pdf')}
-                  title="The full briefing — synthesis, per-pillar analysis, task list and the data behind it.">
-                  {downloading === 'internal.pdf' ? 'Preparing…' : '↓ Briefing (PDF)'}
-                </button>
-                <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('client', 'docx')}
-                  title="A client-ready progress report you can edit in Word before sending. First download takes ~20s while Claude writes it.">
-                  {downloading === 'client.docx' ? 'Writing client draft…' : '↓ Client draft (Word)'}
-                </button>
-                <span className="caption" style={{ color: 'var(--text-subtle)' }}>Client draft is reframed for the client — edit before sending.</span>
-              </div>
-
               {/* What changed leads. The synthesis is now two short sections —
                   what changed, then the queue — so it renders whole rather than
                   being split: the queue below is the same items as rows you can
@@ -373,14 +310,93 @@ export default function StrategistBriefingPanel({ clientId }) {
                 </>
               )}
 
-              {/* Monday recipients */}
-              <div className="card" style={{ marginTop: 'var(--s4)', display: 'flex', gap: 'var(--s2)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 260 }}>
-                  <label style={{ display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>Monday email recipients</label>
-                  <input type="text" value={recipients} onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }} placeholder="you@octobercomms.com"
-                    className="input" style={{ width: '100%' }} />
+      {/* After the queue, not before it. You read, you disagree, you note it.
+          A large labelled box at the top asked you to steer a briefing you had
+          not yet seen. */}
+      {/* Steer the next briefing — the account lead's own thoughts inform generation */}
+      <div className="card body-sm" style={{ marginBottom: 'var(--s4)' }}>
+        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
+          Note something for the next briefing
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>
+          <textarea value={steerText} onChange={e => setSteerText(e.target.value)} rows={1}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addSteer(); } }}
+            placeholder="e.g. We're pushing the autumn collection — lean into SEO and social, ease off paid until stock lands."
+            className="textarea" style={{ flex: 1 }} />
+          <button className="btn btn-secondary btn-sm" disabled={!steerText.trim()} onClick={addSteer}>Add</button>
+        </div>
+        {steer.length > 0 && (
+          <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+            {steer.map(n => (
+              <div key={n.id} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', fontSize: 'var(--fs-body)', lineHeight: 1.45 }}>
+                <span style={{ flex: 1 }}>
+                  {n.source === 'chat' && <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>from chat</span>}
+                  {n.text}
+                </span>
+                <button onClick={() => removeSteer(n.id)} title="Remove" className="btn-icon btn-icon-sm">×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+
+              {/* Everything that configures the briefing, below the briefing.
+                  These were the top third of the page: settings for something
+                  you read, in front of the thing you read. */}
+              <div className="strategist-settings">
+                <div className="strategist-settings-head">Settings</div>
+
+                <div className="strategist-settings-row">
+                  <label className="strategist-setting" title="Include this client in the Monday email">
+                    <input type="checkbox" checked={active} onChange={toggleActive} />
+                    <span>Weekly email</span>
+                  </label>
+                  <label className="strategist-setting">
+                    <span className="caption">Period</span>
+                    <select value={days} onChange={e => setDays(parseInt(e.target.value, 10))} className="input">
+                      <option value={30}>30 days</option>
+                      <option value={60}>60 days</option>
+                      <option value={90}>90 days</option>
+                    </select>
+                  </label>
+                  <label className="strategist-setting" style={{ flex: 1, minWidth: 240 }}>
+                    <span className="caption">Monday recipients</span>
+                    <input type="text" value={recipients} onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
+                      placeholder="you@octobercomms.com" className="input" style={{ width: '100%' }} />
+                  </label>
+                  {recipientsDirty && <button onClick={saveRecipients} className="btn btn-secondary btn-sm">Save</button>}
                 </div>
-                {recipientsDirty && <button onClick={saveRecipients} className="btn btn-secondary btn-sm">Save</button>}
+
+                <div className="strategist-settings-row">
+                  {/* Downloads — internal briefing (PDF) + client-facing draft (Word) */}
+                  <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('internal', 'pdf')}
+                      title="The full briefing — synthesis, per-pillar analysis, task list and the data behind it.">
+                      {downloading === 'internal.pdf' ? 'Preparing…' : '↓ Briefing (PDF)'}
+                    </button>
+                    <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('client', 'docx')}
+                      title="A client-ready progress report you can edit in Word before sending. First download takes ~20s while Claude writes it.">
+                      {downloading === 'client.docx' ? 'Writing client draft…' : '↓ Client draft (Word)'}
+                    </button>
+                    <span className="caption" style={{ color: 'var(--text-subtle)' }}>Client draft is reframed for the client — edit before sending.</span>
+                  </div>
+
+
+                </div>
+
+                {list.length > 1 && (
+                  <div className="strategist-settings-row">
+                    <span className="caption" style={{ color: 'var(--text-subtle)' }}>Past briefings</span>
+                    {list.map(r => (
+                      <button key={r.id} onClick={() => setSelectedId(r.id)}
+                        className={`strategist-past${selectedId === r.id ? ' active' : ''}`}>
+                        {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
+                        {!r.read_at && r.status === 'completed' && <span className="briefing-dot" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </>)}
           </div>
