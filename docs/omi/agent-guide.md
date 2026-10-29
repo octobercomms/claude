@@ -809,6 +809,62 @@ Each `.drawer-group` names one concern. The strip this replaced put the email
 toggle, the period and the recipients in one unlabelled row, so three unrelated
 settings read as one setting with three parts.
 
+#### One client's briefing under another client's name (29 Oct 2026)
+
+**Architourian's Strategist showed Falcon's queue**, word for word, down to
+"porcelain enamel cookware".
+
+`selectedId` survived the client change. `loadList` would not replace it
+because one was already set (`if (r.length && !selectedId)`), and the effect
+that fetches the briefing never re-ran because the id had not changed. The
+panel kept rendering a briefing belonging to someone else.
+
+**Nothing leaked.** `/strategist/briefings/:id` calls `assertClientAccess`, so
+a viewer scoped to one client gets a 403. The account lead is an admin who can
+see both, so the API answered honestly and the frontend filed the answer under
+the wrong name. Still the worst kind of wrong, because the page gives you no
+reason to doubt it.
+
+Two layers now:
+
+- **The reset.** A client change clears `list`, `selected` and `selectedId`
+  before fetching. `loadList(pick)` forces the newest, and uses a functional
+  `setSelectedId` updater because on a client change it runs in the same tick
+  as the reset, so a `selectedId` read from the closure is still the previous
+  client's.
+- **The render guard.** `mine` checks `selected.client_id === clientId`, so a
+  briefing is only ever drawn on the client it belongs to. With the reset
+  deliberately broken, this turns the leak into a loading state.
+
+**The test was worthless until it drove the real control.** The first version
+used `page.goto` to change client, which is a full page load: the panel
+remounts, its state is destroyed, and the bug cannot happen. **It passed
+against the broken code in both directions.** The switcher navigates inside the
+router, the panel stays mounted, and the stale id survives, which is how this
+reached the live platform in the first place. `drive33.mjs` clicks
+`.client-switcher-item`.
+
+**Look for this pattern elsewhere.** Any `if (!selected) setSelected(list[0])`
+in a component keyed on a client is the same bug waiting. `SeoDriftPanel.jsx`
+line 34 has the shape; it was not checked here.
+
+#### The pillar on a queue item (29 Oct 2026)
+
+Falcon's first real queue came back nine items long with **every row reading
+ACCOUNT-WIDE**. The synthesis knows which pillar each item came from, having
+just read all four analyses, but the line shape had nowhere to put it, so
+`generate`'s `r.pillar || 'cross'` caught everything.
+
+Survivable while a filter sat above the list. Once every row carried its own
+chip, the chip was noise.
+
+The line shape is now `[CRUCIAL][PAID][A1] action :: why`. `peelTags` takes the
+tags off the front in either order, as a loop rather than a wider regex: a
+greedy tag group eats an action that genuinely starts with a bracket
+("[Urgent] call the dev") and silently drops those words. No tag still means
+`cross`, which is the honest answer for attribution work that no pillar owns,
+rather than a guess from the text.
+
 #### The empty queue, and why a prompt is not a guarantee (29 Oct 2026)
 
 The first briefing generated under the tightened prompt came back with **no

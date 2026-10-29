@@ -11,13 +11,21 @@
 //
 // The line shape we ask the model for:
 //
-//   - [CRUCIAL][A1] Fix the Meta Pixel on Summer Sale :: 4,360 clicks at zero
-//     conversions is a tracking failure, not a performance result.
+//   - [CRUCIAL][PAID][A1] Fix the Meta Pixel on Summer Sale :: 4,360 clicks at
+//     zero conversions is a tracking failure, not a performance result.
 //
-// `[A1]` is the tag of an open item this continues, and is absent on anything
-// newly raised. ` :: ` splits the action from the reasoning. Both are optional
-// so an older briefing, or a pass where the model ignores the format, still
-// yields usable items rather than nothing.
+// `[PAID]` is which part of the account the item belongs to, and `[A1]` the
+// tag of an open item this continues, absent on anything newly raised. ` :: `
+// splits the action from the reasoning. All three are optional so an older
+// briefing, or a pass where the model ignores the format, still yields usable
+// items rather than nothing.
+//
+// The pillar was added after Falcon's first real queue came back nine items
+// long with every row reading ACCOUNT-WIDE. The synthesis knows perfectly well
+// which pillar each item came from — it has just read all four analyses — but
+// the line shape had nowhere to put it, so everything defaulted to `cross`.
+// That was survivable while a filter sat above the list; once each row carried
+// its own chip it made the chip noise.
 
 // `[A1]`-style tags handed to the model for the items already open. Letter
 // plus number so they cannot be confused with the [CRUCIAL]/[NICE] tags, and
@@ -33,6 +41,31 @@ function tagOpenItems(openItems) {
 
 const LINE = /^\s*(?:[-*]|\d+[.)])?\s*\[(CRUCIAL|NICE)\]\s*(?:\[([A-Za-z]\d{1,3})\])?\s*(.+?)\s*$/i;
 
+// The pillars an item can belong to. `cross` is the honest answer for work
+// that is genuinely account-wide, which is why it stays the default rather
+// than being guessed at from the text.
+const PILLARS = new Set(['PAID', 'EARNED', 'SHARED', 'OWNED', 'CROSS']);
+
+// Peel the tags the model may have written in either order off the front of
+// the action, and stop at the first bracket that is neither.
+//
+// A loop rather than a wider regex on purpose: a greedy tag group would eat
+// an action that genuinely starts with a bracket ("[Urgent] call the dev") and
+// silently drop those words from the item.
+function peelTags(rest, carryTag) {
+  let pillar = null;
+  let carry = carryTag;
+  for (;;) {
+    const m = rest.match(/^\[([A-Za-z]+\d{0,3})\]\s*/);
+    if (!m) break;
+    const tag = m[1].toUpperCase();
+    if (!pillar && PILLARS.has(tag)) { pillar = tag.toLowerCase(); rest = rest.slice(m[0].length); continue; }
+    if (!carry && /^[A-Z]\d{1,3}$/.test(tag)) { carry = tag; rest = rest.slice(m[0].length); continue; }
+    break;
+  }
+  return { rest, pillar, carry };
+}
+
 // Pull the queue out of a markdown block. Returns
 // [{ priority, carryTag, text, rationale }] in the order written, which is the
 // order the model was asked to prioritise in.
@@ -42,7 +75,8 @@ function parseQueue(markdown) {
   for (const raw of String(markdown).split('\n')) {
     const m = raw.match(LINE);
     if (!m) continue;
-    const [, priority, carryTag, rest] = m;
+    const [, priority, firstTag, afterPriority] = m;
+    const { rest, pillar, carry } = peelTags(afterPriority, firstTag ? firstTag.toUpperCase() : null);
 
     // ` :: ` splits action from reasoning. Split once: a rationale is free to
     // contain anything, including another colon pair.
@@ -55,7 +89,8 @@ function parseQueue(markdown) {
 
     out.push({
       priority: priority.toLowerCase() === 'crucial' ? 'crucial' : 'nice',
-      carryTag: carryTag ? carryTag.toUpperCase() : null,
+      carryTag: carry,
+      pillar,
       text,
       rationale,
     });
@@ -91,9 +126,11 @@ function reconcile(parsed, openItems) {
       rationale: p.rationale,
       first_raised_at: match ? match.first_raised_at : null,
       carried_from: match ? match.id : null,
-      // The pillar of the item it continues, so a carried item does not drift
-      // between pillars and lose its filter. The caller overrides for new ones.
-      pillar: match ? match.pillar : null,
+      // What the model tagged wins, because it has just read the analyses and
+      // an item can genuinely move pillar. Falling back to the carried item's
+      // pillar keeps a continued item from drifting to `cross` on a pass where
+      // the model left the tag off.
+      pillar: p.pillar || (match ? match.pillar : null),
     });
   }
 

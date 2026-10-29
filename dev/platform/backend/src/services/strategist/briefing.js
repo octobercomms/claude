@@ -184,9 +184,10 @@ The page shows this prose and then the queue, as a list of tickable rows. There 
 \`### The queue\`
 Every item, most important first, one per line, in this exact shape:
 
-\`[CRUCIAL][A1] The action :: why it matters, with the figure that shows it\`
+\`[CRUCIAL][PAID][A1] The action :: why it matters, with the figure that shows it\`
 
 - \`[CRUCIAL]\` means do it in the next 30 days and it moves the needle. \`[NICE]\` means worthwhile but it can wait. Be hard about this: if everything is crucial, nothing is.
+- **The pillar tag** is which analysis the item came out of: \`[PAID]\`, \`[EARNED]\`, \`[SHARED]\` or \`[OWNED]\`. Every row shows it on screen, so it is how the account lead sees at a glance which part of the account their week is in. Use \`[CROSS]\` only for work that genuinely spans the account, such as attribution or a measurement fix that no single pillar owns. **Do not tag everything \`[CROSS]\`**: an item that came out of the Paid analysis is \`[PAID]\`, even when fixing it helps everything.
 - The \`[A1]\` tag: copy it verbatim from the open list above when this item continues one that is already open, so it keeps its age. Leave the tag off entirely for anything newly raised. Never invent a tag.
 - Drop an open item by simply not re-emitting it. Only drop it when it is genuinely resolved or no longer worth doing, and say which in What changed.
 - The action is one sentence, specific enough to start on Monday. The rationale after \` :: \` is one sentence and carries the number.
