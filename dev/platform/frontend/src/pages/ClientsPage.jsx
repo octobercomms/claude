@@ -148,7 +148,9 @@ export default function ClientsPage() {
             ? [skippedCount && `${skippedCount} not sent, no recipients`, failedCount && `${failedCount} failed`].filter(Boolean).join(' · ')
             : (health.total ? 'all delivered' : 'none scheduled this week')} →`}
           subTone={skippedCount || failedCount ? 'warn' : undefined}
-          to={skippedCount || failedCount ? '/reports?status=skipped_no_recipients' : '/reports'}
+          to={skippedCount || failedCount
+            ? '/settings?tab=reports&status=skipped_no_recipients'
+            : '/settings?tab=reports'}
         />
         <Stat
           label="Needs attention"

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Layout from './components/Layout';
@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
-import ReportsPage from './pages/ReportsPage';
 import RankingsPage from './pages/RankingsPage';
 import ClientSEOPage from './pages/ClientSEOPage';
 import ClientAdsPage from './pages/ClientAdsPage';
@@ -20,7 +19,6 @@ import ApprovePage from './pages/ApprovePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
 // Temporary: the checker calibration bench. Goes when the thresholds are set.
-import CheckerBenchPage from './pages/CheckerBenchPage';
 import SnapshotStudioPage from './pages/SnapshotStudioPage';
 import TenderWorkspacePage from './pages/TenderWorkspacePage';
 import SettingsPage from './pages/SettingsPage';
@@ -42,6 +40,15 @@ function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--s10)', color: 'var(--text-muted)' }}>Loading…</div>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+// Carries the incoming query string across, so /reports?status=x lands on
+// /settings?tab=reports&status=x rather than dropping the filter.
+function SettingsTabRedirect({ tab }) {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('tab', tab);
+  return <Navigate to={`/settings?${params.toString()}`} replace />;
 }
 
 function HomeRoute() {
@@ -116,7 +123,10 @@ export default function App() {
                 page is gone. Bounce any stale links to the client list. */}
             <Route path="video" element={<Navigate to="/clients" replace />} />
             <Route path="recordings" element={<Navigate to="/clients" replace />} />
-            <Route path="reports" element={<ReportsPage />} />
+            {/* Reports and the checker bench are Settings tabs. Both routes
+                are kept so existing links, and the Clients report tile, keep
+                working; the query string rides along. */}
+            <Route path="reports" element={<SettingsTabRedirect tab="reports" />} />
             <Route path="rankings" element={<RankingsPage />} />
             {/* Leads folded into Settings → Workspace → Leads; keep old links working. */}
             <Route path="leads" element={<Navigate to="/settings?tab=leads" replace />} />
@@ -130,7 +140,7 @@ export default function App() {
             <Route path="proposals/sample" element={<ProposalSamplePage />} />
             <Route path="proposals/:id" element={<ProposalEditorPage />} />
             <Route path="guide" element={<GuidePage />} />
-            <Route path="lab/checker" element={<CheckerBenchPage />} />
+            <Route path="lab/checker" element={<SettingsTabRedirect tab="checker" />} />
             <Route path="design" element={<DesignSystemPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="contacts/cleanup" element={<ContactCleanupPage />} />

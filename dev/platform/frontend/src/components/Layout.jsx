@@ -158,21 +158,16 @@ export default function Layout() {
               bottom of the rail for everyone. */}
           {user?.role === 'admin' && (
             <li>
+              {/* Reports and the checker bench are tabs inside this page, not
+                  rail items. Both are agency admin touched rarely, and the top
+                  rail stays at four. /reports and /lab/checker redirect to
+                  their tabs, so old links keep working.
+                  Reports had no nav entry at all until 29 Oct 2026 — routed,
+                  working, and opened by nothing. Buried is fine; unreachable
+                  is not. The alert is not buried with it: "N not sent" is a
+                  KPI on Clients, the page you land on, linking straight to the
+                  filtered view. */}
               <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
-              {/* Reports — the cross-client report log, the delivery readout
-                  and the manual trigger. All of it is agency admin you touch
-                  rarely, so it sits under Settings rather than taking a fifth
-                  slot in the top rail.
-                  It had no nav entry at all until 29 Oct 2026: the route
-                  existed, the page worked, and nothing in the app opened it.
-                  Buried is fine; unreachable is not. The alert does not live
-                  here — "N not sent" is a KPI on Clients, the page you land
-                  on, and it links straight to the filtered view. */}
-              <NavLink to="/reports" style={({ isActive }) => linkStyle(isActive)}>Reports</NavLink>
-              {/* Temporary: the checker calibration bench. Remove this link, the
-                  route, the page and migration 195's table together when the
-                  thresholds are set. */}
-              <NavLink to="/lab/checker" style={({ isActive }) => subLinkStyle(isActive)}>Checker bench</NavLink>
             </li>
           )}
           <li>
