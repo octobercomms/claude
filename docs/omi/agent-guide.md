@@ -198,6 +198,15 @@ Two things that cost a session to find, worth knowing before you touch either:
   `backend/tests/report-recipients.test.js` honest. Reports triggered by hand
   from the UI do not pass through the scheduler and still generate.
 
+  Who is and is not being reached is on the **Reports page**, top of the page,
+  from `GET /reports/delivery`. Before that it could only be read one client at
+  a time, as a single line on that client's Setup tab, which is how nine of ten
+  clients came to be silently receiving nothing. That Setup item also used to
+  sum the weekly and monthly lists, so monthly recipients marked a client "ok"
+  while its weekly reports were still binned; it now reads each type through
+  `recipientsFor`. An active client with an empty `report_schedule` is due a
+  weekly report — the default is Monday, not off.
+
 ### Temporary: the checker bench
 
 `/lab/checker` (Settings → Checker bench, admin only) is a calibration bench for

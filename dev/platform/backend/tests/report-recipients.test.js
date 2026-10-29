@@ -63,5 +63,50 @@ check('a bare string is not treated as a list',
 check('an unknown report type reads the weekly list',
   has({ weekly: ['am@october.co'] }, 'quarterly'));
 
+// ── Delivery classification ─────────────────────────────────────────────
+//
+// What /reports/delivery and the Setup readiness item both have to get right.
+// runScheduledReports defaults weekly_day to Monday, so every active client is
+// due a weekly report; monthly only runs when monthly_day is set.
+const deliveryFor = (client) => {
+  const schedule = client.report_schedule || {};
+  const weeklyTo = recipientsFor(client.report_recipients, 'weekly');
+  const monthlyTo = recipientsFor(client.report_recipients, 'monthly');
+  const monthlyScheduled = !!schedule.monthly_day;
+  return {
+    weekly: { recipients: weeklyTo.length, scheduled: true, delivers: weeklyTo.length > 0 },
+    monthly: { recipients: monthlyTo.length, scheduled: monthlyScheduled, delivers: monthlyScheduled && monthlyTo.length > 0 },
+  };
+};
+
+check('a client with no report_schedule at all is still due a weekly report',
+  deliveryFor({ report_recipients: { weekly: ['am@october.co'] } }).weekly.scheduled === true,
+  'weekly_day defaults to Monday — an empty schedule is not "off"');
+
+check('monthly is only due when monthly_day is set',
+  deliveryFor({ report_recipients: { monthly: ['c@x.com'] } }).monthly.scheduled === false
+    && deliveryFor({ report_schedule: { monthly_day: 1 }, report_recipients: { monthly: ['c@x.com'] } }).monthly.scheduled === true);
+
+// The case the old readiness check scored as "ok": it summed both lists, so
+// monthly recipients masked an empty weekly list while every weekly report
+// was still being binned.
+const monthlyOnly = deliveryFor({ report_schedule: { monthly_day: 1 }, report_recipients: { monthly: ['c@x.com'] } });
+check('monthly recipients do not cover for an empty weekly list',
+  monthlyOnly.monthly.delivers === true && monthlyOnly.weekly.delivers === false,
+  'the client receives a monthly report and no weekly one');
+
+check('a fully configured client delivers on both',
+  (() => {
+    const d = deliveryFor({ report_schedule: { monthly_day: 1 }, report_recipients: { weekly: ['a@x.com'], monthly: ['b@x.com'] } });
+    return d.weekly.delivers && d.monthly.delivers;
+  })());
+
+check('the nine: an empty recipients object delivers nothing',
+  (() => {
+    const d = deliveryFor({ report_recipients: {} });
+    return !d.weekly.delivers && !d.monthly.delivers && d.weekly.scheduled;
+  })(),
+  'scheduled weekly, nobody to send to');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
