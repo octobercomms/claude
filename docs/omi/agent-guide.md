@@ -594,10 +594,14 @@ The conversation is where you ask; the queue is what is already on your list.
 Both are scoped by the section you are standing in, so the switch is cheap and
 neither needs its own icon in a bar that already has three.
 
-I argued for a separate icon and was overruled; the call was the right one for
-a reason I had undervalued, which is that both views already share the same
-scoping, so the switch costs nothing. If it ever needs splitting out, the queue
-is a self-contained component and the split is small.
+**This was undone the same day — the section below is kept as the record of
+why, not as a description of the panel.** I argued for a separate icon, was
+overruled, and agreed the call had merit I had undervalued. We were both wrong
+in the same direction: the question was never which chrome the queue should
+wear but whether it should exist in two places at all. Shown the result, the
+account lead could not say what the queue tab was. One list with two homes has
+an identity in neither. The queue lives on the Strategist now and the analyst
+is a chat again.
 
 - `GET /strategist/clients/:id/queue` returns open items from the latest
   completed briefing only. Not "list briefings then fetch the newest": the
@@ -719,42 +723,106 @@ Two rules that are easy to get wrong and were mutation-tested:
 No sessions at all gives a `null` share rather than 0%: with no account to be a
 share of, 0% is a claim the data does not support.
 
-### The Strategy page, rebuilt around what it is for (29 Oct 2026)
+### The Strategist: the queue is the product (29 Oct 2026)
 
-It had **sixteen things on screen above the first sentence of the briefing**:
-the checklist toggle, a heading, a description, the email checkbox, the period
-select, Generate, two tabs, the steer label, its instruction line, a textarea,
-Add, the briefings rail, two downloads and a caption.
+**Read this before touching the Strategist, and before redesigning any page
+whose content comes out of an LLM.** It is the record of getting the same
+thing wrong three times.
 
-The diagnosis was one inversion. **Two jobs were fused**: reading the briefing
-(weekly, two minutes) and configuring it (occasional, set once). Configuration
-held the top third; the content started below the fold.
+The page was redesigned twice in one day. Both times the diagnosis was layout:
+sixteen controls above the first sentence, configuration holding the top third,
+a left rail spending a third of the width on something you pick weekly. Both
+times the fix was real and the page still failed, because the account lead's
+actual complaint was never about where the controls were:
 
-| | Where it is now |
+> the strategy briefing is so long and dense text. im never going to read this.
+
+**The page was a reader for a document nobody reads.** No arrangement of a
+reader fixes that. The cause was one contradiction in `briefing.js`, which had
+survived both redesigns because neither looked at the generator:
+
+| | said |
 |---|---|
-| What changed, the queue, Evidence | the page |
-| Note for the next briefing | one line, **after** the queue |
-| Weekly email, period, recipients, PDF, Word, past briefings | a settings strip at the foot |
-| Generate | the one header action, labelled with its period |
-| Strategy checklist | its own **Plan** tab |
+| `SYSTEM` (above both passes) | "Depth is welcome and expected, this is a proper strategic review, not a one-line summary." |
+| the synthesis prompt | "At most four bullets, and fewer is better... Nothing else." |
+| the pillar prompt | "short and specific... Length is not a measure of usefulness here." |
 
-Three rules behind it:
+A model handed both splits the difference. The user prompts were tightened
+twice and lost twice, silently, to a system prompt nobody re-read. **When an
+LLM feature's output is the wrong shape, read the system prompt before you move
+a single div.**
 
-- **The main action is ticking something off the queue.** It is the only one
-  that moves work forward. The second is the steer note, which belongs after
-  the queue: a large labelled box at the top asked you to steer a briefing you
-  had not read.
-- **Collapse for reference, not for length.** The checklist was collapsed on
-  the Strategy page to make the page shorter, which was treating the symptom.
-  It is template setup on a quarterly rhythm against a weekly read, so it is a
-  different job and now a different tab. Evidence stays collapsed because it
-  genuinely is reference.
-- **The briefings rail is gone.** A left column taking a third of the width to
-  show something you pick once a week; it is a row of pills in the strip.
+`SYSTEM` now makes brevity the instruction, names the banned moves
+(throat-clearing, "it is worth noting", closing summaries that repeat the
+above) and says outright that length is never evidence of rigour. "What
+changed" is capped at three one-line bullets. The pillar prompt is told where
+its paragraph is shown, which is folded under a queue item rather than as a
+section of a report.
 
-`Plan` rather than `Checklist` as the tab name: it holds the SOSTAC, personas
-and SWOT, which is a plan, and two tabs both named some form of "strategy"
-would say nothing.
+**The page is now two things: what changed, and what is now yours to do.**
+
+| Gone | Why |
+|---|---|
+| The pillar filter | It used the tab component, so it read as navigation and instead silently shortened a list. Every row carries its own pillar chip, which is what made the filter unnecessary. |
+| The "Evidence" section | A one-word label with no object, sitting apart from the items it was evidence for. It is now under each item: rationale, then that pillar's analysis. |
+| Four "no data this period" boxes | A finding the queue already carries. One line now names the silent pillars, which is worth knowing because a quiet pillar is usually a broken connector. |
+| The `h2` and its blurb | The tab says Strategist. A page that repeats its own tab spends its first line saying where you are. |
+| The settings strip | See the drawer, below. |
+
+Measured: **four chrome controls on arrival** (the Briefing/Ask toggle,
+Generate, the cog), against sixteen above the fold before. The rest are the
+queue rows themselves, which are the content.
+`drive28.mjs` counts the two separately, because a checkbox per queue item is
+the page working and conflating the two hides the number that matters.
+
+**The queue has one home.** It was also a tab inside the analyst panel, and the
+account lead could not say what it was. Two homes for one list is not
+redundancy, it is two half-identities: a strategist's output wearing the
+analyst's chrome is unnameable. `AnalystQueue.jsx` is deleted and the analyst
+is a chat again. `GET /strategist/clients/:id/queue` stays as the cheapest read
+of "what is open on this client", with nothing in the frontend calling it.
+
+**Three inputs looked alike and differed only by when the answer lands.** That
+is now said out loud, and they are physically apart:
+
+| | Runs | Lands |
+|---|---|---|
+| Generate briefing | now | two minutes |
+| Ask about this briefing | now | changes nothing |
+| Steer the next briefing (in the drawer) | next generation | next Monday |
+
+#### The side drawer, a house pattern
+
+`.side-drawer` in `index.css`, with `.side-drawer-scrim`, `.side-drawer-head`,
+`.side-drawer-body` and `.drawer-group`. **Reach for it when a page has a
+second audience: the person configuring the thing rather than the person
+reading it.** Settings, archives, exports.
+
+Two deliberate differences from `.analyst-panel`, which proved the shape:
+
+- **It takes a scrim.** The analyst deliberately has none, because you are
+  reading the page behind it while you ask. You are not, while you set
+  recipients.
+- **Its body scrolls.** A settings list grows; a chat thread does not.
+
+Each `.drawer-group` names one concern. The strip this replaced put the email
+toggle, the period and the recipients in one unlabelled row, so three unrelated
+settings read as one setting with three parts.
+
+#### Two traps
+
+- **Both render functions must sit inside the component.** Adding
+  `renderSettingsDrawer` after the component's closing brace is **valid
+  JavaScript** — a module-scope function declaration — so `vite build` passes
+  and every state reference is undefined at runtime. A build is not a check
+  that your braces mean what you think.
+- **The tab keys did not change.** The labels are `Strategist` and `SOSTAC`;
+  the URL keys stay `strategy` and `plan`, because the Monday email links to
+  `?tab=strategy` and every briefing already sent carries that link.
+
+`SOSTAC` rather than `Plan`: it holds Situation, Objectives, Strategy, Tactics,
+Action, Control, and while one tab was called Strategy and its neighbour Plan,
+the two names said nothing about which was which.
 
 ### Every page needs a door
 

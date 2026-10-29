@@ -240,11 +240,16 @@ router.post('/clients/:clientId/briefing/generate', async (req, res) => {
 
 // The open queue for a client, straight from the latest completed briefing.
 //
-// The analyst panel needs this on every page, so it cannot afford the two
-// round trips of "list the briefings, then fetch the newest one" — and it does
-// not want the synthesis or the pillar analyses either, which are the bulk of
-// that payload. Open items only: the panel is a working list, and a ticked
-// item belongs in the briefing's own history rather than in your way.
+// Built for the analyst panel, which showed the queue as a second tab and so
+// could not afford the two round trips of "list the briefings, then fetch the
+// newest one". That tab is gone: one list with two homes had no identity in
+// either, and the queue now lives only on the Strategist, where it is the
+// point of the page.
+//
+// The route stays because it is the cheapest read of "what is open on this
+// client" — one query, no synthesis, no pillar analyses — and the Monday email
+// and anything else wanting that answer should use it rather than fetching a
+// whole briefing. Nothing in the frontend calls it today.
 router.get('/clients/:clientId/queue', async (req, res) => {
   try {
     const { rows: brows } = await pool.query(

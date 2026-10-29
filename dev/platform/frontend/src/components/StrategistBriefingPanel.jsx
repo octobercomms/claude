@@ -5,18 +5,34 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import StrategistChat from './StrategistChat';
 
-// Unified cross-PESO Strategist briefing. Left rail lists past briefings; the
-// main column shows the client-level synthesis, a pillar filter, the account-wide
-// task checklist (crucial vs nice, pillar-tagged) and the per-pillar expert
-// sections. Agency-only. See services/strategist/briefing.js.
+// The Strategist: a weekly decision queue, not a document.
+//
+// Three redesigns in, the account lead still could not say what this page was
+// for, and the reason was never the layout. The page was a reader for a long
+// prose briefing, and nobody reads a long prose briefing. The generator now
+// writes three lines of "what changed" and a queue (see the SYSTEM prompt in
+// services/strategist/briefing.js, which used to ask for depth while the
+// prompts under it asked for brevity).
+//
+// So the page is two things: what changed, and what is now yours to do. Each
+// queue item carries its own pillar and folds open to the reason it exists —
+// its rationale plus that pillar's analysis. That killed three controls at
+// once:
+//
+//   - the pillar filter, which looked like navigation and silently shortened
+//     a list instead (every row carries its own pillar chip now)
+//   - the "Evidence" section, which sat apart from the items it justified
+//     under a one-word label with no object
+//   - the four "no data this period" boxes, which were a finding the queue
+//     already carries as an item
+//
+// Everything that configures the briefing — the Monday email, the period,
+// recipients, downloads, the steer note and the archive — is behind the cog,
+// in a drawer that slides over the page. Configuration is not reading, and it
+// had been occupying the room where the reading happens.
+//
+// Agency-only. See services/strategist/briefing.js.
 
-const PILLARS = [
-  { key: 'all', label: 'All' },
-  { key: 'paid', label: 'Paid' },
-  { key: 'earned', label: 'Earned' },
-  { key: 'shared', label: 'Shared' },
-  { key: 'owned', label: 'Owned' },
-];
 const PILLAR_LABEL = { paid: 'Paid', earned: 'Earned', shared: 'Shared', owned: 'Owned', cross: 'Account-wide' };
 
 export default function StrategistBriefingPanel({ clientId }) {
@@ -26,13 +42,12 @@ export default function StrategistBriefingPanel({ clientId }) {
   const [selected, setSelected] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [days, setDays] = useState(30);
-  const [pillar, setPillar] = useState('all');
   const [active, setActive] = useState(true);
   const [recipients, setRecipients] = useState('');
   const [recipientsDirty, setRecipientsDirty] = useState(false);
-  // The pillar analyses, shut by default: evidence you open when you want to
-  // know why an item is on the queue.
-  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  // The drawer. Shut on arrival and on every client change, because it holds
+  // settings and an archive, and neither is why you opened the page.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloading, setDownloading] = useState(null);
   const [view, setView] = useState('briefing'); // 'briefing' | 'chat'
   const [steer, setSteer] = useState([]);
@@ -42,7 +57,15 @@ export default function StrategistBriefingPanel({ clientId }) {
     .then(r => { setList(r); if (r.length && !selectedId) setSelectedId(r[0].id); })
     .catch(e => toast(e.message, 'error'));
 
-  useEffect(() => { loadList(); /* eslint-disable-line */ }, [clientId]);
+  useEffect(() => { loadList(); setSettingsOpen(false); /* eslint-disable-line */ }, [clientId]);
+  // Escape shuts the drawer, the same contract the analyst panel has, so the
+  // two slide-ins behave alike.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = e => { if (e.key === 'Escape') setSettingsOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [settingsOpen]);
   useEffect(() => {
     api.get(`/clients/${clientId}`).then(c => {
       setRecipients(c.strategist_recipients || '');
@@ -151,7 +174,12 @@ export default function StrategistBriefingPanel({ clientId }) {
   const completed = selected && selected.status === 'completed';
   const sections = (completed && Array.isArray(selected.sections)) ? selected.sections : [];
   const recs = (completed && Array.isArray(selected.recommendations)) ? selected.recommendations : [];
-  const visibleSections = pillar === 'all' ? sections : sections.filter(s => s.pillar === pillar);
+  // Each pillar's analysis, keyed so a queue item opens its own. 'cross' items
+  // are account-wide and have no single pillar behind them, so they open with
+  // their rationale alone rather than borrowing another pillar's paragraph.
+  const evidenceByPillar = {};
+  for (const sec of sections) if (sec.ok && sec.markdown) evidenceByPillar[sec.pillar] = sec.markdown;
+  const silentPillars = sections.filter(x => !x.ok).map(x => PILLAR_LABEL[x.pillar] || x.pillar);
   // The synthesis is "What changed" then "The queue". The queue renders below
   // as tickable rows, so showing its markdown here too would print every item
   // twice. Cut at the queue heading and keep the prose; if the model skipped
@@ -162,48 +190,39 @@ export default function StrategistBriefingPanel({ clientId }) {
     const m = md.match(/\n#{2,4}\s*The queue\b/i);
     return m ? md.slice(0, m.index).trim() : md;
   })();
-  const visibleRecs = pillar === 'all' ? recs : recs.filter(r => r.pillar === pillar);
-  const crucial = visibleRecs.filter(r => r.priority === 'crucial');
-  const nice = visibleRecs.filter(r => r.priority !== 'crucial');
+  const crucial = recs.filter(r => r.priority === 'crucial');
+  const nice = recs.filter(r => r.priority !== 'crucial');
 
   return (
-    <div>
-      <div className="modal-head">
-        <div>
-          <h2 className="h2">Strategist</h2>
-          {/* The old blurb promised "the priorities that matter most this
-              month" and an email that in fact sent a different document. Both
-              are now true: one generator, and the briefing leads with what
-              changed rather than restating the account. */}
-          <p className="body mt-3">What changed across the account since the last briefing, and the queue it leaves you. Generated weekly and emailed every Monday while <strong>Weekly email</strong> is ticked. A quiet week is a short briefing.</p>
+    <div className="strategist">
+      {/* No heading. The tab already says Strategist, and a page that repeats
+          its own tab spends its first line telling you where you are. The
+          blurb went with it: what the page is for should be legible from what
+          is on it. */}
+      <div className="modal-head" style={{ alignItems: 'center' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
+          {/* "Ask the strategist" against the analyst panel's "Chat": different
+              jobs, and the names have to say so. The strategist talks about
+              this briefing; the analyst, behind the bubble in the client bar,
+              is scoped to the page you are on and pulls live data. */}
+          {[{ key: 'briefing', label: 'Briefing' }, { key: 'chat', label: 'Ask about this briefing' }].map(v => (
+            <button key={v.key} onClick={() => setView(v.key)}
+              className={`tab ${view === v.key ? 'active' : ''}`}>
+              {v.label}
+            </button>
+          ))}
         </div>
-        {/* One action in the header. The email toggle, the period, recipients,
-            downloads and the history all moved to a strip at the foot: they
-            are settings for a thing you read, and they were occupying the top
-            third of a page whose content started below the fold. The button
-            names its own period so the link to the setting stays visible. */}
         <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
           {view === 'briefing' && (
             <button className="btn btn-primary" onClick={generate} disabled={generating}>
               {generating ? 'Generating…' : `+ Generate briefing · ${days} days`}
             </button>
           )}
-        </div>
-      </div>
-
-      {/* Briefing ↔ Ask toggle */}
-      <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
-        {/* "Ask the strategist" against the analyst panel's "Chat": different
-            jobs, and the names have to say so. The strategist talks about this
-            briefing and can push notes into the next one; the analyst, behind
-            the bubble in the client bar, is scoped to the page you are on and
-            pulls live data. */}
-        {[{ key: 'briefing', label: 'Briefing' }, { key: 'chat', label: 'Ask about this briefing' }].map(v => (
-          <button key={v.key} onClick={() => setView(v.key)}
-            className={`tab ${view === v.key ? 'active' : ''}`}>
-            {v.label}
+          <button type="button" className="btn-icon" onClick={() => setSettingsOpen(true)}
+            aria-label="Briefing settings and past briefings" title="Settings, downloads and past briefings">
+            ⚙
           </button>
-        ))}
+        </div>
       </div>
 
       {view === 'chat' && (
@@ -219,6 +238,7 @@ export default function StrategistBriefingPanel({ clientId }) {
         </>
       )}
       {view === 'briefing' && <>{renderBriefingView()}</>}
+      {renderSettingsDrawer()}
     </div>
   );
 
@@ -251,157 +271,151 @@ export default function StrategistBriefingPanel({ clientId }) {
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{whatChanged || selected.synthesis || ''}</ReactMarkdown>
               </div>
 
-              {/* Pillar filter */}
-              <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
-                {PILLARS.map(p => (
-                  <button key={p.key} onClick={() => setPillar(p.key)}
-                    className={`tab ${pillar === p.key ? 'active' : ''}`}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Task list */}
-              {visibleRecs.length > 0 && (
+              {/* The queue is the page. Crucial first, then nice-to-have,
+                  each row carrying its own pillar and folding open to the
+                  reason it is there. */}
+              {recs.length > 0 ? (
                 <div className="card body-sm" style={{ marginBottom: 'var(--s4)' }}>
                   <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
-                    Task list — {visibleRecs.filter(r => r.done).length} of {visibleRecs.length} done
+                    The queue — {recs.filter(r => r.done).length} of {recs.length} done
                   </div>
                   {crucial.length > 0 && <div className="caption" style={{ margin: 'var(--s1) 0 var(--s1)' }}>Crucial</div>}
-                  {crucial.map(r => <RecRow key={r.id} r={r} onToggle={toggleAction} pillarFilter={pillar} />)}
+                  {crucial.map(r => <RecRow key={r.id} r={r} onToggle={toggleAction} evidence={evidenceByPillar[r.pillar]} />)}
                   {nice.length > 0 && <div className="caption" style={{ margin: 'var(--s3) 0 var(--s1)' }}>Nice to have</div>}
-                  {nice.map(r => <RecRow key={r.id} r={r} onToggle={toggleAction} pillarFilter={pillar} />)}
+                  {nice.map(r => <RecRow key={r.id} r={r} onToggle={toggleAction} evidence={evidenceByPillar[r.pillar]} />)}
+                </div>
+              ) : (
+                <div className="card body-sm" style={{ marginBottom: 'var(--s4)', color: 'var(--text-subtle)' }}>
+                  Nothing on the queue from this briefing.
                 </div>
               )}
 
-              {/* The pillar analyses are evidence, not the briefing. They sat on
-                  screen as four boxes, three of them reading "no data", which is
-                  a finding the queue already carries as an item. Behind one
-                  disclosure now: open it when you want to know why something is
-                  on the list, and otherwise it costs a line. */}
-              <button type="button" onClick={() => setEvidenceOpen(o => !o)} className="accordion-trigger" style={{ marginBottom: 'var(--s2)' }}>
-                <span style={{ fontSize: 'var(--fs-title)', width: 16, display: 'inline-block' }}>{evidenceOpen ? '\u2212' : '+'}</span>
-                Evidence
-                <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--text-subtle)' }}>
-                  · {visibleSections.filter(x => x.ok).length} of {visibleSections.length} pillars reported
-                </span>
-              </button>
-              {evidenceOpen && (
-                <>
-                  {/* One level of disclosure, not two. The pillar accordions
-                      inside Evidence meant two clicks to read one paragraph,
-                      and the ones with nothing to say were three of the four
-                      clicks. Pillars that reported render straight out; the
-                      silent ones are named in a line, because which pillars
-                      went quiet is itself worth knowing. */}
-                  {visibleSections.filter(x => x.ok).map(sec => (
-                    <div className="card body-sm" key={sec.pillar} style={{ marginBottom: 'var(--s3)' }}>
-                      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
-                        {PILLAR_LABEL[sec.pillar] || sec.pillar}
-                      </div>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{sec.markdown || ''}</ReactMarkdown>
-                    </div>
-                  ))}
-                  {visibleSections.some(x => !x.ok) && (
-                    <div className="card body-sm" style={{ marginBottom: 'var(--s3)', color: 'var(--text-subtle)' }}>
-                      No data this period from {visibleSections.filter(x => !x.ok).map(x => PILLAR_LABEL[x.pillar] || x.pillar).join(', ')}.
-                    </div>
-                  )}
-                </>
+              {/* Which pillars went quiet is worth one line, because a silent
+                  pillar is usually a broken connector rather than a calm week.
+                  It used to be a box inside a section you had to open. */}
+              {silentPillars.length > 0 && (
+                <p className="body-xs text-subtle" style={{ marginBottom: 'var(--s4)' }}>
+                  No data this period from {silentPillars.join(', ')}.
+                </p>
               )}
-
-      {/* After the queue, not before it. You read, you disagree, you note it.
-          A large labelled box at the top asked you to steer a briefing you had
-          not yet seen. */}
-      {/* Steer the next briefing — the account lead's own thoughts inform generation */}
-      <div className="card body-sm" style={{ marginBottom: 'var(--s4)' }}>
-        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
-          Note something for the next briefing
-        </div>
-        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>
-          <textarea value={steerText} onChange={e => setSteerText(e.target.value)} rows={1}
-            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addSteer(); } }}
-            placeholder="e.g. We're pushing the autumn collection — lean into SEO and social, ease off paid until stock lands."
-            className="textarea" style={{ flex: 1 }} />
-          <button className="btn btn-secondary btn-sm" disabled={!steerText.trim()} onClick={addSteer}>Add</button>
-        </div>
-        {steer.length > 0 && (
-          <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-            {steer.map(n => (
-              <div key={n.id} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', fontSize: 'var(--fs-body)', lineHeight: 1.45 }}>
-                <span style={{ flex: 1 }}>
-                  {n.source === 'chat' && <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>from chat</span>}
-                  {n.text}
-                </span>
-                <button onClick={() => removeSteer(n.id)} title="Remove" className="btn-icon btn-icon-sm">×</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-
-              {/* Everything that configures the briefing, below the briefing.
-                  These were the top third of the page: settings for something
-                  you read, in front of the thing you read. */}
-              <div className="strategist-settings">
-                <div className="strategist-settings-head">Settings</div>
-
-                <div className="strategist-settings-row">
-                  <label className="strategist-setting" title="Include this client in the Monday email">
-                    <input type="checkbox" checked={active} onChange={toggleActive} />
-                    <span>Weekly email</span>
-                  </label>
-                  <label className="strategist-setting">
-                    <span className="caption">Period</span>
-                    <select value={days} onChange={e => setDays(parseInt(e.target.value, 10))} className="input">
-                      <option value={30}>30 days</option>
-                      <option value={60}>60 days</option>
-                      <option value={90}>90 days</option>
-                    </select>
-                  </label>
-                  <label className="strategist-setting" style={{ flex: 1, minWidth: 240 }}>
-                    <span className="caption">Monday recipients</span>
-                    <input type="text" value={recipients} onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
-                      placeholder="you@octobercomms.com" className="input" style={{ width: '100%' }} />
-                  </label>
-                  {recipientsDirty && <button onClick={saveRecipients} className="btn btn-secondary btn-sm">Save</button>}
-                </div>
-
-                <div className="strategist-settings-row">
-                  {/* Downloads — internal briefing (PDF) + client-facing draft (Word) */}
-                  <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('internal', 'pdf')}
-                      title="The full briefing — synthesis, per-pillar analysis, task list and the data behind it.">
-                      {downloading === 'internal.pdf' ? 'Preparing…' : '↓ Briefing (PDF)'}
-                    </button>
-                    <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('client', 'docx')}
-                      title="A client-ready progress report you can edit in Word before sending. First download takes ~20s while Claude writes it.">
-                      {downloading === 'client.docx' ? 'Writing client draft…' : '↓ Client draft (Word)'}
-                    </button>
-                    <span className="caption" style={{ color: 'var(--text-subtle)' }}>Client draft is reframed for the client — edit before sending.</span>
-                  </div>
-
-
-                </div>
-
-                {list.length > 1 && (
-                  <div className="strategist-settings-row">
-                    <span className="caption" style={{ color: 'var(--text-subtle)' }}>Past briefings</span>
-                    {list.map(r => (
-                      <button key={r.id} onClick={() => setSelectedId(r.id)}
-                        className={`strategist-past${selectedId === r.id ? ' active' : ''}`}>
-                        {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
-                        {!r.read_at && r.status === 'completed' && <span className="briefing-dot" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </>)}
           </div>
         </div>
       )}
+      </>
+    );
+  }
+
+  // Everything that configures the briefing, in a drawer over the page.
+  //
+  // These were a strip at the foot an hour ago and the top third of the page
+  // before that, and both were wrong in the same way: they are settings for a
+  // thing you read once a week, sharing a column with the thing you read. A
+  // drawer is the honest shape — present on every briefing, in the way of
+  // none of them.
+  function renderSettingsDrawer() {
+    return (
+      <>
+        {settingsOpen && <div className="side-drawer-scrim" onClick={() => setSettingsOpen(false)} />}
+        <aside className={`side-drawer${settingsOpen ? ' open' : ''}`} aria-hidden={!settingsOpen}>
+          <div className="side-drawer-head">
+            <div>
+              <div className="analyst-panel-kicker">Strategist</div>
+              <div className="analyst-panel-section">Settings</div>
+            </div>
+            <button type="button" className="analyst-panel-close" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button>
+          </div>
+          <div className="side-drawer-body">
+            <div className="drawer-group">
+              <div className="caption drawer-group-head">The Monday email</div>
+              <label className="strategist-setting" title="Include this client in the Monday email">
+                <input type="checkbox" checked={active} onChange={toggleActive} />
+                <span>Send this client's briefing every Monday</span>
+              </label>
+              <label className="field" style={{ marginTop: 'var(--s3)' }}>
+                <span className="field-label">Recipients</span>
+                <input type="text" value={recipients} onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
+                  placeholder="you@octobercomms.com" className="input" style={{ width: '100%' }} />
+              </label>
+              {recipientsDirty && <button onClick={saveRecipients} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>Save recipients</button>}
+            </div>
+
+            <div className="drawer-group">
+              <div className="caption drawer-group-head">How far back to look</div>
+              <select value={days} onChange={e => setDays(parseInt(e.target.value, 10))} className="input" style={{ width: '100%' }}>
+                <option value={30}>30 days</option>
+                <option value={60}>60 days</option>
+                <option value={90}>90 days</option>
+              </select>
+              <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                Applies the next time you generate.
+              </p>
+            </div>
+
+            {/* The third of three inputs that looked alike. Generate runs now,
+                Ask answers now and changes nothing, and this lands next time —
+                so it says when it lands, which is the only thing that told
+                them apart. */}
+            <div className="drawer-group">
+              <div className="caption drawer-group-head">Steer the next briefing</div>
+              <p className="body-xs text-subtle" style={{ marginBottom: 'var(--s2)' }}>
+                Notes here are read by the strategist when it next generates. They do not change the briefing in front of you.
+              </p>
+              <textarea value={steerText} onChange={e => setSteerText(e.target.value)} rows={2}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addSteer(); } }}
+                placeholder="e.g. We're pushing the autumn collection — lean into SEO and social, ease off paid until stock lands."
+                className="textarea" style={{ width: '100%' }} />
+              <button className="btn btn-secondary btn-sm" disabled={!steerText.trim()} onClick={addSteer} style={{ marginTop: 'var(--s2)' }}>Add note</button>
+              {steer.length > 0 && (
+                <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                  {steer.map(n => (
+                    <div key={n.id} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', fontSize: 'var(--fs-body)', lineHeight: 1.45 }}>
+                      <span style={{ flex: 1 }}>
+                        {n.source === 'chat' && <span className="caption" style={{ color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>from chat</span>}
+                        {n.text}
+                      </span>
+                      <button onClick={() => removeSteer(n.id)} title="Remove" className="btn-icon btn-icon-sm">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {completed && (
+              <div className="drawer-group">
+                <div className="caption drawer-group-head">Download</div>
+                <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('internal', 'pdf')}
+                  style={{ width: '100%', marginBottom: 'var(--s2)' }}
+                  title="The full briefing — what changed, the queue, every pillar analysis and the data behind it.">
+                  {downloading === 'internal.pdf' ? 'Preparing…' : '↓ Briefing (PDF)'}
+                </button>
+                <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('client', 'docx')}
+                  style={{ width: '100%' }}
+                  title="A client-ready progress report you can edit in Word before sending. First download takes ~20s while Claude writes it.">
+                  {downloading === 'client.docx' ? 'Writing client draft…' : '↓ Client draft (Word)'}
+                </button>
+                <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                  The client draft is reframed for the client. Edit it before sending.
+                </p>
+              </div>
+            )}
+
+            {list && list.length > 1 && (
+              <div className="drawer-group">
+                <div className="caption drawer-group-head">Past briefings</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                  {list.map(r => (
+                    <button key={r.id} onClick={() => { setSelectedId(r.id); setSettingsOpen(false); }}
+                      className={`strategist-past${selectedId === r.id ? ' active' : ''}`} style={{ textAlign: 'left' }}>
+                      {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
+                      {!r.read_at && r.status === 'completed' && <span className="briefing-dot" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
       </>
     );
   }
@@ -411,7 +425,7 @@ export default function StrategistBriefingPanel({ clientId }) {
 // folded away behind it. The age is the part that was missing — an item open
 // for three weeks used to look identical to one raised this morning, which is
 // why a stale failure could sit there being re-described every Monday.
-function RecRow({ r, onToggle, pillarFilter }) {
+function RecRow({ r, onToggle, evidence }) {
   const [open, setOpen] = useState(false);
   const days = ageInDays(r.first_raised_at);
   // Only say the age once it means something. "Open 1 day" on a fresh item is
@@ -419,11 +433,14 @@ function RecRow({ r, onToggle, pillarFilter }) {
   // on its first morning.
   const stale = days != null && days >= 7;
   return (
-    <div style={{ padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)' }}>
+    <div data-queue-row style={{ padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)' }}>
       <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>
         <input type="checkbox" checked={r.done} onChange={() => onToggle(r)} style={{ marginTop: 'var(--s1)', cursor: 'pointer' }} />
         <div style={{ flex: 1, fontSize: 'var(--fs-body)', lineHeight: 1.45, color: r.done ? 'var(--text-subtle)' : 'var(--text)', textDecoration: r.done ? 'line-through' : 'none' }}>
-          {pillarFilter === 'all' && r.pillar && (
+          {/* Always, now. The pillar used to be hidden whenever the filter
+              was on a pillar, which is backwards: the chip is what made the
+              filter unnecessary. */}
+          {r.pillar && (
             <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>
               {PILLAR_LABEL[r.pillar] || r.pillar}
             </span>
@@ -435,15 +452,30 @@ function RecRow({ r, onToggle, pillarFilter }) {
             </span>
           )}
         </div>
-        {r.rationale && (
+        {(r.rationale || evidence) && (
           <button type="button" onClick={() => setOpen(o => !o)} className="btn-icon btn-icon-sm"
             aria-expanded={open} aria-label={open ? 'Hide why' : 'Why this matters'} title={open ? 'Hide why' : 'Why this matters'}>
             {open ? '\u2212' : '?'}
           </button>
         )}
       </div>
-      {open && r.rationale && (
-        <div className="queue-why">{r.rationale}</div>
+      {/* The reason, where the reason belongs. The rationale is the one-line
+          "why", and under it sits the pillar analysis that produced the item —
+          which used to live in a separate "Evidence" section, apart from
+          everything it was evidence for. An account-wide item has no single
+          pillar behind it, so it opens with its rationale alone. */}
+      {open && (
+        <div className="queue-why">
+          {r.rationale && <div>{r.rationale}</div>}
+          {evidence && (
+            <div className="queue-evidence">
+              <div className="caption" style={{ color: 'var(--text-subtle)', marginBottom: 'var(--s2)' }}>
+                {PILLAR_LABEL[r.pillar] || r.pillar} analysis
+              </div>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{evidence}</ReactMarkdown>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
