@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import ClientSwitcher from './ClientSwitcher';
+import ClientTopBar from './ClientTopBar';
 
 export default function Layout() {
   const { logout, user } = useAuth();
@@ -200,7 +200,11 @@ export default function Layout() {
             <span><strong>Read-only view.</strong> You can explore everything your agency is doing here — nothing on your account can be changed from this login.</span>
           </div>
         )}
-        {clientId && !readOnly && <ClientSwitcher clientId={clientId} />}
+        {/* Setup, connector health and the client switcher, on every page in
+            the workspace. The plug turns red the moment a connector breaks,
+            wherever you happen to be — it used to be a tab you had to decide
+            to open. */}
+        {clientId && !readOnly && <ClientTopBar clientId={clientId} />}
         <Outlet />
       </main>
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}

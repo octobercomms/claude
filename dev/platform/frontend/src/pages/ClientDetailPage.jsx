@@ -371,17 +371,16 @@ export default function ClientDetailPage() {
 
       {['measure', 'details', 'brand', 'connectors', 'setup_overview', 'strategy', 'reports'].includes(tab) && (
         <div className="tabs">
+          {/* Three tabs, and only three. Setup and Connectors are reached from
+              the cog and the plug in the client bar, top right, where their
+              state is visible from every page rather than only from here. */}
           {[
             ['measure', 'Measure'],
             ['reports', 'Reports'],
             ['strategy', 'Strategy'],
-            // Set-and-forget. They sit after the three you actually use, and
-            // move to icons beside the client switcher in the next step.
-            ['setup_overview', 'Setup'],
-            ['connectors', 'Connectors'],
           ].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
-              className={`tab ${tab === key || (key === 'setup_overview' && ['details', 'brand'].includes(tab)) ? 'active' : ''}`}>{label}</button>
+              className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
           ))}
         </div>
       )}

@@ -1684,6 +1684,51 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   right: 24px;
   z-index: 50;
 }
+/* Inside the client bar the row owns the position, so the switcher stops
+   floating and becomes one item in it. */
+.client-switcher.in-bar { position: static; top: auto; right: auto; }
+
+/* The client bar — setup, connector health and the client switcher, fixed
+   top-right so they are reachable from every page in the workspace. */
+.client-topbar {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.client-topbar-icon {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-pill);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+.client-topbar-icon:hover { border-color: var(--text); color: var(--text); }
+.client-topbar-icon.active { background: var(--text); border-color: var(--text); color: var(--surface); }
+/* Health tones for the plug. Only the two that mean "something is wrong"
+   change the colour; a healthy plug stays as quiet as the cog beside it,
+   because a bar that is always shouting is a bar nobody reads. */
+.client-topbar-icon.tone-negative { color: var(--negative); border-color: var(--negative); }
+.client-topbar-icon.tone-warning  { color: var(--warning);  border-color: var(--warning); }
+.client-topbar-icon.tone-negative.active,
+.client-topbar-icon.tone-warning.active { color: var(--surface); }
+.client-topbar-dot {
+  position: absolute; top: -2px; right: -2px;
+  width: 9px; height: 9px; border-radius: var(--r-pill);
+  background: currentColor;
+  border: 2px solid var(--canvas, #fff);
+}
+@media (max-width: 900px) {
+  .client-topbar { top: 10px; right: 12px; gap: 6px; }
+  .client-topbar-icon { width: 30px; height: 30px; }
+}
 .client-switcher-trigger {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 7px 12px;

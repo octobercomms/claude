@@ -51,6 +51,40 @@ router.get('/client/:clientId', async (req, res) => {
   }
 });
 
+// Connector health for one client, as a dot.
+//
+// The top bar shows this on every page, so it is deliberately not
+// `/client/:clientId` — that returns every row including `config`, which is
+// far more than a status light needs and more than should travel on each
+// navigation. This is three integers and a word.
+//
+// 'error' beats 'expired' beats everything else: the worst state is the one
+// worth showing, because a bar that goes amber while something is broken is
+// worse than no bar at all. Access is already enforced by the
+// requireClientAccess on :clientId above.
+router.get('/client/:clientId/health', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+         COUNT(*) FILTER (WHERE status = 'error')::int AS errored,
+         COUNT(*) FILTER (WHERE status = 'expired')::int AS expired
+       FROM connectors WHERE client_id = $1`,
+      [req.params.clientId]
+    );
+    const r = rows[0] || { total: 0, active: 0, errored: 0, expired: 0 };
+    const worst = r.errored > 0 ? 'error'
+      : r.expired > 0 ? 'expired'
+      : r.total === 0 ? 'none'
+      : r.active === r.total ? 'ok'
+      : 'partial';
+    res.json({ ...r, worst });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all connectors with status summary
 router.get('/status', async (req, res) => {
   try {

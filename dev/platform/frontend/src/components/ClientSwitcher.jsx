@@ -8,7 +8,10 @@ import { api } from '../utils/api';
 // (sales-traffic / social / pr / setup / etc.) and the ?tab= query param so
 // switching from "Acme · Social" lands on "Beta · Social", not a different
 // section.
-export default function ClientSwitcher({ clientId }) {
+// `inBar` drops the fixed positioning so the switcher can sit inside
+// ClientTopBar's row alongside the setup and connector icons, rather than
+// floating on its own and colliding with them.
+export default function ClientSwitcher({ clientId, inBar = false }) {
   const [open, setOpen] = useState(false);
   const [clients, setClients] = useState([]);
   const [query, setQuery] = useState('');
@@ -65,7 +68,7 @@ export default function ClientSwitcher({ clientId }) {
   }
 
   return (
-    <div ref={wrapRef} className="client-switcher">
+    <div ref={wrapRef} className={`client-switcher${inBar ? ' in-bar' : ''}`}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
