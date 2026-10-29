@@ -30,7 +30,9 @@ export default function StrategistBriefingPanel({ clientId }) {
   const [active, setActive] = useState(true);
   const [recipients, setRecipients] = useState('');
   const [recipientsDirty, setRecipientsDirty] = useState(false);
-  const [openSections, setOpenSections] = useState(() => new Set(['synthesis']));
+  // The pillar analyses, shut by default: evidence you open when you want to
+  // know why an item is on the queue.
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [downloading, setDownloading] = useState(null);
   const [view, setView] = useState('briefing'); // 'briefing' | 'chat'
   const [steer, setSteer] = useState([]);
@@ -122,9 +124,6 @@ export default function StrategistBriefingPanel({ clientId }) {
     catch (e2) { toast(e2.message, 'error'); }
   }
 
-  function toggleSection(key) {
-    setOpenSections(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
-  }
 
   // Download the briefing as a branded document. audience=internal is the
   // verbatim briefing + data appendix (PDF); audience=client is a Claude
@@ -153,6 +152,16 @@ export default function StrategistBriefingPanel({ clientId }) {
   const sections = (completed && Array.isArray(selected.sections)) ? selected.sections : [];
   const recs = (completed && Array.isArray(selected.recommendations)) ? selected.recommendations : [];
   const visibleSections = pillar === 'all' ? sections : sections.filter(s => s.pillar === pillar);
+  // The synthesis is "What changed" then "The queue". The queue renders below
+  // as tickable rows, so showing its markdown here too would print every item
+  // twice. Cut at the queue heading and keep the prose; if the model skipped
+  // the heading, show the lot rather than nothing.
+  const whatChanged = (() => {
+    const md = selected && selected.synthesis;
+    if (!md) return '';
+    const m = md.match(/\n#{2,4}\s*The queue\b/i);
+    return m ? md.slice(0, m.index).trim() : md;
+  })();
   const visibleRecs = pillar === 'all' ? recs : recs.filter(r => r.pillar === pillar);
   const crucial = visibleRecs.filter(r => r.priority === 'crucial');
   const nice = visibleRecs.filter(r => r.priority !== 'crucial');
@@ -277,9 +286,12 @@ export default function StrategistBriefingPanel({ clientId }) {
                 <span className="caption" style={{ color: 'var(--text-subtle)' }}>Client draft is reframed for the client — edit before sending.</span>
               </div>
 
-              {/* Synthesis */}
+              {/* What changed leads. The synthesis is now two short sections —
+                  what changed, then the queue — so it renders whole rather than
+                  being split: the queue below is the same items as rows you can
+                  tick, and this is the prose around them. */}
               <div className="card body-sm" style={{ marginBottom: 'var(--s4)' }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{selected.synthesis || ''}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{whatChanged || selected.synthesis || ''}</ReactMarkdown>
               </div>
 
               {/* Pillar filter */}
@@ -305,21 +317,41 @@ export default function StrategistBriefingPanel({ clientId }) {
                 </div>
               )}
 
-              {/* Per-pillar sections */}
-              {visibleSections.map(s => (
-                <div className="card body-sm" key={s.pillar} style={{ marginBottom: 'var(--s3)' }}>
-                  <button onClick={() => toggleSection(s.pillar)} className="accordion-trigger">
-                    <span style={{ fontSize: 'var(--fs-title)', width: 16, display: 'inline-block' }}>{openSections.has(s.pillar) ? '−' : '+'}</span>
-                    {PILLAR_LABEL[s.pillar] || s.pillar}
-                    {!s.ok && <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--text-subtle)' }}>· no data</span>}
-                  </button>
-                  {openSections.has(s.pillar) && s.ok && (
-                    <div style={{ marginTop: 'var(--s3)' }}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{s.markdown || ''}</ReactMarkdown>
+              {/* The pillar analyses are evidence, not the briefing. They sat on
+                  screen as four boxes, three of them reading "no data", which is
+                  a finding the queue already carries as an item. Behind one
+                  disclosure now: open it when you want to know why something is
+                  on the list, and otherwise it costs a line. */}
+              <button type="button" onClick={() => setEvidenceOpen(o => !o)} className="accordion-trigger" style={{ marginBottom: 'var(--s2)' }}>
+                <span style={{ fontSize: 'var(--fs-title)', width: 16, display: 'inline-block' }}>{evidenceOpen ? '\u2212' : '+'}</span>
+                Evidence
+                <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--text-subtle)' }}>
+                  · {visibleSections.filter(x => x.ok).length} of {visibleSections.length} pillars reported
+                </span>
+              </button>
+              {evidenceOpen && (
+                <>
+                  {/* One level of disclosure, not two. The pillar accordions
+                      inside Evidence meant two clicks to read one paragraph,
+                      and the ones with nothing to say were three of the four
+                      clicks. Pillars that reported render straight out; the
+                      silent ones are named in a line, because which pillars
+                      went quiet is itself worth knowing. */}
+                  {visibleSections.filter(x => x.ok).map(sec => (
+                    <div className="card body-sm" key={sec.pillar} style={{ marginBottom: 'var(--s3)' }}>
+                      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
+                        {PILLAR_LABEL[sec.pillar] || sec.pillar}
+                      </div>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{sec.markdown || ''}</ReactMarkdown>
+                    </div>
+                  ))}
+                  {visibleSections.some(x => !x.ok) && (
+                    <div className="card body-sm" style={{ marginBottom: 'var(--s3)', color: 'var(--text-subtle)' }}>
+                      No data this period from {visibleSections.filter(x => !x.ok).map(x => PILLAR_LABEL[x.pillar] || x.pillar).join(', ')}.
                     </div>
                   )}
-                </div>
-              ))}
+                </>
+              )}
 
               {/* Monday recipients */}
               <div className="card" style={{ marginTop: 'var(--s4)', display: 'flex', gap: 'var(--s2)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -339,20 +371,56 @@ export default function StrategistBriefingPanel({ clientId }) {
   }
 }
 
+// One queue item: what to do, how long it has been waiting, and the reasoning
+// folded away behind it. The age is the part that was missing — an item open
+// for three weeks used to look identical to one raised this morning, which is
+// why a stale failure could sit there being re-described every Monday.
 function RecRow({ r, onToggle, pillarFilter }) {
+  const [open, setOpen] = useState(false);
+  const days = ageInDays(r.first_raised_at);
+  // Only say the age once it means something. "Open 1 day" on a fresh item is
+  // noise; the point of the badge is discomfort, and nothing is uncomfortable
+  // on its first morning.
+  const stale = days != null && days >= 7;
   return (
-    <div style={{ display: 'flex', gap: 'var(--s2)', padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)' }}>
-      <input type="checkbox" checked={r.done} onChange={() => onToggle(r)} style={{ marginTop: 'var(--s1)', cursor: 'pointer' }} />
-      <div style={{ flex: 1, fontSize: 'var(--fs-body)', lineHeight: 1.45, color: r.done ? 'var(--text-subtle)' : 'var(--text)', textDecoration: r.done ? 'line-through' : 'none' }}>
-        {pillarFilter === 'all' && r.pillar && (
-          <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>
-            {PILLAR_LABEL[r.pillar] || r.pillar}
-          </span>
+    <div style={{ padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>
+        <input type="checkbox" checked={r.done} onChange={() => onToggle(r)} style={{ marginTop: 'var(--s1)', cursor: 'pointer' }} />
+        <div style={{ flex: 1, fontSize: 'var(--fs-body)', lineHeight: 1.45, color: r.done ? 'var(--text-subtle)' : 'var(--text)', textDecoration: r.done ? 'line-through' : 'none' }}>
+          {pillarFilter === 'all' && r.pillar && (
+            <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>
+              {PILLAR_LABEL[r.pillar] || r.pillar}
+            </span>
+          )}
+          {r.text}
+          {!r.done && stale && (
+            <span className="queue-age" title={`First raised ${new Date(r.first_raised_at).toLocaleDateString('en-GB')}`}>
+              {days} days open
+            </span>
+          )}
+        </div>
+        {r.rationale && (
+          <button type="button" onClick={() => setOpen(o => !o)} className="btn-icon btn-icon-sm"
+            aria-expanded={open} aria-label={open ? 'Hide why' : 'Why this matters'} title={open ? 'Hide why' : 'Why this matters'}>
+            {open ? '\u2212' : '?'}
+          </button>
         )}
-        {r.text}
       </div>
+      {open && r.rationale && (
+        <div className="queue-why">{r.rationale}</div>
+      )}
     </div>
   );
+}
+
+// Mirrors ageInDays in services/strategist/queue.js. A bad timestamp reads as
+// unknown, never as a wrong number of days.
+function ageInDays(since) {
+  if (!since) return null;
+  const t = Date.parse(since);
+  if (!Number.isFinite(t)) return null;
+  const ms = Date.now() - t;
+  return ms < 0 ? 0 : Math.floor(ms / 86400000);
 }
 
 function fmtDate(d) { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }

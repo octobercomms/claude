@@ -257,7 +257,8 @@ router.get('/briefings/:id', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Briefing not found' });
     assertClientAccess(req, rows[0].client_id);
     const { rows: recs } = await pool.query(
-      `SELECT id, pillar, priority, position, text, done, done_at, notes
+      `SELECT id, pillar, priority, position, text, rationale, done, done_at, notes,
+              first_raised_at, carried_from
          FROM strategist_briefing_recommendations WHERE briefing_id = $1
         ORDER BY position ASC`, [req.params.id]);
     res.json({ ...rows[0], recommendations: recs });
