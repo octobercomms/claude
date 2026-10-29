@@ -161,7 +161,11 @@ Connectors**. Measure is the default, because you arrive at a client with a
 question about their numbers, not a wish to read an overview of the sections
 holding them — the old `setup_overview` landing is now the Setup tab's content.
 Setup and Connectors are **not** tabs: they are the cog and the plug in the
-client bar, top right, from `components/ClientTopBar.jsx`. They are
+client bar, top right, from `components/ClientTopBar.jsx`. The cog opens
+`?tab=details`, the brief itself — it briefly opened `?tab=setup_overview`,
+a page describing where setup lived, which is not the same thing. That
+overview is gone; the readiness checklist it carried moved onto Setup, which
+is the only part of it that told you anything. They are
 configuration you touch once and forget, but the state of the connectors
 matters on every page, because every number on every page is downstream of
 them. The plug reads `GET /connectors/client/:id/health` (three integers and a
@@ -186,6 +190,32 @@ What moved:
   `?tab=dashboard` or `?tab=strategist` link lands on Overview rather than a
   blank page.
 
+### No tab may depend on an Overview (Oct 2026)
+
+Before deleting a suite's Overview, run `frontend/tests/tabDoors.test.mjs`. The
+Overviews are partly diagrams of links into their suite — Owned carries 38
+tabs, Shared 18, Paid 14 — so removing one is a navigation change, and a tab
+linked only from inside it becomes a page nobody can open.
+
+As of 29 Oct 2026 **no Overview is load-bearing**: every tab in every readable
+suite has a door elsewhere. The Overviews can come out section by section. The
+test is the ratchet that keeps that true, and it names the page and the tab
+when it is not.
+
+Two things worth knowing before trusting or changing it:
+
+- The scanner has its own tests in `tabDoorsLib.test.mjs`, because the first
+  two attempts at this analysis were confidently wrong. One regex missed
+  accordion items. The next reported Paid's four pipeline steps and Owned's
+  `topic_map` as Overview-only — all five reachable through a `StepRail` whose
+  handler is passed by reference (`onStep={setTab}`) with keys taken from an
+  array by index, so there is no `setTab('render')` anywhere to find. Teaching
+  it about that pattern cleared all five.
+- It cannot read `ClientPRPage` (tab in `useState`, no allow-list) or
+  `ClientDetailPage` (tab straight off the search params). Both are pinned in
+  the test's `UNREADABLE` list, so a green run never silently implies coverage
+  it does not have, and a third such page fails until someone decides about it.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First
@@ -195,10 +225,16 @@ working, and linked only from a KPI tile that was a link solely when a report
 had failed, so in a quiet week nothing in the app opened it. Both were found
 by Daniel asking where he was meant to be looking.
 
-`frontend/tests/routeDoors.test.mjs` now walks the top-level routes in App.jsx
-and fails when one has no link anywhere in `src/`. A route whose element is
-`Navigate` or a `<Something>Redirect` component is a redirect, not a page, and
-is skipped. Genuinely URL-only pages go
+`frontend/tests/routeDoors.test.mjs` now walks the routes in App.jsx and fails
+when one has no link anywhere in `src/`, top-level and client-scoped
+(`/clients/:id/*`) alike. A route whose element is `Navigate` or a
+`<Something>Redirect` component is a redirect, not a page, and is skipped.
+
+Both matchers look for a navigation — `to=`, `href=`, `navigate(` — not a
+mention of the path. That distinction has now caught the test out twice: the
+first version counted a page's own `api.get('/reports')` as a link to itself,
+and the client-scoped version counted `ClientTopBar`'s `location.pathname ===`
+comparison. Reading a path is not offering one. Genuinely URL-only pages go
 in its `URL_ONLY` map with a reason. It catches "no door at all", not "a door
 that is sometimes shut" — a conditional `to={cond ? '/x' : undefined}` still
 reads as a link, so that judgement stays with you.
@@ -208,6 +244,14 @@ bench are tabs under Settings → Tools, and the routes are kept so old links
 and the Clients report tile keep working. `SettingsTabRedirect` carries the
 query string across, so `/reports?status=x` lands on
 `/settings?tab=reports&status=x` with the filter intact.
+
+Client-scoped orphans found when that half went in: `/clients/:id/brand` had
+no link at all (its only affordance was a node in the Dashboard setup diagram
+pointing at `?tab=brand`, a tab with no render block — a dead link inside a
+diagram whose whole job was wayfinding). It is now linked from the Setup tab.
+`/clients/:id/audiences` and `/clients/:id/ai-visibility` are shells around
+`AudiencesPanel` and `AIVisibilityPanel`, which already live inside Paid and
+Owned; they are recorded in `CLIENT_URL_ONLY` as pending removal.
 
 It currently records three URL-only pages: `/design` and `/proposals/sample`
 are deliberate developer references; `/rankings` is superseded by the

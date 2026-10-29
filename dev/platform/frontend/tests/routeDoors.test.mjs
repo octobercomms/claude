@@ -8,10 +8,16 @@
 // Both were found by a person asking "where am I supposed to be looking?",
 // which is the expensive way to find them.
 //
-// This walks the top-level routes in App.jsx and checks each has at least one
-// link somewhere else in src/. It deliberately does not check client-scoped
-// routes (/clients/:id/*), which are reached through the Workspace sub-nav
-// built from a template literal and would need a far looser match to see.
+// This walks the routes in App.jsx and checks each has at least one link
+// somewhere else in src/.
+//
+// Client-scoped routes (/clients/:id/*) are checked too, from 29 Oct 2026.
+// Skipping them hid a third orphan: /clients/:id/brand had no link anywhere
+// in the app. The only affordance for Brand kit was a node in the Dashboard's
+// setup diagram pointing at ?tab=brand — a tab with no render block, so it
+// showed an empty page. A diagram whose job is wayfinding, with a dead link
+// in it. They are matched on their literal tail (`/brand`) because the links
+// are template literals carrying the client id.
 //
 // A page that is genuinely URL-only goes in URL_ONLY below, with the reason.
 // The list is a decision, not a dumping ground: adding to it is saying out
@@ -45,6 +51,17 @@ const URL_ONLY = {
   '/rankings': 'Superseded by the per-client rankings in SeoSuite (Owned). Pending removal.',
 };
 
+// Client-scoped pages nobody is meant to click to. Same contract as URL_ONLY:
+// a decision with a reason, not a dumping ground.
+const CLIENT_URL_ONLY = {
+  // Both are standalone shells around a panel that already lives inside a
+  // suite — AudiencesPanel in Paid, AIVisibilityPanel in Owned. Superseded
+  // rather than lost, and left routable pending a decision on removal, the
+  // same way /rankings is.
+  '/audiences': 'Superseded by the Audiences accordion in Paid (AudiencesPanel). Pending removal.',
+  '/ai-visibility': 'Superseded by the AI visibility tab in Owned (AIVisibilityPanel). Pending removal.',
+};
+
 function sourceFiles(dir) {
   const out = [];
   for (const entry of readdirSync(dir)) {
@@ -67,11 +84,19 @@ const app = readFileSync(appPath, 'utf8');
 // named `<Something>Redirect`, and those count the same.
 const isRedirect = (el) => el === 'Navigate' || /Redirect$/.test(el);
 
-const routes = [...app.matchAll(/<Route path="([^"]+)" element=\{<(\w+)/g)]
+const allRoutes = [...app.matchAll(/<Route path="([^"]+)" element=\{<(\w+)/g)]
   .map(([, p, el]) => ({ path: '/' + p.replace(/^\//, ''), el }))
   .filter(r => !isRedirect(r.el))
-  .filter(r => !r.path.includes(':'))
   .filter(r => r.path !== '/' && r.path !== '/*');
+
+const routes = allRoutes.filter(r => !r.path.includes(':'));
+
+// Client-scoped pages: /clients/:id/<tail>. The link is built from a template
+// literal, so the tail is what there is to look for.
+const clientRoutes = allRoutes
+  .filter(r => r.path.startsWith('/clients/:id/'))
+  .map(r => ({ ...r, tail: '/' + r.path.split('/').slice(3).join('/') }))
+  .filter(r => !r.tail.includes(':'));
 
 // Everything that is not App.jsx — a route defined in App.jsx is not a door.
 const haystack = files
@@ -125,6 +150,45 @@ test('a redirect is not counted as a page needing a door', () => {
   assert.equal(isRedirect('Navigate'), true);
   assert.equal(isRedirect('SettingsTabRedirect'), true);
   assert.equal(isRedirect('ReportsPage'), false, 'a page is not a redirect because it ends in Page');
+});
+
+// A client page is reached by a link ending in its tail inside a template
+// literal: `/clients/${id}/brand`, `/clients/${clientId}/social`.
+//
+// It has to be a navigation, not a mention — the same trap as the top-level
+// check, and this one caught it a second time. A first version matched the
+// path anywhere, and passed with every real link to Brand kit deleted,
+// because ClientTopBar compares `location.pathname` against
+// `/clients/${clientId}/brand` to decide whether to light the cog. Reading
+// a path is not offering one.
+const hasClientDoor = (tail) => {
+  const t = tail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const target = `\\$\\{[^}]+\\}${t}(?:\\?[^'"\`]*)?`;
+  return [
+    new RegExp(`\\bto=\\{?\\s*[\`'"][^'"\`]*${target}[\`'"]`),
+    new RegExp(`\\bhref=\\{?\\s*[\`'"][^'"\`]*${target}[\`'"]`),
+    new RegExp(`\\bnavigate\\(\\s*[\`'"][^'"\`]*${target}[\`'"]`),
+    new RegExp(`\\bto=\\{[^}]*[\`'"][^'"\`]*${target}[\`'"]`),
+  ].some(re => re.test(haystack));
+};
+
+test('every client-scoped page is linked from somewhere', () => {
+  const orphans = clientRoutes
+    .filter(r => !CLIENT_URL_ONLY[r.tail] && !hasClientDoor(r.tail))
+    .map(r => `${r.path} (${r.el})`);
+  assert.deepEqual(orphans, [], 'these client pages exist and nothing opens them');
+});
+
+test('Brand kit is reachable', () => {
+  // The specific regression: no link anywhere, and the one affordance for it
+  // pointed at a tab that rendered nothing.
+  assert.ok(hasClientDoor('/brand'), 'ClientBrandPage needs a link');
+});
+
+test('CLIENT_URL_ONLY has no stale entries', () => {
+  const known = new Set(clientRoutes.map(r => r.tail));
+  const gone = Object.keys(CLIENT_URL_ONLY).filter(t => !known.has(t));
+  assert.deepEqual(gone, [], 'these client routes no longer exist — drop them from CLIENT_URL_ONLY');
 });
 
 test('URL_ONLY has no stale entries', () => {
