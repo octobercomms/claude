@@ -6,6 +6,7 @@ import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import { REPORT_STATUSES, reportStatusLabel, reportStatusColor } from '../utils/reportStatus';
 import ReportDelivery from '../components/ReportDelivery';
+import BulkDeleteReports from '../components/BulkDeleteReports';
 
 export default function ReportsPage() {
   const toast = useToast();
@@ -95,6 +96,8 @@ export default function ReportsPage() {
       </header>
 
       <ReportDelivery />
+
+      <BulkDeleteReports onDeleted={() => api.get('/reports').then(setReports).catch(() => {})} />
 
       {showTrigger && (
         <div className="card">

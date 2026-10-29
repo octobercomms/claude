@@ -220,7 +220,14 @@ Two things that cost a session to find, worth knowing before you touch either:
   Who is and is not being reached is on the **Reports page** (Settings →
   Reports, admin only), top of the page, from `GET /reports/delivery`. The
   page is deliberately buried: everything on it is agency admin you touch
-  rarely. The alert is not buried with it — "N not sent" is a KPI on Clients,
+  rarely, and it also carries the bulk delete for undelivered reports
+  (`DELETE /reports/bulk`). That endpoint will not touch a `sent` report, for
+  any caller, and refuses a request naming one outright rather than trimming
+  it to the subset that qualifies — a partial delete would remove rows nobody
+  reviewed. It also requires the count the caller saw, so a scheduled run
+  landing between looking and clicking stops the delete instead of widening
+  it. `backend/tests/bulk-delete-reports.test.js` pins both.
+  The alert is not buried with it — "N not sent" is a KPI on Clients,
   the page you land on, linking straight to the filtered view. Before that it could only be read one client at
   a time, as a single line on that client's Setup tab, which is how nine of ten
   clients came to be silently receiving nothing. That Setup item also used to

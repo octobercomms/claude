@@ -179,6 +179,112 @@ router.get('/delivery', async (req, res) => {
   }
 });
 
+// Bulk delete, for clearing out reports that were never delivered.
+//
+// Rules this endpoint will not bend, because a bulk delete on production data
+// is the one request where being strict costs nothing:
+//
+//  1. Only statuses on DELETABLE_STATUSES. A delivered report is a record of
+//     something a client received and is never bulk-deletable, whatever is
+//     asked for. A caller naming any other status gets a 400 and nothing is
+//     touched, rather than a partial delete of the subset that happened to
+//     qualify.
+//  2. The caller states how many rows they expect, from the preview. If the
+//     count has moved — a scheduled run landed between looking and clicking —
+//     nothing is deleted and the new count comes back. You cannot delete rows
+//     you have not seen.
+//  3. Scoped to the caller's visible clients, like every other route here.
+//  4. The PDF goes with the row. Deleting only the row leaves the file on
+//     disk forever, which is the same waste in a different place; a file that
+//     is already gone is not an error.
+//
+// GET first to preview, DELETE to act. The UI shows the count and asks.
+const DELETABLE_STATUSES = ['skipped_no_recipients', 'failed', 'pending'];
+
+// The decision, lifted out so it can be tested without a database or an HTTP
+// request. Returns { error } to refuse, or {} to proceed.
+function checkBulkDelete({ statuses, expected }) {
+  if (!Array.isArray(statuses) || !statuses.length) {
+    return { error: 'Name the statuses to delete.' };
+  }
+  const forbidden = statuses.filter(s => !DELETABLE_STATUSES.includes(s));
+  if (forbidden.length) {
+    return { error: `These cannot be bulk deleted: ${forbidden.join(', ')}. Only ${DELETABLE_STATUSES.join(', ')} can.` };
+  }
+  if (!Number.isInteger(expected) || expected < 0) {
+    return { error: 'expected_count is required — it is how we check nothing changed since you looked.' };
+  }
+  return {};
+}
+
+function bulkWhere(statuses, visibleClientIds, params) {
+  params.push(statuses);
+  let sql = ` WHERE status = ANY($${params.length})`;
+  if (visibleClientIds !== null) {
+    params.push(visibleClientIds);
+    sql += ` AND client_id = ANY($${params.length})`;
+  }
+  return sql;
+}
+
+router.get('/bulk-deletable', async (req, res) => {
+  try {
+    if (req.visibleClientIds !== null && !req.visibleClientIds.length) return res.json({ statuses: {}, total: 0 });
+    const params = [];
+    const sql = `SELECT status, COUNT(*)::int AS n FROM reports${bulkWhere(DELETABLE_STATUSES, req.visibleClientIds, params)} GROUP BY status`;
+    const { rows } = await pool.query(sql, params);
+    const statuses = Object.fromEntries(rows.map(r => [r.status, r.n]));
+    res.json({ statuses, total: rows.reduce((n, r) => n + r.n, 0), deletable: DELETABLE_STATUSES });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/bulk', async (req, res) => {
+  try {
+    const { statuses, expected_count: expected } = req.body || {};
+    const refusal = checkBulkDelete({ statuses, expected });
+    if (refusal.error) return res.status(400).json(refusal);
+    if (req.visibleClientIds !== null && !req.visibleClientIds.length) return res.json({ deleted: 0, files_removed: 0 });
+
+    const params = [];
+    const where = bulkWhere(statuses, req.visibleClientIds, params);
+    // Only the ids. The stored pdf_path is never used to build a path to
+    // unlink — the filename is derived from the id instead, so a bad value in
+    // that column cannot point this at a file outside the pdf directory.
+    const { rows } = await pool.query(`SELECT id FROM reports${where}`, params);
+
+    if (rows.length !== expected) {
+      return res.status(409).json({
+        error: 'The number of reports changed since you looked — nothing was deleted.',
+        expected, actual: rows.length,
+      });
+    }
+    if (!rows.length) return res.json({ deleted: 0, files_removed: 0 });
+
+    const ids = rows.map(r => r.id);
+    const { rowCount } = await pool.query('DELETE FROM reports WHERE id = ANY($1)', [ids]);
+
+    // Files after the rows: a failed unlink must not leave a row pointing at
+    // a file we already removed.
+    const fs = require('fs');
+    const path = require('path');
+    const PDF_DIR = path.join(__dirname, '../../pdfs');
+    let filesRemoved = 0;
+    for (const r of rows) {
+      // Only ever a file this service named, inside the pdf directory.
+      const candidate = path.join(PDF_DIR, `report-${r.id}.pdf`);
+      try { fs.unlinkSync(candidate); filesRemoved += 1; }
+      catch (e) { if (e.code !== 'ENOENT') console.error('[reports] could not remove', candidate, e.message); }
+    }
+
+    console.log(`[reports] bulk delete: ${rowCount} rows (${statuses.join(', ')}), ${filesRemoved} PDFs`);
+    res.json({ deleted: rowCount, files_removed: filesRemoved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get single report — checked against caller's visibility
 router.get('/:id', async (req, res) => {
   try {
@@ -465,3 +571,5 @@ function getDefaultPeriodEnd(reportType) {
 }
 
 module.exports = router;
+module.exports.checkBulkDelete = checkBulkDelete;
+module.exports.DELETABLE_STATUSES = DELETABLE_STATUSES;

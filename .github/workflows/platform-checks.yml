@@ -107,6 +107,8 @@ jobs:
         run: node tests/pr-leaderboard-scope.test.js
       - name: Guard — a report with no recipients is never generated
         run: node tests/report-recipients.test.js
+      - name: Guard — a sent report can never be bulk deleted
+        run: node tests/bulk-delete-reports.test.js
       # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
       # the runner is given ffmpeg rather than trusted to have it, and each
