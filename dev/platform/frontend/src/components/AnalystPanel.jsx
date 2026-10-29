@@ -15,13 +15,21 @@
 //
 // Agency-only. Layout does not render it for a client login.
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ClientChatPage from '../pages/ClientChatPage';
 import { analystContextFor } from '../utils/analystContext';
 
 export default function AnalystPanel({ clientId, open, onClose, pathname }) {
   const panelRef = useRef(null);
   const { persona, label } = analystContextFor(pathname);
+  // Clear-history lives up here, beside the close button — but the action and
+  // the "is there anything to clear?" state belong to the chat. The chat
+  // reports them up through onChatState and exposes the handler on clearRef.
+  const [chat, setChat] = useState({ hasMessages: false, clearing: false });
+  const clearRef = useRef(null);
+  // A closed panel is unmounted below, so reset the button to its empty state
+  // rather than flash the previous conversation's "Clear history" on reopen.
+  useEffect(() => { if (!open) setChat({ hasMessages: false, clearing: false }); }, [open]);
 
   // Escape closes it. Deliberately no click-outside and no scroll lock: the
   // page behind stays usable, which is the whole reason this is a panel.
@@ -51,13 +59,25 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
           <div className="analyst-panel-kicker">Analyst</div>
           {label && <div className="analyst-panel-section">{label}</div>}
         </div>
-        <button type="button" className="analyst-panel-close" onClick={onClose} aria-label="Close analyst">×</button>
+        <div className="analyst-panel-head-actions">
+          {chat.hasMessages && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => clearRef.current?.()}
+              disabled={chat.clearing}
+            >
+              {chat.clearing ? 'Clearing…' : 'Clear history'}
+            </button>
+          )}
+          <button type="button" className="analyst-panel-close" onClick={onClose} aria-label="Close analyst">×</button>
+        </div>
       </div>
       <div className="analyst-panel-body">
         {/* Mounted only while open, so switching sections starts the right
             conversation rather than re-labelling the previous one, and a closed
             panel costs nothing. */}
-        {open && <ClientChatPage embedded clientId={clientId} persona={persona} />}
+        {open && <ClientChatPage embedded clientId={clientId} persona={persona} onChatState={setChat} clearRef={clearRef} />}
       </div>
     </aside>
   );
