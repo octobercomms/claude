@@ -217,8 +217,11 @@ Two things that cost a session to find, worth knowing before you touch either:
   `backend/tests/report-recipients.test.js` honest. Reports triggered by hand
   from the UI do not pass through the scheduler and still generate.
 
-  Who is and is not being reached is on the **Reports page** (left nav, admin
-  only), top of the page, from `GET /reports/delivery`. Before that it could only be read one client at
+  Who is and is not being reached is on the **Reports page** (Settings →
+  Reports, admin only), top of the page, from `GET /reports/delivery`. The
+  page is deliberately buried: everything on it is agency admin you touch
+  rarely. The alert is not buried with it — "N not sent" is a KPI on Clients,
+  the page you land on, linking straight to the filtered view. Before that it could only be read one client at
   a time, as a single line on that client's Setup tab, which is how nine of ten
   clients came to be silently receiving nothing. That Setup item also used to
   sum the weekly and monthly lists, so monthly recipients marked a client "ok"
