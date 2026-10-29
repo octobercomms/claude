@@ -809,6 +809,35 @@ Each `.drawer-group` names one concern. The strip this replaced put the email
 toggle, the period and the recipients in one unlabelled row, so three unrelated
 settings read as one setting with three parts.
 
+#### The drawer took the chat, and the page kept Generate
+
+Second pass on the drawer, on the account lead's own read of it ("i like the
+drawer, its cleaned up the briefing"):
+
+- **`.icon-circle` is the house icon button**, the same 34px circle as the cog
+  and plug in the client bar. `.client-topbar-icon` is where the rule started
+  and the two share it now; use `.icon-circle` anywhere outside that bar.
+- **A kebab (⋮), not a cog.** A cog promises settings. This menu holds the
+  chat, the downloads and the archive as well, which is what "extra functions"
+  means and what a kebab says.
+- **The drawer is `min(1000px, 96vw)` and splits in two**: asking about the
+  briefing on the left, configuring it on the right, each column scrolling on
+  its own so reading the settings does not drag the thread off screen. Below
+  900px they stack, because a chat in a 400px half-column is a worse chat than
+  the sub-tab it replaced.
+- **The Briefing/Ask sub-tabs are gone.** The chat was a sub-tab, so asking a
+  question about the briefing hid the briefing — the one thing you need in
+  front of you while asking. Behind the drawer the page keeps it.
+
+**Generate stays on the page.** It was offered for the menu and it should not
+go: it is the one action that produces the thing the page exists to show, and
+on a client with no briefing the empty state reads "click Generate briefing"
+with no button anywhere on screen. A page may have exactly one visible action;
+it may not have none.
+
+The chat is mounted only while the drawer is open. A shut drawer should not be
+holding a conversation, and reopening resumes the stored thread anyway.
+
 #### An unlabelled number has to say why
 
 `/sales-traffic/:id` returns **`currency_unset`**, and Measure renders a line
