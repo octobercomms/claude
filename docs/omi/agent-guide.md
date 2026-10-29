@@ -160,8 +160,15 @@ sub-nav. Its tabs, in order: **Measure · Reports · Strategy · Setup ·
 Connectors**. Measure is the default, because you arrive at a client with a
 question about their numbers, not a wish to read an overview of the sections
 holding them — the old `setup_overview` landing is now the Setup tab's content.
-Setup and Connectors sit last because they are not touched once done; the next
-step moves them to icons beside the client switcher.
+Setup and Connectors are **not** tabs: they are the cog and the plug in the
+client bar, top right, from `components/ClientTopBar.jsx`. They are
+configuration you touch once and forget, but the state of the connectors
+matters on every page, because every number on every page is downstream of
+them. The plug reads `GET /connectors/client/:id/health` (three integers and a
+word — deliberately not `/client/:id`, which returns every row including
+`config`) and turns amber or red, with a dot so the warning is never carried
+by colour alone. Agency-only. The bar re-reads on navigation, so fixing a
+connector clears the red when you leave the tab.
 
 What moved:
 
