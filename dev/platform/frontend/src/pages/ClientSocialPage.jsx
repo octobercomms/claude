@@ -13,8 +13,6 @@ import PageShell from '../components/shells/PageShell';
 import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
-import SuiteOverview from '../components/SuiteOverview';
-import OverviewChat from '../components/OverviewChat';
 import SuiteTabs from '../components/SuiteTabs';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
@@ -75,8 +73,10 @@ export default function ClientSocialPage() {
   // top-level tab (an always-on engagement automation, not a report).
   // 'loop' kept as alias for the renamed Performance landing so old deep
   // links resolve.
-  const [socialTab, setSocialTab] = useTabParam('overview', [
-    'overview',
+  // Overview deleted Oct 2026. Measure is the landing — the headline numbers,
+  // not a description of the sections holding them. (SocialSuiteOverview is a
+  // different thing entirely: the Review readout inside Measure, which stays.)
+  const [socialTab, setSocialTab] = useTabParam('perf_insights', [
     // Capture
     'swipe', 'subreddit',
     // Create
@@ -500,9 +500,8 @@ export default function ClientSocialPage() {
           performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
           learn: 'measure', loop: 'measure',
         };
-        const currentGroup = GROUP_OF[socialTab] || 'overview';
+        const currentGroup = GROUP_OF[socialTab] || 'measure';
         const topTabs = [
-          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
           { key: 'capture',  label: 'Capture',  fn: 'research',   active: currentGroup === 'capture',  onClick: () => setSocialTab('swipe') },
           { key: 'create',   label: 'Build',    fn: 'create',     active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
           { key: 'engage',   label: 'Engage',   fn: 'distribute', active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
@@ -522,47 +521,6 @@ export default function ClientSocialPage() {
         );
       })()}
 
-      {socialTab === 'overview' && (
-        <div className="stack stack-lg">
-        <SuiteOverview
-          compact
-          tagline="A month of on-brand content, mostly on autopilot."
-          description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
-          benefits={['Nine on-brand posts at once', 'Reels in your own voice', 'Scheduled across every channel']}
-          readouts={[
-            { fn: 'data',     name: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', sub: 'batch engine' },
-            { fn: 'measure',  name: 'Plans', value: plans.length || '—', sub: plans.length ? 'scheduled' : 'none yet' },
-            { fn: 'research', name: 'Competitors', value: competitors.length || '—', sub: competitors.length ? 'tracked' : 'none added' },
-          ]}
-          primary={{
-            fn: 'create',
-            kicker: 'The main job here',
-            title: "Make this month's content",
-            description: 'Brainstorm nine posts at once, film a reel in your own voice, then schedule the lot across every channel — one guided factory.',
-            ctaLabel: 'Start a batch',
-            onCta: () => setSocialTab('brainstorm'),
-          }}
-          toolsLabel="Capture & feeds"
-          tools={[
-            { fn: 'research', label: 'Swipe file',         onClick: () => setSocialTab('swipe') },
-            { fn: 'research', label: 'Subreddit research', onClick: () => setSocialTab('subreddit') },
-          ]}
-          otherJobs={{ label: 'Other jobs in Shared', items: [
-            { fn: 'distribute', label: 'Engage — DMs & discovery',   onClick: () => setSocialTab('dm_bot') },
-            { fn: 'measure',    label: 'Measure — review & learn',   onClick: () => setSocialTab('perf_insights') },
-          ] }}
-          diagram={(
-            <SocialFactoryMap
-              onWorkbench={() => setSocialTab('brainstorm')}
-              onPublish={() => setSocialTab('plans')}
-              onEngage={() => setSocialTab('dm_bot')}
-              onMeasure={() => setSocialTab('perf_insights')}
-            />
-          )}
-        />
-        <OverviewChat clientId={id} pillar="shared" />
-        </div>
-      )}
 
       {/* PERFORMANCE → INSIGHTS — hero metrics, loop, next-up, recap. */}
 

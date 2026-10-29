@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
-import SuiteOverview from '../components/SuiteOverview';
 import ClarityConnectorCard from '../components/ClarityConnectorCard';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
@@ -59,7 +58,6 @@ export default function ClientDetailPage() {
   const [connectors, setConnectors] = useState([]);
   const [reports, setReports] = useState([]);
   const [previewType, setPreviewType] = useState(null);
-  const [reportsTab, setReportsTab] = useState('generated');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -416,23 +414,6 @@ export default function ClientDetailPage() {
           that told you anything you did not already know. */}
       {tab === 'setup_overview' && <Navigate to={`/clients/${id}?tab=details`} replace />}
 
-      {tab === 'forms' && (
-        <SuiteOverview
-          tagline="Form submissions, in context."
-          description="Pulls live submissions from the October Forms WordPress plugin and surfaces funnel completion next to the rest of the client's marketing data."
-          flow={[
-            { label: 'October Forms', detail: 'WP plugin connector' },
-            { label: 'Submissions',  detail: 'Live + replayable' },
-            { label: 'Funnel',       detail: 'Views vs. completes' },
-            { label: 'Drop-off',     detail: 'Per-step analytics' },
-          ]}
-          capabilities={[
-            { tag: 'Submissions', title: 'Live form submissions',  body: 'Every entry routed back to the client view, with full metadata.' },
-            { tag: 'Funnel',      title: 'Conversion rate',         body: 'Views, completes, and per-step drop-off — see where leads abandon.' },
-            { tag: 'Status',      title: 'Complete vs. partial',    body: 'Track abandoned submissions too — useful for re-engagement.' },
-          ]}
-        />
-      )}
 
       {tab === 'details' && (
         <div className="row between center" style={{ marginBottom: 'var(--s4)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
@@ -614,26 +595,8 @@ export default function ClientDetailPage() {
       )}
 
 
-      {tab === 'reports' && reportsTab === 'overview' && (
-        <SuiteOverview
-          tagline="Weekly + monthly reports, auto-generated."
-          description="Templated PDFs with Claude-written narratives, sent to the client list on schedule. Preview live before sending; cached for fast iteration."
-          flow={[
-            { label: 'Templates',  detail: 'Per-client sections' },
-            { label: 'Live data',  detail: 'Every connector pulled' },
-            { label: 'Claude writes', detail: 'Per-section narratives' },
-            { label: 'Send',       detail: 'PDF + email, scheduled' },
-          ]}
-          capabilities={[
-            { tag: 'Templates', title: 'Reusable per-client', body: 'A template per client picks the sections, the data pulls, and Claude\'s tone for narratives.' },
-            { tag: 'Preview',   title: 'Live, in-app',        body: 'Iterate on a template by previewing the rendered PDF in the platform. Repeated previews reuse cached data + narratives for instant feedback.' },
-            { tag: 'Scheduled', title: 'Mondays + month-ends', body: 'Weekly reports go out automatically every Monday; monthly reports run on the 1st with the previous month\'s data.' },
-            { tag: 'Recipients', title: 'Per-client lists',   body: 'Each client has its own delivery list. Bounce handling and resend baked in.' },
-          ]}
-        />
-      )}
 
-      {tab === 'reports' && reportsTab === 'generated' && (
+      {tab === 'reports' && (
         <>
         <div className="card mt-6">
           <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Recent reports</h2>
