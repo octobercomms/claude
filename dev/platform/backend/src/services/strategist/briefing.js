@@ -173,7 +173,13 @@ ${pillarBlocks}
 # Write (markdown, no top-level heading)
 
 \`### What changed\`
-**At most three bullets, one line each, and fewer is better.** Only things that are genuinely different from the last briefing: a number that moved enough to matter, something that broke, something that was fixed and what happened as a result. If nothing material changed, write exactly one line saying so and nothing else. Do not restate the state of the account; they have read it before. This is the only prose on the page — everything else they see is the queue, so anything that is not a change belongs in an item's rationale or nowhere.
+**At most three bullets, one line each, and fewer is better.** Only things that are genuinely different from the last briefing: a number that moved enough to matter, something that broke, something that was fixed and what happened as a result. Do not restate the state of the account; they have read it before.
+
+If nothing material changed, **this section** is one line saying so. That finishes the section, not the briefing: the queue below is always written.
+
+${lastGeneratedAt ? '' : "**This is the first briefing for this account, so nothing has changed yet.** Write one line for this section saying it is the first and these are opening baselines. Everything worth doing is new, which makes the queue the entire deliverable: it must not be empty."}
+
+The page shows this prose and then the queue, as a list of tickable rows. There are no figures, tables or sections under it, so do not refer to anything "below" except the queue itself.
 
 \`### The queue\`
 Every item, most important first, one per line, in this exact shape:
@@ -185,7 +191,44 @@ Every item, most important first, one per line, in this exact shape:
 - Drop an open item by simply not re-emitting it. Only drop it when it is genuinely resolved or no longer worth doing, and say which in What changed.
 - The action is one sentence, specific enough to start on Monday. The rationale after \` :: \` is one sentence and carries the number.
 
+**Never end the briefing without this section.** An empty queue says there is nothing worth doing on this account for the next 30 days, which on an account someone is paying for is almost never true, and on a first briefing never is. Where a pillar analysis above names a problem, that problem is a queue item.
+
 Nothing else. No headline paragraph, no "where to focus", no closing summary. The queue is the deliverable.`;
+}
+
+// Every recommendation the pillar passes made, as queue lines.
+//
+// Only ever used when the synthesis wrote no queue. Each pillar's expert pass
+// already ends with a `### Recommendations` list in the same
+// `[CRUCIAL] action :: why` shape, parsed on the way in by `runPillar`, so
+// this is a shape change rather than a second opinion. Crucial first, and the
+// pillar is carried through so the item can say where it came from.
+function pillarFallbackQueue(sections) {
+  const out = [];
+  for (const priority of ['crucial', 'nice']) {
+    for (const section of sections) {
+      if (!section.ok) continue;
+      for (const rec of section.recommendations || []) {
+        if (rec.priority !== priority) continue;
+        const [text, rationale] = String(rec.text).split('::').map(part => part.trim());
+        if (!text) continue;
+        out.push({ priority, text, rationale: rationale || null, pillar: section.pillar, tag: null });
+      }
+    }
+  }
+  return out;
+}
+
+// Which queue this briefing ships, and whether it is the synthesis's own.
+//
+// Extracted so the decision is testable: the fallback below was first written
+// inline in `generate`, where it could only be exercised with a database and
+// five Claude calls, and a mutation that disabled it passed every test.
+function queueFor(synthMd, sections) {
+  const lines = parseQueue(synthMd);
+  if (lines.length) return { lines, fromPillars: false };
+  const fallback = pillarFallbackQueue(sections);
+  return { lines: fallback, fromPillars: fallback.length > 0 };
 }
 
 // Parse "[CRUCIAL]/[NICE] text" lines out of a markdown block.
@@ -315,7 +358,28 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
     // evidence behind it: they are kept on their sections rather than merged
     // into the queue, because two lists of the same work is how the old
     // briefing ended up with six items saying one thing.
-    const { items, dropped } = reconcile(parseQueue(synthMd), openItems);
+    //
+    // Unless the synthesis wrote no queue at all. Then there is no second list
+    // to duplicate, and the choice is between the pillars' own recommendations
+    // and a page with nothing on it. A briefing whose entire point is the
+    // queue shipping an empty one is the worse failure, and it shipped
+    // silently: Falcon's first briefing cost five Claude passes, produced
+    // paid and owned recommendations inside the pillar analyses, and threw
+    // every one of them away because the synthesis stopped after one line.
+    //
+    // The prompt that caused that is fixed above. This is the floor under it,
+    // because a model can always omit a section and the fix must not depend on
+    // it never doing so again.
+    const { lines: queueLines, fromPillars } = queueFor(synthMd, sections);
+    if (fromPillars || !queueLines.length) {
+      console.warn(
+        `[strategist] synthesis wrote no queue for client ${clientId}; ` +
+        (fromPillars
+          ? `falling back to ${queueLines.length} item(s) from the pillar analyses`
+          : 'and the pillars had none either, so the queue is genuinely empty')
+      );
+    }
+    const { items, dropped } = reconcile(queueLines, openItems);
     // The model's order IS the priority, so it is preserved as written. Only a
     // nice-to-have that outranks a crucial is corrected, which the prompt asks
     // it not to do but which costs nothing to enforce.
@@ -323,6 +387,11 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
       ...items.filter(r => r.priority === 'crucial'),
       ...items.filter(r => r.priority !== 'crucial'),
     ].map(r => ({ ...r, pillar: r.pillar || 'cross' }));
+    if (fromPillars) {
+      // Said out loud on the page rather than passed off as the strategist's
+      // own ranking. These items were never put in order against each other.
+      ordered.forEach(r => { r.rationale = `${r.rationale ? r.rationale + ' ' : ''}(From the ${PILLAR_LABEL[r.pillar] || r.pillar} analysis: the briefing did not rank this against the rest.)`; });
+    }
     await insertRecs(briefingId, clientId, ordered).catch(e => console.warn('[strategist] rec insert failed:', e.message));
     if (dropped.length) {
       console.log(`[strategist] ${dropped.length} item(s) dropped from the queue for client ${clientId}: ` +
@@ -389,4 +458,4 @@ async function clientReport(briefingId, { force = false } = {}) {
   return md;
 }
 
-module.exports = { generate, clientReport, parseRecs, PILLARS };
+module.exports = { generate, clientReport, parseRecs, pillarFallbackQueue, queueFor, PILLARS };
