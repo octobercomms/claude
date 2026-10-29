@@ -3,8 +3,6 @@ import { useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
-import SuiteTabs from '../components/SuiteTabs';
-import SuiteOverview from '../components/SuiteOverview';
 import { useToast } from '../context/ToastContext';
 import { useTabParam } from '../hooks/useTabParam';
 import { roWrite } from '../utils/readOnly';
@@ -90,7 +88,9 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   const [customEnd, setCustomEnd] = useState('');
   // Embedded inside Data → AI Analyst: skip the standalone Overview landing and
   // go straight to chat, and use ?ctab= so we don't fight the host over ?tab=.
-  const [tab, setTab] = useTabParam(embedded ? 'chat' : 'overview', ['overview', 'chat'], embedded ? 'ctab' : 'tab');
+  // Overview deleted Oct 2026 — it described the chat rather than being it.
+  // Chat is the only thing here now, embedded or not.
+  const [tab, setTab] = useTabParam('chat', ['chat'], embedded ? 'ctab' : 'tab');
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -269,37 +269,6 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
         </header>
       )}
 
-      {!embedded && (
-        <SuiteTabs tabs={[
-          { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
-          { key: 'chat',     label: 'Chat',     active: tab === 'chat',     onClick: () => setTab('chat') },
-        ]} />
-      )}
-
-      {tab === 'overview' && (
-        <SuiteOverview
-          tagline="Ask anything — get answers from the live data."
-          description="A conversational layer over every connector. Ask in plain English, get answers with sources, format any reply as a client-ready report, and let Claude log decisions so the knowledge compounds."
-          ctaLabel="Start a conversation"
-          onCta={() => setTab('chat')}
-          status={[
-            { label: 'Conversation', value: messages.length ? `${messages.length} messages` : 'Not started yet', ok: messages.length > 0 },
-            { label: 'Sources', value: 'Shopify · GA4 · GSC · Ads', ok: true },
-          ]}
-          flow={[
-            { label: 'Connectors', detail: 'Shopify, GA4, GSC, Ads' },
-            { label: 'Claude reads', detail: 'Live data on demand' },
-            { label: 'Answer',    detail: 'Plain English, with sources' },
-            { label: 'Log',       detail: 'Decisions persist in context' },
-          ]}
-          capabilities={[
-            { tag: 'Ask',         title: 'Answer real questions',  cta: 'Start chatting', onClick: () => setTab('chat'), body: '"Why did conversions drop last week?" — Claude pulls Shopify + GA4 and answers with the live numbers, citing sources.' },
-            { tag: '/report',     title: 'Turn it into a report',  cta: 'Open chat', onClick: () => setTab('chat'), body: 'Prefix any message with /report and the reply formats as a structured PDF + Word doc you can hand straight to the client.' },
-            { tag: 'Attachments', title: 'Bring in images & PDFs', cta: 'Open chat', onClick: () => setTab('chat'), body: 'Drop in a competitor screenshot or a brief PDF and Claude reads it alongside the live data.' },
-            { tag: 'Memory',      title: 'Knowledge that compounds', cta: 'Open chat', onClick: () => setTab('chat'), body: 'Decisions, investigations and pending items persist to a sidebar, so the next session picks up where you left off.' },
-          ]}
-        />
-      )}
 
       {tab === 'chat' && (
       <div className="chat-shell">

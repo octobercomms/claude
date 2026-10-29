@@ -4,8 +4,6 @@ import AdResizePanel from '../components/AdResizePanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
 import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
-import SuiteOverview from '../components/SuiteOverview';
-import OverviewChat from '../components/OverviewChat';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, Link } from 'react-router-dom';
@@ -37,8 +35,10 @@ export default function ClientAdsPage() {
   // brief → concepts → render → approve → launch. 'creative' and
   // 'pipeline' are aliases that resolve to the brief step so old deep
   // links still land sensibly.
-  const [tab, setTab] = useTabParam('overview', [
-    'overview', 'health', 'performance', 'playbook', 'audiences', 'competitor_ads', 'resize',
+  // Overview deleted Oct 2026. Health is the landing: the numbers, not a
+  // description of where the numbers live.
+  const [tab, setTab] = useTabParam('health', [
+    'health', 'performance', 'playbook', 'audiences', 'competitor_ads', 'resize',
     // pipeline sub-tabs
     'pipeline', 'creative',
     'brief', 'concepts', 'render', 'approve', 'launch',
@@ -63,10 +63,9 @@ export default function ClientAdsPage() {
   const HEALTH_TABS = ['performance', 'competitor_ads', 'playbook'];
   const BUILD_TOOLS = ['audiences', 'resize'];
   const isBuildGroup = isPipelineGroup || BUILD_TOOLS.includes(tab);
-  const currentGroup = normalisedTab === 'overview' ? 'overview'
-    : (tab === 'health' || HEALTH_TABS.includes(tab)) ? 'health'
+  const currentGroup = (tab === 'health' || HEALTH_TABS.includes(tab)) ? 'health'
     : isBuildGroup ? 'build'
-    : 'overview';
+    : 'health';
   // Health dashboard accordion — Measure (the headline read) open by default.
   const [healthOpen, setHealthOpen] = useState(() => new Set(['measure']));
   const toggleHealth = (idv) => setHealthOpen(prev => (prev.has(idv) ? new Set() : new Set([idv])));
@@ -431,7 +430,6 @@ export default function ClientAdsPage() {
   return (
     <div className="suite-paid">
       <PageShell title="Paid" subtitle={client?.name} tabs={[
-        { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setTab('overview') },
         { key: 'health',   label: 'Health', fn: 'measure',   active: currentGroup === 'health',   onClick: () => setTab('health') },
         { key: 'build',    label: 'Build', fn: 'create',    active: currentGroup === 'build',    onClick: () => setTab('brief') },
       ]}>
@@ -464,57 +462,6 @@ export default function ClientAdsPage() {
         </div>
       )}
 
-      {normalisedTab === 'overview' && (
-        <div className="stack stack-lg">
-        <SuiteOverview
-          compact
-          tagline="See what every pound returns — then make the better ad."
-          description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
-          benefits={['ROAS & profit per campaign', 'Exactly what to change', 'Brief → ads, ready to launch']}
-          readouts={[
-            { fn: 'measure', name: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), sub: 'across channels' },
-            { fn: 'data',    name: 'Google Ads', value: hasGoogle ? googleEntries.filter(g => !g.error).length : '—', sub: hasGoogle ? 'connected' : 'not connected' },
-            { fn: 'data',    name: 'Meta Ads',   value: hasMeta ? metaEntries.filter(m => !m.error).length : '—', sub: hasMeta ? 'connected' : 'not connected' },
-          ]}
-          primary={{
-            fn: 'create',
-            kicker: 'The main job here',
-            title: 'Make the better ad',
-            description: 'Brief it, draft concepts, render, approve and launch — one guided pipeline, no designer or media-buyer spreadsheet.',
-            ctaLabel: 'Start an ad brief',
-            onCta: () => setTab('brief'),
-          }}
-          toolsLabel="Build tools"
-          tools={[
-            { fn: 'research', label: 'Audiences', onClick: () => setTab('audiences') },
-            { fn: 'create',   label: 'Resize',    onClick: () => setTab('resize') },
-          ]}
-          otherJobs={{ label: 'Other jobs in Paid', items: [
-            { fn: 'measure',  label: 'Health — full dashboard', onClick: () => goHealth('measure') },
-            { fn: 'research',  label: 'Competitors — rival watch', onClick: () => goHealth('competitors') },
-            { fn: 'strategy', label: 'Playbook — how paid works', onClick: () => goHealth('playbook') },
-          ] }}
-          mapLayout="funnel"
-          map={[
-            { title: 'Health', fn: 'measure', subtitle: 'Spend, return, briefing & rival watch', nodes: [
-              { label: 'Measure',     onClick: () => goHealth('measure') },
-              { label: 'Briefing',    onClick: () => goHealth('briefing') },
-              { label: 'Competitors', onClick: () => goHealth('competitors') },
-              { label: 'Playbook',    onClick: () => goHealth('playbook') },
-            ] },
-            { title: 'Build', fn: 'create', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
-              { label: 'Brief',   onClick: () => setTab('brief') },
-              { label: 'Draft',   onClick: () => setTab('concepts') },
-              { label: 'Render',  onClick: () => setTab('render') },
-              { label: 'Approve', onClick: () => setTab('approve') },
-              { label: 'Launch',  onClick: () => setTab('launch') },
-            ] },
-          ]}
-          actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
-        />
-        <OverviewChat clientId={id} pillar="paid" />
-        </div>
-      )}
 
       {/* Build — the pipeline stepper is the clear focus, always visible; the
           Audiences + Resize tools sit below in an accordion (discoverable, but

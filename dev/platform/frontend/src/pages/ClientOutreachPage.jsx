@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import StepRail from '../components/shells/StepRail';
-import SuiteOverview from '../components/SuiteOverview';
 import MailboxesPanel from '../components/MailboxesPanel';
 import OutreachTasksPanel from '../components/OutreachTasksPanel';
 import { useToast } from '../context/ToastContext';
@@ -138,7 +137,8 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const [client, setClient] = useState(null);
   // When embedded (inside Owned → Email), use a separate ?etab= key so we don't
   // fight the host page over ?tab=.
-  const [tab, setTab] = useTabParam(embedded ? 'campaigns' : 'overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending', 'prospecting'], embedded ? 'etab' : 'tab');
+  // Overview deleted Oct 2026. Campaigns is the work, so it is the landing.
+  const [tab, setTab] = useTabParam('campaigns', ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting'], embedded ? 'etab' : 'tab');
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -513,7 +513,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         </div>
       ) : (
         <SuiteTabs tabs={[
-          { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
           { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined, active: tab === 'campaigns', onClick: () => setTab('campaigns') },
           { key: 'contacts',  label: 'Leads',  badge: contacts.length || undefined,  active: tab === 'contacts',  onClick: () => setTab('contacts') },
           { key: 'tasks',     label: 'Tasks',                                           active: tab === 'tasks',     onClick: () => setTab('tasks') },
@@ -530,111 +529,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         <OutreachTasksPanel />
       )}
 
-      {!embedded && tab === 'overview' && (
-        <div className="stack stack-lg">
-        <SuiteOverview
-          tagline="Win new clients from your own domain."
-          description="Two ways to prospect: run cold outreach from your own lead list, or let AI source and fit-score prospects for you to approve one by one. Claude drafts every sequence; replies classify themselves."
-          ctaLabel="Browse campaigns"
-          onCta={() => setTab('campaigns')}
-          status={[
-            { label: 'Leads', value: `${contacts.length}`, ok: contacts.length > 0 },
-            { label: 'Campaigns', value: `${outreachCampaigns.length}`, ok: outreachCampaigns.length > 0 },
-            { label: 'Emails sent', value: `${stats?.emails_sent ?? 0}`, ok: (stats?.emails_sent || 0) > 0 },
-          ]}
-          flow={[
-            { label: 'Find',     detail: 'Hunter + Serper + library' },
-            { label: 'Draft',    detail: 'Claude writes the sequence' },
-            { label: 'Send',     detail: 'From your domain, tracked' },
-            { label: 'Classify', detail: 'Replies + bounces routed' },
-          ]}
-          capabilities={[
-            { tag: 'Leads',      title: 'Find the right people',       cta: 'Open leads', onClick: () => setTab('contacts'), body: 'Hunter + Serper discovery, CSV import, or pull from the shared workspace library — tagged and deduped.' },
-            { tag: 'Campaigns',  title: 'Claude drafts the sequence',  cta: 'Open campaigns', onClick: () => setTab('campaigns'), body: 'Initial, follow-up and final nudge — personalised per recipient from the contact + brand brief, then launched and tracked.' },
-            { tag: 'Tasks',      title: 'Work the multichannel steps', cta: 'Open tasks', onClick: () => setTab('tasks'), body: 'LinkedIn and manual steps land in a daily queue; tick one off and the prospect advances automatically.' },
-            { tag: 'Sending',    title: 'Land in the inbox',           cta: 'Open sending', onClick: () => setTab('sending'), body: 'Rotate multiple sender mailboxes with warm-up and daily caps; SPF / DKIM / DMARC kept on rails, replies auto-classified.' },
-            { tag: 'Selective',  title: 'Let AI source the prospects', cta: 'Open selective', onClick: () => setTab('prospecting'), body: 'AI researches and fit-scores prospects and drafts each message — you approve every prospect and every send. Runs from a separate sending identity.' },
-          ]}
-        />
-
-        <div>
-          {/* Stats cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
-            {[
-              ['Active Leads', stats?.active_contacts],
-              ['Active Campaigns', stats?.active_campaigns],
-              ['Emails Sent', stats?.emails_sent],
-              ['Replies', stats?.replies],
-            ].map(([label, value]) => (
-              <div key={label} className="card">
-                <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1.1 }}>{value ?? '—'}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s2)' }}>{label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* System Status + Recent Campaigns */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.4fr)', gap: 'var(--s4)' }}>
-            <div className="card">
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>System Status</div>
-              {systemStatus.length === 0 ? (
-                <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 0 }}>Loading…</p>
-              ) : <>
-                {systemStatus.map(item => (
-                  <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
-                    <span>{item.name}</span>
-                    <span style={{ color: item.status === 'connected' ? 'var(--positive)' : 'var(--negative)', fontWeight: 600, fontSize: 'var(--fs-caption)' }}>
-                      {item.status === 'connected' ? '✓ Connected' : '✗ Not configured'}
-                    </span>
-                  </div>
-                ))}
-                {dnsCheck && dnsCheck.domain && (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
-                      <span>SPF record <code style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{dnsCheck.domain}</code></span>
-                      <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600, fontSize: 'var(--fs-caption)' }}>
-                        {dnsCheck.spf === 'found' ? '✓ Found' : '⚠ Missing'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
-                      <span>DMARC record</span>
-                      <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600, fontSize: 'var(--fs-caption)' }}>
-                        {dnsCheck.dmarc === 'found' ? '✓ Found' : '⚠ Missing'}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </>}
-              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s3) 0 0' }}>Configure missing integrations in platform Settings. SPF / DMARC use the Outreach Sending Domain.</p>
-            </div>
-
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
-                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Campaigns</div>
-                {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>View all</button>}
-              </div>
-              {recentCampaigns.length === 0 ? (
-                <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 0 }}>No campaigns yet — use “+ New Campaign” above to create one.</p>
-              ) : (
-                <table style={{ width: '100%', fontSize: 'var(--fs-body)', borderCollapse: 'collapse' }}>
-                  <tbody>
-                    {recentCampaigns.map(c => (
-                      <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setTab('campaigns')}>
-                        <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>{c.name}</td>
-                        <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5' }}><span className="chip chip-neutral">{c.status}</span></td>
-                        <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', textAlign: 'right', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
-                          {new Date(c.created_at).toLocaleDateString('en-GB')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-        </div>
-      )}
 
       {tab === 'contacts' && (
         <div>

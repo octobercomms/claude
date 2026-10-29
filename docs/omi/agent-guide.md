@@ -195,17 +195,42 @@ What moved:
   `?tab=dashboard` or `?tab=strategist` link lands on Overview rather than a
   blank page.
 
-### No tab may depend on an Overview (Oct 2026)
+### The Overviews are gone (29 Oct 2026)
 
-Before deleting a suite's Overview, run `frontend/tests/tabDoors.test.mjs`. The
-Overviews are partly diagrams of links into their suite — Owned carries 38
-tabs, Shared 18, Paid 14 — so removing one is a navigation change, and a tab
-linked only from inside it becomes a page nobody can open.
+Every section used to open on an Overview: a hero, a benefits list and a
+diagram of links into the section you were already in. All of them are
+deleted. Each suite now lands on its first real tab.
 
-As of 29 Oct 2026 **no Overview is load-bearing**: every tab in every readable
-suite has a door elsewhere. The Overviews can come out section by section. The
-test is the ratchet that keeps that true, and it names the page and the tab
-when it is not.
+| Section | Lands on |
+|---|---|
+| Dashboard | Measure |
+| Data | Analyse (agency) / Measure (client login) |
+| Paid | Health |
+| Earned | Health (Coverage) |
+| Shared | Measure (Review) |
+| Owned | Health |
+| Email | Campaigns |
+
+`SuiteOverview`, `DataFlowMap` and `OverviewChat` went with them — nothing
+imported them afterwards. `SocialSuiteOverview` stays and is a different
+thing: the Review readout inside Shared's Measure group, which only shares the
+name.
+
+Two traps this hit, worth knowing before doing anything similar:
+
+- **Data's Overview was the only thing a client login could see there.**
+  Analyse has always been agency-only, so deleting the Overview without a
+  second branch would have left every client staring at an empty page — and
+  both `ClientHomeDashboard` and the Workspace nav send them there. Data now
+  renders `MeasurePanel` for a client login and the analyst for the agency.
+- **Earned stores its tab in localStorage.** A stored `overview` from before
+  the change would have resolved to nothing, so it is mapped to `coverage` on
+  read.
+
+`frontend/tests/tabDoors.test.mjs` is what cleared the deletion: it showed no
+Overview was load-bearing, i.e. no tab was linked only from inside one. It
+keeps that job — if an Overview-shaped component comes back and a tab ends up
+depending on it, the test fails.
 
 Two things worth knowing before trusting or changing it:
 

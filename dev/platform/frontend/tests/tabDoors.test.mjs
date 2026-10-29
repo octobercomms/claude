@@ -7,10 +7,15 @@
 // (ClientVideoPage, ReportsPage, ClientBrandPage), each found by a person
 // asking where something had gone rather than by anything automatic.
 //
-// As of 29 Oct 2026 every suite passes: no Overview is load-bearing. So the
-// Overviews can be removed section by section without stranding anything, and
-// this is the ratchet that keeps that true — add a tab linked only from an
-// Overview and this fails before the Overview is deleted, not after.
+// The Overviews were deleted on 29 Oct 2026, which this check cleared them
+// for: it showed none of them was load-bearing. The one match left is
+// SocialSuiteOverview, and it is a different thing — the Review readout inside
+// Shared's Measure group, not a page describing the section. It is matched
+// here only because it shares the name.
+//
+// The check keeps its job either way: if an Overview-shaped component comes
+// back and a tab ends up depending on it, this fails. That is the failure mode
+// worth guarding, and it does not care whether the component is new or old.
 //
 // The scanner's own behaviour is tested in tabDoorsLib.test.mjs, because two
 // earlier attempts at this analysis were confidently wrong: one missed
@@ -37,9 +42,14 @@ const withOverview = readdirSync(PAGES)
   .map(f => ({ file: f, src: readFileSync(path.join(PAGES, f), 'utf8') }))
   .filter(p => overviewBlocks(p.src).length > 0);
 
-test('the suites that carry an Overview are still found', () => {
-  assert.ok(withOverview.length >= 5,
-    `found only ${withOverview.length} pages with an Overview — the scan has probably stopped matching`);
+// Exactly the pages expected to render an Overview-named component. Pinned so
+// one reappearing is a decision somebody made on purpose rather than a thing
+// that drifted back in.
+const EXPECTED = ['ClientSocialPage.jsx'];
+
+test('only the pages we expect render an Overview-named component', () => {
+  assert.deepEqual(withOverview.map(p => p.file).sort(), EXPECTED,
+    'an Overview has come back, or one we deleted is still being matched');
 });
 
 test('no tab is reachable only from an Overview', () => {
@@ -52,15 +62,11 @@ test('no tab is reachable only from an Overview', () => {
     'these tabs would be orphaned by deleting their page\'s Overview — give each a door in a tab strip, an accordion or a step rail first');
 });
 
-// Two pages hold their tab somewhere this cannot read: ClientPRPage in
-// useState with no allow-list, ClientDetailPage straight off the search
-// params. There is nothing to enumerate, so the check is blind to both.
-//
-// Pinned rather than left implied. A green run does not mean every Overview
-// was checked, and a list that silently grows is how a check stops meaning
-// anything. A third page appearing here fails this test and has to be an
-// explicit decision.
-const UNREADABLE = ['ClientDetailPage.jsx', 'ClientPRPage.jsx'];
+// Pages whose tab state this cannot enumerate, so it cannot check them. Empty
+// now that ClientDetailPage and ClientPRPage no longer render an Overview, but
+// kept and asserted: a page appearing here is invisible to the check, and a
+// green run should never imply coverage it does not have.
+const UNREADABLE = [];
 
 test('pages the check cannot read are known, not silently skipped', () => {
   const unreadable = withOverview

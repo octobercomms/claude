@@ -15,8 +15,6 @@ import {
 } from '../components/SeoSuite';
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
-import SuiteOverview from '../components/SuiteOverview';
-import OverviewChat from '../components/OverviewChat';
 import StepRail from '../components/shells/StepRail';
 import StatStrip from '../components/shells/StatStrip';
 import PageShell from '../components/shells/PageShell';
@@ -649,8 +647,9 @@ export default function ClientSEOPage() {
       })
     : filtered;
 
-  const [activeTab, setActiveTab] = useTabParam('overview', [
-    'overview',
+  // Overview deleted Oct 2026. Health is the landing — the numbers, not a
+  // description of the sections holding them.
+  const [activeTab, setActiveTab] = useTabParam('health', [
     // Performance sub-tabs (perf_insights is the summary landing).
     // aio / fanout / gaps stay in the whitelist as backwards-compat
     // aliases — they redirect to their new homes (keywords / find).
@@ -752,7 +751,7 @@ export default function ClientSEOPage() {
     convert: 'convert', cro: 'convert', forms: 'convert',
     email: 'email',
   };
-  const currentGroup = GROUP_OF[activeTab] || 'overview';
+  const currentGroup = GROUP_OF[activeTab] || 'health';
 
   // Health-dashboard section bodies. Extracted verbatim from the former
   // Keywords / Authority tabs so the Health page can compose them as
@@ -1172,7 +1171,6 @@ export default function ClientSEOPage() {
           ],
         };
         const topTabs = [
-          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
           { key: 'health',   label: 'Health',   fn: 'measure',    active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
           { key: 'optimise', label: 'Optimise', fn: 'strategy',   active: currentGroup === 'optimise', onClick: () => setActiveTab('optimise') },
           { key: 'content',  label: 'Build',    fn: 'create',     active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
@@ -1241,82 +1239,6 @@ export default function ClientSEOPage() {
         );
       })()}
 
-      {activeTab === 'overview' && (
-        <div className="stack stack-lg">
-        <SuiteOverview
-          compact
-          tagline="Get found where buyers look — and turn the traffic into leads."
-          description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach them from your own domain."
-          benefits={['Rank on Google & in AI answers', 'Fix what holds the site back', 'Turn visitors into leads']}
-          readouts={[
-            { fn: 'measure', name: 'Keywords', value: keywords.length || '—', sub: keywords.length ? 'tracked' : 'none yet' },
-            { fn: 'measure', name: 'Ranking', value: keywords.filter(k => k.current_position).length, sub: 'in Google' },
-            { fn: 'measure', name: 'In top 3', value: keywords.filter(k => k.current_position && k.current_position <= 3).length, sub: 'page-one wins' },
-            { fn: 'measure', name: 'Not ranking', value: keywords.filter(k => !k.current_position).length, sub: 'room to grow' },
-          ]}
-          primary={{
-            fn: 'create',
-            kicker: 'The main job here',
-            title: 'Make a piece of content',
-            description: 'Find the topic, brief it, draft, publish and promote — one guided pipeline.',
-            ctaLabel: 'Start a piece',
-            onCta: () => setActiveTab('find'),
-          }}
-          tools={[
-            { fn: 'strategy', label: 'Site audit',      onClick: () => goOptimise('scan') },
-            { fn: 'strategy', label: 'Content audit',   onClick: () => goOptimise('grade') },
-            { fn: 'strategy', label: 'Quick wins',      onClick: () => goOptimise('win') },
-            { fn: 'strategy', label: 'CTR boosters',    onClick: () => goOptimise('sharpen') },
-            { fn: 'strategy', label: 'AI keywords',     onClick: () => goOptimise('target') },
-            { fn: 'strategy', label: 'Agent readiness', onClick: () => goOptimise('prep') },
-          ]}
-          otherJobs={{ label: 'Other jobs in Owned', items: [
-            { fn: 'measure',    label: 'Health — full dashboard', onClick: () => setActiveTab('health') },
-            { fn: 'strategy',   label: 'Convert — CRO & forms',   onClick: () => goConvert('cro') },
-            { fn: 'distribute', label: 'Email — nurture & send',  onClick: () => setActiveTab('email') },
-          ] }}
-          mapLayout="snake"
-          map={[
-            { title: 'Health', fn: 'measure', subtitle: 'Where you rank and where you get cited', nodes: [
-              { label: 'Rankings',       onClick: () => goHealth('keywords') },
-              { label: 'Search Console', onClick: () => goHealth('gsc') },
-              { label: 'AI visibility',  onClick: () => goHealth('ai_visibility') },
-              { label: 'Authority',      onClick: () => goHealth('authority') },
-              { label: 'Backlinks',      onClick: () => goHealth('backlinks') },
-              { label: 'Drift',          onClick: () => goHealth('watch') },
-            ] },
-            { title: 'Optimise', fn: 'strategy', subtitle: 'Site and content fixes that move the needle', nodes: [
-              { label: 'Site audit',        onClick: () => goOptimise('scan') },
-              { label: 'Content audit',     onClick: () => goOptimise('grade') },
-              { label: 'Quick wins',        onClick: () => goOptimise('win') },
-              { label: 'CTR boosters',      onClick: () => goOptimise('sharpen') },
-              { label: 'Keyword footprint', onClick: () => goOptimise('map') },
-              { label: 'AI keywords',       onClick: () => goOptimise('target') },
-              { label: 'Agent readiness',   onClick: () => goOptimise('prep') },
-            ] },
-            { title: 'Build', fn: 'create', subtitle: 'Editorial pipeline', numbered: true, nodes: [
-              { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
-              { label: 'Find',    onClick: () => setActiveTab('find') },
-              { label: 'Brief',   onClick: () => setActiveTab('planning') },
-              { label: 'Draft',   onClick: () => setActiveTab('draft') },
-              { label: 'Publish', onClick: () => setActiveTab('publish') },
-              { label: 'Promote', onClick: () => setActiveTab('promote') },
-            ] },
-            { title: 'Convert', fn: 'strategy', subtitle: 'Turn visits into leads', nodes: [
-              { label: 'CRO',   onClick: () => goConvert('cro') },
-              { label: 'Forms', onClick: () => goConvert('forms') },
-            ] },
-            { title: 'Email', fn: 'distribute', subtitle: 'Nurture leads to close', nodes: [
-              { label: 'Campaigns',    onClick: () => setActiveTab('email') },
-              { label: 'Sequences',    onClick: () => setActiveTab('email') },
-              { label: 'Sending',      onClick: () => setActiveTab('email') },
-            ] },
-          ]}
-          actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
-        />
-        <OverviewChat clientId={id} pillar="owned" />
-        </div>
-      )}
 
       {historyKeyword && (
         <KeywordHistoryModal

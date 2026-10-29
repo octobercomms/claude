@@ -5,8 +5,6 @@ import PressReleaseEditor from '../components/PressReleaseEditor';
 import { useToast } from '../context/ToastContext';
 import PageShell from '../components/shells/PageShell';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
-import SuiteOverview from '../components/SuiteOverview';
-import OverviewChat from '../components/OverviewChat';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import ProfileModal from '../components/ProfileModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
@@ -95,7 +93,13 @@ export default function ClientPRPage() {
   // client, so a reload lands you back where you were instead of Overview.
   // Wrapped in try/catch — localStorage can throw in private mode.
   const lsGet = (k) => { try { return localStorage.getItem(`omi.earned.${id}.${k}`); } catch { return null; } };
-  const [tab, setTab] = useState(() => lsGet('tab') || 'overview');
+  // Overview deleted Oct 2026. Coverage is the landing — what has actually
+  // been published, not a description of the section. A stored 'overview'
+  // from before the change resolves to it rather than to a blank page.
+  const [tab, setTab] = useState(() => {
+    const stored = lsGet('tab');
+    return !stored || stored === 'overview' ? 'coverage' : stored;
+  });
   // Which Health / Build accordion sections are open. A real toggle Set (like
   // Owned's) so clicking an open header collapses it — the tab-derived open
   // state used before could never close the one open section.
@@ -1197,10 +1201,7 @@ export default function ClientPRPage() {
     { id: 'pitch',    tab: 'journalists', fn: 'research', title: 'Pitch',    sub: 'Media database & targeting', render: renderPitch },
     { id: 'releases', tab: 'press',       fn: 'create',   title: 'Releases', sub: 'Draft, sign-off & pitch', render: renderReleases },
   ];
-  const suiteGroup = tab === 'overview' ? 'overview'
-    : (tab === 'coverage' || tab === 'reports') ? 'health'
-    : (tab === 'journalists' || tab === 'press') ? 'build'
-    : 'overview';
+  const suiteGroup = (tab === 'journalists' || tab === 'press') ? 'build' : 'health';
 
   return (
     <div className="suite-client-pr">
@@ -1212,7 +1213,6 @@ export default function ClientPRPage() {
           and was confusing. Workflow nudges are surfaced on the Overview
           page's "needs attention" rail instead. */}
       <PageShell title="Earned" subtitle={client?.name} tabs={[
-        { key: 'overview', label: 'Overview', active: suiteGroup === 'overview', onClick: () => setTab('overview') },
         { key: 'health',   label: 'Health',   fn: 'measure', active: suiteGroup === 'health',   onClick: () => setTab('coverage') },
         { key: 'build',    label: 'Build',    fn: 'create',  active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
       ]}>
@@ -1243,84 +1243,6 @@ export default function ClientPRPage() {
         </Accordion>
       )}
 
-      {!loading && tab === 'overview' && (
-        <div className="stack stack-lg">
-          <SuiteOverview
-            compact
-            tagline="Never pitch from memory — or lose a hit — again."
-            description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
-            benefits={['Coverage logs itself from a link', 'Targets come ranked', 'Client sees a live wins page']}
-            readouts={[
-              { fn: 'measure', name: 'Published', value: stats ? String(stats.published) : '—', sub: 'placements' },
-              { fn: 'measure', name: 'Tracked', value: stats ? String(stats.tracked) : '—', sub: 'in the log' },
-              { fn: 'measure', name: 'Journalists', value: stats ? String(stats.journalists) : '—', sub: 'on file' },
-            ]}
-            primary={{
-              fn: 'create',
-              kicker: 'The main job here',
-              title: 'Land the next story',
-              description: 'Find the journalists, draft the release, get sign-off and pitch — one guided flow.',
-              ctaLabel: 'Start a pitch',
-              onCta: () => setTab('journalists'),
-            }}
-            toolsLabel="Quick actions"
-            tools={[
-              { fn: 'measure', label: 'Log coverage', onClick: () => { setTab('coverage'); startEdit(null); } },
-              { fn: 'create',  label: 'New release',  onClick: () => { setTab('press'); newRelease(); } },
-            ]}
-            otherJobs={{ label: 'Other jobs in Earned', items: [
-              { fn: 'measure',    label: 'Health — coverage & monitoring', onClick: () => setTab('coverage') },
-              { fn: 'distribute', label: 'Share — client digests',         onClick: () => setTab('reports') },
-            ] }}
-            mapLayout="grid"
-            map={[
-              { title: 'Health', fn: 'measure', subtitle: 'Coverage, monitoring & what the client sees', nodes: [
-                { label: 'Coverage log',   onClick: () => setTab('coverage') },
-                { label: 'Auto monitor',   onClick: () => setTab('coverage') },
-                { label: 'Client digests', onClick: () => setTab('reports') },
-                { label: 'Live coverage',  onClick: () => setTab('reports') },
-              ] },
-              { title: 'Build', fn: 'create', subtitle: 'Media targeting → release → pitch', nodes: [
-                { label: 'Media DB',        onClick: () => setTab('journalists') },
-                { label: 'Pitch targeting', onClick: () => setTab('journalists') },
-                { label: 'Draft release',   onClick: () => setTab('press') },
-                { label: 'Sign-off',        onClick: () => setTab('press') },
-                { label: 'Pitch',           onClick: () => setTab('press') },
-              ] },
-            ]}
-            actions={<a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
-          />
-          {warmCount ? (
-            <div className="card" style={{ borderColor: '#f0a868', background: '#fff8f2' }}>
-              <h3 className="h3 mb-2">🔥 Showing interest</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', margin: '0 0 var(--s3)' }}>
-                {warmCount} journalist{warmCount === 1 ? ' is' : 's are'} engaging with your press outreach right now — a great moment for a personal follow-up.
-              </p>
-              <div className="task-row">
-                {warmJournalists.slice(0, 8).map((w) => (
-                  <span key={w.id} className="chip chip-warm">
-                    {w.name}{w.outlet ? ` · ${w.outlet}` : ''}{w.warm_reason ? ` — ${w.warm_reason}` : ''}
-                  </span>
-                ))}
-                {warmCount > 8 ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', alignSelf: 'center' }}>+{warmCount - 8} more</span> : null}
-              </div>
-            </div>
-          ) : null}
-          <div className="card">
-            <h3 className="h3 mb-2">Needs attention</h3>
-            {(queue.length || thanks.length || awaitingSignoff || quietCount || warmCount) ? (
-              <div className="task-row">
-                {warmCount ? <button className="task-chip" onClick={() => setTab('journalists')}>🔥 <span><span className="n">{warmCount}</span> journalist{warmCount === 1 ? '' : 's'} showing interest</span></button> : null}
-                {queue.length ? <button className="task-chip" onClick={() => setTab('coverage')}>🔎 <span><span className="n">{queue.length}</span> coverage item{queue.length === 1 ? '' : 's'} to confirm</span></button> : null}
-                {thanks.length ? <button className="task-chip" onClick={() => setTab('journalists')}>🟡 <span><span className="n">{thanks.length}</span> thank-you{thanks.length === 1 ? '' : 's'} waiting</span></button> : null}
-                {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}
-                {quietCount ? <button className="task-chip" onClick={() => setTab('journalists')}>📉 <span><span className="n">{quietCount}</span> key journalist{quietCount === 1 ? '' : 's'} gone quiet</span></button> : null}
-              </div>
-            ) : <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>All clear — nothing needs you right now.</p>}
-          </div>
-          <OverviewChat clientId={id} pillar="earned" />
-        </div>
-      )}
 
 
 
