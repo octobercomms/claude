@@ -24,14 +24,34 @@ export default function SeoDriftPanel({ clientId }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  useEffect(() => { load(); /* eslint-disable-line */ }, [clientId]);
+  // Clear the previous client's state before loading this one's.
+  //
+  // The same shape that had Architourian's Strategist showing Falcon's
+  // briefing: `selected` survived the client change, so the guard in `load`
+  // kept the old client's baseline id. Here the consequences were a stale
+  // drift report left on screen under the new client's name, and a Compare
+  // that sends the wrong id and comes back "Baseline not found".
+  //
+  // Nothing leaked: `compareToBaseline` looks the baseline up with
+  // `WHERE id = $1 AND client_id = $2`, so the wrong id finds nothing.
+  useEffect(() => {
+    setBaselines([]);
+    setSelected('');
+    setReport(null);
+    setErr(null);
+    load(true);
+    /* eslint-disable-line */
+  }, [clientId]);
 
-  async function load() {
+  async function load(pick = false) {
     setLoading(true);
     try {
       const { baselines: b } = await api.get(`/seo/clients/${clientId}/drift/baselines`);
       setBaselines(b || []);
-      if (b && b.length && !selected) setSelected(b[0].id);
+      // Functional, because on a client change this runs in the same tick as
+      // the reset above and a value read from the closure is still the
+      // previous client's.
+      if (b && b.length) setSelected(cur => (pick || !cur) ? b[0].id : cur);
     } catch (e) { setErr(e.message); }
     finally { setLoading(false); }
   }

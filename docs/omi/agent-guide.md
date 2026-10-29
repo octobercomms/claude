@@ -844,9 +844,26 @@ router, the panel stays mounted, and the stale id survives, which is how this
 reached the live platform in the first place. `drive33.mjs` clicks
 `.client-switcher-item`.
 
-**Look for this pattern elsewhere.** Any `if (!selected) setSelected(list[0])`
-in a component keyed on a client is the same bug waiting. `SeoDriftPanel.jsx`
-line 34 has the shape; it was not checked here.
+**The sweep.** Any `if (!selected) setSelected(list[0])` in a component keyed
+on a client is the same bug waiting. Three candidates in `frontend/src`:
+
+| Component | Verdict |
+|---|---|
+| `StrategistBriefingPanel` | The reported bug. Fixed |
+| `organic/SeoDriftPanel` | **Same bug.** A stale drift report stayed on screen under the next client, and Compare sent the previous client's `baseline_id`. Fixed the same way |
+| `StrategistPanel` | Imported by nothing — dead since `StrategistBriefingPanel` replaced it — and its loader has no guard, so it never had the bug |
+
+`compareToBaseline` looks its baseline up with `WHERE id = $1 AND client_id =
+$2`, so the stale id found nothing rather than another client's snapshot. Both
+backends were correctly scoped; both frontends were not. **The per-client
+scoping in this codebase is consistent on the server and ad hoc in the
+components**, which is the shape of every bug in this section.
+
+**No lint rule for it, deliberately.** A static check for "a client-scoped
+component resets its selection" produces false positives on every component
+that legitimately holds a selection across a prop change, and a guard that
+cries wolf gets suppressed. The guard here is the drive-the-real-switcher
+pattern in `drive33.mjs`: copy it when a panel holds a selection.
 
 #### The pillar on a queue item (29 Oct 2026)
 
