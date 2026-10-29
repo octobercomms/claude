@@ -133,18 +133,22 @@ export default function ClientsPage() {
           value={<>{connActive}<span className="text-[length:var(--fs-title)] text-subtle tracking-normal font-bold">/{connTotal}</span></>}
           sub={connTotal ? `${healthPct}% healthy` : 'none connected'}
         />
-        {/* Reports this week. The number that matters is not how many ran, it
+        {/* Reports this week. Always a link: making it conditional on there
+            being a problem meant that in a quiet week the tile was inert, and
+            Reports is not in the nav, so the tile was its only door.
+
+            The number that matters is not how many ran, it
             is how many reached anyone: a skipped report was generated in full
             (connector pulls, a Claude narrative, a PDF) and then binned for
             having no recipients, at the same cost as a delivered one. */}
         <Stat
           label="Reports this week"
           value={sentCount}
-          sub={skippedCount || failedCount
-            ? `${[skippedCount && `${skippedCount} not sent, no recipients`, failedCount && `${failedCount} failed`].filter(Boolean).join(' · ')} →`
-            : (health.total ? 'all delivered' : 'none scheduled this week')}
+          sub={`${skippedCount || failedCount
+            ? [skippedCount && `${skippedCount} not sent, no recipients`, failedCount && `${failedCount} failed`].filter(Boolean).join(' · ')
+            : (health.total ? 'all delivered' : 'none scheduled this week')} →`}
           subTone={skippedCount || failedCount ? 'warn' : undefined}
-          to={skippedCount || failedCount ? '/reports?status=skipped_no_recipients' : undefined}
+          to={skippedCount || failedCount ? '/reports?status=skipped_no_recipients' : '/reports'}
         />
         <Stat
           label="Needs attention"
