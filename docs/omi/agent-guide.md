@@ -156,7 +156,12 @@ And within OMI there are **two different "Leads" screens** — always disambigua
 ### The client Dashboard (Oct 2026)
 
 `/clients/:id` is **Dashboard**, not Admin, and sits first in the Workspace
-sub-nav. Its tabs, in order: **Measure · Reports · Strategy · Setup ·
+sub-nav. Opening a client from the Clients list lands on `?tab=measure` — you
+arrive with a question about the numbers, so the numbers are what loads. The
+page is agency-only and now says so in code: a client login that deep-links to
+any of its tabs is redirected to its own Data page. It was previously kept off
+it by hiding the nav item, which gates nothing; `roWrite` blocked the writes
+but the reading was open to anyone who typed the address. Its tabs, in order: **Measure · Reports · Strategy · Setup ·
 Connectors**. Measure is the default, because you arrive at a client with a
 question about their numbers, not a wish to read an overview of the sections
 holding them — the old `setup_overview` landing is now the Setup tab's content.
