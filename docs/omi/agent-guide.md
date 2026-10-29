@@ -421,6 +421,33 @@ demo, or proposals, which carry their own explicit symbol. `MethodsPanel`'s
 "Fixed per market, never converted: £2,500 and $2,500 are different prices on
 purpose" is deliberate — do not "fix" it into a conversion.
 
+### The Reports tab's layout (29 Oct 2026)
+
+Setup first, history last: **Weekly and Monthly side by side, then Recent
+reports underneath**. Recent reports used to sit on top, and its empty state
+read "use the buttons above" while the buttons were below it. Moving the card
+made that sentence true.
+
+Three things hold the layout together, and all three are invisible to lint,
+the tests and the build:
+
+- **No `alignItems` override on the grid.** `.grid` already stretches its
+  items, so both boxes take the taller one's height. An explicit
+  `alignItems: 'start'` was what left Weekly short, and putting it back drops
+  the boxes to 425px against 618px.
+- **Each card is a flex column**, and its action row carries
+  `marginTop: 'auto'`. Equal height alone is not enough: without the auto
+  margin the shorter box's buttons float mid-card and the two rows sit 193px
+  apart.
+- **Both Save buttons say "Save changes", not "Save weekly".** Both boxes edit
+  one `client` state object and `handleSave` PUTs all of it, so either button
+  saves whatever is unsaved on the tab. A per-section label would be a lie.
+  The drive script asserts this: editing weekly, saving from Monthly, and
+  checking the PUT body still carries the weekly edit.
+
+`tests/` cannot see any of it, so the guard is the browser drive script, with
+both layout rules mutation-tested.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First
