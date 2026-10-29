@@ -295,10 +295,56 @@ Three things that cost time here:
 - **`?analyst=1` is the deep link**, and it is what the old
   `/clients/:id/chat` URL now redirects to, via `?tab=measure&analyst=1`.
 
-`ClientChatPage` takes `embedded`, `clientId` and `persona` as props, so it
-still works as a page if anything ever needs it to. It is mounted only while
-the panel is open, so moving from Paid to Owned starts the right conversation
-rather than re-labelling the previous one.
+`ClientChatPage` takes `embedded`, `clientId` and `persona` as props, and is
+mounted only while the panel is open, so moving from Paid to Owned starts the
+right conversation rather than re-labelling the previous one. Nothing routes it
+as a page any more, so `embedded` is in practice always true and the
+`!embedded` branch is unreachable — worth deleting rather than maintaining.
+
+**The panel's chrome was cut back to give the chat the room** (29 Oct 2026),
+across PRs #1804, #1805 and #1806. Measured at 1440x1000, the thread ends up
+with 78% of the panel height and the header with 56px.
+
+| Was | Is |
+|---|---|
+| Clear history in the chat body under a hero | small text button beside the × |
+| PDF / Word as a button row under each reply | two 24px icons to the right of the bubble |
+| Context log as a 260px sidebar | accordion at the panel foot, closed, opening upward |
+| Model and Data window on four lines | one line, detail in `title` tooltips |
+| Attach and Send in a row beside the box | stacked column, attach above Send |
+| Assistant avatar as a black dot | the same filled circle holding a robot glyph |
+
+Four things to know before changing it:
+
+- **`.btn` is already a pill** (`border-radius: var(--r-pill)`), and `.btn-icon`
+  / `.btn-icon-sm` are already pill icon buttons. Send looked like a slab
+  because a flex row with an 80px textarea stretched it; the fix is
+  `align-items: flex-end` and a column, not a new class. Two inline
+  `borderRadius: var(--r-pill)` overrides on `.btn` survive in the send row
+  from a pass that did not check — they are redundant, not harmful.
+- **The export buttons carry icons, not "PDF" / "DOC" labels.** The words cost
+  68px of width each against 24px, and that width comes off the message. They
+  stay visible rather than hiding behind hover: once they are icons there is no
+  height to save, and a download you have to discover is one nobody uses.
+- **The avatar keeps its filled circle.** A bare glyph on the panel background
+  reads as a stray icon rather than the speaker.
+- **The DeepSeek hint stays on screen** while every other model hint moved into
+  a `title`. It says this client's pulled data leaves for a third party, which
+  should not need a hover to find.
+
+Icons follow one house style, set by `ClientTopBar`: 24x24 viewBox,
+`fill="none" stroke="currentColor" strokeWidth="2"`, round caps. `BotGlyph` and
+`FileIcon` in `ClientChatPage` match it. There is no shared icon module yet; if
+a fifth is needed, make one.
+
+Two traps that cost time in this area, both in the checks rather than the code:
+
+- **`.caption` uppercases its text**, so a test matching a rendered string
+  needs a case-insensitive regex. This produced a false pass and then a false
+  failure on the DeepSeek warning.
+- **A `<select>`'s `innerText` includes all its `<option>` labels.** A regex
+  looking for "DeepSeek" in the controls row passed whether or not the warning
+  was rendering. Scope such a check to the element that holds the message.
 
 ### Every page needs a door
 

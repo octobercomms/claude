@@ -62,6 +62,17 @@ const TYPE_BG = {
 
 // A robot marks each analyst reply, so it reads as "the analyst" rather than
 // an anonymous dot.
+function FileIcon({ label }) {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      {label === 'pdf' ? <path d="M9 15h6" /> : <><path d="M9 13h6" /><path d="M9 17h4" /></>}
+    </svg>
+  );
+}
+
 function BotGlyph() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
@@ -357,13 +368,21 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
                   </div>
                 </div>
               </div>
-              {/* Export buttons — small pills alongside the reply rather than a
-                  row beneath it, so a saved reply stays compact. Assistant only,
-                  and only on DB-saved messages (not the optimistic placeholder). */}
+              {/* Export icons alongside the reply rather than a row beneath it,
+                  so a saved reply stays compact. Icons rather than PDF/DOC
+                  labels: the words cost 68px of width each against 24px, and
+                  that width comes off the message. Assistant only, and only on
+                  DB-saved messages (not the optimistic placeholder). */}
               {msg.role === 'assistant' && msg.id && !msg.isError && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 'none' }}>
-                  <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')} className="btn btn-secondary btn-sm" title="Download as PDF">PDF</button>
-                  <button type="button" onClick={() => downloadMessage(msg.id, 'docx')} className="btn btn-secondary btn-sm" title="Download as Word">DOC</button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', flex: 'none' }}>
+                  <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')}
+                    className="btn-icon btn-icon-sm" title="Download as PDF" aria-label="Download as PDF">
+                    <FileIcon label="pdf" />
+                  </button>
+                  <button type="button" onClick={() => downloadMessage(msg.id, 'docx')}
+                    className="btn-icon btn-icon-sm" title="Download as Word" aria-label="Download as Word">
+                    <FileIcon label="docx" />
+                  </button>
                 </div>
               )}
             </div>
