@@ -382,11 +382,17 @@ export default function ClientDetailPage() {
           {/* Three tabs, and only three. Setup and Connectors are reached from
               the cog and the plug in the client bar, top right, where their
               state is visible from every page rather than only from here. */}
+          {/* The labels say what each tab holds; the URL keys do not change.
+              The Monday email links straight to ?tab=strategy, and every
+              briefing already sent carries that link. "Plan" was always the
+              SOSTAC plan — Situation, Objectives, Strategy, Tactics, Action,
+              Control — and calling it by its name stops "Strategy" and "Plan"
+              reading as two words for the same thing. */}
           {[
             ['measure', 'Measure'],
             ['reports', 'Reports'],
-            ['strategy', 'Strategy'],
-            ['plan', 'Plan'],
+            ['strategy', 'Strategist'],
+            ['plan', 'SOSTAC'],
           ].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
               className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>

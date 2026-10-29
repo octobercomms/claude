@@ -34,11 +34,27 @@ const PILLARS = [
     frame: 'Work the Technical / Content / Authority / Measurement framework plus AI-search readiness (AI Overviews). Judge rankings and movement, technical health, authority, and the biggest ranking opportunities.' },
 ];
 
-const SYSTEM = `You are the senior strategist on the October Communications team — a UK marketing agency — writing a thorough internal briefing for the account lead. Be the expert in the room: think like the business owner deciding where the next few months of effort and budget should go.
+// Brevity is a system-level instruction because it kept losing to one.
+//
+// The synthesis and pillar prompts below both ask for something short, and
+// this prompt used to answer them with "depth is welcome and expected — this
+// is a proper strategic review, not a one-line summary." A model handed both
+// splits the difference, which is how the account lead ended up with a wall of
+// text nobody reads. The user prompts were tightened twice; the contradiction
+// above them survived both times and kept winning.
+//
+// What the account lead wants is a queue of decisions, not a document. So the
+// output is short by instruction, and the reasoning behind each item travels
+// with that item rather than as an essay around them.
+const SYSTEM = `You are the senior strategist on the October Communications team — a UK marketing agency — writing for the account lead. Be the expert in the room: think like the business owner deciding where the next few weeks of effort and budget should go.
 
-For every point you make, work the full chain: what the data actually shows (cite the number) → what it means / why it's happening → what you would do about it → the expected impact and how it moves the account to its next stage. Don't just name a metric — interpret it. Where useful, explain the mechanics so the account lead understands *why* the recommendation works, not just what to do.
+**Brevity is the discipline, and it is not optional.** This is read on a Monday morning by someone with an agency to run. They want to know what changed and what is now theirs to do. They are not studying a report. A point worth making is worth one or two sentences; nothing is worth a paragraph of preamble, and nothing is worth restating the account back to someone who already knows it.
 
-Depth is welcome and expected — this is a proper strategic review, not a one-line summary. But rigour comes first: every claim must be grounded in the numbers provided, specific enough to act on, and free of generic filler ("consider improving content", "engage your audience"). If a pillar's data is thin, say so plainly and don't over-read it. Confident, commercially literate, British English. Never invent numbers — if a figure isn't in the data, don't cite it.`;
+Every claim carries its number. Where you name a problem, name the cause rather than the symptom, and name what you would do. Skip the mechanics lesson unless the recommendation makes no sense without it.
+
+Banned outright: throat-clearing openers, "it is worth noting", summaries of what you are about to say, closing paragraphs that repeat the above, and generic filler ("consider improving content", "engage your audience"). If a pillar's data is thin, say so in one line and stop; do not pad it into a section. Length is never evidence of rigour.
+
+Confident, commercially literate, British English. Never invent numbers — if a figure isn't in the data, don't cite it.`;
 
 // Client-facing reframe: the account director's voice, written for the client.
 const CLIENT_SYSTEM = `You are a senior account director at October Communications, a UK marketing agency, writing a polished progress report addressed to the client. Warm, confident, plain British English, jargon kept light and always explained.
@@ -120,7 +136,7 @@ ${contextBlock(ctx)}${steerBlock(steer)}
 
 # Your brief
 ${pillar.frame}
-This feeds the account lead's queue. It is evidence, read only when they want to know why an item is on the list, so it is short and it is specific. No heading (the UI adds it).
+This feeds the account lead's queue. **It is shown folded up underneath a queue item**, opened only when they want to know why that item is on the list — so it is short, specific, and reads as the reason behind an action rather than as a section of a report. No heading (the UI adds it). Six sentences is a lot; most should be fewer.
 
 - **The state of play** — two or three sentences on what the numbers say, citing the figures. No preamble.
 - **What is actually wrong, and why** — root cause, not symptom, with the number that reveals it. Skip this if nothing is wrong.
@@ -157,7 +173,7 @@ ${pillarBlocks}
 # Write (markdown, no top-level heading)
 
 \`### What changed\`
-At most four bullets, and fewer is better. Only things that are genuinely different from the last briefing: a number that moved enough to matter, something that broke, something that was fixed and what happened as a result. If nothing material changed, write exactly one line saying so and nothing else. Do not restate the state of the account; they have read it before.
+**At most three bullets, one line each, and fewer is better.** Only things that are genuinely different from the last briefing: a number that moved enough to matter, something that broke, something that was fixed and what happened as a result. If nothing material changed, write exactly one line saying so and nothing else. Do not restate the state of the account; they have read it before. This is the only prose on the page — everything else they see is the queue, so anything that is not a change belongs in an item's rationale or nowhere.
 
 \`### The queue\`
 Every item, most important first, one per line, in this exact shape:

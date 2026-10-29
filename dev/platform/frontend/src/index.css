@@ -1669,26 +1669,74 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   border-left: 2px solid var(--card-border);
   font-size: var(--fs-caption); line-height: 1.5; color: var(--text-muted);
 }
+/* The pillar analysis that produced an item, under that item's rationale. It
+   used to be an "Evidence" section sitting apart from everything it was
+   evidence for, which is why nobody knew what the word meant. */
+.queue-evidence {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--card-border);
+}
+.queue-evidence p, .queue-evidence li { font-size: var(--fs-caption); }
+
 /* The briefing, one column. The list of past briefings used to be a left rail
    taking a third of the width to show something you pick once a week. */
 .strategist-main.one-col { display: block; }
 
-/* Everything that configures the briefing, below the briefing. These were the
-   top third of the page: settings for a thing you read, placed in front of the
-   thing you read. Recessed so they read as the footer they are. */
-.strategist-settings {
-  margin-top: var(--s7);
-  padding-top: var(--s4);
-  border-top: var(--border-w) solid var(--card-border);
+/* ---------------------------------------------------------------------------
+   The side drawer — a house pattern, not a one-off.
+   
+   Detail hidden until asked for, so a page states its own job and nothing
+   else. The analyst panel proved the shape; this is the version for the other
+   half of the job, which is configuration: settings, archives, exports, the
+   things a page needs to own but should never lead with.
+   
+   Two differences from `.analyst-panel`, both deliberate. It takes a scrim,
+   because unlike the analyst you are not referring to the page behind it while
+   you use it. And it scrolls its own body, because a settings list grows and
+   a chat thread does not.
+   
+   Reach for it when a page has a second audience: the person configuring the
+   thing rather than the person reading it.
+   --------------------------------------------------------------------------- */
+.side-drawer-scrim {
+  position: fixed; inset: 0; z-index: 59;
+  background: rgba(0,0,0,0.18);
+  backdrop-filter: blur(1.5px);
 }
-.strategist-settings-head {
-  font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--text-subtle); margin-bottom: var(--s3);
+.side-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(420px, 92vw);
+  background: var(--surface);
+  border-left: var(--border-w) solid var(--card-border);
+  box-shadow: -18px 0 48px rgba(0,0,0,0.10);
+  z-index: 60;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+  visibility: hidden;
 }
-.strategist-settings-row {
-  display: flex; align-items: flex-end; gap: var(--s3);
-  flex-wrap: wrap; margin-bottom: var(--s3);
+.side-drawer.open { transform: translateX(0); visibility: visible; }
+.side-drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5);
+  border-bottom: var(--border-w) solid var(--card-border);
+  flex: none;
 }
+.side-drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--s5); }
+/* One concern per group, each named. The strip this replaced put the email
+   toggle, the period and the recipients in one unlabelled row, so three
+   unrelated settings read as one setting with three parts. */
+.drawer-group { margin-bottom: var(--s7); }
+.drawer-group:last-child { margin-bottom: 0; }
+.drawer-group-head {
+  color: var(--text-subtle);
+  margin-bottom: var(--s3);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--card-border);
+}
+
 .strategist-setting { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-body); }
 .strategist-setting .caption { color: var(--text-subtle); }
 .strategist-setting .input { width: auto; }
