@@ -598,52 +598,15 @@ export default function ClientDetailPage() {
 
       {tab === 'reports' && (
         <>
-        <div className="card mt-6">
-          <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Recent reports</h2>
-          {reports.length === 0 ? (
-            <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', margin: 'var(--s3) 0 0' }}>No reports generated yet — use the buttons above, or wait for the schedule.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)', marginTop: 'var(--s3)' }}>
-              <thead>
-                <tr>
-                  {['Type', 'Period start', 'Status', 'Generated', ''].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: 'var(--s1) var(--s3) var(--s2) 0', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map(r => (
-                  <React.Fragment key={r.id}>
-                    <tr>
-                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5', textTransform: 'capitalize' }}>{r.report_type}</td>
-                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>{r.period_start ? new Date(r.period_start).toLocaleDateString('en-GB') : '—'}</td>
-                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>
-                        <span style={{ color: r.status === 'sent' || r.status === 'generated' ? 'var(--positive)' : r.status === 'failed' ? 'var(--negative)' : 'var(--text-subtle)' }}>{r.status}</span>
-                      </td>
-                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5', color: 'var(--text-subtle)' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
-                      <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', textAlign: 'right' }}>
-                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-danger btn-sm">Delete</button>
-                      </td>
-                    </tr>
-                    {r.status === 'failed' && r.error_log && (
-                      <tr>
-                        <td colSpan={5} style={{ padding: '0 var(--s3) var(--s2) 0', color: 'var(--negative)', fontSize: 'var(--fs-caption)', fontFamily: 'monospace', lineHeight: 1.5 }}>
-                          ⚠ {r.error_log}
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
         <form onSubmit={handleSave}>
-          <div className="grid grid-2" style={{ alignItems: 'start', marginTop: 'var(--s6)' }}>
+          {/* No alignItems override: `grid` stretches its items, so both boxes
+              share the taller one's height. Each card is a flex column below,
+              which is what puts the actions on a line with each other rather
+              than leaving the shorter box's buttons floating. */}
+          <div className="grid grid-2" style={{ marginTop: 'var(--s6)' }}>
 
             {/* ── Weekly setup ── */}
-            <div className="card">
+            <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
               <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Weekly</h2>
 
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
@@ -682,14 +645,21 @@ export default function ClientDetailPage() {
                 </ol>
               ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
 
-              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s5)' }}>
+              {/* marginTop:auto drops this to the foot of the card, so with both
+                  boxes the same height the two action rows line up.
+                  "Save changes", not "Save weekly": both boxes edit one client
+                  record and the PUT sends all of it, so either button saves
+                  whatever is unsaved on this tab. Naming it per-section would
+                  be a lie. */}
+              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'auto', paddingTop: 'var(--s5)' }}>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                 <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
                 <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
               </div>
             </div>
 
             {/* ── Monthly setup ── */}
-            <div className="card">
+            <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
               <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Monthly</h2>
 
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
@@ -727,7 +697,14 @@ export default function ClientDetailPage() {
                 </ol>
               ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
 
-              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s5)' }}>
+              {/* marginTop:auto drops this to the foot of the card, so with both
+                  boxes the same height the two action rows line up.
+                  "Save changes", not "Save weekly": both boxes edit one client
+                  record and the PUT sends all of it, so either button saves
+                  whatever is unsaved on this tab. Naming it per-section would
+                  be a lie. */}
+              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'auto', paddingTop: 'var(--s5)' }}>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                 <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
                 <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('monthly') })} className="btn btn-secondary btn-sm">Generate now</button>
               </div>
@@ -735,8 +712,49 @@ export default function ClientDetailPage() {
 
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ marginTop: 'var(--s6)' }} disabled={saving}>{saving ? 'Saving…' : 'Save schedule & recipients'}</button>
         </form>
+
+        <div className="card" style={{ marginTop: 'var(--s6)' }}>
+          <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Recent reports</h2>
+          {reports.length === 0 ? (
+            <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', margin: 'var(--s3) 0 0' }}>No reports generated yet — use Generate now in either box above, or wait for the schedule.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)', marginTop: 'var(--s3)' }}>
+              <thead>
+                <tr>
+                  {['Type', 'Period start', 'Status', 'Generated', ''].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: 'var(--s1) var(--s3) var(--s2) 0', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map(r => (
+                  <React.Fragment key={r.id}>
+                    <tr>
+                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5', textTransform: 'capitalize' }}>{r.report_type}</td>
+                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>{r.period_start ? new Date(r.period_start).toLocaleDateString('en-GB') : '—'}</td>
+                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>
+                        <span style={{ color: r.status === 'sent' || r.status === 'generated' ? 'var(--positive)' : r.status === 'failed' ? 'var(--negative)' : 'var(--text-subtle)' }}>{r.status}</span>
+                      </td>
+                      <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5', color: 'var(--text-subtle)' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
+                      <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', textAlign: 'right' }}>
+                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-danger btn-sm">Delete</button>
+                      </td>
+                    </tr>
+                    {r.status === 'failed' && r.error_log && (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '0 var(--s3) var(--s2) 0', color: 'var(--negative)', fontSize: 'var(--fs-caption)', fontFamily: 'monospace', lineHeight: 1.5 }}>
+                          ⚠ {r.error_log}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
         </>
       )}
 
