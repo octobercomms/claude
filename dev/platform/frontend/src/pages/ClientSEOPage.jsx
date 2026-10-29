@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import ClarityCroPanel from '../components/ClarityCroPanel';
+import PillarMeasure from '../components/PillarMeasure';
 import FormsTab from '../components/FormsTab';
 import ClientOutreachPage from './ClientOutreachPage';
 import { useToast } from '../context/ToastContext';
@@ -1126,6 +1127,12 @@ export default function ClientSEOPage() {
   return (
     <div className="suite-organic">
       <PageShell title="Owned" subtitle={client?.name}>
+      {/* What this pillar actually drove, and its share of the account. The
+          whole Measure panel on four pages would put refund rate on the PR
+          page; this is the three headline numbers filtered to this pillar's
+          own GA4 channels, which is the version that answers "is this
+          working". */}
+      <PillarMeasure clientId={id} pillar="owned" />
 
       {/* Five top-level groups by job-to-be-done, each fanning out into the
           existing tab content via a sub-strip (no JSX guards below change):

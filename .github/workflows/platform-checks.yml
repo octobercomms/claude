@@ -113,6 +113,8 @@ jobs:
         run: node tests/strategist-attention.test.js
       - name: Guard — the Monday email sends the briefing the platform shows
         run: node tests/strategist-weekly.test.js
+      - name: Guard — a pillar's share is a share of the whole account
+        run: node tests/channel-pillars.test.js
       - name: Guard — a report with no recipients is never generated
         run: node tests/report-recipients.test.js
       - name: Guard — a sent report can never be bulk deleted

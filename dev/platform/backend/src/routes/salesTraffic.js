@@ -7,6 +7,7 @@ const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const google = require('../connectors/google');
 const { agreeCurrency } = require('../services/ecomCurrency');
+const { summarisePillars } = require('../services/channelPillars');
 
 router.use(authenticate);
 router.use(loadVisibleClientIds);
@@ -28,7 +29,7 @@ router.get('/:clientId', async (req, res) => {
 
   const result = {
     range: { start: startDate, end: endDate },
-    kpis: {}, trafficTrend: [], salesTrend: [], channels: [], notes: [],
+    kpis: {}, trafficTrend: [], salesTrend: [], channels: [], pillars: null, notes: [],
   };
 
   try {
@@ -68,7 +69,12 @@ router.get('/:clientId', async (req, res) => {
             const date = raw.length === 8 ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}` : raw;
             const d = dailyMap[date] || (dailyMap[date] = { date, sessions: 0, users: 0, revenue: 0, orders: 0 });
             d.sessions += sessions; d.users += users; d.revenue += revenue; d.orders += orders;
-            channelMap[channel] = (channelMap[channel] || 0) + sessions;
+            // Keep orders and revenue per channel, not just sessions. GA4
+            // already returns all three on this row and the old code threw two
+            // away, which is why a pillar page could never say what its
+            // channel actually earned.
+            const cm = channelMap[channel] || (channelMap[channel] = { sessions: 0, orders: 0, revenue: 0 });
+            cm.sessions += sessions; cm.orders += orders; cm.revenue += revenue;
             tSessions += sessions; tUsers += users; tOrders += orders; tRevenue += revenue;
           }
         } catch (err) {
@@ -88,9 +94,13 @@ router.get('/:clientId', async (req, res) => {
       const daily = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
       result.trafficTrend = daily.map(d => ({ date: d.date, sessions: d.sessions, users: d.users }));
       result.salesTrend = daily.map(d => ({ date: d.date, revenue: Math.round(d.revenue), orders: d.orders }));
-      result.channels = Object.entries(channelMap)
-        .map(([channel, sessions]) => ({ channel, sessions }))
+      const channelRows = Object.entries(channelMap)
+        .map(([channel, m]) => ({ channel, sessions: m.sessions, orders: m.orders, revenue: Math.round(m.revenue) }))
         .sort((a, b) => b.sessions - a.sessions);
+      result.channels = channelRows;
+      // The same numbers folded into PESO, so each pillar page can show what
+      // its own channels drove and what share of the account that is.
+      result.pillars = summarisePillars(channelRows);
       result.kpis.sessions = tSessions;
       result.kpis.users = tUsers;
       result.kpis.conversionRate = tSessions ? (tOrders / tSessions) * 100 : 0;

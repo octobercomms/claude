@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import PressReleaseEditor from '../components/PressReleaseEditor';
+import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
 import PageShell from '../components/shells/PageShell';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
@@ -1216,6 +1217,12 @@ export default function ClientPRPage() {
         { key: 'health',   label: 'Health',   fn: 'measure', active: suiteGroup === 'health',   onClick: () => setTab('coverage') },
         { key: 'build',    label: 'Build',    fn: 'create',  active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
       ]}>
+      {/* What this pillar actually drove, and its share of the account. The
+          whole Measure panel on four pages would put refund rate on the PR
+          page; this is the three headline numbers filtered to this pillar's
+          own GA4 channels, which is the version that answers "is this
+          working". */}
+      <PillarMeasure clientId={id} pillar="earned" />
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>Loading…</p></div>}
 
