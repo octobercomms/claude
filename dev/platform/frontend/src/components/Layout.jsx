@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-route
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 import ClientTopBar from './ClientTopBar';
+import AnalystPanel from './AnalystPanel';
 
 export default function Layout() {
   const { logout, user } = useAuth();
@@ -71,6 +72,24 @@ export default function Layout() {
   const workspaceActive = !!clientId;
 
   const [navOpen, setNavOpen] = useState(false);
+  // The analyst panel is page-level state: the icon that opens it lives in the
+  // top bar and the panel itself sits outside the page, so neither can own it.
+  // ?analyst=1 opens it. That is how the old /clients/:id/chat URL still lands
+  // on the analyst now that it is a panel rather than a page, and it gives the
+  // panel a deep link of its own.
+  const [analystOpen, setAnalystOpen] = useState(() =>
+    new URLSearchParams(window.location.search).get('analyst') === '1');
+  // Leaving the client closes it — the conversation is per client, and finding
+  // another client's thread still open would be worse than losing your place.
+  // The ref is not decoration: an effect runs on mount as well as on change, so
+  // without it the mount pass closes the panel ?analyst=1 had opened, and the
+  // deep link renders the chat for one frame and then hides it.
+  const lastClientId = useRef(clientId);
+  useEffect(() => {
+    if (lastClientId.current === clientId) return;
+    lastClientId.current = clientId;
+    setAnalystOpen(false);
+  }, [clientId]);
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -130,7 +149,12 @@ export default function Layout() {
                   <NavLink to={`/clients/${clientId}?tab=measure`}
                     style={subLinkStyle(!!clientMatch && ['measure', 'reports', 'strategy', 'setup_overview', 'details', 'brand', 'connectors'].includes(currentTab))}>Dashboard</NavLink>
                 )}
-                <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
+                {/* Data was the analyst behind a nav item. The analyst is now
+                    on every page, so for the agency there is nothing left here.
+                    A client login keeps it: it is where their own numbers are. */}
+                {readOnly && (
+                  <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
+                )}
                 <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
                 <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned</NavLink>
                 <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared</NavLink>
@@ -206,9 +230,23 @@ export default function Layout() {
             the workspace. The plug turns red the moment a connector breaks,
             wherever you happen to be — it used to be a tab you had to decide
             to open. */}
-        {clientId && !readOnly && <ClientTopBar clientId={clientId} />}
+        {clientId && !readOnly && (
+          <ClientTopBar
+            clientId={clientId}
+            analystOpen={analystOpen}
+            onToggleAnalyst={() => setAnalystOpen(o => !o)}
+          />
+        )}
         <Outlet />
       </main>
+      {clientId && !readOnly && (
+        <AnalystPanel
+          clientId={clientId}
+          open={analystOpen}
+          onClose={() => setAnalystOpen(false)}
+          pathname={location.pathname}
+        />
+      )}
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
     </div>
   );
