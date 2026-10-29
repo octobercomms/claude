@@ -15,6 +15,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '../utils/money';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import StatStrip from './shells/StatStrip';
 import { useCssVar } from '../hooks/useCssVar';
@@ -183,6 +184,19 @@ export default function MeasurePanel({ clientId }) {
         <>
           <div style={{ marginBottom: 'var(--s5)' }}>
             <StatStrip items={cards.map((c, i) => ({ ...c, feature: i === 0 }))} />
+            {/* An unlabelled revenue figure is correct and unhelpful on its
+                own: nothing says why it has no symbol or what to do, and it
+                has been reported as a bug twice. Never a guessed pound sign —
+                that is the bug this whole thread began with — but the fix is
+                one field away and the page should say so and point at it.
+                Only when nobody has said: a disagreement between stores is a
+                different problem and carries its own note below. */}
+            {data.currency_unset && (
+              <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>
+                Money is shown without a currency: none is set for this client and no connected store reported one.{' '}
+                <Link to={`/clients/${clientId}?tab=details`} style={{ fontWeight: 700 }}>Set the reporting currency</Link>.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-2" style={{ marginBottom: 'var(--s4)' }}>

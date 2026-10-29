@@ -140,11 +140,27 @@ export default function StrategistBriefingPanel({ clientId }) {
     catch (e) { toast(e.message, 'error'); }
   }
 
+  // Delete a briefing from the archive.
+  //
+  // This function survived the rebuild with no caller: the only delete control
+  // was in the left rail, and the rail went. A route and a confirm dialog with
+  // nothing to press is worse than neither, because the capability reads as
+  // missing. It lives in the drawer's archive now, beside the briefing it
+  // removes.
+  //
+  // The reload-then-reselect matters: deleting the briefing on screen leaves
+  // the page rendering something that no longer exists, so the selection moves
+  // to whatever is newest, or to nothing when the last one goes.
   async function destroy(id, e) {
     e.stopPropagation();
-    if (!confirm('Delete this briefing?')) return;
-    try { await api.delete(`/strategist/briefings/${id}`); const l = await api.get(`/strategist/clients/${clientId}/briefings`); setList(l); if (selectedId === id) setSelectedId(l[0]?.id || null); }
-    catch (e2) { toast(e2.message, 'error'); }
+    if (!confirm('Delete this briefing? The queue items on it go with it.')) return;
+    try {
+      await api.delete(`/strategist/briefings/${id}`);
+      const l = await api.get(`/strategist/clients/${clientId}/briefings`);
+      setList(l);
+      if (selectedId === id) setSelectedId(l[0]?.id || null);
+      toast('Briefing deleted');
+    } catch (e2) { toast(e2.message, 'error'); }
   }
 
 
@@ -400,16 +416,27 @@ export default function StrategistBriefingPanel({ clientId }) {
               </div>
             )}
 
-            {list && list.length > 1 && (
+            {/* Every briefing, not just the older ones. `length > 1` hid the
+                archive on a client with one briefing, which is also the only
+                place its delete could live — so a first briefing could never
+                be removed. */}
+            {list && list.length > 0 && (
               <div className="drawer-group">
                 <div className="caption drawer-group-head">Past briefings</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   {list.map(r => (
-                    <button key={r.id} onClick={() => { setSelectedId(r.id); setSettingsOpen(false); }}
-                      className={`strategist-past${selectedId === r.id ? ' active' : ''}`} style={{ textAlign: 'left' }}>
-                      {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
-                      {!r.read_at && r.status === 'completed' && <span className="briefing-dot" />}
-                    </button>
+                    <div key={r.id} className="drawer-archive-row">
+                      <button onClick={() => { setSelectedId(r.id); setSettingsOpen(false); }}
+                        className={`strategist-past${selectedId === r.id ? ' active' : ''}`}
+                        style={{ textAlign: 'left', flex: 1 }}>
+                        {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
+                        {!r.read_at && r.status === 'completed' && <span className="briefing-dot" />}
+                      </button>
+                      <button type="button" className="btn-icon btn-icon-sm" onClick={e => destroy(r.id, e)}
+                        title="Delete this briefing" aria-label={`Delete the briefing for ${fmtDate(r.period_start)} to ${fmtDate(r.period_end)}`}>
+                        ×
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

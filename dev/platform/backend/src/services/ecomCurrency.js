@@ -58,6 +58,22 @@ function agreeCurrency(summaries, source = STORES) {
 // ecommerce connector reported, so relying on the connectors alone left a
 // client with GA4 revenue and no working store connector showing a figure with
 // no currency at all.
+// Whether anyone is in a position to say what the currency is.
+//
+// `resolveCurrency` returning null is correct and it is also unhelpful on its
+// own: the account lead gets a headline revenue figure with no unit, nothing
+// saying why, and nothing saying what to do. Twice now that has been reported
+// as a bug when it was an unset field. So the caller is told the difference
+// between "the stores disagree" (which already carries a note) and "nobody has
+// said", which is a setting away from being fixed.
+function currencyIsUnset(clientCurrency, summaries, source = STORES) {
+  const { currency } = resolveCurrency(clientCurrency, summaries, source);
+  if (currency) return false;
+  // A disagreement is not an unset field — it has its own note, and setting
+  // the client's currency would paper over a real problem rather than fix it.
+  return agreeCurrency(summaries, source).note == null;
+}
+
 function resolveCurrency(clientCurrency, summaries, source = STORES) {
   const stated = clientCurrency && /^[A-Za-z]{3}$/.test(String(clientCurrency).trim())
     ? String(clientCurrency).trim().toUpperCase()
@@ -99,4 +115,4 @@ function resolveCurrency(clientCurrency, summaries, source = STORES) {
   return { currency: stated, note: null };
 }
 
-module.exports = { agreeCurrency, resolveCurrency, STORES, AD_ACCOUNTS };
+module.exports = { agreeCurrency, resolveCurrency, currencyIsUnset, STORES, AD_ACCOUNTS };

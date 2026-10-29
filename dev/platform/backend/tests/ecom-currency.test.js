@@ -13,7 +13,7 @@
 //   node tests/ecom-currency.test.js
 
 const assert = require('assert');
-const { agreeCurrency, resolveCurrency } = require('../src/services/ecomCurrency');
+const { agreeCurrency, resolveCurrency, currencyIsUnset } = require('../src/services/ecomCurrency');
 
 let failed = 0;
 function check(name, fn) {
@@ -138,6 +138,39 @@ check('nothing stated and nothing reported is still no symbol', () => {
   const r = resolveCurrency(null, []);
   assert.strictEqual(r.currency, null, 'guessing sterling is the bug this all started with');
   assert.strictEqual(r.note, null);
+});
+
+console.log('\ncurrencyIsUnset');
+
+check('nothing stated and nothing reported is unset', () => {
+  // The Falcon case: GA4 revenue, no working store connector, nobody has said.
+  // One field in Setup fixes it, and the dashboard should point at that field
+  // rather than showing a bare number twice reported as a bug.
+  assert.strictEqual(currencyIsUnset(null, []), true);
+  assert.strictEqual(currencyIsUnset(null, [{ currency: null }]), true);
+});
+
+check('a stated currency is not unset', () => {
+  assert.strictEqual(currencyIsUnset('GBP', []), false);
+});
+
+check('stores agreeing is not unset', () => {
+  assert.strictEqual(currencyIsUnset(null, [{ currency: 'USD' }]), false);
+});
+
+check('stores DISAGREEING is not "unset"', () => {
+  // The distinction that matters. Both give a null currency, but this one is a
+  // real problem with its own note, and telling the account lead to set a
+  // field would paper over a cross-currency sum rather than fix it.
+  assert.strictEqual(currencyIsUnset(null, [{ currency: 'GBP' }, { currency: 'USD' }]), false);
+});
+
+check('junk reported by the only store still counts as nobody having said', () => {
+  assert.strictEqual(currencyIsUnset(null, [{ currency: '' }, { currency: 'pounds' }]), true);
+});
+
+check('junk in the client setting does not count as stated', () => {
+  assert.strictEqual(currencyIsUnset('£', []), true);
 });
 
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
