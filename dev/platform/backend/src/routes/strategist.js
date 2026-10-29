@@ -167,7 +167,12 @@ router.post('/reports/:id/email', async (req, res) => {
     if (!to.length) return res.status(400).json({ error: 'No recipients configured. Add some to the Recipients box on this client, or set STRATEGIST_RECIPIENTS in the server .env.' });
     const period = r.period_start && r.period_end ? `${r.period_start} – ${r.period_end}` : '';
     const platformUrl = process.env.PLATFORM_URL || '';
-    const reportUrl = platformUrl ? `${platformUrl}/clients/${r.client_id}/ads?tab=strategist&report=${r.id}` : null;
+    // The Strategist left Paid when it became its own tab on the client page;
+    // this link did not follow it, so the manual send has been mailing clients
+    // a URL that lands on Paid with no briefing on it. Matches the Monday
+    // email in scheduler.js. No `report` param: nothing reads one, and the
+    // panel opens the newest briefing, which is the one just sent.
+    const reportUrl = platformUrl ? `${platformUrl}/clients/${r.client_id}?tab=strategy` : null;
     const emailService = require('../services/emailService');
     await emailService.sendStrategistBriefing({
       to, clientName: r.client_name, period,

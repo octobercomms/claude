@@ -90,6 +90,32 @@ router.get('/clients/:clientId/creatives', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// The creative library — every rendered ad for a client, newest first,
+// across every batch. The pipeline could already reach an image through the
+// batch that made it, and nowhere else: a finished ad was only findable by
+// remembering which brief produced it. Resize, Approve and Launch all want
+// "the creative this client has", which is this.
+router.get('/clients/:clientId/library', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 120, 500);
+    const { rows } = await pool.query(
+      `SELECT i.id, i.url, i.provider, i.aspect_ratio, i.media_type,
+              i.duration_seconds, i.created_at,
+              c.id AS creative_id, c.headline, c.angle,
+              b.id AS batch_id, b.platform, b.is_example,
+              b.created_at AS batch_created_at
+         FROM ad_creative_images i
+         JOIN ad_creatives c ON c.id = i.creative_id
+         LEFT JOIN ad_creative_batches b ON b.id = c.batch_id
+        WHERE c.client_id = $1
+        ORDER BY i.created_at DESC
+        LIMIT $2`,
+      [req.params.clientId, limit]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/clients/:clientId/generate', async (req, res) => {
   const { brief, platform, count, asset_ids, campaign_context } = req.body || {};
   try {
@@ -363,6 +389,44 @@ router.get('/clients/:clientId/ad-sizes', async (req, res) => {
 router.post('/clients/:clientId/resize', uploadMem.fields([{ name: 'files', maxCount: 25 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
   try {
     const files = [...(req.files?.files || []), ...(req.files?.file || [])];
+
+    // Creative picked out of this client's library rather than uploaded. The
+    // request names image **ids**, never URLs: the server looks each one up,
+    // refuses any that does not belong to this client, and fetches only the
+    // URL it stored itself. Taking a URL from the client would be an open
+    // proxy pointed at whatever the caller fancied.
+    let imageIds = req.body?.image_ids;
+    if (typeof imageIds === 'string') {
+      try { imageIds = JSON.parse(imageIds); }
+      catch { imageIds = imageIds.split(',').map(x => x.trim()).filter(Boolean); }
+    }
+    if (Array.isArray(imageIds) && imageIds.length) {
+      const { rows: imgs } = await pool.query(
+        `SELECT i.id, i.url, i.media_type
+           FROM ad_creative_images i
+           JOIN ad_creatives c ON c.id = i.creative_id
+          WHERE i.id = ANY($1::uuid[]) AND c.client_id = $2
+          LIMIT 25`,
+        [imageIds.slice(0, 25), req.params.clientId]
+      );
+      for (const img of imgs) {
+        if ((img.media_type || 'image') !== 'image') continue;
+        try {
+          const resp = await fetch(img.url);
+          if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
+          const type = resp.headers.get('content-type') || 'image/png';
+          if (!type.startsWith('image/')) throw new Error(`not an image (${type})`);
+          files.push({
+            originalname: `library-${img.id}.${type.includes('jpeg') ? 'jpg' : type.split('/')[1] || 'png'}`,
+            mimetype: type,
+            buffer: Buffer.from(await resp.arrayBuffer()),
+          });
+        } catch (err) {
+          console.error(`[ad-resize] library image ${img.id} failed:`, err.message);
+        }
+      }
+    }
+
     if (!files.length) return res.status(400).json({ error: 'file required' });
     let sizes = req.body?.sizes;
     if (typeof sizes === 'string') {

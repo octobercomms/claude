@@ -7,6 +7,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { roWrite } from '../utils/readOnly';
+import { briefSeedFor } from '../utils/competitorBrief';
 
 const REGIONS = ['GB', 'US', 'IE', 'AU', 'CA', 'NZ', 'FR', 'DE', 'ES', 'IT', 'NL'];
 
@@ -22,7 +23,7 @@ function List({ title, items }) {
   );
 }
 
-export default function CompetitorAdsPanel({ clientId }) {
+export default function CompetitorAdsPanel({ clientId, onUseInBrief }) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [configured, setConfigured] = useState(true);
@@ -35,15 +36,26 @@ export default function CompetitorAdsPanel({ clientId }) {
   const [suggestions, setSuggestions] = useState(null);
   const [suggesting, setSuggesting] = useState(false);
 
-  async function load() {
+  // `fresh` is true on a client change, when the selected run must be
+  // replaced rather than kept. This is the fourth component in the platform
+  // found holding "if nothing is selected, select the first": keyed on a
+  // client, that condition is false after a switch, so the panel went on
+  // showing one client's competitor research under another client's name.
+  async function load({ fresh = false } = {}) {
     try {
       const r = await api.get(`/competitor-ads/clients/${clientId}`);
       setConfigured(r.configured); setRuns(r.runs || []);
-      if (!active && r.runs?.length) setActive(r.runs[0]);
+      // Functional, because on a client change this runs in the same tick as
+      // the reset below, so a value read from the closure would still be the
+      // previous client's.
+      setActive(cur => ((fresh || !cur) ? (r.runs?.[0] || null) : cur));
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoaded(true); }
   }
-  useEffect(() => { load(); /* eslint-disable-line */ }, [clientId]);
+  useEffect(() => {
+    setRuns([]); setActive(null); setSuggestions(null); setLoaded(false);
+    load({ fresh: true }); /* eslint-disable-line */
+  }, [clientId]);
 
   async function pull(qArg) {
     const q = (typeof qArg === 'string' ? qArg : query).trim();
@@ -146,7 +158,18 @@ export default function CompetitorAdsPanel({ clientId }) {
         <div>
           <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
             <div className="body-xs text-subtle">{active.query} · {active.region} · {active.ad_count} ads · {fmt(active.created_at)}</div>
-            <button className="btn btn-secondary btn-sm" onClick={() => removeRun(active.id)}>Delete</button>
+            <div className="row" style={{ gap: 'var(--s2)' }}>
+              {/* Only when the pull actually found something. An empty
+                  analysis would otherwise hand over a header and an
+                  instruction, which reads as research that was never done. */}
+              {onUseInBrief && !!briefSeedFor(active) && (
+                <button className="btn btn-primary btn-sm"
+                  {...roWrite(readOnly, { onClick: () => onUseInBrief(briefSeedFor(active)) })}>
+                  Use this in a brief →
+                </button>
+              )}
+              <button className="btn btn-ghost btn-sm" onClick={() => removeRun(active.id)}>Delete</button>
+            </div>
           </div>
 
           {active.analysis?.overview && (

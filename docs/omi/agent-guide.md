@@ -206,7 +206,7 @@ deleted. Each suite now lands on its first real tab.
 |---|---|
 | Dashboard | Measure |
 | Data | gone for the agency; Measure for a client login |
-| Paid | Health |
+| Paid | Measure |
 | Earned | Health (Coverage) |
 | Shared | Measure (Review) |
 | Owned | Health |
@@ -808,6 +808,129 @@ Two deliberate differences from `.analyst-panel`, which proved the shape:
 Each `.drawer-group` names one concern. The strip this replaced put the email
 toggle, the period and the recipients in one unlabelled row, so three unrelated
 settings read as one setting with three parts.
+
+#### What belongs in a drawer, and what does not (29 Oct 2026)
+
+The account lead asked whether Paid's playbook should be a drawer with
+"reference on the left, functions on the right". The answer sharpened the
+pattern, so the rule is written here rather than rediscovered:
+
+> **A drawer is for reading and choosing. Anything you would deep link to, or
+> spend more than a minute inside, is a page.**
+
+Three consequences, each a thing that was nearly built wrong:
+
+- **One drawer, one job.** The Strategist's drawer earns two columns because
+  both halves belong to the same object: asking about the briefing, and
+  configuring it. Reference on one side and a tool shelf on the other have no
+  relationship, and they put "where does this live" back to three answers.
+  `.side-drawer-split` is `1.15fr 1fr` of 1000px, about 530 and 460, which is
+  also too narrow for a three-column funnel diagram.
+- **Quick reference is a different artefact from the reference.** The Google
+  Ads playbook is a funnel diagram you study. Moved into a drawer unchanged it
+  would be harder to read than the accordion it replaced. `GoogleAdsPlaybook`
+  keeps the diagram and lives in Guide; `GoogleAdsPlaybookQuick` is four rows
+  that open one at a time, over the same `LAYERS` data, for answering "what
+  should PMax exclude" mid-task.
+- **Editing is not choosing.** `AudiencesPanel` (504 lines) and
+  `ICPIntelligencePanel` (201) manage standing client data, so they are a tab.
+  *Picking* a saved audience while writing a brief is the drawer case.
+
+`SideDrawer` in `components/ui/SideDrawer.jsx` is the one definition now.
+Children render whether or not it is open, because it slides out rather than
+vanishing and an emptied panel sliding away reads as a glitch; a caller with
+something expensive inside gates it on `open` itself, as the Strategist does
+with its chat.
+
+#### Paid: Measure is the page, Build is the Produce shape (29 Oct 2026)
+
+Paid had Health (holding Measure, Competitors and Playbook) and Build (the
+five-step pipeline, with Audiences and Resize in an accordion of "tools").
+Everyone opened Measure. A tab whose only job is to hold the tab you wanted is
+a tax, so Health is gone and **Measure is the landing**.
+
+The redesign's organising question was "is this a stage of making an ad?":
+
+| Was | Is | Because |
+|---|---|---|
+| Health → Measure | the Measure tab | it is the page, not a thing inside one |
+| Health → Competitors | Build → Competitors | research that feeds a brief |
+| Health → Playbook | the ⋮ drawer, full diagram in Guide | reference, not a section |
+| Build → Audiences (accordion) | Build → Audiences (tab) | standing data, never a step |
+| Build → Resize (accordion) | an action on a library item | you resize a thing, you do not visit Resize |
+| nothing | Build → Creative | see below |
+
+**Build takes Produce's shape**: the guided route first (Make a batch), then
+the things that are not steps as peer tabs. That answers the complaint wizards
+earn — useful until you want one section — without duplicating each step as
+its own tab.
+
+**The creative library did not exist.** Paid renders land in
+`ad_creative_images` and had no view anywhere, so the only route to a finished
+ad was the batch that made it. `GET /ad-creatives/clients/:id/library` and
+`PaidLibraryPanel` are that view. It is why Resize felt orphaned: a tool with
+nothing to point at. Resizing now starts from a library item, which the server
+resolves by **id, never a URL** — taking a URL from the client would be an
+open proxy pointed wherever the caller fancied.
+
+Research reaches the brief now. `briefSeedFor` in `utils/competitorBrief.js`
+turns a competitor run into brief text, and the button does not render when
+the pull found nothing: a header plus an instruction reads as research that
+was never done.
+
+**Old links.** `resolvePaidTab` in `utils/paidTabs.js` is the redirect table
+for `health`, `performance`, `playbook`, `resize`, `pipeline` and `creative`.
+A deep link that lands nowhere is the quietest breakage there is, because
+whoever follows it assumes the feature was removed. `?tab=playbook` opens the
+drawer rather than only landing on Measure, for the same reason.
+
+#### A combined total of one network (29 Oct 2026)
+
+The Paid page printed "Combined · Google + Meta £2,853.94" directly above
+"Google Ads £2,853.94". Both figures were right. The strip tested whether a
+Meta account was **connected**, not whether it had **spent**, and Falcon's
+Meta account spent nothing.
+
+Now `showCombined` in `utils/adsTotals.js`, tested rather than looked at. The
+whole class of bugs on this page has been arithmetic verified by eye.
+
+#### A setState updater does not run when you read it (29 Oct 2026)
+
+Worth the space, because it cost a cycle and it looks correct.
+
+Fixing the cross-client leak in `usePaidPipeline`, I wrote:
+
+```js
+let take = false;
+setActiveBatchId(cur => { take = fresh || !cur; return take ? real[0].id : cur; });
+if (take) { /* fetch that batch's concepts */ }
+```
+
+React evaluates an updater **eagerly only while the update queue is empty**.
+On first mount the queue is empty, the updater runs, `take` is true, and the
+fetch happens. After a client change the reset has already queued an update,
+so the updater is deferred, `take` is still `false`, and the batch is selected
+with its concepts never fetched: the Draft step read "No brief selected" for a
+client that had one.
+
+The fix is a ref alongside the state (`activeIdRef`), read synchronously. The
+general rule: **never read a value out of a setState updater and act on it
+outside the updater.** It works until something else queues an update first.
+
+It was caught by the drive, not by a test and not by reading it back.
+
+#### The same stale-selection bug, third and fourth instance (29 Oct 2026)
+
+`usePaidPipeline` and `CompetitorAdsPanel` both held
+`if (nothing is selected) select the first`, keyed on a client. After a switch
+the condition is false, so both went on showing the previous client's work:
+Falcon's concepts and Falcon's competitor research under Architourian's name.
+
+That is four components now (StrategistBriefingPanel, SeoDriftPanel, and these
+two). I still have not added a lint rule, for the reason recorded earlier: the
+shape is legitimate in any component that is not keyed on a client, and a
+guard that cries wolf gets suppressed. **Checking it is part of reviewing any
+panel that takes a `clientId`.**
 
 #### One client's briefing under another client's name (29 Oct 2026)
 

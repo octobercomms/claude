@@ -297,9 +297,12 @@ export function ExampleConcept({ clientName, onDismiss }) {
   );
 }
 
-export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatrix, clientId }) {
+export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatrix, clientId, initialBrief = '' }) {
   const { readOnly } = useAuth();
-  const [brief, setBrief] = useState('');
+  // Seeded when Competitors hands research over. It is the starting text of
+  // an editable field, not a locked value: the research is a prompt to write
+  // from, and you are expected to cut it about before generating.
+  const [brief, setBrief] = useState(initialBrief);
   const [platform, setPlatform] = useState('meta');
   const [mode, setMode] = useState('batch'); // 'batch' (4–16) | 'matrix' (12–100)
   const [count, setCount] = useState(8);

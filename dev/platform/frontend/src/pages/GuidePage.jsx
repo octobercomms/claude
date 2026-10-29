@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 
 // Operator's manual for the platform. Available to every signed-in user
 // — viewers benefit from understanding what the AM sees too. Bullets,
@@ -141,6 +143,17 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'paid-playbook',
+    title: 'Google Ads playbook (reference)',
+    summary: 'The four-layer account structure, and what not to do in each layer.',
+    body: [
+      'Reference rather than a page: the account architecture October runs across its eight-figure accounts, **Performance Max → Standard Shopping → Standard Search → Branded Search**.',
+      'The short version opens in a drawer from the **⋮** on any client\'s Paid page, for when you need one line mid-task. This is the full diagram, for studying it or showing a client.',
+      '**Build top to bottom.** Broadest reach at the top, most defensive at the base, and nothing above layer 3 until layers 1 to 3 run cleanly.',
+    ],
+    extra: <GoogleAdsPlaybook />,
+  },
+  {
     id: 'earned',
     title: 'Earned',
     summary: 'PR — never pitch from memory or lose a hit again.',
@@ -251,7 +264,18 @@ const SECTIONS = [
 ];
 
 export default function GuidePage() {
-  const [open, setOpen] = useState(() => new Set(['getting-started']));
+  const [params] = useSearchParams();
+  // ?open=<section id> expands that section, so another page can link
+  // straight at the chapter it is talking about rather than dropping the
+  // reader at the top of the manual.
+  const wanted = params.get('open');
+  const [open, setOpen] = useState(() => new Set([wanted || 'getting-started']));
+  useEffect(() => {
+    if (!wanted) return;
+    setOpen(prev => new Set(prev).add(wanted));
+    const el = document.getElementById(`guide-${wanted}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [wanted]);
   function toggle(id) {
     setOpen(prev => {
       const next = new Set(prev);
@@ -285,7 +309,7 @@ export default function GuidePage() {
 
 function AccordionItem({ section, isOpen, onToggle }) {
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="card" id={`guide-${section.id}`} style={{ padding: 0, overflow: 'hidden' }}>
       <button onClick={onToggle} className="accordion-trigger" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s4)' }}>
         <div>
           <div className="h3">{section.title}</div>
@@ -301,6 +325,7 @@ function AccordionItem({ section, isOpen, onToggle }) {
               <li key={i} style={{ marginBottom: 'var(--s1)' }} dangerouslySetInnerHTML={{ __html: bolden(line) }} />
             ))}
           </ul>
+          {section.extra && <div style={{ marginTop: 'var(--s5)' }}>{section.extra}</div>}
         </div>
       )}
     </div>

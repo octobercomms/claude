@@ -8,7 +8,7 @@
 // object down to each step. Sub-tab navigation between steps is
 // instantaneous because the state lives above the tab boundary.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -16,7 +16,17 @@ export function usePaidPipeline({ clientId, clientName }) {
   const toast = useToast();
   const [batches, setBatches] = useState([]);
   const [creatives, setCreatives] = useState([]);
-  const [activeBatchId, setActiveBatchId] = useState(null);
+  const [activeBatchId, setActiveBatchIdState] = useState(null);
+  // A ref alongside the state, because refresh() has to know the current
+  // selection *synchronously* to decide whether to fetch its concepts, and a
+  // setState updater does not run synchronously. Reading the updater's
+  // argument and then acting on it outside the updater worked on first mount
+  // and silently stopped working after a client change: React evaluates an
+  // updater eagerly only while the queue is empty, and the reset puts an
+  // update in the queue. The batch was then selected with its concepts never
+  // fetched, and the Draft step read "No brief selected".
+  const activeIdRef = useRef(null);
+  const setActiveBatchId = (id) => { activeIdRef.current = id; setActiveBatchIdState(id); };
   const [assets, setAssets] = useState([]);
   const [showBrief, setShowBrief] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -29,7 +39,12 @@ export function usePaidPipeline({ clientId, clientName }) {
   const realBatches = batches.filter(b => !b.is_example);
   const exampleBatch = batches.find(b => b.is_example) || null;
 
-  async function refresh() {
+  // `fresh` is true on a client change, when the selection must be replaced
+  // rather than kept. Without it this had the bug the Strategist shipped in
+  // October: `activeBatchId` survived the switch, `!activeBatchId` was false,
+  // so the incoming client never got a batch selected and `creatives` went on
+  // holding the previous client's concepts under the new client's name.
+  async function refresh({ fresh = false } = {}) {
     try {
       const [bs, as] = await Promise.all([
         api.get(`/ad-creatives/clients/${clientId}/batches`),
@@ -40,7 +55,10 @@ export function usePaidPipeline({ clientId, clientName }) {
       // Prefer a real brief as the active batch; the example is selected by
       // the ensure-example effect below when there are no real briefs.
       const real = bs.filter(b => !b.is_example);
-      if (real.length && !activeBatchId) {
+      // `fresh` replaces the selection outright; otherwise an existing one is
+      // kept. The ref rather than the state variable, which on a client
+      // change is still the previous client's until React re-renders.
+      if (real.length && (fresh || !activeIdRef.current)) {
         setActiveBatchId(real[0].id);
         const cs = await api.get(`/ad-creatives/clients/${clientId}/creatives?batch_id=${real[0].id}`);
         setCreatives(cs);
@@ -49,7 +67,14 @@ export function usePaidPipeline({ clientId, clientName }) {
       setLoaded(true);
     }
   }
-  useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
+  useEffect(() => {
+    // Everything belonging to the outgoing client goes first, so no panel can
+    // render one client's work under another's name while the fetch is in
+    // flight.
+    setBatches([]); setCreatives([]); setActiveBatchId(null); setAssets([]);
+    setShareUrl(null); setShowBrief(false); setExampleError(null); setLoaded(false);
+    refresh({ fresh: true }); /* eslint-disable-line */
+  }, [clientId]);
 
   // Persisted worked example. Generated on demand (button on the Brief step),
   // then reused — it survives navigation and never auto-regenerates. We do NOT
