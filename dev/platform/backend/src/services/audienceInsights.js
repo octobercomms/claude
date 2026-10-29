@@ -16,6 +16,7 @@ const pool = require('../db');
 const { decrypt } = require('../utils/encryption');
 const shopify = require('../connectors/shopify');
 const woocommerce = require('../connectors/woocommerce');
+const { resolveCurrency } = require('./ecomCurrency');
 
 const CACHE_TTL_HOURS = 24;
 
@@ -46,6 +47,23 @@ async function getPostcodeSource(clientId) {
   return null;
 }
 
+// What the postcode revenue is denominated in: the client's own reporting
+// currency when the account lead has set one, otherwise the store's.
+//
+// Resolved on every read rather than only on a recompute, so setting the
+// currency in Setup labels the panel immediately instead of waiting out the
+// 24-hour cache. `resolveCurrency` is the same decision the client dashboard
+// makes, including the note when the client's setting and the store disagree.
+async function resolvePostcodeCurrency(clientId, storeCurrency) {
+  const { rows } = await pool.query(
+    'SELECT reporting_currency FROM clients WHERE id = $1', [clientId]
+  );
+  return resolveCurrency(
+    rows[0] && rows[0].reporting_currency,
+    storeCurrency ? [{ currency: storeCurrency }] : []
+  );
+}
+
 // Aggregate first-party postcodes for a client. Uses the cache when
 // available; pass force=true to recompute.
 async function getPostcodeDistribution(clientId, { force = false } = {}) {
@@ -56,12 +74,17 @@ async function getPostcodeDistribution(clientId, { force = false } = {}) {
     );
     const c = cached[0];
     if (c && Date.now() - new Date(c.computed_at).getTime() < CACHE_TTL_HOURS * 60 * 60 * 1000) {
+      const { currency, note } = await resolvePostcodeCurrency(clientId, c.currency);
       return {
         postcodes: c.postcodes || [],
         total_orders: c.total_orders,
         total_revenue: Number(c.total_revenue),
         source: c.source || null,
         computed_at: c.computed_at,
+        currency,
+        // Deliberately not `note`: the panel reads that field as "no store is
+        // connected" and would hide the whole section.
+        currency_note: note,
         from_cache: true,
       };
     }
@@ -73,7 +96,8 @@ async function getPostcodeDistribution(clientId, { force = false } = {}) {
       note: 'No connected store — postcode mapping needs a Shopify or WooCommerce connection. Upload a customer list below to build a Meta audience without it.',
     };
   }
-  const customers = await source.connector.fetchCustomerPostcodes(source.creds, { days: 365 });
+  const walked = await source.connector.fetchCustomerPostcodes(source.creds, { days: 365 });
+  const customers = walked.customers || [];
   const byDistrict = new Map();
   for (const c of customers) {
     const d = c.postcode_district;
@@ -92,22 +116,26 @@ async function getPostcodeDistribution(clientId, { force = false } = {}) {
   const totalRevenue = customers.reduce((n, c) => n + c.revenue, 0);
 
   await pool.query(
-    `INSERT INTO audience_postcode_cache (client_id, postcodes, total_orders, total_revenue, source, computed_at)
-     VALUES ($1, $2, $3, $4, $5, NOW())
+    `INSERT INTO audience_postcode_cache (client_id, postcodes, total_orders, total_revenue, source, currency, computed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
      ON CONFLICT (client_id) DO UPDATE
        SET postcodes = EXCLUDED.postcodes,
            total_orders = EXCLUDED.total_orders,
            total_revenue = EXCLUDED.total_revenue,
            source = EXCLUDED.source,
+           currency = EXCLUDED.currency,
            computed_at = NOW()`,
-    [clientId, JSON.stringify(postcodes), totalOrders, totalRevenue, source.type]
+    [clientId, JSON.stringify(postcodes), totalOrders, totalRevenue, source.type, walked.currency || null]
   );
+  const { currency, note } = await resolvePostcodeCurrency(clientId, walked.currency);
   return {
     postcodes,
     total_orders: totalOrders,
     total_revenue: Math.round(totalRevenue * 100) / 100,
     source: source.type,
     computed_at: new Date().toISOString(),
+    currency,
+    currency_note: note,
     from_cache: false,
   };
 }

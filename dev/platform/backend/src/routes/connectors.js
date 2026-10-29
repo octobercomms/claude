@@ -7,6 +7,7 @@ const { loadVisibleClientIds, requireClientAccess, checkClientIdFromBodyOrQuery 
 const { encrypt, decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const users = require('../services/users');
+const { summariseAdsCurrency } = require('../services/adsCurrency');
 
 const router = express.Router();
 router.use(authenticate);
@@ -712,12 +713,24 @@ router.get('/client/:clientId/ads-data', async (req, res) => {
       }
     }));
 
-    const [googleResults, metaResults] = await Promise.all([
+    const [googleResults, metaResults, clientRows] = await Promise.all([
       mapRows(googleRows.rows),
       mapRows(metaRows.rows),
+      pool.query('SELECT reporting_currency FROM clients WHERE id = $1', [req.params.clientId]),
     ]);
 
-    res.json({ google_ads: googleResults, meta_ads: metaResults, days, startDate, endDate });
+    // What each of the page's three sums is denominated in. Resolved here
+    // rather than in the frontend so the Paid page and the Dashboard answer
+    // the question the same way: the client's reporting currency wins, the
+    // accounts are the default, and a sum across accounts on different
+    // currencies carries a note instead of one account's symbol.
+    const currency = summariseAdsCurrency(
+      clientRows.rows[0] && clientRows.rows[0].reporting_currency,
+      googleResults,
+      metaResults
+    );
+
+    res.json({ google_ads: googleResults, meta_ads: metaResults, days, startDate, endDate, currency });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

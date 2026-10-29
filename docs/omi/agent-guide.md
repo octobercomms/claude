@@ -431,13 +431,42 @@ arithmetic that is simply wrong; the note says the figure is not a true total
 rather than letting the label imply a conversion nobody performed. That case
 was a bug in the first version of this fix, caught by its own test.
 
-**Two places still hardcode `£` and were left alone**, because their figures
-come from elsewhere and each needs its own provenance decided:
+**Ad spend and postcode revenue carry their currency too** (29 Oct 2026), which
+clears the last two hardcoded `£` in reporting UI.
 
-- `AudiencesPanel.jsx` — revenue per postcode.
-- `ClientAdsPage.jsx` — ad spend. Google Ads and Meta already report a
-  currency (`google.js` pulls `customer.currency_code`, `meta.js` the ad
-  account's), so this one is wiring, not new plumbing.
+*Ad spend* — `services/adsCurrency.js` → `summariseAdsCurrency(clientCurrency,
+googleEntries, metaEntries)`, called by `/connectors/client/:id/ads-data`, which
+now returns `currency: { google, meta, blended }`, each `{ currency, note }`. It
+delegates to the same `resolveCurrency`, so the Paid page and the Dashboard
+cannot drift apart on the rule.
+
+The Paid page adds spend up at three levels and each needs its own answer:
+Each account on its own (always exact — `entry.data.currency`), a per-platform
+"All Countries — Combined" total, and a blended Google + Meta figure. **A UK
+plus US Google Ads pair is an ordinary setup**, so the cross-currency sum is
+the normal case here, not an edge: the blended total is resolved over both
+platforms together rather than inherited from either, because Google in GBP
+plus Meta in USD is a disagreement that only appears once they are added.
+
+A failed account contributes neither spend nor currency — the page filters
+errors out before summing, so counting its currency would invent a
+disagreement that is not in the figure.
+
+*Postcode revenue* — `fetchCustomerPostcodes` on both store connectors now
+returns **`{ customers, currency }`** rather than the bare array. Returning the
+array again would not throw: `walked.customers` would be undefined and the
+distribution would silently read zero, so `tests/postcode-currency.test.js`
+guards the shape. The currency is read **before** the postcode filter, because
+a store whose orders carry no postcodes still bills in a currency.
+
+Migration `217` caches it on `audience_postcode_cache`, since the distribution
+is cached for 24 hours and an uncached currency would leave a cache hit
+unlabelled. The client's `reporting_currency` is still applied **at read time**,
+so setting it in Setup labels the panel without waiting out the cache.
+
+**`AudiencesPanel` reads `distribution.note` as "no store is connected"** and
+hides the whole section when it is set. The currency note therefore travels as
+`currency_note`. Putting it in `note` would make the panel vanish.
 
 Everything else matching `£` in the frontend is marketing copy, the design-system
 demo, or proposals, which carry their own explicit symbol. `MethodsPanel`'s
@@ -632,9 +661,12 @@ There are now two per client, and the names have to carry the difference:
 The Strategy tab's chat was "Ask the strategist", which said nothing about the
 difference. It now names itself and points at the analyst for live numbers.
 
-**`.caption` uppercases its text.** This is the second time it has caught a
-browser check in this file's history: a case-sensitive regex against rendered
-caption text always fails. Match case-insensitively.
+**`.caption` uppercases its text.** This has now caught three browser checks,
+twice on the same day, including one written hours after this line was added:
+`innerText` reports the CSS-transformed text, so a case-sensitive regex against
+a rendered caption or section heading always fails. **Match case-insensitively
+by default** in a drive script; it costs nothing when the text is not
+transformed.
 
 ### Measure on each PESO page (29 Oct 2026)
 

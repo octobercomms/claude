@@ -336,6 +336,10 @@ function parsePostcodeDistrict(zip) {
 // build the first-party postcode distribution from a WooCommerce store the
 // same way it does from Shopify. Guest checkouts (customer_id 0) are keyed
 // by billing email so a repeat guest still de-dupes to one customer.
+//
+// Returns `{ customers, currency }`, the store's currency alongside the rows,
+// because `order.total` is denominated in it and the postcode panel used to
+// label those totals in sterling regardless.
 async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 50 } = {}) {
   const mode = await resolveAuthMode(credentials);
   const useQuery = mode === 'query';
@@ -349,17 +353,23 @@ async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 50 }
 
   const PER_PAGE = 100;
   const byCustomer = new Map();
+  let currency = null;
   for (let page = 1; page <= maxPages; page++) {
     const res = await wcGet('/orders', {
       after: `${startDate}T00:00:00`,
       per_page: PER_PAGE,
       page,
       status: 'processing,completed',
-      _fields: 'id,customer_id,total,billing,shipping',
+      _fields: 'id,customer_id,total,currency,billing,shipping',
     });
     if (res.status >= 400) throw new Error(`WooCommerce orders fetch ${res.status}: ${res.data?.message || 'unknown'}`);
     const batch = res.data || [];
     for (const o of batch) {
+      // Before the postcode filter, so a store with no mapped orders still
+      // reports its currency rather than leaving the total unlabelled.
+      if (!currency && /^[A-Za-z]{3}$/.test(String(o.currency || '').trim())) {
+        currency = String(o.currency).trim().toUpperCase();
+      }
       const cid = o.customer_id || o.billing?.email || null;
       const postcode = (o.shipping?.postcode || o.billing?.postcode || '').toUpperCase().trim();
       if (!cid || !postcode) continue;
@@ -378,7 +388,7 @@ async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 50 }
     if (batch.length < PER_PAGE) break;
     if (totalPages && page >= totalPages) break;
   }
-  return [...byCustomer.values()];
+  return { customers: [...byCustomer.values()], currency };
 }
 
 module.exports = { authType, checkTokenValidity, fetchData, fetchCustomerPostcodes, parsePostcodeDistrict };

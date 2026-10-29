@@ -14,6 +14,7 @@ import StepRail from '../components/shells/StepRail';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
+import { formatMoney } from '../utils/money';
 import { useToast } from '../context/ToastContext';
 
 // Live ads dashboards from Google Ads and Meta Ads. The chat sidebar that
@@ -136,9 +137,14 @@ export default function ClientAdsPage() {
     if (n == null || isNaN(n)) return '—';
     return `${prefix}${Number(n).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`;
   }
-  function fmtCurrency(n) {
-    if (n == null || isNaN(n)) return '—';
-    return `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Ad spend to the penny, in whichever currency the figure is actually in.
+  // Every one of these used to be a hardcoded pound sign, which is wrong for
+  // any account billing in USD or EUR — and a Google Ads setup with a UK and
+  // a US account is normal, so it was wrong on screen rather than in theory.
+  // `currency` is null when nothing reported one, and the number then shows
+  // unlabelled rather than claiming a unit.
+  function money(n, currency) {
+    return formatMoney(n, currency, { dp: 2 });
   }
 
   function parseGoogleAds(entry) {
@@ -166,7 +172,7 @@ export default function ClientAdsPage() {
     const roas = spend > 0 && convValue > 0 ? convValue / spend : null;
     const avgCpc = clicks > 0 ? spend / clicks : null;
     const campaigns = Object.values(campaignMap).sort((a, b) => b.spend - a.spend);
-    return { spend, clicks, convs, convValue, imps, roas, avgCpc, campaigns, store_label: entry.store_label };
+    return { spend, clicks, convs, convValue, imps, roas, avgCpc, campaigns, currency: raw.currency || null, store_label: entry.store_label };
   }
 
   function parseMetaAds(entry) {
@@ -194,7 +200,7 @@ export default function ClientAdsPage() {
     const roas = spend > 0 && purchaseValue > 0 ? purchaseValue / spend : null;
     const ctr = imps > 0 ? (clicks / imps) : null;
     const campaigns = Object.values(campaignMap).sort((a, b) => b.spend - a.spend);
-    return { spend, imps, clicks, purchaseValue, roas, ctr, campaigns, store_label: entry.store_label };
+    return { spend, imps, clicks, purchaseValue, roas, ctr, campaigns, currency: raw.currency || null, store_label: entry.store_label };
   }
 
   // Green / red pill for table figures (profit, ROAS) — matches the
@@ -216,6 +222,14 @@ export default function ClientAdsPage() {
   const showGoogleTab = hasGoogle || googleEntries.length > 0;
   const showMetaTab = hasMeta || metaEntries.length > 0;
   const noConnectors = !loading && !googleEntries.length && !metaEntries.length;
+
+  // What each sum is denominated in, decided by the backend so this page and
+  // the client dashboard cannot disagree: the client's reporting currency when
+  // one is set, the accounts' own when they agree, and a note when they do not.
+  const cur = adsData?.currency || {};
+  const curGoogle = cur.google?.currency || null;
+  const curMeta = cur.meta?.currency || null;
+  const curBlended = cur.blended?.currency || null;
 
   const googleTotal = googleEntries.filter(g => !g.error).reduce(
     (acc, g) => ({ spend: acc.spend + g.spend, revenue: acc.revenue + g.convValue, clicks: acc.clicks + g.clicks, convs: acc.convs + g.convs }),
@@ -276,12 +290,13 @@ export default function ClientAdsPage() {
                 Combined · Google + Meta
               </div>
               <StatStrip items={[
-                { label: 'Total Spend', value: fmtCurrency(blended.spend), feature: true },
-                { label: 'Total Revenue', value: blended.revenue > 0 ? fmtCurrency(blended.revenue) : '—' },
+                { label: 'Total Spend', value: money(blended.spend, curBlended), feature: true },
+                { label: 'Total Revenue', value: blended.revenue > 0 ? money(blended.revenue, curBlended) : '—' },
                 { label: 'Blended ROAS', value: blended.roas != null ? `${blended.roas.toFixed(2)}x` : '—' },
-                blended.profit != null && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(blended.profit), sub: 'Revenue × margin − Spend' },
+                blended.profit != null && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(blended.profit, curBlended), sub: 'Revenue × margin − Spend' },
                 { label: 'Clicks', value: fmt(blended.clicks) },
               ].filter(Boolean)} />
+              {cur.blended?.note && <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{cur.blended.note}</p>}
               <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: 'var(--s6) 0 0' }} />
             </div>
           )}
@@ -292,13 +307,14 @@ export default function ClientAdsPage() {
                 <div style={{ marginBottom: 'var(--s7)' }}>
                   <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
                   <StatStrip items={[
-                    { label: 'Total Spend', value: fmtCurrency(googleTotal.spend), feature: true },
-                    { label: 'Total Revenue', value: googleTotal.revenue > 0 ? fmtCurrency(googleTotal.revenue) : '—' },
+                    { label: 'Total Spend', value: money(googleTotal.spend, curGoogle), feature: true },
+                    { label: 'Total Revenue', value: googleTotal.revenue > 0 ? money(googleTotal.revenue, curGoogle) : '—' },
                     { label: 'Blended ROAS', value: googleTotal.spend > 0 && googleTotal.revenue > 0 ? `${(googleTotal.revenue / googleTotal.spend).toFixed(2)}x` : '—' },
-                    googleTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(googleTotal.revenue * adsMargin - googleTotal.spend), sub: 'Revenue × margin − Spend' },
+                    googleTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(googleTotal.revenue * adsMargin - googleTotal.spend, curGoogle), sub: 'Revenue × margin − Spend' },
                     { label: 'Clicks', value: fmt(googleTotal.clicks) },
                     { label: 'Conversions', value: fmt(googleTotal.convs) },
                   ].filter(Boolean)} />
+                  {cur.google?.note && <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{cur.google.note}</p>}
                   <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
                 </div>
               )}
@@ -309,13 +325,13 @@ export default function ClientAdsPage() {
                     <>
                       <div style={{ marginBottom: 'var(--s4)' }}>
                         <StatStrip items={[
-                          { label: 'Spend', value: fmtCurrency(g.spend), feature: true },
-                          { label: 'Revenue', value: g.convValue > 0 ? fmtCurrency(g.convValue) : '—' },
+                          { label: 'Spend', value: money(g.spend, g.currency), feature: true },
+                          { label: 'Revenue', value: g.convValue > 0 ? money(g.convValue, g.currency) : '—' },
                           { label: 'ROAS', value: g.roas ? `${g.roas.toFixed(2)}x` : '—' },
-                          g.convValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(g.convValue * adsMargin - g.spend), sub: 'Revenue × margin − Spend' },
+                          g.convValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(g.convValue * adsMargin - g.spend, g.currency), sub: 'Revenue × margin − Spend' },
                           { label: 'Clicks', value: fmt(g.clicks) },
                           { label: 'Conv.', value: fmt(g.convs) },
-                          { label: 'CPC', value: fmtCurrency(g.avgCpc), sub: 'avg' },
+                          { label: 'CPC', value: money(g.avgCpc, g.currency), sub: 'avg' },
                         ].filter(Boolean)} />
                       </div>
                       {g.campaigns?.length > 0 && (
@@ -339,9 +355,9 @@ export default function ClientAdsPage() {
                                 return (
                                   <tr key={j}>
                                     <td>{c.name}</td>
-                                    <td className="num">{fmtCurrency(c.spend)}</td>
-                                    <td className="num">{c.convValue > 0 ? fmtCurrency(c.convValue) : '—'}</td>
-                                    <td className="num">{profit != null ? <Pill positive={profit >= 0}>{fmtCurrency(profit)}</Pill> : '—'}</td>
+                                    <td className="num">{money(c.spend, g.currency)}</td>
+                                    <td className="num">{c.convValue > 0 ? money(c.convValue, g.currency) : '—'}</td>
+                                    <td className="num">{profit != null ? <Pill positive={profit >= 0}>{money(profit, g.currency)}</Pill> : '—'}</td>
                                     <td className="num">{roas != null ? <Pill positive={profit == null || profit >= 0}>{roas.toFixed(2)}x</Pill> : '—'}</td>
                                     <td className="num">{fmt(c.clicks)}</td>
                                     <td className="num">{fmt(c.conversions)}</td>
@@ -366,13 +382,14 @@ export default function ClientAdsPage() {
                 <div style={{ marginBottom: 'var(--s7)' }}>
                   <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
                   <StatStrip items={[
-                    { label: 'Total Spend', value: fmtCurrency(metaTotal.spend), feature: true },
-                    { label: 'Total Revenue', value: metaTotal.revenue > 0 ? fmtCurrency(metaTotal.revenue) : '—' },
+                    { label: 'Total Spend', value: money(metaTotal.spend, curMeta), feature: true },
+                    { label: 'Total Revenue', value: metaTotal.revenue > 0 ? money(metaTotal.revenue, curMeta) : '—' },
                     { label: 'Blended ROAS', value: metaTotal.spend > 0 && metaTotal.revenue > 0 ? `${(metaTotal.revenue / metaTotal.spend).toFixed(2)}x` : '—' },
-                    metaTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(metaTotal.revenue * adsMargin - metaTotal.spend), sub: 'Revenue × margin − Spend' },
+                    metaTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(metaTotal.revenue * adsMargin - metaTotal.spend, curMeta), sub: 'Revenue × margin − Spend' },
                     { label: 'Clicks', value: fmt(metaTotal.clicks) },
                     { label: 'Impressions', value: fmt(metaTotal.imps) },
                   ].filter(Boolean)} />
+                  {cur.meta?.note && <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{cur.meta.note}</p>}
                   <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
                 </div>
               )}
@@ -383,10 +400,10 @@ export default function ClientAdsPage() {
                     <>
                       <div style={{ marginBottom: 'var(--s4)' }}>
                         <StatStrip items={[
-                          { label: 'Spend', value: fmtCurrency(m.spend), feature: true },
-                          { label: 'Revenue', value: m.purchaseValue > 0 ? fmtCurrency(m.purchaseValue) : '—' },
+                          { label: 'Spend', value: money(m.spend, m.currency), feature: true },
+                          { label: 'Revenue', value: m.purchaseValue > 0 ? money(m.purchaseValue, m.currency) : '—' },
                           { label: 'ROAS', value: m.roas ? `${m.roas.toFixed(2)}x` : '—' },
-                          m.purchaseValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(m.purchaseValue * adsMargin - m.spend), sub: 'Revenue × margin − Spend' },
+                          m.purchaseValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(m.purchaseValue * adsMargin - m.spend, m.currency), sub: 'Revenue × margin − Spend' },
                           { label: 'Impressions', value: fmt(m.imps) },
                           { label: 'Clicks', value: fmt(m.clicks) },
                           { label: 'CTR', value: m.ctr ? `${(m.ctr * 100).toFixed(2)}%` : '—' },
@@ -407,7 +424,7 @@ export default function ClientAdsPage() {
                               {m.campaigns.map((c, j) => (
                                 <tr key={j}>
                                   <td>{c.name}</td>
-                                  <td className="num">{fmtCurrency(c.spend)}</td>
+                                  <td className="num">{money(c.spend, m.currency)}</td>
                                   <td className="num">{fmt(c.clicks)}</td>
                                   <td className="num">{fmt(c.impressions)}</td>
                                 </tr>

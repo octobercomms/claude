@@ -252,6 +252,11 @@ async function getAccessReport(credentials) {
 // with their shipping/billing postcode and lifetime stats. Used by the
 // Audience Insights service to build the first-party postcode
 // distribution without polluting the regular reporting pipeline.
+//
+// Returns `{ customers, currency }`. The currency is the shop's own
+// (`order.currency`, not `presentment_currency`, which is whatever the buyer
+// was shown), because `total_price` is denominated in it — the postcode panel
+// was printing those totals with a hardcoded pound sign.
 async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 80 } = {}) {
   const { shop_domain, access_token } = credentials;
   const headers = { 'X-Shopify-Access-Token': access_token };
@@ -261,12 +266,19 @@ async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 80 }
     status: 'any',
     created_at_min: `${startDate}T00:00:00Z`,
     limit: 250,
-    fields: 'id,created_at,total_price,customer,shipping_address,billing_address',
+    fields: 'id,created_at,total_price,currency,customer,shipping_address,billing_address',
   };
   const byCustomer = new Map();
+  let currency = null;
   for (let page = 0; page < maxPages && url; page++) {
     const res = await axios.get(url, { headers, params });
     for (const o of (res.data.orders || [])) {
+      // Read from any order, before the postcode filter below: a store whose
+      // orders all lack postcodes still has a currency, and taking it only
+      // from mapped orders would leave the total unlabelled for no reason.
+      if (!currency && /^[A-Za-z]{3}$/.test(String(o.currency || '').trim())) {
+        currency = String(o.currency).trim().toUpperCase();
+      }
       const cid = o.customer?.id || o.customer?.email || null;
       const postcode = (o.shipping_address?.zip || o.billing_address?.zip || '').toUpperCase().trim();
       if (!cid || !postcode) continue;
@@ -287,7 +299,7 @@ async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 80 }
     url = match ? match[1] : null;
     params = undefined;
   }
-  return [...byCustomer.values()];
+  return { customers: [...byCustomer.values()], currency };
 }
 
 // UK postcode → district. EH1 2AB → EH1; SW1A 1AA → SW1A. Outward part
