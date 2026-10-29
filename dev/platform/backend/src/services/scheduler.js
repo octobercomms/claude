@@ -22,7 +22,6 @@ const outreachReplies = require('./outreachReplies');
 const social = require('./social');
 const socialPublisher = require('./socialPublisher');
 const usageTracking = require('./usageTracking');
-const strategistReport = require('./strategistReport');
 const swipeProcessor = require('./swipeProcessor');
 const heygen = require('./heygen');
 
@@ -883,38 +882,47 @@ cron.schedule('*/15 * * * *', async () => {
   catch (err) { console.error('Outreach reply poll failed:', err.message); }
 });
 
-// Strategist — auto-generate a 7-day ads briefing for every active
-// client every Monday at 07:00 so the AM walks into a punchlist.
-// Each client runs serially to avoid bursting the Claude API rate limit.
+// Strategist — generate the weekly briefing for every active client every
+// Monday at 07:00 so the account lead walks into a queue rather than a blank
+// page. Each client runs serially to avoid bursting the Claude API rate limit.
+//
+// This used to generate a different document from the one the platform shows:
+// strategistReport, the older ads-only write-up, while the Strategy tab showed
+// the cross-PESO briefing. The panel claimed "emailed to you every Monday"
+// about a document nothing emailed. One generator now, so what lands in the
+// inbox is what you see on screen.
 cron.schedule('0 7 * * 1', async () => {
   try {
     const { rows: clients } = await pool.query(
       `SELECT id, name, strategist_recipients FROM clients
         WHERE active = true
+          AND strategist_active = true
           AND EXISTS (
             SELECT 1 FROM connectors c
              WHERE c.client_id = clients.id
                AND c.status = 'active'
-               AND c.connector_type IN ('meta_ads', 'google_ads')
           )`
     );
     const emailService = require('./emailService');
+    const briefing = require('./strategist/briefing');
+    const { taskListMarkdown } = require('./strategist/briefingExport');
     const platformUrl = process.env.PLATFORM_URL || '';
     const envRecipients = (process.env.STRATEGIST_RECIPIENTS || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
     for (const cl of clients) {
       try {
-        const reportId = await strategistReport.generate({ clientId: cl.id, periodDays: 7, trigger: 'weekly' });
-        // Pull the parsed recommendations + the row's markdown so we can
-        // email them as a punchlist at the top. Both can be empty in
-        // edge cases — the email still goes out as the briefing alone.
-        const { rows: rows1 } = await pool.query(
-          `SELECT period_start, period_end, markdown FROM strategist_reports WHERE id = $1`,
-          [reportId]
+        const briefingId = await briefing.generate({ clientId: cl.id, days: 7, trigger: 'weekly_cron' });
+        const { rows: brows } = await pool.query(
+          `SELECT period_start, period_end, synthesis FROM strategist_briefings WHERE id = $1`,
+          [briefingId]
         );
-        const r = rows1[0] || {};
+        const b = brows[0] || {};
+        // The queue, open items only. A ticked item is history and does not
+        // belong in Monday's email; a crucial one leads.
         const { rows: actionRows } = await pool.query(
-          `SELECT text FROM strategist_recommendations WHERE report_id = $1 ORDER BY position ASC`,
-          [reportId]
+          `SELECT text, priority, first_raised_at FROM strategist_briefing_recommendations
+            WHERE briefing_id = $1 AND done = false
+            ORDER BY CASE WHEN priority = 'crucial' THEN 0 ELSE 1 END, position ASC`,
+          [briefingId]
         );
         const recipients = (cl.strategist_recipients || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
         const to = recipients.length ? recipients : envRecipients;
@@ -922,12 +930,23 @@ cron.schedule('0 7 * * 1', async () => {
           console.warn(`[strategist] no recipients for ${cl.name} — set strategist_recipients on the client or STRATEGIST_RECIPIENTS env var`);
           continue;
         }
-        const period = r.period_start && r.period_end ? `${r.period_start} – ${r.period_end}` : '';
-        const reportUrl = platformUrl ? `${platformUrl}/clients/${cl.id}/ads?tab=strategist&report=${reportId}` : null;
+        const period = b.period_start && b.period_end ? `${b.period_start} – ${b.period_end}` : '';
+        const reportUrl = platformUrl ? `${platformUrl}/clients/${cl.id}?tab=strategy` : null;
         await emailService.sendStrategistBriefing({
           to, clientName: cl.name, period,
-          markdown: r.markdown || '_Briefing was generated but had no content._',
-          recommendations: actionRows.map(a => a.text),
+          // The synthesis carries What changed and the queue. The queue is also
+          // listed above it as the punchlist, so the mail reads the same way
+          // the page does.
+          markdown: b.synthesis || '_Briefing was generated but had no content._',
+          recommendations: actionRows.map(a => {
+            const days = a.first_raised_at
+              ? Math.floor((Date.now() - new Date(a.first_raised_at).getTime()) / 86400000)
+              : null;
+            // Age past a week, in the email too: an item quietly in its third
+            // week is exactly what a Monday email should be uncomfortable about.
+            const age = days != null && days >= 7 ? ` (open ${days} days)` : '';
+            return `${a.priority === 'crucial' ? '[Crucial] ' : ''}${a.text}${age}`;
+          }),
           reportUrl,
         });
       } catch (err) {
