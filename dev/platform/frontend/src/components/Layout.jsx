@@ -158,6 +158,14 @@ export default function Layout() {
               bottom of the rail for everyone. */}
           {user?.role === 'admin' && (
             <li>
+              {/* Reports — the cross-client report log and the delivery
+                  readout. It had no nav entry at all until 29 Oct 2026: the
+                  route existed, the page worked, and nothing in the app
+                  opened it. The only way in was a KPI tile on Clients that
+                  was a link solely when a report had failed, so in a quiet
+                  week the page was unreachable. A page with no door is a
+                  page nobody has. */}
+              <NavLink to="/reports" style={({ isActive }) => linkStyle(isActive)}>Reports</NavLink>
               <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
               {/* Temporary: the checker calibration bench. Remove this link, the
                   route, the page and migration 195's table together when the

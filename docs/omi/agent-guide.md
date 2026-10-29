@@ -153,6 +153,25 @@ And within OMI there are **two different "Leads" screens** — always disambigua
   (`LeadsPage` → `SnapshotStudioPage`). *This is a plain table → full page and
   should stay that way* (its detail is itself a big two-column workspace).
 
+### Every page needs a door
+
+Twice on 29 Oct 2026 a working page turned out to be unreachable. First
+`ClientVideoPage`, imported by nothing, so the reel checks and caption
+templates mounted on it had never been seen. Then `ReportsPage`: routed,
+working, and linked only from a KPI tile that was a link solely when a report
+had failed, so in a quiet week nothing in the app opened it. Both were found
+by Daniel asking where he was meant to be looking.
+
+`frontend/tests/routeDoors.test.mjs` now walks the top-level routes in App.jsx
+and fails when one has no link anywhere in `src/`. Genuinely URL-only pages go
+in its `URL_ONLY` map with a reason. It catches "no door at all", not "a door
+that is sometimes shut" — a conditional `to={cond ? '/x' : undefined}` still
+reads as a link, so that judgement stays with you.
+
+It currently records three URL-only pages: `/design` and `/proposals/sample`
+are deliberate developer references; `/rankings` is superseded by the
+per-client rankings in `SeoSuite` (Owned) and is pending a decision on removal.
+
 ### "Dashboard" now means the per-client section (Oct 2026)
 
 The agency landing is **Clients** (`/clients`, `ClientsPage`). It used to be two
@@ -198,8 +217,8 @@ Two things that cost a session to find, worth knowing before you touch either:
   `backend/tests/report-recipients.test.js` honest. Reports triggered by hand
   from the UI do not pass through the scheduler and still generate.
 
-  Who is and is not being reached is on the **Reports page**, top of the page,
-  from `GET /reports/delivery`. Before that it could only be read one client at
+  Who is and is not being reached is on the **Reports page** (left nav, admin
+  only), top of the page, from `GET /reports/delivery`. Before that it could only be read one client at
   a time, as a single line on that client's Setup tab, which is how nine of ten
   clients came to be silently receiving nothing. That Setup item also used to
   sum the weekly and monthly lists, so monthly recipients marked a client "ok"
