@@ -307,6 +307,9 @@ async function fetchData(credentials, params) {
       avg_order_value: orders.length ? (totalRevenue / orders.length).toFixed(2) : '0.00',
       truncated: truncated || undefined,
       auth_mode: mode,
+      // The store's own currency, off the orders already fetched. Null when
+      // the window held no orders — better than assuming sterling.
+      currency: orders.find(o => o.currency)?.currency || null,
       daily,
     },
     orders: orders.slice(0, 50),

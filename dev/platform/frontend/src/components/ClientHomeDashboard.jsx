@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatMoney } from '../utils/money';
 import { api } from '../utils/api';
 
 // The personalised, read-only landing a client login sees instead of the
@@ -13,7 +14,9 @@ const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 function fmt(n) { return n == null ? '—' : Number(n).toLocaleString('en-GB'); }
-function fmtMoney(n) { return n == null ? '—' : '£' + Math.round(Number(n)).toLocaleString('en-GB'); }
+// Money wears the currency the client's own stores reported, not ours. This
+// screen is what the client sees, so a USD store labelled in sterling is the
+// worst place for that mistake to live.
 function fmtDate(d) {
   if (!d) return '';
   try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
@@ -27,12 +30,16 @@ export default function ClientHomeDashboard() {
   // paint instantly and the commercial band fills in a beat later.
   const [kpis, setKpis] = useState(null);
   const [kpiState, setKpiState] = useState('loading'); // loading | ready | none
+  // Reported by /sales-traffic alongside the KPIs; null when no store
+  // reported one, which shows the figures unlabelled rather than guessing.
+  const [currency, setCurrency] = useState(null);
 
   useEffect(() => {
     api.get('/dashboard/client-home').then(setData).catch(e => setErr(e.message));
   }, []);
 
   const cid = data?.client?.id;
+  const fmtMoney = (n) => formatMoney(n, currency);
   useEffect(() => {
     if (!cid) return;
     const end = iso(new Date());
@@ -41,6 +48,7 @@ export default function ClientHomeDashboard() {
       .then(r => {
         const k = (r && r.kpis) || {};
         setKpis(k);
+        setCurrency((r && r.currency) || null);
         setKpiState(k && (k.revenue || k.sessions || k.users || k.orders) ? 'ready' : 'none');
       })
       .catch(() => setKpiState('none'));
