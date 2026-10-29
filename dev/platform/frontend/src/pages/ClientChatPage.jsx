@@ -66,7 +66,7 @@ const TYPE_BG = {
 // frontend had ever asked for one. The analyst panel does: on Paid you get the
 // paid persona, on Owned the one that can draft content. Anything else is the
 // general analyst.
-export default function ClientChatPage({ embedded = false, clientId: clientIdProp, persona = 'analyst' } = {}) {
+export default function ClientChatPage({ embedded = false, clientId: clientIdProp, persona = 'analyst', onChatState, clearRef } = {}) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const { id: routeId } = useParams();
@@ -88,6 +88,8 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
+  // Context log is folded away at the foot of the panel; closed by default.
+  const [ctxOpen, setCtxOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [rangePreset, setRangePreset] = useState('auto');
   const [customStart, setCustomStart] = useState('');
@@ -230,6 +232,14 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
     }
   }
 
+  // Hand the clear action and the "is there anything to clear?" flag to a host
+  // (the analyst panel, which renders Clear history up beside its close button).
+  // The ref is reassigned every render so the handler never goes stale.
+  if (clearRef) clearRef.current = handleClear;
+  useEffect(() => {
+    onChatState?.({ hasMessages: messages.length > 0, clearing });
+  }, [messages.length, clearing, onChatState]);
+
   async function handleDeleteEntry(entryId) {
     try {
       await api.delete(`/chat/${id}/context/${entryId}`);
@@ -259,33 +269,28 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   ];
 
   return (
-    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? { height: embedded ? 'calc(100vh - 230px)' : 'calc(100vh - 64px)' } : {}) }}>
-      {!embedded && <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>}
-      {/* Skip the hero entirely when embedded with nothing to show — an empty
-          hero draws a stray divider under the parent section's tabs. */}
-      {(!embedded || (tab === 'chat' && messages.length > 0)) && (
-        <header className="hero">
-          {!embedded && (
-          <div>
-            <h1 className="display mt-2">AI Data Analyst</h1>
-          </div>
-          )}
-          {tab === 'chat' && messages.length > 0 && (
-            <div className="hero-actions">
-              <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">
-                {clearing ? 'Clearing…' : 'Clear history'}
-              </button>
-            </div>
-          )}
-        </header>
+    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? (embedded ? { flex: 1, minHeight: 0 } : { height: 'calc(100vh - 64px)' }) : {}) }}>
+      {/* Embedded, the panel supplies its own header (and the Clear-history
+          button beside its close ×), so the hero is only for the standalone page. */}
+      {!embedded && (
+        <>
+          <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>
+          <header className="hero">
+            <div><h1 className="display mt-2">AI Data Analyst</h1></div>
+            {tab === 'chat' && messages.length > 0 && (
+              <div className="hero-actions">
+                <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">
+                  {clearing ? 'Clearing…' : 'Clear history'}
+                </button>
+              </div>
+            )}
+          </header>
+        </>
       )}
 
-
       {tab === 'chat' && (
-      <div className="chat-shell">
-
-      {/* Chat panel */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <>
+        {/* Chat fills the panel; the thread is the only thing that scrolls. */}
         <div className="chat-thread">
           {messages.length === 0 && !sending && (
             <div style={{ padding: 'var(--s7) 0', textAlign: 'center' }}>
@@ -436,49 +441,51 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
             </button>
           </div>
         </form>
-      </div>
 
-      {/* Context log sidebar */}
-      <div className="chat-sidebar">
-        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 'var(--s4)', color: 'var(--text)' }}>
-          Context Log
-          <span style={{ fontWeight: 400, color: 'var(--text-subtle)', marginLeft: 'var(--s2)' }}>{openEntries.length} open</span>
-        </div>
+        {/* Context log — folded into a thin bar at the foot of the panel. The
+            body sits above the toggle, so opening it grows upward. */}
+        <div className="analyst-ctx">
+          {ctxOpen && (
+            <div className="analyst-ctx-body">
+              {openEntries.length === 0 && (
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>
+                  No open items. Claude will log decisions and investigations here automatically.
+                </div>
+              )}
 
-        {openEntries.length === 0 && (
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>
-            No open items. Claude will log decisions and investigations here automatically.
-          </div>
-        )}
+              {openEntries.map(entry => (
+                <div key={entry.id} className={`log-entry ${entry.type || ''}`}>
+                  <div className="log-entry-head">
+                    <span className="log-entry-type">{entry.type}</span>
+                    <button onClick={() => handleDeleteEntry(entry.id)} className="btn-ghost" style={{ fontSize: 'var(--fs-caption)', padding: "0 var(--s1)" }} title="Remove">✕</button>
+                  </div>
+                  <div className="log-entry-body">{entry.content}</div>
+                  <div className="log-entry-date">
+                    {new Date(entry.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </div>
+                </div>
+              ))}
 
-        {openEntries.map(entry => (
-          <div key={entry.id} className={`log-entry ${entry.type || ''}`}>
-            <div className="log-entry-head">
-              <span className="log-entry-type">{entry.type}</span>
-              <button onClick={() => handleDeleteEntry(entry.id)} className="btn-ghost" style={{ fontSize: 'var(--fs-caption)', padding: "0 var(--s1)" }} title="Remove">✕</button>
+              {resolvedEntries.length > 0 && (
+                <button onClick={() => setShowResolved(p => !p)} className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
+                  {showResolved ? 'Hide' : 'Show'} {resolvedEntries.length} resolved
+                </button>
+              )}
+
+              {showResolved && resolvedEntries.map(entry => (
+                <div key={entry.id} className="log-entry resolved">
+                  <div className="log-entry-type">{entry.type}</div>
+                  <div className="log-entry-body">{entry.content}</div>
+                </div>
+              ))}
             </div>
-            <div className="log-entry-body">{entry.content}</div>
-            <div className="log-entry-date">
-              {new Date(entry.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-            </div>
-          </div>
-        ))}
-
-        {resolvedEntries.length > 0 && (
-          <button onClick={() => setShowResolved(p => !p)} className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
-            {showResolved ? 'Hide' : 'Show'} {resolvedEntries.length} resolved
+          )}
+          <button type="button" className="analyst-ctx-toggle" onClick={() => setCtxOpen(o => !o)} aria-expanded={ctxOpen}>
+            <span>Context Log <span className="analyst-ctx-count">{openEntries.length} open</span></span>
+            <span className="analyst-ctx-caret" aria-hidden="true">{ctxOpen ? '▾' : '▴'}</span>
           </button>
-        )}
-
-        {showResolved && resolvedEntries.map(entry => (
-          <div key={entry.id} className="log-entry resolved">
-            <div className="log-entry-type">{entry.type}</div>
-            <div className="log-entry-body">{entry.content}</div>
-          </div>
-        ))}
-      </div>
-
-      </div>
+        </div>
+      </>
       )}
     </div>
   );

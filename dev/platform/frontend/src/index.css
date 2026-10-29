@@ -994,24 +994,6 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   border-top: var(--border-w) solid var(--accent-soft);
   margin-top: auto;
 }
-.chat-sidebar {
-  width: 260px; flex-shrink: 0;
-  border-left: var(--border-w) solid var(--accent-soft);
-  padding-left: var(--s5); overflow-y: auto;
-}
-.chat-shell {
-  display: flex; gap: var(--s6);
-  flex: 1; align-items: stretch; min-height: 0;
-}
-@media (max-width: 768px) {
-  .chat-shell { flex-direction: column; gap: var(--s4); }
-  .chat-sidebar {
-    width: 100%; max-height: 240px;
-    border-left: none;
-    border-top: var(--border-w) solid var(--accent-soft);
-    padding-left: 0; padding-top: var(--s4);
-  }
-}
 
 /* Chat context-log entries — pinned investigations / decisions /
    observations in the chat sidebar. The left rail colour swaps for
@@ -1727,15 +1709,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .client-topbar-icon.tone-warning  { color: var(--warning);  border-color: var(--warning); }
 .client-topbar-icon.tone-negative.active,
 .client-topbar-icon.tone-warning.active { color: var(--surface); }
-/* The analyst sits apart from the two navigation icons: it is the frequent
-   action and it opens a panel rather than going somewhere. */
-.client-topbar-icon.analyst {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text);
-}
-.client-topbar-icon.analyst:hover { border-color: var(--text); }
-.client-topbar-icon.analyst.active { background: var(--text); border-color: var(--text); color: var(--surface); }
+/* The analyst opens a panel rather than navigating, but it reads as one of the
+   bar's quiet circles like the cog and the plug — no accent fill. The open
+   state (black fill) is carried by the base .active rule. */
 
 /* The analyst panel. Fixed to the right, over the page rather than in place of
    it — no backdrop and no scroll lock, so the thing being asked about stays
@@ -1771,7 +1747,25 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   font-size: var(--fs-section); line-height: 1; color: var(--text-subtle);
 }
 .analyst-panel-close:hover { color: var(--text); }
-.analyst-panel-body { flex: 1; overflow-y: auto; padding: var(--s4) var(--s5); }
+.analyst-panel-head-actions { display: flex; align-items: center; gap: var(--s2); flex: none; }
+/* A flex column, not a scroll container: the chat thread inside scrolls, so the
+   input row and the context accordion stay pinned while the thread fills the
+   rest. */
+.analyst-panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--s4) var(--s5); }
+
+/* Context log — folded into a thin bar at the foot of the panel, out of the
+   way until wanted. The body sits ABOVE the toggle so opening it grows upward
+   from the bottom rather than shoving the input off-screen. */
+.analyst-ctx { flex: none; border-top: var(--border-w) solid var(--accent-soft); margin-top: var(--s3); }
+.analyst-ctx-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  background: none; border: none; cursor: pointer; padding: var(--s2) 0;
+  font-size: var(--fs-caption); font-weight: 700; color: var(--text);
+}
+.analyst-ctx-toggle:hover { color: var(--text-muted); }
+.analyst-ctx-count { font-weight: 400; color: var(--text-subtle); margin-left: var(--s2); }
+.analyst-ctx-caret { color: var(--text-subtle); }
+.analyst-ctx-body { max-height: 42vh; overflow-y: auto; padding: var(--s2) 0 var(--s3); }
 @media (max-width: 900px) {
   /* Full width, so there is nowhere left to shift the bar to: the panel's own
      close button is the exit at this size. */
