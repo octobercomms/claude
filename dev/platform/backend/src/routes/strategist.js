@@ -238,6 +238,31 @@ router.post('/clients/:clientId/briefing/generate', async (req, res) => {
   }
 });
 
+// The open queue for a client, straight from the latest completed briefing.
+//
+// The analyst panel needs this on every page, so it cannot afford the two
+// round trips of "list the briefings, then fetch the newest one" — and it does
+// not want the synthesis or the pillar analyses either, which are the bulk of
+// that payload. Open items only: the panel is a working list, and a ticked
+// item belongs in the briefing's own history rather than in your way.
+router.get('/clients/:clientId/queue', async (req, res) => {
+  try {
+    const { rows: brows } = await pool.query(
+      `SELECT id, generated_at FROM strategist_briefings
+        WHERE client_id = $1 AND status = 'completed'
+        ORDER BY generated_at DESC LIMIT 1`, [req.params.clientId]);
+    if (!brows.length) return res.json({ briefing_id: null, generated_at: null, items: [] });
+
+    const { rows } = await pool.query(
+      `SELECT id, pillar, priority, position, text, rationale, done, first_raised_at
+         FROM strategist_briefing_recommendations
+        WHERE briefing_id = $1 AND done = false
+        ORDER BY CASE WHEN priority = 'crucial' THEN 0 ELSE 1 END, position ASC`,
+      [brows[0].id]);
+    res.json({ briefing_id: brows[0].id, generated_at: brows[0].generated_at, items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/clients/:clientId/briefings', async (req, res) => {
   try {
     const { rows } = await pool.query(

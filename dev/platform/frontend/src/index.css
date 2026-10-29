@@ -1785,6 +1785,36 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   font-size: var(--fs-section); line-height: 1; color: var(--text-subtle);
 }
 .analyst-panel-close:hover { color: var(--text); }
+/* The panel's two views. A segmented pair rather than tabs: there are exactly
+   two, they are peers, and the pill reads as a switch rather than as
+   navigation into something else. */
+.analyst-panel-views { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-pill); background: var(--surface-sunken); flex: none; }
+.analyst-panel-view {
+  border: none; background: none; cursor: pointer;
+  padding: 4px 12px; border-radius: var(--r-pill);
+  font-family: var(--font); font-size: var(--fs-caption); font-weight: 700;
+  color: var(--text-muted);
+}
+.analyst-panel-view:hover { color: var(--text); }
+.analyst-panel-view.active { background: var(--surface); color: var(--text); }
+
+/* The queue, inside the panel. */
+.analyst-queue { overflow-y: auto; padding-top: var(--s2); }
+.analyst-queue-item {
+  display: flex; gap: var(--s3); align-items: flex-start;
+  padding: var(--s3) 0; border-bottom: 1px solid var(--card-border);
+}
+.analyst-queue-item input[type="checkbox"] { margin-top: 3px; cursor: pointer; flex: none; }
+.analyst-queue-head { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s1); }
+.analyst-queue-pillar {
+  font-size: var(--fs-caption); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--text-subtle);
+}
+.analyst-queue-text { font-size: var(--fs-body); line-height: 1.45; color: var(--text); }
+/* The reasoning sits with the item here rather than behind a control: the
+   panel is a glance, and a glance that needs a click is not one. */
+.analyst-queue-why { margin-top: var(--s1); font-size: var(--fs-caption); line-height: 1.5; color: var(--text-muted); }
+
 .analyst-panel-head-actions { display: flex; align-items: center; gap: var(--s2); flex: none; }
 /* A flex column, not a scroll container: the chat thread inside scrolls, so the
    input row and the context accordion stay pinned while the thread fills the

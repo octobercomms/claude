@@ -19,6 +19,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import ClientChatPage from '../pages/ClientChatPage';
+import AnalystQueue from './AnalystQueue';
 import { analystContextFor } from '../utils/analystContext';
 
 export default function AnalystPanel({ clientId, open, onClose, pathname }) {
@@ -28,6 +29,14 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
   // the "is there anything to clear?" state belong to the chat. The chat
   // reports them up through onChatState and exposes the handler on clearRef.
   const [chat, setChat] = useState({ hasMessages: false, clearing: false });
+  // Two views, one panel. The conversation is where you ask; the queue is what
+  // is already on your list. Both are scoped to the section you are standing
+  // in, so switching between them costs nothing and neither needs its own icon
+  // in a bar that already has three.
+  const [view, setView] = useState('chat');
+  // Back to the conversation when the panel closes: the queue is a glance, the
+  // chat is where you were working.
+  useEffect(() => { if (!open) setView('chat'); }, [open]);
   const clearRef = useRef(null);
   // A closed panel is unmounted below, so reset the button to its empty state
   // rather than flash the previous conversation's "Clear history" on reopen.
@@ -96,8 +105,17 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
           <div className="analyst-panel-kicker">Analyst</div>
           {label && <div className="analyst-panel-section">{label}</div>}
         </div>
+        <div className="analyst-panel-views" role="tablist" aria-label="Analyst views">
+          {['chat', 'queue'].map(v => (
+            <button key={v} type="button" role="tab" aria-selected={view === v}
+              className={`analyst-panel-view${view === v ? ' active' : ''}`}
+              onClick={() => setView(v)}>
+              {v === 'chat' ? 'Chat' : 'Queue'}
+            </button>
+          ))}
+        </div>
         <div className="analyst-panel-head-actions">
-          {chat.hasMessages && (
+          {view === 'chat' && chat.hasMessages && (
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -116,7 +134,15 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
         {/* Mounted only while open, so switching sections starts the right
             conversation rather than re-labelling the previous one, and a closed
             panel costs nothing. */}
-        {open && <ClientChatPage embedded clientId={clientId} persona={persona} onChatState={setChat} clearRef={clearRef} />}
+        {/* The chat stays mounted while the queue shows, hidden rather than
+            unmounted, so switching views does not throw away a half-typed
+            question or reload the conversation. */}
+        {open && (
+          <div style={{ display: view === 'chat' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+            <ClientChatPage embedded clientId={clientId} persona={persona} onChatState={setChat} clearRef={clearRef} />
+          </div>
+        )}
+        {open && view === 'queue' && <AnalystQueue clientId={clientId} persona={persona} />}
       </div>
     </aside>
   );
