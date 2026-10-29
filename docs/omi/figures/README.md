@@ -29,10 +29,10 @@ repo rather than from here:
 
 ```sh
 git clone --depth 1 https://github.com/wheresryan22/anatomy.git
-cp -r docs/omi/figures/false-zero anatomy/examples/
+cp -r docs/omi/figures/<name> anatomy/examples/
 cd anatomy
-node examples/false-zero/build.mjs            # dark
-node examples/false-zero/build.mjs --light    # light
+node examples/<name>/build.mjs            # dark
+node examples/<name>/build.mjs --light    # light
 ```
 
 The output is a standalone HTML page with the kit inlined: no build step, no
@@ -42,13 +42,67 @@ Verify before committing, with `CHROME_PATH` pointing at a Chromium binary
 (`/opt/pw-browsers/chromium` in a cloud session):
 
 ```sh
-node scripts/lines.mjs examples/false-zero/false-zero.html        # must print "line ends: 0"
-node scripts/lines.mjs examples/false-zero/false-zero-light.html  # and in light too
-node scripts/capture.mjs examples/false-zero/false-zero.html --out shot.png --reduced
+node scripts/lines.mjs examples/<name>/<name>.html        # must print "line ends: 0"
+node scripts/lines.mjs examples/<name>/<name>-light.html  # and in light too
+node scripts/capture.mjs examples/<name>/<name>.html --out shot.png --reduced
 ```
 
-**Read the PNG.** The line check does not see composition, and two faults in
-the first figure were only visible by looking: see below.
+**Read the PNG.** The line check does not see composition, and the faults that
+mattered most in both figures so far were only visible by looking: a gap that
+read as contact, and two dials occluding each other. Capture both poses of
+anything that moves, because a figure can be right at rest and wrong in use.
+
+## `blended-average`
+
+Six weights of different heights in six bored pockets, and two gauges on one
+column. The upper one reads their average, the lower one the spread between
+the heaviest and lightest. Redistribute the weights without changing the total
+and **the average needle does not move by a hair** while the spread needle
+swings across its whole scale.
+
+It illustrates Falcon's six storefronts, consumer DTC and trade portal across
+UK, US and EU, collapsing into one £174 average order value. Both poses are
+the same arithmetic over the same sum; only one of them is a business you
+would run the same way.
+
+| In the drawing | In the account |
+|---|---|
+| Each weight's height | One storefront's average order value |
+| The upper gauge | The £174 everyone quotes |
+| The lower gauge | The range it is hiding |
+| Same total, any shape | Why the quoted number cannot be acted on |
+
+### Why two gauges
+
+A single still needle reads as a broken instrument. The needle that moves is
+what makes the still one damning, and it is the reason the figure has a second
+dial rather than a caption asking you to take the stillness on trust.
+
+Both poses sum to exactly 154, so the average is genuinely identical rather
+than nearly. Every frame on the way between them is a blend of the two, so the
+total holds across the whole sweep and not only at the ends.
+
+### Three faults the PNG caught
+
+- **Two dials side by side at different depths occlude each other.** The near
+  one covered a third of the far one and the column rose between them.
+  Stacking them on one column fixed the occlusion and gave the figure the
+  height it needed against a wide base.
+- **The column ran on past the top gauge with nothing on it.** A bare stretch
+  is an empty corner, which the craft rules count as unfinished rather than
+  calm.
+- **The dial ticks floated.** They sat at `DIAL_R - 3.6` against a ring at
+  `DIAL_R - 2.4`, so their outer ends stopped 1.2 units short of anything: the
+  line check counted twelve. Ticks hang *from* the ring, and a gauge needle
+  reaches its scale.
+
+### A JavaScript trap worth remembering
+
+The live script is assembled in a template literal, and inside `${...}` the
+content is **expression context**, so template-literal escaping does not
+apply. `replace(/k\\./g, "")` there is a regex matching a literal backslash,
+strips nothing, and the page dies at runtime with `k is not defined`. It is
+`replace(/k\./g, "")`.
 
 ## `false-zero`
 
