@@ -6,7 +6,7 @@ const { loadVisibleClientIds, requireClientAccess } = require('../middleware/cli
 const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const google = require('../connectors/google');
-const { resolveCurrency } = require('../services/ecomCurrency');
+const { resolveCurrency, currencyIsUnset } = require('../services/ecomCurrency');
 const { summarisePillars } = require('../services/channelPillars');
 
 router.use(authenticate);
@@ -245,6 +245,11 @@ router.get('/:clientId', async (req, res) => {
     const { currency, note } = resolveCurrency(statedCurrency, storeSummaries);
     if (currency) result.currency = currency;
     if (note) result.notes.push(note);
+    // An unlabelled figure that does not say why is read as a bug, and has
+    // been twice. This separates "nobody has set it" — one field in Setup —
+    // from "the stores disagree", which already carries its own note and which
+    // setting the field would paper over rather than fix.
+    result.currency_unset = currencyIsUnset(statedCurrency, storeSummaries);
 
     res.json(result);
   } catch (err) {

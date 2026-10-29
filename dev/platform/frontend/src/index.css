@@ -1729,6 +1729,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
    toggle, the period and the recipients in one unlabelled row, so three
    unrelated settings read as one setting with three parts. */
 .drawer-group { margin-bottom: var(--s7); }
+/* An archive row: pick it, or bin it. The delete sits outside the select
+   button rather than inside it, so clicking the row can never delete it. */
+.drawer-archive-row { display: flex; align-items: center; gap: var(--s2); }
 .drawer-group:last-child { margin-bottom: 0; }
 .drawer-group-head {
   color: var(--text-subtle);

@@ -809,6 +809,37 @@ Each `.drawer-group` names one concern. The strip this replaced put the email
 toggle, the period and the recipients in one unlabelled row, so three unrelated
 settings read as one setting with three parts.
 
+#### An unlabelled number has to say why
+
+`/sales-traffic/:id` returns **`currency_unset`**, and Measure renders a line
+under the KPI strip saying the money has no currency and linking to Setup.
+
+Showing no symbol when nobody reported one is right, and on its own it is
+unhelpful: the account lead gets a headline revenue figure with no unit,
+nothing saying why, and nothing saying what to do. It was reported as a bug
+twice, and both times the answer was "set the field in Setup", which is a
+worse answer the second time. The page should carry it.
+
+**`currencyIsUnset` is not "the currency is null".** Stores disagreeing also
+gives null, and that is a different problem with its own note: setting the
+client's currency would paper over a cross-currency sum rather than fix it.
+Only "nobody has said" gets the prompt. Mutation-tested both ways.
+
+The note is on the client Dashboard only, not repeated on the four PESO pages'
+`PillarMeasure`. One place to be told, four places to be nagged.
+
+#### Deleting a briefing
+
+The archive in the drawer, one `×` per row. `destroy()` **survived the rebuild
+with no caller** — the only delete control had been in the left rail, which the
+first redesign removed, so the route and its confirm dialog sat there with
+nothing to press. A capability with no control reads as missing, and was
+reported as missing.
+
+Two details: the delete sits *outside* the select button, so picking a briefing
+can never bin it; and the archive renders at `length > 0` rather than
+`length > 1`, or a client's only briefing could never be deleted.
+
 #### Two traps
 
 - **Both render functions must sit inside the component.** Adding
