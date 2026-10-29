@@ -50,7 +50,7 @@ export default function Layout() {
 
   // Remember the last client the user was in, so the sidebar "Workspace" item
   // jumps straight back there rather than a redundant client list (the
-  // Dashboard already lists every client). Switch clients via the header
+  // Clients page already lists every client). Switch clients via the header
   // ClientSwitcher. A client-role login only ever has one, so this is a no-op
   // for them.
   useEffect(() => {
@@ -62,9 +62,11 @@ export default function Layout() {
   // (Data first), never the all-clients directory. Agency users get their
   // last-visited client, or the picker if they've none.
   const workspaceTarget = readOnly
-    ? (user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/dashboard')
+    ? (user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/clients')
     : (lastClientPath || '/clients');
-  const workspaceActive = location.pathname.startsWith('/clients');
+  // Workspace lights up inside a client, never on the bare client list — that
+  // is the Clients item's own path, and two highlighted items read as a bug.
+  const workspaceActive = !!clientId;
 
   const [navOpen, setNavOpen] = useState(false);
 
@@ -107,12 +109,12 @@ export default function Layout() {
 
         <ul className="app-nav-list">
           <li>
-            <NavLink to="/dashboard" style={({ isActive }) => linkStyle(isActive)}>Dashboard</NavLink>
+            <NavLink to="/clients" style={() => linkStyle(location.pathname === '/clients')}>Clients</NavLink>
           </li>
           <li>
             {/* Workspace — the selected client's PESO + Data + Admin area.
-                Jumps to the last client you were in (Dashboard is where you
-                pick a different one), or the client picker if you've none yet. */}
+                Jumps to the last client you were in (Clients is where you
+                pick a different one), or the client list if you've none yet. */}
             <NavLink to={workspaceTarget} style={() => linkStyle(workspaceActive)}>Workspace</NavLink>
             {clientId && (
               <div>

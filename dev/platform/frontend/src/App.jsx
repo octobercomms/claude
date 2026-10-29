@@ -5,7 +5,6 @@ import { ToastProvider } from './context/ToastContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
-import DashboardPage from './pages/DashboardPage';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import ReportsPage from './pages/ReportsPage';
@@ -48,7 +47,7 @@ function ProtectedRoute({ children }) {
 function HomeRoute() {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return null;
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <HomePage />;
+  return isAuthenticated ? <Navigate to="/clients" replace /> : <HomePage />;
 }
 
 // Edit + Visualise folded into the client Produce suite; keep old URLs working.
@@ -91,7 +90,10 @@ export default function App() {
           <Route path="/b/:token" element={<BookingManagePage />} />
           <Route path="/set-password/:token" element={<SetPasswordPage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="dashboard" element={<DashboardPage />} />
+            {/* The agency landing is the client list. /dashboard is kept as a redirect
+                for bookmarks and old links; the Dashboard name is being reused for
+                the per-client section. */}
+            <Route path="dashboard" element={<Navigate to="/clients" replace />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
             <Route path="clients/:id/seo" element={<ClientSEOPage />} />
@@ -111,9 +113,9 @@ export default function App() {
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />
             <Route path="media/outlet/:id" element={<OutletProfilePage />} />
             {/* Video is client-scoped now (Workspace → Video); the old global
-                page is gone. Bounce any stale links to the dashboard. */}
-            <Route path="video" element={<Navigate to="/dashboard" replace />} />
-            <Route path="recordings" element={<Navigate to="/dashboard" replace />} />
+                page is gone. Bounce any stale links to the client list. */}
+            <Route path="video" element={<Navigate to="/clients" replace />} />
+            <Route path="recordings" element={<Navigate to="/clients" replace />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             {/* Leads folded into Settings → Workspace → Leads; keep old links working. */}
