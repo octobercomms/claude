@@ -106,7 +106,7 @@ router.put('/:id', async (req, res) => {
   // of fields that must NEVER be added here: `id`, `owner_id`,
   // `social_autopilot_paused` (has its own admin-only route),
   // `ads_margin` (already on its own route), connector arrays.
-  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain, strategist_recipients } = req.body;
+  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain, strategist_recipients, reporting_currency } = req.body;
   try {
     const current = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
     if (!current.rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -118,8 +118,9 @@ router.put('/:id', async (req, res) => {
         briefing_field = $4, monthly_focus = $5,
         report_recipients = $6, report_schedule = $7,
         report_sections = $8, section_instructions = $9, domain = $10,
-        strategist_recipients = $11
-       WHERE id = $12 RETURNING *`,
+        strategist_recipients = $11,
+        reporting_currency = $12
+       WHERE id = $13 RETURNING *`,
       [
         name ?? c.name,
         slug ?? c.slug,
@@ -132,6 +133,12 @@ router.put('/:id', async (req, res) => {
         JSON.stringify(section_instructions ?? c.section_instructions ?? {}),
         domain ?? c.domain ?? null,
         strategist_recipients !== undefined ? strategist_recipients : c.strategist_recipients,
+        // Normalised here rather than trusted from the form: a blank string
+        // or a symbol would reach the UI as a label and be worse than null.
+        reporting_currency !== undefined
+          ? (/^[A-Za-z]{3}$/.test(String(reporting_currency || '').trim())
+              ? String(reporting_currency).trim().toUpperCase() : null)
+          : c.reporting_currency,
         req.params.id,
       ]
     );

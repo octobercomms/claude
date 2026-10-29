@@ -408,6 +408,29 @@ Guards: `tests/ecom-currency.test.js` (backend, its own CI step) and
 `tests/money.test.mjs` (frontend). Both were mutation-tested — make
 `agreeCurrency` pick the first of several currencies and two checks go red.
 
+**The currency comes from the client, then the stores** (29 Oct 2026, fixing a
+regression from the morning). Making the connectors report their own currency
+fixed Architecture Tours showing USD as sterling, and introduced a worse
+failure at the other end: `kpis.revenue` is set from GA4 **whether or not an
+ecommerce connector reported**, but the currency was only resolved inside the
+ecom block. A client with GA4 revenue and no working store connector went from
+a wrong symbol to no symbol at all — which is what Falcon showed.
+
+`resolveCurrency(clientCurrency, summaries)` in `services/ecomCurrency.js`, and
+the resolve now runs **outside** the ecom block:
+
+1. `clients.reporting_currency` (migration `216`, set in Setup) wins. Currency
+   is a property of the client, not of whichever connector answered: six stores
+   can report in one currency and the account lead knows which.
+2. Otherwise whatever the stores agree on.
+3. Otherwise nothing, shown unlabelled. Never a guessed pound sign.
+
+**A stated currency does not silence disagreeing stores.** Revenue is summed
+across them with no conversion, so stamping one currency on that total is
+arithmetic that is simply wrong; the note says the figure is not a true total
+rather than letting the label imply a conversion nobody performed. That case
+was a bug in the first version of this fix, caught by its own test.
+
 **Two places still hardcode `£` and were left alone**, because their figures
 come from elsewhere and each needs its own provenance decided:
 

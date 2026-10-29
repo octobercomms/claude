@@ -494,6 +494,20 @@ export default function ClientDetailPage() {
             <Field label="Domain (for SEO data)">
               <input className="input" value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
             </Field>
+            {/* Currency is a property of the client, not of whichever connector
+                answered: six stores can report in one currency and the account
+                lead knows which. Left blank it follows the stores, and shows
+                unlabelled if they say nothing — never a guessed pound sign,
+                which is the bug this whole thread started with. */}
+            <Field label="Reporting currency">
+              <select className="input" value={client.reporting_currency || ''}
+                onChange={e => setClient(p => ({ ...p, reporting_currency: e.target.value || null }))}>
+                <option value="">Follow the connected stores</option>
+                {['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'NZD', 'CHF', 'SEK', 'JPY'].map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
           </div>
           <Field label="Status">
             <button type="button" onClick={() => setClient(p => ({ ...p, active: !p.active }))}
