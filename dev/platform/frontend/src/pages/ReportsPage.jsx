@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import { REPORT_STATUSES, reportStatusLabel, reportStatusColor } from '../utils/reportStatus';
+import ReportDelivery from '../components/ReportDelivery';
 
 export default function ReportsPage() {
   const toast = useToast();
@@ -92,8 +93,8 @@ export default function ReportsPage() {
           <button onClick={() => setShowTrigger(true)} className="btn btn-primary btn-sm">+ Trigger Report</button>
         </div>
       </header>
-      <div style={{ display: 'none' }}>
-      </div>
+
+      <ReportDelivery />
 
       {showTrigger && (
         <div className="card">

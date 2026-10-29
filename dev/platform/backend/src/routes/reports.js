@@ -125,6 +125,60 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Who the scheduler would actually deliver to, per active client.
+//
+// Before this, the only way to know whether a client had report recipients was
+// to open that client's Setup tab and read one checklist item, one client at a
+// time. There was no way to see it across the book, which is how nine of ten
+// clients came to be generating a full weekly report every Monday and sending
+// it nowhere.
+//
+// Scheduled, not merely configured, is the thing to report: runScheduledReports
+// defaults weekly_day to Monday, so an active client with an empty
+// report_schedule is due a weekly report whether or not anyone chose that.
+//
+// Declared before '/:id' because that route would otherwise capture
+// '/delivery' as a report id.
+router.get('/delivery', async (req, res) => {
+  try {
+    const scoped = req.visibleClientIds !== null;
+    if (scoped && !req.visibleClientIds.length) return res.json({ clients: [] });
+    const { rows } = await pool.query(`
+      SELECT id, name, slug, report_recipients, report_schedule
+      FROM clients
+      WHERE active = true${scoped ? ' AND id = ANY($1)' : ''}
+      ORDER BY name
+    `, scoped ? [req.visibleClientIds] : []);
+
+    const clients = rows.map(c => {
+      const schedule = c.report_schedule || {};
+      const weeklyTo = reportService.recipientsFor(c.report_recipients, 'weekly');
+      const monthlyTo = reportService.recipientsFor(c.report_recipients, 'monthly');
+      // Mirrors runScheduledReports: weekly runs on weekly_day or Monday by
+      // default; monthly only runs when monthly_day is set.
+      const weeklyScheduled = true;
+      const monthlyScheduled = !!schedule.monthly_day;
+      return {
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        weekly: { recipients: weeklyTo.length, scheduled: weeklyScheduled, delivers: weeklyScheduled && weeklyTo.length > 0 },
+        monthly: { recipients: monthlyTo.length, scheduled: monthlyScheduled, delivers: monthlyScheduled && monthlyTo.length > 0 },
+        weekly_day: schedule.weekly_day || 'monday (default)',
+      };
+    });
+
+    res.json({
+      clients,
+      // The ones costing nothing now but receiving nothing either.
+      skipping: clients.filter(c => (c.weekly.scheduled && !c.weekly.recipients)
+                                 || (c.monthly.scheduled && !c.monthly.recipients)).map(c => c.id),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get single report — checked against caller's visibility
 router.get('/:id', async (req, res) => {
   try {

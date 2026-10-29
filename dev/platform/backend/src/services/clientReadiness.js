@@ -5,6 +5,7 @@
 // each item linking to where it's fixed.
 
 const pool = require('../db');
+const { recipientsFor } = require('./reportService');
 
 // link encodes where in the app the item is fixed, relative to the client.
 const item = (id, area, label, ok, detail, link) => ({ id, area, label, status: ok ? 'ok' : 'todo', detail, link });
@@ -23,8 +24,16 @@ async function getReadiness(clientId) {
   const c = cr[0];
   const byKind = Object.fromEntries(assets.map(a => [a.kind, a]));
   const fontRow = byKind.font;
-  const recips = c.report_recipients || {};
-  const hasRecipients = (recips.monthly?.length || 0) + (recips.weekly?.length || 0) > 0;
+  // Per report type, through the same reader the scheduler and sendReport use.
+  // Summing the two lists (the old check) marked a client "ok" when it had
+  // monthly recipients and no weekly ones — while every weekly report it
+  // generated was still being binned, which is the state this item exists to
+  // catch. Weekly is the one that matters most: runScheduledReports defaults
+  // weekly_day to Monday, so an active client is due one whether or not
+  // anybody chose that.
+  const weeklyTo = recipientsFor(c.report_recipients, 'weekly');
+  const monthlyTo = recipientsFor(c.report_recipients, 'monthly');
+  const hasRecipients = weeklyTo.length > 0;
   const persona = dm[0]?.persona || {};
 
   const checks = [
@@ -48,8 +57,11 @@ async function getReadiness(clientId) {
       'Connect Clarity to get the AI CRO/funnel-leak scan.', '/sales-traffic?tab=cro'),
     item('dm_persona', 'DM bot', 'DM bot persona configured', !!(persona.system_prompt || persona.faqs),
       'Set the persona so the Instagram DM autoresponder speaks for the brand.', '/social?tab=dm_bot'),
-    item('recipients', 'Reports', 'Report recipients set', hasRecipients,
-      'Add who receives the weekly/monthly reports so scheduled sends have a destination.', '?tab=details'),
+    item('recipients', 'Reports', 'Weekly report recipients set', hasRecipients,
+      hasRecipients
+        ? `Weekly reports go to ${weeklyTo.length} recipient${weeklyTo.length === 1 ? '' : 's'}${monthlyTo.length ? `; monthly to ${monthlyTo.length}` : '; no monthly recipients'}.`
+        : 'Weekly reports run every Monday by default. With no recipients the scheduler records them as not sent and skips generating them, so this client receives nothing.',
+      '?tab=details'),
   ];
 
   const done = checks.filter(c => c.status === 'ok').length;
