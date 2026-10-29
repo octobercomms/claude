@@ -258,14 +258,45 @@ over the right-hand side of whatever page you are on.
 A panel, not a modal, and that is the whole design:
 
 - no backdrop and no scroll lock, so the numbers you are asking about stay
-  visible and the page behind stays clickable;
-- Escape closes it, and so does the bubble;
-- the client bar slides left by the panel's width while it is open
-  (`.client-topbar.shifted`, sharing `--analyst-w` with the panel) and sits at
-  `z-index: 70`, above the panel's 60. Without the shift the panel covers the
-  cog, the plug, the switcher and the bubble itself, leaving Escape as the only
-  exit. The drive script checks each of those is the topmost element at its own
-  centre, because this is invisible to lint, tests and a build.
+  visible, and the page behind still **scrolls** while the panel is open;
+- **clicking anywhere outside the panel dismisses it**, and that click is
+  swallowed rather than passed through, so dismissing never also presses
+  whatever was under the cursor. Escape and the × work too;
+- the client bar stays put at `z-index: 50` and is covered by the panel. It
+  used to sit at 70 and slide left by `--analyst-w` to stay reachable, because
+  the panel covering it left Escape as the only exit. Click-to-dismiss replaced
+  that exit, so the bar no longer jumps sideways every time the panel opens.
+
+Two things about the dismiss that are easy to get wrong:
+
+- **It listens on `click` in the capture phase, not `mousedown`.** Cancelling
+  the mousedown does not stop the click: they are separate events, and the
+  first version let the dismissing click also press a button on the page. A
+  capture listener runs before the target's own handler, which is what makes
+  `stopPropagation` there effective. Mutation-tested: switch the listener to
+  the bubble phase and the check goes red.
+- **No backdrop element, deliberately.** A div over the page would swallow
+  wheel events as well, and scrolling the page to read more of what you are
+  asking about is the whole reason this is a panel rather than a modal. The
+  capture listener leaves scrolling untouched.
+
+The panel covers the bar at every width, so there is no second element to
+exclude from the dismiss handler. If the bar is ever raised above the panel
+again, clicks on the bubble will need excluding or it will close and reopen on
+one click.
+
+**The PESO sub-nav carries a plain-English chip**: Paid (Ads), Earned (PR),
+Shared (Social), Owned (SEO). The model's word keeps the position, because it
+is what we plan in and what clients hear; the chip is there so nobody has to
+translate before clicking. `.nav-chip` is the one dark-surface chip in the
+sheet — every other `.chip-*` is built for a light card, and a white pill on
+the dark rail outshouts the label it is helping.
+
+**Those four NavLinks are written out rather than mapped over a table.** A
+first pass used a `PESO_NAV` array, and `tests/routeDoors.test.mjs` failed:
+`/clients/:id/social` and `/clients/:id/pr` became pages nothing opened,
+because a path assembled from an array is a door neither the guard nor a human
+grepping for the route can see. Three saved lines are not worth that.
 
 **The persona comes from the section you are standing in.** `utils/analystContext.js`
 maps the path segment after `/clients/:id` to one of the four PESO pillar

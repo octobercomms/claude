@@ -155,10 +155,20 @@ export default function Layout() {
                 {readOnly && (
                   <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
                 )}
-                <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
-                <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned</NavLink>
-                <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared</NavLink>
-                <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned</NavLink>
+                {/* PESO stays the label, with the plain-English name as a chip
+                    beside it. Paid/Earned/Shared/Owned is the model we work in
+                    and the vocabulary clients hear, so it keeps the position;
+                    the chip is there so nobody has to translate before
+                    clicking. The chip is decorative — the link's accessible
+                    name already carries both words. */}
+                {/* Written out rather than mapped over a table: routeDoors
+                    looks for a literal `to=` per page, and a path assembled
+                    from an array is a door neither the guard nor a human
+                    grepping for the route can see. Four lines is the price. */}
+                <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid<span className="nav-chip">Ads</span></NavLink>
+                <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned<span className="nav-chip">PR</span></NavLink>
+                <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared<span className="nav-chip">Social</span></NavLink>
+                <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned<span className="nav-chip">SEO</span></NavLink>
                 {/* Produce — the media suite: Record (video), Edit and Visualise
                     (images) in one place. Visible to clients (Record view-only;
                     Visualise only with the can_use_visualise grant). */}
