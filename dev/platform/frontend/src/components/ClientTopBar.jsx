@@ -44,10 +44,12 @@ export default function ClientTopBar({ clientId }) {
   }, [clientId, location.pathname, location.search]);
 
   const state = health ? (HEALTH[health.worst] || HEALTH.none) : null;
-  const onSetup = location.pathname === `/clients/${clientId}`
-    && ['setup_overview', 'details', 'brand'].includes(new URLSearchParams(location.search).get('tab'));
-  const onConnectors = location.pathname === `/clients/${clientId}`
-    && new URLSearchParams(location.search).get('tab') === 'connectors';
+  // The cog opens the setup itself — the client brief — not a page describing
+  // where setup lives. Brand kit is its own route and lights the cog too.
+  const tabNow = new URLSearchParams(location.search).get('tab');
+  const onSetup = (location.pathname === `/clients/${clientId}` && ['details', 'setup_overview'].includes(tabNow))
+    || location.pathname === `/clients/${clientId}/brand`;
+  const onConnectors = location.pathname === `/clients/${clientId}` && tabNow === 'connectors';
 
   const plugTitle = state
     ? `Connectors — ${state.label}${health.total ? ` (${health.active}/${health.total} active)` : ''}`
@@ -58,7 +60,7 @@ export default function ClientTopBar({ clientId }) {
       <button
         type="button"
         className={`client-topbar-icon${onSetup ? ' active' : ''}`}
-        onClick={() => navigate(`/clients/${clientId}?tab=setup_overview`)}
+        onClick={() => navigate(`/clients/${clientId}?tab=details`)}
         title="Setup"
         aria-label="Setup"
         aria-current={onSetup ? 'page' : undefined}

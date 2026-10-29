@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
@@ -369,7 +369,7 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['measure', 'details', 'brand', 'connectors', 'setup_overview', 'strategy', 'reports'].includes(tab) && (
+      {['measure', 'details', 'connectors', 'strategy', 'reports'].includes(tab) && (
         <div className="tabs">
           {/* Three tabs, and only three. Setup and Connectors are reached from
               the cog and the plug in the client bar, top right, where their
@@ -397,43 +397,14 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {tab === 'setup_overview' && (
-        <>
-        <SuiteOverview
-          tagline="Set it up once. Reap it everywhere."
-          description="The brand, strategy and data connections you define here power every other section — so ads stay on-brand, content stays on-message, and the weekly client report writes itself."
-          benefits={['On-brand across every channel', 'Wire up data once', 'The weekly report writes itself']}
-          primary={{ fn: 'data', ctaLabel: 'Open the brief', onCta: () => setSearchParams({ tab: 'details' }) }}
-          readouts={[
-            { fn: 'data', name: 'Connectors', value: connectors.length || '—', sub: connectors.length ? 'connected' : 'none yet' },
-          ]}
-          map={[
-            { title: 'Setup', fn: 'data', subtitle: 'Client details and the brand kit', nodes: [
-              { label: 'Client brief', onClick: () => setSearchParams({ tab: 'details' }) },
-              { label: 'Brand kit',    onClick: () => setSearchParams({ tab: 'brand' }) },
-            ] },
-            { title: 'Connectors', fn: 'data', subtitle: 'Wire up every data source once', nodes: [
-              { label: 'Data connectors', onClick: () => setSearchParams({ tab: 'connectors' }) },
-            ] },
-            { title: 'Strategy', fn: 'strategy', subtitle: 'The thinking behind the work', nodes: [
-              { label: 'SOSTAC',    onClick: () => setSearchParams({ tab: 'strategy' }) },
-              { label: 'Personas',  onClick: () => setSearchParams({ tab: 'strategy' }) },
-              { label: 'SWOT',      onClick: () => setSearchParams({ tab: 'strategy' }) },
-              { label: 'Rival map', onClick: () => setSearchParams({ tab: 'strategy' }) },
-            ] },
-            { title: 'Reports', fn: 'distribute', subtitle: 'Cross-channel client report builder', chained: true, nodes: [
-              { label: 'Templates', onClick: () => setSearchParams({ tab: 'reports' }) },
-              { label: 'Live data', onClick: () => setSearchParams({ tab: 'reports' }) },
-              { label: 'Narrative', onClick: () => setSearchParams({ tab: 'reports' }) },
-              { label: 'PDF/email', onClick: () => setSearchParams({ tab: 'reports' }) },
-            ] },
-          ]}
-        />
-        <div style={{ marginTop: 'var(--s8)' }}>
-          <SetupReadinessPanel clientId={id} />
-        </div>
-        </>
-      )}
+      {/* Setup. The SuiteOverview that used to sit here described where
+          setup lived rather than being it, and its "Brand kit" node pointed at
+          ?tab=brand, a tab with no render block at all — a dead link in a
+          diagram whose whole job was wayfinding. Brand kit is its own route,
+          /clients/:id/brand, and had no working link anywhere in the app.
+          The readiness checklist stays: it is the only thing on this screen
+          that told you anything you did not already know. */}
+      {tab === 'setup_overview' && <Navigate to={`/clients/${id}?tab=details`} replace />}
 
       {tab === 'forms' && (
         <SuiteOverview
@@ -451,6 +422,13 @@ export default function ClientDetailPage() {
             { tag: 'Status',      title: 'Complete vs. partial',    body: 'Track abandoned submissions too — useful for re-engagement.' },
           ]}
         />
+      )}
+
+      {tab === 'details' && (
+        <div className="row between center" style={{ marginBottom: 'var(--s4)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+          <h2 className="h2" style={{ margin: 0 }}>Setup</h2>
+          <Link to={`/clients/${id}/brand`} className="btn btn-secondary btn-sm">Brand kit →</Link>
+        </div>
       )}
 
       {tab === 'details' && (
@@ -547,6 +525,12 @@ export default function ClientDetailPage() {
       {tab === 'details' && (
         <div style={{ marginTop: 'var(--s5)' }}>
           <ClientBrandPage embedded />
+        </div>
+      )}
+
+      {tab === 'details' && (
+        <div style={{ marginTop: 'var(--s8)' }}>
+          <SetupReadinessPanel clientId={id} />
         </div>
       )}
 
