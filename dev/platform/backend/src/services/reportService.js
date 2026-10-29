@@ -285,6 +285,25 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
   await sendReport(report.id, { summaryText, metrics, weekLabel, pdfPath });
 }
 
+// Who a report of this type would actually be emailed to.
+//
+// Shared deliberately. The scheduler asks this before spending anything on a
+// report, and sendReport asks it again before sending one. If the two ever
+// read report_recipients differently, the scheduler either skips a client who
+// would have been delivered or builds one that gets binned — which is the bug
+// this helper exists to make impossible.
+//
+// Anything that is not 'monthly' reads the weekly list, matching how
+// runScheduledReports classifies a report. Blank and non-string entries are
+// dropped: a recipients object of { weekly: [''] } has a length of 1 and no
+// address in it, and would otherwise read as configured.
+function recipientsFor(reportRecipients, reportType) {
+  const r = reportRecipients || {};
+  const list = reportType === 'monthly' ? r.monthly : r.weekly;
+  if (!Array.isArray(list)) return [];
+  return list.filter(a => typeof a === 'string' && a.trim());
+}
+
 async function sendReport(reportId, overrides = {}) {
   // overrides.pdfPath can be passed directly (not stored in summary JSON)
   const { rows } = await pool.query(
@@ -305,10 +324,7 @@ async function sendReport(reportId, overrides = {}) {
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', ['sending', reportId]);
 
   try {
-    const recipients = report.report_recipients || {};
-    const to = report.report_type === 'monthly'
-      ? (recipients.monthly || [])
-      : (recipients.weekly || []);
+    const to = recipientsFor(report.report_recipients, report.report_type);
 
     if (!to.length) {
       // Don't mark this 'sent' — nothing went out. A distinct status makes a
@@ -538,4 +554,4 @@ async function setStatus(reportId, status) {
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', [status, reportId]);
 }
 
-module.exports = { generateReport, sendReport };
+module.exports = { generateReport, sendReport, recipientsFor };

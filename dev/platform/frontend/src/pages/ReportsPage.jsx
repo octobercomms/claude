@@ -1,13 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
-
-const STATUS_COLORS = {
-  sent: 'var(--positive)', generated: 'var(--accent)', generating: 'var(--warning)',
-  pending: 'var(--text-subtle)', failed: 'var(--negative)', sending: 'var(--warning)',
-};
+import { REPORT_STATUSES, reportStatusLabel, reportStatusColor } from '../utils/reportStatus';
 
 export default function ReportsPage() {
   const toast = useToast();
@@ -16,7 +13,13 @@ export default function ReportsPage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterClient, setFilterClient] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  // ?status= lets a figure elsewhere link to exactly the rows it counted —
+  // the Clients page's "N not sent" tile arrives here already filtered.
+  const [searchParams] = useSearchParams();
+  const [filterStatus, setFilterStatus] = useState(() => {
+    const s = searchParams.get('status');
+    return REPORT_STATUSES.includes(s) ? s : '';
+  });
   const [showTrigger, setShowTrigger] = useState(false);
   const [trigger, setTrigger] = useState({ client_id: '', report_type: 'weekly', period_start: '', period_end: '' });
   const [triggering, setTriggering] = useState(false);
@@ -139,8 +142,8 @@ export default function ReportsPage() {
         </select>
         <select className="input" style={{ width: 160 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">All statuses</option>
-          {['pending','generating','generated','sending','sent','failed'].map(s => (
-            <option key={s} value={s}>{s}</option>
+          {REPORT_STATUSES.map(s => (
+            <option key={s} value={s}>{reportStatusLabel(s)}</option>
           ))}
         </select>
       </div>
@@ -165,8 +168,8 @@ export default function ReportsPage() {
                 </td>
                 <td >{fmtDate(r.period_start)} – {fmtDate(r.period_end)}</td>
                 <td >
-                  <span style={{ color: STATUS_COLORS[r.status] || 'var(--text-subtle)', fontSize: 'var(--fs-caption)', fontWeight: 600, textTransform: 'uppercase' }}>
-                    {r.status}
+                  <span style={{ color: reportStatusColor(r.status), fontSize: 'var(--fs-caption)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    {reportStatusLabel(r.status)}
                   </span>
                   {r.status === 'failed' && r.error_log && (
                     <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 'var(--s1)', maxWidth: 300, wordBreak: 'break-word' }}>

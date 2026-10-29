@@ -185,14 +185,18 @@ Two things that cost a session to find, worth knowing before you touch either:
   else. The workspace panel was therefore permanently empty for the only person
   who looked at it. `leaderboardScope()` in the same service now makes that
   translation, guarded by `backend/tests/pr-leaderboard-scope.test.js`.
-- **Weekly reports generate for every active client whether or not anyone
-  receives them.** `scheduler.runScheduledReports` loops all active clients and
-  defaults `weekly_day` to Monday, so a client with an empty `report_schedule`
-  still gets a full report built — connector pulls, a Claude narrative, a PDF.
-  `reportService.sendReport` only then checks `report_recipients` and marks it
-  `skipped_no_recipients`. The money is spent before the check. As of 29 Oct
-  2026 that was 9 of 10 weekly reports. Not fixed: changing it alters an
-  unattended pipeline and is Daniel's call.
+- **A report is only generated if someone receives it** (fixed 29 Oct 2026).
+  `scheduler.runScheduledReports` loops every active client and defaults
+  `weekly_day` to Monday, so a client with an empty `report_schedule` is still
+  due one every week. The recipients check used to live only in
+  `reportService.sendReport`, which runs *after* generation has pulled every
+  connector, written a Claude narrative and rendered a PDF — so 9 of 10 weekly
+  reports were built in full and binned. The scheduler now calls
+  `reportService.recipientsFor()` first and, when there is nobody to send to,
+  writes the `skipped_no_recipients` row without generating. `sendReport` calls
+  the same function, so the two can never disagree; keep it that way, and keep
+  `backend/tests/report-recipients.test.js` honest. Reports triggered by hand
+  from the UI do not pass through the scheduler and still generate.
 
 ### Temporary: the checker bench
 

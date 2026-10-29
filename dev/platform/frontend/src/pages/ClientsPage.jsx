@@ -24,6 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import ClientHomeDashboard from '../components/ClientHomeDashboard';
 import Pip from '../components/ui/Pip';
 import { mergeClientList, summariseClients, filterClients, autoSlug } from '../utils/clientList';
+import { reportStatusLabel, reportStatusTone } from '../utils/reportStatus';
 
 export default function ClientsPage() {
   const { readOnly } = useAuth();
@@ -140,10 +141,10 @@ export default function ClientsPage() {
           label="Reports this week"
           value={sentCount}
           sub={skippedCount || failedCount
-            ? `${[skippedCount && `${skippedCount} skipped, no recipients`, failedCount && `${failedCount} failed`].filter(Boolean).join(' · ')} →`
-            : 'all delivered'}
+            ? `${[skippedCount && `${skippedCount} not sent, no recipients`, failedCount && `${failedCount} failed`].filter(Boolean).join(' · ')} →`
+            : (health.total ? 'all delivered' : 'none scheduled this week')}
           subTone={skippedCount || failedCount ? 'warn' : undefined}
-          to={skippedCount || failedCount ? '/reports' : undefined}
+          to={skippedCount || failedCount ? '/reports?status=skipped_no_recipients' : undefined}
         />
         <Stat
           label="Needs attention"
@@ -288,14 +289,8 @@ function ClientCard({ client }) {
   );
 }
 
-// Shared chip primitive — also used in the Reports table, so left on the
-// existing .chip classes.
 function StatusBadge({ status }) {
-  const tone = {
-    sent: 'success', generated: 'accent', generating: 'warning',
-    pending: 'neutral', failed: 'danger', sending: 'warning',
-  }[status] || 'neutral';
-  return <span className={`chip chip-${tone}`}>{status}</span>;
+  return <span className={`chip chip-${reportStatusTone(status)}`}>{reportStatusLabel(status)}</span>;
 }
 
 // Combined API spend this month — single dark bar, just the cost. Sums every
