@@ -8,7 +8,11 @@ import { REPORT_STATUSES, reportStatusLabel, reportStatusColor } from '../utils/
 import ReportDelivery from '../components/ReportDelivery';
 import BulkDeleteReports from '../components/BulkDeleteReports';
 
-export default function ReportsPage() {
+// `embedded` renders it inside the Settings page, which supplies its own
+// page title. The standalone /reports route redirects there, so in practice
+// this is always embedded; the flag stays because the page is still a
+// self-contained component and a bare render should not lose its heading.
+export default function ReportsPage({ embedded = false } = {}) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [reports, setReports] = useState([]);
@@ -86,14 +90,20 @@ export default function ReportsPage() {
 
   return (
     <div className="suite-reports">
-      <header className="hero">
-        <div>
-          <h1 className="display">Reports</h1>
-        </div>
-        <div className="hero-actions">
+      {embedded ? (
+        <div className="row end" style={{ marginBottom: 'var(--s5)' }}>
           <button onClick={() => setShowTrigger(true)} className="btn btn-primary btn-sm">+ Trigger Report</button>
         </div>
-      </header>
+      ) : (
+        <header className="hero">
+          <div>
+            <h1 className="display">Reports</h1>
+          </div>
+          <div className="hero-actions">
+            <button onClick={() => setShowTrigger(true)} className="btn btn-primary btn-sm">+ Trigger Report</button>
+          </div>
+        </header>
+      )}
 
       <ReportDelivery />
 

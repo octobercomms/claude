@@ -343,6 +343,9 @@ const CATEGORIES = [
 // Two-level navigation (mirrors OMI's suite pages): three top-level sections,
 // each with sub-tabs. Connection sub-tabs that show provider keys map to one or
 // more of the CATEGORIES above; the rest render a dedicated panel.
+import ReportsPage from './ReportsPage';
+import CheckerBenchPage from './CheckerBenchPage';
+
 const SECTIONS = [
   { key: 'connections', label: 'Connections', subs: [
     { k: 'costs', label: 'Costs & usage' },
@@ -364,8 +367,10 @@ const SECTIONS = [
     { k: 'assistant', label: 'Assistant' },
   ] },
   { key: 'tools', label: 'Tools', subs: [
+    { k: 'reports', label: 'Reports' },
     { k: 'strategy', label: 'Strategy templates' },
     { k: 'praddon', label: 'PR Gmail add-on' },
+    { k: 'checker', label: 'Checker bench' },
   ] },
   { key: 'bizdev', label: 'Biz dev', subs: [
     { k: 'leads', label: 'Leads' },
@@ -395,6 +400,11 @@ const SECTION_GROUPS = {
   ],
   account: [
     { label: 'Access', subs: ['users', 'security'] },
+  ],
+  tools: [
+    { label: 'Reporting', subs: ['reports'] },
+    { label: 'Authoring', subs: ['strategy', 'praddon'] },
+    { label: 'Temporary', subs: ['checker'] },
   ],
 };
 
@@ -662,6 +672,11 @@ export default function SettingsPage() {
       <CostLogPanel />
       </>)}
       {tab === 'praddon' && <PrAddonPanel />}
+      {/* Reports and the checker bench live here rather than in the nav rail:
+          both are agency admin touched rarely, and the top rail is four items.
+          /reports and /lab/checker redirect in. */}
+      {tab === 'reports' && <ReportsPage embedded />}
+      {tab === 'checker' && <CheckerBenchPage />}
 
       {tab === 'ai' && <AiModelsPanel />}
 

@@ -163,10 +163,18 @@ had failed, so in a quiet week nothing in the app opened it. Both were found
 by Daniel asking where he was meant to be looking.
 
 `frontend/tests/routeDoors.test.mjs` now walks the top-level routes in App.jsx
-and fails when one has no link anywhere in `src/`. Genuinely URL-only pages go
+and fails when one has no link anywhere in `src/`. A route whose element is
+`Navigate` or a `<Something>Redirect` component is a redirect, not a page, and
+is skipped. Genuinely URL-only pages go
 in its `URL_ONLY` map with a reason. It catches "no door at all", not "a door
 that is sometimes shut" — a conditional `to={cond ? '/x' : undefined}` still
 reads as a link, so that judgement stays with you.
+
+`/reports` and `/lab/checker` are both redirects now: Reports and the checker
+bench are tabs under Settings → Tools, and the routes are kept so old links
+and the Clients report tile keep working. `SettingsTabRedirect` carries the
+query string across, so `/reports?status=x` lands on
+`/settings?tab=reports&status=x` with the filter intact.
 
 It currently records three URL-only pages: `/design` and `/proposals/sample`
 are deliberate developer references; `/rankings` is superseded by the
@@ -217,10 +225,9 @@ Two things that cost a session to find, worth knowing before you touch either:
   `backend/tests/report-recipients.test.js` honest. Reports triggered by hand
   from the UI do not pass through the scheduler and still generate.
 
-  Who is and is not being reached is on the **Reports page** (Settings →
-  Reports, admin only), top of the page, from `GET /reports/delivery`. The
-  page is deliberately buried: everything on it is agency admin you touch
-  rarely, and it also carries the bulk delete for undelivered reports
+  Who is and is not being reached is on **Settings → Tools → Reports**, top of
+  the tab, from `GET /reports/delivery`. The tab is deliberately buried:
+  everything on it is agency admin you touch rarely, and it also carries the bulk delete for undelivered reports
   (`DELETE /reports/bulk`). That endpoint will not touch a `sent` report, for
   any caller, and refuses a request naming one outright rather than trimming
   it to the subset that qualifies — a partial delete would remove rows nobody

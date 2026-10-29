@@ -61,9 +61,15 @@ const app = readFileSync(appPath, 'utf8');
 
 // Top-level page routes: a literal path, rendering a component rather than a
 // redirect, and not client-scoped.
+// A redirect is not a page and needs no door of its own — it exists so an
+// old link keeps working. `Navigate` is the obvious one; the repo also wraps
+// redirects that need to carry a param or a query string in a small component
+// named `<Something>Redirect`, and those count the same.
+const isRedirect = (el) => el === 'Navigate' || /Redirect$/.test(el);
+
 const routes = [...app.matchAll(/<Route path="([^"]+)" element=\{<(\w+)/g)]
   .map(([, p, el]) => ({ path: '/' + p.replace(/^\//, ''), el }))
-  .filter(r => r.el !== 'Navigate')
+  .filter(r => !isRedirect(r.el))
   .filter(r => !r.path.includes(':'))
   .filter(r => r.path !== '/' && r.path !== '/*');
 
@@ -109,8 +115,16 @@ test('every top-level page is linked from somewhere', () => {
 });
 
 test('Reports is reachable', () => {
-  // The specific regression: it was routable, worked, and had no door.
-  assert.ok(hasDoor('/reports'), 'ReportsPage needs a link somewhere outside App.jsx');
+  // The specific regression: it was routable, worked, and had no door. Its
+  // home is now a Settings tab, so that is what has to be linked — checking
+  // /reports would pass on the redirect alone and prove nothing.
+  assert.ok(hasDoor('/settings?tab=reports'), 'the Reports tab needs a link outside App.jsx');
+});
+
+test('a redirect is not counted as a page needing a door', () => {
+  assert.equal(isRedirect('Navigate'), true);
+  assert.equal(isRedirect('SettingsTabRedirect'), true);
+  assert.equal(isRedirect('ReportsPage'), false, 'a page is not a redirect because it ends in Page');
 });
 
 test('URL_ONLY has no stale entries', () => {
