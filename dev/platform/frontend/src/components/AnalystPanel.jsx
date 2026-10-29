@@ -64,8 +64,10 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
             <button
               type="button"
               className="btn btn-secondary btn-sm"
+              style={{ fontSize: 'var(--fs-caption)', padding: '4px 10px' }}
               onClick={() => clearRef.current?.()}
               disabled={chat.clearing}
+              title="Clear this conversation's history"
             >
               {chat.clearing ? 'Clearing…' : 'Clear history'}
             </button>
