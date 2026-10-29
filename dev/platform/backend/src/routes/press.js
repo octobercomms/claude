@@ -1185,13 +1185,26 @@ router.get('/releases/:id/analytics', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
-// Phase E4b — workspace-wide PR-ROI leaderboard. Launched press campaigns
-// across the caller's visible clients, ranked by referring domains earned
-// per recipient. Scoped to visibleClientIds so it respects tenant access.
+// Phase E4b — PR-ROI leaderboard. Launched press campaigns ranked by
+// referring domains earned per recipient, scoped to visibleClientIds so it
+// respects tenant access.
+//
+// `?client_id=` narrows it to one client, which is how the Earned page asks.
+// That parameter is not only a filter: the service takes an array of ids and
+// returns [] for anything else, so an admin — whose visibleClientIds is null,
+// the "all clients" sentinel — got an empty leaderboard from the unscoped
+// call every time. Passing one id gives an admin a real answer. Without a
+// client_id an admin still gets nothing; the workspace-wide roll-up has no
+// screen now that Clients no longer carries it.
 router.get('/attribution/leaderboard', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 25, 100);
-    const rows = await require('../services/pressAttribution').leaderboard(req.visibleClientIds, { limit });
+    const pressAttribution = require('../services/pressAttribution');
+    const decision = pressAttribution.leaderboardScope(
+      req.query.client_id, req.visibleClientIds, users.canAccessClient
+    );
+    if (decision.status === 403) return res.status(403).json({ error: 'Not authorised for this client' });
+    const rows = await pressAttribution.leaderboard(decision.scope, { limit });
     res.json({ campaigns: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

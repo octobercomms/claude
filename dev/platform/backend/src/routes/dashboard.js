@@ -12,7 +12,10 @@ router.get('/', async (req, res) => {
     // Visibility — admins see all, viewers see only assigned clients
     const visibleIds = await users.getVisibleClientIds(req.user);
     if (visibleIds && !visibleIds.length) {
-      return res.json({ clients: [], alerts: { expired_meta_tokens: [] }, upcoming_reports: [], recent_reports: [] });
+      return res.json({
+        clients: [], alerts: { expired_meta_tokens: [] }, upcoming_reports: [], recent_reports: [],
+        report_health: { sent: 0, skipped_no_recipients: 0, failed: 0, total: 0 },
+      });
     }
     const filterSql = visibleIds === null ? '' : ' AND c.id = ANY($1)';
     const filterSqlReports = visibleIds === null ? '' : ' AND cl.id = ANY($1)';
@@ -70,6 +73,41 @@ router.get('/', async (req, res) => {
       LIMIT 10
     `, filterParams);
 
+    // Report health, last 7 days. Counted rather than inferred from
+    // recent_reports, which is a LIMIT 10 feed and silently truncates once
+    // there are more than ten clients on a weekly schedule.
+    //
+    // 'skipped_no_recipients' is the one worth surfacing: the report was
+    // generated in full (connector pulls, a Claude narrative, a PDF) and then
+    // binned because the client has no report_recipients. It costs the same
+    // as a delivered report and produces nothing.
+    let reportHealth = { sent: 0, skipped_no_recipients: 0, failed: 0, total: 0 };
+    try {
+      const { rows: healthRows } = await pool.query(`
+        SELECT r.status, COUNT(*)::int AS n
+        FROM reports r
+        JOIN clients cl ON cl.id = r.client_id
+        WHERE r.created_at >= NOW() - INTERVAL '7 days'${filterSqlReports}
+        GROUP BY r.status
+      `, filterParams);
+      for (const row of healthRows) {
+        reportHealth[row.status] = (reportHealth[row.status] || 0) + row.n;
+        reportHealth.total += row.n;
+      }
+    } catch (e) { console.error('[dashboard] report health failed:', e.message); }
+
+    // Strategy progress per client, so the client list can show it on the card
+    // instead of carrying a separate cross-client table.
+    let strategyByClient = {};
+    try {
+      const strategyRows = await require('../services/strategyTemplates').overview(visibleIds);
+      strategyByClient = Object.fromEntries(strategyRows.map(s => [s.client_id, s]));
+    } catch (e) { console.error('[dashboard] strategy overview failed:', e.message); }
+    for (const client of clients) {
+      const s = strategyByClient[client.id];
+      client.strategy = s ? { template_name: s.template_name, done: s.done, total: s.total, pct: s.pct } : null;
+    }
+
     // Combined API spend this month — admin only (it's workspace-wide
     // cost data). visibleIds === null means the user sees everything.
     let apiSpend = null;
@@ -83,6 +121,7 @@ router.get('/', async (req, res) => {
       alerts: { expired_meta_tokens: expiredMeta },
       upcoming_reports: upcoming,
       recent_reports: recentReports,
+      report_health: reportHealth,
       api_spend: apiSpend,
     });
   } catch (err) {

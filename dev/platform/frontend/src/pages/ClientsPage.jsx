@@ -2,11 +2,15 @@
 // /dashboard (summary cards) and /clients (a name/slug/status table): they
 // were the same list twice, and the summary linked to the table.
 //
-// One obvious job on this page: open a client. The cards are that action.
-// Everything else is demoted — the filter row only appears once there is
-// something archived to filter, and the workspace roll-ups (reports,
-// strategies, PR) sit in a closed accordion so they cost neither screen nor
-// an API call until you ask for them.
+// One obvious job on this page: open a client. The cards are that action, and
+// nothing else on the page is a table you have to read. The filter row only
+// appears once there is something archived to filter.
+//
+// It used to carry three cross-client roll-ups (recent reports, client
+// strategies, PR to backlinks) inherited from the old Dashboard. They answered
+// agency questions on a page about opening one client, so they are gone: the
+// report figure is a KPI, strategy progress is a line on each card, and the PR
+// leaderboard moved to each client's Earned page where it is scoped properly.
 //
 // The list is fetched twice over, deliberately: /clients is the spine (it is
 // the only endpoint that returns archived clients, and carries `active`),
@@ -19,7 +23,6 @@ import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import ClientHomeDashboard from '../components/ClientHomeDashboard';
 import Pip from '../components/ui/Pip';
-import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { mergeClientList, summariseClients, filterClients, autoSlug } from '../utils/clientList';
 
 export default function ClientsPage() {
@@ -36,7 +39,6 @@ export default function ClientsPage() {
   // clients are historical records kept for the editorial-log / publications
   // history, not for active work.
   const [filter, setFilter] = useState('active'); // 'active' | 'archived' | 'all'
-  const [openRollup, setOpenRollup] = useState(() => new Set());
 
   // A client (read-only) login never sees the all-clients directory — they get
   // their own personalised landing instead.
@@ -68,12 +70,6 @@ export default function ClientsPage() {
     }
   }
 
-  const toggleRollup = (id) => setOpenRollup(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-
   if (readOnly) return <ClientHomeDashboard />;
 
   if (loading) return <div className="text-subtle text-center p-s8">Loading clients…</div>;
@@ -85,7 +81,10 @@ export default function ClientsPage() {
     );
   }
 
-  const { alerts = {}, recent_reports: recentReports = [], api_spend: apiSpend = null } = summary || {};
+  const { alerts = {}, report_health: health = {}, api_spend: apiSpend = null } = summary || {};
+  const sentCount = health.sent || 0;
+  const skippedCount = health.skipped_no_recipients || 0;
+  const failedCount = health.failed || 0;
   const expiredTokens = alerts.expired_meta_tokens || [];
 
   // Enrich the spine with the summary's connector / last-report data. The rule
@@ -133,7 +132,19 @@ export default function ClientsPage() {
           value={<>{connActive}<span className="text-[length:var(--fs-title)] text-subtle tracking-normal font-bold">/{connTotal}</span></>}
           sub={connTotal ? `${healthPct}% healthy` : 'none connected'}
         />
-        <Stat label="Recent reports" value={recentReports.length} sub="latest activity" />
+        {/* Reports this week. The number that matters is not how many ran, it
+            is how many reached anyone: a skipped report was generated in full
+            (connector pulls, a Claude narrative, a PDF) and then binned for
+            having no recipients, at the same cost as a delivered one. */}
+        <Stat
+          label="Reports this week"
+          value={sentCount}
+          sub={skippedCount || failedCount
+            ? `${[skippedCount && `${skippedCount} skipped, no recipients`, failedCount && `${failedCount} failed`].filter(Boolean).join(' · ')} →`
+            : 'all delivered'}
+          subTone={skippedCount || failedCount ? 'warn' : undefined}
+          to={skippedCount || failedCount ? '/reports' : undefined}
+        />
         <Stat
           label="Needs attention"
           value={expiredTokens.length}
@@ -196,130 +207,23 @@ export default function ClientsPage() {
           No {filter === 'archived' ? 'archived' : filter === 'active' ? 'active' : ''} clients.
         </div>
       )}
-
-      {/* Workspace roll-ups — cross-client scanning, not the job you came for.
-          Closed by default; each body (and its fetch) only mounts when opened. */}
-      <div style={{ marginTop: 'var(--s8)' }}>
-        <Accordion open={openRollup} onToggle={toggleRollup}>
-          {recentReports.length > 0 && (
-            <AccordionItem id="reports" fn="distribute" title="Recent reports" badge={recentReports.length}>
-              {() => <RecentReportsTable rows={recentReports} />}
-            </AccordionItem>
-          )}
-          <AccordionItem id="strategies" fn="strategy" title="Client strategies">
-            {() => <StrategyOverview />}
-          </AccordionItem>
-          <AccordionItem id="pr" fn="measure" title="PR → backlinks">
-            {() => <PrBacklinkLeaderboard />}
-          </AccordionItem>
-        </Accordion>
-      </div>
-    </div>
-  );
-}
-
-function RecentReportsTable({ rows }) {
-  return (
-    <div className="card" style={{ padding: 0 }}>
-      <table className="table">
-        <thead>
-          <tr>{['Client', 'Type', 'Period', 'Status', 'Sent'].map(h => <th key={h}>{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.id}>
-              <td>{r.client_name}</td>
-              <td><span className="chip chip-accent">{r.report_type}</span></td>
-              <td>{formatDate(r.period_start)} – {formatDate(r.period_end)}</td>
-              <td><StatusBadge status={r.status} /></td>
-              <td>{r.sent_at ? formatDate(r.sent_at) : '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// Workspace PR-ROI leaderboard (Phase E4b) — launched press campaigns ranked
-// by referring domains earned per recipient in the 21 days after launch.
-function PrBacklinkLeaderboard() {
-  const [rows, setRows] = useState(null);
-  useEffect(() => {
-    api.get('/press/attribution/leaderboard?limit=15')
-      .then(r => setRows(r.campaigns || []))
-      .catch(() => setRows([]));
-  }, []);
-  if (!rows) return <div className="text-subtle body-xs">Loading…</div>;
-  if (!rows.some(r => Number(r.new_rds) > 0)) {
-    return <div className="text-subtle body-xs">No campaign has earned a referring domain yet.</div>;
-  }
-  return (
-    <>
-      <div className="card" style={{ padding: 0 }}>
-        <table className="table">
-          <thead><tr>{['Campaign', 'Client', 'New RDs', 'Dofollow', 'Recipients', 'RDs / recipient'].map(h => <th key={h}>{h}</th>)}</tr></thead>
-          <tbody>
-            {rows.map(c => (
-              <tr key={c.press_release_id}>
-                <td style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || '(untitled release)'}</td>
-                <td><Link to={`/clients/${c.client_id}/pr`} className="text-ink underline">{c.client_name}</Link></td>
-                <td><strong className="text-ink">{c.new_rds}</strong></td>
-                <td className="text-subtle">{c.dofollow_rds}</td>
-                <td className="text-subtle">{c.recipients}</td>
-                <td><strong className="text-accent">{c.rds_per_recipient ?? '—'}</strong></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="body-xs text-subtle mt-2">
-        Referring domains whose first backlink appeared within 21 days of each campaign's launch. Correlation within the standard PR window.
-      </div>
-    </>
-  );
-}
-
-// Cross-client strategy roll-up — each client's assigned playbook + progress.
-function StrategyOverview() {
-  const [rows, setRows] = useState(null);
-  useEffect(() => { api.get('/strategy/overview').then(r => setRows(r.clients || [])).catch(() => setRows([])); }, []);
-  if (!rows) return <div className="text-subtle body-xs">Loading…</div>;
-  if (!rows.length) return <div className="text-subtle body-xs">No client has a strategy assigned yet.</div>;
-  return (
-    <div className="card" style={{ padding: 0 }}>
-      <table className="table">
-        <thead><tr>{['Client', 'Type · Stage', 'Strategy', 'Progress'].map(h => <th key={h}>{h}</th>)}</tr></thead>
-        <tbody>
-          {rows.map(s => (
-            <tr key={s.client_id}>
-              <td><Link to={`/clients/${s.client_id}`} className="text-ink underline">{s.client_name}</Link></td>
-              <td className="text-subtle" style={{ textTransform: 'capitalize' }}>{[s.business_type, s.lifecycle_stage].filter(Boolean).join(' · ') || '—'}</td>
-              <td>{s.template_name || '—'}</td>
-              <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
-                  <div style={{ flex: 1, maxWidth: 120, height: 6, background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
-                    <div style={{ width: `${s.pct}%`, height: '100%', background: s.pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
-                  </div>
-                  <span className="body-xs text-subtle">{s.done}/{s.total}</span>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
 
 // KPI block. `feature` inverts it (ink bg, accent number) to anchor the row.
-function Stat({ label, value, sub, subTone, feature = false, fn }) {
+// `to` makes the whole tile a link, for a figure you would want to act on.
+function Stat({ label, value, sub, subTone, feature = false, fn, to }) {
+  const Box = to ? Link : 'div';
+  const boxProps = to ? { to } : {};
   return (
-    <div className={`border rounded-md p-s5 flex flex-col gap-s3 min-h-[140px] ${feature ? 'bg-ink border-ink' : 'bg-surface border-cardborder'}`}>
+    <Box
+      {...boxProps}
+      className={`border rounded-md p-s5 flex flex-col gap-s3 min-h-[140px] no-underline ${feature ? 'bg-ink border-ink' : 'bg-surface border-cardborder'} ${to ? 'hover:border-ink' : ''}`}>
       <div className={`text-[length:var(--fs-caption)] font-bold tracking-[0.12em] uppercase ${feature ? 'text-white/60' : 'text-muted'}`}>{fn && <Pip fn={fn} />}{label}</div>
       <div className={`text-[length:var(--fs-display)] font-extrabold leading-[0.9] tracking-[-2px] mt-auto ${feature ? 'text-white' : 'text-ink'}`}>{value}</div>
       <div className={`text-[length:var(--fs-caption)] flex items-center gap-1.5 ${feature ? 'text-white/60' : subTone === 'warn' ? 'text-warning font-semibold' : 'text-subtle'}`}>{sub}</div>
-    </div>
+    </Box>
   );
 }
 
@@ -354,6 +258,22 @@ function ClientCard({ client }) {
             <strong className="text-ink font-semibold">
               <StatusBadge status={client.last_report.status} /> {formatDate(client.last_report.created_at)}
             </strong>
+          </div>
+        )}
+        {client.active && client.strategy && client.strategy.total > 0 && (
+          <div className="flex justify-between items-center gap-s2 text-[length:var(--fs-body)] text-muted">
+            <span className="truncate" title={client.strategy.template_name || 'Strategy'}>
+              {client.strategy.template_name || 'Strategy'}
+            </span>
+            <span className="flex items-center gap-s2 flex-none">
+              <span className="block w-[70px] h-1.5 rounded-pill bg-surface-sunken overflow-hidden">
+                <span
+                  className={`block h-full ${client.strategy.pct === 100 ? 'bg-positive' : 'bg-accent'}`}
+                  style={{ width: `${client.strategy.pct}%` }}
+                />
+              </span>
+              <strong className="text-ink font-semibold">{client.strategy.done}/{client.strategy.total}</strong>
+            </span>
           </div>
         )}
       </div>

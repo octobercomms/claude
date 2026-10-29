@@ -166,10 +166,33 @@ Do not reintroduce a top-level screen called Dashboard.
 
 The page merges two endpoints and which one wins matters: `/clients` is the
 spine (the only one returning archived clients, and the authority on `active`),
-`/dashboard` enriches it by id with connectors, last report, alerts and spend
-(active clients only — its query is `WHERE c.active = true`). That rule is in
-`frontend/src/utils/clientList.js` with tests in
+`/dashboard` enriches it by id with connectors, last report, alerts, spend and
+strategy progress (active clients only — its query is `WHERE c.active = true`).
+That rule is in `frontend/src/utils/clientList.js` with tests in
 `frontend/tests/clientList.test.mjs`; keep it there rather than inlining it.
+
+Clients carries no cross-client tables. It briefly inherited three from the old
+Dashboard and they are gone: report counts are a KPI fed by `/dashboard`'s
+`report_health` block, strategy progress is a line on each client card, and the
+PR → backlinks leaderboard moved to each client's Earned page. Do not put a
+workspace roll-up back on it; the page has one job, which is opening a client.
+
+Two things that cost a session to find, worth knowing before you touch either:
+
+- **`pressAttribution.leaderboard()` answers `[]` for an admin** unless it is
+  given an array. Its SQL binds `= ANY($1::uuid[])` and an admin's
+  `visibleClientIds` is `null`, the "all clients" sentinel used everywhere
+  else. The workspace panel was therefore permanently empty for the only person
+  who looked at it. `leaderboardScope()` in the same service now makes that
+  translation, guarded by `backend/tests/pr-leaderboard-scope.test.js`.
+- **Weekly reports generate for every active client whether or not anyone
+  receives them.** `scheduler.runScheduledReports` loops all active clients and
+  defaults `weekly_day` to Monday, so a client with an empty `report_schedule`
+  still gets a full report built — connector pulls, a Claude narrative, a PDF.
+  `reportService.sendReport` only then checks `report_recipients` and marks it
+  `skipped_no_recipients`. The money is spent before the check. As of 29 Oct
+  2026 that was 9 of 10 weekly reports. Not fixed: changing it alters an
+  unattended pipeline and is Daniel's call.
 
 ### Temporary: the checker bench
 
