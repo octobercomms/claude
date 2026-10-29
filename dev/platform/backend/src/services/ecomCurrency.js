@@ -38,4 +38,56 @@ function agreeCurrency(summaries) {
   };
 }
 
-module.exports = { agreeCurrency };
+// What the figures are actually denominated in, given both sources.
+//
+// The client's own setting wins. It is the account lead saying "this client
+// reports in GBP", which is a fact about the client rather than about whichever
+// connector happened to answer. The connectors are the default when nobody has
+// said.
+//
+// This matters because `kpis.revenue` comes from GA4 whether or not an
+// ecommerce connector reported, so relying on the connectors alone left a
+// client with GA4 revenue and no working store connector showing a figure with
+// no currency at all.
+function resolveCurrency(clientCurrency, summaries) {
+  const stated = clientCurrency && /^[A-Za-z]{3}$/.test(String(clientCurrency).trim())
+    ? String(clientCurrency).trim().toUpperCase()
+    : null;
+  const agreed = agreeCurrency(summaries);
+  if (!stated) return agreed;
+
+  // Everything the stores actually said, which `agreed` collapses to one or
+  // none. Needed here because a stated currency changes what each case means.
+  const reported = [...new Set((summaries || [])
+    .map(x => x && x.currency)
+    .filter(c => c && /^[A-Za-z]{3}$/.test(String(c).trim()))
+    .map(c => String(c).trim().toUpperCase()))].sort();
+
+  // Stores disagree. This is the dangerous one: revenue is a plain sum across
+  // currencies, so labelling it with the stated currency is arithmetic that is
+  // simply wrong. Say so rather than letting the label imply a conversion
+  // nobody performed.
+  if (reported.length > 1) {
+    return {
+      currency: stated,
+      note: `Stores report different currencies (${reported.join(', ')}) and revenue is summed across them without conversion, `
+        + `so the ${stated} total is not a true ${stated} figure. Converting would need an FX rate per day.`,
+    };
+  }
+
+  // One store currency, and it is not the one the client is set to. One of the
+  // two is wrong and only the account lead can say which.
+  if (reported.length === 1 && reported[0] !== stated) {
+    return {
+      currency: stated,
+      note: `This client is set to report in ${stated}, but its store${(summaries || []).length > 1 ? 's report' : ' reports'} ${reported[0]}. `
+        + `Figures are shown in ${stated}; change the reporting currency in Setup if that is wrong.`,
+    };
+  }
+
+  // Agreement, or nothing reported at all. Nothing to say.
+  return { currency: stated, note: null };
+  return agreed;
+}
+
+module.exports = { agreeCurrency, resolveCurrency };

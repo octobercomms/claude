@@ -6,7 +6,7 @@ const { loadVisibleClientIds, requireClientAccess } = require('../middleware/cli
 const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const google = require('../connectors/google');
-const { agreeCurrency } = require('../services/ecomCurrency');
+const { resolveCurrency } = require('../services/ecomCurrency');
 const { summarisePillars } = require('../services/channelPillars');
 
 router.use(authenticate);
@@ -32,7 +32,16 @@ router.get('/:clientId', async (req, res) => {
     kpis: {}, trafficTrend: [], salesTrend: [], channels: [], pillars: null, notes: [],
   };
 
+  // Collected inside the ecom block below, read outside it: the currency has
+  // to be resolved whether or not a store reported, because kpis.revenue is
+  // set from GA4 regardless.
+  const storeSummaries = [];
+
   try {
+    const { rows: crows } = await pool.query(
+      'SELECT reporting_currency FROM clients WHERE id = $1', [req.params.clientId]
+    );
+    const statedCurrency = crows[0] && crows[0].reporting_currency;
     const { rows: connectors } = await pool.query(
       "SELECT * FROM connectors WHERE client_id = $1 AND status = 'active'",
       [req.params.clientId]
@@ -134,9 +143,6 @@ router.get('/:clientId', async (req, res) => {
       // quietly added together. Real conversion would need an fxRate per day
       // (same pattern as the renderer in PR #307); still not a need.
       let revenue = 0, orders = 0;
-      // Each store's summary, kept so agreeCurrency can decide what the
-      // revenue figure is actually denominated in.
-      const storeSummaries = [];
       // Advisory ecom detail already computed by the connectors but not yet
       // surfaced: refunds, discounts, new-vs-returning and the product mix.
       // No new API scopes — these ride the same order fetch as revenue.
@@ -186,11 +192,6 @@ router.get('/:clientId', async (req, res) => {
       }));
       if (revenue) result.kpis.revenue = Math.round(revenue);
       if (orders) result.kpis.orders = orders;
-      // One currency only when every store agrees; see ecomCurrency.js for
-      // why a mixed-currency client gets none rather than one store's symbol.
-      const { currency, note } = agreeCurrency(storeSummaries);
-      if (currency) result.currency = currency;
-      if (note) result.notes.push(note);
       // Advisory ecom detail block (present only when a store is connected).
       // Net revenue is derived here from the summed gross and refunds so it
       // stays consistent across a multi-store client even if one store didn't
@@ -237,6 +238,14 @@ router.get('/:clientId', async (req, res) => {
       ? ((result.kpis.orders || 0) / result.kpis.sessions) * 100
       : 0;
     result.kpis.aov = result.kpis.orders ? Math.round((result.kpis.revenue || 0) / result.kpis.orders) : 0;
+    // The client's stated currency wins; the stores are the default. Outside
+    // the ecom block on purpose: revenue comes from GA4 whether or not a store
+    // reported, and a figure with no currency at all is worse than the wrong
+    // symbol this change set out to fix.
+    const { currency, note } = resolveCurrency(statedCurrency, storeSummaries);
+    if (currency) result.currency = currency;
+    if (note) result.notes.push(note);
+
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

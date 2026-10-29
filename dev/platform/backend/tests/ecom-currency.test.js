@@ -13,7 +13,7 @@
 //   node tests/ecom-currency.test.js
 
 const assert = require('assert');
-const { agreeCurrency } = require('../src/services/ecomCurrency');
+const { agreeCurrency, resolveCurrency } = require('../src/services/ecomCurrency');
 
 let failed = 0;
 function check(name, fn) {
@@ -83,6 +83,61 @@ check('three or more disagreeing currencies are all named', () => {
   const r = agreeCurrency([{ currency: 'USD' }, { currency: 'GBP' }, { currency: 'EUR' }]);
   assert.strictEqual(r.currency, null);
   assert.match(r.note, /EUR, GBP, USD/);
+});
+
+console.log('\nresolveCurrency');
+
+check('a GA4-only client falls back to its stated currency', () => {
+  // The regression this exists to prevent: kpis.revenue comes from GA4 whether
+  // or not a store reported, so a client with no working ecom connector went
+  // from a wrong symbol to no symbol at all.
+  const r = resolveCurrency('GBP', []);
+  assert.strictEqual(r.currency, 'GBP');
+  assert.strictEqual(r.note, null);
+});
+
+check('with nothing stated it is still whatever the stores agree', () => {
+  assert.strictEqual(resolveCurrency(null, [{ currency: 'USD' }]).currency, 'USD');
+  assert.strictEqual(resolveCurrency('', [{ currency: 'USD' }]).currency, 'USD');
+  assert.strictEqual(resolveCurrency(undefined, [{ currency: 'USD' }]).currency, 'USD');
+});
+
+check('the client setting beats the stores, and says so', () => {
+  const r = resolveCurrency('GBP', [{ currency: 'USD' }]);
+  assert.strictEqual(r.currency, 'GBP', "the account lead's setting wins");
+  assert.match(r.note, /set to report in GBP/);
+  assert.match(r.note, /reports USD/);
+  assert.match(r.note, /Setup/, 'and says where to change it');
+});
+
+check('agreement is silent', () => {
+  const r = resolveCurrency('USD', [{ currency: 'USD' }, { currency: 'usd' }]);
+  assert.strictEqual(r.currency, 'USD');
+  assert.strictEqual(r.note, null, 'nothing to report when they match');
+});
+
+check('a stated currency does NOT silence disagreeing stores', () => {
+  // The dangerous case. Revenue is summed across currencies with no
+  // conversion, so stamping GBP on it is arithmetic that is simply wrong.
+  // The label must not imply a conversion nobody performed.
+  const r = resolveCurrency('GBP', [{ currency: 'USD' }, { currency: 'EUR' }]);
+  assert.strictEqual(r.currency, 'GBP', 'the stated currency is still what is shown');
+  assert.match(r.note, /different currencies \(EUR, USD\)/);
+  assert.match(r.note, /without conversion/);
+  assert.match(r.note, /not a true GBP figure/, 'it has to say the total is not real');
+});
+
+check('junk in the client setting is ignored, not shown', () => {
+  for (const junk of ['', '  ', 'pounds', '£', 'GB', 'GBPX', '123', null]) {
+    const r = resolveCurrency(junk, [{ currency: 'USD' }]);
+    assert.strictEqual(r.currency, 'USD', `${JSON.stringify(junk)} should fall through to the store`);
+  }
+});
+
+check('nothing stated and nothing reported is still no symbol', () => {
+  const r = resolveCurrency(null, []);
+  assert.strictEqual(r.currency, null, 'guessing sterling is the bug this all started with');
+  assert.strictEqual(r.note, null);
 });
 
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
