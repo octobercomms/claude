@@ -9,7 +9,7 @@ import React from 'react';
 // Max → narrowest Branded Search), with the do / don't detail grouped
 // either side — Do on the left, Don't on the right — each group numbered
 // to match its funnel layer.
-const LAYERS = [
+export const LAYERS = [
   {
     num: 1,
     title: 'Performance Max',

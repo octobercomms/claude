@@ -12,7 +12,11 @@ import SuiteTabs from '../SuiteTabs';
 //   actions  — optional node, top-right of the hero
 //   tabs / subTabs — SuiteTabs arrays:
 //     [{ key, label, active, onClick | to } | { groupLabel }]
-export default function PageShell({ title, subtitle, actions, tabs, subTabs, children }) {
+//   tabActions — optional node pinned to the right of the group tab strip.
+//     Page-level controls belong on the page's own row: put one in `actions`
+//     and it lands under the client bar's icon cluster, reading as a stray
+//     fourth circle that missed its row.
+export default function PageShell({ title, subtitle, actions, tabActions, tabs, subTabs, children }) {
   return (
     <div>
       {(title || actions) && (
@@ -32,7 +36,16 @@ export default function PageShell({ title, subtitle, actions, tabs, subTabs, chi
           </header>
         </>
       )}
-      {tabs && <SuiteTabs tabs={tabs} />}
+      {tabs && (
+        tabActions
+          ? (
+            <div className="tabs-row">
+              <SuiteTabs tabs={tabs} />
+              <div className="tabs-row-actions">{tabActions}</div>
+            </div>
+          )
+          : <SuiteTabs tabs={tabs} />
+      )}
       {subTabs && <SuiteTabs tabs={subTabs} variant="sub" />}
       {children}
     </div>

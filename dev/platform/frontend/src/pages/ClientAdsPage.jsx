@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import AdCreativePanel from '../components/AdCreativePanel';
 import PillarMeasure from '../components/PillarMeasure';
 import AdResizePanel from '../components/AdResizePanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
 import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
-import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
+import GoogleAdsPlaybookQuick from '../components/GoogleAdsPlaybookQuick';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
-import { useParams, Link } from 'react-router-dom';
+import PaidLibraryPanel from '../components/paid/PaidLibraryPanel';
+import { useParams, useNavigate } from 'react-router-dom';
 import PageShell from '../components/shells/PageShell';
 import StatStrip from '../components/shells/StatStrip';
-import StepRail from '../components/shells/StepRail';
-import { Accordion, AccordionItem } from '../components/ui/Accordion';
+import SideDrawer from '../components/ui/SideDrawer';
 import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
 import { formatMoney } from '../utils/money';
+import { showCombined } from '../utils/adsTotals';
+import { resolvePaidTab } from '../utils/paidTabs';
 import { useToast } from '../context/ToastContext';
 
 // Live ads dashboards from Google Ads and Meta Ads. The chat sidebar that
@@ -30,21 +31,27 @@ export default function ClientAdsPage() {
   const [days, setDays] = useState(30);
   const [adsMargin, setAdsMargin] = useState(0.46);
   const [adsMarginInput, setAdsMarginInput] = useState('46');
-  // Grouped tabs (mirrors Organic / Social): four top groups —
-  //   Overview · Performance · Tools · Pipeline
-  // Tools fans out into Strategist / Audiences / Competitor ads (the
-  // analysis + intel views); Pipeline fans out into the 5-step wizard
-  // brief → concepts → render → approve → launch. 'creative' and
-  // 'pipeline' are aliases that resolve to the brief step so old deep
-  // links still land sensibly.
-  // Overview deleted Oct 2026. Health is the landing: the numbers, not a
-  // description of where the numbers live.
-  const [tab, setTab] = useTabParam('health', [
-    'health', 'performance', 'playbook', 'audiences', 'competitor_ads', 'resize',
-    // pipeline sub-tabs
-    'pipeline', 'creative',
+  // Two groups: Measure and Build.
+  //
+  // "Health" was a container holding Measure, Competitors and Playbook, and
+  // everyone opened Measure. A tab whose only job is to hold the tab you
+  // wanted is a tax, so Measure is the landing and the page says what it is.
+  // Competitors moved into Build (it is research that feeds a brief, and it
+  // was a dead end sitting beside the numbers), and the Playbook is reference
+  // rather than a section, so it opens in a drawer off the ⋮ with its full
+  // diagram living in Guide.
+  //
+  // Build takes the Produce shape: the guided route first, with the things
+  // that are not steps as peer tabs rather than an accordion of "tools".
+  const [tab, setTab] = useTabParam('measure', [
+    'measure',
+    // legacy aliases, kept because links to them exist in emails and reports
+    'health', 'performance', 'playbook', 'resize', 'pipeline', 'creative',
+    // Build
     'brief', 'concepts', 'render', 'approve', 'launch',
+    'library', 'audiences', 'competitor_ads',
   ]);
+  const navigate = useNavigate();
   const PIPELINE_STEPS = ['brief', 'concepts', 'render', 'approve', 'launch'];
   // Shared Stepper metadata for the Build pipeline (mirrors Shared's Builder).
   const PIPELINE_META = [
@@ -57,39 +64,27 @@ export default function ClientAdsPage() {
   const isPipelineStep = PIPELINE_STEPS.includes(tab);
   const isPipelineGroup = isPipelineStep || tab === 'pipeline' || tab === 'creative';
   const pipelineStep = isPipelineStep ? tab : 'brief';
-  // For the top-tab strip we collapse all pipeline sub-tab states into 'pipeline'.
-  const normalisedTab = isPipelineGroup ? 'pipeline' : tab;
-  // Redesign spine (docs/omi/redesign-brief.md §3): Overview + Health + Build.
-  // Health absorbs Measure + Briefing + Competitors + Playbook (read-outs);
-  // Build absorbs the creative pipeline plus Audiences + Resize as tools.
-  const HEALTH_TABS = ['performance', 'competitor_ads', 'playbook'];
-  const BUILD_TOOLS = ['audiences', 'resize'];
-  const isBuildGroup = isPipelineGroup || BUILD_TOOLS.includes(tab);
-  const currentGroup = (tab === 'health' || HEALTH_TABS.includes(tab)) ? 'health'
-    : isBuildGroup ? 'build'
-    : 'health';
-  // Health dashboard accordion — Measure (the headline read) open by default.
-  const [healthOpen, setHealthOpen] = useState(() => new Set(['measure']));
-  const toggleHealth = (idv) => setHealthOpen(prev => (prev.has(idv) ? new Set() : new Set([idv])));
-  const openHealth = (idv) => setHealthOpen(new Set([idv]));
-  const goHealth = (section) => { if (section) openHealth(section); setTab(section === 'measure' ? 'performance' : section === 'competitors' ? 'competitor_ads' : 'playbook'); };
-  // Build tools (Audiences · Resize) — an accordion under the pipeline, so the
-  // stepper stays the clear focus and the tools are discoverable, not a tiny
-  // link row. Opening a tool via deep link expands its section.
-  const [toolsOpen, setToolsOpen] = useState(() => new Set());
-  useEffect(() => {
-    if (BUILD_TOOLS.includes(tab)) setToolsOpen(prev => (prev.has(tab) ? prev : new Set([tab])));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
-  // A deep link or nav to an absorbed Health tab opens its accordion section.
-  useEffect(() => {
-    const hs = { performance: 'measure', competitor_ads: 'competitors', playbook: 'playbook' };
-    if (hs[tab]) openHealth(hs[tab]);
-  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Build's non-step tabs. They are not stages of a batch, which is exactly
+  // why they are not steps: Audiences is standing client data, Competitors is
+  // research, and the library is everything already made.
+  const BUILD_TABS = ['library', 'audiences', 'competitor_ads'];
+  const currentGroup = (isPipelineGroup || BUILD_TABS.includes(tab)) ? 'build' : 'measure';
+  // The playbook: reference, in a drawer, one job.
+  const [playbookOpen, setPlaybookOpen] = useState(false);
+  // A creative sent from the library to Resize, which is where resizing
+  // starts now. It used to be a tab asking you to upload the file you had
+  // already made twenty feet away.
+  const [resizeSeed, setResizeSeed] = useState(null);
 
-  // Redirect legacy 'creative' / 'pipeline' top-level URLs to the first step.
+  // Old links keep working. 'health' and 'performance' were both the numbers,
+  // so both land on Measure; 'playbook' opens the drawer over it rather than
+  // 404-ing a tab that no longer exists; 'resize' starts at the library,
+  // which is where you now pick the thing to resize.
   useEffect(() => {
-    if (tab === 'creative' || tab === 'pipeline') setTab('brief');
+    const to = resolvePaidTab(tab);
+    if (!to) return;
+    setTab(to.tab);
+    if (to.openPlaybook) setPlaybookOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
@@ -258,7 +253,13 @@ export default function ClientAdsPage() {
             style={{ width: 42, padding: 'var(--s1) var(--s1)', border: 'none', fontSize: 'var(--fs-body)', textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>%</span>
         </div>
-        <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Analyst →</Link>
+        {/* The "Ask the AI Analyst →" button stood here. It navigated to a
+            separate chat page, which meant leaving the table you wanted to
+            ask about. The chat icon in the client bar opens the same analyst
+            in a panel over this page, and it already knows which page you are
+            on (Layout passes the pathname, analystContextFor picks the
+            persona from it), so the button was the worse of two routes to one
+            place. */}
       </div>
 
       {loading ? (
@@ -281,7 +282,7 @@ export default function ClientAdsPage() {
         };
         blended.roas = blended.spend > 0 && blended.revenue > 0 ? blended.revenue / blended.spend : null;
         blended.profit = blended.revenue > 0 ? blended.revenue * adsMargin - blended.spend : null;
-        const showBlended = hasGoogle && hasMeta;
+        const showBlended = showCombined(googleTotal, metaTotal);
         return (
         <>
           {showBlended && (
@@ -447,65 +448,100 @@ export default function ClientAdsPage() {
 
   return (
     <div className="suite-paid">
-      <PageShell title="Paid" subtitle={client?.name} tabs={[
-        { key: 'health',   label: 'Health', fn: 'measure',   active: currentGroup === 'health',   onClick: () => setTab('health') },
-        { key: 'build',    label: 'Build', fn: 'create',    active: currentGroup === 'build',    onClick: () => setTab('brief') },
-      ]}>
-      {/* What this pillar actually drove, and its share of the account. The
-          whole Measure panel on four pages would put refund rate on the PR
-          page; this is the three headline numbers filtered to this pillar's
-          own GA4 channels, which is the version that answers "is this
-          working". */}
-      <PillarMeasure clientId={id} pillar="paid" />
-      {currentGroup === 'health' && (
-        <Accordion open={healthOpen} onToggle={toggleHealth}>
-          <AccordionItem id="measure" fn="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">
-            {() => renderMeasure()}
-          </AccordionItem>
-          <AccordionItem id="competitors" fn="research" title="Competitors" subtitle="Watch rival ads">
-            {() => <CompetitorAdsPanel clientId={id} />}
-          </AccordionItem>
-          <AccordionItem id="playbook" fn="strategy" title="Playbook" subtitle="How paid works here">
-            {() => <GoogleAdsPlaybook />}
-          </AccordionItem>
-        </Accordion>
+      <PageShell
+        title="Paid"
+        subtitle={client?.name}
+        tabActions={(
+          /* Not a cog. A cog promises settings; this holds reference. Same
+             ⋮ and the same 34px circle as the Strategist's, so the two read
+             as one control rather than two inventions. On the tab row rather
+             than the hero, because in the hero it landed under the client
+             bar's three circles and read as a fourth that missed its row. */
+          <button type="button" className="icon-circle" onClick={() => setPlaybookOpen(true)}
+            aria-label="Google Ads playbook" title="Google Ads playbook">
+            ⋮
+          </button>
+        )}
+        tabs={[
+          { key: 'measure', label: 'Measure', fn: 'measure', active: currentGroup === 'measure', onClick: () => setTab('measure') },
+          { key: 'build',   label: 'Build',   fn: 'create',  active: currentGroup === 'build',   onClick: () => setTab('brief') },
+        ]}
+        subTabs={currentGroup === 'build' ? [
+          /* The guided route first, then the things that are not steps of a
+             batch. Produce's shape: one path through for an operator who
+             wants the path, and direct tabs for whoever wants one section. */
+          { key: 'batch',         label: 'Make a batch', fn: 'create',   active: isPipelineGroup,          onClick: () => setTab('brief') },
+          { key: 'library',       label: 'Creative',     fn: 'create',   active: tab === 'library',        onClick: () => setTab('library') },
+          { key: 'audiences',     label: 'Audiences',    fn: 'research', active: tab === 'audiences',      onClick: () => setTab('audiences') },
+          { key: 'competitor_ads', label: 'Competitors', fn: 'research', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
+        ] : undefined}
+      >
+      {/* What this pillar actually drove, and its share of the account —
+          on Measure only. Above Build it put "27% of the account" over a
+          production line, which is the duplication this redesign was for:
+          a number you cannot act on, in the place where you make things. */}
+      {currentGroup === 'measure' && (
+        <>
+          <PillarMeasure clientId={id} pillar="paid" />
+          {renderMeasure()}
+        </>
       )}
-      {isPipelineGroup && (
-        <div className="stepper-block">
-          <StepRail
-            numbered
-            activeKey={pipelineStep}
-            onStep={setTab}
-            steps={PIPELINE_META.map((m, i) => ({
-              key: PIPELINE_STEPS[i],
-              label: m.title,
-              sub: m.sub,
-              status: i < Math.max(0, PIPELINE_STEPS.indexOf(pipelineStep)) ? 'done' : 'todo',
-            }))}
-          />
+
+      {currentGroup === 'build' && isPipelineGroup && (
+        <PaidPipelinePanel
+          clientId={id}
+          clientName={client?.name || ''}
+          step={pipelineStep}
+          steps={PIPELINE_STEPS}
+          meta={PIPELINE_META}
+          onNavigate={setTab}
+        />
+      )}
+
+      {tab === 'library' && (
+        <>
+          <PaidLibraryPanel clientId={id} onResize={setResizeSeed} />
+          {/* Resize stopped being a tab. It is what you do to a thing, and a
+              tab made you upload the file you had already made here. The
+              panel opens underneath with that creative in hand. */}
+          {resizeSeed && (
+            <div style={{ marginTop: 'var(--s6)' }}>
+              <div className="oview-grplabel">Resize</div>
+              <AdResizePanel clientId={id} clientName={client?.name || ''} seed={resizeSeed} onClearSeed={() => setResizeSeed(null)} />
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'audiences' && (
+        <div className="stack stack-lg">
+          <ICPIntelligencePanel clientId={id} />
+          <AudiencesPanel clientId={id} />
         </div>
       )}
 
-
-      {/* Build — the pipeline stepper is the clear focus, always visible; the
-          Audiences + Resize tools sit below in an accordion (discoverable, but
-          quieter than the primary path). */}
-      {currentGroup === 'build' && (
-        <>
-          <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />
-          <div style={{ marginTop: 'var(--s6)' }}>
-            <div className="oview-grplabel">Tools</div>
-            <Accordion open={toolsOpen} onToggle={(sid) => setToolsOpen(prev => (prev.has(sid) ? new Set() : new Set([sid])))}>
-              <AccordionItem id="audiences" fn="research" title="Audiences" subtitle="ICP & saved audiences">
-                {() => <div className="stack stack-lg"><ICPIntelligencePanel clientId={id} /><AudiencesPanel clientId={id} /></div>}
-              </AccordionItem>
-              <AccordionItem id="resize" fn="create" title="Resize" subtitle="Reformat creative for every placement">
-                {() => <AdResizePanel clientId={id} clientName={client?.name || ''} />}
-              </AccordionItem>
-            </Accordion>
-          </div>
-        </>
+      {tab === 'competitor_ads' && (
+        <CompetitorAdsPanel
+          clientId={id}
+          /* Research that ends in a brief, rather than a dead end beside the
+             numbers. Reading a rival's ads and then retyping what you learned
+             into a brief by hand was the whole reason this felt like filing. */
+          onUseInBrief={(seedText) => {
+            setTab('brief');
+            navigate(`/clients/${id}/ads?tab=brief`, { replace: true, state: { briefSeed: seedText } });
+          }}
+        />
       )}
+
+      <SideDrawer
+        open={playbookOpen}
+        onClose={() => setPlaybookOpen(false)}
+        kicker="Paid"
+        title="Google Ads playbook"
+        width={720}
+      >
+        <GoogleAdsPlaybookQuick onOpenFull={() => { setPlaybookOpen(false); navigate('/guide?open=paid-playbook'); }} />
+      </SideDrawer>
       </PageShell>
     </div>
   );

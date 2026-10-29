@@ -1193,6 +1193,12 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center;
   margin: var(--s5) 0 var(--s6);
 }
+/* A page-level control riding on the tab row: the tabs keep their own
+   margins, the action is pinned right and vertically centred against them. */
+.tabs-row { display: flex; align-items: center; gap: var(--s4); }
+.tabs-row > .tabs { flex: 1; min-width: 0; }
+.tabs-row-actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--s2); }
+
 .tab {
   background: none;
   border: var(--border-w) solid transparent;
@@ -1587,6 +1593,42 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 @media (max-width: 900px) {
   .ads-funnel { grid-template-columns: 1fr; }
   .ads-funnel-graphic { align-self: stretch; order: -1; }
+}
+
+/* The playbook as quick reference (drawer). The funnel diagram above is a
+   thing you study; this is the version you check mid-task, so it is four
+   rows that open one at a time rather than a page you scan for one line. */
+.pb-row {
+  display: flex; align-items: center; gap: var(--s3);
+  width: 100%; padding: var(--s3) var(--s4);
+  background: none; border: none; font-family: inherit; text-align: left;
+  cursor: pointer;
+}
+.pb-row:hover { background: var(--surface-sunken); }
+.pb-num {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #1a1a1a;
+  font-size: var(--fs-caption); font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.pb-row-text { flex: 1; min-width: 0; }
+.pb-row-title { display: block; font-weight: 800; font-size: var(--fs-body); color: var(--text); }
+.pb-row-tagline { display: block; font-size: var(--fs-caption); color: var(--text-subtle); line-height: 1.35; }
+.pb-chev { flex: 0 0 auto; font-size: var(--fs-body); color: var(--text-subtle); font-weight: 700; }
+.pb-detail {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5);
+  padding: 0 var(--s4) var(--s4) calc(var(--s4) + 26px + var(--s3));
+  border-top: 1px solid var(--card-border);
+  padding-top: var(--s4);
+}
+.pb-detail-head { font-size: var(--fs-caption); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--s2); }
+/* The tick and cross live on .ads-do / .ads-dont ancestors in the diagram,
+   which this layout does not have, so the markers are restated per column. */
+.pb-detail-col:first-child .ads-list li::before { content: '\2713'; position: absolute; left: 0; color: var(--positive); font-weight: 800; }
+.pb-detail-col:last-child  .ads-list li::before { content: '\2715'; position: absolute; left: 0; color: var(--negative); font-weight: 800; }
+.pb-detail .ads-list { font-size: var(--fs-caption); line-height: 1.55; }
+@media (max-width: 760px) {
+  .pb-detail { grid-template-columns: 1fr; gap: var(--s4); padding-left: var(--s4); }
 }
 
 

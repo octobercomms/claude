@@ -37,7 +37,7 @@ let _uid = 0;
 // paid-social + display sizes. The background is generatively expanded so
 // nothing gets cropped, and a too-small source is upscaled first. Backend does
 // the fal work; this is upload → pick sizes → download.
-export default function AdResizePanel({ clientId, clientName }) {
+export default function AdResizePanel({ clientId, clientName, seed, onClearSeed }) {
   const toast = useToast();
   const fileRef = useRef(null);
   const [groups, setGroups] = useState([]);
@@ -113,15 +113,38 @@ export default function AdResizePanel({ clientId, clientName }) {
     });
     setItems(prev => [...prev, ...next].slice(0, 25));
   }
+  // A creative picked in the library. It has a URL rather than a File, so it
+  // rides along as an id the server resolves: the browser never refetches a
+  // provider CDN it has no CORS grant for, and the server only ever fetches a
+  // URL it stored itself.
+  function addLibraryItem(item) {
+    setResult(null);
+    setItems(prev => {
+      if (prev.some(x => x.libraryId === item.id)) return prev;
+      const entry = { id: ++_uid, libraryId: item.id, file: null, url: item.url, dims: null, name: item.headline || 'Library creative' };
+      const img = new Image();
+      img.onload = () => setItems(cur => cur.map(x => x.id === entry.id ? { ...x, dims: { w: img.naturalWidth, h: img.naturalHeight } } : x));
+      img.src = item.url;
+      return [...prev, entry].slice(0, 25);
+    });
+  }
+  useEffect(() => {
+    if (seed) { addLibraryItem(seed); onClearSeed?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed]);
+
   function removeItem(id) {
     setItems(prev => {
       const it = prev.find(x => x.id === id);
-      if (it) URL.revokeObjectURL(it.url);
+      // Only the object URLs we minted. Revoking a library item's https URL
+      // does nothing, but revoking is for blobs and saying so keeps the next
+      // reader from assuming every item owns its URL.
+      if (it && it.file) URL.revokeObjectURL(it.url);
       return prev.filter(x => x.id !== id);
     });
   }
   function clearAll() {
-    items.forEach(it => URL.revokeObjectURL(it.url));
+    items.forEach(it => { if (it.file) URL.revokeObjectURL(it.url); });
     setItems([]); setResult(null);
   }
 
@@ -166,7 +189,9 @@ export default function AdResizePanel({ clientId, clientName }) {
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
-      items.forEach(it => fd.append('files', it.file));
+      items.filter(it => it.file).forEach(it => fd.append('files', it.file));
+      const libraryIds = items.filter(it => it.libraryId).map(it => it.libraryId);
+      if (libraryIds.length) fd.append('image_ids', JSON.stringify(libraryIds));
       fd.append('sizes', JSON.stringify([...selected]));
       const out = await api.postForm(`/ad-creatives/clients/${clientId}/resize`, fd);
       setResult(out);

@@ -15,7 +15,7 @@ import { roWrite } from '../../utils/readOnly';
 // badged as an example — it runs through every step so the AM can see what
 // each stage produces and show a client, without it being mistaken for
 // approved work.
-export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }) {
+export default function PaidBriefStep({ pipeline, onNext, clientId, clientName, briefSeed }) {
   const {
     batches, realBatches, exampleBatch, ensuringExample, exampleError, ensureExample,
     activeBatchId, selectBatch, deleteBatch,
@@ -24,18 +24,39 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
   const { readOnly } = useAuth();
 
   const onlyExample = loaded && !realBatches.length;
+  // Arriving from Competitors with "use this in a brief": open the form with
+  // what that research found already in it. Once, on arrival — reopening the
+  // form later should not resurrect a seed you deliberately cleared.
+  // The last seed acted on, not a boolean: a boolean latch opens the form for
+  // the first competitor hand-off and silently ignores the second, so using
+  // Competitors twice in a session works once. Comparing the text reopens for
+  // a different run and still does not reopen for the same one.
+  const seeded = React.useRef(null);
+  React.useEffect(() => {
+    if (!briefSeed || readOnly || seeded.current === briefSeed) return;
+    seeded.current = briefSeed;
+    setShowBrief(true);
+  }, [briefSeed, readOnly, setShowBrief]);
+
+  // One primary per screen. The header's "+ New brief" and the empty state's
+  // are the same button 100px apart, so when the empty state is showing it
+  // carries the primary and the header stands down.
+  const emptyStateShowing = loaded && !ensuringExample && !batches.length;
 
   return (
     <PipelineStep
       num={1} title="Brief" onNext={onNext} nextLabel="See the concepts"
+      nextDisabled={!activeBatchId}
       tagline="Tell Claude what you want — the offer, the audience, anything to avoid. Each brief produces a batch of concepts grounded in the brand assets you've uploaded."
       banner={onlyExample && exampleBatch ? <ExampleBanner onNewBrief={() => setShowBrief(true)} /> : null}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div className="caption">Past briefs</div>
-        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => setShowBrief(true), disabled: generating })}>
-          {generating ? 'Generating…' : '+ New brief'}
-        </button>
+        {!emptyStateShowing && (
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => setShowBrief(true), disabled: generating })}>
+            {generating ? 'Generating…' : '+ New brief'}
+          </button>
+        )}
       </div>
 
       {!assets.length && (
@@ -48,6 +69,7 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
         <BriefModal
           assets={assets}
           clientId={clientId}
+          initialBrief={briefSeed || ''}
           submitting={generating}
           onClose={() => setShowBrief(false)}
           onSubmit={generate}
