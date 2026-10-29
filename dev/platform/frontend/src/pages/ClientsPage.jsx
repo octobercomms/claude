@@ -87,6 +87,11 @@ export default function ClientsPage() {
   const skippedCount = health.skipped_no_recipients || 0;
   const failedCount = health.failed || 0;
   const expiredTokens = alerts.expired_meta_tokens || [];
+  // The cross-client roll-up from /dashboard: open crucial items per client,
+  // worst first. Defaulted so an older API response, or a failed roll-up,
+  // renders "all clear" rather than throwing on the tile.
+  const attention = (summary && summary.attention) || { clients: [], stale: 0, total: 0 };
+  const worstClient = attention.clients[0] || null;
 
   // Enrich the spine with the summary's connector / last-report data. The rule
   // (and the trap in it) lives in utils/clientList.js, guarded by tests.
@@ -152,11 +157,28 @@ export default function ClientsPage() {
             ? '/settings?tab=reports&status=skipped_no_recipients'
             : '/settings?tab=reports'}
         />
+        {/* Needs attention. An expired token blocks every number downstream
+            of it, so it outranks everything; below that, a crucial item left
+            open a fortnight is the account quietly slipping. Only crucial
+            items count: letting nice-to-haves raise the alarm makes the alarm
+            meaningless inside a month. The link goes to the worst client
+            rather than a list, because a tile that names a problem and then
+            makes you find it is half a tile. */}
         <Stat
           label="Needs attention"
-          value={expiredTokens.length}
-          sub={expiredTokens.length ? 'token expired' : 'all clear'}
-          subTone={expiredTokens.length ? 'warn' : undefined}
+          value={expiredTokens.length + attention.stale}
+          sub={
+            expiredTokens.length ? `${expiredTokens.length} token${expiredTokens.length === 1 ? '' : 's'} expired →`
+            : attention.stale ? `${attention.stale} client${attention.stale === 1 ? '' : 's'} slipping · ${worstClient?.oldest_days}d →`
+            : attention.total ? `${attention.total} working through items`
+            : 'all clear'
+          }
+          subTone={expiredTokens.length || attention.stale ? 'warn' : undefined}
+          to={
+            expiredTokens.length ? `/clients/${expiredTokens[0].client_id}?tab=connectors`
+            : worstClient ? `/clients/${worstClient.client_id}?tab=strategy`
+            : undefined
+          }
         />
       </div>
 

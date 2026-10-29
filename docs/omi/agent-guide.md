@@ -498,6 +498,43 @@ Three traps:
 - **`loadOpenItems` runs before the new briefing's row is inserted**, or the
   briefing would find itself as the "previous" one.
 
+### Which clients are slipping (29 Oct 2026)
+
+The per-client queue answers "what is open for Falcon". The question an agency
+owner has on a Monday is "which of my fourteen clients has something on fire",
+and no per-client screen answers that however well it is placed. The Clients
+page's **Needs attention** tile does.
+
+`services/strategist/attention.js` → `summariseAttention(rows)` ranks every
+client with open crucial items, worst first. `/dashboard` returns it as
+`attention: { clients, stale, total, stale_days }`.
+
+Four rules, each there because the alternative makes the number meaningless:
+
+- **Only crucial items count.** Crucial means it moves the needle in the next
+  30 days. Letting nice-to-haves raise the alarm would make the alarm useless
+  within a month, which is how a "needs attention" number becomes one nobody
+  looks at.
+- **Stale is 14 days**, deliberately longer than the panel's own seven-day age
+  badge. The badge nudges while you are already looking at that client; this
+  interrupts across all of them, and an interruption has to earn itself.
+- **Worst first means oldest first**, then most items. One item open 30 days
+  beats four raised yesterday: age is the signal that something is being
+  avoided rather than worked.
+- **An unknown age is never stale.** (Belt and braces rather than load-bearing:
+  `null >= 14` is already false, so a mutation removing the explicit check does
+  not change behaviour and the test cannot tell them apart. The check documents
+  the intent.)
+
+An expired token still outranks everything, because it blocks every number
+downstream of it. The tile links to the worst client rather than a list: a tile
+that names a problem and then makes you find it is half a tile.
+
+**Ages only accumulate from the first briefing generated after `215` shipped.**
+Existing items were backfilled to their `created_at`, so historic briefings read
+honestly, but nothing has been *carried* yet. For the first week or two the tile
+will look quiet, and that is the data being young rather than an all-clear.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First

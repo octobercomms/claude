@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const users = require('../services/users');
+const { summariseAttention } = require('../services/strategist/attention');
 const usageTracking = require('../services/usageTracking');
 
 const router = express.Router();
@@ -13,7 +14,9 @@ router.get('/', async (req, res) => {
     const visibleIds = await users.getVisibleClientIds(req.user);
     if (visibleIds && !visibleIds.length) {
       return res.json({
-        clients: [], alerts: { expired_meta_tokens: [] }, upcoming_reports: [], recent_reports: [],
+        clients: [], alerts: { expired_meta_tokens: [] },
+        attention: { clients: [], stale: 0, total: 0, stale_days: 14 },
+        upcoming_reports: [], recent_reports: [],
         report_health: { sent: 0, skipped_no_recipients: 0, failed: 0, total: 0 },
       });
     }
@@ -108,6 +111,37 @@ router.get('/', async (req, res) => {
       client.strategy = s ? { template_name: s.template_name, done: s.done, total: s.total, pct: s.pct } : null;
     }
 
+    // Which clients are slipping: open CRUCIAL items on each client's most
+    // recent briefing, ranked oldest first. The per-client queue answers "what
+    // is open for Falcon"; this answers "which of my clients has something on
+    // fire", which is the question an agency owner actually has on a Monday
+    // and which no per-client screen can answer.
+    //
+    // Best-effort: a dashboard that fails to load because the strategist has
+    // never run is worse than one without this number.
+    let attention = { clients: [], stale: 0, total: 0, stale_days: 14 };
+    try {
+      const { rows: attRows } = await pool.query(`
+        WITH latest AS (
+          SELECT DISTINCT ON (b.client_id) b.id, b.client_id
+            FROM strategist_briefings b
+            JOIN clients c ON c.id = b.client_id
+           WHERE b.status = 'completed'${filterSql}
+           ORDER BY b.client_id, b.generated_at DESC
+        )
+        SELECT l.client_id,
+               c.name AS client_name,
+               c.slug,
+               COUNT(*)                   AS crucial_open,
+               MIN(r.first_raised_at)     AS oldest_raised_at
+          FROM latest l
+          JOIN clients c ON c.id = l.client_id
+          JOIN strategist_briefing_recommendations r
+            ON r.briefing_id = l.id AND r.done = false AND r.priority = 'crucial'
+         GROUP BY l.client_id, c.name, c.slug`, filterParams);
+      attention = summariseAttention(attRows);
+    } catch (e) { console.error('[dashboard] attention roll-up failed:', e.message); }
+
     // Combined API spend this month — admin only (it's workspace-wide
     // cost data). visibleIds === null means the user sees everything.
     let apiSpend = null;
@@ -119,6 +153,7 @@ router.get('/', async (req, res) => {
     res.json({
       clients,
       alerts: { expired_meta_tokens: expiredMeta },
+      attention,
       upcoming_reports: upcoming,
       recent_reports: recentReports,
       report_health: reportHealth,
