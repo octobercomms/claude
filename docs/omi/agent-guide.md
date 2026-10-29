@@ -190,6 +190,32 @@ What moved:
   `?tab=dashboard` or `?tab=strategist` link lands on Overview rather than a
   blank page.
 
+### No tab may depend on an Overview (Oct 2026)
+
+Before deleting a suite's Overview, run `frontend/tests/tabDoors.test.mjs`. The
+Overviews are partly diagrams of links into their suite — Owned carries 38
+tabs, Shared 18, Paid 14 — so removing one is a navigation change, and a tab
+linked only from inside it becomes a page nobody can open.
+
+As of 29 Oct 2026 **no Overview is load-bearing**: every tab in every readable
+suite has a door elsewhere. The Overviews can come out section by section. The
+test is the ratchet that keeps that true, and it names the page and the tab
+when it is not.
+
+Two things worth knowing before trusting or changing it:
+
+- The scanner has its own tests in `tabDoorsLib.test.mjs`, because the first
+  two attempts at this analysis were confidently wrong. One regex missed
+  accordion items. The next reported Paid's four pipeline steps and Owned's
+  `topic_map` as Overview-only — all five reachable through a `StepRail` whose
+  handler is passed by reference (`onStep={setTab}`) with keys taken from an
+  array by index, so there is no `setTab('render')` anywhere to find. Teaching
+  it about that pattern cleared all five.
+- It cannot read `ClientPRPage` (tab in `useState`, no allow-list) or
+  `ClientDetailPage` (tab straight off the search params). Both are pinned in
+  the test's `UNREADABLE` list, so a green run never silently implies coverage
+  it does not have, and a third such page fails until someone decides about it.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First
