@@ -58,9 +58,11 @@ export default function Layout() {
   }, [clientId, location.pathname]);
   let lastClientPath = null;
   try { lastClientPath = localStorage.getItem('lastClientPath'); } catch { /* ignore */ }
-  // A client login has exactly one client — Workspace always jumps into it
-  // (Data first), never the all-clients directory. Agency users get their
-  // last-visited client, or the picker if they've none.
+  // A client login has exactly one client — Workspace always jumps into it,
+  // never the all-clients directory, and never the Dashboard: that is the
+  // agency's workspace. Agency users get their last-visited client, or the
+  // client list if they have none; from the list, opening a client lands on
+  // the Dashboard's Measure tab.
   const workspaceTarget = readOnly
     ? (user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/clients')
     : (lastClientPath || '/clients');

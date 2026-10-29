@@ -284,11 +284,14 @@ function ClientCard({ client }) {
           </div>
         )}
       </div>
+      {/* Opening a client lands on the Dashboard, which defaults to Measure.
+          It used to land on Data, which was a section you had to decide to
+          visit on the way to the numbers you came for. */}
       <Link
-        to={`/clients/${client.id}/sales-traffic`}
+        to={`/clients/${client.id}?tab=measure`}
         className="flex justify-between items-center text-[length:var(--fs-caption)] font-extrabold text-ink no-underline border-t border-cardborder pt-s3 mt-s2"
       >
-        <span>Manage client</span>
+        <span>Open client</span>
         <span className="text-[length:var(--fs-body)]">→</span>
       </Link>
     </div>

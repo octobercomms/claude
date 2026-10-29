@@ -54,7 +54,7 @@ export default function ClientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { readOnly } = useAuth();
+  const { readOnly, user } = useAuth();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
   const [reports, setReports] = useState([]);
@@ -345,6 +345,16 @@ export default function ClientDetailPage() {
         window.removeEventListener('message', handler);
       }
     });
+  }
+
+  // The Dashboard is the agency's workspace — setup, connector configuration,
+  // report templates and the strategy behind the work. A client login was kept
+  // off it by hiding the nav item, which hides nothing: the route still
+  // answered a typed URL. Now that opening a client lands here, that gap is
+  // worth closing properly rather than relying on nobody guessing the address.
+  // Writes were already blocked by roWrite; this stops the reading too.
+  if (readOnly) {
+    return <Navigate to={user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/clients'} replace />;
   }
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
