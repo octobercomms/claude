@@ -153,6 +153,24 @@ And within OMI there are **two different "Leads" screens** — always disambigua
   (`LeadsPage` → `SnapshotStudioPage`). *This is a plain table → full page and
   should stay that way* (its detail is itself a big two-column workspace).
 
+### "Dashboard" now means the per-client section (Oct 2026)
+
+The agency landing is **Clients** (`/clients`, `ClientsPage`). It used to be two
+screens: `/dashboard` (summary cards) and `/clients` (a name/slug/status table)
+that linked to each other. They were the same list twice, so they were merged;
+`DashboardPage.jsx` is gone and `/dashboard` is a redirect kept for bookmarks.
+
+The name was freed on purpose. **Dashboard** is being reused for a per-client
+section (Measure · Reports · Strategy) that replaces today's Admin + Data split.
+Do not reintroduce a top-level screen called Dashboard.
+
+The page merges two endpoints and which one wins matters: `/clients` is the
+spine (the only one returning archived clients, and the authority on `active`),
+`/dashboard` enriches it by id with connectors, last report, alerts and spend
+(active clients only — its query is `WHERE c.active = true`). That rule is in
+`frontend/src/utils/clientList.js` with tests in
+`frontend/tests/clientList.test.mjs`; keep it there rather than inlining it.
+
 ### Temporary: the checker bench
 
 `/lab/checker` (Settings → Checker bench, admin only) is a calibration bench for
