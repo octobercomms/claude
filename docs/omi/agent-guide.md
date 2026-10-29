@@ -448,6 +448,56 @@ the tests and the build:
 `tests/` cannot see any of it, so the guard is the browser drive script, with
 both layout rules mutation-tested.
 
+### The Strategist has a memory now (29 Oct 2026)
+
+It did not before, and that was the whole problem. Migration `041` said the
+next briefing would "ground recommendations in what was actually actioned vs
+ignored"; `140` said it would "grade follow-through". Neither wired it up, so
+every briefing re-derived the account from nothing: it could not say an item
+had been open three weeks, could not follow up on something you fixed, and
+wrote the same 24 sections every Monday. **A weekly document that never varies
+is one you stop opening.** Length was the symptom; sameness was the disease.
+
+What changed:
+
+- `services/strategist/queue.js` parses the queue and threads it to the
+  previous briefing's open items. The model is handed the open list with
+  `[A1]`-style tags and copies a tag verbatim to carry an item forward. An
+  invented tag, or a tag used twice, is treated as a **new** item rather than
+  attaching one item's history to another's — a quieter failure than a wrong
+  age. Tests in `tests/strategist-queue.test.js`, its own CI step.
+- `215_strategist_briefing_memory.sql` adds `first_raised_at` (carried across
+  briefings, so age survives), `carried_from` (lineage) and `rationale` (why,
+  kept apart from what).
+- The synthesis prompt is now two sections: **What changed** (four bullets at
+  most, one line if nothing did) and **The queue**. The old prompt asked for
+  "thorough" twice and "in real depth" once across 24 sections, and the model
+  was obeying. The pillar prompts shrank from five sections to two plus
+  recommendations: they are evidence read on demand, not the briefing.
+- The queue is the synthesis's alone. Pillar recommendations stay on their
+  sections rather than merging in — two lists of the same work is how six
+  items ended up saying one thing.
+
+On screen: What changed leads, then the queue with an age badge past seven days
+(not before: the badge exists to make a stale item uncomfortable, and nothing
+is uncomfortable on its first morning), each item's reasoning folded behind a
+`?`. The four pillar boxes, three of which read "no data", are behind one
+**Evidence** line. The strategy checklist collapsed to one line above it, since
+it is quarterly reference and the briefing is the weekly read.
+
+Three traps:
+
+- **The synthesis markdown is cut at the queue heading before rendering.** The
+  queue renders below as tickable rows, so printing the markdown whole shows
+  every item twice. If the model omits the heading, the whole thing renders
+  rather than nothing.
+- **One level of disclosure inside Evidence, not two.** The first pass kept the
+  per-pillar accordions inside it, which meant two clicks to read one
+  paragraph, three of the four being pillars with nothing to say. Pillars that
+  reported render straight out; the silent ones are named in a line.
+- **`loadOpenItems` runs before the new briefing's row is inserted**, or the
+  briefing would find itself as the "previous" one.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First

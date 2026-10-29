@@ -12,6 +12,7 @@
 
 const pool = require('../../db');
 const claude = require('../claude');
+const { parseQueue, reconcile, openItemsBlock } = require('./queue');
 const dataCollector = require('../dataCollector');
 
 const MODEL = 'claude-opus-4-8';
@@ -119,13 +120,13 @@ ${contextBlock(ctx)}${steerBlock(steer)}
 
 # Your brief
 ${pillar.frame}
-Write a thorough markdown analysis (no top-level heading — the UI adds it). Use \`###\` sub-headings and cover:
-- **What the data shows** — read the numbers: the state of play, the trend, and what stands out (good and bad). Cite specific figures.
-- **What's working** — what to protect and build on, and *why* it's working.
-- **What's holding growth back** — the real constraints, root cause not just symptom, with the numbers that reveal them.
-- **What I'd do** — the specific moves, each with the reasoning (why it works) and the expected impact / what "good" looks like next.
-- End with a \`### Recommendations\` list. Each line MUST start with \`[CRUCIAL]\` or \`[NICE]\` (crucial = do it in the next 30–90 days, it moves the needle; nice = worthwhile but not urgent), then the specific action and the one-line why.
-Be genuinely useful and specific — enough that the account lead could act on this on Monday. If the data is too thin to judge a sub-section, say so plainly rather than padding.
+This feeds the account lead's queue. It is evidence, read only when they want to know why an item is on the list, so it is short and it is specific. No heading (the UI adds it).
+
+- **The state of play** — two or three sentences on what the numbers say, citing the figures. No preamble.
+- **What is actually wrong, and why** — root cause, not symptom, with the number that reveals it. Skip this if nothing is wrong.
+- End with a \`### Recommendations\` list, each line as \`[CRUCIAL] The action :: why it matters, with the figure\` (crucial = next 30 days and it moves the needle; nice = worthwhile but can wait).
+
+If the data is too thin to judge, say that in one line rather than padding. Length is not a measure of usefulness here.
 
 # ${pillar.label} data (last ${data.days} days)
 \`\`\`json
@@ -133,23 +134,42 @@ ${JSON.stringify(data, null, 2)}
 \`\`\``;
 }
 
-function synthesisPrompt({ ctx, commercial, sections, steer }) {
+function synthesisPrompt({ ctx, commercial, sections, steer, openItems, lastGeneratedAt }) {
   const pillarBlocks = sections.map(s => `## ${s.label}\n${s.ok ? s.markdown : `_No ${s.label} data this period._`}`).join('\n\n');
-  return `You are the lead strategist writing the **client-level synthesis** at the top of the briefing, having read all four pillar analyses below.
+  const since = lastGeneratedAt
+    ? `The previous briefing was ${new Date(lastGeneratedAt).toISOString().slice(0, 10)}.`
+    : 'This is the first briefing for this account.';
+  return `You are the lead strategist writing the account lead's weekly briefing, having read all four pillar analyses below.
+
+This is read on a Monday morning by someone running an agency. They do not need the analysis; they need to know what changed, what is now theirs to do, and what they can ignore. Write accordingly: if little changed, the briefing should be short, and its shortness is the message.
 
 # Client context
 ${contextBlock(ctx)}${steerBlock(steer, { emphasis: true })}
 ${commercial ? `\n# Commercial headline\nRevenue (period): £${commercial.revenue.toLocaleString('en-GB')} from ${commercial.orders} orders.` : ''}
 
+# Already open, from the last briefing
+${since}
+${openItemsBlock(openItems)}
+
 # The four pillar analyses
 ${pillarBlocks}
 
 # Write (markdown, no top-level heading)
-1. **The headline** — a short paragraph: how the account is doing overall, the single biggest opportunity right now, and the one risk worth naming.
-2. **Where to focus** — the cross-channel story in real depth: what's working to build on, what's holding growth back, and — importantly — how the channels should support each other (e.g. what owned/earned should do for paid, where social amplifies the rest). Explain the reasoning, not just the conclusion.
-3. **The next stage** — if you were the business owner, what does "levelling up" look like over the next few months, and what's the sequence to get there?
-4. A \`### This month's priorities\` list — the few things that matter most across the WHOLE account, most important first. Each line starts with \`[CRUCIAL]\` or \`[NICE]\`, then the action and why. These are account-level priorities, not a rehash of every pillar recommendation.
-Be decisive and commercially minded: where should the next month of effort and budget go, and what is merely nice to have?`;
+
+\`### What changed\`
+At most four bullets, and fewer is better. Only things that are genuinely different from the last briefing: a number that moved enough to matter, something that broke, something that was fixed and what happened as a result. If nothing material changed, write exactly one line saying so and nothing else. Do not restate the state of the account; they have read it before.
+
+\`### The queue\`
+Every item, most important first, one per line, in this exact shape:
+
+\`[CRUCIAL][A1] The action :: why it matters, with the figure that shows it\`
+
+- \`[CRUCIAL]\` means do it in the next 30 days and it moves the needle. \`[NICE]\` means worthwhile but it can wait. Be hard about this: if everything is crucial, nothing is.
+- The \`[A1]\` tag: copy it verbatim from the open list above when this item continues one that is already open, so it keeps its age. Leave the tag off entirely for anything newly raised. Never invent a tag.
+- Drop an open item by simply not re-emitting it. Only drop it when it is genuinely resolved or no longer worth doing, and say which in What changed.
+- The action is one sentence, specific enough to start on Monday. The rationale after \` :: \` is one sentence and carries the number.
+
+Nothing else. No headline paragraph, no "where to focus", no closing summary. The queue is the deliverable.`;
 }
 
 // Parse "[CRUCIAL]/[NICE] text" lines out of a markdown block.
@@ -179,17 +199,46 @@ async function runPillar(pillar, clientId, days, ctx, steer) {
   }
 }
 
+// What the last briefing left open, and when it ran. This is the memory: both
+// 041 and 140 said the next briefing would ground itself in what was actually
+// actioned, and neither wired it up, so every briefing re-derived the account
+// from nothing and wrote the same paragraphs every week.
+//
+// Only the most recent completed briefing's items count. Walking further back
+// would resurrect things a later briefing deliberately dropped.
+async function loadOpenItems(clientId) {
+  const { rows: brows } = await pool.query(
+    `SELECT id, generated_at FROM strategist_briefings
+      WHERE client_id = $1 AND status = 'completed'
+      ORDER BY generated_at DESC LIMIT 1`, [clientId]);
+  if (!brows.length) return { openItems: [], lastGeneratedAt: null, lastBriefingId: null };
+
+  const { rows } = await pool.query(
+    `SELECT id, text, rationale, pillar, priority, first_raised_at
+       FROM strategist_briefing_recommendations
+      WHERE briefing_id = $1 AND done = false
+      ORDER BY first_raised_at ASC, position ASC`, [brows[0].id]);
+  return { openItems: rows, lastGeneratedAt: brows[0].generated_at, lastBriefingId: brows[0].id };
+}
+
 async function insertRecs(briefingId, clientId, recs) {
   if (!recs.length) return;
   const values = [];
   const params = [briefingId, clientId];
   recs.forEach((r, i) => {
     const base = params.length;
-    values.push(`($1, $2, $${base + 1}, $${base + 2}, ${i + 1}, $${base + 3})`);
-    params.push(r.pillar, r.priority === 'crucial' ? 'crucial' : 'nice', r.text.slice(0, 1000));
+    // first_raised_at defaults to NOW() for a newly raised item; a carried one
+    // brings the date it first appeared, which is the age the UI shows.
+    values.push(`($1, $2, $${base + 1}, $${base + 2}, ${i + 1}, $${base + 3}, $${base + 4}, COALESCE($${base + 5}::timestamptz, NOW()), $${base + 6}::uuid)`);
+    params.push(
+      r.pillar, r.priority === 'crucial' ? 'crucial' : 'nice', r.text.slice(0, 1000),
+      r.rationale ? String(r.rationale).slice(0, 2000) : null,
+      r.first_raised_at || null, r.carried_from || null,
+    );
   });
   await pool.query(
-    `INSERT INTO strategist_briefing_recommendations (briefing_id, client_id, pillar, priority, position, text)
+    `INSERT INTO strategist_briefing_recommendations
+       (briefing_id, client_id, pillar, priority, position, text, rationale, first_raised_at, carried_from)
      VALUES ${values.join(',')}`, params);
 }
 
@@ -211,6 +260,10 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
     steer = srows.map(r => r.text);
   } catch { /* table optional / best-effort */ }
 
+  // What the last briefing left open. Read before the insert below, so this
+  // briefing's own (still empty) row cannot be mistaken for the previous one.
+  const { openItems, lastGeneratedAt } = await loadOpenItems(clientId);
+
   const ins = await pool.query(
     `INSERT INTO strategist_briefings (client_id, status, trigger, period_start, period_end)
      VALUES ($1, 'generating', $2, (NOW() - make_interval(days => $3))::date, NOW()::date) RETURNING id`,
@@ -228,7 +281,7 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
 
     const synthMd = await claude.callClaude({
       model: MODEL, feature: FEATURE, clientId, max_tokens: 8000,
-      system: SYSTEM, user: synthesisPrompt({ ctx, commercial, sections, steer }),
+      system: SYSTEM, user: synthesisPrompt({ ctx, commercial, sections, steer, openItems, lastGeneratedAt }),
     });
 
     await pool.query(
@@ -241,12 +294,24 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
       ]
     );
 
-    const recs = [];
-    for (const s of sections) for (const r of s.recommendations) recs.push({ pillar: s.pillar, ...r });
-    for (const r of parseRecs(synthMd)) recs.push({ pillar: 'cross', ...r });
-    // Crucial first, then by pillar order, for a sensible checklist order.
-    recs.sort((a, b) => (a.priority === b.priority ? 0 : a.priority === 'crucial' ? -1 : 1));
-    await insertRecs(briefingId, clientId, recs).catch(e => console.warn('[strategist] rec insert failed:', e.message));
+    // The synthesis queue is the account lead's list, and the only place that
+    // threads back to what was already open. The pillar recommendations are
+    // evidence behind it: they are kept on their sections rather than merged
+    // into the queue, because two lists of the same work is how the old
+    // briefing ended up with six items saying one thing.
+    const { items, dropped } = reconcile(parseQueue(synthMd), openItems);
+    // The model's order IS the priority, so it is preserved as written. Only a
+    // nice-to-have that outranks a crucial is corrected, which the prompt asks
+    // it not to do but which costs nothing to enforce.
+    const ordered = [
+      ...items.filter(r => r.priority === 'crucial'),
+      ...items.filter(r => r.priority !== 'crucial'),
+    ].map(r => ({ ...r, pillar: r.pillar || 'cross' }));
+    await insertRecs(briefingId, clientId, ordered).catch(e => console.warn('[strategist] rec insert failed:', e.message));
+    if (dropped.length) {
+      console.log(`[strategist] ${dropped.length} item(s) dropped from the queue for client ${clientId}: ` +
+        dropped.map(d => d.text.slice(0, 60)).join(' | '));
+    }
 
     return briefingId;
   } catch (err) {

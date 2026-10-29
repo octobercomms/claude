@@ -107,6 +107,8 @@ jobs:
         run: node tests/pr-leaderboard-scope.test.js
       - name: Guard — revenue never wears a currency no store reported
         run: node tests/ecom-currency.test.js
+      - name: Guard — a carried briefing item keeps its age, never another's
+        run: node tests/strategist-queue.test.js
       - name: Guard — a report with no recipients is never generated
         run: node tests/report-recipients.test.js
       - name: Guard — a sent report can never be bulk deleted

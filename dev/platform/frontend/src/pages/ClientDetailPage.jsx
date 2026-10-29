@@ -59,6 +59,9 @@ export default function ClientDetailPage() {
   const [reports, setReports] = useState([]);
   const [previewType, setPreviewType] = useState(null);
   const [loading, setLoading] = useState(true);
+  // The strategy checklist is reference, so it opens on demand rather than
+  // pushing the weekly briefing below the fold.
+  const [strategyOpen, setStrategyOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   // Measure first, deliberately. You arrive at a client with a question about
@@ -398,12 +401,24 @@ export default function ClientDetailPage() {
       {/* Strategy carries the plan and the briefing on it together. The
           Strategist used to sit in Data, two sections away from the SOSTAC,
           personas and SWOT it is reasoning about. */}
-      {tab === 'strategy' && <ClientStrategyPanel clientId={id} />}
-      {tab === 'strategy' && !readOnly && (
-        <div style={{ marginTop: 'var(--s8)' }}>
-          <StrategistBriefingPanel clientId={id} />
+      {/* The briefing leads and the checklist sits above it, collapsed. They are
+          different rhythms: the checklist is template setup you revisit
+          occasionally, the briefing is the weekly read. Equal billing is how
+          the briefing became the thing you scroll past. */}
+      {tab === 'strategy' && (
+        <div style={{ marginBottom: 'var(--s6)' }}>
+          <button type="button" onClick={() => setStrategyOpen(o => !o)} className="accordion-trigger">
+            <span style={{ fontSize: 'var(--fs-title)', width: 16, display: 'inline-block' }}>{strategyOpen ? '\u2212' : '+'}</span>
+            Strategy checklist
+          </button>
+          {strategyOpen && (
+            <div style={{ marginTop: 'var(--s3)' }}>
+              <ClientStrategyPanel clientId={id} />
+            </div>
+          )}
         </div>
       )}
+      {tab === 'strategy' && !readOnly && <StrategistBriefingPanel clientId={id} />}
 
       {/* Setup. The SuiteOverview that used to sit here described where
           setup lived rather than being it, and its "Brand kit" node pointed at

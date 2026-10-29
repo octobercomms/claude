@@ -1614,6 +1614,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .briefing-meta { font-size: var(--fs-caption); color: var(--text-subtle); margin-top: 4px; }
 .briefing-card.active .briefing-date { color: #fff; }
 .briefing-card.active .briefing-meta { color: rgba(255,255,255,0.6); }
+/* How long a queue item has been waiting. Only shown past a week: the badge
+   exists to make a stale item uncomfortable, and nothing is uncomfortable on
+   its first morning. Warm rather than red — it is a nudge, not a failure. */
+.queue-age {
+  display: inline-block; margin-left: var(--s2);
+  padding: 1px 8px; border-radius: var(--r-pill);
+  font-size: var(--fs-caption); font-weight: 700;
+  background: var(--warning-soft); color: var(--warning);
+  white-space: nowrap;
+}
+/* The reasoning behind an item, folded away until asked for. */
+.queue-why {
+  margin: var(--s2) 0 var(--s1) var(--s6);
+  padding-left: var(--s3);
+  border-left: 2px solid var(--card-border);
+  font-size: var(--fs-caption); line-height: 1.5; color: var(--text-muted);
+}
 .briefing-dot { display: inline-block; width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); margin-left: 6px; }
 .briefing-del {
   position: absolute; top: 6px; right: 8px;
