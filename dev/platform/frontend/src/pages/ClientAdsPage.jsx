@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
+import PillarMeasure from '../components/PillarMeasure';
 import AdResizePanel from '../components/AdResizePanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
@@ -433,6 +434,12 @@ export default function ClientAdsPage() {
         { key: 'health',   label: 'Health', fn: 'measure',   active: currentGroup === 'health',   onClick: () => setTab('health') },
         { key: 'build',    label: 'Build', fn: 'create',    active: currentGroup === 'build',    onClick: () => setTab('brief') },
       ]}>
+      {/* What this pillar actually drove, and its share of the account. The
+          whole Measure panel on four pages would put refund rate on the PR
+          page; this is the three headline numbers filtered to this pillar's
+          own GA4 channels, which is the version that answers "is this
+          working". */}
+      <PillarMeasure clientId={id} pillar="paid" />
       {currentGroup === 'health' && (
         <Accordion open={healthOpen} onToggle={toggleHealth}>
           <AccordionItem id="measure" fn="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">

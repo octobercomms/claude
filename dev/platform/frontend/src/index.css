@@ -982,6 +982,44 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   padding: var(--s2) 0 var(--s4);
   display: flex; flex-direction: column;
 }
+/* A pillar's contribution, on its own page: the account's headline numbers
+   filtered to this pillar's channels, each with its share. The share is what
+   turns a number into a judgement. */
+.pillar-measure { margin-bottom: var(--s6); }
+.pillar-measure-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4);
+}
+.pillar-measure-ranges { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-pill); background: var(--surface-sunken); flex: none; }
+.pillar-measure-range {
+  border: none; background: none; cursor: pointer;
+  padding: 4px 12px; border-radius: var(--r-pill);
+  font-family: var(--font); font-size: var(--fs-caption); font-weight: 700;
+  color: var(--text-muted);
+}
+.pillar-measure-range:hover { color: var(--text); }
+.pillar-measure-range.active { background: var(--surface); color: var(--text); }
+.pillar-measure-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s5); }
+.pillar-measure-value {
+  font-size: var(--fs-section); font-weight: 800; letter-spacing: -1px;
+  line-height: 1.1; margin-top: 2px; color: var(--text);
+}
+/* The share is the half that makes the number mean something, so it is not
+   a footnote: same weight as a label, in the accent's ink. */
+.pillar-measure-share { font-size: var(--fs-caption); font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+.pillar-measure-channels {
+  margin-top: var(--s4); padding-top: var(--s3);
+  border-top: var(--border-w) solid var(--card-border);
+  display: flex; flex-direction: column; gap: var(--s1);
+}
+.pillar-measure-channel {
+  display: flex; justify-content: space-between; gap: var(--s3);
+  font-size: var(--fs-caption); line-height: 1.6;
+}
+@media (max-width: 700px) {
+  .pillar-measure-stats { grid-template-columns: 1fr; gap: var(--s3); }
+}
+
 /* The analyst's replies are marked with a robot glyph, not an anonymous dot.
    The filled circle stays: without it the glyph floats loose against the panel
    and reads as a stray icon rather than the speaker. */

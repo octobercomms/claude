@@ -613,6 +613,57 @@ difference. It now names itself and points at the analyst for live numbers.
 browser check in this file's history: a case-sensitive regex against rendered
 caption text always fails. Match case-insensitively.
 
+### Measure on each PESO page (29 Oct 2026)
+
+Each pillar page now opens with what that pillar actually drove, and its share
+of the account. `components/PillarMeasure.jsx`, on all four.
+
+**Not the whole Measure panel four times.** That would put refund rate and top
+products on the PR page, which is noise wearing the costume of data. The pillar
+version is the three headline numbers — revenue, orders, sessions — filtered to
+that pillar's GA4 channels.
+
+**The share is the frame.** "Paid drove 2,000 sessions" says nothing on its
+own; "20% of the account" is the judgement. That was the comparison frame this
+work was waiting on, and it is the same question on all four pages, which is
+what makes them comparable.
+
+**The data was already being fetched and thrown away.** `salesTraffic` asks GA4
+for sessions, users, transactions and revenue grouped by
+`sessionDefaultChannelGroup`, then built `channels` from sessions alone. Keeping
+the other two cost nothing — no extra call, no new scope — and is why a pillar
+page can now say what its channels earned rather than only how many visits they
+brought.
+
+`services/channelPillars.js` holds the mapping, guarded by
+`tests/channel-pillars.test.js` with its own CI step:
+
+| Pillar | GA4 channels |
+|---|---|
+| Paid | Paid Search, Paid Social, Paid Shopping, Paid Video, Paid Other, Display, Cross-network |
+| Owned | Organic Search, Organic Shopping |
+| Shared | Organic Social, Organic Video |
+| Earned | Referral |
+
+**Direct is deliberately unmapped**, along with Email, Affiliates and
+Unassigned. Direct is returning customers, bookmarks, dark social and
+everything GA4 could not attribute; counting it as Earned would flatter PR with
+traffic it may have had nothing to do with.
+
+Two rules that are easy to get wrong and were mutation-tested:
+
+- **A share is of the account, not of the mapped subset.** Unmapped channels
+  still count toward the total, so a pillar sitting next to a large Direct
+  number reads small, because it is. Share-of-mapped would have read Paid at
+  29% instead of 20%.
+- **A channel that stops matching fails downward and silently.** If GA4 renames
+  one, its traffic drops out of its pillar and the pillar reads smaller than it
+  is, with nothing on screen to say so. Matching is on a normalised key, and
+  the test names every current GA4 channel.
+
+No sessions at all gives a `null` share rather than 0%: with no account to be a
+share of, 0% is a claim the data does not support.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First

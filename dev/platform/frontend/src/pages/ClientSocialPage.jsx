@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 import SocialPlannerChat from '../components/SocialPlannerChat';
+import PillarMeasure from '../components/PillarMeasure';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import StepRail from '../components/shells/StepRail';
@@ -467,6 +468,12 @@ export default function ClientSocialPage() {
           {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
         </UiButton>
       }>
+      {/* What this pillar actually drove, and its share of the account. The
+          whole Measure panel on four pages would put refund rate on the PR
+          page; this is the three headline numbers filtered to this pillar's
+          own GA4 channels, which is the version that answers "is this
+          working". */}
+      <PillarMeasure clientId={id} pillar="shared" />
 
       {/* Four top groups in workflow order: Overview / Create / Engage / Measure.
           Create is now the whole factory — Ideas → Brief → Workbench → Plan →
