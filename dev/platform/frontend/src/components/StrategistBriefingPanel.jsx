@@ -49,7 +49,6 @@ export default function StrategistBriefingPanel({ clientId }) {
   // settings and an archive, and neither is why you opened the page.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloading, setDownloading] = useState(null);
-  const [view, setView] = useState('briefing'); // 'briefing' | 'chat'
   const [steer, setSteer] = useState([]);
   const [steerText, setSteerText] = useState('');
 
@@ -75,8 +74,10 @@ export default function StrategistBriefingPanel({ clientId }) {
   }, [clientId]);
 
   const loadSteer = () => api.get(`/strategist/clients/${clientId}/steer`).then(setSteer).catch(() => {});
-  // Reload steer whenever the Briefing view is shown — the chat can add notes.
-  useEffect(() => { if (view === 'briefing') loadSteer(); /* eslint-disable-line */ }, [clientId, view]);
+  // Reload the steer notes whenever the drawer opens: the chat beside them can
+  // promote an answer into one, and the list would otherwise be a snapshot
+  // from whenever the page loaded.
+  useEffect(() => { if (settingsOpen) loadSteer(); /* eslint-disable-line */ }, [clientId, settingsOpen]);
 
   async function addSteer() {
     const text = steerText.trim();
@@ -215,45 +216,32 @@ export default function StrategistBriefingPanel({ clientId }) {
           its own tab spends its first line telling you where you are. The
           blurb went with it: what the page is for should be legible from what
           is on it. */}
-      <div className="modal-head" style={{ alignItems: 'center' }}>
-        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
-          {/* "Ask the strategist" against the analyst panel's "Chat": different
-              jobs, and the names have to say so. The strategist talks about
-              this briefing; the analyst, behind the bubble in the client bar,
-              is scoped to the page you are on and pulls live data. */}
-          {[{ key: 'briefing', label: 'Briefing' }, { key: 'chat', label: 'Ask about this briefing' }].map(v => (
-            <button key={v.key} onClick={() => setView(v.key)}
-              className={`tab ${view === v.key ? 'active' : ''}`}>
-              {v.label}
-            </button>
-          ))}
-        </div>
+      {/* The Briefing/Ask sub-tabs are gone with the rest of the chrome. The
+          page shows the latest briefing; asking about it is one of the extra
+          functions behind the menu, beside the settings for it.
+          
+          Generate stays HERE rather than joining them, and deliberately: it is
+          the one action that produces the thing this page exists to show, and
+          on a client with no briefing yet the empty state would otherwise read
+          "click Generate briefing" with no button anywhere on screen. */}
+      <div className="modal-head" style={{ alignItems: 'center', justifyContent: 'flex-end' }}>
         <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
-          {view === 'briefing' && (
-            <button className="btn btn-primary" onClick={generate} disabled={generating}>
-              {generating ? 'Generating…' : `+ Generate briefing · ${days} days`}
-            </button>
-          )}
-          <button type="button" className="btn-icon" onClick={() => setSettingsOpen(true)}
-            aria-label="Briefing settings and past briefings" title="Settings, downloads and past briefings">
-            ⚙
+          <button className="btn btn-primary" onClick={generate} disabled={generating}>
+            {generating ? 'Generating…' : `+ Generate briefing · ${days} days`}
+          </button>
+          {/* Not a cog. A cog promises settings, and this holds the chat, the
+              downloads and the archive as well — extra functions, which is
+              what a kebab means. Sized to the house icon button so it matches
+              the cog and plug in the client bar above it. */}
+          <button type="button" className="icon-circle" onClick={() => setSettingsOpen(true)}
+            aria-label="More: ask about this briefing, settings, downloads and past briefings"
+            title="Ask about this briefing, settings, downloads and past briefings">
+            ⋮
           </button>
         </div>
       </div>
 
-      {view === 'chat' && (
-        <>
-          {/* Two AI conversations about one client is confusing unless each
-              says what it is for. This one reads the briefing in front of you;
-              the analyst reads the live numbers for the page you are on. */}
-          <p className="caption" style={{ color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>
-            About this briefing, and what should go into the next one. For live numbers on a
-            particular section, use the analyst (the chat bubble, top right) while you are standing on it.
-          </p>
-          <StrategistChat clientId={clientId} />
-        </>
-      )}
-      {view === 'briefing' && <>{renderBriefingView()}</>}
+      {renderBriefingView()}
       {renderSettingsDrawer()}
     </div>
   );
@@ -337,11 +325,31 @@ export default function StrategistBriefingPanel({ clientId }) {
           <div className="side-drawer-head">
             <div>
               <div className="analyst-panel-kicker">Strategist</div>
-              <div className="analyst-panel-section">Settings</div>
+              <div className="analyst-panel-section">Ask &amp; settings</div>
             </div>
             <button type="button" className="analyst-panel-close" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button>
           </div>
-          <div className="side-drawer-body">
+          <div className="side-drawer-body side-drawer-split">
+            {/* Asking about the briefing on one side, configuring it on the
+                other. It was a sub-tab on the page, which meant the briefing
+                vanished the moment you asked a question about it — the one
+                thing you need in front of you while asking. Here the page
+                keeps it, behind the drawer, and the two columns stack on a
+                narrow screen rather than squeezing the thread. */}
+            <div className="side-drawer-col">
+              <div className="drawer-group drawer-chat">
+                <div className="caption drawer-group-head">Ask about this briefing</div>
+                <p className="body-xs text-subtle" style={{ marginBottom: 'var(--s3)' }}>
+                  This reads the briefing on the page. For live numbers on a particular section, use the analyst (the chat bubble, top right) while standing on it.
+                </p>
+                {/* Mounted only while the drawer is open: a closed drawer
+                    should not be holding a conversation, and reopening on the
+                    same client resumes the stored thread anyway. */}
+                {settingsOpen && <StrategistChat clientId={clientId} />}
+              </div>
+            </div>
+
+            <div className="side-drawer-col">
             <div className="drawer-group">
               <div className="caption drawer-group-head">The Monday email</div>
               <label className="strategist-setting" title="Include this client in the Monday email">
@@ -441,6 +449,7 @@ export default function StrategistBriefingPanel({ clientId }) {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </aside>
       </>
