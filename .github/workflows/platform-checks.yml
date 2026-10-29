@@ -115,6 +115,10 @@ jobs:
         run: node tests/strategist-weekly.test.js
       - name: Guard — a pillar's share is a share of the whole account
         run: node tests/channel-pillars.test.js
+      - name: Guard — ad spend summed across currencies carries no symbol
+        run: node tests/ads-currency.test.js
+      - name: Guard — the postcode walk returns its store's currency
+        run: node tests/postcode-currency.test.js
       - name: Guard — a report with no recipients is never generated
         run: node tests/report-recipients.test.js
       - name: Guard — a sent report can never be bulk deleted

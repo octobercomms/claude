@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
+import { formatMoney, currencySymbol } from '../utils/money';
 import { useAuth } from '../context/AuthContext';
 import Card from './ui/Card';
 import Section from './ui/Section';
@@ -106,6 +107,10 @@ export default function AudiencesPanel({ clientId }) {
   const totalCustomers = postcodes.reduce((n, p) => n + p.customer_count, 0);
   const top10Revenue = top10.reduce((n, p) => n + p.revenue, 0);
   const concentration = totalRevenue > 0 ? Math.round((top10Revenue / totalRevenue) * 100) : 0;
+  // The store's currency, or the client's reporting currency when one is set.
+  // Null means nobody reported one, and the figures then show unlabelled —
+  // the panel used to print a pound sign whatever the store billed in.
+  const currency = distribution?.currency || null;
 
   // A store is connected iff the backend didn't return the "no source" note.
   const sourceConnected = !distribution?.note;
@@ -200,9 +205,14 @@ export default function AudiencesPanel({ clientId }) {
                 <StatStrip items={[
                   { label: 'Customers · 12m', value: formatNum(totalCustomers) },
                   { label: 'Orders · 12m', value: formatNum(totalOrders) },
-                  { label: 'Revenue · 12m', value: `£${formatNum(totalRevenue)}`, feature: true },
+                  { label: 'Revenue · 12m', value: formatMoney(totalRevenue, currency), feature: true },
                   { label: 'Top-10 concentration', value: `${concentration}%` },
                 ]} />
+                {/* Only present when the client's reporting currency and the
+                    store's disagree. Silence means they agree. */}
+                {distribution?.currency_note && (
+                  <p className="body-xs text-subtle mt-3">{distribution.currency_note}</p>
+                )}
               </div>
               <Card>
                 <table className="table">
@@ -223,7 +233,7 @@ export default function AudiencesPanel({ clientId }) {
                           <td><Chip tone="accent">{p.postcode_district}</Chip></td>
                           <td className="num">{formatNum(p.customer_count)}</td>
                           <td className="num">{formatNum(p.order_count)}</td>
-                          <td className="num strong">£{formatNum(p.revenue)}</td>
+                          <td className="num strong">{formatMoney(p.revenue, currency)}</td>
                           <td className="num">{share.toFixed(1)}%</td>
                         </tr>
                       );
@@ -258,7 +268,7 @@ export default function AudiencesPanel({ clientId }) {
       )}
 
       {editing && (
-        <SegmentEditor initial={editing} postcodes={postcodes} onClose={() => setEditing(null)} onSave={saveSegment} />
+        <SegmentEditor initial={editing} postcodes={postcodes} currency={currency} onClose={() => setEditing(null)} onSave={saveSegment} />
       )}
 
       {showUpload && (
@@ -418,7 +428,7 @@ function CustomerListModal({ uploading, onClose, onUpload }) {
   );
 }
 
-function SegmentEditor({ initial, postcodes, onClose, onSave }) {
+function SegmentEditor({ initial, postcodes, currency, onClose, onSave }) {
   const [name, setName] = useState(initial.name || '');
   const [description, setDescription] = useState(initial.description || '');
   const [districts, setDistricts] = useState((initial.filters?.postcode_districts || []).join(', '));
@@ -465,7 +475,9 @@ function SegmentEditor({ initial, postcodes, onClose, onSave }) {
         </div>
         <div className="grid grid-2">
           <div className="field">
-            <label className="field-label">Min revenue per postcode (£)</label>
+            <label className="field-label">
+              Min revenue per postcode{currency ? ` (${currencySymbol(currency)})` : ''}
+            </label>
             <input className="input" type="number" min="0" value={minRevenue} onChange={e => setMinRevenue(e.target.value)} placeholder="0" />
           </div>
           <div className="field">
