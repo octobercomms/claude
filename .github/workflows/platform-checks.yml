@@ -111,6 +111,8 @@ jobs:
         run: node tests/strategist-queue.test.js
       - name: Guard — "needs attention" only counts what is actually slipping
         run: node tests/strategist-attention.test.js
+      - name: Guard — the Monday email sends the briefing the platform shows
+        run: node tests/strategist-weekly.test.js
       - name: Guard — a report with no recipients is never generated
         run: node tests/report-recipients.test.js
       - name: Guard — a sent report can never be bulk deleted

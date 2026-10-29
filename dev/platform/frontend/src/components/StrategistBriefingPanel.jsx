@@ -171,7 +171,11 @@ export default function StrategistBriefingPanel({ clientId }) {
       <div className="modal-head">
         <div>
           <h2 className="h2">Strategist</h2>
-          <p className="body mt-3">One expert briefing across the whole account — Paid, Earned, Shared and Owned — with the priorities that matter most this month. Emailed to you every Monday.</p>
+          {/* The old blurb promised "the priorities that matter most this
+              month" and an email that in fact sent a different document. Both
+              are now true: one generator, and the briefing leads with what
+              changed rather than restating the account. */}
+          <p className="body mt-3">What changed across the account since the last briefing, and the queue it leaves you. Generated weekly and emailed every Monday while <strong>Weekly email</strong> is ticked. A quiet week is a short briefing.</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
           {view === 'briefing' && <>
@@ -192,7 +196,12 @@ export default function StrategistBriefingPanel({ clientId }) {
 
       {/* Briefing ↔ Ask toggle */}
       <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
-        {[{ key: 'briefing', label: 'Briefing' }, { key: 'chat', label: 'Ask the strategist' }].map(v => (
+        {/* "Ask the strategist" against the analyst panel's "Chat": different
+            jobs, and the names have to say so. The strategist talks about this
+            briefing and can push notes into the next one; the analyst, behind
+            the bubble in the client bar, is scoped to the page you are on and
+            pulls live data. */}
+        {[{ key: 'briefing', label: 'Briefing' }, { key: 'chat', label: 'Ask about this briefing' }].map(v => (
           <button key={v.key} onClick={() => setView(v.key)}
             className={`tab ${view === v.key ? 'active' : ''}`}>
             {v.label}
@@ -200,7 +209,18 @@ export default function StrategistBriefingPanel({ clientId }) {
         ))}
       </div>
 
-      {view === 'chat' && <StrategistChat clientId={clientId} />}
+      {view === 'chat' && (
+        <>
+          {/* Two AI conversations about one client is confusing unless each
+              says what it is for. This one reads the briefing in front of you;
+              the analyst reads the live numbers for the page you are on. */}
+          <p className="caption" style={{ color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>
+            About this briefing, and what should go into the next one. For live numbers on a
+            particular section, use the analyst (the chat bubble, top right) while you are standing on it.
+          </p>
+          <StrategistChat clientId={clientId} />
+        </>
+      )}
       {view === 'briefing' && <>{renderBriefingView()}</>}
     </div>
   );
@@ -215,7 +235,7 @@ export default function StrategistBriefingPanel({ clientId }) {
           Steer the next briefing
         </div>
         <p className="caption" style={{ color: 'var(--text-subtle)', margin: '0 0 var(--s2)' }}>
-          Your thoughts, decisions and priorities. The strategist reads these and weights them when it next generates — add here, or use “Add to briefing” in Ask the strategist.
+          Your thoughts, decisions and priorities. The strategist reads these and weights them when it next generates — add here, or use “Add to briefing” in Ask about this briefing.
         </p>
         <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>
           <textarea value={steerText} onChange={e => setSteerText(e.target.value)} rows={2}

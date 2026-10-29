@@ -571,6 +571,48 @@ The reasoning sits with each item here rather than behind a `?` as it does on
 the Strategy tab: the panel is a glance, and a glance that needs a click is not
 one.
 
+### The Monday email sends what the platform shows (29 Oct 2026)
+
+Three things were wrong with the weekly cron, and all three were silent:
+
+- **It generated `strategistReport`**, the older ads-only write-up, while the
+  Strategy tab showed the cross-PESO briefing. The panel's own copy said
+  "emailed to you every Monday" about a document nothing emailed.
+- **It selected only clients with an active `meta_ads` or `google_ads`
+  connector**, left over from when the briefing was ads-only. A client on GA4
+  and Shopify alone got no Monday email and nothing said so.
+- **It never read `strategist_active`**, so the "Weekly email" checkbox on the
+  Strategy tab did nothing. Unticking it still sent the email.
+
+All three are fixed and guarded by `tests/strategist-weekly.test.js`, which
+reads the cron's own source. Blunt, but it is the only thing that fails when
+someone reintroduces the ads-only filter, and all three rules were
+mutation-tested.
+
+The email now carries the synthesis (What changed, then the queue) with the
+open items as the punchlist above it, ages included past seven days. Ticked
+items are left out: they are history, not Monday's work. The link goes to
+`?tab=strategy`, since `/ads?tab=strategist` no longer exists.
+
+`strategistReport` itself stays — `adAudit.js` and `routes/strategist.js` still
+use it. Only the scheduler stopped.
+
+### Two AI conversations, and which is which
+
+There are now two per client, and the names have to carry the difference:
+
+| | Where | What it reads | What it can do |
+|---|---|---|---|
+| **Ask about this briefing** | Strategy tab | the briefing in front of you | push notes into the next one |
+| **Analyst** | the chat bubble, any page | live data for the section you are on | the pillar action tools |
+
+The Strategy tab's chat was "Ask the strategist", which said nothing about the
+difference. It now names itself and points at the analyst for live numbers.
+
+**`.caption` uppercases its text.** This is the second time it has caught a
+browser check in this file's history: a case-sensitive regex against rendered
+caption text always fails. Match case-insensitively.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First
