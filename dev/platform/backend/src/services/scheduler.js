@@ -597,6 +597,32 @@ async function runScheduledReports(reportType) {
 
       const { start, end } = getPeriodDates(reportType);
 
+      // No recipients, no report. The recipients check used to live only in
+      // sendReport, which runs after generateReport has already pulled every
+      // connector, written a Claude narrative and rendered a PDF — so a client
+      // with an empty report_recipients cost a full report every week and
+      // received nothing. On 29 Oct 2026 that was 9 of 10 weekly reports.
+      //
+      // The row is still written, marked the same way sendReport would have
+      // marked it, because the misconfiguration should stay visible on the
+      // Reports page and in the Clients report count. A row is free; the
+      // generation it now skips is not. Reports triggered by hand from the UI
+      // do not come through here and are unaffected.
+      const recipients = reportService.recipientsFor(client.report_recipients, reportType);
+      if (!recipients.length) {
+        console.warn(`[Scheduler] No ${reportType} recipients for ${client.name} — recording skipped_no_recipients without generating`);
+        try {
+          await pool.query(
+            `INSERT INTO reports (client_id, report_type, period_start, period_end, status)
+             VALUES ($1, $2, $3, $4, 'skipped_no_recipients')`,
+            [client.id, reportType, start, end]
+          );
+        } catch (err) {
+          console.error(`[Scheduler] Could not record skipped report for ${client.name}:`, err.message);
+        }
+        continue;
+      }
+
       try {
         const { rows } = await pool.query(
           `INSERT INTO reports (client_id, report_type, period_start, period_end, status)
