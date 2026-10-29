@@ -59,9 +59,6 @@ export default function ClientDetailPage() {
   const [reports, setReports] = useState([]);
   const [previewType, setPreviewType] = useState(null);
   const [loading, setLoading] = useState(true);
-  // The strategy checklist is reference, so it opens on demand rather than
-  // pushing the weekly briefing below the fold.
-  const [strategyOpen, setStrategyOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   // Measure first, deliberately. You arrive at a client with a question about
@@ -380,7 +377,7 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['measure', 'details', 'connectors', 'strategy', 'reports'].includes(tab) && (
+      {['measure', 'details', 'connectors', 'strategy', 'plan', 'reports'].includes(tab) && (
         <div className="tabs">
           {/* Three tabs, and only three. Setup and Connectors are reached from
               the cog and the plug in the client bar, top right, where their
@@ -389,6 +386,7 @@ export default function ClientDetailPage() {
             ['measure', 'Measure'],
             ['reports', 'Reports'],
             ['strategy', 'Strategy'],
+            ['plan', 'Plan'],
           ].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
               className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
@@ -401,23 +399,12 @@ export default function ClientDetailPage() {
       {/* Strategy carries the plan and the briefing on it together. The
           Strategist used to sit in Data, two sections away from the SOSTAC,
           personas and SWOT it is reasoning about. */}
-      {/* The briefing leads and the checklist sits above it, collapsed. They are
-          different rhythms: the checklist is template setup you revisit
-          occasionally, the briefing is the weekly read. Equal billing is how
-          the briefing became the thing you scroll past. */}
-      {tab === 'strategy' && (
-        <div style={{ marginBottom: 'var(--s6)' }}>
-          <button type="button" onClick={() => setStrategyOpen(o => !o)} className="accordion-trigger">
-            <span style={{ fontSize: 'var(--fs-title)', width: 16, display: 'inline-block' }}>{strategyOpen ? '\u2212' : '+'}</span>
-            Strategy checklist
-          </button>
-          {strategyOpen && (
-            <div style={{ marginTop: 'var(--s3)' }}>
-              <ClientStrategyPanel clientId={id} />
-            </div>
-          )}
-        </div>
-      )}
+      {/* The checklist is its own tab now. Collapsing it on the Strategy page
+          made that page shorter without making it clearer: it is a different
+          job on a different rhythm, template setup you revisit quarterly
+          against a briefing you read weekly, and hiding it was treating the
+          symptom. */}
+      {tab === 'plan' && <ClientStrategyPanel clientId={id} />}
       {tab === 'strategy' && !readOnly && <StrategistBriefingPanel clientId={id} />}
 
       {/* Setup. The SuiteOverview that used to sit here described where

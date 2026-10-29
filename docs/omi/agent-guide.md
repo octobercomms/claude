@@ -687,6 +687,43 @@ Two rules that are easy to get wrong and were mutation-tested:
 No sessions at all gives a `null` share rather than 0%: with no account to be a
 share of, 0% is a claim the data does not support.
 
+### The Strategy page, rebuilt around what it is for (29 Oct 2026)
+
+It had **sixteen things on screen above the first sentence of the briefing**:
+the checklist toggle, a heading, a description, the email checkbox, the period
+select, Generate, two tabs, the steer label, its instruction line, a textarea,
+Add, the briefings rail, two downloads and a caption.
+
+The diagnosis was one inversion. **Two jobs were fused**: reading the briefing
+(weekly, two minutes) and configuring it (occasional, set once). Configuration
+held the top third; the content started below the fold.
+
+| | Where it is now |
+|---|---|
+| What changed, the queue, Evidence | the page |
+| Note for the next briefing | one line, **after** the queue |
+| Weekly email, period, recipients, PDF, Word, past briefings | a settings strip at the foot |
+| Generate | the one header action, labelled with its period |
+| Strategy checklist | its own **Plan** tab |
+
+Three rules behind it:
+
+- **The main action is ticking something off the queue.** It is the only one
+  that moves work forward. The second is the steer note, which belongs after
+  the queue: a large labelled box at the top asked you to steer a briefing you
+  had not read.
+- **Collapse for reference, not for length.** The checklist was collapsed on
+  the Strategy page to make the page shorter, which was treating the symptom.
+  It is template setup on a quarterly rhythm against a weekly read, so it is a
+  different job and now a different tab. Evidence stays collapsed because it
+  genuinely is reference.
+- **The briefings rail is gone.** A left column taking a third of the width to
+  show something you pick once a week; it is a row of pills in the strip.
+
+`Plan` rather than `Checklist` as the tab name: it holds the SOSTAC, personas
+and SWOT, which is a plan, and two tabs both named some form of "strategy"
+would say nothing.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First

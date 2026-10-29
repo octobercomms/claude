@@ -1669,6 +1669,39 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   border-left: 2px solid var(--card-border);
   font-size: var(--fs-caption); line-height: 1.5; color: var(--text-muted);
 }
+/* The briefing, one column. The list of past briefings used to be a left rail
+   taking a third of the width to show something you pick once a week. */
+.strategist-main.one-col { display: block; }
+
+/* Everything that configures the briefing, below the briefing. These were the
+   top third of the page: settings for a thing you read, placed in front of the
+   thing you read. Recessed so they read as the footer they are. */
+.strategist-settings {
+  margin-top: var(--s7);
+  padding-top: var(--s4);
+  border-top: var(--border-w) solid var(--card-border);
+}
+.strategist-settings-head {
+  font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-subtle); margin-bottom: var(--s3);
+}
+.strategist-settings-row {
+  display: flex; align-items: flex-end; gap: var(--s3);
+  flex-wrap: wrap; margin-bottom: var(--s3);
+}
+.strategist-setting { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-body); }
+.strategist-setting .caption { color: var(--text-subtle); }
+.strategist-setting .input { width: auto; }
+.strategist-past {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: 4px 10px; border-radius: var(--r-pill);
+  border: var(--border-w) solid var(--card-border); background: var(--surface);
+  font-family: var(--font); font-size: var(--fs-caption); font-weight: 600;
+  color: var(--text-muted); cursor: pointer;
+}
+.strategist-past:hover { border-color: var(--text); color: var(--text); }
+.strategist-past.active { background: var(--text); border-color: var(--text); color: var(--surface); }
+
 .briefing-dot { display: inline-block; width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); margin-left: 6px; }
 .briefing-del {
   position: absolute; top: 6px; right: 8px;
