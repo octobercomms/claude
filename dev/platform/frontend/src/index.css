@@ -564,6 +564,24 @@ button { font-family: inherit; }
   background: var(--surface); color: var(--text);
 }
 .chip-neutral { background: var(--surface-sunken); color: var(--text-muted); border-color: var(--surface-sunken); }
+/* The sub-nav's plain-English chip, e.g. Paid (Ads). A dark-surface variant is
+   unavoidable here: every .chip above is built for a light card, and a white
+   pill on the dark rail would outshout the label it is helping. So this one
+   borrows the chip geometry and nothing else — hairline border, no fill, text
+   quieter than the label until the item is active. */
+.nav-chip {
+  display: inline-flex; align-items: center;
+  margin-left: var(--s2);
+  padding: 1px 7px;
+  font-size: var(--fs-caption); font-weight: 600; letter-spacing: 0.2px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.6);
+  background: none;
+  white-space: nowrap;
+}
+a[aria-current="page"] .nav-chip,
+a:hover .nav-chip { border-color: rgba(255,255,255,0.45); color: rgba(255,255,255,0.85); }
 /* chip-accent and chip-outline are folded into the base neutral chip — one
    non-semantic label style. Kept as aliases so their ~50 usages need no sweep;
    the four semantic chips (success/warning/warm/danger) still carry meaning. */
@@ -1684,12 +1702,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   position: fixed;
   top: 18px;
   right: 24px;
-  /* Above the analyst panel, not under it. The bar is the only way to reach
-     the cog, the plug, the client switcher and the bubble that closes the
-     panel again, so a panel that covered it would strand you with Escape as
-     the only exit. It slides left by the panel's own width instead. */
-  z-index: 70;
-  transition: transform 180ms ease;
+  /* Under the analyst panel, which covers it while open. That used to strand
+     you with Escape as the only exit, so the bar slid left to stay reachable;
+     now a click anywhere outside the panel dismisses it, and the bar can stay
+     put rather than jumping sideways every time the panel opens. */
+  z-index: 50;
   display: flex;
   align-items: center;
   gap: var(--s2);
@@ -1734,7 +1751,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   visibility: hidden;
 }
 .analyst-panel.open { transform: translateX(0); visibility: visible; }
-.client-topbar.shifted { transform: translateX(calc(-1 * var(--analyst-w))); }
 .analyst-panel-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--s3);
@@ -1772,10 +1788,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .analyst-ctx-caret { color: var(--text-subtle); }
 .analyst-ctx-body { max-height: 42vh; overflow-y: auto; padding: var(--s2) 0 var(--s3); }
 @media (max-width: 900px) {
-  /* Full width, so there is nowhere left to shift the bar to: the panel's own
-     close button is the exit at this size. */
   :root { --analyst-w: 100vw; }
-  .client-topbar.shifted { display: none; }
 }
 
 .client-topbar-dot {

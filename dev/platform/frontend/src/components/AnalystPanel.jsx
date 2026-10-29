@@ -2,8 +2,10 @@
 //
 // It used to be a tab inside Data, which meant deciding to leave whatever you
 // were looking at in order to ask about it. Now it slides over the right-hand
-// side of whatever page you are on and the page stays put behind it — a panel,
-// not a modal, because a modal would cover the thing you are asking about.
+// side of whatever page you are on and the page stays visible behind it — a
+// panel, not a modal, because a modal would hide the thing you are asking
+// about. Clicking that page dismisses the panel rather than acting on it, so
+// the whole window is the close target; the page still scrolls underneath.
 //
 // It knows where you are. The backend has carried four PESO pillar personas
 // since they were built — owned, shared, paid, earned — each with its own
@@ -31,13 +33,48 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
   // rather than flash the previous conversation's "Clear history" on reopen.
   useEffect(() => { if (!open) setChat({ hasMessages: false, clearing: false }); }, [open]);
 
-  // Escape closes it. Deliberately no click-outside and no scroll lock: the
-  // page behind stays usable, which is the whole reason this is a panel.
+  // Escape closes it, and so does a click anywhere outside it. The click that
+  // dismisses is swallowed rather than passed through, so dismissing never
+  // also fires whatever happened to be under the cursor.
+  //
+  // No backdrop element does this, deliberately: a div over the page would
+  // eat wheel events too, and scrolling the page to read more of what you are
+  // asking about is the reason this is a panel rather than a modal. A
+  // capture-phase mousedown listener closes and cancels the click while
+  // leaving scrolling alone.
+  //
+  // The top bar is excluded so the bubble stays a toggle rather than closing
+  // and reopening on one click.
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    // The panel covers the client bar at every width (the bar sits top-right,
+    // inside the panel's own column), so there is no second element to exclude
+    // here. If the bar is ever raised above the panel again, clicks on the
+    // bubble will need excluding or it will close and reopen on one click.
+    const outside = (e) => !panelRef.current?.contains(e.target);
+    // Capture phase, and on `click` rather than `mousedown`: a capture listener
+    // runs before the target's own handler, so stopping it here is what keeps
+    // the dismissing click from also pressing the button under the cursor.
+    // Cancelling the mousedown is not enough — `click` is a separate event and
+    // fires regardless.
+    const onClick = (e) => {
+      if (!outside(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    };
+    // The matching mousedown is cancelled too, so the page behind does not take
+    // focus or start a text selection on the way out.
+    const onDown = (e) => { if (outside(e)) e.preventDefault(); };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('mousedown', onDown, true);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('mousedown', onDown, true);
+    };
   }, [open, onClose]);
 
   useEffect(() => {

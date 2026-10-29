@@ -55,11 +55,11 @@ export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst })
     ? `Connectors — ${state.label}${health.total ? ` (${health.active}/${health.total} active)` : ''}`
     : 'Connectors';
 
-  // `shifted` slides the whole bar left by the panel's width while the analyst
-  // is open, so the cog, the plug, the switcher and the bubble that closes it
-  // again all stay clickable instead of sitting under the panel.
+  // The bar stays put when the analyst opens over it, and is covered by it.
+  // Clicking anywhere outside the panel dismisses it, so the bar does not need
+  // to stay reachable to give you a way out.
   return (
-    <div className={`client-topbar${analystOpen ? ' shifted' : ''}`}>
+    <div className="client-topbar">
       <button
         type="button"
         className={`client-topbar-icon${onSetup ? ' active' : ''}`}
