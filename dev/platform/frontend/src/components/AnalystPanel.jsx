@@ -63,11 +63,13 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
           {chat.hasMessages && (
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn-icon btn-icon-sm"
               onClick={() => clearRef.current?.()}
               disabled={chat.clearing}
+              title={chat.clearing ? 'Clearing…' : 'Clear history'}
+              aria-label="Clear history"
             >
-              {chat.clearing ? 'Clearing…' : 'Clear history'}
+              <TrashIcon />
             </button>
           )}
           <button type="button" className="analyst-panel-close" onClick={onClose} aria-label="Close analyst">×</button>
@@ -80,5 +82,18 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
         {open && <ClientChatPage embedded clientId={clientId} persona={persona} onChatState={setChat} clearRef={clearRef} />}
       </div>
     </aside>
+  );
+}
+
+// Same style as the client bar's icons (24x24, stroked, round caps), so the
+// header's two buttons read as a pair.
+function TrashIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
+    </svg>
   );
 }

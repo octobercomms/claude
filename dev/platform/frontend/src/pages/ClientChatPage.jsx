@@ -35,6 +35,43 @@ const MD_COMPONENTS = {
   a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)', textDecoration: 'underline' }}>{children}</a>,
 };
 
+// Icons in the same style as the client bar's (24x24, stroked, round caps), so
+// the panel's buttons read as part of the same set rather than a second idiom.
+function RobotIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="8" width="16" height="12" rx="3" />
+      <path d="M12 4v4" />
+      <circle cx="9" cy="14" r="1.2" />
+      <circle cx="15" cy="14" r="1.2" />
+      <path d="M2 13v3" />
+      <path d="M22 13v3" />
+    </svg>
+  );
+}
+
+function FileIcon({ label }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      {label === 'pdf' ? <path d="M9 15h6" /> : <><path d="M9 13h6" /><path d="M9 17h4" /></>}
+    </svg>
+  );
+}
+
+function ClipIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21.4 11.1l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />
+    </svg>
+  );
+}
+
+
 const TOOL_LABELS = {
   get_client_info: 'Client info',
   get_connector_data: 'Connector data',
@@ -310,8 +347,8 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
 
           {messages.map((msg) => (
             <div key={msg.id} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 'var(--s3)' }}>
-              {msg.role === 'assistant' && <div className="chat-avatar" />}
-              <div style={{ maxWidth: '80%' }}>
+              {msg.role === 'assistant' && <div className="chat-avatar"><RobotIcon /></div>}
+              <div style={{ maxWidth: '80%', minWidth: 0 }}>
                 {msg.role === 'assistant' && msg.tools_used?.length > 0 && (
                   <div className="row wrap mb-2" style={{ gap: 'var(--s1)' }}>
                     {msg.tools_used.map((t, i) => (
@@ -319,6 +356,10 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
                     ))}
                   </div>
                 )}
+                {/* The bubble and its download icons share a row: PDF/Word to the
+                    right of the reply rather than a button bar underneath it,
+                    which cost a line of height on every saved answer. */}
+                <div className="chat-msg">
                 <div
                   className={`chat-bubble ${msg.role === 'user' ? 'user' : 'assistant'}`}
                   style={msg.isError ? { background: 'var(--negative-soft)', borderColor: 'var(--negative)' } : undefined}>
@@ -340,22 +381,28 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
                     {new Date(msg.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
-                {/* Per-message download buttons — assistant only, and
-                    only on saved messages (msg.id from the DB, not the
-                    optimistic placeholder we render mid-send). */}
+                {/* Assistant only, and only on saved messages (msg.id from the
+                    DB, not the optimistic placeholder we render mid-send). */}
                 {msg.role === 'assistant' && msg.id && !msg.isError && (
-                  <div className="row mt-2" style={{ gap: 'var(--s2)', paddingLeft: 'var(--s1)' }}>
-                    <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')} className="btn btn-secondary btn-sm" title="Download as PDF">PDF</button>
-                    <button type="button" onClick={() => downloadMessage(msg.id, 'docx')} className="btn btn-secondary btn-sm" title="Download as Word">Word</button>
+                  <div className="chat-msg-actions">
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')}
+                      className="btn-icon btn-icon-sm" title="Download as PDF" aria-label="Download as PDF">
+                      <FileIcon label="pdf" />
+                    </button>
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'docx')}
+                      className="btn-icon btn-icon-sm" title="Download as Word" aria-label="Download as Word">
+                      <FileIcon label="docx" />
+                    </button>
                   </div>
                 )}
+                </div>
               </div>
             </div>
           ))}
 
           {sending && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
-              <div className="chat-avatar" />
+              <div className="chat-avatar"><RobotIcon /></div>
               <div className="chat-bubble assistant">
                 <span className="text-subtle">typing…</span>
               </div>
@@ -379,66 +426,68 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
           {/^\/report(\s|$)/i.test(input) && (
             <div className="body-xs text-subtle mt-2" style={{ paddingLeft: 'var(--s1)' }}>📄 Report mode — reply will format as a structured doc with downloadable PDF + Word.</div>
           )}
-          {/* Model — pick the brain per question. Claude family for analysis on
-              real client data; DeepSeek for cheap, non-sensitive questions. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap', paddingLeft: 'var(--s1)' }}>
-            <span className="caption" style={{ color: 'var(--text-subtle)' }}>🧠 Model</span>
-            <select className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)' }}
-              value={model} onChange={e => setModel(e.target.value)} disabled={sending}>
-              {CHAT_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          {/* Model and data window on one line. Each option's detail lives in
+              the select's own title, so the row costs one line instead of four.
+              The DeepSeek warning is the exception and stays on screen: it says
+              this client's pulled data leaves for a third party, which is not
+              something to hide behind a hover. */}
+          <div className="chat-controls">
+            <span className="caption chat-controls-label">Model</span>
+            <select className="input" value={model} onChange={e => setModel(e.target.value)} disabled={sending}
+              title={CHAT_MODELS.map(m => `${m.label} — ${m.hint}`).join('\n')}>
+              {CHAT_MODELS.map(m => <option key={m.id} value={m.id} title={m.hint}>{m.label}</option>)}
             </select>
-            <span className="caption" style={{ color: model === 'deepseek-chat' ? 'var(--warning)' : 'var(--text-subtle)' }}>
-              {CHAT_MODELS.find(m => m.id === model)?.hint}
-            </span>
-          </div>
-
-          {/* Data window — pins the date range the analyst pulls data for.
-              "Auto" sends no range so the analyst chooses per question. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap', paddingLeft: 'var(--s1)' }}>
-            <span className="caption" style={{ color: 'var(--text-subtle)' }}>📅 Data window</span>
-            <select className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)' }}
-              value={rangePreset} onChange={e => setRangePreset(e.target.value)} disabled={sending}>
-              <option value="auto">Auto (analyst decides)</option>
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="6m">Last 6 months</option>
-              <option value="12m">Last 12 months</option>
+            <span className="caption chat-controls-label">Window</span>
+            <select className="input" value={rangePreset} onChange={e => setRangePreset(e.target.value)} disabled={sending}
+              title="The date range every data pull uses. Auto lets the analyst choose per question.">
+              <option value="auto">Auto</option>
+              <option value="7d">7 days</option>
+              <option value="30d">30 days</option>
+              <option value="90d">90 days</option>
+              <option value="6m">6 months</option>
+              <option value="12m">12 months</option>
               <option value="mtd">This month</option>
               <option value="ytd">This year</option>
               <option value="custom">Custom…</option>
             </select>
             {rangePreset === 'custom' && (
               <>
-                <input type="date" className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)' }}
+                <input type="date" className="input" aria-label="Range start"
                   value={customStart} max={customEnd || undefined} onChange={e => setCustomStart(e.target.value)} disabled={sending} />
-                <span className="caption" style={{ color: 'var(--text-subtle)' }}>to</span>
-                <input type="date" className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)' }}
+                <input type="date" className="input" aria-label="Range end"
                   value={customEnd} min={customStart || undefined} onChange={e => setCustomEnd(e.target.value)} disabled={sending} />
               </>
             )}
-            {rangePreset !== 'auto' && rangePreset !== 'custom' && (
-              <span className="caption" style={{ color: 'var(--text-subtle)' }}>· applied to every data pull</span>
+            {model === 'deepseek-chat' && (
+              <span className="caption" style={{ color: 'var(--warning)' }}>
+                sends this client's pulled data to DeepSeek
+              </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+          {/* Attach above Send in a column beside the box. In a row they
+              stretched to the textarea's height and read as tall slabs; sized
+              to their own content they are the pills `.btn` already describes. */}
+          <div className="chat-send-row">
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Claude to check data, investigate an issue, or log a decision… Type /report to format the reply as a downloadable PDF/Word report."
+              placeholder="Ask Claude to check data, investigate an issue, or log a decision… Type /report for a downloadable PDF/Word report."
               className="textarea"
               rows={2}
               disabled={sending}
             />
             <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileChange} style={{ display: 'none' }} />
-            <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image or PDF"
-              className="btn btn-secondary" style={{ fontSize: 'var(--fs-title)', padding: '0 var(--s4)' }}>
-              📎
-            </button>
-            <button type="submit" {...roWrite(readOnly, { disabled: sending || (!input.trim() && attachedFiles.length === 0) })} className="btn btn-primary">
-              {sending ? '…' : 'Send'}
-            </button>
+            <div className="chat-send-actions">
+              <button type="button" onClick={() => fileInputRef.current?.click()}
+                title="Attach image or PDF" aria-label="Attach image or PDF"
+                className="btn btn-secondary btn-sm">
+                <ClipIcon />
+              </button>
+              <button type="submit" {...roWrite(readOnly, { disabled: sending || (!input.trim() && attachedFiles.length === 0) })} className="btn btn-primary btn-sm">
+                {sending ? '…' : 'Send'}
+              </button>
+            </div>
           </div>
         </form>
 

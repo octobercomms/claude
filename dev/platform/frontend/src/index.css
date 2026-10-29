@@ -968,6 +968,9 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   width: 28px; height: 28px; border-radius: var(--r-pill);
   background: var(--text); flex-shrink: 0;
   margin-right: var(--s2); margin-top: 2px;
+  /* Holds the robot glyph: the circle used to be a bare dot, which named
+     nobody. */
+  display: grid; place-items: center; color: var(--surface);
 }
 .chat-bubble {
   padding: 10px 14px;
@@ -995,8 +998,34 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   margin-top: auto;
 }
 
+/* A reply and its PDF/Word icons share a row, so the downloads cost no height.
+   Always visible: hiding them behind hover saves nothing once they are icons,
+   and a download you have to discover is one nobody uses. */
+.chat-msg { display: flex; align-items: flex-end; gap: var(--s1); min-width: 0; }
+.chat-msg-actions { display: flex; flex-direction: column; flex: none; }
+
+/* Model and data window on one line. The selects size to their content and the
+   row wraps only if it truly cannot fit. */
+.chat-controls {
+  display: flex; align-items: center; gap: var(--s2);
+  flex-wrap: wrap; padding-left: var(--s1);
+}
+.chat-controls-label { color: var(--text-subtle); flex: none; }
+.chat-controls .input {
+  width: auto; font-size: var(--fs-caption);
+  padding: var(--s1) var(--s2); padding-right: var(--s5);
+}
+
+/* Attach above Send, in a column beside the box. `align-items: flex-end` is
+   what keeps them pill-shaped: stretched to the textarea's height they read as
+   slabs. */
+.chat-send-row { display: flex; gap: var(--s2); align-items: flex-end; }
+.chat-send-row .textarea { flex: 1; min-width: 0; }
+.chat-send-actions { display: flex; flex-direction: column; gap: var(--s2); flex: none; }
+.chat-send-actions .btn { width: 100%; }
+
 /* Chat context-log entries — pinned investigations / decisions /
-   observations in the chat sidebar. The left rail colour swaps for
+   observations in the analyst panel's context log. The left rail colour swaps for
    the entry type. Resolved variant dims + strikes through. */
 .log-entry {
   padding: var(--s2) var(--s3);

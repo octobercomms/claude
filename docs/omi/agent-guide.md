@@ -295,10 +295,48 @@ Three things that cost time here:
 - **`?analyst=1` is the deep link**, and it is what the old
   `/clients/:id/chat` URL now redirects to, via `?tab=measure&analyst=1`.
 
-`ClientChatPage` takes `embedded`, `clientId` and `persona` as props, so it
-still works as a page if anything ever needs it to. It is mounted only while
-the panel is open, so moving from Paid to Owned starts the right conversation
-rather than re-labelling the previous one.
+`ClientChatPage` takes `embedded`, `clientId` and `persona` as props, and is
+mounted only while the panel is open, so moving from Paid to Owned starts the
+right conversation rather than re-labelling the previous one. Nothing routes it
+as a page any more, so `embedded` is in practice always true and the
+`!embedded` branch is unreachable — worth deleting rather than maintaining.
+
+**The panel's layout exists to give the chat the room** (29 Oct 2026). Every
+change below was made by subtracting chrome, not adding components, and all of
+it reuses the design system rather than introducing a parallel one:
+
+| Was | Is | Reuses |
+|---|---|---|
+| Clear history as a text button | icon beside the × | `.btn-icon.btn-icon-sm` |
+| PDF / Word as a button row under each reply | icons to the right of the bubble | `.btn-icon.btn-icon-sm` |
+| Context log as a 260px sidebar | accordion at the panel foot, closed | `.analyst-ctx*` |
+| Model and Data window on four lines | one line, detail in `title` tooltips | `.caption`, `.input` |
+| Attach and Send in a row beside the box | stacked column, attach above Send | `.btn`, `.btn-sm` |
+| Assistant avatar as a black dot | the same circle holding a robot glyph | `.chat-avatar` |
+
+The thread ends up with 78% of the panel height, measured.
+
+Four things to know before changing it:
+
+- **`.btn` is already a pill** (`border-radius: var(--r-pill)`). Send looked
+  like a slab because a flex row with an 80px textarea stretched it; the fix is
+  `align-items: flex-end` and a column, not a new button class. Reach for a new
+  class only after checking whether the token already does it.
+- **Icons follow one house style**, set by `ClientTopBar`: 24x24 viewBox,
+  `fill="none" stroke="currentColor" strokeWidth="2"`, round caps. `RobotIcon`,
+  `FileIcon`, `ClipIcon` in `ClientChatPage` and `TrashIcon` in `AnalystPanel`
+  all match it. There is no shared icon module yet; if a fifth is needed, make
+  one.
+- **`.caption` uppercases its text.** A test matching the rendered string needs
+  a case-insensitive regex. This produced a false pass and then a false
+  failure on the DeepSeek warning check before it was spotted.
+- **The DeepSeek hint stays on screen rather than in a tooltip.** Every other
+  model hint moved to a `title`, but that one says this client's pulled data
+  leaves for a third party, which should not need a hover to find.
+
+The `.chat-shell` and `.chat-sidebar` rules were deleted with the sidebar, and
+the `.log-entry` comment above still said "in the chat sidebar" for a while
+afterwards. Grep the CSS for the class you removed before assuming it is gone.
 
 ### Every page needs a door
 
