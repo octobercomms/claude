@@ -60,7 +60,13 @@ const TYPE_BG = {
   observation: 'var(--positive-soft)',
 };
 
-export default function ClientChatPage({ embedded = false, clientId: clientIdProp } = {}) {
+// `persona` picks which conversation this is. The backend has carried four
+// PESO pillar personas since they were built — owned, shared, paid, earned —
+// each with its own history thread and its own action tool, and nothing in the
+// frontend had ever asked for one. The analyst panel does: on Paid you get the
+// paid persona, on Owned the one that can draft content. Anything else is the
+// general analyst.
+export default function ClientChatPage({ embedded = false, clientId: clientIdProp, persona = 'analyst' } = {}) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const { id: routeId } = useParams();
@@ -97,14 +103,18 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   useEffect(() => {
     Promise.all([
       api.get(`/clients/${id}`),
-      api.get(`/chat/${id}`),
+      api.get(`/chat/${id}?thread=${persona}`),
       api.get(`/chat/${id}/context`),
     ]).then(([c, msgs, ctx]) => {
       setClient(c);
       setMessages(msgs);
       setContextLog(ctx);
     }).finally(() => setLoading(false));
-  }, [id]);
+    // persona belongs in here: each one is its own history thread, so moving
+    // from Paid to Owned has to reload the conversation rather than leave the
+    // previous section's messages on screen under a new heading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, persona]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -186,6 +196,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
         message: text,
         image: imageData,
         model,
+        persona,
         ...(range ? { start_date: range.start, end_date: range.end } : {}),
       });
       setMessages(prev => [...prev, reply]);

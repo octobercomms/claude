@@ -27,7 +27,7 @@ const HEALTH = {
   ok: { tone: 'positive', label: 'all connectors live' },
 };
 
-export default function ClientTopBar({ clientId }) {
+export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [health, setHealth] = useState(null);
@@ -55,8 +55,11 @@ export default function ClientTopBar({ clientId }) {
     ? `Connectors — ${state.label}${health.total ? ` (${health.active}/${health.total} active)` : ''}`
     : 'Connectors';
 
+  // `shifted` slides the whole bar left by the panel's width while the analyst
+  // is open, so the cog, the plug, the switcher and the bubble that closes it
+  // again all stay clickable instead of sitting under the panel.
   return (
-    <div className="client-topbar">
+    <div className={`client-topbar${analystOpen ? ' shifted' : ''}`}>
       <button
         type="button"
         className={`client-topbar-icon${onSetup ? ' active' : ''}`}
@@ -85,6 +88,21 @@ export default function ClientTopBar({ clientId }) {
         )}
       </button>
 
+      {/* The analyst. Accented rather than another grey circle, because it is
+          the one here you use constantly and because it does something
+          different from its neighbours: the cog and the plug navigate, this
+          opens a panel over the page you are already on. */}
+      <button
+        type="button"
+        className={`client-topbar-icon analyst${analystOpen ? ' active' : ''}`}
+        onClick={onToggleAnalyst}
+        title="Ask the analyst"
+        aria-label="Ask the analyst"
+        aria-expanded={!!analystOpen}
+      >
+        <ChatIcon />
+      </button>
+
       <ClientSwitcher clientId={clientId} inBar />
     </div>
   );
@@ -96,6 +114,15 @@ function CogIcon() {
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function ChatIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </svg>
   );
 }

@@ -189,11 +189,12 @@ What moved:
 - **The Strategist** came out of Data and now renders under Strategy, below
   `ClientStrategyPanel`. It was two sections away from the SOSTAC, personas and
   SWOT it reasons about.
-- **Data** is now Overview + Analyse only. It is slated to disappear once the
-  analyst becomes a side panel on every page; until then it stays, because
-  Analyse has nowhere else to live. `useTabParam`'s allow-list means an old
-  `?tab=dashboard` or `?tab=strategist` link lands on Overview rather than a
-  blank page.
+- **Data is gone for the agency.** It held Measure, then the Strategist, then
+  the Overview, then only the analyst, and the analyst is now a panel on every
+  page. `/clients/:id/sales-traffic` redirects an agency login to the Dashboard
+  and the nav item is hidden for them. A client login keeps the route and the
+  nav item: the Dashboard is agency-only, so Data is still the only place their
+  own revenue, orders and traffic appear, and it renders `MeasurePanel`.
 
 ### The Overviews are gone (29 Oct 2026)
 
@@ -204,7 +205,7 @@ deleted. Each suite now lands on its first real tab.
 | Section | Lands on |
 |---|---|
 | Dashboard | Measure |
-| Data | Analyse (agency) / Measure (client login) |
+| Data | gone for the agency; Measure for a client login |
 | Paid | Health |
 | Earned | Health (Coverage) |
 | Shared | Measure (Review) |
@@ -222,7 +223,8 @@ Two traps this hit, worth knowing before doing anything similar:
   Analyse has always been agency-only, so deleting the Overview without a
   second branch would have left every client staring at an empty page — and
   both `ClientHomeDashboard` and the Workspace nav send them there. Data now
-  renders `MeasurePanel` for a client login and the analyst for the agency.
+  renders `MeasurePanel` for a client login, and nothing for the agency, who
+  are redirected to the Dashboard.
 - **Earned stores its tab in localStorage.** A stored `overview` from before
   the change would have resolved to nothing, so it is mapped to `coverage` on
   read.
@@ -245,6 +247,58 @@ Two things worth knowing before trusting or changing it:
   `ClientDetailPage` (tab straight off the search params). Both are pinned in
   the test's `UNREADABLE` list, so a green run never silently implies coverage
   it does not have, and a third such page fails until someone decides about it.
+
+### The analyst is a panel, and it knows where you are (29 Oct 2026)
+
+The analyst was a tab inside Data, which meant leaving the thing you were
+looking at in order to ask about it. It is now `components/AnalystPanel.jsx`:
+a chat bubble in the client bar, next to the cog and the plug, opening a panel
+over the right-hand side of whatever page you are on.
+
+A panel, not a modal, and that is the whole design:
+
+- no backdrop and no scroll lock, so the numbers you are asking about stay
+  visible and the page behind stays clickable;
+- Escape closes it, and so does the bubble;
+- the client bar slides left by the panel's width while it is open
+  (`.client-topbar.shifted`, sharing `--analyst-w` with the panel) and sits at
+  `z-index: 70`, above the panel's 60. Without the shift the panel covers the
+  cog, the plug, the switcher and the bubble itself, leaving Escape as the only
+  exit. The drive script checks each of those is the topmost element at its own
+  centre, because this is invisible to lint, tests and a build.
+
+**The persona comes from the section you are standing in.** `utils/analystContext.js`
+maps the path segment after `/clients/:id` to one of the four PESO pillar
+personas the backend has carried since `chat.js` was built — `ads` → `paid`,
+`pr` → `earned`, `social` → `shared`, `seo` → `owned` — and anything else to
+the general `analyst`. Each has its own history thread
+(`client_chat_messages.thread`) and its own entry in `PILLAR_ACTION_TOOLS`, so
+on Owned you are talking to the analyst that can draft a piece of content.
+
+**Nothing in the frontend had ever asked for one of those personas.** They were
+built, tested on the backend and then left unreachable. Worth checking for
+elsewhere before building something the backend already has.
+
+Three things that cost time here:
+
+- **`chat.js` validates `persona` against its own list and falls back to the
+  general analyst for anything it does not recognise, without erroring.** A
+  typo or a rename gets you a working chat on the wrong thread with the wrong
+  tools and nothing on screen saying so. `tests/analystContext.test.mjs` reads
+  `PILLAR_ACTION_TOOLS` out of the route and asserts every persona the panel
+  sends is defined there.
+- **An effect runs on mount as well as on change.** `Layout` closes the panel
+  when `clientId` changes, and without the `lastClientId` ref the mount pass
+  closed the panel that `?analyst=1` had opened: the chat rendered for one
+  frame, fetched its history on the right thread, and then vanished. The
+  history fetch landing correctly is why this looked fine in the network tab.
+- **`?analyst=1` is the deep link**, and it is what the old
+  `/clients/:id/chat` URL now redirects to, via `?tab=measure&analyst=1`.
+
+`ClientChatPage` takes `embedded`, `clientId` and `persona` as props, so it
+still works as a page if anything ever needs it to. It is mounted only while
+the panel is open, so moving from Paid to Owned starts the right conversation
+rather than re-labelling the previous one.
 
 ### Every page needs a door
 

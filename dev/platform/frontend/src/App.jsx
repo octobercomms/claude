@@ -73,10 +73,12 @@ function OutreachRedirect() {
   return <Navigate to={`/clients/${id}/seo?tab=email`} replace />;
 }
 
-// AI Data Analyst moved into Data → AI Analyst; keep the old URL working.
+// The analyst is a panel on every page now, not a tab. The old URL opens the
+// Dashboard with the panel already open rather than landing on a tab that no
+// longer exists.
 function ChatRedirect() {
   const { id } = useParams();
-  return <Navigate to={`/clients/${id}/sales-traffic?tab=analyst`} replace />;
+  return <Navigate to={`/clients/${id}?tab=measure&analyst=1`} replace />;
 }
 
 export default function App() {
