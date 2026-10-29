@@ -964,12 +964,15 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   padding: var(--s2) 0 var(--s4);
   display: flex; flex-direction: column;
 }
-/* The analyst's replies are marked with the chat glyph, not an anonymous dot. */
+/* The analyst's replies are marked with a robot glyph, not an anonymous dot.
+   The filled circle stays: without it the glyph floats loose against the panel
+   and reads as a stray icon rather than the speaker. */
 .chat-avatar {
-  width: 24px; height: 24px; flex-shrink: 0;
+  width: 28px; height: 28px; flex-shrink: 0;
   margin-right: var(--s1);
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--text);
+  background: var(--text); border-radius: var(--r-pill);
+  color: var(--surface);
 }
 .chat-bubble {
   padding: 10px 14px;
