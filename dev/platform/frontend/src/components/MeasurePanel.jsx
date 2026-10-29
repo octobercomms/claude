@@ -13,12 +13,14 @@
 // here assumes it is the only copy on screen.
 
 import React, { useEffect, useRef, useState } from 'react';
+import { formatMoney } from '../utils/money';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import StatStrip from './shells/StatStrip';
 import { useCssVar } from '../hooks/useCssVar';
 
-const fmtMoney = n => '£' + Math.round(Number(n || 0)).toLocaleString('en-GB');
+// Money is formatted with the currency the store reported, not ours. A UK
+// default was silently relabelling a USD client's revenue as sterling.
 const fmtNum = n => Number(n || 0).toLocaleString('en-GB');
 const fmtDay = d => {
   const dt = new Date(d);
@@ -108,6 +110,10 @@ export default function MeasurePanel({ clientId }) {
   }
 
   const k = (data && data.kpis) || {};
+  // The currency the connected stores reported. Null when none did (no ecom
+  // connector, or stores disagreeing) — then the figures show unlabelled
+  // rather than wearing a symbol nothing vouched for.
+  const fmtMoney = (n, opts) => formatMoney(n, data && data.currency, opts);
   const cards = [
     { label: 'Revenue', value: fmtMoney(k.revenue) },
     { label: 'Orders', value: fmtNum(k.orders) },

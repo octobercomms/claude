@@ -377,6 +377,50 @@ Two traps that cost time in this area, both in the checks rather than the code:
   looking for "DeepSeek" in the controls row passed whether or not the warning
   was rendering. Scope such a check to the element that holds the message.
 
+### Money carries the currency the data reported (29 Oct 2026)
+
+Measure, and the client's own Data page, formatted revenue as
+`'£' + n.toLocaleString('en-GB')`. Right for a UK store, silently wrong for
+Architecture Tours, which bills in USD and had its dollars labelled as
+sterling. **A wrong symbol is worse than no symbol: the number reads as a
+fact.**
+
+How it works now:
+
+- `shopify.js` and `woocommerce.js` report `summary.currency`, read off the
+  orders they already fetch. Shopify needed `currency` adding to the `fields`
+  list — same request, no new scope.
+- `services/ecomCurrency.js` → `agreeCurrency(summaries)` decides what the
+  summed revenue is denominated in. **One currency only when every store
+  agrees.** `/sales-traffic` sums revenue with no FX conversion, so a client
+  whose stores bill in different currencies has a total that is not money in
+  any currency: it comes back with no currency and a note saying so, never
+  stamped with whichever store answered first. Junk (`''`, `'£'`, `'pounds'`,
+  a number) is treated as no information, not as a currency — Woo returns a
+  blank string for a store that was never configured.
+- `/sales-traffic/:id` returns `currency` beside `kpis`.
+- `utils/money.js` → `formatMoney(amount, currency)` is the only place that
+  turns an amount into text. **No currency means no symbol**, not a fallback
+  to sterling. A currency with no symbol in its table (CHF, SEK) gets its ISO
+  code via `Intl` rather than a guess.
+
+Guards: `tests/ecom-currency.test.js` (backend, its own CI step) and
+`tests/money.test.mjs` (frontend). Both were mutation-tested — make
+`agreeCurrency` pick the first of several currencies and two checks go red.
+
+**Two places still hardcode `£` and were left alone**, because their figures
+come from elsewhere and each needs its own provenance decided:
+
+- `AudiencesPanel.jsx` — revenue per postcode.
+- `ClientAdsPage.jsx` — ad spend. Google Ads and Meta already report a
+  currency (`google.js` pulls `customer.currency_code`, `meta.js` the ad
+  account's), so this one is wiring, not new plumbing.
+
+Everything else matching `£` in the frontend is marketing copy, the design-system
+demo, or proposals, which carry their own explicit symbol. `MethodsPanel`'s
+"Fixed per market, never converted: £2,500 and $2,500 are different prices on
+purpose" is deliberate — do not "fix" it into a conversion.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First

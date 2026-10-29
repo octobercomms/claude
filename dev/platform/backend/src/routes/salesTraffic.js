@@ -6,6 +6,7 @@ const { loadVisibleClientIds, requireClientAccess } = require('../middleware/cli
 const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const google = require('../connectors/google');
+const { agreeCurrency } = require('../services/ecomCurrency');
 
 router.use(authenticate);
 router.use(loadVisibleClientIds);
@@ -118,10 +119,14 @@ router.get('/:clientId', async (req, res) => {
     if (ecomConnectors.length) {
       // Sum total_revenue and total_orders across every Shopify / Woo
       // store. Each connector reports its own market in its account
-      // currency — for Falcon that's all GBP, so a plain sum works.
-      // Mixed-currency multi-store clients would need fxRates here too
-      // (same pattern as the renderer in PR #307); not yet a need.
+      // currency, which it now tells us, so a single-currency client is
+      // labelled correctly and a mixed-currency one is flagged rather than
+      // quietly added together. Real conversion would need an fxRate per day
+      // (same pattern as the renderer in PR #307); still not a need.
       let revenue = 0, orders = 0;
+      // Each store's summary, kept so agreeCurrency can decide what the
+      // revenue figure is actually denominated in.
+      const storeSummaries = [];
       // Advisory ecom detail already computed by the connectors but not yet
       // surfaced: refunds, discounts, new-vs-returning and the product mix.
       // No new API scopes — these ride the same order fetch as revenue.
@@ -135,6 +140,7 @@ router.get('/:clientId', async (req, res) => {
           const mod = connectorFactory.get(ecom.connector_type);
           const data = await mod.fetchData(creds, { connectorType: ecom.connector_type, startDate, endDate });
           const summary = (data && data.summary) || data || {};
+          storeSummaries.push(summary);
           revenue += Number(summary.total_revenue || summary.revenue || 0);
           orders += Number(summary.total_orders || summary.orders || 0);
           refunds += Number(summary.total_refunds || 0);
@@ -145,8 +151,8 @@ router.get('/:clientId', async (req, res) => {
           returningOrders += Number(summary.returning_customer_orders || 0);
           guestOrders += Number(summary.guest_orders || 0);
           // Merge each store's top products by title (revenue is in each
-          // store's own currency; for Falcon that's all GBP so a plain sum
-          // holds — same assumption as the revenue roll-up above).
+          // store's own currency — same single-currency caveat as the
+          // revenue roll-up above, and the same note when they disagree).
           for (const p of (data.top_products || [])) {
             const key = p.title || 'unknown';
             const e = productMap[key] || (productMap[key] = { title: key, units: 0, revenue: 0 });
@@ -170,6 +176,11 @@ router.get('/:clientId', async (req, res) => {
       }));
       if (revenue) result.kpis.revenue = Math.round(revenue);
       if (orders) result.kpis.orders = orders;
+      // One currency only when every store agrees; see ecomCurrency.js for
+      // why a mixed-currency client gets none rather than one store's symbol.
+      const { currency, note } = agreeCurrency(storeSummaries);
+      if (currency) result.currency = currency;
+      if (note) result.notes.push(note);
       // Advisory ecom detail block (present only when a store is connected).
       // Net revenue is derived here from the summed gross and refunds so it
       // stays consistent across a multi-store client even if one store didn't

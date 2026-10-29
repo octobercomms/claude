@@ -32,7 +32,7 @@ async function fetchOrderData(credentials, startDate, endDate) {
     created_at_min: `${startDate}T00:00:00Z`,
     created_at_max: `${endDate}T23:59:59Z`,
     limit: 250,
-    fields: 'id,created_at,total_price,subtotal_price,total_discounts,financial_status,fulfillment_status,line_items,refunds,customer',
+    fields: 'id,created_at,total_price,subtotal_price,total_discounts,financial_status,fulfillment_status,line_items,refunds,customer,currency',
   };
 
   const orders = [];
@@ -158,6 +158,11 @@ async function fetchAnalyticsData(credentials, startDate, endDate) {
       returning_customer_orders: returningCustomerOrders,
       guest_orders: guestOrders,
       financial_status_breakdown: financialBreakdown,
+      // The store's own currency, read off the orders we already fetched —
+      // no extra call and no new scope. Without it every figure downstream
+      // gets formatted as sterling, which is wrong and says nothing about
+      // being wrong. Null when the window held no orders.
+      currency: orders.find(o => o.currency)?.currency || null,
       daily,
     },
     top_products: topProducts,
