@@ -12,6 +12,8 @@ import ClarityConnectorCard from '../components/ClarityConnectorCard';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
 import ClientStrategyPanel from '../components/ClientStrategyPanel';
+import MeasurePanel from '../components/MeasurePanel';
+import StrategistBriefingPanel from '../components/StrategistBriefingPanel';
 import SuiteTabs from '../components/SuiteTabs';
 import ReportPreviewModal from '../components/ReportPreviewModal';
 import ClientBrandPage from './ClientBrandPage';
@@ -61,7 +63,11 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'setup_overview';
+  // Measure first, deliberately. You arrive at a client with a question about
+  // their numbers, not with a wish to read an overview of the sections that
+  // hold them. Setup and Connectors are last because once they are done they
+  // are not touched again.
+  const tab = searchParams.get('tab') || 'measure';
   function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
   const [templateChatType, setTemplateChatType] = useState(null);  // 'weekly' | 'monthly' | null
   const [templateSummary, setTemplateSummary] = useState({ weekly: null, monthly: null });
@@ -348,8 +354,11 @@ export default function ClientDetailPage() {
   // own section accent. Forms gets the Forms purple; Reports gets the
   // Reports blue; everything else (Brief / Brand / Connectors) is the
   // Setup teal.
-  const scopeClass = tab === 'forms' ? 'suite-forms' : tab === 'reports' ? 'suite-reports' : 'suite-setup';
-  const pageTitle = 'Admin';
+  const scopeClass = tab === 'forms' ? 'suite-forms'
+    : tab === 'reports' ? 'suite-reports'
+    : tab === 'measure' ? 'suite-sales'
+    : 'suite-setup';
+  const pageTitle = 'Dashboard';
 
   return (
     <div className={scopeClass}>
@@ -360,16 +369,34 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['details', 'brand', 'connectors', 'setup_overview', 'strategy', 'reports'].includes(tab) && (
+      {['measure', 'details', 'brand', 'connectors', 'setup_overview', 'strategy', 'reports'].includes(tab) && (
         <div className="tabs">
-          {[['setup_overview', 'Overview'], ['details', 'Setup'], ['connectors', 'Connectors'], ['strategy', 'Strategy'], ['reports', 'Reports']].map(([key, label]) => (
+          {[
+            ['measure', 'Measure'],
+            ['reports', 'Reports'],
+            ['strategy', 'Strategy'],
+            // Set-and-forget. They sit after the three you actually use, and
+            // move to icons beside the client switcher in the next step.
+            ['setup_overview', 'Setup'],
+            ['connectors', 'Connectors'],
+          ].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
-              className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
+              className={`tab ${tab === key || (key === 'setup_overview' && ['details', 'brand'].includes(tab)) ? 'active' : ''}`}>{label}</button>
           ))}
         </div>
       )}
 
+      {tab === 'measure' && <MeasurePanel clientId={id} />}
+
+      {/* Strategy carries the plan and the briefing on it together. The
+          Strategist used to sit in Data, two sections away from the SOSTAC,
+          personas and SWOT it is reasoning about. */}
       {tab === 'strategy' && <ClientStrategyPanel clientId={id} />}
+      {tab === 'strategy' && !readOnly && (
+        <div style={{ marginTop: 'var(--s8)' }}>
+          <StrategistBriefingPanel clientId={id} />
+        </div>
+      )}
 
       {tab === 'setup_overview' && (
         <>
@@ -997,6 +1024,10 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
 }
 
 function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onRevoke, onConfigSave, onAddAnother, onConnectorUpdated }) {
+  // Two handlers below called toast() without ever obtaining it, so a failed
+  // connector config save threw ReferenceError out of its own catch block and
+  // the AM saw nothing at all. Found by turning no-undef on.
+  const toast = useToast();
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';

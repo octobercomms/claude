@@ -153,6 +153,32 @@ And within OMI there are **two different "Leads" screens** — always disambigua
   (`LeadsPage` → `SnapshotStudioPage`). *This is a plain table → full page and
   should stay that way* (its detail is itself a big two-column workspace).
 
+### The client Dashboard (Oct 2026)
+
+`/clients/:id` is **Dashboard**, not Admin, and sits first in the Workspace
+sub-nav. Its tabs, in order: **Measure · Reports · Strategy · Setup ·
+Connectors**. Measure is the default, because you arrive at a client with a
+question about their numbers, not a wish to read an overview of the sections
+holding them — the old `setup_overview` landing is now the Setup tab's content.
+Setup and Connectors sit last because they are not touched once done; the next
+step moves them to icons beside the client switcher.
+
+What moved:
+
+- **Measure** came out of Data into `components/MeasurePanel.jsx`, which owns
+  its own range state, fetch and chart colours. That self-containment is the
+  point: the agreed next step puts Measure inside each PESO page against that
+  page's own frame, and nothing in the panel assumes it is the only copy on
+  screen.
+- **The Strategist** came out of Data and now renders under Strategy, below
+  `ClientStrategyPanel`. It was two sections away from the SOSTAC, personas and
+  SWOT it reasons about.
+- **Data** is now Overview + Analyse only. It is slated to disappear once the
+  analyst becomes a side panel on every page; until then it stays, because
+  Analyse has nowhere else to live. `useTabParam`'s allow-list means an old
+  `?tab=dashboard` or `?tab=strategist` link lands on Overview rather than a
+  blank page.
+
 ### Every page needs a door
 
 Twice on 29 Oct 2026 a working page turned out to be unreachable. First
@@ -206,6 +232,15 @@ workspace roll-up back on it; the page has one job, which is opening a client.
 
 Two things that cost a session to find, worth knowing before you touch either:
 
+- **The frontend lint now runs `no-undef`.** It is still not a style gate —
+  the config carries only rules whose violation is always a runtime crash.
+  Trimming dead code out of `ClientSalesTrafficPage` left its fetch referring
+  to three just-deleted variables, and both `lint:hooks` and `vite build`
+  passed it; the page would have thrown on load. Turning the rule on caught
+  that plus two live ones: `ConnectorRow` called `toast()` without ever
+  obtaining it, so a failed connector save threw `ReferenceError` out of its
+  own catch and nothing reached the screen. `__BUILD__` is declared as a global
+  because Vite injects it.
 - **`pressAttribution.leaderboard()` answers `[]` for an admin** unless it is
   given an array. Its SQL binds `= ANY($1::uuid[])` and an admin's
   `visibleClientIds` is `null`, the "all clients" sentinel used everywhere

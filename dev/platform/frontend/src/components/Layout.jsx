@@ -44,7 +44,7 @@ export default function Layout() {
   // sub-nav correctly stays hidden there.
   const clientId = (location.pathname.match(/^\/clients\/([^/]+)(?:\/|$)/) || [])[1]
     || clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id || clientAudiencesMatch?.params?.id || clientAiVisMatch?.params?.id;
-  const currentTab = new URLSearchParams(location.search).get('tab') || 'setup_overview';
+  const currentTab = new URLSearchParams(location.search).get('tab') || 'measure';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
 
@@ -112,16 +112,22 @@ export default function Layout() {
             <NavLink to="/clients" style={() => linkStyle(location.pathname === '/clients')}>Clients</NavLink>
           </li>
           <li>
-            {/* Workspace — the selected client's PESO + Data + Admin area.
+            {/* Workspace — the selected client's Dashboard + PESO area.
                 Jumps to the last client you were in (Clients is where you
                 pick a different one), or the client list if you've none yet. */}
             <NavLink to={workspaceTarget} style={() => linkStyle(workspaceActive)}>Workspace</NavLink>
             {clientId && (
               <div>
-                {/* One clickable item per PESO group (Data · Paid · Earned ·
-                    Shared · Owned · Admin). Each opens that group's page; the
-                    function (social, organic, email, …) is explained inside
-                    each section's Overview. */}
+                {/* Dashboard first: Measure, Reports and Strategy — what you
+                    came to the client for. It is the old Admin renamed and
+                    reordered, with Setup and Connectors demoted to the end of
+                    its own tab strip because they are not touched once done.
+                    Then one item per PESO group, each explained inside its own
+                    Overview. */}
+                {!readOnly && (
+                  <NavLink to={`/clients/${clientId}?tab=measure`}
+                    style={subLinkStyle(!!clientMatch && ['measure', 'reports', 'strategy', 'setup_overview', 'details', 'brand', 'connectors'].includes(currentTab))}>Dashboard</NavLink>
+                )}
                 <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
                 <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
                 <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned</NavLink>
@@ -131,10 +137,6 @@ export default function Layout() {
                     (images) in one place. Visible to clients (Record view-only;
                     Visualise only with the can_use_visualise grant). */}
                 <NavLink to={`/clients/${clientId}/video`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
-                {/* Admin (connectors, strategy config, reports setup) is agency-only. */}
-                {!readOnly && (
-                  <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'strategy', 'details', 'brand', 'connectors', 'reports'].includes(currentTab))}>Admin</NavLink>
-                )}
               </div>
             )}
           </li>
