@@ -103,6 +103,8 @@ jobs:
         run: node tests/php-support.test.js
       - name: Guard — the detector reads what is on screen, and says where it is
         run: node tests/pangram.test.js
+      - name: Guard — the PR leaderboard is scoped to a real client, not an admin's null
+        run: node tests/pr-leaderboard-scope.test.js
       # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
       # the runner is given ffmpeg rather than trusted to have it, and each

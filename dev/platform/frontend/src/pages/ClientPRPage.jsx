@@ -11,6 +11,7 @@ import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import ProfileModal from '../components/ProfileModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
 import PressCampaignDetail from '../components/PressCampaignDetail';
+import PrBacklinkRoi from '../components/PrBacklinkRoi';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
@@ -1188,6 +1189,9 @@ export default function ClientPRPage() {
   const HEALTH_SECTIONS = [
     { id: 'track', tab: 'coverage', fn: 'measure',    title: 'Track', sub: 'Coverage log & auto-monitor', render: renderTrack },
     { id: 'share', tab: 'reports',  fn: 'distribute', title: 'Share', sub: 'Client digests & live coverage', render: renderShare },
+    // Moved off the agency client list, where it was a cross-client table that
+    // an admin could never get data out of. Scoped to this client it works.
+    { id: 'earned', tab: 'coverage', fn: 'measure', title: 'Earned links', sub: 'Referring domains won per campaign', render: () => <PrBacklinkRoi clientId={id} /> },
   ];
   const BUILD_SECTIONS = [
     { id: 'pitch',    tab: 'journalists', fn: 'research', title: 'Pitch',    sub: 'Media database & targeting', render: renderPitch },

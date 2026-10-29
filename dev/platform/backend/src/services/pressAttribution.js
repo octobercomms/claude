@@ -181,4 +181,23 @@ function notLaunched(rel) {
   };
 }
 
-module.exports = { attributionForRelease, leaderboard, hostFrom, WINDOW_DAYS };
+// Which client ids a leaderboard request should run against.
+//
+// leaderboard() binds `= ANY($1::uuid[])`, so it answers [] for anything that
+// is not a non-empty array. An admin's visibleClientIds is null — the "all
+// clients" sentinel used throughout the codebase — which means the unscoped
+// call returned an empty leaderboard to an admin every time, and the old
+// workspace panel read "no campaign has earned a referring domain yet"
+// whatever the data said.
+//
+// Asking for one client fixes that, and the per-client Earned page is where
+// the figures belong anyway. Returns { scope } to query, or { status: 403 }
+// when the caller may not see the client they asked for.
+function leaderboardScope(requestedClientId, visibleClientIds, canAccessClient) {
+  if (requestedClientId && !canAccessClient(visibleClientIds, requestedClientId)) {
+    return { status: 403 };
+  }
+  return { scope: requestedClientId ? [requestedClientId] : visibleClientIds };
+}
+
+module.exports = { attributionForRelease, leaderboard, leaderboardScope, hostFrom, WINDOW_DAYS };
