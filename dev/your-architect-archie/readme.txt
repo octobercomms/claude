@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.35
+Stable tag: 0.7.36
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,21 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.36 =
+* Tracking now comes from the sending relay, not from us. When the SMTP relay
+  (Brevo) is on, Archie stops adding its own open pixel and click-wrapped links —
+  running both meant two pixels and double-wrapped links, which reads as bulk mail
+  and hurts deliverability. Mail now goes out clean and the relay does the tracking.
+* The Brevo webhook feeds the email log. Opens, clicks, and now delivered,
+  bounced and spam-complaint events flow back in and show per email (and as new
+  "Bounced" / "Spam complaints" tiles). Point a Brevo webhook at the URL shown in
+  Archie → Settings → Email delivery, ticking delivered / opened / click / hard
+  bounce / soft bounce / blocked / spam / unsubscribed. Events are matched to the
+  right email by message-id (self-healing) with a tag and recipient fallback.
+* A "Let the relay track opens & clicks" toggle (on by default with a relay); untick
+  it to go back to Archie's own built-in pixel tracking.
+* The SMTP "Send test email" screen already shows the real error on failure (0.7.35).
 
 = 0.7.35 =
 * The SMTP "Send test email" screen now shows the actual PHPMailer/SMTP error on
