@@ -195,8 +195,14 @@ test('every search result opens a screen that exists', () => {
   // error, just the wrong page. Checked here rather than in the backend test
   // because that one cannot import this ES module, and parsing it with a regex
   // read tab keys where it meant slugs.
+  //
+  // From globalSearch.entities.js, not the service: this job installs only the
+  // frontend's dependencies, and the service reaches src/db.js and `pg`. The
+  // first version imported the service and failed in CI having passed locally,
+  // where the backend's node_modules happen to be sitting there.
   const req = createRequire(import.meta.url);
-  const { ENTITIES } = req(path.join(src, '..', '..', 'backend', 'src', 'services', 'globalSearch.js'));
+  const { ENTITIES } = req(
+    path.join(src, '..', '..', 'backend', 'src', 'services', 'globalSearch.entities.js'));
   assert.ok(ENTITIES.length >= 6, `only ${ENTITIES.length} searchable entities — did the list move?`);
 
   const byLeaf = Object.fromEntries(

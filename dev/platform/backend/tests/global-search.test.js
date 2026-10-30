@@ -104,6 +104,26 @@ check('a client result links to the client it is', () => {
     'a client result must carry its own id as the client to open');
 });
 
+check('the entity table can be read without a database', () => {
+  // routeTargets.test.mjs loads this table to check where each kind of result
+  // opens, and it runs in the frontend CI job, which installs only the
+  // frontend's dependencies. A require here reaches src/db.js and `pg`, which
+  // is not there — and passes locally, where the backend's node_modules are.
+  const entities = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'services', 'globalSearch.entities.js'), 'utf8');
+  const requires = entities.match(/\brequire\s*\(/g) || [];
+  assert.deepStrictEqual(requires, [],
+    'globalSearch.entities.js must require nothing: the frontend test that reads it '
+    + 'runs where the backend\'s dependencies are not installed');
+
+  const svc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'services', 'globalSearch.js'), 'utf8');
+  assert.ok(/require\('\.\/globalSearch\.entities'\)/.test(svc),
+    'the service must take the table from that file, or there are two tables');
+  assert.ok(!/^const ENTITIES = \[/m.test(svc),
+    'the service declares its own ENTITIES again — the two would drift');
+});
+
 // ── shape ────────────────────────────────────────────────────────────────────
 
 check('every entity declares what it needs', () => {
