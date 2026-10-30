@@ -20,6 +20,36 @@ class YAA_Shortcode {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 		add_shortcode( 'archie', array( __CLASS__, 'render' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'register_elementor' ) );
+		// Archie's web font must never block first paint — on a heavy page that just
+		// adds to the main-thread pile-up. Load it async and warm up the font origins.
+		add_filter( 'style_loader_tag', array( __CLASS__, 'async_font_tag' ), 10, 2 );
+		add_filter( 'wp_resource_hints', array( __CLASS__, 'resource_hints' ), 10, 2 );
+	}
+
+	/** Preconnect to the Google Fonts origins so the font handshake isn't on the critical path. */
+	public static function resource_hints( $urls, $relation_type ) {
+		if ( 'preconnect' === $relation_type ) {
+			$urls[] = 'https://fonts.googleapis.com';
+			$urls[] = array( 'href' => 'https://fonts.gstatic.com', 'crossorigin' );
+		}
+		return $urls;
+	}
+
+	/**
+	 * Make Archie's font stylesheet non-render-blocking: load it as print media and
+	 * flip to all once downloaded, with a noscript fallback. Text shows instantly in
+	 * the system-font fallback and upgrades to Plus Jakarta Sans without blocking paint.
+	 */
+	public static function async_font_tag( $tag, $handle ) {
+		if ( 'yaa-fonts' !== $handle ) {
+			return $tag;
+		}
+		$async = preg_replace( '/\smedia=([\'"])all\1/', ' media="print" onload="this.media=\'all\'"', $tag, 1 );
+		if ( $async === $tag ) {
+			$async = preg_replace( '/\shref=/', ' media="print" onload="this.media=\'all\'" href=', $tag, 1 );
+		}
+		$async .= '<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>';
+		return $async;
 	}
 
 	public static function register_assets() {

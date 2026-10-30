@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.33
+Stable tag: 0.7.34
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,14 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.34 =
+* Performance: Archie's web font (Plus Jakarta Sans) now loads non-render-blocking
+  (print-media swap with a noscript fallback) and preconnects to the Google Fonts
+  origins, so it no longer adds to first-paint/main-thread work on a heavy page.
+  Text shows immediately in the system-font fallback and upgrades once the font
+  arrives. (Page-level speed still depends on the site's other scripts — this just
+  makes sure Archie isn't part of the problem.)
 
 = 0.7.33 =
 * Fixed the remaining first-load scroll problem on phones. Shortly after the page
