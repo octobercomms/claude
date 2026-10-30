@@ -131,6 +131,8 @@ jobs:
         run: node tests/bulk-delete-reports.test.js
       - name: Guard — a shared recording is seekable, and a rewind is not a re-download
         run: node tests/watch-stream.test.js
+      - name: Guard — the writer of a release can pitch it without waiting on a client
+        run: node tests/press-campaign-gate.test.js
       - name: Guard — the R2 migration never frees a copy it has not verified
         run: node tests/media-to-r2.test.js
       - name: Guard — the R2 preflight catches a bucket that only looks healthy

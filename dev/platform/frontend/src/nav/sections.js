@@ -127,12 +127,15 @@ export const SECTIONS = {
       // matchers both answer "who do I send this to" so they share a screen;
       // the contact book and the thank-yous owed are one record of the same
       // relationships, so they do too.
+      // Ordered the way the work runs, which Daniel described as: build the
+      // list, write the release, work on it, and only then pitch it. Campaigns
+      // first was alphabetical-by-accident and put the last step at the top.
       { heading: 'Build', rows: [
-        { tab: 'journalists', label: 'Campaigns', slug: 'campaigns' },
         { tab: 'contacts',    label: 'Contacts' },
         { tab: 'find',        label: 'Find' },
-        { tab: 'match',       label: 'Match' },
         { tab: 'press',       label: 'Releases', slug: 'releases' },
+        { tab: 'journalists', label: 'Campaigns', slug: 'campaigns' },
+        { tab: 'match',       label: 'Match' },
       ] },
       { heading: 'Measure', rows: [
         { tab: 'reports', label: 'Reports' },

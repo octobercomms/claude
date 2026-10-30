@@ -2464,35 +2464,43 @@ a:hover > .card-stat,
 }
 
 /* ── Reports setup ──────────────────────────────────────────────────────────
-   Weekly and Monthly each take the full width, stacked, rather than sitting
-   side by side in two narrow columns. Side by side, the schedule fields were
-   squeezed into half a column while the monthly template list ran to twenty
-   numbered lines down a column 300px wide, and the page was mostly empty
-   either side of it.
+   Three columns across the card: Schedule, Template, Recipients.
 
-   Full width, each card splits its own space instead: the settings on the
-   left at a readable form width, the template list on the right where its
-   length is the point. The list takes two columns of its own once it is long
-   enough to need them. */
+   This started side by side as two narrow cards, which squeezed the schedule
+   fields while running the monthly template's twenty sections down a 300px
+   column. Full width fixed the template list but left the settings stacked in
+   one tall column with the rest of the width idle — a form reading downwards
+   across a 1200px card.
+
+   Horizontal suits the content: the schedule is two short fields, recipients
+   is a text area that wants height rather than width, and the template is a
+   numbered list that wants both. Each gets its own column and the card stays
+   about as tall as its tallest part instead of the sum of all three.
+
+   Schedule first because it is the smallest and the most often changed;
+   recipients last because it is the one you scroll. */
 .report-setup {
   display: grid;
-  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1.4fr) minmax(0, 1fr);
   gap: var(--s6);
   align-items: start;
 }
 .report-setup > * { min-width: 0; }
 
 /* The template list. columns, not a grid: the items are a numbered sequence
-   and column flow keeps 1..10 above 11..20 rather than interleaving them. */
-.report-template-list {
-  columns: 2;
-  column-gap: var(--s6);
-}
+   and column flow keeps 1..10 above 11..20 rather than interleaving them.
+   Two columns only once the list is long enough to be worth it — a weekly
+   template of six would read oddly split in half. */
+.report-template-list { margin: 0; }
 .report-template-list > li { break-inside: avoid; }
+.report-template-list--long { columns: 2; column-gap: var(--s5); }
 
-/* One column below roughly a 60/40 split of the content area, where the form
-   fields start to crowd. */
-@container appmain (max-width: 900px) {
+/* Two columns, then one, as the content area narrows. Recipients drops under
+   the schedule first because they are the two short ones. */
+@container appmain (max-width: 1100px) {
+  .report-setup { grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); }
+  .report-template-list--long { columns: 1; }
+}
+@container appmain (max-width: 760px) {
   .report-setup { grid-template-columns: minmax(0, 1fr); }
-  .report-template-list { columns: 1; }
 }

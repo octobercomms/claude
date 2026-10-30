@@ -1620,15 +1620,31 @@ router.get('/press-release-budget', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Hand off an approved release to distribution: spin up the outreach
-// press_release campaign (seeded from the authored body) and link it back.
-// Idempotent — returns the existing campaign if one already exists.
+// Hand a finished release to distribution: spin up the outreach press_release
+// campaign, seeded from the authored body, and link it back. Idempotent —
+// returns the existing campaign if one already exists.
+//
+// The gate here used to be `status IN ('approved','sent')`, and the only thing
+// that sets 'approved' is a client clicking approve on the public review link
+// (services/prPress.approveByToken, reached from routes/prPortal). There has
+// never been an agency-side approve control. Meanwhile the editor's button had
+// already been re-gated on whether the reporting is done — its own comment says
+// "the pitch gate used to be 'a client approved it'. It is now 'the reporting
+// is done'" — and the backend was never told. So a release Daniel wrote and
+// finished showed an enabled button that answered 400: the only way past it was
+// to send the client a review link and wait.
+//
+// The reporting check is the real gate and it lives in the editor, where the
+// writer can see what is missing. What has to be true here is only that there
+// is something to send.
+//
+// The client review flow still exists and still works; it is a step you can
+// take, not a lock on your own work.
 router.post('/press-releases/:prId/create-campaign', async (req, res) => {
   try {
     const p = (await db.query('SELECT * FROM pr_press_releases WHERE id = $1', [req.params.prId])).rows[0];
     if (!p) return res.status(404).json({ error: 'Press release not found' });
     if (p.campaign_id) return res.json({ campaign_id: p.campaign_id, existing: true });
-    if (!['approved', 'sent'].includes(p.status)) return res.status(400).json({ error: 'Approve the release before creating a pitch campaign.' });
     if (!p.body_html) return res.status(400).json({ error: 'Draft the release body first.' });
     const created = await pressRelease.createReleaseWithCampaign(p.client_id, { title: p.title || 'Press release', body_html: p.body_html, boilerplate: p.brand || null });
     await db.query('UPDATE pr_press_releases SET campaign_id = $1 WHERE id = $2', [created.campaign_id, p.id]);
