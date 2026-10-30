@@ -129,12 +129,23 @@ jobs:
         run: node tests/report-recipients.test.js
       - name: Guard — a sent report can never be bulk deleted
         run: node tests/bulk-delete-reports.test.js
+      - name: Guard — a shared recording is seekable, and a rewind is not a re-download
+        run: node tests/watch-stream.test.js
+      - name: Guard — the R2 migration never frees a copy it has not verified
+        run: node tests/media-to-r2.test.js
+      - name: Guard — the R2 preflight catches a bucket that only looks healthy
+        run: node tests/r2-preflight.test.js
       # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
       # the runner is given ffmpeg rather than trusted to have it, and each
       # step checks for it rather than assuming the install above worked.
       - name: Install ffmpeg for the render guards
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Guard — the playback remux actually unfragments the file
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the remux structure assertions would not run'; exit 1; }
+          node tests/recording-remux.test.js
       - name: Guard — the reel checks do not fail the plan's own example hook
         run: node tests/reel-checks.test.js
       - name: Guard — a tightened edit keeps no sliver too short to watch

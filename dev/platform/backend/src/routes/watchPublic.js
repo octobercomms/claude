@@ -8,6 +8,7 @@ const express = require('express');
 const crypto = require('crypto');
 const pool = require('../db');
 const mediaStore = require('../services/mediaStore');
+const watchStream = require('../services/watchStream');
 
 const router = express.Router();
 
@@ -43,41 +44,46 @@ router.get('/:token', async (req, res) => {
 });
 
 // ── Video stream (range-aware) ────────────────────────────────────────────────
+// The decisions this makes — which object to serve, what to type it as, what a
+// viewer may cache — live in services/watchStream.js so they can be tested.
 router.get('/:token/stream', async (req, res) => {
   try {
     const rec = await loadReady(req.params.token);
-    if (!rec || !rec.storage_key) return res.status(404).send('Not found');
+    const keys = watchStream.playbackKeys(rec);
+    if (!keys.length) return res.status(404).send('Not found');
 
     // R2 (once configured) hands back a short-lived signed URL — redirect the
     // player straight to the CDN. Disk returns null → we stream it ourselves.
-    const signed = await mediaStore.signedGetUrl(rec.storage_key, 3600);
-    if (signed) return res.redirect(302, signed);
-
-    let range = null;
-    const rangeHeader = req.headers.range;
-    if (rangeHeader) {
-      const m = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
-      if (m) range = { start: m[1] ? parseInt(m[1], 10) : 0, end: m[2] ? parseInt(m[2], 10) : null };
+    const signed = await mediaStore.signedGetUrl(keys[0], watchStream.SIGNED_TTL_SEC);
+    if (signed) {
+      res.set(watchStream.redirectHeaders());
+      return res.redirect(302, signed);
     }
 
-    let out;
-    try {
-      out = await mediaStore.openRead(rec.storage_key, range);
-    } catch (e) {
-      if (e.code === 'RANGE') { res.setHeader('Content-Range', `bytes */0`); return res.status(416).end(); }
+    const rangeHeader = req.headers.range;
+    const range = watchStream.parseRange(rangeHeader);
+
+    let out = null, served = null, lastErr = null;
+    for (const key of keys) {
+      try { out = await mediaStore.openRead(key, range); served = key; break; }
+      catch (e) { lastErr = e; if (e.code === 'RANGE') break; }
+    }
+    if (!out) {
+      if (lastErr && lastErr.code === 'RANGE') { res.setHeader('Content-Range', `bytes */0`); return res.status(416).end(); }
       return res.status(404).send('Not found');
     }
 
-    res.setHeader('Content-Type', rec.mime || 'video/webm');
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'private, max-age=0, no-store');
-    if (rangeHeader && (out.start !== 0 || out.end !== out.size - 1)) {
-      res.status(206);
-      res.setHeader('Content-Range', `bytes ${out.start}-${out.end}/${out.size}`);
-      res.setHeader('Content-Length', out.end - out.start + 1);
-    } else {
-      res.setHeader('Content-Length', out.size);
-    }
+    const { status, headers } = watchStream.streamHeaders({
+      key: served,
+      mime: rec.mime,
+      size: out.size,
+      start: out.start,
+      end: out.end,
+      hasRange: !!rangeHeader,
+      contentTypeFor: mediaStore.contentTypeFor,
+    });
+    res.status(status).set(headers);
+
     out.stream.on('error', () => { if (!res.headersSent) res.status(500); res.end(); });
     out.stream.pipe(res);
   } catch (err) {

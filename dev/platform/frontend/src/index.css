@@ -2462,3 +2462,37 @@ a:hover > .card-stat,
   font-weight: 600;
   letter-spacing: -0.2px;
 }
+
+/* ── Reports setup ──────────────────────────────────────────────────────────
+   Weekly and Monthly each take the full width, stacked, rather than sitting
+   side by side in two narrow columns. Side by side, the schedule fields were
+   squeezed into half a column while the monthly template list ran to twenty
+   numbered lines down a column 300px wide, and the page was mostly empty
+   either side of it.
+
+   Full width, each card splits its own space instead: the settings on the
+   left at a readable form width, the template list on the right where its
+   length is the point. The list takes two columns of its own once it is long
+   enough to need them. */
+.report-setup {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: var(--s6);
+  align-items: start;
+}
+.report-setup > * { min-width: 0; }
+
+/* The template list. columns, not a grid: the items are a numbered sequence
+   and column flow keeps 1..10 above 11..20 rather than interleaving them. */
+.report-template-list {
+  columns: 2;
+  column-gap: var(--s6);
+}
+.report-template-list > li { break-inside: avoid; }
+
+/* One column below roughly a 60/40 split of the content area, where the form
+   fields start to crowd. */
+@container appmain (max-width: 900px) {
+  .report-setup { grid-template-columns: minmax(0, 1fr); }
+  .report-template-list { columns: 1; }
+}

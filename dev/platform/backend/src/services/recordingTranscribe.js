@@ -23,11 +23,12 @@ const MAX_DIRECT_BYTES = 24 * 1024 * 1024;
 // Extract a small mono 16 kHz mp3 from the video via ffmpeg (well under the
 // 25 MB cap for even long recordings). Rejects with ENOENT if ffmpeg is not
 // installed, which the caller treats as "fall back / skip".
-async function extractAudio(inputBuf, ext) {
-  const base = path.join(os.tmpdir(), `rec-${crypto.randomBytes(8).toString('hex')}`);
-  const inPath = `${base}.${ext || 'webm'}`;
-  const outPath = `${base}.mp3`;
-  await fs.promises.writeFile(inPath, inputBuf);
+//
+// Takes a path rather than a buffer: the video never needs to be in memory, and
+// a long screen capture is hundreds of megabytes. Only the extracted audio,
+// which is a few megabytes, is read in.
+async function extractAudio(inPath) {
+  const outPath = path.join(os.tmpdir(), `rec-${crypto.randomBytes(8).toString('hex')}.mp3`);
   try {
     await new Promise((resolve, reject) => {
       const ff = spawn('ffmpeg', ['-y', '-i', inPath, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', outPath], { stdio: 'ignore' });
@@ -36,7 +37,6 @@ async function extractAudio(inputBuf, ext) {
     });
     return await fs.promises.readFile(outPath);
   } finally {
-    fs.promises.unlink(inPath).catch(() => {});
     fs.promises.unlink(outPath).catch(() => {});
   }
 }
@@ -66,20 +66,26 @@ async function transcribeRecording(id) {
     const rec = rows[0];
     if (!rec || !rec.storage_key || rec.transcript) return; // gone, not stored, or already done
 
-    const buf = await mediaStore.getBuffer(rec.storage_key);
     const ext = mediaStore.extFor(rec.mime);
-
+    const src = await mediaStore.localFile(rec.storage_key);
     let audio, filename = 'audio.mp3', contentType = 'audio/mpeg';
     try {
-      audio = await extractAudio(buf, ext);
-    } catch (e) {
-      // No ffmpeg (or it failed) — send the original only if it's small enough.
-      if (buf.length <= MAX_DIRECT_BYTES) {
-        audio = buf; filename = `audio.${ext}`; contentType = rec.mime || 'video/webm';
-      } else {
-        console.warn('[recordingTranscribe] ffmpeg unavailable and file too large; skipping', id);
-        return;
+      try {
+        audio = await extractAudio(src.path);
+      } catch (e) {
+        // No ffmpeg (or it failed) — send the original only if it's small
+        // enough for the 25 MB endpoint cap, and only read it in at that point.
+        const { size } = await fs.promises.stat(src.path);
+        if (size <= MAX_DIRECT_BYTES) {
+          audio = await fs.promises.readFile(src.path);
+          filename = `audio.${ext}`; contentType = rec.mime || 'video/webm';
+        } else {
+          console.warn('[recordingTranscribe] ffmpeg unavailable and file too large; skipping', id);
+          return;
+        }
       }
+    } finally {
+      await src.release();
     }
 
     const text = await whisper(audio, filename, contentType);

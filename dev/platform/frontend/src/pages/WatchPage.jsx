@@ -6,6 +6,13 @@ import { useParams } from 'react-router-dom';
 // view progress so the owner can see "did they watch it". Standalone page (no
 // app shell), styled dark like a video viewer.
 
+// The stream URL is derivable from the token, so it does not need to be waited
+// for. The metadata response carries the same path, but asking for it first
+// meant the browser could not start fetching video until a round trip to the
+// box had completed — on top of the chunk fetch for this page. The <video>
+// mounts immediately and the title, date and transcript fill in around it.
+const streamUrl = (token) => `/api/public/watch/${encodeURIComponent(token)}/stream`;
+
 export default function WatchPage() {
   const { token } = useParams();
   const [meta, setMeta] = useState(null);
@@ -51,26 +58,29 @@ export default function WatchPage() {
         <div style={{ fontSize: 'var(--fs-caption)', letterSpacing: '.12em', textTransform: 'uppercase', color: '#8a8a92', fontWeight: 700, marginBottom: 'var(--s4)' }}>October</div>
         {error ? (
           <div style={{ padding: 'var(--s9) 0', textAlign: 'center', color: '#c9c9d0' }}>{error}</div>
-        ) : !meta ? (
-          <div style={{ padding: 'var(--s9) 0', textAlign: 'center', color: '#8a8a92' }}>Loading…</div>
         ) : (
           <>
+            {/* Mounted before the metadata lands, so the video request is in
+                flight while the title is still on its way. A bad token shows
+                the error above a moment later, once that fetch answers. */}
             <div style={{ background: '#000', borderRadius: 'var(--r-md)', overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,.5)' }}>
               <video
                 ref={videoRef}
-                src={meta.stream_url}
+                src={streamUrl(token)}
                 controls
                 autoPlay
+                playsInline
+                preload="auto"
                 onPlay={onPlay}
                 onTimeUpdate={onTimeUpdate}
                 style={{ width: '100%', display: 'block', maxHeight: '72vh', background: '#000' }}
               />
             </div>
-            <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 800, margin: 'var(--s5) 0 var(--s1)' }}>{meta.title}</h1>
+            <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 800, margin: 'var(--s5) 0 var(--s1)' }}>{meta ? meta.title : ' '}</h1>
             <div style={{ fontSize: 'var(--fs-body)', color: '#8a8a92' }}>
-              {meta.created_at ? new Date(meta.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+              {meta && meta.created_at ? new Date(meta.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ' '}
             </div>
-            {meta.transcript && (
+            {meta && meta.transcript && (
               <div style={{ marginTop: 'var(--s5)' }}>
                 <button onClick={() => setShowTranscript(s => !s)}
                   style={{ background: 'transparent', color: '#c9c9d0', border: '1px solid #2c2c33', borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>

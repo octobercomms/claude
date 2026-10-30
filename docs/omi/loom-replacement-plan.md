@@ -38,8 +38,11 @@ already on Cloudflare. Storage sits behind a thin driver interface
 - `disk` — the default, used in dev/test and as a zero-infra fallback. Serves
   from a local dir like the existing `video-outputs/`.
 - `r2` — activated when the `R2_*` env vars are set. Uploads via the
-  S3-compatible API; large recordings use a **presigned PUT** so the browser
-  uploads straight to R2 without proxying gigabytes through the app server.
+  S3-compatible API. The browser still posts the blob to our own endpoint and
+  the backend streams it up (`uploadDescriptor` returns `mode: 'app'` on both
+  drivers); a presigned direct-to-R2 PUT is a later optimisation that needs
+  bucket CORS. Playback redirects to a short-lived presigned GET, so the bytes
+  themselves come straight from R2.
 
 Swapping backends is an env change, not a code change — so the recorder works
 end-to-end immediately (disk) and moves to R2 the moment the bucket is live.
@@ -48,16 +51,31 @@ end-to-end immediately (disk) and moves to R2 the moment the bucket is live.
 
 In the Cloudflare dashboard:
 
-1. **R2 → Create bucket** — e.g. `omi-recordings` (private).
+**Account ID: `ead9401db49f4dd778962bedfaa21cff`** — read off the Cloudflare Pages
+check URL on an OMI pull request (`dash.cloudflare.com/?to=/<account id>/pages/…`).
+That is the account the Events app's Pages project lives in, so confirm the R2
+page shows the same id before using it as `R2_ACCOUNT_ID`.
+
+1. **R2 → Create bucket** — e.g. `omi-recordings`. Leave public access off: the
+   watch route hands out short-lived signed URLs, and a public bucket would
+   make every recording readable to anyone who guessed an object key.
 2. **R2 → Manage API Tokens → Create** — an **Object Read & Write** token scoped
-   to that bucket. Note the **Access Key ID** and **Secret Access Key**.
-3. Note your **Account ID** (R2 endpoint is
-   `https://<accountid>.r2.cloudflarestorage.com`).
-4. (Optional) Attach a custom domain / public bucket URL if we ever want direct
+   to that one bucket, not to all buckets. The platform writes, reads, signs and
+   deletes objects; it never creates or lists buckets, so an admin token buys
+   nothing and costs blast radius. Note the **Access Key ID** and **Secret
+   Access Key** — the secret is shown once.
+
+   Do not paste either into a chat. They go straight into
+   `dev/platform/backend/.env` on the box; `scripts/r2-preflight.js` then
+   confirms they work without printing them.
+3. (Optional) Attach a custom domain / public bucket URL if we ever want direct
    CDN playback; not required — we serve via short-lived signed URLs.
-5. Set these env vars on the backend:
+4. Put these in `dev/platform/backend/.env` on the box. **Note that
+   `MEDIA_STORE` stays `disk` at this point** — see the switch order below.
+   Setting it to `r2` before the bytes have been copied makes every existing
+   share link 404.
    ```
-   MEDIA_STORE=r2
+   MEDIA_STORE=disk
    R2_ACCOUNT_ID=…
    R2_ACCESS_KEY_ID=…
    R2_SECRET_ACCESS_KEY=…
@@ -66,6 +84,48 @@ In the Cloudflare dashboard:
 
 Until those are set, `MEDIA_STORE` defaults to `disk` and everything still works.
 
+### The order to throw the switch in
+
+Setting `MEDIA_STORE=r2` does **not** move anything. The drivers share one
+interface and nothing else, so the moment the active driver changes, every key
+already on disk reads as missing and every existing share link 404s. The bytes
+have to go first, which is what `scripts/media-to-r2.js` is for.
+
+1. Set the four `R2_*` vars in `dev/platform/backend/.env` on the box and
+   **leave `MEDIA_STORE=disk`**. The platform keeps serving from disk; the
+   scripts only need the credentials. `pm2 reload … --update-env` to pick them
+   up.
+2. `node scripts/r2-preflight.js` — proves the bucket and token do everything
+   playback needs: write, read the size back, read the bytes back, stream down,
+   sign a playback URL and fetch it, serve a byte range from it, delete. It
+   writes one 64KB object under `__omi-preflight/` and removes it. It never
+   prints the secret. Every check is shown to catch its own failure in
+   `tests/r2-preflight.test.js`, including the two that look like success from
+   outside: a store that ignores `Range`, and one that answers a range with 200
+   instead of 206, either of which leaves playback working and seeking silently
+   broken.
+3. `node scripts/media-to-r2.js` — a dry run. It lists every object the database
+   references, what it would copy, and anything already missing from the store.
+   Nothing is written.
+4. `node scripts/media-to-r2.js --commit` — copies, reading back each object's
+   length from R2 and failing the object if it does not match. Re-runnable: an
+   object already there at the right length is skipped, so an interrupted run
+   carries on where it stopped.
+5. `node scripts/media-store-status.js` — confirms what is referenced, what is
+   present, and that nothing is missing.
+6. Only now set `MEDIA_STORE=r2` and reload. Playback starts redirecting to
+   signed R2 URLs.
+7. Watch a share link, then `node scripts/media-store-status.js` again.
+8. Days later, once you are satisfied:
+   `node scripts/media-to-r2.js --commit --prune-verified` frees the disk
+   copies. It only ever removes an object whose length in R2 has been read back
+   and matches, and it removes nothing on a dry run. There is no hurry — the
+   duplicate costs disk, and disk is the thing you have.
+
+`tests/media-to-r2.test.js` drives that verify-then-delete ordering against a
+store that lies about what it wrote, because before the switch is thrown the
+disk copy is the only copy of every walkthrough ever sent to a client.
+
 ## Data model
 
 - `recordings` — `id`, `created_by` (user), `client_id` (nullable — a recording
@@ -73,6 +133,15 @@ Until those are set, `MEDIA_STORE` defaults to `disk` and everything still works
   `mime`, `duration_s`, `size_bytes`, `transcript` (nullable),
   `public_token` (unguessable), `status` (`uploading|ready|failed`),
   `created_at`.
+  - `storage_key` is the recorder's own capture: the thing to download, edit or
+    re-encode. It is never deleted or rewritten in place.
+  - `play_key` / `play_status` (migration 220) — the remuxed, seekable copy the
+    public watch stream serves. NULL means "serve the original", which is the
+    state of anything recorded before the remux existed and of anything whose
+    remux failed.
+  - `mp4_key` / `gif_key` / `export_status` (migration 173) — on-demand
+    re-encodes for handing someone a file. Different job from `play_key`: those
+    are a real transcode, this is a lossless container rewrite.
 - `recording_views` — `id`, `recording_id`, `viewed_at`, `watch_seconds`,
   `ip_hash` (hashed, not raw), `referrer` (nullable). One row per view/progress
   ping → "did they watch it, and how much".
@@ -109,8 +178,14 @@ player, title, transcript toggle, and the view ping.
    public routes, mounting. (disk-backed, fully testable now)
 2. **Recorder + watch UI** — the admin recorder + library, the public
    `/watch/:token` player + view ping.
-3. **R2 + transcripts** — flip `MEDIA_STORE=r2` once the bucket is live; wire the
-   Whisper transcript into the watch page.
+3. **R2 + transcripts** — move the bytes, then flip `MEDIA_STORE=r2` (the order
+   matters; see "The order to throw the switch in" above). Wire the Whisper
+   transcript into the watch page. Transcripts shipped (3b below). **R2
+   has not been switched on** — the driver, the migration script and the status
+   reporter are all written and tested, but the bucket does not exist yet, so
+   every recording is still served off the box's own disk and uplink. That is
+   the single largest thing left in the playback path.
+4. **Playback (shipped, 30 Oct 2026)** — see "Why playback was slow" below.
 
 ## Transcripts (Phase 3b — shipped)
 
@@ -130,6 +205,82 @@ per-row "Transcribe" button) lets you retry or backfill migrated videos.
   directly); longer ones are skipped. With it, any length works.
 
 Recordings still function fully without either — transcripts just stay empty.
+
+## Why playback was slow (fixed 30 Oct 2026)
+
+A share link took a long time to start playing. Five separate causes, found by
+measuring rather than guessing, in the order they cost the most:
+
+**1. No CDN.** `MEDIA_STORE` is still `disk`, so every byte comes off the one
+box over one uplink, competing with every API request OMI serves. Unfixed: it
+needs the bucket. See "The order to throw the switch in" above. Everything
+below is fixed.
+
+**2. Caching was switched off.** The stream sent
+`Cache-Control: private, max-age=0, no-store`, which forbids the browser from
+keeping a single byte. Scrubbing back ten seconds, replaying, or reloading
+re-downloaded the whole file. Now `private, max-age=604800, immutable`:
+`private` rather than `public` because the share token is the only secret
+protecting a recording, so a shared cache keyed on that URL would hold copies
+that deleting the recording cannot reach.
+
+**3. The file had no index at the front.** MediaRecorder streams bytes out as it
+records, so it cannot go back and write one. Measured against real Chromium
+captures:
+
+| | before | after the remux |
+|---|---|---|
+| mp4 | `ftyp moov(695) moof mdat moof mdat mfra` — index last | `ftyp moov(2740) mdat` — index first |
+| webm | **no Cues element at all**, `duration=N/A` with the whole file in hand | Cues at byte 102, `duration=5.971` |
+
+`services/recordingRemux.js` runs `-c copy` with `+faststart` (mp4) or
+`-cues_to_front 1` (webm) after upload: no re-encode, seconds to run, about 400
+bytes larger. The result is stored under `play_key` and is what the watch
+stream serves; the original capture is untouched and stays what Download and
+Send to editor use. `play_key` NULL falls back to the original, so a failed
+remux costs seek quality and nothing else. `scripts/remux-backfill.js` does the
+back catalogue.
+
+**4. A recipient downloaded the whole admin app first.** `WatchPage` was a
+static import in `App.jsx`, so `/watch/:token` fetched 2.69MB of JavaScript
+(718KB gzipped) covering every OMI screen, and parsed it, before the `<video>`
+element existed. Now every page except the three arrival pages (login, home,
+watch) is a lazy chunk: **287KB raw, 83KB gzipped**, an 88% reduction.
+The player also takes its `src` from the token instead of waiting for the
+metadata response, which removed a round trip before the first video byte.
+`tests/shareLinkWeight.test.mjs` fails if a static import of an admin page
+comes back.
+
+**5. nginx buffered the video through its own disk.** The stream fell through to
+`location /api/`, where `proxy_buffering` is on by default, so nginx spilled the
+response to a temp file while proxying: the box read a 200MB file off disk and
+wrote most of it back, per view. `/api/public/watch/` now has its own location
+with `proxy_buffering off`.
+
+### What capture does now
+
+The recorder used to pass a frame rate and nothing else, so it captured at the
+display's native resolution — 3840x2160 on a 4K monitor. That reads like a
+quality setting and is the opposite of one: Chrome's MediaRecorder default
+bitrate is a flat 2.5 Mbps that [does not scale with
+resolution](https://blog.addpipe.com/mediarecorder-video-bitrates/), so a 4K
+capture was the same number of megabytes as a 1080p one with four times as many
+pixels to spend them on. Screen text went soft and the file was no smaller for
+it.
+
+`utils/captureSettings.js` now caps capture at 1920x1080 with `max` (never
+`ideal`, which would upscale a small screen) and states 2.5 Mbps rather than
+inheriting it. Same file size as before, four times the budget per pixel. About
+**20 MB a minute**, so a ten-minute walkthrough is roughly 200 MB.
+
+### Memory
+
+`recordingExport`, `recordingTranscribe` and `edit/from-recording` each read the
+whole recording into a Buffer and then wrote it straight back out to a file —
+700MB of heap for a 700MB recording, on the box that serves every request.
+`mediaStore.localFile(key)` replaces that: on disk it hands back the stored
+file's own path and copies nothing; on R2 it streams the object down to a temp
+file. Callers release it in a `finally`.
 
 ## Out of scope (v1)
 

@@ -56,7 +56,10 @@ export default function ClientAdsPage() {
     { title: 'Launch', sub: 'Push live' },
   ];
   const isPipelineStep = PIPELINE_STEPS.includes(tab);
-  const isPipelineGroup = isPipelineStep || tab === 'pipeline' || tab === 'creative';
+  // 'pipeline' and 'creative' were group keys from the tab-strip era. No row
+  // sets either, and a slug with no row never resolves, so they could only
+  // ever read as reachable.
+  const isPipelineGroup = isPipelineStep;
   const pipelineStep = isPipelineStep ? tab : 'brief';
   // Build's non-step tabs. They are not stages of a batch, which is exactly
   // why they are not steps: Audiences is standing client data, Competitors is

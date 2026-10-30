@@ -47,28 +47,26 @@ export default function Layout() {
     api.get('/settings/workspace-links').then(setTools).catch(() => {});
   }, [user?.role]);
 
-  const clientMatch = useMatch('/clients/:id');
+  // Only this one is read for anything but the client id, and the id comes
+  // from the path itself. The other eight useMatch calls were a fallback
+  // chain behind a regex that already matches every /clients/:id/* path, so
+  // they could never contribute — which is how two of them went on naming
+  // routes that had been deleted (/outreach moved inside Convert,
+  // /sales-traffic became /data) and two more named pages that no longer
+  // exist at all (/audiences, /ai-visibility) without anything failing. A
+  // ninth matched /clients/:id/chat, which the analyst drawer replaced, and
+  // fed an `onChatPage` nothing read.
   const clientSeoMatch = useMatch('/clients/:id/seo');
-  const clientChatMatch = useMatch('/clients/:id/chat');
-  const clientAdsMatch = useMatch('/clients/:id/ads');
-  const clientOutreachMatch = useMatch('/clients/:id/outreach');
-  const clientSalesMatch = useMatch('/clients/:id/sales-traffic');
-  const clientSocialMatch = useMatch('/clients/:id/social');
-  const clientBrandMatch = useMatch('/clients/:id/brand');
-  const clientAudiencesMatch = useMatch('/clients/:id/audiences');
-  const clientAiVisMatch = useMatch('/clients/:id/ai-visibility');
   // Derive the active client id straight from the path — robust for every
-  // /clients/:id/* page (chat, audiences, etc.) without having to enumerate
-  // a useMatch for each route. /clients (the list) has no id segment, so the
-  // sub-nav correctly stays hidden there.
-  const clientId = (location.pathname.match(/^\/clients\/([^/]+)(?:\/|$)/) || [])[1]
-    || clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id || clientAudiencesMatch?.params?.id || clientAiVisMatch?.params?.id;
+  // /clients/:id/* page without having to enumerate a useMatch for each
+  // route. /clients (the list) has no id segment, so the sub-nav correctly
+  // stays hidden there.
+  const clientId = (location.pathname.match(/^\/clients\/([^/]+)(?:\/|$)/) || [])[1];
   // Which section the current path is in, for lighting the nav. Derived, so
   // adding a screen never means remembering to extend a list here — that list
   // is how ?tab=plan un-lit the Dashboard item.
   const currentSection = sectionForPath(location.pathname);
   const onSeoPage = !!clientSeoMatch;
-  const onChatPage = !!clientChatMatch;
 
   // Remember the last client the user was in, so the sidebar "Workspace" item
   // jumps straight back there rather than a redundant client list (the
@@ -86,7 +84,7 @@ export default function Layout() {
   // client list if they have none; from the list, opening a client lands on
   // the Dashboard's Measure tab.
   const workspaceTarget = readOnly
-    ? (user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/clients')
+    ? (user?.client_id ? `/clients/${user.client_id}/data` : '/clients')
     : (lastClientPath || '/clients');
   // Workspace lights up inside a client, never on the bare client list — that
   // is the Clients item's own path, and two highlighted items read as a bug.

@@ -15,6 +15,7 @@ const mediaStore = require('../services/mediaStore');
 const loomFetch = require('../services/loomFetch');
 const transcribe = require('../services/recordingTranscribe');
 const recordingExport = require('../services/recordingExport');
+const remux = require('../services/recordingRemux');
 
 const router = express.Router();
 router.use(authenticate);
@@ -72,6 +73,11 @@ function present(r, views) {
     has_mp4: !!r.mp4_key,
     has_gif: !!r.gif_key,
     export_status: r.export_status || null,
+    // Whether the share link serves the seekable remux or the raw capture.
+    // Not a user-facing control; it is here so a stuck remux is visible
+    // without a database query.
+    has_playback_copy: !!r.play_key,
+    play_status: r.play_status || null,
     public_token: r.public_token,
     share_path: `/share/${r.public_token}`,
     imported_views: r.imported_views || 0,
@@ -150,6 +156,10 @@ router.post('/:id/finalize', express.json(), async (req, res) => {
     }
     // Kick transcription in the background (no-ops without OPENAI_API_KEY).
     transcribe.transcribeInBackground(rows[0].id);
+    // And the playback remux, so the share link hands a viewer a seekable file
+    // rather than the recorder's fragmented one. Falls back to the original if
+    // it fails, so nothing waits on it.
+    remux.remuxInBackground(rows[0].id);
     res.json(present(rows[0]));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -265,6 +275,16 @@ router.post('/:id/transcribe', async (req, res) => {
   res.json({ ok: true, queued: true });
 });
 
+// ── Rebuild the playback copy on demand (retry, or backfill an old recording) ─
+// `force` redoes one that already has a playback copy, which is what the
+// backfill script uses after a change to the remux arguments.
+router.post('/:id/remux', express.json(), async (req, res) => {
+  const { rows } = await pool.query('SELECT id FROM recordings WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+  remux.remuxInBackground(req.params.id, { force: !!req.body?.force });
+  res.json({ ok: true, queued: true });
+});
+
 // ── Export a recording to MP4 / GIF (rendered server-side with ffmpeg) ────────
 // The browser records WebM; this produces a shareable H.264 MP4 or a short GIF.
 // Fire-and-forget: the UI polls the recording until export_status flips to
@@ -320,10 +340,10 @@ router.post('/bulk-delete', express.json(), async (req, res) => {
       .map(String).filter(id => UUID_RE.test(id));
     if (!ids.length) return res.status(400).json({ error: 'No valid ids' });
     const { rows } = await pool.query(
-      `DELETE FROM recordings WHERE id = ANY($1::uuid[]) AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key, mp4_key, gif_key`,
+      `DELETE FROM recordings WHERE id = ANY($1::uuid[]) AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key, play_key, mp4_key, gif_key`,
       [ids, req.user?.id || null]
     );
-    await Promise.all(rows.flatMap(r => [r.storage_key, r.mp4_key, r.gif_key].filter(Boolean).map(k => mediaStore.remove(k).catch(() => {}))));
+    await Promise.all(rows.flatMap(r => [r.storage_key, r.play_key, r.mp4_key, r.gif_key].filter(Boolean).map(k => mediaStore.remove(k).catch(() => {}))));
     res.json({ ok: true, deleted: rows.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -376,6 +396,7 @@ router.post('/import', upload.single('file'), async (req, res) => {
     await mediaStore.saveFile(key, req.file.path, mime);
     await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
     transcribe.transcribeInBackground(rec.id);
+    remux.remuxInBackground(rec.id);
     res.json(present({ ...rec, storage_key: key }));
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -426,6 +447,7 @@ router.post('/import-loom', express.json(), async (req, res) => {
         await mediaStore.saveBuffer(key, v.buffer, v.mime);
         await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, recId]);
         transcribe.transcribeInBackground(recId);
+        remux.remuxInBackground(recId);
         results.push({ url, ok: true, id: recId, title, share_path: `/share/${v.loomId}` });
       } catch (err) {
         results.push({ url, ok: false, error: err.message || 'Import failed.' });
@@ -441,11 +463,11 @@ router.post('/import-loom', express.json(), async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `DELETE FROM recordings WHERE id = $1 AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key, mp4_key, gif_key`,
+      `DELETE FROM recordings WHERE id = $1 AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key, play_key, mp4_key, gif_key`,
       [req.params.id, req.user?.id || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
-    for (const k of [rows[0].storage_key, rows[0].mp4_key, rows[0].gif_key]) {
+    for (const k of [rows[0].storage_key, rows[0].play_key, rows[0].mp4_key, rows[0].gif_key]) {
       if (k) await mediaStore.remove(k).catch(() => {});
     }
     res.json({ ok: true });

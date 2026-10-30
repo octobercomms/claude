@@ -64,16 +64,33 @@ looks; it is served from a box via pm2, not from Cloudflare Pages).
 - Triggers: on **push to `main`** touching `dev/platform/**`, **or**
   `workflow_dispatch` (manual).
 
-**CRITICAL — you must deploy manually after every merge.** The repo has an
-**"Auto-merge Claude PRs" bot** that merges PRs using `GITHUB_TOKEN`. Merges
-made with `GITHUB_TOKEN` **do not trigger `on: push` workflows**. So after a PR
-merges, production will *not* update on its own. You must:
+**The deploy is dispatched for you, but verify it rather than assume it.**
+Merges made by the "Auto-merge Claude PRs" bot use `GITHUB_TOKEN`, and those
+**do not trigger `on: push` workflows** — which is why this section used to say
+you had to run the deploy by hand. `auto-merge-claude.yml` now closes that gap
+itself: after a merge it checks the changed paths against
+`dev/platform/`, `dev/october-mi-shopify/`, `dev/october-mi-wp/` and
+`.github/workflows/platform-deploy.yml`, and if any match it runs
+`gh workflow run platform-deploy.yml`, which is exempt from the loop
+protection. Confirmed on 30 Oct 2026: PR #1842 merged at 16:54 and deploy run
+682 started the same minute, as a `workflow_dispatch` by `github-actions[bot]`.
 
-1. Manually trigger the deploy: `actions_run_trigger` with
+So after a merge, **check** rather than deploy blind:
+
+1. `actions_list` with `workflow_id: platform-deploy.yml` — look for a run
+   whose `head_sha` is your merge commit.
+2. Poll `actions_get` until its `conclusion == success`.
+3. Only if no such run appeared, dispatch it: `actions_run_trigger` with
    `method: run_workflow`, `workflow_id: platform-deploy.yml`, `ref: main`.
-2. Poll `actions_list` / `actions_get` until the run's `conclusion == success`.
 
-If you skip this, the user sees no change and (rightly) thinks nothing happened.
+Dispatching a second one is harmless, so when in doubt, dispatch. The case that
+genuinely needs step 3 is a change **outside** those four paths that still has
+to reach the box, or a merge where the dispatch step itself failed — it logs
+`could not dispatch platform-deploy` and says the merge is not live.
+
+`update.sh` also syncs `dev/platform/nginx/platform.conf` to
+`/etc/nginx/sites-available/`, runs `nginx -t`, and reloads only if that
+passes. An nginx change ships with the deploy; it needs nothing by hand.
 
 **Whether you may run the deploy yourself is a permission question, and this
 file cannot answer it.** Standing permissions live in `.claude/settings.json`,

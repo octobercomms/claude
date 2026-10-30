@@ -79,7 +79,7 @@ export default function ClientHomeDashboard() {
   ];
 
   const sections = [
-    { label: 'Data', to: `/clients/${cid}/sales-traffic`, sub: 'Traffic & analytics' },
+    { label: 'Data', to: `/clients/${cid}/data`, sub: 'Traffic & analytics' },
     { label: 'Paid', to: `/clients/${cid}/ads`, sub: 'Advertising' },
     { label: 'Earned', to: `/clients/${cid}/pr`, sub: 'PR & coverage' },
     { label: 'Shared', to: `/clients/${cid}/social`, sub: 'Social' },
