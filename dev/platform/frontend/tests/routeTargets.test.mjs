@@ -227,53 +227,104 @@ test('the route table and the section table name the same leaves', () => {
   }
 });
 
-test('every hardcoded /clients/... navigation resolves to a real screen', () => {
-  const { withScreen, bare } = routeShape();
-  const slugsByLeaf = Object.fromEntries(
-    Object.values(SECTIONS).filter(s => s.scope === 'client')
-      .map(s => [s.leaf, new Set(slugsOf(s))]));
-
+// Every navigation in one file's source, judged against the route table.
+//
+// Extracted from the test below so the test can also feed it source of its
+// own: a scanner with no positive control is one `continue` away from passing
+// on everything, and that mutation escaped the first time it was tried.
+function scanNavigations(body, label, { withScreen, bare }, slugsByLeaf) {
   const problems = [];
-  for (const file of FILES) {
-    const body = read(file);
-    // Every /clients/... string literal in the file, minus the ones that are
-    // backend calls. Anchoring on navigate(/to=/href= instead missed the case
-    // that prompted this: Layout assigns the path to `workspaceTarget` on one
-    // line and renders `to={workspaceTarget}` on another, so the literal sits
-    // next to no navigation keyword at all.
-    const re = /[`'"](\/clients\/[^`'"\s)]*)/g;
-    for (const m of body.matchAll(re)) {
-      const raw = m[1];
-      // api.get('/clients/…') and fetch('/clients/…') are backend paths that
-      // happen to share the prefix.
-      const before = body.slice(Math.max(0, m.index - 40), m.index);
-      if (/\b(?:api\.\w+|fetch|apiUrl|request)\s*\(\s*$/.test(before)) continue;
-      // Normalise the interpolations away: ${id} and friends become one segment.
-      const norm = raw.replace(/\$\{[^}]*\}/g, ':v');
-      const parts = norm.split('/').filter(Boolean);     // ['clients', ':v', …]
-      if (parts.length < 3) continue;                    // /clients or /clients/:id
-      const leaf = parts[2];
-      const screen = parts[3];
-      const where = `${path.relative(root, file)}: ${raw}`;
+  // Every /clients/... string literal in the file, minus the ones that are
+  // backend calls. Anchoring on navigate(/to=/href= instead missed the case
+  // that prompted this: Layout assigns the path to `workspaceTarget` on one
+  // line and renders `to={workspaceTarget}` on another, so the literal sits
+  // next to no navigation keyword at all.
+  const re = /[`'"](\/clients\/[^`'"\s)]*)/g;
+  for (const m of body.matchAll(re)) {
+    const raw = m[1];
+    // api.get('/clients/…') and fetch('/clients/…') are backend paths that
+    // happen to share the prefix.
+    const before = body.slice(Math.max(0, m.index - 40), m.index);
+    if (/\b(?:api\.\w+|fetch|apiUrl|request)\s*\(\s*$/.test(before)) continue;
+    // Normalise the interpolations away: ${id} and friends become one segment.
+    const norm = raw.replace(/\$\{[^}]*\}/g, ':v');
+    const parts = norm.split('/').filter(Boolean);     // ['clients', ':v', …]
+    if (parts.length < 3) continue;                    // /clients or /clients/:id
+    const leaf = parts[2];
+    const screen = parts[3];
+    const where = `${label}: ${raw}`;
 
-      if (bare.has(leaf) && !withScreen.has(leaf)) {
-        // A leaf route with no :screen (data, brand). Anything after it is wrong.
-        if (screen) problems.push(`${where} — /${leaf} takes no screen segment`);
-        continue;
-      }
-      if (!withScreen.has(leaf)) {
-        problems.push(`${where} — there is no clients/:id/${leaf} route`);
-        continue;
-      }
-      // A bare section link is fine: it lands on the section's default screen.
-      if (!screen || screen.startsWith(':v')) continue;
-      const slugs = slugsByLeaf[leaf];
-      if (slugs && !slugs.has(screen)) {
-        problems.push(
-          `${where} — '${screen}' is not a screen of the ${leaf} section. `
-          + `useScreen will silently fall back to its default.`);
-      }
+    // An interpolated section cannot be checked from the source: the value
+    // arrives at runtime. The one place that does this is the search
+    // palette, opening a record at the leaf and screen the search endpoint
+    // named, and the pair is checked against this same table by 'every
+    // search result opens a screen that exists' above.
+    if (leaf.startsWith(':v')) continue;
+
+    if (bare.has(leaf) && !withScreen.has(leaf)) {
+      // A leaf route with no :screen (data, brand). Anything after it is wrong.
+      if (screen) problems.push(`${where} — /${leaf} takes no screen segment`);
+      continue;
+    }
+    if (!withScreen.has(leaf)) {
+      problems.push(`${where} — there is no clients/:id/${leaf} route`);
+      continue;
+    }
+    // A bare section link is fine: it lands on the section's default screen.
+    if (!screen || screen.startsWith(':v')) continue;
+    const slugs = slugsByLeaf[leaf];
+    if (slugs && !slugs.has(screen)) {
+      problems.push(
+        `${where} — '${screen}' is not a screen of the ${leaf} section. `
+        + `useScreen will silently fall back to its default.`);
     }
   }
+  return problems;
+}
+
+function clientSlugsByLeaf() {
+  return Object.fromEntries(
+    Object.values(SECTIONS).filter(s => s.scope === 'client')
+      .map(s => [s.leaf, new Set(slugsOf(s))]));
+}
+
+test('every hardcoded /clients/... navigation resolves to a real screen', () => {
+  const shape = routeShape();
+  const slugsByLeaf = clientSlugsByLeaf();
+  const problems = FILES.flatMap(
+    file => scanNavigations(read(file), path.relative(root, file), shape, slugsByLeaf));
   assert.deepStrictEqual(problems, [], '\n  ' + problems.join('\n  '));
+});
+
+test('the navigation scan actually rejects a bad path', () => {
+  // The control. The scan above reports nothing when the app is correct, which
+  // is also what it reports when the scan is broken — and it was: making its
+  // interpolated-section exemption unconditional left every real navigation
+  // unchecked and all seven tests still green.
+  const shape = routeShape();
+  const slugsByLeaf = clientSlugsByLeaf();
+  const leaf = Object.keys(slugsByLeaf).find(l => shape.withScreen.has(l));
+  assert.ok(leaf, 'no client section has a :screen route — the route table is not being read');
+
+  const cases = [
+    [`navigate('/clients/abc/not-a-section/measure')`, 'an unknown section'],
+    [`navigate(\`/clients/\${id}/${leaf}/not-a-screen\`)`, 'an unknown screen'],
+  ];
+  for (const [source, what] of cases) {
+    assert.ok(scanNavigations(source, 'control', shape, slugsByLeaf).length,
+      `the scan passed ${what}: ${source}`);
+  }
+
+  // And does not cry wolf over the three shapes that are legitimate.
+  const fine = [
+    `navigate('/clients')`,
+    `navigate(\`/clients/\${id}\`)`,
+    `navigate(\`/clients/\${id}/${leaf}\`)`,
+    `navigate(\`/clients/\${id}/${leaf}/\${[...slugs][0]}\`)`,
+    `api.get(\`/clients/\${id}/anything\`)`,
+  ];
+  for (const source of fine) {
+    assert.deepStrictEqual(scanNavigations(source, 'control', shape, slugsByLeaf), [],
+      `the scan rejected a legitimate path: ${source}`);
+  }
 });

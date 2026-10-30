@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-route
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 import ClientTopBar from './ClientTopBar';
+import GlobalSearch from './GlobalSearch';
 import AnalystPanel from './AnalystPanel';
 import SectionPanel from './SectionPanel';
 import { SECTIONS, sectionForPath } from '../nav/sections';
@@ -89,6 +90,20 @@ export default function Layout() {
   // Workspace lights up inside a client, never on the bare client list — that
   // is the Clients item's own path, and two highlighted items read as a bug.
   const workspaceActive = !!clientId;
+
+  // Search lives here rather than in the client bar so ⌘K works on the client
+  // list, in Settings and in the Guide, where that bar does not render.
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setSearchOpen(o => !o);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const [navOpen, setNavOpen] = useState(false);
   // Hiding the main menu is a preference about how you work, not about where
@@ -294,6 +309,7 @@ export default function Layout() {
             clientId={clientId}
             analystOpen={analystOpen}
             onToggleAnalyst={() => setAnalystOpen(o => !o)}
+            onOpenSearch={() => setSearchOpen(true)}
           />
         )}
         <Outlet />
@@ -306,6 +322,17 @@ export default function Layout() {
           pathname={location.pathname}
         />
       )}
+      {/* The client a client-scoped screen result opens against: the one in
+          the URL, or the last one visited, which is the same value Workspace
+          jumps to. Outside a client those screens are not offered at all. */}
+      {/* Mounted only while open, so it starts empty every time rather than
+          painting one frame of the previous search before clearing it. */}
+      {searchOpen && <GlobalSearch
+        onClose={() => setSearchOpen(false)}
+        clientId={clientId || lastClientPathId(lastClientPath)}
+        readOnly={readOnly}
+        canVisualise={!!user?.can_use_visualise}
+      />}
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
     </div>
   );
@@ -373,3 +400,10 @@ function ChangePasswordModal({ onClose }) {
   );
 }
 
+
+// The client id out of a remembered path. localStorage holds the whole path so
+// Workspace can return you to the exact screen; search only needs the id.
+function lastClientPathId(path) {
+  const m = String(path || '').match(/^\/clients\/([^/]+)/);
+  return m && m[1] !== 'new' ? m[1] : null;
+}

@@ -2504,3 +2504,97 @@ a:hover > .card-stat,
 @container appmain (max-width: 760px) {
   .report-setup { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ─── Global search ──────────────────────────────────────────────── */
+
+/* Sits above the modal layer: ⌘K works while a modal is open, and a palette
+   rendered under one is a palette you cannot see. */
+.search-backdrop {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(6px) saturate(1.05);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-left, 0px));
+  padding-top: 12vh;
+}
+/* Near the top rather than centred: the list grows downwards as you type, and
+   a centred box jumps the input under your eye on every keystroke. */
+.search-palette {
+  background: var(--surface);
+  border: var(--border-w) solid var(--accent);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 680px; max-width: 100%;
+  max-height: 70vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.search-field {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4) var(--s5);
+  border-bottom: var(--border-w) solid var(--card-border);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.search-field input {
+  flex: 1; min-width: 0;
+  border: none; background: none; outline: none;
+  font: inherit; font-size: var(--fs-title);
+  color: var(--text);
+}
+.search-field input::placeholder { color: var(--text-muted); opacity: 0.8; }
+.search-esc {
+  font-size: var(--fs-caption); color: var(--text-muted);
+  border: 1px solid var(--card-border); border-radius: var(--r-sm);
+  padding: 1px 5px;
+}
+.search-results { overflow-y: auto; padding: var(--s3) 0; flex: 1 1 auto; min-height: 0; }
+.search-group + .search-group { margin-top: var(--s3); }
+.search-group-head {
+  font-size: var(--fs-caption); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: var(--s2) var(--s5);
+}
+/* One row is one target: the title on the left, where it lives on the right,
+   so a scan down the left edge reads as a list of names rather than of paths. */
+.search-row {
+  display: flex; align-items: baseline; gap: var(--s3);
+  width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer;
+  padding: var(--s2) var(--s5);
+  font: inherit; color: var(--text);
+}
+.search-row-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-row-meta {
+  margin-left: auto; flex: 0 1 auto; min-width: 0;
+  font-size: var(--fs-caption); color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Keyboard and mouse share one highlight: the pointer moves the cursor rather
+   than painting a second kind of selected, so Enter always opens what is lit. */
+.search-row.is-cursor { background: var(--surface-raised); box-shadow: inset 3px 0 0 var(--accent); }
+.search-hint {
+  margin: 0; padding: var(--s4) var(--s5);
+  font-size: var(--fs-caption); color: var(--text-muted);
+}
+.search-foot {
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s2) var(--s5);
+  border-top: var(--border-w) solid var(--card-border);
+  font-size: var(--fs-caption); color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.search-foot kbd {
+  border: 1px solid var(--card-border); border-radius: var(--r-sm);
+  padding: 0 4px; margin-right: 2px;
+}
+.search-foot-loading { margin-left: auto; }
+
+@media (max-width: 640px) {
+  .search-backdrop { padding-top: 6vh; }
+  .search-palette { max-height: 84vh; }
+  /* The path is the second line on a phone, not a squeezed right column. */
+  .search-row { flex-direction: column; gap: 0; align-items: stretch; }
+  .search-row-meta { margin-left: 0; }
+}

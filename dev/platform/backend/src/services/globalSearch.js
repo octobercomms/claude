@@ -163,8 +163,13 @@ async function search(q, { visibleClientIds }) {
     `SELECT * FROM (${sql}) s ORDER BY rank, created_at DESC LIMIT ${TOTAL}`,
     [ids, `%${term}%`, term]
   );
+  // The group heading travels with the row. The alternative is a second
+  // type -> label map in the browser, which is the same list written twice and
+  // drifts the first time an entity is renamed.
+  const labels = Object.fromEntries(ENTITIES.map(e => [e.type, e.label]));
   return rows.map(r => ({
     type: r.type,
+    label: labels[r.type] || r.type,
     id: r.id,
     title: r.title,
     subtitle: r.subtitle || null,

@@ -399,3 +399,35 @@ export function labelForTab(section, tab) {
 export function tabsOf(section) {
   return section.groups.flatMap(g => g.rows.map(r => r.tab));
 }
+
+// Every screen in the product, flattened, for the search box.
+//
+// The search endpoint finds records; screens are matched here in the browser
+// instead, because this file already knows all of them and the alternative is
+// a second list on the server that drifts the first time a screen is renamed.
+// Each entry carries its own section, so the caller builds the path the one
+// way the panel builds it — `section.base(clientId)` plus the slug — rather
+// than reassembling `clients/<id>/<leaf>/<slug>` by hand.
+//
+// `ctx` gates the same rows the panel gates, so a read-only login cannot find
+// a screen it is not shown.
+export function allScreens(ctx = {}) {
+  const out = [];
+  for (const section of Object.values(SECTIONS)) {
+    for (const group of visibleGroups(section, ctx)) {
+      for (const row of group.rows) {
+        out.push({
+          section,
+          sectionKey: section.key,
+          sectionTitle: section.title,
+          scope: section.scope,
+          heading: group.heading || null,
+          label: row.label,
+          tab: row.tab,
+          slug: slugOf(row),
+        });
+      }
+    }
+  }
+  return out;
+}
