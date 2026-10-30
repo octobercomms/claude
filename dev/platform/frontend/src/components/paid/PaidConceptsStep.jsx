@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PipelineStep from '../organic/PipelineStep';
+import NoBriefYet from './NoBriefYet';
 import { CreativeCard, ExampleConcept } from '../AdCreativePanel';
 import ExampleBanner from './ExampleBanner';
 import RefineChat from '../RefineChat';
@@ -13,7 +14,7 @@ import RefineChat from '../RefineChat';
 // a 2-column focus view (concept on the left, refine chat on the right)
 // so the AM can iterate on copy without round-tripping to a draft.
 // Applied revisions PUT the parsed fields back onto the concept.
-export default function PaidConceptsStep({ pipeline, clientName, clientId, onNext, onBack }) {
+export default function PaidConceptsStep({ pipeline, clientName, clientId, onBack }) {
   const { activeBatch, creatives, deleteCreative, updateCreative } = pipeline;
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
@@ -22,14 +23,12 @@ export default function PaidConceptsStep({ pipeline, clientName, clientId, onNex
 
   return (
     <PipelineStep
-      num={2} title="Draft" onNext={onNext} nextLabel="Render images & video"
+      num={2} title="Draft"
       tagline="Review the copy first. Edit, delete weak ones, then render the keepers. No image cost yet."
       banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
-        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
-          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
-        </div>
+        <NoBriefYet what="This step shows the copy Claude wrote — headline, body, CTA and visual direction — for you to edit before anything is rendered." onBack={onBack} />
       ) : !creatives.length ? (
         <ExampleConcept clientName={clientName} onDismiss={() => {}} />
       ) : refining ? (

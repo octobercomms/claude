@@ -1,5 +1,6 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
+import NoBriefYet from './NoBriefYet';
 import ExampleBanner from './ExampleBanner';
 
 // Paid Pipeline → Launch. End of the production arc — hand-off to the
@@ -26,9 +27,7 @@ export default function PaidLaunchStep({ pipeline, onBack }) {
       banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
-        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
-          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
-        </div>
+        <NoBriefYet what="This step is the export hand-off for a finished, approved batch." onBack={onBack} />
       ) : (
         <>
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>

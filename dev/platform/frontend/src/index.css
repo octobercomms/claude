@@ -1196,6 +1196,37 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 /* A page-level control riding on the tab row: the tabs keep their own
    margins, the action is pinned right and vertically centred against them. */
 .tabs-row { display: flex; align-items: center; gap: var(--s4); }
+/* ─── Paid · one ad account, collapsible ─────────────────────────── */
+/* The headline stays out when the section is shut. A collapsed section that
+   hides its own summary is a page that starts empty, which is the Health tab
+   this redesign deleted. */
+.ad-acct { margin-bottom: var(--s6); }
+.ad-acct-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap; margin-bottom: var(--s3);
+}
+.ad-acct-name {
+  display: flex; align-items: center; gap: var(--s2);
+  font-size: var(--fs-body); font-weight: 700; color: var(--text-muted);
+}
+.ad-acct-cur { font-size: var(--fs-caption); letter-spacing: 0.04em; }
+.ad-acct-detail { margin-top: var(--s4); }
+.ads-platform { margin-top: var(--s7); }
+/* Where the numbers come from, above the numbers. Quiet: it explains a
+   disagreement rather than warning about one. */
+.ads-source-note {
+  background: var(--surface-sunken);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-sm);
+  padding: var(--s3) var(--s4);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: var(--s6);
+  max-width: 920px;
+}
+.ads-source-note strong { color: var(--text); }
+
 .tabs-row > .tabs { flex: 1; min-width: 0; }
 .tabs-row-actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--s2); }
 
@@ -2208,9 +2239,14 @@ a:hover > .card-stat,
 .ds-launchpad__pip { width: 9px; height: 9px; border-radius: 50%; }
 
 /* L3 · StatStrip — one metric tile, one stat row (supersedes the 4 variants). */
-.ds-stats { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+.ds-stats { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .ds-stat { border: var(--border-w) solid var(--card-border); border-radius: var(--r-sm); background: var(--surface); padding: 12px 14px; }
 .ds-stat__value { font-size: var(--fs-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+/* Longer values step down so they fit the narrowest column instead of being
+   clipped mid-number. See valueSizeClass in StatStrip.jsx for the buckets. */
+.ds-stat__value--md { font-size: 30px; }
+.ds-stat__value--sm { font-size: 24px; }
+.ds-stat__value--xs { font-size: 19px; line-height: 1.15; }
 .ds-stat__label { font-size: var(--fs-caption); color: var(--text-subtle); margin-top: 6px; }
 .ds-stat__delta { font-size: var(--fs-caption); font-weight: 700; margin-top: 3px; color: var(--text-subtle); }
 .ds-stat__delta.up { color: var(--positive); }

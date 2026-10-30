@@ -884,6 +884,69 @@ A deep link that lands nowhere is the quietest breakage there is, because
 whoever follows it assumes the feature was removed. `?tab=playbook` opens the
 drawer rather than only landing on Measure, for the same reason.
 
+#### Paid, second pass: the page the account lead actually read (30 Oct 2026)
+
+Eleven points off the live page the morning after the first pass. Two read as
+bugs and were not; the rest were the page failing to say what it meant.
+
+**The £ on a section headed "US" is correct.** `formatMoney` never defaults to
+a pound sign (a null currency gives a bare number), so a symbol means the
+platform reported that code. `store_label` is free text typed on the connector
+and describes targeting; billing currency comes from the ad platform, and an
+account can target anywhere while billing in anything. The account's reported
+currency now prints beside its label, which is the difference between a
+wrong-looking number and an explained one.
+
+**The two revenue figures are different systems, not a disagreement.** The
+contribution panel is GA4 store revenue attributed last-click; the ad sections
+are each platform's own conversion value, including view-through, over a
+longer window. On Falcon that is 7,645 against 8,540, with Google alone
+claiming 12% more than GA4 attributes to all paid combined. Both are right.
+The page now says so above the numbers, once.
+
+**Leading with revenue exposed a platform-wide clipping bug.** `.ds-stat__value`
+renders at 40px in a column that can be 150px wide, with no overflow handling.
+"£4,800.00" is about 216px, so it was drawn as "£4,800." with the pence cut
+off by the tile edge. It had been there all along and nobody saw it while
+spend, the smaller number, led every strip. `valueSizeClass` in
+`utils/statValue.js` picks a size bucket from the string's length, because CSS
+cannot measure it. **A clipped figure is worse than a small one: it reads as a
+different, smaller number and nothing says it was cut.**
+
+The rest, and the rule each one came from:
+
+| Change | The rule |
+|---|---|
+| Ad sections collapse, summary always visible | a collapsed section that hides its own summary is a page that starts empty |
+| Each currency note printed once per page | a sentence repeated three inches below itself reads as two warnings |
+| ⋮ became a **Playbook** button | a kebab means "several things"; exactly one lives behind this |
+| "Make a batch" became "Batch" | the other sub-tabs are nouns |
+| The brief form **is** the Brief step | the page said "tell Claude what you want" and gave you nowhere to type |
+| The mode switch moved below the brief, renamed "Output" | two full-width pills above the field made a refinement the loudest thing on the page, and "Batch" already named the tab |
+| Hand-off buttons gone from every Paid step | the step rail navigates; a second control doing the same thing is a second thing to read |
+| `NoBriefYet` on steps with no batch | "pick one on the Brief step" implies briefs exist and you failed to choose |
+
+Steps stay **clickable** without a brief, by the account lead's call: a greyed
+rail reads as broken software, and you would have no way to see what a later
+step does before committing to a brief.
+
+`PipelineStep` keeps `onNext` because Organic and Shared still pass it. Paid
+dropping its hand-offs is not a reason to change pages nobody has reviewed.
+
+#### Two test-shaped mistakes worth not repeating (30 Oct 2026)
+
+Both nearly banked a green run that proved nothing.
+
+**`>= 0` is not an assertion.** A check written
+`check('a step says to write a brief', count >= 0)` passes on zero. So does
+`check(..., a === 0 || b > 0)` when `b` is always positive. Both shipped into
+drive36's first run and both were rewritten.
+
+**Driving the empty state needs a client that is actually empty.** The first
+version pointed at a client with a batch, so the empty state never rendered
+and the check judged a page that was never drawn. The stub grew a third
+client with connectors and no briefs for exactly this.
+
 #### A combined total of one network (29 Oct 2026)
 
 The Paid page printed "Combined · Google + Meta £2,853.94" directly above

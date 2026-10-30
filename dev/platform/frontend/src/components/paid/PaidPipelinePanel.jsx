@@ -45,19 +45,17 @@ export default function PaidPipelinePanel({ clientId, clientName, step, steps, m
     switch (step) {
       case 'concepts':
         return <PaidConceptsStep pipeline={pipeline} clientId={clientId} clientName={clientName}
-          onNext={() => go('render')} onBack={() => go('brief')} />;
+          onBack={() => go('brief')} />;
       case 'render':
-        return <PaidRenderStep pipeline={pipeline}
-          onNext={() => go('approve')} onBack={() => go('brief')} />;
+        return <PaidRenderStep pipeline={pipeline} onBack={() => go('brief')} />;
       case 'approve':
-        return <PaidApproveStep pipeline={pipeline}
-          onNext={() => go('launch')} onBack={() => go('brief')} />;
+        return <PaidApproveStep pipeline={pipeline} onBack={() => go('brief')} />;
       case 'launch':
         return <PaidLaunchStep pipeline={pipeline} onBack={() => go('brief')} />;
       case 'brief':
       default:
         return <PaidBriefStep pipeline={pipeline} clientId={clientId} clientName={clientName}
-          briefSeed={briefSeed} onNext={() => go('concepts')} />;
+          briefSeed={briefSeed} />;
     }
   })();
 
