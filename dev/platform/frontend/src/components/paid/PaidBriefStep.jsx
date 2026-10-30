@@ -1,106 +1,86 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
-import { BriefModal, GeneratingModal } from '../AdCreativePanel';
-import ExampleBanner from './ExampleBanner';
+import { BriefForm, GeneratingModal } from '../AdCreativePanel';
 import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
 
-// Paid Pipeline → Brief. Past briefs list, "+ New brief" opens the brief
-// form. Selecting a batch sets it as active across all subsequent steps
-// (Concepts / Render / Approve / Launch read from the shared
-// usePaidPipeline state).
+// Paid Pipeline → Brief.
 //
-// When a client has no real briefs yet, a persisted "worked example" batch
-// is generated once (see usePaidPipeline.ensureExample) and shown here,
-// badged as an example — it runs through every step so the AM can see what
-// each stage produces and show a client, without it being mistaken for
-// approved work.
-export default function PaidBriefStep({ pipeline, onNext, clientId, clientName, briefSeed }) {
+// The form is the page. It used to be behind a "+ New brief" button behind a
+// modal, under a tagline reading "Tell Claude what you want" — a page that
+// asked a question and gave you nowhere to answer it. Writing a brief is the
+// entire job of this step, so it is what the step shows.
+//
+// Past briefs sit underneath: a record, not the main event.
+export default function PaidBriefStep({ pipeline, clientId, clientName, briefSeed }) {
   const {
     batches, realBatches, exampleBatch, ensuringExample, exampleError, ensureExample,
     activeBatchId, selectBatch, deleteBatch,
-    assets, showBrief, setShowBrief, generate, generateMatrix, generating, loaded,
+    assets, generate, generateMatrix, generating, loaded,
   } = pipeline;
   const { readOnly } = useAuth();
 
   const onlyExample = loaded && !realBatches.length;
-  // Arriving from Competitors with "use this in a brief": open the form with
-  // what that research found already in it. Once, on arrival — reopening the
-  // form later should not resurrect a seed you deliberately cleared.
-  // The last seed acted on, not a boolean: a boolean latch opens the form for
-  // the first competitor hand-off and silently ignores the second, so using
-  // Competitors twice in a session works once. Comparing the text reopens for
-  // a different run and still does not reopen for the same one.
-  const seeded = React.useRef(null);
-  React.useEffect(() => {
-    if (!briefSeed || readOnly || seeded.current === briefSeed) return;
-    seeded.current = briefSeed;
-    setShowBrief(true);
-  }, [briefSeed, readOnly, setShowBrief]);
-
-  // One primary per screen. The header's "+ New brief" and the empty state's
-  // are the same button 100px apart, so when the empty state is showing it
-  // carries the primary and the header stands down.
-  const emptyStateShowing = loaded && !ensuringExample && !batches.length;
 
   return (
     <PipelineStep
-      num={1} title="Brief" onNext={onNext} nextLabel="See the concepts"
-      nextDisabled={!activeBatchId}
+      num={1} title="Brief"
       tagline="Tell Claude what you want — the offer, the audience, anything to avoid. Each brief produces a batch of concepts grounded in the brand assets you've uploaded."
-      banner={onlyExample && exampleBatch ? <ExampleBanner onNewBrief={() => setShowBrief(true)} /> : null}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-        <div className="caption">Past briefs</div>
-        {!emptyStateShowing && (
-          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => setShowBrief(true), disabled: generating })}>
-            {generating ? 'Generating…' : '+ New brief'}
-          </button>
-        )}
-      </div>
-
       {!assets.length && (
         <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 'var(--s4)' }}>
           No brand assets uploaded yet — visit the <strong>Brand</strong> tab and add logos, product photos, palette and guidelines so generations look on-brand.
         </div>
       )}
 
-      {showBrief && !generating && (
-        <BriefModal
+      {/* `key` on the seed, so research handed over from Competitors arrives
+          in a form that has actually reset to it. Without it the field keeps
+          whatever was typed before, and the hand-off silently does nothing. */}
+      <div className="card" style={{ marginBottom: 'var(--s7)' }}>
+        <BriefForm
+          inline
+          key={briefSeed || 'blank'}
           assets={assets}
           clientId={clientId}
           initialBrief={briefSeed || ''}
           submitting={generating}
-          onClose={() => setShowBrief(false)}
           onSubmit={generate}
           onSubmitMatrix={generateMatrix}
         />
-      )}
+      </div>
+
       {generating && <GeneratingModal clientName={clientName} />}
+
+      {onlyExample && exampleBatch && (
+        <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)', lineHeight: 1.6, maxWidth: 680 }}>
+          The batch below is a <strong>worked example</strong> drawn from{' '}
+          {clientName || 'this client'}&apos;s profile, badged so it is never mistaken
+          for approved work. Walk it through every step to see what each one
+          produces, or write your own brief above.
+        </p>
+      )}
+
+      <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Past briefs</div>
 
       {loaded && ensuringExample && !exampleBatch ? (
         <div className="card" style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
-          Drafting a worked example for {clientName || 'this client'} — a real batch you can walk through every step…
+          Drafting a worked example for {clientName || 'this client'}…
         </div>
       ) : loaded && !batches.length ? (
-        // No briefs at all — offer to build the worked example, or write a real brief.
         <div className="card" style={{ padding: 'var(--s5)' }}>
-          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.5, marginBottom: 'var(--s3)', maxWidth: 620 }}>
-            No briefs yet. Generate a <strong>worked example</strong> from {clientName || 'this client'}'s profile — a real batch you can walk through every step and show a client — or write your own with <strong>+ New brief</strong>.
+          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 'var(--s3)', maxWidth: 620 }}>
+            Nothing generated yet. Write a brief above, or build a worked
+            example from {clientName || 'this client'}&apos;s profile to see what
+            each step produces.
           </div>
           {exampleError && (
             <div className="callout callout-danger" style={{ fontSize: 'var(--fs-caption)', marginBottom: 'var(--s3)' }}>
-              Couldn't generate the example: {exampleError}
+              Couldn&apos;t generate the example: {exampleError}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: ensureExample, disabled: ensuringExample })}>
-              {ensuringExample ? 'Generating…' : '✨ Generate a worked example'}
-            </button>
-            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: () => setShowBrief(true), disabled: generating })}>
-              + New brief
-            </button>
-          </div>
+          <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: ensureExample, disabled: ensuringExample })}>
+            {ensuringExample ? 'Generating…' : 'Generate a worked example'}
+          </button>
         </div>
       ) : !batches.length ? null : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--s3)' }}>
@@ -127,9 +107,13 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName, 
                     {b.brief.slice(0, 160)}{b.brief.length > 160 ? '…' : ''}
                   </div>
                 )}
+                {/* "Open concepts" went with the rest of the hand-off buttons:
+                    the step rail above is the navigation, and a second way to
+                    do what it already does is a second thing to read. What a
+                    card still needs is a way to pick it and a way to bin it. */}
                 {isActive && (
                   <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                    <button onClick={(e) => { e.stopPropagation(); onNext?.(); }} className="btn btn-primary btn-sm">Open concepts</button>
+                    <span className="chip chip-accent">Selected</span>
                     <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                   </div>
                 )}

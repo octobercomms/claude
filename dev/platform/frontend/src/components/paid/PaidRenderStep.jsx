@@ -1,24 +1,23 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
+import NoBriefYet from './NoBriefYet';
 import { CreativeCard } from '../AdCreativePanel';
 import ExampleBanner from './ExampleBanner';
 
 // Paid Pipeline → Render. Concept cards with the render controls open
 // by default (renderMode='always-open') so AMs can fire off images +
 // videos across aspect ratios without an extra click per card.
-export default function PaidRenderStep({ pipeline, onNext, onBack }) {
+export default function PaidRenderStep({ pipeline, onBack }) {
   const { activeBatch, creatives, renderImages, deleteImage, fanOutImage, deleteCreative, uploadMedia } = pipeline;
 
   return (
     <PipelineStep
-      num={3} title="Render" onNext={onNext} nextLabel="Share for approval"
+      num={3} title="Render"
       tagline="Image and video renders across every aspect ratio you need. Replicate / Ideogram / Firefly for stills; Replicate (Seedance / Wan 2.2) for video. Adobe generative fan-out turns one image into every other size."
       banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
-        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
-          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
-        </div>
+        <NoBriefYet what="This step turns approved copy into images and video across every aspect ratio you need." onBack={onBack} />
       ) : !creatives.length ? (
         <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
           No concepts on this brief yet — generate them on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.

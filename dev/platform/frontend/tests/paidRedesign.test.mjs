@@ -114,3 +114,49 @@ test('a tab that still exists is never redirected', () => {
     assert.equal(resolvePaidTab(t), null, `${t} should stay put`);
   }
 });
+
+// ── Stat tiles ────────────────────────────────────────────────────────────
+// Leading with revenue put the largest figure in the feature tile, which is
+// where a pre-existing overflow became visible: "£4,800.00" rendered as
+// "£4,800." with the pence sliced off by the tile edge. A clipped number is
+// worse than a small one, because it reads as a different, smaller number.
+//
+// This affects every StatStrip in the platform, not only Paid, so the buckets
+// are pinned here rather than left to whoever next edits the CSS.
+
+import { valueSizeClass } from '../src/utils/statValue.js';
+
+test('a short value keeps the full display size', () => {
+  assert.equal(valueSizeClass('3.70x'), '');
+  assert.equal(valueSizeClass('2,700'), '');
+  assert.equal(valueSizeClass('£1,200'), '');
+});
+
+test('a money figure with pence steps down rather than clipping', () => {
+  // The exact value that was clipped on the live page.
+  assert.equal(valueSizeClass('£4,800.00'), 'ds-stat__value--md');
+  assert.equal(valueSizeClass('£1,008.00'), 'ds-stat__value--md');
+});
+
+test('a long figure steps down further', () => {
+  assert.equal(valueSizeClass('£148,210.37'), 'ds-stat__value--sm');
+  assert.equal(valueSizeClass('CHF 1,480,210.37'), 'ds-stat__value--xs');
+});
+
+test('an em dash and an empty value never blow up', () => {
+  assert.equal(valueSizeClass('—'), '');
+  assert.equal(valueSizeClass(null), '');
+  assert.equal(valueSizeClass(undefined), '');
+});
+
+test('the buckets only ever shrink, never grow', () => {
+  // A regression here would be a bucket that returns a *larger* class for a
+  // shorter string, which would reintroduce clipping somewhere else.
+  const order = ['', 'ds-stat__value--md', 'ds-stat__value--sm', 'ds-stat__value--xs'];
+  let last = 0;
+  for (let n = 1; n <= 20; n += 1) {
+    const idx = order.indexOf(valueSizeClass('9'.repeat(n)));
+    assert.ok(idx >= last, `length ${n} went back up the scale`);
+    last = idx;
+  }
+});

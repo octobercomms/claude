@@ -1,5 +1,6 @@
 import React from 'react';
 import Sparkline from '../Sparkline';
+import { valueSizeClass } from '../../utils/statValue';
 
 // StatStrip (L3/L2) — the ONE metric row. Supersedes ui/MetricCard, the local
 // ClientAdsPage MetricCard, the .metric-card / .stat-strip classes and ad-hoc
@@ -16,7 +17,7 @@ export default function StatStrip({ items = [] }) {
     <div className="ds-stats">
       {items.map((s, i) => (
         <div className={`ds-stat ${s.feature ? 'ds-stat--feature' : ''}`} key={s.key || s.label || i}>
-          <div className="ds-stat__value">{s.value ?? '—'}</div>
+          <div className={`ds-stat__value ${valueSizeClass(s.value)}`}>{s.value ?? '—'}</div>
           <div className="ds-stat__label">{s.label}</div>
           {s.sub != null && <div className="ds-stat__sub">{s.sub}</div>}
           {s.delta != null && (

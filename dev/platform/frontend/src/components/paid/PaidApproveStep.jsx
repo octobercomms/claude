@@ -1,5 +1,6 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
+import NoBriefYet from './NoBriefYet';
 import ExampleBanner from './ExampleBanner';
 import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
@@ -8,7 +9,7 @@ import { roWrite } from '../../utils/readOnly';
 // open without a login and approve / request changes on. Reuses the
 // existing /api/approvals scheme — same as content drafts and other
 // approval flows so the client gets a consistent review UX.
-export default function PaidApproveStep({ pipeline, onNext, onBack }) {
+export default function PaidApproveStep({ pipeline, onBack }) {
   const { activeBatch, creatives, shareUrl, setShareUrl, shareBatchForApproval } = pipeline;
   const { readOnly } = useAuth();
   const totalImages = (creatives || []).reduce((sum, c) => sum + ((c.images || []).length), 0);
@@ -16,14 +17,12 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
 
   return (
     <PipelineStep
-      num={4} title="Approve" onNext={onNext} nextLabel="Launch"
+      num={4} title="Approve"
       tagline="Generate a public link to share with the client. They review, approve, or request changes — no login required. Link expires after 14 days."
       banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
-        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
-          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
-        </div>
+        <NoBriefYet what="This step mints a public link the client reviews and signs off, with no login." onBack={onBack} />
       ) : (
         <>
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>

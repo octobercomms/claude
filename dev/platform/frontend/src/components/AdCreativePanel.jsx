@@ -297,7 +297,17 @@ export function ExampleConcept({ clientName, onDismiss }) {
   );
 }
 
-export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatrix, clientId, initialBrief = '' }) {
+// The brief form itself, with no chrome.
+//
+// It lived only inside a modal, behind a "+ New brief" button, on a page whose
+// own tagline reads "Tell Claude what you want". So the page asked a question
+// and gave you nowhere to answer it: the thing the step is for was two clicks
+// and an overlay away. The form is the page now, and `BriefModal` below is the
+// same form in its old wrapper for callers that still want one.
+//
+//   inline — drop the Cancel button (there is nothing to cancel out of) and
+//            let the form sit in the flow rather than over it.
+export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatrix, clientId, initialBrief = '', inline = false }) {
   const { readOnly } = useAuth();
   // Seeded when Competitors hands research over. It is the starting text of
   // an editable field, not a locked value: the research is a prompt to write
@@ -331,34 +341,21 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
     });
   }
 
-  return (
-    <div style={modalStyles.overlay} onClick={onClose}>
-      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>Generate ad concepts</h2>
+  const body = (
+    <>
+        {!inline && <h2 style={{ margin: '0 0 var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>Generate ad concepts</h2>}
 
-        {onSubmitMatrix && (
-          <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)' }}>
-            <button type="button" onClick={() => setMode('batch')}
-              className={`btn btn-sm ${mode === 'batch' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}>
-              Batch
-            </button>
-            <button type="button" onClick={() => setMode('matrix')}
-              className={`btn btn-sm ${mode === 'matrix' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}>
-              Variant Matrix
-            </button>
-          </div>
-        )}
-        {matrix && (
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 'var(--s3)', background: 'var(--accent-soft)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
-            One brief, up to <strong>100</strong> deliberately different on-brand ads — spread across funnel stage, framework and format. Built in rounds so each variant is distinct, not a reworded copy. Render and resize the ones you like exactly as a normal batch.
-          </div>
-        )}
-
+        {/* The brief field comes first. The mode switch was two full-width
+            pills above it, which at page width made the loudest thing on the
+            page a refinement of the thing you have not written yet. It is
+            also no longer called "Batch": that word now names the tab this
+            form sits on, and the same word for two different things on one
+            screen is how you make a page unreadable. */}
         <label style={modalStyles.label}>Brief</label>
         <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={4} className="textarea" style={modalStyles.textarea}
           placeholder="e.g. We're launching a new mug colour next week — UK + US targets, emphasise the studio kitchens crowd. Avoid heavy discount language." />
 
-        <div style={{ display: 'flex', gap: 'var(--s4)', marginTop: 'var(--s2)' }}>
+        <div style={{ display: 'flex', gap: 'var(--s4)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
             <label style={modalStyles.label}>Platform</label>
             <select value={platform} onChange={e => setPlatform(e.target.value)} className="select" style={modalStyles.input}>
@@ -368,6 +365,15 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
               <option value="linkedin">LinkedIn</option>
             </select>
           </div>
+          {onSubmitMatrix && (
+            <div style={{ width: 190 }}>
+              <label style={modalStyles.label}>Output</label>
+              <select value={mode} onChange={e => setMode(e.target.value)} className="select" style={modalStyles.input}>
+                <option value="batch">One batch</option>
+                <option value="matrix">Variant matrix</option>
+              </select>
+            </div>
+          )}
           <div style={{ width: matrix ? 150 : 110 }}>
             <label style={modalStyles.label}>{matrix ? 'Variants' : 'Concepts'}</label>
             {matrix ? (
@@ -382,6 +388,12 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
             )}
           </div>
         </div>
+
+        {matrix && (
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 'var(--s3)', background: 'var(--accent-soft)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
+            One brief, up to <strong>100</strong> deliberately different on-brand ads, spread across funnel stage, framework and format. Built in rounds so each variant is distinct rather than a reworded copy. Render and resize the ones you like exactly as a normal batch.
+          </div>
+        )}
 
         <label style={modalStyles.label}>Brand assets to include as reference</label>
         {!assets.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No brand assets uploaded yet.</div>}
@@ -411,7 +423,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
         )}
 
         <div style={modalStyles.footer}>
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          {!inline && <button className="btn btn-secondary" onClick={onClose}>Cancel</button>}
           {clientId && (
             <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: previewSample, disabled: sampling || submitting })}>
               {sampling ? 'Drafting…' : '✨ Preview a sample'}
@@ -426,9 +438,20 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
             {submitting ? (matrix ? 'Building matrix…' : 'Generating…') : (matrix ? `Build ${matrixCount} variants` : 'Generate')}
           </button>
         </div>
-      </div>
+    </>
+  );
+
+  if (inline) return body;
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>{body}</div>
     </div>
   );
+}
+
+// The form in its overlay, unchanged, for callers that still open it that way.
+export function BriefModal(props) {
+  return <BriefForm {...props} />;
 }
 
 // renderMode: 'auto' (default — collapsed, toggle visible) | 'always-open'

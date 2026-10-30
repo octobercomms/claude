@@ -7,6 +7,7 @@ import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
 import GoogleAdsPlaybookQuick from '../components/GoogleAdsPlaybookQuick';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import PaidLibraryPanel from '../components/paid/PaidLibraryPanel';
+import AdAccountSection from '../components/paid/AdAccountSection';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageShell from '../components/shells/PageShell';
 import StatStrip from '../components/shells/StatStrip';
@@ -237,6 +238,25 @@ export default function ClientAdsPage() {
 
   // Measure — the paid performance read-out. Extracted verbatim from the
   // former Measure tab so the Health dashboard can compose it as a panel.
+  // Measure. Revenue leads every strip: spend is the input, revenue is the
+  // outcome, and the outcome is what the account lead is asked about. Spend
+  // sits second because it is the thing you control.
+  //
+  // Not profit, though it is the only figure that says whether the ads made
+  // money: it is revenue × a margin typed into the box above, so leading with
+  // it would put an assumption in the largest type on the page.
+  const strip = (items) => <StatStrip items={items.filter(Boolean)} />;
+
+  // A roll-up across accounts (Google + Meta, or every Google account).
+  const totalStrip = (t, currency, extra = []) => strip([
+    { label: 'Revenue', value: t.revenue > 0 ? money(t.revenue, currency) : '—', feature: true },
+    { label: 'Spend', value: money(t.spend, currency) },
+    { label: 'ROAS', value: t.spend > 0 && t.revenue > 0 ? `${(t.revenue / t.spend).toFixed(2)}x` : '—' },
+    t.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(t.revenue * adsMargin - t.spend, currency), sub: 'Revenue × margin − Spend' },
+    { label: 'Clicks', value: fmt(t.clicks) },
+    ...extra,
+  ]);
+
   const renderMeasure = () => (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -253,13 +273,6 @@ export default function ClientAdsPage() {
             style={{ width: 42, padding: 'var(--s1) var(--s1)', border: 'none', fontSize: 'var(--fs-body)', textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>%</span>
         </div>
-        {/* The "Ask the AI Analyst →" button stood here. It navigated to a
-            separate chat page, which meant leaving the table you wanted to
-            ask about. The chat icon in the client bar opens the same analyst
-            in a panel over this page, and it already knows which page you are
-            on (Layout passes the pathname, analystContextFor picks the
-            persona from it), so the button was the worse of two routes to one
-            place. */}
       </div>
 
       {loading ? (
@@ -272,171 +285,177 @@ export default function ClientAdsPage() {
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Connect them on the client's Connectors tab, then return here.</span>
         </div>
       ) : (() => {
-        // Blended totals across Google + Meta when both are connected,
-        // so the AM can see one number for the period without summing in
-        // their head. Each platform's own breakdown still renders below.
         const blended = {
           spend:   (googleTotal?.spend   || 0) + (metaTotal?.spend   || 0),
           revenue: (googleTotal?.revenue || 0) + (metaTotal?.revenue || 0),
           clicks:  (googleTotal?.clicks  || 0) + (metaTotal?.clicks  || 0),
         };
-        blended.roas = blended.spend > 0 && blended.revenue > 0 ? blended.revenue / blended.spend : null;
-        blended.profit = blended.revenue > 0 ? blended.revenue * adsMargin - blended.spend : null;
         const showBlended = showCombined(googleTotal, metaTotal);
+        // The same currency note was printed under the Combined strip and
+        // again under the Google roll-up, word for word, because both mixes
+        // are the same mix. One explanation per page: a sentence repeated
+        // three inches below itself reads as two different warnings.
+        const seenNotes = new Set();
+        const onceOnly = (note) => {
+          if (!note || seenNotes.has(note)) return null;
+          seenNotes.add(note);
+          return note;
+        };
+        const multiGoogle = googleEntries.filter(g => !g.error).length > 1;
+        const multiMeta = metaEntries.filter(m => !m.error).length > 1;
         return (
         <>
+          {/* Where these numbers come from, said once, above them.
+              The panel at the top of the page and this section disagree —
+              7,645 against 8,540 on Falcon — and both are right. GA4
+              attributes last-click from the store; the ad platforms count
+              their own conversions, including view-through, over a longer
+              window. They are different measurements of the same month, and
+              a page that prints both without saying so invites the account
+              lead to go looking for a bug that is not there. */}
+          <div className="callout ads-source-note">
+            <strong>Reported by the ad platforms.</strong> These are each
+            platform's own conversion figures. The contribution panel above is
+            your store's revenue through GA4, attributed last-click, so the two
+            will not match: ad platforms claim view-through conversions and
+            attribute over a longer window, which usually makes their revenue
+            the higher of the two.
+          </div>
+
           {showBlended && (
-            <div style={{ marginBottom: 'var(--s7)' }}>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>
-                Combined · Google + Meta
-              </div>
-              <StatStrip items={[
-                { label: 'Total Spend', value: money(blended.spend, curBlended), feature: true },
-                { label: 'Total Revenue', value: blended.revenue > 0 ? money(blended.revenue, curBlended) : '—' },
-                { label: 'Blended ROAS', value: blended.roas != null ? `${blended.roas.toFixed(2)}x` : '—' },
-                blended.profit != null && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(blended.profit, curBlended), sub: 'Revenue × margin − Spend' },
-                { label: 'Clicks', value: fmt(blended.clicks) },
-              ].filter(Boolean)} />
-              {cur.blended?.note && <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{cur.blended.note}</p>}
-              <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: 'var(--s6) 0 0' }} />
-            </div>
+            <AdAccountSection
+              label="Combined · Google + Meta"
+              currency={curBlended}
+              note={onceOnly(cur.blended?.note)}
+              stats={totalStrip(blended, curBlended)}
+            />
           )}
+
           {showGoogleTab && (
-            <div>
+            <div className="ads-platform">
               <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Google Ads</h2>
-              {googleEntries.filter(g => !g.error).length > 1 && (
-                <div style={{ marginBottom: 'var(--s7)' }}>
-                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
-                  <StatStrip items={[
-                    { label: 'Total Spend', value: money(googleTotal.spend, curGoogle), feature: true },
-                    { label: 'Total Revenue', value: googleTotal.revenue > 0 ? money(googleTotal.revenue, curGoogle) : '—' },
-                    { label: 'Blended ROAS', value: googleTotal.spend > 0 && googleTotal.revenue > 0 ? `${(googleTotal.revenue / googleTotal.spend).toFixed(2)}x` : '—' },
-                    googleTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(googleTotal.revenue * adsMargin - googleTotal.spend, curGoogle), sub: 'Revenue × margin − Spend' },
-                    { label: 'Clicks', value: fmt(googleTotal.clicks) },
-                    { label: 'Conversions', value: fmt(googleTotal.convs) },
-                  ].filter(Boolean)} />
-                  {cur.google?.note && <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{cur.google.note}</p>}
-                  <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
-                </div>
+              {multiGoogle && (
+                <AdAccountSection
+                  label="All accounts"
+                  currency={curGoogle}
+                  note={onceOnly(cur.google?.note)}
+                  stats={totalStrip(googleTotal, curGoogle, [{ label: 'Conversions', value: fmt(googleTotal.convs) }])}
+                />
               )}
               {googleEntries.map((g, i) => (
-                <div key={i} style={{ marginBottom: 'var(--s7)' }}>
-                  {g.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>{g.store_label}</div>}
-                  {g.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{g.error}</div> : (
-                    <>
-                      <div style={{ marginBottom: 'var(--s4)' }}>
-                        <StatStrip items={[
-                          { label: 'Spend', value: money(g.spend, g.currency), feature: true },
-                          { label: 'Revenue', value: g.convValue > 0 ? money(g.convValue, g.currency) : '—' },
-                          { label: 'ROAS', value: g.roas ? `${g.roas.toFixed(2)}x` : '—' },
-                          g.convValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(g.convValue * adsMargin - g.spend, g.currency), sub: 'Revenue × margin − Spend' },
-                          { label: 'Clicks', value: fmt(g.clicks) },
-                          { label: 'Conv.', value: fmt(g.convs) },
-                          { label: 'CPC', value: money(g.avgCpc, g.currency), sub: 'avg' },
-                        ].filter(Boolean)} />
-                      </div>
-                      {g.campaigns?.length > 0 && (
-                        <div style={{ overflowX: 'auto' }}>
-                          <table className="table">
-                            <thead>
-                              <tr>
-                                <th>Campaign</th>
-                                <th className="num">Spend</th>
-                                <th className="num">Revenue</th>
-                                <th className="num">Profit</th>
-                                <th className="num">ROAS</th>
-                                <th className="num">Clicks</th>
-                                <th className="num">Conv.</th>
+                <AdAccountSection
+                  key={i}
+                  label={g.store_label || 'Google Ads account'}
+                  currency={g.currency}
+                  // The only account there is opens by itself. With several,
+                  // the roll-up above is the headline and each account is
+                  // detail you ask for.
+                  defaultOpen={!multiGoogle && googleEntries.length === 1 && !g.error}
+                  stats={g.error
+                    ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)' }}>{g.error}</div>
+                    : strip([
+                      { label: 'Revenue', value: g.convValue > 0 ? money(g.convValue, g.currency) : '—', feature: true },
+                      { label: 'Spend', value: money(g.spend, g.currency) },
+                      { label: 'ROAS', value: g.roas ? `${g.roas.toFixed(2)}x` : '—' },
+                      g.convValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(g.convValue * adsMargin - g.spend, g.currency), sub: 'Revenue × margin − Spend' },
+                      { label: 'Clicks', value: fmt(g.clicks) },
+                      { label: 'Conv.', value: fmt(g.convs) },
+                      { label: 'CPC', value: money(g.avgCpc, g.currency), sub: 'avg' },
+                    ])}
+                >
+                  {!g.error && g.campaigns?.length > 0 && (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Campaign</th>
+                            <th className="num">Spend</th>
+                            <th className="num">Revenue</th>
+                            <th className="num">Profit</th>
+                            <th className="num">ROAS</th>
+                            <th className="num">Clicks</th>
+                            <th className="num">Conv.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.campaigns.map((c, j) => {
+                            const roas = c.spend > 0 && c.convValue > 0 ? c.convValue / c.spend : null;
+                            const profit = c.convValue > 0 ? c.convValue * adsMargin - c.spend : null;
+                            return (
+                              <tr key={j}>
+                                <td>{c.name}</td>
+                                <td className="num">{money(c.spend, g.currency)}</td>
+                                <td className="num">{c.convValue > 0 ? money(c.convValue, g.currency) : '—'}</td>
+                                <td className="num">{profit != null ? <Pill positive={profit >= 0}>{money(profit, g.currency)}</Pill> : '—'}</td>
+                                <td className="num">{roas != null ? <Pill positive={roas >= 1}>{roas.toFixed(2)}x</Pill> : '—'}</td>
+                                <td className="num">{fmt(c.clicks)}</td>
+                                <td className="num">{fmt(c.conversions)}</td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {g.campaigns.map((c, j) => {
-                                const roas = c.spend > 0 && c.convValue > 0 ? (c.convValue / c.spend) : null;
-                                const profit = c.convValue > 0 ? c.convValue * adsMargin - c.spend : null;
-                                return (
-                                  <tr key={j}>
-                                    <td>{c.name}</td>
-                                    <td className="num">{money(c.spend, g.currency)}</td>
-                                    <td className="num">{c.convValue > 0 ? money(c.convValue, g.currency) : '—'}</td>
-                                    <td className="num">{profit != null ? <Pill positive={profit >= 0}>{money(profit, g.currency)}</Pill> : '—'}</td>
-                                    <td className="num">{roas != null ? <Pill positive={profit == null || profit >= 0}>{roas.toFixed(2)}x</Pill> : '—'}</td>
-                                    <td className="num">{fmt(c.clicks)}</td>
-                                    <td className="num">{fmt(c.conversions)}</td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
-                </div>
+                </AdAccountSection>
               ))}
             </div>
           )}
 
           {showMetaTab && (
-            <div style={{ marginTop: showGoogleTab ? 'var(--s8)' : 0 }}>
+            <div className="ads-platform">
               <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Meta Ads</h2>
-              {metaEntries.filter(m => !m.error).length > 1 && (
-                <div style={{ marginBottom: 'var(--s7)' }}>
-                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
-                  <StatStrip items={[
-                    { label: 'Total Spend', value: money(metaTotal.spend, curMeta), feature: true },
-                    { label: 'Total Revenue', value: metaTotal.revenue > 0 ? money(metaTotal.revenue, curMeta) : '—' },
-                    { label: 'Blended ROAS', value: metaTotal.spend > 0 && metaTotal.revenue > 0 ? `${(metaTotal.revenue / metaTotal.spend).toFixed(2)}x` : '—' },
-                    metaTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(metaTotal.revenue * adsMargin - metaTotal.spend, curMeta), sub: 'Revenue × margin − Spend' },
-                    { label: 'Clicks', value: fmt(metaTotal.clicks) },
-                    { label: 'Impressions', value: fmt(metaTotal.imps) },
-                  ].filter(Boolean)} />
-                  {cur.meta?.note && <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{cur.meta.note}</p>}
-                  <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
-                </div>
+              {multiMeta && (
+                <AdAccountSection
+                  label="All accounts"
+                  currency={curMeta}
+                  note={onceOnly(cur.meta?.note)}
+                  stats={totalStrip(metaTotal, curMeta, [{ label: 'Impressions', value: fmt(metaTotal.imps) }])}
+                />
               )}
               {metaEntries.map((m, i) => (
-                <div key={i} style={{ marginBottom: 'var(--s7)' }}>
-                  {m.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>{m.store_label}</div>}
-                  {m.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{m.error}</div> : (
-                    <>
-                      <div style={{ marginBottom: 'var(--s4)' }}>
-                        <StatStrip items={[
-                          { label: 'Spend', value: money(m.spend, m.currency), feature: true },
-                          { label: 'Revenue', value: m.purchaseValue > 0 ? money(m.purchaseValue, m.currency) : '—' },
-                          { label: 'ROAS', value: m.roas ? `${m.roas.toFixed(2)}x` : '—' },
-                          m.purchaseValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(m.purchaseValue * adsMargin - m.spend, m.currency), sub: 'Revenue × margin − Spend' },
-                          { label: 'Impressions', value: fmt(m.imps) },
-                          { label: 'Clicks', value: fmt(m.clicks) },
-                          { label: 'CTR', value: m.ctr ? `${(m.ctr * 100).toFixed(2)}%` : '—' },
-                        ].filter(Boolean)} />
-                      </div>
-                      {m.campaigns?.length > 0 && (
-                        <div style={{ overflowX: 'auto' }}>
-                          <table className="table">
-                            <thead>
-                              <tr>
-                                <th>Campaign</th>
-                                <th className="num">Spend</th>
-                                <th className="num">Clicks</th>
-                                <th className="num">Impressions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {m.campaigns.map((c, j) => (
-                                <tr key={j}>
-                                  <td>{c.name}</td>
-                                  <td className="num">{money(c.spend, m.currency)}</td>
-                                  <td className="num">{fmt(c.clicks)}</td>
-                                  <td className="num">{fmt(c.impressions)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </>
+                <AdAccountSection
+                  key={i}
+                  label={m.store_label || 'Meta Ads account'}
+                  currency={m.currency}
+                  defaultOpen={!multiMeta && metaEntries.length === 1 && !m.error}
+                  stats={m.error
+                    ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)' }}>{m.error}</div>
+                    : strip([
+                      { label: 'Revenue', value: m.purchaseValue > 0 ? money(m.purchaseValue, m.currency) : '—', feature: true },
+                      { label: 'Spend', value: money(m.spend, m.currency) },
+                      { label: 'ROAS', value: m.roas ? `${m.roas.toFixed(2)}x` : '—' },
+                      m.purchaseValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: money(m.purchaseValue * adsMargin - m.spend, m.currency), sub: 'Revenue × margin − Spend' },
+                      { label: 'Impressions', value: fmt(m.imps) },
+                      { label: 'Clicks', value: fmt(m.clicks) },
+                      { label: 'CTR', value: m.ctr ? `${(m.ctr * 100).toFixed(2)}%` : '—' },
+                    ])}
+                >
+                  {!m.error && m.campaigns?.length > 0 && (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Campaign</th>
+                            <th className="num">Spend</th>
+                            <th className="num">Clicks</th>
+                            <th className="num">Impressions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {m.campaigns.map((c, j) => (
+                            <tr key={j}>
+                              <td>{c.name}</td>
+                              <td className="num">{money(c.spend, m.currency)}</td>
+                              <td className="num">{fmt(c.clicks)}</td>
+                              <td className="num">{fmt(c.impressions)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
-                </div>
+                </AdAccountSection>
               ))}
             </div>
           )}
@@ -452,14 +471,11 @@ export default function ClientAdsPage() {
         title="Paid"
         subtitle={client?.name}
         tabActions={(
-          /* Not a cog. A cog promises settings; this holds reference. Same
-             ⋮ and the same 34px circle as the Strategist's, so the two read
-             as one control rather than two inventions. On the tab row rather
-             than the hero, because in the hero it landed under the client
-             bar's three circles and read as a fourth that missed its row. */
-          <button type="button" className="icon-circle" onClick={() => setPlaybookOpen(true)}
-            aria-label="Google Ads playbook" title="Google Ads playbook">
-            ⋮
+          /* Named, not a ⋮. A kebab means "several things", which is honest
+             on the Strategist where it holds four. Exactly one thing lives
+             behind this one, so it says what that thing is. */
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPlaybookOpen(true)}>
+            Playbook
           </button>
         )}
         tabs={[
@@ -470,7 +486,7 @@ export default function ClientAdsPage() {
           /* The guided route first, then the things that are not steps of a
              batch. Produce's shape: one path through for an operator who
              wants the path, and direct tabs for whoever wants one section. */
-          { key: 'batch',         label: 'Make a batch', fn: 'create',   active: isPipelineGroup,          onClick: () => setTab('brief') },
+          { key: 'batch',         label: 'Batch', fn: 'create',   active: isPipelineGroup,          onClick: () => setTab('brief') },
           { key: 'library',       label: 'Creative',     fn: 'create',   active: tab === 'library',        onClick: () => setTab('library') },
           { key: 'audiences',     label: 'Audiences',    fn: 'research', active: tab === 'audiences',      onClick: () => setTab('audiences') },
           { key: 'competitor_ads', label: 'Competitors', fn: 'research', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
