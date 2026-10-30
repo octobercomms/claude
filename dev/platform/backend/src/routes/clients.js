@@ -37,6 +37,35 @@ router.get('/:id/readiness', async (req, res) => {
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// Worked examples — one per pillar, so a newly set-up client has something
+// real on Paid, Shared, Earned and Owned rather than four empty pages.
+//
+// GET says what exists, so the Setup panel can name what the button would do
+// before it is pressed. POST makes the missing ones. Both are scoped by the
+// router.param('id') guard above, like every other per-client route here.
+const workedExamples = require('../services/workedExamples');
+
+router.get('/:id/worked-examples', async (req, res) => {
+  try { res.json(await workedExamples.status(req.params.id)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// This spends Claude credits, so it is a POST on purpose: the auth middleware
+// blocks every non-GET for the read-only 'client' role, which is the single
+// auditable guarantee that a client login cannot spend the account's budget.
+// A role check here would duplicate it, and duplicate it wrongly — the role is
+// 'client', not 'viewer'.
+router.post('/:id/worked-examples', async (req, res) => {
+  try {
+    const pillars = Array.isArray(req.body?.pillars) ? req.body.pillars : undefined;
+    const out = await workedExamples.ensureAll(req.params.id, pillars ? { pillars } : undefined);
+    // 200 even when a pillar failed: the others were made, and the caller
+    // needs the per-pillar detail rather than one blanket error. A failure
+    // that is reported as success is how a half-finished setup looks done.
+    res.json(out);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // List all clients (filtered by the caller's visibility)
 router.get('/', async (req, res) => {
   try {

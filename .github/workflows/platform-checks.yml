@@ -111,6 +111,8 @@ jobs:
         run: node tests/strategist-queue.test.js
       - name: Guard — a briefing never ships an empty queue in silence
         run: node tests/strategist-fallback.test.js
+      - name: Guard — a worked example is made once, and a failure is never called success
+        run: node tests/worked-examples.test.js
       - name: Guard — "needs attention" only counts what is actually slipping
         run: node tests/strategist-attention.test.js
       - name: Guard — the Monday email sends the briefing the platform shows

@@ -858,8 +858,13 @@ function BrainstormTab({
                       style={{ cursor: open ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 'var(--s3)', padding: 'var(--s3) var(--s4)' }}>
                       <span aria-hidden style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{open ? '▾' : '▸'}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>
-                          {new Date(b.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {b.post_count} posts
+                        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+                          {/* Badged wherever it appears. An example that
+                              cannot be told apart from real work is worse
+                              than no example, because somebody eventually
+                              schedules it. */}
+                          {b.is_example && <span className="chip chip-accent">Example</span>}
+                          <span>{new Date(b.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {b.post_count} posts</span>
                         </div>
                         {b.brief && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.brief}</div>}
                       </div>
