@@ -900,11 +900,36 @@ that sat in the same database, ten times fresher, a few hundred pixels away.
 **Before building an integration, check whether the number is already there.**
 
 **Moz DA** is now one Moz API call per client per month. The free tier is 50
-rows and a row is one domain, so twelve clients use twelve. Two properties of
-that tier shape `connectors/moz.js`: batching twenty-five domains still spends
+rows and a row is one site, so twelve clients use twelve. Two properties of
+that tier shape `connectors/moz.js`: batching twenty-five sites still spends
 twenty-five rows and lets one bad domain fail the whole call, so it fetches one
 at a time; and the free limit is about one request per ten seconds, so
 `seoAuthority.MOZ_GAP_MS` is 11s and the sweep takes two minutes.
+
+**Use the JSON-RPC API, not the REST one.** The first build of this connector
+targeted `lsapi.seomoz.com/v2/url_metrics` with an Access ID and Secret Key
+over HTTP Basic, which is what most third-party guides still show. Moz calls
+that pair a **legacy credential** and issues a single API token instead:
+
+```
+POST https://api.moz.com/jsonrpc
+x-moz-token: <token>
+{ jsonrpc: '2.0', id, method: 'data.site.metrics.fetch',
+  params: { data: { site_query: { query: '<host>', scope: 'domain' } } } }
+→ { result: { site_metrics: { domain_authority, page_authority, … } } }
+```
+
+**JSON-RPC reports failure at HTTP 200**, in an `error` member of the body. A
+client that only checks the status code turns "your token is wrong" into "Moz
+returned no metrics", which sends whoever is debugging it to the wrong place.
+`call()` raises on `error` explicitly.
+
+moz.com is blocked by the session network policy, so none of this could be
+read from Moz's own docs. It was pieced together from a working client and
+cross-checked against two independent write-ups, then pinned by tests that
+assert the header, the method name, the scope and the normalised query. The
+Settings **Test** button is the real proof: it spends one row and reads a DA
+back.
 
 **Semrush Authority Score is retired, not dropped.** It measures what DA
 measures from another vendor, so collecting both was typing two numbers that

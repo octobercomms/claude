@@ -238,11 +238,10 @@ const KEY_GROUPS = [
   {
     title: 'Moz',
     category: 'SEO',
-    hint: 'Domain Authority on the Owned → Authority panel, fetched once a month per client. Copy the Access ID and Secret Key from moz.com/products/api — the order matters, and reversing them authenticates as nothing. The free tier allows 50 rows a month and a row is one domain, so twelve clients use twelve. Leave blank and DA is simply not collected.',
+    hint: 'Domain Authority on the Owned → Authority panel, fetched once a month per client. Create an API token at moz.com/api — a single token, not the older Access ID and Secret Key pair, which Moz now calls a legacy credential. The free tier allows 50 rows a month and a row is one site, so twelve clients use twelve. Leave blank and DA is simply not collected; everything else on that panel still fills.',
     test: 'moz',
     keys: [
-      { key: 'MOZ_ACCESS_ID', label: 'Access ID', placeholder: 'mozscape-…', type: 'text' },
-      { key: 'MOZ_SECRET_KEY', label: 'Secret Key', placeholder: 'From moz.com/products/api', type: 'password' },
+      { key: 'MOZ_API_TOKEN', label: 'API token', placeholder: 'From moz.com/api', type: 'password' },
     ],
   },
   {
@@ -556,10 +555,7 @@ export default function SettingsPage() {
     setTestingMoz(true);
     setMozTestMsg(null);
     try {
-      const result = await api.post('/settings/test-moz', {
-        accessId: values.MOZ_ACCESS_ID,
-        secretKey: values.MOZ_SECRET_KEY,
-      });
+      const result = await api.post('/settings/test-moz', { token: values.MOZ_API_TOKEN });
       setMozTestMsg(result);
     } catch (err) {
       setMozTestMsg({ ok: false, error: err.message });

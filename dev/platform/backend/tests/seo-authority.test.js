@@ -17,9 +17,17 @@ const assert = require('assert');
 const moz = require('../src/connectors/moz');
 
 let failed = 0;
-function check(name, fn) {
-  try { fn(); console.log(`  ok   ${name}`); }
-  catch (err) { failed += 1; console.error(`  FAIL ${name}\n       ${err.message}`); }
+// Checks are queued rather than run inline, because some of them stub the
+// HTTP layer and have to await. Running an async check without awaiting it
+// reports a pass before the assertion has happened, which is the whole family
+// of mistake these guards exist to catch.
+const queue = [];
+function check(name, fn) { queue.push([name, fn]); }
+async function runAll() {
+  for (const [name, fn] of queue) {
+    try { await fn(); console.log(`  ok   ${name}`); }
+    catch (err) { failed += 1; console.error(`  FAIL ${name}\n       ${err.message}`); }
+  }
 }
 
 console.log('seo authority');
@@ -58,6 +66,115 @@ check('trailing slashes do not become an empty target', () => {
   assert.strictEqual(moz.normaliseTarget('///'), null);
 });
 
+// ── JSON-RPC, where a failure arrives as HTTP 200 ────────────────────────
+//
+// The Moz API moved from REST at lsapi.seomoz.com with an Access ID and
+// Secret Key to JSON-RPC at api.moz.com with a single token. JSON-RPC answers
+// 200 and puts the failure in the body, so a response that looks fine to the
+// HTTP client can still be a rejected token. Letting that through turns
+// "your token is wrong" into "Moz returned no metrics", which sends whoever
+// is debugging it to the wrong place entirely.
+
+check('the connector targets the JSON-RPC endpoint, not the legacy REST one', () => {
+  assert.strictEqual(moz.ENDPOINT, 'https://api.moz.com/jsonrpc');
+  assert.ok(!/lsapi\.seomoz\.com/.test(moz.ENDPOINT), 'still pointing at the legacy host');
+});
+
+check('the request carries the token header and the documented method', async () => {
+  // The auth header and the method name are the whole of this change. A stub
+  // that only returns a body proves nothing about them: the first version of
+  // this test passed happily with the header renamed.
+  const axios = require('axios');
+  const realPost = axios.post;
+  let seen = null;
+  axios.post = async (url, body, config) => {
+    seen = { url, body, config };
+    return { data: { result: { site_metrics: { domain_authority: 48 } } } };
+  };
+  try {
+    // testCredentials, because it takes a token directly: urlMetrics reads the
+    // stored one and there is no database here.
+    await moz.testCredentials({ token: 'tok-123', domain: 'https://Example.com/' });
+  } finally { axios.post = realPost; }
+
+  assert.strictEqual(seen.url, 'https://api.moz.com/jsonrpc');
+  assert.strictEqual(seen.config.headers['x-moz-token'], 'tok-123',
+    `expected the token in x-moz-token, got headers ${JSON.stringify(seen.config.headers)}`);
+  assert.strictEqual(seen.body.jsonrpc, '2.0');
+  assert.strictEqual(seen.body.method, 'data.site.metrics.fetch');
+  assert.strictEqual(seen.body.params.data.site_query.scope, 'domain');
+  // Normalised on the way out, not just in the helper.
+  assert.strictEqual(seen.body.params.data.site_query.query, 'example.com');
+});
+
+check('urlMetrics normalises before querying, on the path the monthly job uses', async () => {
+  // Tested through urlMetrics specifically. The check above goes through
+  // testCredentials, which normalises in its own call, so a urlMetrics that
+  // passed the raw "https://Example.com/" straight through would pass it —
+  // and urlMetrics is what the 1st-of-the-month sweep calls.
+  //
+  // getSetting falls back to process.env, so a token can be supplied without
+  // a database.
+  const axios = require('axios');
+  const realPost = axios.post;
+  const realToken = process.env.MOZ_API_TOKEN;
+  let seen = null;
+  process.env.MOZ_API_TOKEN = 'tok-env';
+  axios.post = async (url, body, config) => {
+    seen = { body, config };
+    return { data: { result: { site_metrics: { domain_authority: 48 } } } };
+  };
+  try {
+    const m = await moz.urlMetrics('https://Example.com/');
+    assert.strictEqual(m.domain_authority, 48);
+    assert.strictEqual(m.target, 'example.com');
+  } finally {
+    axios.post = realPost;
+    if (realToken === undefined) delete process.env.MOZ_API_TOKEN;
+    else process.env.MOZ_API_TOKEN = realToken;
+  }
+  assert.strictEqual(seen.body.params.data.site_query.query, 'example.com',
+    `queried ${seen.body.params.data.site_query.query} rather than the normalised host`);
+  assert.strictEqual(seen.config.headers['x-moz-token'], 'tok-env');
+});
+
+check('an error in a 200 body is raised, not read as empty metrics', async () => {
+  // Stub the HTTP layer rather than the connector, so what is under test is
+  // the connector's own handling of a JSON-RPC error member.
+  const axios = require('axios');
+  const realPost = axios.post;
+  axios.post = async () => ({ data: { jsonrpc: '2.0', id: 1, error: { code: 401, message: 'Invalid token' } } });
+  try {
+    await moz.testCredentials({ token: 'bad-token' }).then(r => {
+      assert.strictEqual(r.ok, false, 'a rejected token reported as ok');
+      assert.match(r.error, /token/i, `unhelpful error: ${r.error}`);
+    });
+  } finally { axios.post = realPost; }
+});
+
+check('a 200 with metrics is read from site_metrics', async () => {
+  const axios = require('axios');
+  const realPost = axios.post;
+  axios.post = async () => ({ data: { result: { site_metrics: { domain_authority: 48, page_authority: 40 } } } });
+  try {
+    const r = await moz.testCredentials({ token: 'good-token' });
+    assert.strictEqual(r.ok, true, `expected ok, got ${r.error}`);
+    assert.strictEqual(r.domain_authority, 48);
+    assert.match(r.note, /free rows/, 'the test does not say it spent a row');
+  } finally { axios.post = realPost; }
+});
+
+check('a response with no domain authority fails rather than reporting success', async () => {
+  // The shape changing under us must not read as "DA is missing this month".
+  const axios = require('axios');
+  const realPost = axios.post;
+  axios.post = async () => ({ data: { result: { site_metrics: { page_authority: 40 } } } });
+  try {
+    const r = await moz.testCredentials({ token: 'good-token' });
+    assert.strictEqual(r.ok, false, 'no DA reported as a success');
+  } finally { axios.post = realPost; }
+});
+
 // ── The month key ────────────────────────────────────────────────────────
 
 const { monthKey } = require('../src/services/seoAuthority');
@@ -91,5 +208,7 @@ check('twelve clients still finish in a sensible time', () => {
   assert.ok(minutes < 5, `twelve clients would take ${minutes.toFixed(1)} minutes`);
 });
 
-console.log(failed ? `\n${failed} failed` : '\nall passed');
-process.exit(failed ? 1 : 0);
+runAll().then(() => {
+  console.log(failed ? `\n${failed} failed` : '\nall passed');
+  process.exit(failed ? 1 : 0);
+});
