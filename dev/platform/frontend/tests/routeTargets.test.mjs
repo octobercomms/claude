@@ -25,6 +25,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { SECTIONS, slugsOf } from '../src/nav/sections.js';
 
@@ -182,6 +183,34 @@ test('the dispatched-elsewhere list cannot hide a screen that is simply missing'
       problems.push(
         `${key}: '${t}' is allow-listed as dispatched elsewhere, but `
         + `${SECTION_PAGES[key]} never mentions it. That row opens a blank screen.`);
+    }
+  }
+  assert.deepStrictEqual(problems, [], '\n  ' + problems.join('\n  '));
+});
+
+test('every search result opens a screen that exists', () => {
+  // The search endpoint hands back a section leaf and a screen slug per kind of
+  // record, and this side builds the path from them. A renamed screen would
+  // leave search pointing at a slug that resolves to the section default: no
+  // error, just the wrong page. Checked here rather than in the backend test
+  // because that one cannot import this ES module, and parsing it with a regex
+  // read tab keys where it meant slugs.
+  const req = createRequire(import.meta.url);
+  const { ENTITIES } = req(path.join(src, '..', '..', 'backend', 'src', 'services', 'globalSearch.js'));
+  assert.ok(ENTITIES.length >= 6, `only ${ENTITIES.length} searchable entities — did the list move?`);
+
+  const byLeaf = Object.fromEntries(
+    Object.values(SECTIONS).filter(s => s.scope === 'client')
+      .map(s => [s.leaf, new Set(slugsOf(s))]));
+
+  const problems = [];
+  for (const e of ENTITIES) {
+    const slugs = byLeaf[e.leaf];
+    if (!slugs) { problems.push(`${e.type}: no client section has leaf '${e.leaf}'`); continue; }
+    if (!slugs.has(e.screen)) {
+      problems.push(
+        `${e.type} opens /${e.leaf}/${e.screen}, which is not a screen of that section — `
+        + `search would land on its default. Screens: ${[...slugs].join(', ')}`);
     }
   }
   assert.deepStrictEqual(problems, [], '\n  ' + problems.join('\n  '));

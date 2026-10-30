@@ -133,6 +133,8 @@ jobs:
         run: node tests/watch-stream.test.js
       - name: Guard — the writer of a release can pitch it without waiting on a client
         run: node tests/press-campaign-gate.test.js
+      - name: Guard — search never reaches past the clients you can see
+        run: node tests/global-search.test.js
       - name: Guard — the R2 migration never frees a copy it has not verified
         run: node tests/media-to-r2.test.js
       - name: Guard — the R2 preflight catches a bucket that only looks healthy
