@@ -15,11 +15,13 @@
 // to the clients the login may see, which is worked out server-side from the
 // session and never from anything sent with the request.
 //
-// Opening a record opens the screen that lists it, for the right client,
-// rather than the record itself: no screen in OMI currently takes a record id
-// in its URL, so there is nothing to deep-link to yet. The screen's own list
-// is where the row is, one glance away, and the alternative is a focus
-// parameter threaded through eight pages for this one feature.
+// A record opens the record, not the list it is in: the screen is addressed by
+// the path and the record by `?open=<id>`, which hooks/useOpenRecord.js reads.
+// What "open" means is the entity's own to say — five kinds have a view of one
+// record and show it, recordings and assets have none so their row is scrolled
+// to and marked, and a client result is already its own dashboard. A list of
+// six did not need this; a list of two hundred is the case the search box is
+// for.
 //
 // Keyboard: the whole list is one sequence, so up and down cross from the
 // screens into the records without a second set of keys, and Enter opens
@@ -32,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import { allScreens } from '../nav/sections';
 import { matchScreens, screenWhere } from '../nav/screenSearch';
 import { api } from '../utils/api';
+import { OPEN_PARAM } from '../hooks/useOpenRecord';
 
 const DEBOUNCE_MS = 220;
 
@@ -129,8 +132,11 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
       if (scope === 'client' && !clientId) return;
       navigate(`${section.base(clientId)}/${slug}`);
     } else {
-      const { client_id, leaf, screen } = item.r;
-      navigate(`/clients/${client_id}/${leaf}/${screen}`);
+      const { client_id, leaf, screen, opens, id } = item.r;
+      // 'screen' means the screen is the record (a client's own dashboard), so
+      // the id would say nothing the path does not.
+      const q = opens && opens !== 'screen' ? `?${OPEN_PARAM}=${encodeURIComponent(id)}` : '';
+      navigate(`/clients/${client_id}/${leaf}/${screen}${q}`);
     }
     onClose();
   }, [navigate, onClose, clientId]);

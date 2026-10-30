@@ -9,7 +9,6 @@ import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
-import FormsTab from '../components/FormsTab';
 import ClarityConnectorCard from '../components/ClarityConnectorCard';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
@@ -362,11 +361,11 @@ export default function ClientDetailPage() {
   if (!client) return <div style={{ color: 'var(--negative)', padding: 'var(--s8)' }}>Client not found</div>;
 
   // Pick the suite scope from the active tab so each tab takes its
-  // own section accent. Forms gets the Forms purple; Reports gets the
-  // Reports blue; everything else (Brief / Brand / Connectors) is the
-  // Setup teal.
-  const scopeClass = tab === 'forms' ? 'suite-forms'
-    : tab === 'reports' ? 'suite-reports'
+  // own section accent. Reports gets the Reports blue; everything else
+  // (Brief / Brand / Connectors) is the Setup teal. Forms used to have a
+  // branch here too, from when this page rendered Convert's Forms screen as
+  // well; the screen now lives in one place.
+  const scopeClass = tab === 'reports' ? 'suite-reports'
     : tab === 'measure' ? 'suite-sales'
     : 'suite-setup';
   const pageTitle = 'Dashboard';
@@ -608,13 +607,6 @@ export default function ClientDetailPage() {
           <ClarityConnectorCard clientId={id} />
         </div>
       )}
-
-      {tab === 'forms' && (
-        <div className="mt-6">
-          <FormsTab clientId={id} connectors={connectors} />
-        </div>
-      )}
-
 
 
       {tab === 'reports' && (

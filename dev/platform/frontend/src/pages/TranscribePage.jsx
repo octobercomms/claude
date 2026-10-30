@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { roWrite } from '../utils/readOnly';
 import ListDetail from '../components/shells/ListDetail';
+import { useOpenOnce } from '../hooks/useOpenRecord';
 
 // Produce → Transcribe. Upload an audio file; ElevenLabs Scribe transcribes it
 // with speaker separation; the AM names each detected voice, then reads/copies/
@@ -32,6 +33,10 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
   const [editingNames, setEditingNames] = useState(false);
   const fileRef = useRef(null);
   const pollRef = useRef(null);
+
+  // A search result opens the transcript itself. `open` fetches by id, so it
+  // does not matter whether the row is in the list beside it.
+  useOpenOnce(open);
 
   function loadList() {
     api.get(`/transcripts${clientId ? `?client_id=${clientId}` : ''}`).then((r) => setList(r.items || [])).catch(() => {});

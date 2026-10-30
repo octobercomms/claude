@@ -75,10 +75,14 @@ export const SECTIONS = {
       // The cog and the plug in the client bar still jump straight here; these
       // rows are what make those jumps land, and what shows you where you are
       // once you have landed.
+      // Forms is NOT here. It was, briefly: the sweep that gave Setup and
+      // Connectors their rows gave one to every screen ClientDetailPage
+      // rendered, and that page rendered the same <FormsTab> Convert does.
+      // One screen behind two URLs, and the one it belongs to is Convert,
+      // beside CRO and Email. The Dashboard render branch went with the row.
       { heading: 'Setup', rows: [
         { tab: 'details',    label: 'Setup',      slug: 'setup', when: agencyOnly },
         { tab: 'connectors', label: 'Connectors', when: agencyOnly },
-        { tab: 'forms',      label: 'Forms',      when: agencyOnly },
       ] },
     ],
   },

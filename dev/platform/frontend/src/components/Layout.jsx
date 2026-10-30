@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-route
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 import ClientTopBar from './ClientTopBar';
-import GlobalSearch from './GlobalSearch';
+import GlobalSearch, { SearchIcon } from './GlobalSearch';
 import AnalystPanel from './AnalystPanel';
 import SectionPanel from './SectionPanel';
 import { SECTIONS, sectionForPath } from '../nav/sections';
@@ -304,6 +304,25 @@ export default function Layout() {
             the workspace. The plug turns red the moment a connector breaks,
             wherever you happen to be — it used to be a tab you had to decide
             to open. */}
+        {/* Search where the client bar does not render: the client list,
+            Settings, the Guide, and a client login's own view. The bar itself
+            is agency-and-client-scoped, and the thing search is for — "where
+            is that" — is asked just as often from the places it is absent.
+            Same row position, so the icon does not move when you cross into a
+            client. */}
+        {!(clientId && !readOnly) && (
+          <div className="client-topbar">
+            <button
+              type="button"
+              className="client-topbar-icon"
+              onClick={() => setSearchOpen(true)}
+              title="Search (⌘K)"
+              aria-label="Search"
+            >
+              <SearchIcon />
+            </button>
+          </div>
+        )}
         {clientId && !readOnly && (
           <ClientTopBar
             clientId={clientId}

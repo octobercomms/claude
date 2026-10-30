@@ -252,8 +252,11 @@ function scanNavigations(body, label, { withScreen, bare }, slugsByLeaf) {
     // happen to share the prefix.
     const before = body.slice(Math.max(0, m.index - 40), m.index);
     if (/\b(?:api\.\w+|fetch|apiUrl|request)\s*\(\s*$/.test(before)) continue;
-    // Normalise the interpolations away: ${id} and friends become one segment.
-    const norm = raw.replace(/\$\{[^}]*\}/g, ':v');
+    // Normalise the interpolations away: ${id} and friends become one segment,
+    // and drop any query or hash — a screen is addressed by the path, and
+    // `/pr/releases?open=<id>` is a real navigation the palette makes, not a
+    // screen called "releases?open=<id>".
+    const norm = raw.replace(/\$\{[^}]*\}/g, ':v').split(/[?#]/)[0];
     const parts = norm.split('/').filter(Boolean);     // ['clients', ':v', …]
     if (parts.length < 3) continue;                    // /clients or /clients/:id
     const leaf = parts[2];
@@ -311,10 +314,12 @@ test('the navigation scan actually rejects a bad path', () => {
   const slugsByLeaf = clientSlugsByLeaf();
   const leaf = Object.keys(slugsByLeaf).find(l => shape.withScreen.has(l));
   assert.ok(leaf, 'no client section has a :screen route — the route table is not being read');
+  const slug = [...slugsByLeaf[leaf]][0];
 
   const cases = [
     [`navigate('/clients/abc/not-a-section/measure')`, 'an unknown section'],
     [`navigate(\`/clients/\${id}/${leaf}/not-a-screen\`)`, 'an unknown screen'],
+    [`navigate('/clients/abc/${leaf}/not-a-screen?open=xyz')`, 'an unknown screen behind a query'],
   ];
   for (const [source, what] of cases) {
     assert.ok(scanNavigations(source, 'control', shape, slugsByLeaf).length,
@@ -324,9 +329,11 @@ test('the navigation scan actually rejects a bad path', () => {
   // And does not cry wolf over the three shapes that are legitimate.
   const fine = [
     `navigate('/clients')`,
+    // The palette's own shape: a real screen plus the record to open on it.
+    `navigate('/clients/abc/${leaf}/${slug}?open=xyz')`,
     `navigate(\`/clients/\${id}\`)`,
     `navigate(\`/clients/\${id}/${leaf}\`)`,
-    `navigate(\`/clients/\${id}/${leaf}/\${[...slugs][0]}\`)`,
+    `navigate('/clients/abc/${leaf}/${slug}')`,
     `api.get(\`/clients/\${id}/anything\`)`,
   ];
   for (const source of fine) {
