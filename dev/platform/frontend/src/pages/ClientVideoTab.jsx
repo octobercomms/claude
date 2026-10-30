@@ -13,7 +13,7 @@ import BrollPlan from '../components/BrollPlan';
 // Lazily loaded: the design editor pulls in Fabric.js, which is a large
 // dependency that nobody who never opens this tab should be made to download.
 const ClientDesignPage = lazy(() => import('./ClientDesignPage'));
-import { useTabParam } from '../hooks/useTabParam';
+import { useScreen } from '../hooks/useScreen';
 import { useAuth } from '../context/AuthContext';
 
 // Produce — the per-client media suite: Record (screen recorder + this client's
@@ -25,8 +25,7 @@ export default function ClientVideoTab() {
   const { id } = useParams();
   const { readOnly, user } = useAuth();
   const canVisualise = !readOnly || !!user?.can_use_visualise;
-  const [tab, setTab] = useTabParam('reel',
-    ['reel', 'record', 'edit', 'design', 'visualise', 'transcribe', 'library']);
+  const [tab, setTab] = useScreen('produce');
   const [client, setClient] = useState(null);
   // The clip the operator has picked out of the library to work on. Held here
   // rather than inside the library, because the library's job is to say what

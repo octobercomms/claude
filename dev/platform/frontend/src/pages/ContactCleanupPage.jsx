@@ -161,7 +161,7 @@ export default function ContactCleanupPage() {
             Trim duplicates, fold orphaned coverage onto real journalists, and let Claude tidy the obvious fixes.
           </p>
         </div>
-        <Link to="/settings?tab=contacts" className="btn btn-secondary">← Back to journalists</Link>
+        <Link to="/settings/journalists" className="btn btn-secondary">← Back to journalists</Link>
       </header>
 
       <SuiteTabs tabs={[

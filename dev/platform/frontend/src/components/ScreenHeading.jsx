@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { sectionForPath, labelForTab } from '../nav/sections';
+import { sectionForPath, screenForPath, labelForTab } from '../nav/sections';
 
 // The screen's own name, under the section title.
 //
@@ -18,7 +18,7 @@ import { sectionForPath, labelForTab } from '../nav/sections';
 export default function ScreenHeading({ title, name }) {
   const location = useLocation();
   const section = sectionForPath(location.pathname);
-  const rowLabel = labelForTab(section, new URLSearchParams(location.search).get('tab'));
+  const rowLabel = labelForTab(section, screenForPath(location.pathname));
   const screen = name || rowLabel;
   if (!screen || screen === title) return null;
   return <h2 className="h2 ds-shell__screen">{screen}</h2>;

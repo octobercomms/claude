@@ -973,7 +973,7 @@ export default function PressReleaseEditor({
                         ? <>About <strong>${detector.cost_usd?.toFixed(2)}</strong> for {detector.words} words.
                           Re-checking text that has not changed costs nothing.</>
                         : <>No key yet. Add one under{' '}
-                          <a href="/settings?tab=outreach">Settings → Keys → Outreach finders</a>.</>}
+                          <a href="/settings/outreach">Settings → Keys → Outreach finders</a>.</>}
                     </div>
                     {/* Free: GET /models proves the base URL, the key and the
                         account before a billable word is sent. It exists

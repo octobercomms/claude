@@ -190,7 +190,7 @@ async function notifyVideoReady(projectId) {
   const platformUrl = (process.env.PLATFORM_URL || 'https://platform.octobercomms.com').replace(/\/$/, '');
   await require('./emailService').sendVideoReady({
     to: [...recips], clientName: p.client_name, projectName: p.name, score: p.score,
-    studioUrl: `${platformUrl}/clients/${p.client_id}/video`,
+    studioUrl: `${platformUrl}/clients/${p.client_id}/produce`,
     downloadUrl: `${platformUrl}${p.output_url}`,
     driveUrl: p.delivered_url || null,
   });

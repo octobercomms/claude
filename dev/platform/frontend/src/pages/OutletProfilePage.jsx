@@ -13,7 +13,7 @@ export default function OutletProfilePage() {
         id={id}
         mode="page"
         onClose={() => nav(-1)}
-        onDeleted={() => nav('/settings?tab=publications')}
+        onDeleted={() => nav('/settings/publications')}
       />
     </div>
   );

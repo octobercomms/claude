@@ -13,7 +13,7 @@ export default function JournalistProfilePage() {
         id={id}
         mode="page"
         onClose={() => nav(-1)}
-        onDeleted={() => nav('/settings?tab=contacts')}
+        onDeleted={() => nav('/settings/journalists')}
       />
     </div>
   );

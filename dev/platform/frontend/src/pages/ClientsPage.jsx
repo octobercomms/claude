@@ -125,7 +125,7 @@ export default function ClientsPage() {
           {expiredTokens.map((t, i) => (
             <React.Fragment key={t.id}>
               {i > 0 && ', '}
-              <Link to={`/clients/${t.client_id}?tab=connectors`} className="text-inherit underline">{t.client_name}</Link>
+              <Link to={`/clients/${t.client_id}/dashboard/connectors`} className="text-inherit underline">{t.client_name}</Link>
             </React.Fragment>
           ))}
         </div>
@@ -154,8 +154,8 @@ export default function ClientsPage() {
             : (health.total ? 'all delivered' : 'none scheduled this week')} →`}
           subTone={skippedCount || failedCount ? 'warn' : undefined}
           to={skippedCount || failedCount
-            ? '/settings?tab=reports&status=skipped_no_recipients'
-            : '/settings?tab=reports'}
+            ? '/settings/reports?status=skipped_no_recipients'
+            : '/settings/reports'}
         />
         {/* Needs attention. An expired token blocks every number downstream
             of it, so it outranks everything; below that, a crucial item left
@@ -175,8 +175,8 @@ export default function ClientsPage() {
           }
           subTone={expiredTokens.length || attention.stale ? 'warn' : undefined}
           to={
-            expiredTokens.length ? `/clients/${expiredTokens[0].client_id}?tab=connectors`
-            : worstClient ? `/clients/${worstClient.client_id}?tab=strategy`
+            expiredTokens.length ? `/clients/${expiredTokens[0].client_id}/dashboard/connectors`
+            : worstClient ? `/clients/${worstClient.client_id}/dashboard/strategist`
             : undefined
           }
         />
@@ -310,7 +310,7 @@ function ClientCard({ client }) {
           It used to land on Data, which was a section you had to decide to
           visit on the way to the numbers you came for. */}
       <Link
-        to={`/clients/${client.id}?tab=measure`}
+        to={`/clients/${client.id}/dashboard/measure`}
         className="flex justify-between items-center text-[length:var(--fs-caption)] font-extrabold text-ink no-underline border-t border-cardborder pt-s3 mt-s2"
       >
         <span>Open client</span>

@@ -907,7 +907,7 @@ cron.schedule('0 7 * * 1', async () => {
           continue;
         }
         const period = b.period_start && b.period_end ? `${b.period_start} – ${b.period_end}` : '';
-        const reportUrl = platformUrl ? `${platformUrl}/clients/${cl.id}?tab=strategy` : null;
+        const reportUrl = platformUrl ? `${platformUrl}/clients/${cl.id}/dashboard/strategist` : null;
         await emailService.sendStrategistBriefing({
           to, clientName: cl.name, period,
           // The synthesis carries What changed and the queue. The queue is also

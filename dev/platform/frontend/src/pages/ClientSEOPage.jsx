@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { api } from '../utils/api';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
-import { useTabParam } from '../hooks/useTabParam';
+import { useScreen } from '../hooks/useScreen';
 
 import {
   IntentBadge, SerpFeaturePills, KeywordHistoryModal,
@@ -667,24 +667,7 @@ export default function ClientSEOPage() {
 
   // Overview deleted Oct 2026. Health is the landing — the numbers, not a
   // description of the sections holding them.
-  const [activeTab, setActiveTab] = useTabParam('health', [
-    // Performance sub-tabs (perf_insights is the summary landing).
-    // aio / fanout / gaps stay in the whitelist as backwards-compat
-    // aliases — they redirect to their new homes (keywords / find).
-    // Health + Optimise — the consolidated dashboards (absorb the old Search
-    // and Optimise rails). The individual keys below stay whitelisted as
-    // deep-link aliases.
-    'health', 'optimise', 'convert',
-    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'drift', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
-    // Pipeline sub-tabs
-    'topic_map', 'find', 'planning', 'draft', 'publish', 'promote',
-    // Local SEO toolkit sub-tabs
-    'local_gap', 'local_schema', 'local_keywords', 'local_xray', 'local_playbook', 'local_outliers', 'local_gbp',
-    // Convert — turn visitors into leads (CRO + Forms)
-    'cro', 'forms',
-    // Email — the embedded Outreach suite (manages its own ?etab=)
-    'email',
-  ]);
+  const [activeTab, setActiveTab] = useScreen('owned');
 
   // Redirect stale deep links to their new homes after the AI Overviews
   // tab was merged into Keywords and fan-out / content gaps moved into
@@ -702,20 +685,9 @@ export default function ClientSEOPage() {
   }, [id]);
 
 
-  // ?tab=optimise was a group tab in front of an accordion and renders nothing
-  // on its own now, so it lands on the first tool it used to contain.
-  //
-  // CRO, Forms and Email left for the Convert page. Links to them exist in
-  // saved reports and in the Monday email, and a deep link that lands nowhere
-  // is the quietest kind of breakage — the person following it assumes the
-  // feature was removed. Replace rather than push, so Back goes where it came
-  // from instead of bouncing off this redirect.
-  useEffect(() => {
-    if (activeTab === 'optimise') { setActiveTab('site_audit'); return; }
-    const MOVED = { cro: 'cro', forms: 'forms', email: 'email', convert: 'cro' };
-    if (MOVED[activeTab]) navigate(`/clients/${id}/convert?tab=${MOVED[activeTab]}`, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  // No redirects. 'optimise' and the three Convert screens were ?tab= values
+  // on this page; they are paths in their own sections now, and nothing links
+  // to the old forms.
 
   // The accordion normaliser is gone. It used to rewrite ?tab=site_audit into
   // ?tab=optimise and open a section inside it, because 26 tools could not fit

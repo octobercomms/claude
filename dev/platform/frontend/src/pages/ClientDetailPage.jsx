@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useScreen } from '../hooks/useScreen';
 import ScreenHeading from '../components/ScreenHeading';
 import { useParams, useNavigate, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { api } from '../utils/api';
@@ -67,8 +68,7 @@ export default function ClientDetailPage() {
   // their numbers, not with a wish to read an overview of the sections that
   // hold them. Setup and Connectors are last because once they are done they
   // are not touched again.
-  const tab = searchParams.get('tab') || 'measure';
-  function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
+  const [tab, setTab] = useScreen('dashboard');
   const [templateChatType, setTemplateChatType] = useState(null);  // 'weekly' | 'monthly' | null
   const [templateSummary, setTemplateSummary] = useState({ weekly: null, monthly: null });
 
@@ -406,7 +406,7 @@ export default function ClientDetailPage() {
           /clients/:id/brand, and had no working link anywhere in the app.
           The readiness checklist stays: it is the only thing on this screen
           that told you anything you did not already know. */}
-      {tab === 'setup_overview' && <Navigate to={`/clients/${id}?tab=details`} replace />}
+      {tab === 'setup_overview' && <Navigate to={`/clients/${id}/dashboard/setup`} replace />}
 
 
       {tab === 'details' && (

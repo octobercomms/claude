@@ -19,12 +19,27 @@
 //                to require a client id before rendering at all, which meant
 //                a global section's rows never appeared and the panel looked
 //                like it had simply not been wired up.
+//   leaf       — the path segment for the section itself
 //   base       — the route the rows hang off
 //   defaultTab — what the page shows when ?tab= is absent, so the right row
 //                lights up on a bare URL
 //   groups     — { heading, rows }. A heading of null renders the rows with no
 //                label above them, for a group of one.
-//   rows       — { tab, label, step?, when? }
+//   rows       — { tab, label, slug?, step?, when? }
+//                `tab` is what the PAGE calls the screen; `slug` is what the
+//                URL calls it, and it defaults to `tab` with underscores
+//                turned into hyphens. They are given separately because the
+//                two have different jobs: the slug is a permalink people read
+//                and type, while the key is a string compared inside a 2,000
+//                line page where it often collides with something unrelated
+//                ('ads' is also a connector type, 'audit' is also an API
+//                path). Renaming the keys to match the slugs would mean blind
+//                string surgery across six large files for no gain the URL
+//                can see.
+//
+//                Where they differ it is because the key predates the name
+//                the section settled on. Those are listed explicitly below;
+//                everything else is derived.
 //                step  numbers a genuine sequence (a vertical list cannot show
 //                      order the way a strip can, so it has to say it)
 //                when  gates a row on the viewer, for the handful that are
@@ -40,22 +55,24 @@ export const SECTIONS = {
   // then not touched.
   dashboard: {
     key: 'dashboard',
+    leaf: 'dashboard',
     title: 'Dashboard',
     scope: 'client',
-    base: (id) => `/clients/${id}`,
+    base: (id) => `/clients/${id}/dashboard`,
     defaultTab: 'measure',
     groups: [
       { heading: null, rows: [
         { tab: 'measure',  label: 'Measure' },
         { tab: 'reports',  label: 'Reports' },
-        { tab: 'strategy', label: 'Strategist' },
-        { tab: 'plan',     label: 'SOSTAC' },
+        { tab: 'strategy', label: 'Strategist', slug: 'strategist' },
+        { tab: 'plan',     label: 'SOSTAC', slug: 'sostac' },
       ] },
     ],
   },
 
   paid: {
     key: 'paid',
+    leaf: 'ads',
     title: 'Paid',
     scope: 'client',
     base: (id) => `/clients/${id}/ads`,
@@ -64,13 +81,13 @@ export const SECTIONS = {
       { heading: null, rows: [{ tab: 'measure', label: 'Measure' }] },
       { heading: 'Build', rows: [
         { tab: 'brief',    label: 'Brief',    step: 1 },
-        { tab: 'concepts', label: 'Draft',    step: 2 },
+        { tab: 'concepts', label: 'Draft', slug: 'draft',    step: 2 },
         { tab: 'render',   label: 'Render',   step: 3 },
         { tab: 'approve',  label: 'Approve',  step: 4 },
         { tab: 'launch',   label: 'Launch',   step: 5 },
       ] },
       { heading: 'Research', rows: [
-        { tab: 'competitor_ads', label: 'Competitors' },
+        { tab: 'competitor_ads', label: 'Competitors', slug: 'competitors' },
         { tab: 'audiences',      label: 'Audiences' },
         { tab: 'library',        label: 'Library' },
       ] },
@@ -79,16 +96,17 @@ export const SECTIONS = {
 
   earned: {
     key: 'earned',
+    leaf: 'pr',
     title: 'Earned',
     scope: 'client',
     base: (id) => `/clients/${id}/pr`,
     defaultTab: 'coverage',
     groups: [
       // Track was behind a "Health" tab that held one thing. It is the page.
-      { heading: null, rows: [{ tab: 'coverage', label: 'Track' }] },
+      { heading: null, rows: [{ tab: 'coverage', label: 'Track', slug: 'track' }] },
       { heading: 'Build', rows: [
-        { tab: 'journalists', label: 'Pitch' },
-        { tab: 'press',       label: 'Releases' },
+        { tab: 'journalists', label: 'Pitch', slug: 'pitch' },
+        { tab: 'press',       label: 'Releases', slug: 'releases' },
       ] },
       { heading: 'Measure', rows: [
         { tab: 'reports', label: 'Reports' },
@@ -98,6 +116,7 @@ export const SECTIONS = {
 
   shared: {
     key: 'shared',
+    leaf: 'social',
     title: 'Shared',
     scope: 'client',
     base: (id) => `/clients/${id}/social`,
@@ -108,45 +127,46 @@ export const SECTIONS = {
         // Side by side was a workaround for the swipe list burying Reddit.
         // Separate rows fix that directly, and they do different jobs.
         { tab: 'swipe',     label: 'Swipe' },
-        { tab: 'subreddit', label: 'Reddit' },
+        { tab: 'subreddit', label: 'Reddit', slug: 'reddit' },
       ] },
       // Four steps, not five. 'reels' is the avatar-reel overlay, not the
       // Workbench — it resolves to step 1, so the Workbench row opened Ideas.
       // And 'publish' maps to the same step as 'plans', so Plan and Publish
       // were two rows onto one screen. Both now point where they say they do.
       { heading: 'Create', rows: [
-        { tab: 'brainstorm', label: 'Ideas',     step: 1 },
-        { tab: 'review',     label: 'Brief',     step: 2 },
-        { tab: 'produce',    label: 'Workbench', step: 3 },
-        { tab: 'plans',      label: 'Schedule',  step: 4 },
+        { tab: 'brainstorm', label: 'Ideas', slug: 'ideas',     step: 1 },
+        { tab: 'review',     label: 'Brief', slug: 'brief',     step: 2 },
+        { tab: 'produce',    label: 'Workbench', slug: 'workbench', step: 3 },
+        { tab: 'plans',      label: 'Schedule', slug: 'schedule',  step: 4 },
       ] },
       // Engage held the DM bot and the feed, which is two jobs. The bot is a
       // drawer now, so the group has one job and can take its name.
       { heading: null, rows: [{ tab: 'discover', label: 'Discover' }] },
       { heading: 'Measure', rows: [
-        { tab: 'perf_insights', label: 'Review' },
-        { tab: 'performance',   label: 'Learn' },
-        { tab: 'competitors',   label: 'Compare' },
-        { tab: 'audit',         label: 'Improve' },
+        { tab: 'perf_insights', label: 'Review', slug: 'review' },
+        { tab: 'performance',   label: 'Learn', slug: 'learn' },
+        { tab: 'competitors',   label: 'Compare', slug: 'compare' },
+        { tab: 'audit',         label: 'Improve', slug: 'improve' },
       ] },
     ],
   },
 
   owned: {
     key: 'owned',
+    leaf: 'seo',
     title: 'Owned',
     scope: 'client',
     base: (id) => `/clients/${id}/seo`,
     defaultTab: 'health',
     groups: [
-      { heading: null, rows: [{ tab: 'health', label: 'Dashboard' }] },
+      { heading: null, rows: [{ tab: 'health', label: 'Dashboard', slug: 'dashboard' }] },
       // No Insights row: ?tab=perf_insights renders OrganicInsightsPanel,
       // which is exactly what Dashboard renders. Two rows onto one screen
       // reads as the second one being broken. perf_insights stays a valid
       // deep link and lands on Dashboard.
       { heading: 'Watch', rows: [
         { tab: 'keywords',       label: 'Keywords' },
-        { tab: 'gsc',            label: 'Search Console' },
+        { tab: 'gsc',            label: 'Search Console', slug: 'search-console' },
         { tab: 'ai_visibility',  label: 'AI visibility' },
         { tab: 'authority',      label: 'Authority' },
         { tab: 'backlinks',      label: 'Backlinks' },
@@ -164,7 +184,7 @@ export const SECTIONS = {
       { heading: 'Produce', rows: [
         { tab: 'topic_map', label: 'Topic map', step: 1 },
         { tab: 'find',      label: 'Find',      step: 2 },
-        { tab: 'planning',  label: 'Brief',     step: 3 },
+        { tab: 'planning',  label: 'Brief', slug: 'brief',     step: 3 },
         { tab: 'draft',     label: 'Draft',     step: 4 },
         { tab: 'publish',   label: 'Publish',   step: 5 },
         { tab: 'promote',   label: 'Promote',   step: 6 },
@@ -183,6 +203,7 @@ export const SECTIONS = {
 
   convert: {
     key: 'convert',
+    leaf: 'convert',
     title: 'Convert',
     scope: 'client',
     base: (id) => `/clients/${id}/convert`,
@@ -198,9 +219,10 @@ export const SECTIONS = {
 
   produce: {
     key: 'produce',
+    leaf: 'produce',
     title: 'Produce',
     scope: 'client',
-    base: (id) => `/clients/${id}/video`,
+    base: (id) => `/clients/${id}/produce`,
     defaultTab: 'reel',
     groups: [
       { heading: 'Make', rows: [
@@ -218,6 +240,7 @@ export const SECTIONS = {
   // SettingsPage's own SECTIONS table; this is that tree, as rows.
   settings: {
     key: 'settings',
+    leaf: 'settings',
     title: 'Settings',
     scope: 'global',
     base: () => '/settings',
@@ -227,7 +250,7 @@ export const SECTIONS = {
         { tab: 'costs',        label: 'Costs & usage' },
         { tab: 'ai',           label: 'AI' },
         { tab: 'email',        label: 'Email' },
-        { tab: 'ads',          label: 'Ad platforms' },
+        { tab: 'ads',          label: 'Ad platforms', slug: 'ad-platforms' },
         { tab: 'commerce',     label: 'E-commerce' },
         { tab: 'seo',          label: 'SEO' },
         { tab: 'outreach',     label: 'Outreach finders' },
@@ -236,7 +259,7 @@ export const SECTIONS = {
       ] },
       { heading: 'Database', rows: [
         { tab: 'health',       label: 'Health' },
-        { tab: 'contacts',     label: 'Journalists' },
+        { tab: 'contacts',     label: 'Journalists', slug: 'journalists' },
         { tab: 'publications', label: 'Publications' },
         { tab: 'tags',         label: 'Tags' },
         { tab: 'tasks',        label: 'Tasks' },
@@ -244,8 +267,8 @@ export const SECTIONS = {
       ] },
       { heading: 'Tools', rows: [
         { tab: 'reports',  label: 'Reports' },
-        { tab: 'strategy', label: 'Strategy templates' },
-        { tab: 'praddon',  label: 'PR Gmail add-on' },
+        { tab: 'strategy', label: 'Strategy templates', slug: 'strategy-templates' },
+        { tab: 'praddon',  label: 'PR Gmail add-on', slug: 'gmail-add-on' },
         { tab: 'checker',  label: 'Checker bench' },
       ] },
       { heading: 'Biz dev', rows: [
@@ -263,24 +286,28 @@ export const SECTIONS = {
   },
 };
 
-// Which section a path is in.
-export function sectionForPath(pathname) {
-  // Settings is not under /clients and has no client id; its rows hang off
-  // /settings directly.
-  if (/^\/settings(\/|$)/.test(pathname)) return SECTIONS.settings;
+// Which section a path is in. Derived from each section's own `leaf`, so a
+// section's path segment is decided in exactly one place.
+const BY_LEAF = Object.fromEntries(Object.values(SECTIONS).map(s => [s.leaf, s]));
 
-  const m = pathname.match(/^\/clients\/([^/]+)(?:\/([^/?]+))?/);
-  if (!m) return null;
-  // /clients (the list) matches nothing here because it has no id segment.
-  const leaf = m[2] || '';
-  const byLeaf = {
-    ads: 'paid', pr: 'earned', social: 'shared', seo: 'owned', video: 'produce',
-    convert: 'convert',
-    // No leaf at all is the client's Dashboard.
-    '': 'dashboard',
-  };
-  const key = byLeaf[leaf];
-  return key ? SECTIONS[key] : null;
+export function sectionForPath(pathname) {
+  // Settings is not under /clients and has no client id.
+  if (/^\/settings(\/|$)/.test(pathname)) return SECTIONS.settings;
+  const m = pathname.match(/^\/clients\/([^/]+)\/([^/?]+)/);
+  // /clients (the list) and a bare /clients/:id match nothing: the bare path
+  // redirects to /dashboard rather than being a section of its own, so there
+  // is one URL per screen instead of two for the landing.
+  return m ? (BY_LEAF[m[2]] || null) : null;
+}
+
+// The screen in a path, as the page's own key. Null when the path names no
+// screen or names one this section does not have.
+export function screenForPath(pathname) {
+  const section = sectionForPath(pathname);
+  if (!section) return null;
+  const m = pathname.match(/^\/clients\/[^/]+\/[^/]+\/([^/?]+)|^\/settings\/([^/?]+)/);
+  const slug = m && (m[1] || m[2]);
+  return slug ? tabForSlug(section, slug) : null;
 }
 
 // The rows a given viewer actually sees, groups with nothing left dropped.
@@ -288,6 +315,40 @@ export function visibleGroups(section, ctx) {
   return section.groups
     .map(g => ({ ...g, rows: g.rows.filter(r => !r.when || r.when(ctx)) }))
     .filter(g => g.rows.length > 0);
+}
+
+// A screen's URL name. Defaults to the page's own key with underscores turned
+// into hyphens, which covers everything in Owned; the rows that disagree say
+// so with an explicit `slug`.
+export function slugOf(row) {
+  return row.slug || row.tab.replace(/_/g, '-');
+}
+
+// slug -> the key the page compares against. Unknown slugs answer null so the
+// caller can fall back to the section's default rather than render nothing.
+export function tabForSlug(section, slug) {
+  if (!section) return null;
+  for (const g of section.groups) {
+    const row = g.rows.find(r => slugOf(r) === slug);
+    if (row) return row.tab;
+  }
+  return null;
+}
+
+// key -> slug, for building a link to a screen a page names by its own key.
+export function slugForTab(section, tab) {
+  if (!section) return null;
+  for (const g of section.groups) {
+    const row = g.rows.find(r => r.tab === tab);
+    if (row) return slugOf(row);
+  }
+  return null;
+}
+
+// Every slug a section answers to. The router validates against this, so a
+// path that names no screen lands on the default instead of a blank page.
+export function slugsOf(section) {
+  return section.groups.flatMap(g => g.rows.map(slugOf));
 }
 
 // What the current row is called, for the page to print as its heading. The

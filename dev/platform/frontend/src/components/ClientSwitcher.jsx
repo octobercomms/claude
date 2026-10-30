@@ -59,8 +59,9 @@ export default function ClientSwitcher({ clientId, inBar = false }) {
 
   function switchTo(newId) {
     if (newId === clientId) { setOpen(false); return; }
-    // Replace the id segment in /clients/<id>/... and preserve the trailing
-    // path + query (so Social stays on Social, ?tab=plans stays on plans).
+    // Replace the id segment in /clients/<id>/... and keep everything after
+    // it, so switching client holds your place: /social/schedule stays on
+    // Schedule. The query rides along for overlays like ?analyst=1.
     const newPath = location.pathname.replace(/^\/clients\/[^/]+/, `/clients/${newId}`);
     navigate(newPath + location.search);
     setOpen(false);

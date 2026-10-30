@@ -602,7 +602,7 @@ async function sendTenderDigest({ to, subject, html }) {
 async function sendSecurityAlert({ findings = [], risk, resolved = false }) {
   if (!process.env.ALERT_EMAIL) return;
   const platformUrl = process.env.PLATFORM_URL || 'https://platform.octobercomms.com';
-  const securityUrl = `${platformUrl}/settings?tab=security`;
+  const securityUrl = `${platformUrl}/settings/security`;
   const sevColour = { critical: '#b3261e', high: '#d1581e', medium: '#9a6b00', low: '#888' };
 
   if (resolved) {
@@ -1055,7 +1055,7 @@ async function sendVisibilityAlerts(groups = []) {
       </li>`).join('');
     return `
       <div style="margin-top: 18px;">
-        <a href="${platformUrl}/clients/${g.clientId}/ai-visibility" style="color: #1a1a1a; font-weight: 700; text-decoration: none;">${g.clientName || 'Client'} →</a>
+        <a href="${platformUrl}/clients/${g.clientId}/seo/ai-visibility" style="color: #1a1a1a; font-weight: 700; text-decoration: none;">${g.clientName || 'Client'} →</a>
         <ul style="margin: 6px 0 0; padding-left: 18px;">${items}</ul>
       </div>`;
   }).join('');
@@ -1081,7 +1081,7 @@ async function sendVisibilityAlerts(groups = []) {
 async function sendMediaDeskDigest({ to, counts, quietSample = [], moveSample = [] }) {
   if (!to?.length || !counts?.total) return;
   const platformUrl = process.env.PLATFORM_URL || 'https://platform.octobercomms.com';
-  const hub = `${platformUrl}/settings?tab=tasks`;
+  const hub = `${platformUrl}/settings/tasks`;
 
   const row = (emoji, label, n, detail) => n > 0 ? `
     <tr>

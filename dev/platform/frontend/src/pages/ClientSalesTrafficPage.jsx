@@ -27,7 +27,7 @@ export default function ClientSalesTrafficPage() {
     if (readOnly) api.get(`/clients/${id}`).then(setClient).catch(() => {});
   }, [id, readOnly]);
 
-  if (!readOnly) return <Navigate to={`/clients/${id}?tab=measure`} replace />;
+  if (!readOnly) return <Navigate to={`/clients/${id}/dashboard/measure`} replace />;
 
   return (
     <div className="suite-sales">

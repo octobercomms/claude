@@ -53,14 +53,11 @@ const URL_ONLY = {
 
 // Client-scoped pages nobody is meant to click to. Same contract as URL_ONLY:
 // a decision with a reason, not a dumping ground.
-const CLIENT_URL_ONLY = {
-  // Both are standalone shells around a panel that already lives inside a
-  // suite — AudiencesPanel in Paid, AIVisibilityPanel in Owned. Superseded
-  // rather than lost, and left routable pending a decision on removal, the
-  // same way /rankings is.
-  '/audiences': 'Superseded by the Audiences accordion in Paid (AudiencesPanel). Pending removal.',
-  '/ai-visibility': 'Superseded by the AI visibility tab in Owned (AIVisibilityPanel). Pending removal.',
-};
+//
+// Empty since the URL sweep: /audiences and /ai-visibility were shells around
+// panels that already live inside Paid and Owned, and they were deleted along
+// with every other redirect-only page rather than left "pending removal".
+const CLIENT_URL_ONLY = {};
 
 function sourceFiles(dir) {
   const out = [];
@@ -126,7 +123,10 @@ const doorPatterns = (route) => {
 const hasDoor = (route) => doorPatterns(route).some(re => re.test(haystack));
 
 test('App.jsx still declares top-level routes in the shape this test reads', () => {
-  assert.ok(routes.length >= 8, `found only ${routes.length} top-level routes — the regex has probably stopped matching`);
+  // Lower than it was: eleven redirect-only top-level routes went in the URL
+  // sweep (/dashboard, /media, /video, /recordings, /reports, /leads,
+  // /tenders, /proposals, /manage, /integrations, /lab/checker).
+  assert.ok(routes.length >= 6, `found only ${routes.length} top-level routes — the regex has probably stopped matching`);
   assert.ok(routes.some(r => r.path === '/clients'), '/clients should be among them');
 });
 
@@ -143,12 +143,12 @@ test('Reports is reachable', () => {
   // The specific regression: it was routable, worked, and had no door. Its
   // home is now a Settings tab, so that is what has to be linked — checking
   // /reports would pass on the redirect alone and prove nothing.
-  assert.ok(hasDoor('/settings?tab=reports'), 'the Reports tab needs a link outside App.jsx');
+  assert.ok(hasDoor('/settings/reports'), 'the Reports screen needs a link outside App.jsx');
 });
 
 test('a redirect is not counted as a page needing a door', () => {
   assert.equal(isRedirect('Navigate'), true);
-  assert.equal(isRedirect('SettingsTabRedirect'), true);
+  assert.equal(isRedirect('ClientHome'), false, 'ClientHome is a component, not a *Redirect name');
   assert.equal(isRedirect('ReportsPage'), false, 'a page is not a redirect because it ends in Page');
 });
 

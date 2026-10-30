@@ -194,7 +194,7 @@ export default function MeasurePanel({ clientId }) {
             {data.currency_unset && (
               <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>
                 Money is shown without a currency: none is set for this client and no connected store reported one.{' '}
-                <Link to={`/clients/${clientId}?tab=details`} style={{ fontWeight: 700 }}>Set the reporting currency</Link>.
+                <Link to={`/clients/${clientId}/dashboard/setup`} style={{ fontWeight: 700 }}>Set the reporting currency</Link>.
               </p>
             )}
           </div>

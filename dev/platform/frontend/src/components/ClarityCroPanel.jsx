@@ -183,7 +183,7 @@ export default function ClarityCroPanel({ clientId }) {
         </p>
         <div className="callout">
           <strong>No Microsoft Clarity site connected yet.</strong> Add one under{' '}
-          <Link to={`/clients/${clientId}?tab=connectors`} style={{ textDecoration: 'underline', fontWeight: 700 }}>Setup → Connectors</Link>
+          <Link to={`/clients/${clientId}/dashboard/connectors`} style={{ textDecoration: 'underline', fontWeight: 700 }}>Setup → Connectors</Link>
           {' '}(Behaviour Analytics) — you can connect several sites — then come back here to run the scan.
         </div>
       </div>

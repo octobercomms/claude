@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, forwardRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { sectionForPath, visibleGroups } from '../nav/sections';
+import { sectionForPath, screenForPath, visibleGroups, slugOf } from '../nav/sections';
 import { useAuth } from '../context/AuthContext';
 
 // The second panel — every destination in the current section, one click away.
@@ -27,7 +27,7 @@ function SectionPanel({ navCollapsed, onToggleNav }, ref) {
 
   const section = sectionForPath(location.pathname);
   const clientId = (location.pathname.match(/^\/clients\/([^/]+)/) || [])[1];
-  const activeTab = new URLSearchParams(location.search).get('tab') || section?.defaultTab;
+  const activeTab = screenForPath(location.pathname) || section?.defaultTab;
 
   const groups = useMemo(
     () => (section ? visibleGroups(section, ctx) : []),
@@ -68,13 +68,10 @@ function SectionPanel({ navCollapsed, onToggleNav }, ref) {
   if (!section) return null;
   if (section.scope === 'client' && !clientId) return null;
 
-  const go = (tab) => {
-    const base = section.base(clientId);
-    // The default tab drops ?tab= so the bare URL is the default view —
-    // except on a global section, where the bare path is the page itself and
-    // a row still has to name its tab to be linkable.
-    navigate(tab === section.defaultTab && section.scope === 'client' ? base : `${base}?tab=${tab}`);
-  };
+  // Every row names its screen, the default included: /seo/dashboard rather
+  // than a bare /seo. One URL per screen, so a link is never ambiguous about
+  // which one it means.
+  const go = (row) => navigate(`${section.base(clientId)}/${slugOf(row)}`);
 
   const Row = ({ row }) => {
     const active = row.tab === activeTab;
@@ -83,7 +80,7 @@ function SectionPanel({ navCollapsed, onToggleNav }, ref) {
         type="button"
         className={`sp-row${active ? ' is-active' : ''}`}
         aria-current={active ? 'page' : undefined}
-        onClick={() => go(row.tab)}
+        onClick={() => go(row)}
       >
         {/* A vertical list cannot show order the way a strip can, so a genuine
             sequence says so. Decorative: the label alone is the accessible

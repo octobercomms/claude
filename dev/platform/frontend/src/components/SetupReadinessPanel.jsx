@@ -21,11 +21,12 @@ export default function SetupReadinessPanel({ clientId }) {
   const pct = score.total ? Math.round((score.done / score.total) * 100) : 0;
   const todos = checks.filter(c => c.status === 'todo');
 
-  // link is either '?tab=…' (this Setup page) or '/social?tab=…' (another suite).
+  // The backend hands back a path relative to the client, e.g. '/convert/cro'
+  // or '/dashboard/connectors'. It used to hand back '?tab=…' as well, and
+  // the two branches here did exactly the same thing.
   function go(link) {
     if (!link) return;
-    if (link.startsWith('?')) navigate(`/clients/${clientId}${link}`);
-    else navigate(`/clients/${clientId}${link}`);
+    navigate(`/clients/${clientId}${link}`);
   }
 
   return (
