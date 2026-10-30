@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import StrategistChat from './StrategistChat';
+import { PageActions } from './PageActions';
 
 // The Strategist: a weekly decision queue, not a document.
 //
@@ -260,22 +261,25 @@ export default function StrategistBriefingPanel({ clientId }) {
           the one action that produces the thing this page exists to show, and
           on a client with no briefing yet the empty state would otherwise read
           "click Generate briefing" with no button anywhere on screen. */}
-      <div className="modal-head" style={{ alignItems: 'center', justifyContent: 'flex-end' }}>
-        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={generate} disabled={generating}>
-            {generating ? 'Generating…' : `+ Generate briefing · ${days} days`}
-          </button>
-          {/* Not a cog. A cog promises settings, and this holds the chat, the
-              downloads and the archive as well — extra functions, which is
-              what a kebab means. Sized to the house icon button so it matches
-              the cog and plug in the client bar above it. */}
-          <button type="button" className="icon-circle" onClick={() => setSettingsOpen(true)}
-            aria-label="More: ask about this briefing, settings, downloads and past briefings"
-            title="Ask about this briefing, settings, downloads and past briefings">
-            ⋮
-          </button>
-        </div>
-      </div>
+      {/* On the title line, not on a row of its own below the rule. These
+          belong to the screen rather than to the briefing underneath them,
+          and a primary button sitting above the first card read as the
+          content's own first item. PageActions portals them into the hero
+          without this panel knowing which page is hosting it. */}
+      <PageActions>
+        <button className="btn btn-primary" onClick={generate} disabled={generating}>
+          {generating ? 'Generating…' : `+ Generate briefing · ${days} days`}
+        </button>
+        {/* Not a cog. A cog promises settings, and this holds the chat, the
+            downloads and the archive as well — extra functions, which is
+            what a kebab means. Sized to the house icon button so it matches
+            the cog and plug in the client bar above it. */}
+        <button type="button" className="icon-circle" onClick={() => setSettingsOpen(true)}
+          aria-label="More: ask about this briefing, settings, downloads and past briefings"
+          title="Ask about this briefing, settings, downloads and past briefings">
+          ⋮
+        </button>
+      </PageActions>
 
       {renderBriefingView()}
       {renderSettingsDrawer()}

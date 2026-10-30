@@ -49,10 +49,15 @@
 const agencyOnly = (ctx) => !ctx.readOnly;
 
 export const SECTIONS = {
-  // The client's own Dashboard. Its four tabs were a strip like everything
-  // else; Setup, Brand and Connectors are reached from the cog and the plug in
-  // the client bar and stay out of the panel, because they are done once and
-  // then not touched.
+  // The client's own Dashboard.
+  //
+  // Setup, Connectors and Forms used to be deliberately absent from the panel,
+  // reached only from the cog and the plug in the client bar, on the reasoning
+  // that they are done once and then not touched. That reasoning cost them
+  // their URLs: once a screen was a path segment, a slug with no row here
+  // resolves to nothing and useScreen falls back to the default, so the cog
+  // put /dashboard/setup in the address bar and showed Measure. A screen the
+  // page renders has to have a row, or it is not addressable at all.
   dashboard: {
     key: 'dashboard',
     leaf: 'dashboard',
@@ -66,6 +71,14 @@ export const SECTIONS = {
         { tab: 'reports',  label: 'Reports' },
         { tab: 'strategy', label: 'Strategist', slug: 'strategist' },
         { tab: 'plan',     label: 'SOSTAC', slug: 'sostac' },
+      ] },
+      // The cog and the plug in the client bar still jump straight here; these
+      // rows are what make those jumps land, and what shows you where you are
+      // once you have landed.
+      { heading: 'Setup', rows: [
+        { tab: 'details',    label: 'Setup',      slug: 'setup', when: agencyOnly },
+        { tab: 'connectors', label: 'Connectors', when: agencyOnly },
+        { tab: 'forms',      label: 'Forms',      when: agencyOnly },
       ] },
     ],
   },

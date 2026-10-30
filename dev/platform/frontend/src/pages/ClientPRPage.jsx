@@ -233,13 +233,13 @@ export default function ClientPRPage() {
   }
   async function createPitchCampaign() {
     if (!pr) return;
-    if (pr.campaign_id) { navigate(`/clients/${id}/outreach`); return; }
+    if (pr.campaign_id) { navigate(`/clients/${id}/convert/email`); return; }
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/create-campaign`, {});
       if (r.error) { toast(r.error, 'error'); return; }
       setPr((p) => ({ ...p, campaign_id: r.campaign_id }));
       toast('Pitch campaign created — opening Email', 'success');
-      navigate(`/clients/${id}/outreach`);
+      navigate(`/clients/${id}/convert/email`);
     } catch (e) { toast(e.message, 'error'); }
   }
 
@@ -247,7 +247,9 @@ export default function ClientPRPage() {
     api.get(`/pr/clients/${id}/thank-opportunities`).then((r) => setThanks(r.items || [])).catch(() => {});
     api.get(`/pr/clients/${id}/thank-settings`).then(setThankSettings).catch(() => {});
   }
-  useEffect(() => { if (tab === 'thanks') loadThanks(); }, [tab, id]);
+  // Thank-yous render inside Pitch, so they load with it. There was a
+  // 'thanks' tab here that nothing ever selected.
+  useEffect(() => { if (tab === 'journalists') loadThanks(); }, [tab, id]);
 
   async function setThankStage(stage) {
     try {

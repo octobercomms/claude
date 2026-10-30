@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useScreen } from '../hooks/useScreen';
 import ScreenHeading from '../components/ScreenHeading';
+import { PageActionsProvider, PageActionsSlot, PageActions } from '../components/PageActions';
 import { useParams, useNavigate, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -354,7 +355,7 @@ export default function ClientDetailPage() {
   // worth closing properly rather than relying on nobody guessing the address.
   // Writes were already blocked by roWrite; this stops the reading too.
   if (readOnly) {
-    return <Navigate to={user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/clients'} replace />;
+    return <Navigate to={user?.client_id ? `/clients/${user.client_id}/data` : '/clients'} replace />;
   }
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
@@ -371,14 +372,30 @@ export default function ClientDetailPage() {
   const pageTitle = 'Dashboard';
 
   return (
+    <PageActionsProvider>
     <div className={scopeClass}>
       <div className="kicker"><span className="pip" />{client.name && <span className="kicker-name">{client.name}</span>}</div>
-      <header className="hero">
+      {/* This page draws its own hero rather than using PageShell, so it wires
+          the two halves of the actions slot by hand. Anything a panel below
+          wants on the title line — Strategist's Generate briefing, Setup's
+          Brand kit link — portals into it. */}
+      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 'var(--s3)' }}>
         <div>
           <h1 className="display mt-2">{pageTitle}</h1>
           <ScreenHeading title={pageTitle} />
         </div>
+        <PageActionsSlot className="hero-actions" />
       </header>
+
+      {/* The Brand kit is its own route with no row of its own, so Setup is
+          where it is reached from. It was a link in a header block above the
+          Setup form; tests/routeDoors.test.mjs caught its removal when that
+          block went. */}
+      {tab === 'details' && (
+        <PageActions>
+          <Link to={`/clients/${id}/brand`} className="btn btn-secondary btn-sm">Brand kit →</Link>
+        </PageActions>
+      )}
 
       {/* The strip is gone. Measure, Reports, Strategist and SOSTAC are rows
           in the section panel, reachable from each other and from anywhere
@@ -406,15 +423,7 @@ export default function ClientDetailPage() {
           /clients/:id/brand, and had no working link anywhere in the app.
           The readiness checklist stays: it is the only thing on this screen
           that told you anything you did not already know. */}
-      {tab === 'setup_overview' && <Navigate to={`/clients/${id}/dashboard/setup`} replace />}
 
-
-      {tab === 'details' && (
-        <div className="row between center" style={{ marginBottom: 'var(--s4)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-          <h2 className="h2" style={{ margin: 0 }}>Setup</h2>
-          <Link to={`/clients/${id}/brand`} className="btn btn-secondary btn-sm">Brand kit →</Link>
-        </div>
-      )}
 
       {tab === 'details' && (
         <div className="card" style={{ marginBottom: 'var(--s4)', borderColor: 'var(--accent)' }}>
@@ -611,16 +620,24 @@ export default function ClientDetailPage() {
       {tab === 'reports' && (
         <>
         <form onSubmit={handleSave}>
-          {/* No alignItems override: `grid` stretches its items, so both boxes
-              share the taller one's height. Each card is a flex column below,
-              which is what puts the actions on a line with each other rather
-              than leaving the shorter box's buttons floating. */}
-          <div className="grid grid-2" style={{ marginTop: 'var(--s6)' }}>
+          {/* Stacked and full width, not side by side. Two narrow columns
+              squeezed the schedule fields while running the monthly template
+              list to twenty numbered lines in a 300px column, with the page
+              empty either side. Each card now divides its own width: settings
+              left at a form's natural measure, the template list right, where
+              its length is the point. See .report-setup in index.css.
+
+              The equal-height trick the two columns needed goes with them, so
+              the cards no longer need to be flex columns with marginTop:auto
+              action rows. */}
+          <div style={{ marginTop: 'var(--s6)', display: 'grid', gap: 'var(--s6)' }}>
 
             {/* ── Weekly setup ── */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="card">
               <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Weekly</h2>
 
+              <div className="report-setup">
+              <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
               <div className="grid grid-2">
                 <Field label="Day">
@@ -645,25 +662,30 @@ export default function ClientDetailPage() {
                   onChange={e => setClient(p => ({ ...p, report_recipients: { ...p.report_recipients, weekly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } }))} />
               </Field>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: 'var(--s4) 0 var(--s2)' }}>
+              </div>
+
+              <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
                 <div className="caption" style={{ margin: 0 }}>Template</div>
                 <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm">✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
               </div>
               {(templateSummary.weekly?.sections || []).length ? (
-                <ol style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)', margin: 0 }}>
+                <ol className="report-template-list" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)', margin: 0 }}>
                   {templateSummary.weekly.sections.map(s => (
                     <li key={s.id} style={{ marginBottom: 'var(--s1)' }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}>{s.type}</span></li>
                   ))}
                 </ol>
               ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
 
-              {/* marginTop:auto drops this to the foot of the card, so with both
-                  boxes the same height the two action rows line up.
-                  "Save changes", not "Save weekly": both boxes edit one client
+              </div>
+              </div>
+
+              {/* Across the foot of the card, below both columns.
+                  "Save changes", not "Save weekly": both cards edit one client
                   record and the PUT sends all of it, so either button saves
-                  whatever is unsaved on this tab. Naming it per-section would
-                  be a lie. */}
-              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'auto', paddingTop: 'var(--s5)' }}>
+                  whatever is unsaved on this screen. Naming it per-section
+                  would be a lie. */}
+              <div style={{ display: 'flex', gap: 'var(--s2)', paddingTop: 'var(--s5)' }}>
                 <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                 <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
                 <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
@@ -671,9 +693,11 @@ export default function ClientDetailPage() {
             </div>
 
             {/* ── Monthly setup ── */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="card">
               <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Monthly</h2>
 
+              <div className="report-setup">
+              <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
               <Field label="Day of month">
                 <input type="number" min="1" max="28" className="input" style={{ maxWidth: 140 }}
@@ -697,25 +721,26 @@ export default function ClientDetailPage() {
                 {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
               </button>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: 'var(--s4) 0 var(--s2)' }}>
+              </div>
+
+              <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
                 <div className="caption" style={{ margin: 0 }}>Template</div>
                 <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm">✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
               </div>
               {(templateSummary.monthly?.sections || []).length ? (
-                <ol style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)', margin: 0 }}>
+                <ol className="report-template-list" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)', margin: 0 }}>
                   {templateSummary.monthly.sections.map(s => (
                     <li key={s.id} style={{ marginBottom: 'var(--s1)' }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}>{s.type}</span></li>
                   ))}
                 </ol>
               ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
 
-              {/* marginTop:auto drops this to the foot of the card, so with both
-                  boxes the same height the two action rows line up.
-                  "Save changes", not "Save weekly": both boxes edit one client
-                  record and the PUT sends all of it, so either button saves
-                  whatever is unsaved on this tab. Naming it per-section would
-                  be a lie. */}
-              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'auto', paddingTop: 'var(--s5)' }}>
+              </div>
+              </div>
+
+              {/* Across the foot of the card, below both columns. */}
+              <div style={{ display: 'flex', gap: 'var(--s2)', paddingTop: 'var(--s5)' }}>
                 <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                 <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
                 <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('monthly') })} className="btn btn-secondary btn-sm">Generate now</button>
@@ -848,6 +873,7 @@ export default function ClientDetailPage() {
       )}
 
     </div>
+    </PageActionsProvider>
   );
 }
 

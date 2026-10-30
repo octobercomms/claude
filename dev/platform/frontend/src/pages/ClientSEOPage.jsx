@@ -669,15 +669,13 @@ export default function ClientSEOPage() {
   // description of the sections holding them.
   const [activeTab, setActiveTab] = useScreen('owned');
 
-  // Redirect stale deep links to their new homes after the AI Overviews
-  // tab was merged into Keywords and fan-out / content gaps moved into
-  // the Pipeline → Find step. Hub renamed to Insights for clarity.
-  useEffect(() => {
-    if (activeTab === 'perf_hub') setActiveTab('perf_insights');
-    else if (activeTab === 'aio') setActiveTab('keywords');
-    else if (activeTab === 'fanout' || activeTab === 'gaps') setActiveTab('find');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  // There was an effect here redirecting stale deep links — 'aio' into
+  // Keywords, 'fanout' and 'gaps' into Find, 'perf_hub' into Insights. Once a
+  // screen became a path segment, useScreen resolves a slug through the panel
+  // rows and falls back to the default when it finds none, so activeTab could
+  // never hold any of those four keys and every branch was permanently false.
+  // The URL sweep should have taken them; tests/routeTargets.test.mjs is what
+  // now says so.
 
   // Connectors — needed by the Convert › Forms tab to find the October Forms connector.
   useEffect(() => {
@@ -1176,15 +1174,6 @@ export default function ClientSEOPage() {
         />
       )}
 
-      {activeTab === 'perf_insights' && (
-        <OrganicInsightsPanel
-          keywords={keywords}
-          onOpenKeywords={() => setActiveTab('keywords')}
-          onOpenAiVisibility={() => setActiveTab('ai_visibility')}
-          onOpenSiteAudit={() => setActiveTab('site_audit')}
-          onOpenQuickWins={() => setActiveTab('quick_wins')}
-        />
-      )}
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
 
       {/* Convert — turn visitors into leads. */}

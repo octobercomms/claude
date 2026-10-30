@@ -83,15 +83,13 @@ export default function ClientSocialPage() {
   // The Create group is now one factory spanning the whole pipeline
   // (Ideas → Brief → Workbench → Plan → Publish). Schedule is no longer a
   // separate section — Plan + Publish are the factory's last two steps — so its
-  // old 'plans'/'publish' leaf tabs resolve into that single experience too.
-  const inCreate = ['brainstorm', 'review', 'reels', 'video', 'produce', 'plans', 'publish'].includes(socialTab);
+  // the old 'plans' leaf tab resolves into that single experience too.
+  const inCreate = ['brainstorm', 'review', 'reels', 'video', 'produce', 'plans'].includes(socialTab);
   useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
   // Redirect legacy deep links to their new homes. Client (read-only) logins
   // can't reach the Build/produce factory — bounce them to Overview.
   useEffect(() => {
-    if (socialTab === 'loop') setSocialTab('perf_insights');
-    if (socialTab === 'learn') setSocialTab('performance');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
   // Lifted to page level so the SocialSuiteOverview can read it for
@@ -550,17 +548,6 @@ export default function ClientSocialPage() {
 
       {/* PIPELINE → 4 LEARN — same WinnersPanel as Performance → Winners,
           framed as production feedback to close the loop. */}
-      {socialTab === 'learn' && (
-        <SocialLearnStep onBack={() => setSocialTab('publish')} onOpenHookVault={() => setHookVaultOpen(true)}>
-          {(winners?.length || frameworkBreakdown?.length) ? (
-            <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
-          ) : (
-            <ExampleBlock storageKey={`social_winners_example_${id}`} title="this is what a winner looks like once posts start performing">
-              <ExampleWinners />
-            </ExampleBlock>
-          )}
-        </SocialLearnStep>
-      )}
 
       {/* LEARN — top posts, framework breakdown, and the Hook Vault inline so
           "spot a winner → reuse its hook" reads as one page. */}
@@ -627,12 +614,12 @@ function BrainstormTab({
   // Each pipeline stage owns its own tab so a refresh lands you back on the
   // exact step (no more Create → Review auto-jump just because a batch exists):
   //   1 Create   → 'brainstorm'    2 Review → 'review'
-  //   3 Produce  → 'produce'       4 Schedule → 'plans'/'publish'
+  //   3 Produce  → 'produce'       4 Schedule → 'plans'
   const STEP_TAB = { 1: 'brainstorm', 2: 'review', 3: 'produce', 4: 'plans' };
   const stepForTab = (tab) =>
     tab === 'review' ? 2
       : tab === 'produce' ? 3
-      : (tab === 'plans' || tab === 'publish') ? 4
+      : tab === 'plans' ? 4
       : 1;
   const [step, setStep] = useState(() => stepForTab(socialTab));
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
@@ -642,7 +629,7 @@ function BrainstormTab({
   useEffect(() => {
     if (socialTab === 'review') setStep(2);
     else if (socialTab === 'produce') setStep(3);
-    else if (socialTab === 'plans' || socialTab === 'publish') setStep(4);
+    else if (socialTab === 'plans') setStep(4);
     else if (socialTab === 'brainstorm') setStep(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
