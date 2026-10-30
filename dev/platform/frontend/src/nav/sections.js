@@ -115,10 +115,23 @@ export const SECTIONS = {
     base: (id) => `/clients/${id}/pr`,
     defaultTab: 'coverage',
     groups: [
-      // Track was behind a "Health" tab that held one thing. It is the page.
-      { heading: null, rows: [{ tab: 'coverage', label: 'Track', slug: 'track' }] },
+      // Track held two jobs on one screen. Logging what you have won and
+      // triaging what the saved searches found run on different cadences and
+      // are rarely wanted at the same moment.
+      { heading: 'Track', rows: [
+        { tab: 'coverage', label: 'Coverage' },
+        { tab: 'monitor',  label: 'Monitor' },
+      ] },
+      // Pitch was six jobs on one screen: the campaign list, two AI matchers,
+      // journalist discovery, the contact book and thank-yous. The two
+      // matchers both answer "who do I send this to" so they share a screen;
+      // the contact book and the thank-yous owed are one record of the same
+      // relationships, so they do too.
       { heading: 'Build', rows: [
-        { tab: 'journalists', label: 'Pitch', slug: 'pitch' },
+        { tab: 'journalists', label: 'Campaigns', slug: 'campaigns' },
+        { tab: 'contacts',    label: 'Contacts' },
+        { tab: 'find',        label: 'Find' },
+        { tab: 'match',       label: 'Match' },
         { tab: 'press',       label: 'Releases', slug: 'releases' },
       ] },
       { heading: 'Measure', rows: [

@@ -247,9 +247,8 @@ export default function ClientPRPage() {
     api.get(`/pr/clients/${id}/thank-opportunities`).then((r) => setThanks(r.items || [])).catch(() => {});
     api.get(`/pr/clients/${id}/thank-settings`).then(setThankSettings).catch(() => {});
   }
-  // Thank-yous render inside Pitch, so they load with it. There was a
-  // 'thanks' tab here that nothing ever selected.
-  useEffect(() => { if (tab === 'journalists') loadThanks(); }, [tab, id]);
+  // Thank-yous render on Contacts, beside the journalist table.
+  useEffect(() => { if (tab === 'contacts') loadThanks(); }, [tab, id]);
 
   async function setThankStage(stage) {
     try {
@@ -293,7 +292,7 @@ export default function ClientPRPage() {
     api.get(`/pr/clients/${id}/searches`).then((r) => { setSearches(r.items || []); setSerperOn(r.serper_configured !== false); }).catch(() => {});
     api.get(`/pr/clients/${id}/review-queue`).then((r) => { setQueue(r.items || []); setQueueSel(new Set()); }).catch(() => {});
   }
-  useEffect(() => { if (tab === 'coverage') loadMonitor(); }, [tab, id]);
+  useEffect(() => { if (tab === 'monitor') loadMonitor(); }, [tab, id]);
 
   async function addSearch() {
     try {
@@ -686,7 +685,11 @@ export default function ClientPRPage() {
         </div>
   );
 
-  const renderPitch = () => {
+  // Pitch was six jobs on one screen: the campaign list, two different AI
+  // matchers, journalist discovery, the contact book and thank-yous. Each is
+  // now its own row. The campaign detail view still takes over the Campaigns
+  // screen, because opening a campaign is a mode rather than a destination.
+  const renderCampaigns = () => {
     // A press campaign open? Show its full send/preview/autopilot/results view.
     if (openPressCampaign) {
       return (
@@ -813,7 +816,14 @@ export default function ClientPRPage() {
               </table>
             )}
           </div>
+        </div>
+    );
+  };
 
+  // Both blocks answer "who do I send this story to", from a pasted story and
+  // from the contact book respectively.
+  const renderMatch = () => (
+        <div>
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
             <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
@@ -891,7 +901,11 @@ export default function ClientPRPage() {
               </div>
             )}
           </div>
+        </div>
+  );
 
+  const renderFind = () => (
+        <div>
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: suggestions.length ? 12 : 0 }}>
               <div style={{ flex: 1, minWidth: 240 }}>
@@ -948,7 +962,13 @@ export default function ClientPRPage() {
               </>
             )}
           </div>
+        </div>
+  );
 
+  // The contact book and the thank-yous owed are one record of the same
+  // relationships, so they stay together.
+  const renderContacts = () => (
+        <div>
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <table className="table">
               <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Published</th><th>Hit rate</th><th>Last featured</th><th>Relationship</th></tr></thead>
@@ -1012,10 +1032,14 @@ export default function ClientPRPage() {
             </table>
           </div>
         </div>
-    );
-  };
+  );
 
-  const renderTrack = () => (
+  // Track splits in two. Logging what you have won and watching for what
+  // you have not noticed yet are different jobs on different cadences: the
+  // log is where you add and verify entries, the monitor is a triage queue
+  // of what the saved searches found. They shared a screen because Track
+  // used to be one tab.
+  const renderCoverage = () => (
         <div>
           {/* One primary action, one secondary; the CSV imports fold into a
               single menu and the utilities become quiet links, so the row
@@ -1157,7 +1181,11 @@ export default function ClientPRPage() {
               </tbody>
             </table>
           </div>
+        </div>
+  );
 
+  const renderMonitor = () => (
+        <div>
           <div className="card">
             <h3 className="h3 mb-2">Coverage monitor</h3>
             <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
@@ -1256,8 +1284,12 @@ export default function ClientPRPage() {
           then the first section of an accordion inside it, so reaching the
           coverage log — the reason anyone opens Earned — took two clicks
           through containers that held one useful thing each. */}
-      {!loading && tab === 'coverage' && renderTrack()}
-      {!loading && tab === 'journalists' && renderPitch()}
+      {!loading && tab === 'coverage' && renderCoverage()}
+      {!loading && tab === 'monitor' && renderMonitor()}
+      {!loading && tab === 'journalists' && renderCampaigns()}
+      {!loading && tab === 'contacts' && renderContacts()}
+      {!loading && tab === 'find' && renderFind()}
+      {!loading && tab === 'match' && renderMatch()}
       {!loading && tab === 'press' && renderReleases()}
       {!loading && tab === 'reports' && <PrBacklinkRoi clientId={id} />}
 
