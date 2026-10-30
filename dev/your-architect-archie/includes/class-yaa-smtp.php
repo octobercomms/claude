@@ -42,6 +42,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class YAA_SMTP {
 
+	/** Last wp_mail failure message (PHPMailer's reason), captured for the test screen. */
+	private static $last_error = '';
+
 	public static function init() {
 		add_action( 'phpmailer_init', array( __CLASS__, 'configure' ) );
 		add_action( 'wp_mail_failed', array( __CLASS__, 'log_failure' ) );
@@ -158,10 +161,11 @@ class YAA_SMTP {
 
 	/** Record a send failure so a broken relay surfaces instead of vanishing. */
 	public static function log_failure( $wp_error ) {
+		$msg = is_wp_error( $wp_error ) ? $wp_error->get_error_message() : (string) $wp_error;
+		self::$last_error = $msg; // surfaced on the test screen so failures are diagnosable.
 		if ( ! self::enabled() ) {
 			return;
 		}
-		$msg = is_wp_error( $wp_error ) ? $wp_error->get_error_message() : (string) $wp_error;
 		YAA_Log::debug( 'SMTP send failed', array( 'error' => $msg ) );
 	}
 
@@ -192,8 +196,13 @@ class YAA_SMTP {
 			. '<p style="line-height:1.6;color:#6b7488;font-size:13px">Sent ' . esc_html( date_i18n( 'j M Y, H:i', current_time( 'timestamp' ) ) ) . ' · '
 			. esc_html( $route ) . '</p></div>';
 
+		self::$last_error = '';
 		$ok = wp_mail( $to, 'Your Architect — SMTP test', $body, $headers );
-		set_transient( 'yaa_smtp_test_' . get_current_user_id(), ( $ok ? 'ok' : 'fail' ) . '|' . $to, 120 );
+		set_transient( 'yaa_smtp_test_' . get_current_user_id(), array(
+			'status' => $ok ? 'ok' : 'fail',
+			'to'     => $to,
+			'error'  => $ok ? '' : self::$last_error,
+		), 120 );
 		$ref = wp_get_referer();
 		wp_safe_redirect( add_query_arg( 'smtp_test', $ok ? '1' : '0', $ref ? $ref : admin_url( 'admin.php?page=yaa-settings' ) ) );
 		exit;
