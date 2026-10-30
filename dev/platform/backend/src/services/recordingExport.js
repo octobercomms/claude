@@ -34,14 +34,18 @@ async function exportRecording(id, format) {
   const col = fmt === 'gif' ? 'gif_key' : 'mp4_key';
   const mime = fmt === 'gif' ? 'image/gif' : 'video/mp4';
   const work = fs.mkdtempSync(path.join(os.tmpdir(), `recexp-${id}-`));
+  let src = null;
   try {
     const { rows } = await pool.query('SELECT storage_key FROM recordings WHERE id = $1', [id]);
     const row = rows[0];
     if (!row || !row.storage_key) throw new Error('recording has no stored file');
 
-    const buf = await mediaStore.getBuffer(row.storage_key);
-    const inPath = path.join(work, 'in');
-    fs.writeFileSync(inPath, buf);
+    // localFile, not getBuffer: ffmpeg wants a filename, and reading a
+    // recording in to write it straight back out meant a 700MB recording cost
+    // 700MB of heap on a box that also serves every request. On the disk store
+    // this is the stored file itself and copies nothing.
+    src = await mediaStore.localFile(row.storage_key);
+    const inPath = src.path;
     const outPath = path.join(work, `out.${fmt}`);
 
     if (fmt === 'mp4') {
@@ -62,14 +66,26 @@ async function exportRecording(id, format) {
       await run(FFMPEG, ['-y', '-i', inPath, '-i', palette, '-lavfi', `${scale}[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3`, outPath]);
     }
 
-    const outBuf = fs.readFileSync(outPath);
-    const key = mediaStore.keyFor(id, fmt);   // <recordingId>.mp4 / <recordingId>.gif — distinct from the .webm
-    await mediaStore.saveBuffer(key, outBuf, mime);
+    // `<id>.export.mp4`, not `<id>.mp4`.
+    //
+    // This used to be keyFor(id, fmt), which was safe only while the recorder
+    // produced WebM: the original was `<id>.webm` and the export `<id>.mp4`.
+    // Chrome has recorded MP4 since 126 and the recorder asks for it first, so
+    // the original is now `<id>.mp4` too — and exporting an MP4 recording to
+    // MP4 wrote the re-encode over its own source, under a key the row still
+    // pointed at from both storage_key and mp4_key. The .export. infix keeps
+    // every derived file in its own namespace, as `.play.` does for the
+    // playback remux.
+    const key = `${id}.export.${fmt}`;
+    // saveFile streams the render into the store instead of reading it back
+    // into a buffer first, for the same reason as the input above.
+    await mediaStore.saveFile(key, outPath, mime);
     await pool.query(`UPDATE recordings SET ${col} = $2, export_status = 'ready' WHERE id = $1`, [id, key]);
   } catch (err) {
     console.warn('[recordingExport] failed for', id, fmt, '-', err.message);
     await pool.query(`UPDATE recordings SET export_status = 'failed' WHERE id = $1`, [id]).catch(() => {});
   } finally {
+    if (src) await src.release();
     try { fs.rmSync(work, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 }

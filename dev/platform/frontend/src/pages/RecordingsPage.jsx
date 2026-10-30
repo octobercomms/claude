@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { CAPTURE, displayConstraints, compositeSize, recorderOptions } from '../utils/captureSettings';
 
 // In-OMI screen recorder (internal Loom replacement). Record a screen
 // walkthrough with your voice, save it, and share the /watch/:token link.
@@ -173,8 +174,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   // captured video track. Position, size, shape and mirror are read live from
   // camSettingsRef each frame, so the presenter can reposition mid-recording.
   function makeCameraComposite(display, camStream) {
-    const settings = display.getVideoTracks()[0].getSettings();
-    const w = settings.width || 1280, h = settings.height || 720;
+    const { w, h } = compositeSize(display.getVideoTracks()[0].getSettings());
     const screenVideo = document.createElement('video');
     screenVideo.srcObject = display; screenVideo.muted = true; screenVideo.play().catch(() => {});
     const camVideo = document.createElement('video');
@@ -254,14 +254,14 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     }, 400);
 
     draw();
-    return canvas.captureStream(30).getVideoTracks()[0];
+    return canvas.captureStream(CAPTURE.frameRate).getVideoTracks()[0];
   }
 
   async function startRecording() {
     const mime = pickMime();
     if (!mime) { toast('This browser can’t record video. Try Chrome or Edge.', 'error'); return; }
     try {
-      const display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
+      const display = await navigator.mediaDevices.getDisplayMedia(displayConstraints());
       streamsRef.current.push(display);
 
       let micStream = null;
@@ -299,7 +299,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       liveStreamRef.current = stream;
 
       chunksRef.current = [];
-      const rec = new MediaRecorder(stream, { mimeType: mime });
+      const rec = new MediaRecorder(stream, recorderOptions(mime));
       // What the browser actually gave us, which can differ from what we asked
       // for. Everything downstream reads this: the blob type, the file
       // extension and the mime stored against the recording.

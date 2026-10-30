@@ -1,39 +1,48 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
-import Layout from './components/Layout';
+// Three pages load with the app itself, because they are how someone arrives:
+// the signed-out marketing page, the login form, and the public player behind a
+// share link. Everything else is a separate chunk.
+//
+// The split is for the share link's sake. WatchPage sat in the main bundle with
+// the whole admin app, so a client clicking a video link downloaded 2.7MB of
+// JavaScript (718KB gzipped) covering every OMI screen, and parsed it, before
+// the <video> element existed. None of that code runs on that page.
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
-import ClientsPage from './pages/ClientsPage';
-import ClientDetailPage from './pages/ClientDetailPage';
-import RankingsPage from './pages/RankingsPage';
-import ClientSEOPage from './pages/ClientSEOPage';
-import ClientConvertPage from './pages/ClientConvertPage';
-import ClientAdsPage from './pages/ClientAdsPage';
-import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
-import ClientSocialPage from './pages/ClientSocialPage';
-import ClientBrandPage from './pages/ClientBrandPage';
-import ApprovePage from './pages/ApprovePage';
-import SetPasswordPage from './pages/SetPasswordPage';
-import GuidePage from './pages/GuidePage';
-// Temporary: the checker calibration bench. Goes when the thresholds are set.
-import SnapshotStudioPage from './pages/SnapshotStudioPage';
-import TenderWorkspacePage from './pages/TenderWorkspacePage';
-import SettingsPage from './pages/SettingsPage';
-import ClientPRPage from './pages/ClientPRPage';
-import JournalistProfilePage from './pages/JournalistProfilePage';
-import OutletProfilePage from './pages/OutletProfilePage';
-import ContactCleanupPage from './pages/ContactCleanupPage';
-import PublicCoveragePage from './pages/PublicCoveragePage';
-import PressReviewPage from './pages/PressReviewPage';
 import WatchPage from './pages/WatchPage';
-import ProposalPublicPage from './pages/ProposalPublicPage';
-import BookingManagePage from './pages/BookingManagePage';
-import ProposalEditorPage from './pages/ProposalEditorPage';
-import ProposalSamplePage from './pages/ProposalSamplePage';
-import ClientVideoTab from './pages/ClientVideoTab';
-import DesignSystemPage from './pages/DesignSystemPage';
+
+const Layout = lazy(() => import('./components/Layout'));
+const ClientsPage = lazy(() => import('./pages/ClientsPage'));
+const ClientDetailPage = lazy(() => import('./pages/ClientDetailPage'));
+const RankingsPage = lazy(() => import('./pages/RankingsPage'));
+const ClientSEOPage = lazy(() => import('./pages/ClientSEOPage'));
+const ClientConvertPage = lazy(() => import('./pages/ClientConvertPage'));
+const ClientAdsPage = lazy(() => import('./pages/ClientAdsPage'));
+const ClientSalesTrafficPage = lazy(() => import('./pages/ClientSalesTrafficPage'));
+const ClientSocialPage = lazy(() => import('./pages/ClientSocialPage'));
+const ClientBrandPage = lazy(() => import('./pages/ClientBrandPage'));
+const ApprovePage = lazy(() => import('./pages/ApprovePage'));
+const SetPasswordPage = lazy(() => import('./pages/SetPasswordPage'));
+const GuidePage = lazy(() => import('./pages/GuidePage'));
+// Temporary: the checker calibration bench. Goes when the thresholds are set.
+const SnapshotStudioPage = lazy(() => import('./pages/SnapshotStudioPage'));
+const TenderWorkspacePage = lazy(() => import('./pages/TenderWorkspacePage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ClientPRPage = lazy(() => import('./pages/ClientPRPage'));
+const JournalistProfilePage = lazy(() => import('./pages/JournalistProfilePage'));
+const OutletProfilePage = lazy(() => import('./pages/OutletProfilePage'));
+const ContactCleanupPage = lazy(() => import('./pages/ContactCleanupPage'));
+const PublicCoveragePage = lazy(() => import('./pages/PublicCoveragePage'));
+const PressReviewPage = lazy(() => import('./pages/PressReviewPage'));
+const ProposalPublicPage = lazy(() => import('./pages/ProposalPublicPage'));
+const BookingManagePage = lazy(() => import('./pages/BookingManagePage'));
+const ProposalEditorPage = lazy(() => import('./pages/ProposalEditorPage'));
+const ProposalSamplePage = lazy(() => import('./pages/ProposalSamplePage'));
+const ClientVideoTab = lazy(() => import('./pages/ClientVideoTab'));
+const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage'));
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -61,6 +70,10 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
       <BrowserRouter>
+        {/* One boundary for every lazy page. The fallback is deliberately
+            plain: it shows for the length of one chunk fetch, and anything
+            with layout in it flashes a shape that is about to be replaced. */}
+        <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--s10)', color: 'var(--text-muted)' }}>Loading…</div>}>
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/login" element={<LoginPage />} />
@@ -124,6 +137,7 @@ export default function App() {
             <Route path="contacts/cleanup" element={<ContactCleanupPage />} />
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
       </ToastProvider>
     </AuthProvider>

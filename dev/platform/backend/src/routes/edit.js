@@ -108,10 +108,17 @@ router.post('/clients/:clientId/edit/from-recording', requireClientAccess({ para
     const rec = rows[0];
     if (!rec || !rec.storage_key) return res.status(404).json({ error: 'Recording not found' });
 
-    const buf = await mediaStore.getBuffer(rec.storage_key);
     const ext = rec.mime === 'video/webm' ? '.webm' : '.mp4';
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-    await fs.promises.writeFile(path.join(editJobs.clientDir(req.params.clientId), filename), buf);
+    // Stream the copy rather than reading the whole recording into memory to
+    // write it straight back out: a long screen capture is hundreds of
+    // megabytes, and this runs inside a request handler.
+    const src = await mediaStore.localFile(rec.storage_key);
+    try {
+      await fs.promises.copyFile(src.path, path.join(editJobs.clientDir(req.params.clientId), filename));
+    } finally {
+      await src.release();
+    }
 
     const clips = [{ url: editJobs.servedUrl(req.params.clientId, filename), name: rec.title || 'Recording' }];
     const job = await editJobs.create(req.params.clientId, {
