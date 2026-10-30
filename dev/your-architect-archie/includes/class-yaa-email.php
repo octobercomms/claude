@@ -9,7 +9,11 @@
  * a tracking pixel + click-through redirect. The email always carries the secure
  * payment button (the client portal link) appended by the system.
  *
- * Open/click tracking is OURS, not the ESP's: every HTML email the plugin sends
+ * Open/click tracking: when a sending relay (Brevo over SMTP) is active it does the
+ * tracking and its events — opens, clicks, delivery, bounces, spam — come back via
+ * brevo_webhook(); inject_tracking() is a no-op then (see relay_tracks()) so mail
+ * goes out clean, with no double pixel or double-wrapped links. Without a relay we
+ * track ourselves: every HTML email the plugin sends
  * via wp_mail — staged client emails, quote copies, studio alerts, sign-in links,
  * resume nudges — is run through inject_tracking() so it carries a 1px open pixel
  * and click-wrapped links back to the /track route. Each open and click is logged
@@ -259,9 +263,13 @@ class YAA_Email {
 				return $provider_id;
 			}
 		} else {
-			// Our own tracking: open pixel + click-wrapped links back to /track.
+			// Relay/ESP tracking when the relay is on (inject_tracking() no-ops then and
+			// the tag header lets the webhook match); our own pixel only without a relay.
 			$tracked = self::inject_tracking( $html, (int) $email_id );
-			$headers = array( 'Content-Type: text/html; charset=UTF-8', sprintf( 'From: %s <%s>', $name, $from ) );
+			$headers = array_merge(
+				array( 'Content-Type: text/html; charset=UTF-8', sprintf( 'From: %s <%s>', $name, $from ) ),
+				self::tag_headers( (int) $email_id )
+			);
 			$sent    = wp_mail( $project->email, $email->subject, $tracked, $headers );
 			if ( ! $sent ) {
 				return new WP_Error( 'yaa_mail_failed', 'WordPress could not send the email.' );
@@ -353,6 +361,7 @@ class YAA_Email {
 
 		$tracked = self::inject_tracking( (string) $a['html'], $email_id );
 		$headers = ! empty( $a['headers'] ) ? (array) $a['headers'] : array( 'Content-Type: text/html; charset=UTF-8' );
+		$headers = array_merge( $headers, self::tag_headers( $email_id ) );
 		try {
 			$ok = wp_mail( $to_raw, (string) $a['subject'], $tracked, $headers );
 		} catch ( \Throwable $e ) {
@@ -449,7 +458,9 @@ class YAA_Email {
 				SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END)   AS sent,
 				SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
 				SUM(CASE WHEN opens  > 0 THEN 1 ELSE 0 END)        AS opened,
-				SUM(CASE WHEN clicks > 0 THEN 1 ELSE 0 END)        AS clicked
+				SUM(CASE WHEN clicks > 0 THEN 1 ELSE 0 END)        AS clicked,
+				SUM(CASE WHEN delivery IN ('bounced','blocked') THEN 1 ELSE 0 END) AS bounced,
+				SUM(CASE WHEN delivery = 'spam' THEN 1 ELSE 0 END)                 AS spam
 			 FROM {$e} WHERE status IN ('sent','failed')",
 			ARRAY_A
 		);
@@ -461,6 +472,8 @@ class YAA_Email {
 			'failed'     => (int) ( $r['failed'] ?? 0 ),
 			'opened'     => $opened,
 			'clicked'    => $clicked,
+			'bounced'    => (int) ( $r['bounced'] ?? 0 ),
+			'spam'       => (int) ( $r['spam'] ?? 0 ),
 			'open_rate'  => $sent ? (int) round( ( $opened / $sent ) * 100 ) : 0,
 			'click_rate' => $sent ? (int) round( ( $clicked / $sent ) * 100 ) : 0,
 		);
@@ -579,6 +592,26 @@ class YAA_Email {
 	// ---- Tracking ----
 
 	/**
+	 * Whether the sending relay (Brevo, via SMTP) is doing open/click tracking, so
+	 * we must not add ours on top. On by default whenever the relay is enabled; a
+	 * site can force our own pixel back on with the `delegate_tracking` setting = 0.
+	 */
+	public static function relay_tracks() {
+		if ( ! class_exists( 'YAA_SMTP' ) || ! YAA_SMTP::enabled() ) {
+			return false;
+		}
+		return '0' !== (string) YAA_Settings::get( 'delegate_tracking', 1 );
+	}
+
+	/** Header that tags a relayed message so brevo_webhook() can tie its events back. */
+	public static function tag_headers( $email_id ) {
+		if ( ! self::relay_tracks() || ! (int) $email_id ) {
+			return array();
+		}
+		return array( 'X-Mailin-Tag: yaa-email-' . (int) $email_id );
+	}
+
+	/**
 	 * Add our open pixel + click redirects to an HTML email. Every absolute http(s)
 	 * link is rewritten to go through /track (which records the click, then 302s to
 	 * the real URL); a 1px pixel is appended so the open is recorded when images load.
@@ -589,6 +622,10 @@ class YAA_Email {
 		$email_id = (int) $email_id;
 		$html     = (string) $html;
 		if ( ! $email_id || '' === $html ) {
+			return $html;
+		}
+		// Relay does the tracking → send clean, no pixel or click-wrapping of ours.
+		if ( self::relay_tracks() ) {
 			return $html;
 		}
 		$base = rest_url( 'yaa/v1/track' );
@@ -617,37 +654,122 @@ class YAA_Email {
 		return $html;
 	}
 
-	/** Brevo event webhook: opened / clicked → update counts + timestamps. */
+	/**
+	 * Brevo event webhook. With the SMTP relay doing the tracking, this is how opens,
+	 * clicks, delivery, bounces and spam complaints get back into the email log.
+	 * Configure it in Brevo → Transactional → Settings → Webhook, pointed at this
+	 * route, with delivered / opened / click / hard_bounce / soft_bounce / blocked /
+	 * spam / unsubscribed ticked.
+	 */
 	public static function brevo_webhook( $req ) {
 		$payload = json_decode( $req->get_body(), true );
-		$events  = isset( $payload[0] ) ? $payload : array( $payload ); // Brevo may batch.
-		foreach ( (array) $events as $e ) {
-			if ( ! is_array( $e ) ) {
-				continue;
-			}
-			$event = isset( $e['event'] ) ? $e['event'] : '';
-			$email_id = 0;
-			if ( ! empty( $e['tags'] ) && is_array( $e['tags'] ) ) {
-				foreach ( $e['tags'] as $tag ) {
-					if ( 0 === strpos( (string) $tag, 'yaa-email-' ) ) {
-						$email_id = (int) substr( $tag, strlen( 'yaa-email-' ) );
-					}
-				}
-			}
-			if ( ! $email_id && ! empty( $e['message-id'] ) ) {
-				$row = self::by_provider_id( (string) $e['message-id'] );
-				$email_id = $row ? (int) $row->id : 0;
-			}
-			if ( ! $email_id ) {
-				continue;
-			}
-			if ( in_array( $event, array( 'opened', 'unique_opened' ), true ) ) {
-				self::record( $email_id, 'open' );
-			} elseif ( 'click' === $event ) {
-				self::record( $email_id, 'click', isset( $e['link'] ) ? (string) $e['link'] : '' );
+		if ( ! is_array( $payload ) ) {
+			return new WP_REST_Response( array( 'ok' => true ) );
+		}
+		$events = isset( $payload[0] ) ? $payload : array( $payload ); // Brevo may batch.
+		foreach ( $events as $e ) {
+			if ( is_array( $e ) ) {
+				self::ingest_event( $e );
 			}
 		}
 		return new WP_REST_Response( array( 'ok' => true ) );
+	}
+
+	/**
+	 * Resolve one Brevo event to a logged email and record it. Matching, most precise
+	 * first: a message-id we already tied to a row, then a yaa-email-<id> tag, then the
+	 * most recent sent email to that recipient — whose message-id we then store, so
+	 * every later event for the same message matches exactly.
+	 */
+	private static function ingest_event( $e ) {
+		$event = strtolower( (string) ( $e['event'] ?? '' ) );
+		if ( '' === $event ) {
+			return;
+		}
+		$mid = (string) ( $e['message-id'] ?? ( $e['message_id'] ?? '' ) );
+		$to  = sanitize_email( (string) ( $e['email'] ?? '' ) );
+
+		$row = $mid ? self::by_provider_id( $mid ) : null;
+		if ( ! $row ) {
+			$id  = self::tag_email_id( $e );
+			$row = $id ? self::get( $id ) : null;
+		}
+		if ( ! $row && $to ) {
+			$row = self::by_recipient_recent( $to );
+			if ( $row && $mid && '' === (string) $row->provider_id ) {
+				global $wpdb;
+				$wpdb->update( YAA_DB::emails_table(), array( 'provider_id' => $mid ), array( 'id' => (int) $row->id ), array( '%s' ), array( '%d' ) ); // phpcs:ignore WordPress.DB
+			}
+		}
+		if ( ! $row ) {
+			return;
+		}
+		$email_id = (int) $row->id;
+
+		if ( in_array( $event, array( 'opened', 'proxy_open' ), true ) ) {
+			self::record( $email_id, 'open' );
+		} elseif ( 'click' === $event ) {
+			self::record( $email_id, 'click', (string) ( $e['link'] ?? '' ) );
+		} elseif ( 'delivered' === $event ) {
+			self::set_delivery( $row, 'delivered', '' );
+		} elseif ( in_array( $event, array( 'hard_bounce', 'soft_bounce', 'blocked', 'error', 'invalid_email' ), true ) ) {
+			self::set_delivery( $row, ( 'blocked' === $event ? 'blocked' : 'bounced' ), (string) ( $e['reason'] ?? $event ) );
+		} elseif ( in_array( $event, array( 'spam', 'complaint' ), true ) ) {
+			self::set_delivery( $row, 'spam', (string) ( $e['reason'] ?? '' ) );
+		} elseif ( 'unsubscribed' === $event && (int) $row->project_id ) {
+			YAA_Project::log_event( (int) $row->project_id, 'email_unsubscribed', array( 'email_id' => $email_id ) );
+		}
+		// 'deferred', 'request' and anything unrecognised are transient / no-op.
+	}
+
+	/** Pull a yaa-email-<id> tag out of a webhook event (tag may be a string, JSON, or array). */
+	private static function tag_email_id( $e ) {
+		$tags = array();
+		foreach ( array( 'tags', 'tag' ) as $k ) {
+			if ( empty( $e[ $k ] ) ) {
+				continue;
+			}
+			$v = $e[ $k ];
+			if ( is_array( $v ) ) {
+				$tags = array_merge( $tags, $v );
+			} elseif ( is_string( $v ) ) {
+				$dec  = json_decode( $v, true );
+				$tags = array_merge( $tags, is_array( $dec ) ? $dec : array( $v ) );
+			}
+		}
+		foreach ( $tags as $tag ) {
+			if ( 0 === strpos( (string) $tag, 'yaa-email-' ) ) {
+				return (int) substr( (string) $tag, strlen( 'yaa-email-' ) );
+			}
+		}
+		return 0;
+	}
+
+	/** Most recent sent email to a recipient (exact match, then as one of a comma list). */
+	private static function by_recipient_recent( $email ) {
+		global $wpdb;
+		$t   = YAA_DB::emails_table();
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE recipient = %s AND status = 'sent' ORDER BY COALESCE(sent_at, created) DESC, id DESC LIMIT 1", $email ) ); // phpcs:ignore WordPress.DB
+		if ( ! $row ) {
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE recipient LIKE %s AND status = 'sent' ORDER BY COALESCE(sent_at, created) DESC, id DESC LIMIT 1", '%' . $wpdb->esc_like( $email ) . '%' ) ); // phpcs:ignore WordPress.DB
+		}
+		return $row;
+	}
+
+	/** Set the relay-reported delivery state on an email row + log a project event. */
+	private static function set_delivery( $row, $state, $detail = '' ) {
+		global $wpdb;
+		$wpdb->update(
+			YAA_DB::emails_table(),
+			array( 'delivery' => (string) $state, 'delivery_at' => current_time( 'mysql' ), 'delivery_detail' => mb_substr( (string) $detail, 0, 180 ) ),
+			array( 'id' => (int) $row->id ),
+			array( '%s', '%s', '%s' ),
+			array( '%d' )
+		); // phpcs:ignore WordPress.DB
+		$map = array( 'delivered' => 'email_delivered', 'bounced' => 'email_bounced', 'blocked' => 'email_bounced', 'spam' => 'email_spam' );
+		if ( (int) $row->project_id && isset( $map[ $state ] ) ) {
+			YAA_Project::log_event( (int) $row->project_id, $map[ $state ], array( 'email_id' => (int) $row->id, 'detail' => (string) $detail ) );
+		}
 	}
 
 	private static function by_provider_id( $mid ) {

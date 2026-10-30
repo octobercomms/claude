@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class YAA_DB {
 
 	const SCHEMA_OPTION = 'yaa_db_version';
-	const SCHEMA        = '6';
+	const SCHEMA        = '7';
 
 	public static function projects_table() {
 		global $wpdb;
@@ -117,6 +117,9 @@ class YAA_DB {
 			clicks INT NOT NULL DEFAULT 0,
 			opened_at DATETIME NULL,
 			clicked_at DATETIME NULL,
+			delivery VARCHAR(20) NULL,
+			delivery_at DATETIME NULL,
+			delivery_detail VARCHAR(190) NULL,
 			created DATETIME NOT NULL,
 			sent_at DATETIME NULL,
 			PRIMARY KEY  (id),

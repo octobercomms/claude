@@ -77,6 +77,7 @@ class YAA_Admin {
 				'smtp_auth'             => empty( $in['smtp_auth'] ) ? 0 : 1,
 				'smtp_user'             => sanitize_text_field( $in['smtp_user'] ?? '' ),
 				'smtp_pass'             => isset( $in['smtp_pass'] ) ? $in['smtp_pass'] : '',
+				'delegate_tracking'     => empty( $in['delegate_tracking'] ) ? 0 : 1,
 				'github_repo'           => sanitize_text_field( $in['github_repo'] ?? 'octobercomms/claude' ),
 				'github_token'          => isset( $in['github_token'] ) ? $in['github_token'] : '',
 				'github_tag_prefix'     => sanitize_text_field( $in['github_tag_prefix'] ?? 'yaa-v' ),
@@ -212,6 +213,10 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Authenticate', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="smtp_auth" value="1" <?php checked( (int) $s['smtp_auth'], 1 ); ?>> <?php esc_html_e( 'Log in with the username and password below (usually yes).', 'your-architect-archie' ); ?></label></td></tr>
 					<tr><th><?php esc_html_e( 'SMTP username', 'your-architect-archie' ); ?></th><td><input type="text" name="smtp_user" class="regular-text" autocomplete="off" value="<?php echo esc_attr( $s['smtp_user'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'SMTP password / key', 'your-architect-archie' ); ?></th><td><input type="password" name="smtp_pass" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'smtp_pass' ) ); ?>"><?php if ( YAA_Settings::has_secret( 'smtp_pass' ) ) : ?> <label style="margin-left:8px;white-space:nowrap"><input type="checkbox" name="clear_secrets[]" value="smtp_pass"> <?php esc_html_e( 'Clear this key', 'your-architect-archie' ); ?></label><?php endif; ?><p class="description"><?php esc_html_e( 'Stored encrypted. Leave blank to keep the saved value. If YAA_SMTP_PASS is defined in wp-config.php (or the environment), that key is used instead and this field is ignored — the recommended way to keep the key out of the database.', 'your-architect-archie' ); ?></p></td></tr>
+					<tr><th><?php esc_html_e( 'Open / click tracking', 'your-architect-archie' ); ?></th><td>
+						<label><input type="checkbox" name="delegate_tracking" value="1" <?php checked( (int) $s['delegate_tracking'], 1 ); ?>> <?php esc_html_e( 'Let the relay (Brevo) track opens & clicks — don\'t add our own pixel.', 'your-architect-archie' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Recommended with a relay: avoids double tracking (two pixels, double-wrapped links), which reads as bulk mail and hurts deliverability. Brevo\'s events — opens, clicks, delivered, bounced, spam — flow into the email log once you point a Brevo webhook at this URL:', 'your-architect-archie' ); ?> <code><?php echo esc_html( rest_url( 'yaa/v1/brevo-webhook' ) ); ?></code>. <?php esc_html_e( 'In Brevo: Transactional → Settings → Webhook — tick delivered, opened, click, hard bounce, soft bounce, blocked, spam and unsubscribed. Untick the box above to go back to our own built-in pixel tracking instead.', 'your-architect-archie' ); ?></p>
+					</td></tr>
 				</table>
 
 				<h2><?php esc_html_e( 'Client email templates', 'your-architect-archie' ); ?></h2>

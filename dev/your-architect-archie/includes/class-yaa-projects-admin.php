@@ -475,13 +475,15 @@ class YAA_Projects_Admin {
 			echo '</div>';
 		}
 
-		echo '<p class="yaa-emails-meta">' . esc_html__( 'Every email the system has sent, with our own open + click tracking. Click any row to see full delivery details and exactly when it was opened or clicked. Newest first, last 300.', 'your-architect-archie' ) . '</p>';
+		echo '<p class="yaa-emails-meta">' . esc_html__( 'Every email the system has sent. Click any row for full delivery details and exactly when it was opened or clicked. Opens, clicks, delivered, bounced and spam come from your sending relay (Brevo) via webhook when one is set, or our own open pixel otherwise. Newest first, last 300.', 'your-architect-archie' ) . '</p>';
 
 		// Headline stats.
 		$tiles = array(
-			array( 'n' => number_format_i18n( $stats['sent'] ),    'l' => __( 'Delivered', 'your-architect-archie' ),          'cls' => '' ),
+			array( 'n' => number_format_i18n( $stats['sent'] ),    'l' => __( 'Sent', 'your-architect-archie' ),               'cls' => '' ),
 			array( 'n' => number_format_i18n( $stats['opened'] ) . ' <small>(' . (int) $stats['open_rate'] . '%)</small>',   'l' => __( 'Opened at least once', 'your-architect-archie' ), 'cls' => 'green' ),
 			array( 'n' => number_format_i18n( $stats['clicked'] ) . ' <small>(' . (int) $stats['click_rate'] . '%)</small>', 'l' => __( 'Clicked a link', 'your-architect-archie' ),        'cls' => 'blue' ),
+			array( 'n' => number_format_i18n( $stats['bounced'] ), 'l' => __( 'Bounced', 'your-architect-archie' ),            'cls' => ( $stats['bounced'] > 0 ? 'red' : '' ) ),
+			array( 'n' => number_format_i18n( $stats['spam'] ),    'l' => __( 'Spam complaints', 'your-architect-archie' ),    'cls' => ( $stats['spam'] > 0 ? 'red' : '' ) ),
 			array( 'n' => number_format_i18n( $stats['failed'] ),  'l' => __( 'Failed to send', 'your-architect-archie' ),     'cls' => ( $stats['failed'] > 0 ? 'red' : '' ) ),
 		);
 		echo '<div class="yaa-estats">';
@@ -554,7 +556,20 @@ class YAA_Projects_Admin {
 			}
 			echo '</td>';
 
-			echo '<td>' . ( 'failed' === $r->status ? '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>' : '<span class="yaa-badge green">' . esc_html__( 'Sent', 'your-architect-archie' ) . '</span>' ) . '</td>';
+			echo '<td>';
+			if ( 'failed' === $r->status ) {
+				echo '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>';
+			} else {
+				$dmap = array(
+					'delivered' => array( 'green', __( 'Delivered', 'your-architect-archie' ) ),
+					'bounced'   => array( 'red',   __( 'Bounced', 'your-architect-archie' ) ),
+					'blocked'   => array( 'red',   __( 'Blocked', 'your-architect-archie' ) ),
+					'spam'      => array( 'red',   __( 'Spam', 'your-architect-archie' ) ),
+				);
+				$dv = isset( $dmap[ (string) $r->delivery ] ) ? $dmap[ (string) $r->delivery ] : array( 'green', __( 'Sent', 'your-architect-archie' ) );
+				echo '<span class="yaa-badge ' . esc_attr( $dv[0] ) . '"' . ( (string) $r->delivery_detail ? ' title="' . esc_attr( $r->delivery_detail ) . '"' : '' ) . '>' . esc_html( $dv[1] ) . '</span>';
+			}
+			echo '</td>';
 
 			echo '<td>';
 			echo '<form class="yaa-noopen" method="post" action="' . esc_url( $admin_post ) . '" onsubmit="return confirm(\'Resend this email now?\');">';
@@ -609,7 +624,22 @@ class YAA_Projects_Admin {
 			$pl   = $proj->ref ? $proj->ref : ( $proj->name ? $proj->name : ( '#' . (int) $proj->id ) );
 			$h   .= '<tr><td>' . esc_html__( 'Project', 'your-architect-archie' ) . '</td><td><a href="' . esc_url( $purl ) . '">' . esc_html( $pl ) . '</a></td></tr>';
 		}
-		$h .= '<tr><td>' . esc_html__( 'Status', 'your-architect-archie' ) . '</td><td>' . ( 'failed' === $em->status ? '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>' : '<span class="yaa-badge green">' . esc_html__( 'Sent', 'your-architect-archie' ) . '</span>' ) . '</td></tr>';
+		if ( 'failed' === $em->status ) {
+			$status_badge = '<span class="yaa-badge red">' . esc_html__( 'Failed', 'your-architect-archie' ) . '</span>';
+		} else {
+			$dmap2 = array(
+				'delivered' => array( 'green', __( 'Delivered', 'your-architect-archie' ) ),
+				'bounced'   => array( 'red',   __( 'Bounced', 'your-architect-archie' ) ),
+				'blocked'   => array( 'red',   __( 'Blocked', 'your-architect-archie' ) ),
+				'spam'      => array( 'red',   __( 'Spam complaint', 'your-architect-archie' ) ),
+			);
+			$dv2          = isset( $dmap2[ (string) $em->delivery ] ) ? $dmap2[ (string) $em->delivery ] : array( 'green', __( 'Sent', 'your-architect-archie' ) );
+			$status_badge = '<span class="yaa-badge ' . esc_attr( $dv2[0] ) . '">' . esc_html( $dv2[1] ) . '</span>';
+			if ( (string) $em->delivery_detail ) {
+				$status_badge .= ' <span class="yaa-emails-meta">' . esc_html( $em->delivery_detail ) . '</span>';
+			}
+		}
+		$h .= '<tr><td>' . esc_html__( 'Status', 'your-architect-archie' ) . '</td><td>' . $status_badge . '</td></tr>';
 		$h .= '</table></div>';
 
 		// Engagement history.
