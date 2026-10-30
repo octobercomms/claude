@@ -168,21 +168,23 @@
     font-family: inherit; font-weight: 700; font-size: 1rem; color: var(--navy); }
 .yaa .ob-shell .ob-panel-toggle .tt-amt { color: var(--orange); font-size: 1.2rem; }
 .yaa .ob-shell .ob-chat { border-right: 0; padding-bottom: 70px; }
-/* Embedded Archie on phones: become a full-height app with ONE inner scroll
-   (the messages). The old fixed-440px chat created a tiny scroll window nested
-   inside a scrolling page — the page and the chat fought each other, so you
-   couldn't scroll and only saw half a question. Mirrors the full-page shell. */
-.yaa .archie-embed { height: 100dvh; display: flex; flex-direction: column; border: 0; border-radius: 0; box-shadow: none; }
-.yaa .archie-embed .ob-body { grid-template-columns: 1fr; height: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.yaa .archie-embed .ob-chat { border-right: 0; border-bottom: 0; height: auto; flex: 1; min-height: 0; padding-bottom: 70px; }
-.yaa .archie-embed .ob-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; max-height: 62dvh;
-    border-top: 1.5px solid var(--line-2); border-top-left-radius: 18px; border-top-right-radius: 18px;
-    transform: translateY(calc(100% - 66px)); transition: transform .28s ease; }
-.yaa .archie-embed .ob-panel.open { transform: translateY(0); }
-.yaa .archie-embed .ob-panel-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    width: 100%; padding: 20px 24px; background: none; border: 0; cursor: pointer;
-    font-family: inherit; font-weight: 700; font-size: 1rem; color: var(--navy); }
-.yaa .archie-embed .ob-panel-toggle .tt-amt { color: var(--orange); font-size: 1.2rem; }
+/* Embedded Archie on phones: ONE scroll surface — the page itself. The embed and
+   its quote panel flow in the document and nothing keeps its own inner scroll, so
+   a touch drag can never be trapped by a nested overflow region. (The old build
+   made the embed a 100dvh app with its own scrolling message pane and a fixed
+   bottom-sheet summary; on touch the inner pane swallowed the drag and wouldn't
+   hand it back to the page, so the page "froze" until layout settled, and the
+   finished summary couldn't be scrolled to.) The composer sticks to the bottom of
+   the viewport while you're in the chat; the full quote summary flows directly
+   beneath, always reachable by scrolling. */
+.yaa .archie-embed { height: auto; display: block; overflow: visible; border: 0; border-radius: 0; box-shadow: none; }
+.yaa .archie-embed .ob-body { display: block; grid-template-columns: 1fr; height: auto; min-height: 0; }
+.yaa .archie-embed .ob-chat { display: block; height: auto; min-height: 0; border-right: 0; border-bottom: 0; padding-bottom: 0; }
+.yaa .archie-embed .ob-messages { overflow: visible; height: auto; flex: none; padding: 20px 18px 10px; }
+.yaa .archie-embed .ob-composer { position: sticky; bottom: 0; z-index: 30; box-shadow: 0 -8px 22px -16px rgba(28,47,115,.55); }
+.yaa .archie-embed .ob-panel { position: static; transform: none; max-height: none; z-index: auto; border-top: 1px solid var(--line); border-radius: 0; }
+.yaa .archie-embed .ob-panel-toggle { display: none; }
+.yaa .archie-embed .ob-nodes { overflow: visible; max-height: none; }
 }
 .yaa .archie-badge { width: 24px; height: 24px; border-radius: 7px; background: var(--navy); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .yaa .archie-badge svg { width: 16px; height: 16px; }

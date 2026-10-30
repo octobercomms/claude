@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.30
+Stable tag: 0.7.31
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,21 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.31 =
+* Fixed the mobile scroll freeze. On phones the embedded chat was a full-height app
+  with its own scrolling message pane (and a fixed bottom-sheet summary with a
+  second inner scroll), nested inside the scrolling page. On touch, the inner pane
+  swallowed the drag and wouldn't hand it back to the page, so the page appeared
+  frozen until layout settled — and the finished quote summary couldn't be scrolled
+  to. The embed now flows in the page as a single scroll surface: no inner scroll
+  panes, the composer sticks to the bottom of the viewport while you're in the chat,
+  and the full quote summary and submit button sit directly beneath, always
+  reachable by scrolling.
+* Archie now shows a "thinking" indicator the moment the chat loads, so it never
+  looks like a blank panel while the first message is fetched.
+* New messages scroll the page to follow the conversation (previously an inner pane
+  that no longer exists), and finishing the chat scrolls the summary into view.
 
 = 0.7.30 =
 * SMTP credentials can now be supplied from wp-config.php constants or environment

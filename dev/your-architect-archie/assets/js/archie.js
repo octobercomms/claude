@@ -32,6 +32,24 @@
 
   if (!msgList) return; // Archie not on this page.
 
+  // On phones the embed flows in the page as a single scroll surface (see the CSS):
+  // the message pane has no inner scroll, so we follow new messages by scrolling the
+  // window to sit the latest just above the sticky composer, rather than an inner box.
+  var mq = window.matchMedia ? window.matchMedia('(max-width: 860px)') : null;
+  function mobileFlow() { return !!(mq && mq.matches); }
+  var composerEl = document.querySelector('.archie-embed .ob-composer');
+  function scrollToLatest() {
+    requestAnimationFrame(function () {
+      if (mobileFlow()) {
+        var ch = composerEl ? composerEl.offsetHeight : 0;
+        var target = msgList.getBoundingClientRect().bottom + window.pageYOffset - window.innerHeight + ch + 16;
+        if (target > window.pageYOffset) window.scrollTo({ top: target, behavior: 'smooth' });
+      } else {
+        messages.scrollTop = messages.scrollHeight;
+      }
+    });
+  }
+
   var busy = false, done = false, hasService = false;
   var userMsgCount = 0, emailSaved = false; // drives the always-on "Email me my quote" field.
   var lastTotal = 0; // latest quoted total, for the Meta "Lead" conversion value.
@@ -67,7 +85,7 @@
     div.className = 'msg ' + who + (kind ? ' ' + kind : '');
     div.innerHTML = (who === 'bot' ? '<div class="avatar">' + BOT + '</div>' : '') + '<div class="text">' + text + '</div>';
     msgList.appendChild(div);
-    requestAnimationFrame(function () { messages.scrollTop = messages.scrollHeight; });
+    scrollToLatest();
   }
   var typingEl = null;
   function typing(on) {
@@ -77,7 +95,7 @@
       typingEl.className = 'msg bot';
       typingEl.innerHTML = '<div class="avatar">' + BOT + '</div><div class="text typing"><span></span><span></span><span></span></div>';
       msgList.appendChild(typingEl);
-      requestAnimationFrame(function () { messages.scrollTop = messages.scrollHeight; });
+      scrollToLatest();
     }
   }
 
@@ -208,7 +226,12 @@
       '<a href="' + PRIV_URL + '" target="_blank" rel="noopener">Privacy Policy</a>. ' +
       'Tap below and I’ll submit your project — or you can keep asking me questions or add another service first.' +
       '<div style="margin-top:12px"><button type="button" class="a-agree" style="background:#253E94;color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:.95rem">I agree — submit my project</button></div>', 'note');
-    if (panel && window.matchMedia && window.matchMedia('(max-width:820px)').matches) panel.classList.add('open');
+    // On phones the quote panel flows inline below the chat — bring it into view so
+    // the finished summary and the submit button are right there (no sheet to open).
+    if (panel && mobileFlow()) {
+      panel.classList.add('open');
+      requestAnimationFrame(function () { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    }
   }
 
   sendBtn.addEventListener('click', send);
@@ -396,7 +419,9 @@
   }
 
   // ---- Boot ----
+  typing(true); // show Archie "thinking" straight away so the chat never looks blank while /start loads.
   post('start', {}).then(function (res) {
+    typing(false);
     var d = res.body || {};
     if (d.nonce) { NONCE = d.nonce; } // adopt the fresh, uncached nonce for all writes.
     (d.messages || []).forEach(function (m) { addMsg(m.role === 'assistant' ? 'bot' : 'user', escapeHtml(m.text)); });
@@ -418,5 +443,5 @@
       if (d.done) { done = true; showSubmitReady(); }
       input.focus({ preventScroll: true });
     }
-  }).catch(function () { addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });
+  }).catch(function () { typing(false); addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });
 })();
