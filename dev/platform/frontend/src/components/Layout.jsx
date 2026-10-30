@@ -190,6 +190,11 @@ export default function Layout() {
                     (images) in one place. Visible to clients (Record view-only;
                     Visualise only with the can_use_visualise grant). */}
                 <NavLink to={`/clients/${clientId}/video`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
+                {/* Convert — CRO, Forms and Email, lifted out of Owned. No
+                    chip for the same reason Produce has none: the four
+                    pillars carry one because PESO needs translating, and
+                    "Convert" already says what it is. */}
+                <NavLink to={`/clients/${clientId}/convert`} style={({ isActive }) => subLinkStyle(isActive)}>Convert</NavLink>
               </div>
             )}
           </li>

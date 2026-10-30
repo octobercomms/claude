@@ -2,10 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
-import ClarityCroPanel from '../components/ClarityCroPanel';
 import PillarMeasure from '../components/PillarMeasure';
-import FormsTab from '../components/FormsTab';
-import ClientOutreachPage from './ClientOutreachPage';
 import { useToast } from '../context/ToastContext';
 import { useTabParam } from '../hooks/useTabParam';
 
@@ -705,13 +702,18 @@ export default function ClientSEOPage() {
   }, [id]);
 
 
-  // The group tabs the accordions sat behind are now aliases. ?tab=optimise
-  // and ?tab=convert render nothing on their own, and a link to either is out
-  // in the world in saved reports, so each lands on the first tool it used to
-  // contain rather than on a blank page.
+  // ?tab=optimise was a group tab in front of an accordion and renders nothing
+  // on its own now, so it lands on the first tool it used to contain.
+  //
+  // CRO, Forms and Email left for the Convert page. Links to them exist in
+  // saved reports and in the Monday email, and a deep link that lands nowhere
+  // is the quietest kind of breakage — the person following it assumes the
+  // feature was removed. Replace rather than push, so Back goes where it came
+  // from instead of bouncing off this redirect.
   useEffect(() => {
-    if (activeTab === 'optimise') setActiveTab('site_audit');
-    else if (activeTab === 'convert') setActiveTab('cro');
+    if (activeTab === 'optimise') { setActiveTab('site_audit'); return; }
+    const MOVED = { cro: 'cro', forms: 'forms', email: 'email', convert: 'cro' };
+    if (MOVED[activeTab]) navigate(`/clients/${id}/convert?tab=${MOVED[activeTab]}`, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -1215,11 +1217,8 @@ export default function ClientSEOPage() {
 
       {/* Convert — turn visitors into leads. */}
       {/* Convert — CRO + Forms as one accordion dashboard. */}
-      {activeTab === 'cro' && <ClarityCroPanel clientId={id} />}
-      {activeTab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
 
       {/* Email — the full Outreach suite, embedded (uses its own ?etab=). */}
-      {activeTab === 'email' && <ClientOutreachPage embedded clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'drift' && <SeoDriftPanel clientId={id} />}
       {/* Optimise — the fix-it tools as one worked-top-to-bottom accordion,

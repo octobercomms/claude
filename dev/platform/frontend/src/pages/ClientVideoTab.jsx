@@ -1,7 +1,6 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
-import SuiteTabs from '../components/SuiteTabs';
 import RecordingsPage from './RecordingsPage';
 import ClientEditPage from './ClientEditPage';
 import ClientVisualisePage from './ClientVisualisePage';
@@ -48,24 +47,6 @@ export default function ClientVideoTab() {
     <div>
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Produce</span></div>
       <header className="hero"><div><h1 className="display mt-2">Produce</h1></div></header>
-
-      <SuiteTabs tabs={[
-        // First, and first on purpose. The tools that follow are the same
-        // tools; this is the one route through them in the order a reel is
-        // actually made, for an operator who should not have to know that
-        // captions live in Edit and the cutting lives behind a thumbnail in
-        // the Library.
-        ...(readOnly ? [] : [{ key: 'reel', label: 'Make a reel', fn: 'create', active: tab === 'reel', onClick: () => setTab('reel') }]),
-        { key: 'record', label: 'Record', active: tab === 'record', onClick: () => setTab('record') },
-        ...(readOnly ? [] : [{ key: 'edit', label: 'Edit', fn: 'create', active: tab === 'edit', onClick: () => setTab('edit') }]),
-        ...(readOnly ? [] : [{ key: 'design', label: 'Design', fn: 'create', active: tab === 'design', onClick: () => setTab('design') }]),
-        ...(canVisualise ? [{ key: 'visualise', label: 'Visualise', fn: 'create', active: tab === 'visualise', onClick: () => setTab('visualise') }] : []),
-        ...(readOnly ? [] : [{ key: 'transcribe', label: 'Transcribe', fn: 'create', active: tab === 'transcribe', onClick: () => setTab('transcribe') }]),
-        // Not a tool. Everything the other five have made, in one place, which
-        // is what lets another section offer it instead of producing it again.
-        { key: 'library', label: 'Library', active: tab === 'library', onClick: () => setTab('library') },
-      ]} />
-
       {tab === 'reel' && !readOnly && (
         <MakeAReel clientId={id} clientName={client?.name || ''} />
       )}

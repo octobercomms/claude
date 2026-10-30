@@ -145,6 +145,20 @@ export const SECTIONS = {
     ],
   },
 
+  convert: {
+    key: 'convert',
+    title: 'Convert',
+    base: (id) => `/clients/${id}/convert`,
+    defaultTab: 'cro',
+    groups: [
+      { heading: null, rows: [
+        { tab: 'cro',   label: 'CRO' },
+        { tab: 'forms', label: 'Forms' },
+        { tab: 'email', label: 'Email' },
+      ] },
+    ],
+  },
+
   produce: {
     key: 'produce',
     title: 'Produce',
@@ -172,6 +186,7 @@ export function sectionForPath(pathname) {
   const leaf = m[2] || '';
   const byLeaf = {
     ads: 'paid', pr: 'earned', social: 'shared', seo: 'owned', video: 'produce',
+    convert: 'convert',
   };
   const key = byLeaf[leaf];
   return key ? SECTIONS[key] : null;

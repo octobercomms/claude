@@ -118,7 +118,18 @@ export function tabsInConstArrays(src) {
 }
 
 // Tabs whose every door is inside an overview — the ones deleting it orphans.
-export function tabsOnlyReachableFromOverview(src) {
+// A tab with a row in the section panel has a door, and it is a better door
+// than any of the ones this file knows how to find: it is visible from every
+// tab in the section rather than only from the screen that links to it.
+//
+// This matters because the panel replaced the tab strips. Without it, every
+// tab whose only in-page door was a strip reads as orphaned here — which is
+// how this check first reported `competitors` on Shared, a tab that is one
+// click away from anywhere in the section.
+//
+// Passed in rather than imported, so this module stays a pure analyser and
+// the caller decides which sections are in play.
+export function tabsOnlyReachableFromOverview(src, panelTabs = new Set()) {
   const blocks = overviewBlocks(src);
   if (!blocks.length) return [];
   const inOverview = (i) => blocks.some(b => i >= b.start && i < b.end);
@@ -126,6 +137,7 @@ export function tabsOnlyReachableFromOverview(src) {
   const out = [];
   for (const tab of knownTabs(src)) {
     if (tab === 'overview') continue;
+    if (panelTabs.has(tab)) continue;
     if (railReachable.has(tab)) continue;
     const sites = doorSites(src, tab);
     if (!sites.length) continue;             // no door at all — a different problem
@@ -135,9 +147,10 @@ export function tabsOnlyReachableFromOverview(src) {
 }
 
 // Tabs with no door anywhere, overview included. These are already orphaned.
-export function tabsWithNoDoorAtAll(src) {
+export function tabsWithNoDoorAtAll(src, panelTabs = new Set()) {
   return knownTabs(src)
     .filter(t => t !== 'overview')
+    .filter(t => !panelTabs.has(t))
     .filter(t => doorSites(src, t).length === 0)
     .sort();
 }

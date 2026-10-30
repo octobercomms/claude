@@ -1289,6 +1289,10 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 
 .tabs-row > .tabs { flex: 1; min-width: 0; }
 .tabs-row-actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--s2); }
+/* The same row with no tab strip beside it, which is every section now that
+   the strips live in the section panel. Right-aligned so the section's
+   controls sit where they always sat. */
+.tabs-row--bare { justify-content: flex-end; margin-bottom: var(--gap-comp); }
 
 .tab {
   background: none;
