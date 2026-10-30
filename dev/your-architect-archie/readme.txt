@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.29
+Stable tag: 0.7.30
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.30 =
+* SMTP credentials can now be supplied from wp-config.php constants or environment
+  variables (YAA_SMTP_HOST / PORT / SECURE / USER / PASS / FROM) so the relay key
+  is never stored in the database or committed anywhere. Defining YAA_SMTP_HOST is
+  enough to turn the relay on. Any constant/env value overrides the matching
+  Settings field, so you can keep host/port/login in Settings and supply only the
+  key from wp-config. Intended for routing all outbound mail through Brevo's relay.
+* Every message now leaves as the aligned From address (forced), so nothing slips
+  out as the WordPress default and breaks SPF/DKIM alignment, and a relay send that
+  fails is logged rather than silently reverting to the unsigned PHP mail() path.
+* Added a 15-second relay timeout so a slow or dead SMTP host can't hang a request.
 
 = 0.7.29 =
 * Archie now knows the practice's credentials. When a visitor asks whether Your
