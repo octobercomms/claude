@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.32
+Stable tag: 0.7.33
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,16 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.33 =
+* Fixed the remaining first-load scroll problem on phones. Shortly after the page
+  loaded, Archie auto-scrolled the window (smoothly) as the opening message
+  rendered — which fought the visitor's own finger-scroll and made the page feel
+  frozen for a second or two. First load is now completely passive: Archie never
+  moves the page until the visitor actually types, taps a reply, or adds a photo,
+  and it no longer grabs the keyboard focus on load. Once they're in the
+  conversation, the page still follows new messages (instantly, never animating
+  against a drag).
 
 = 0.7.32 =
 * Smaller chat header on phones. The "Talk to Archie — your personalised price
