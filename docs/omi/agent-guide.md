@@ -53,6 +53,29 @@ Do **not** confuse OMI with `dev/october-platform`, which is a *separate* app
 (October Events / ADF, a backend-less static SPA). See §4 — this trips people
 up constantly.
 
+### Video and audio live in R2, not on the box (30 Oct 2026)
+
+`MEDIA_STORE=r2`. Recordings, transcripts and client assets are in the
+Cloudflare R2 bucket `omi-recordings`; the box holds a duplicate of everything
+from before the switch, which `media-to-r2.js --commit --prune-verified` will
+free when someone decides it is time.
+
+What this changes for you:
+
+- `services/mediaStore.js` has two drivers behind one interface. Write against
+  the interface, never against a path on disk. The playback route hands out
+  short-lived signed URLs; nothing serves bytes from the filesystem any more.
+- `backend/scripts/` holds five scripts for this. All of them load the
+  backend's own `.env` from `__dirname`, so they work from anywhere on the box.
+  `media-store-status.js` is the one to run first when anything about media
+  looks wrong: it prints the active driver and, per key column, how many
+  objects are referenced and how many are actually there.
+- The four `R2_*` values are in `/opt/october-source/dev/platform/backend/.env`,
+  which is gitignored and survives the `git reset --hard` on every deploy.
+
+`docs/omi/loom-replacement-plan.md` has the whole switch, including what it
+looked like on the day and the two things that bit.
+
 ## 3. How OMI is deployed (READ THIS — it is the #1 source of mistakes)
 
 **Production URL: `https://platform.octobercomms.com`** (that is where the user

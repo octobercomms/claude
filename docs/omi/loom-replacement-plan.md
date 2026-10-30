@@ -103,6 +103,36 @@ preview URL. Take this value from the R2 overview page, nowhere else.
 
 Until those are set, `MEDIA_STORE` defaults to `disk` and everything still works.
 
+### Thrown — 30 Oct 2026
+
+R2 is live. `MEDIA_STORE=r2` on the box, the switch run in the order below with
+Daniel at the keyboard. What it actually looked like, so the next person knows
+what "normal" is:
+
+| | |
+|---|---|
+| bucket | `omi-recordings`, account `24e942f4e3f7ee55504eabf271f206a8` |
+| preflight | 7 of 7 after one correction (below) |
+| copied | 11 objects, 1.67 GB, 0 already present |
+| status after | every referenced object present under all six key columns |
+| playback | confirmed by hand on a client share link |
+
+Two things worth keeping:
+
+**The access key went in as placeholder text.** This file said
+`R2_ACCESS_KEY_ID=<the Access Key ID>` and that is what landed in `.env`. The
+preflight answered `Credential access key has length 37, should be 32` — the
+check doing its job, and a cheap failure, but the placeholder is now a string
+of the right shape and length so it cannot be pasted by mistake.
+
+**The box runs Node 20.20.2.** The AWS SDK v3 warns on every script run that
+versions published after the first week of January 2027 will require Node 22.
+Nothing is broken today and nothing about R2 depends on it. It needs scheduling
+before then.
+
+The disk copies are still there. `--prune-verified` frees them when there has
+been enough time to be sure; there is no hurry.
+
 ### The order to throw the switch in
 
 Setting `MEDIA_STORE=r2` does **not** move anything. The drivers share one
