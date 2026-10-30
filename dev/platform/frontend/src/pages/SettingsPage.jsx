@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ScreenHeading from '../components/ScreenHeading';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -630,7 +631,10 @@ export default function SettingsPage() {
     <div>
       <div className="kicker"><span className="pip" />Admin</div>
       <header className="hero">
-        <h1 className="display">Settings</h1>
+        <div>
+          <h1 className="display">Settings</h1>
+          <ScreenHeading title="Settings" />
+        </div>
       </header>
 
       {/* The section strip and the sub-tab bentos are gone: all 26 settings

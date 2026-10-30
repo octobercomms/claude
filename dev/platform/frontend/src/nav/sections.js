@@ -101,7 +101,8 @@ export const SECTIONS = {
     title: 'Shared',
     scope: 'client',
     base: (id) => `/clients/${id}/social`,
-    defaultTab: 'perf_insights',
+    // The first row, not Measure. You come to Shared to make something.
+    defaultTab: 'swipe',
     groups: [
       { heading: 'Capture', rows: [
         // Side by side was a workaround for the swipe list burying Reddit.
@@ -109,12 +110,15 @@ export const SECTIONS = {
         { tab: 'swipe',     label: 'Swipe' },
         { tab: 'subreddit', label: 'Reddit' },
       ] },
+      // Four steps, not five. 'reels' is the avatar-reel overlay, not the
+      // Workbench — it resolves to step 1, so the Workbench row opened Ideas.
+      // And 'publish' maps to the same step as 'plans', so Plan and Publish
+      // were two rows onto one screen. Both now point where they say they do.
       { heading: 'Create', rows: [
-        { tab: 'brainstorm', label: 'Ideas',    step: 1 },
-        { tab: 'review',     label: 'Brief',    step: 2 },
-        { tab: 'reels',      label: 'Workbench', step: 3 },
-        { tab: 'plans',      label: 'Plan',     step: 4 },
-        { tab: 'publish',    label: 'Publish',  step: 5 },
+        { tab: 'brainstorm', label: 'Ideas',     step: 1 },
+        { tab: 'review',     label: 'Brief',     step: 2 },
+        { tab: 'produce',    label: 'Workbench', step: 3 },
+        { tab: 'plans',      label: 'Schedule',  step: 4 },
       ] },
       // Engage held the DM bot and the feed, which is two jobs. The bot is a
       // drawer now, so the group has one job and can take its name.
@@ -136,8 +140,11 @@ export const SECTIONS = {
     defaultTab: 'health',
     groups: [
       { heading: null, rows: [{ tab: 'health', label: 'Dashboard' }] },
+      // No Insights row: ?tab=perf_insights renders OrganicInsightsPanel,
+      // which is exactly what Dashboard renders. Two rows onto one screen
+      // reads as the second one being broken. perf_insights stays a valid
+      // deep link and lands on Dashboard.
       { heading: 'Watch', rows: [
-        { tab: 'perf_insights',  label: 'Insights' },
         { tab: 'keywords',       label: 'Keywords' },
         { tab: 'gsc',            label: 'Search Console' },
         { tab: 'ai_visibility',  label: 'AI visibility' },
@@ -281,6 +288,19 @@ export function visibleGroups(section, ctx) {
   return section.groups
     .map(g => ({ ...g, rows: g.rows.filter(r => !r.when || r.when(ctx)) }))
     .filter(g => g.rows.length > 0);
+}
+
+// What the current row is called, for the page to print as its heading. The
+// strips used to say which screen you were on; a panel row is 170px away and
+// easy to lose, so the page says it itself.
+export function labelForTab(section, tab) {
+  if (!section) return null;
+  const key = tab || section.defaultTab;
+  for (const g of section.groups) {
+    const row = g.rows.find(r => r.tab === key);
+    if (row) return row.label;
+  }
+  return null;
 }
 
 // Every tab key a section names, flattened. Used by the guard, and by a page

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useTabParam } from '../hooks/useTabParam';
 import PressReleaseEditor from '../components/PressReleaseEditor';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
@@ -94,13 +95,17 @@ export default function ClientPRPage() {
   // client, so a reload lands you back where you were instead of Overview.
   // Wrapped in try/catch — localStorage can throw in private mode.
   const lsGet = (k) => { try { return localStorage.getItem(`omi.earned.${id}.${k}`); } catch { return null; } };
-  // Overview deleted Oct 2026. Coverage is the landing — what has actually
-  // been published, not a description of the section. A stored 'overview'
-  // from before the change resolves to it rather than to a blank page.
-  const [tab, setTab] = useState(() => {
-    const stored = lsGet('tab');
-    return !stored || stored === 'overview' ? 'coverage' : stored;
-  });
+  // The tab is the URL. It used to be component state restored from
+  // localStorage, which meant a section-panel row changed the address bar and
+  // this page carried on showing whatever it had remembered — the row looked
+  // dead. Remembering the last tab per client made sense when the only way
+  // back was a strip on this page; with the panel it just puts the URL and
+  // the screen into disagreement.
+  //
+  // 'overview' (a tab deleted in Oct 2026) and anything else unknown resolve
+  // to Coverage rather than to a blank page.
+  const [tab, setTab] = useTabParam('coverage',
+    ['coverage', 'journalists', 'press', 'reports']);
   // Which Health / Build accordion sections are open. A real toggle Set (like
   // Owned's) so clicking an open header collapses it — the tab-derived open
   // state used before could never close the one open section.

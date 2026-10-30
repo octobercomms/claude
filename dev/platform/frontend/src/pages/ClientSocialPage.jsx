@@ -77,7 +77,9 @@ export default function ClientSocialPage() {
   // Overview deleted Oct 2026. Measure is the landing — the headline numbers,
   // not a description of the sections holding them. (SocialSuiteOverview is a
   // different thing entirely: the Review readout inside Measure, which stays.)
-  const [socialTab, setSocialTab] = useTabParam('perf_insights', [
+  // Swipe, the first row, not Measure. You come to Shared to make something;
+  // the numbers are a row away when you want them.
+  const [socialTab, setSocialTab] = useTabParam('swipe', [
     // Capture
     'swipe', 'subreddit',
     // Create

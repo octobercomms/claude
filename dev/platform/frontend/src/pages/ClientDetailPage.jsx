@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ScreenHeading from '../components/ScreenHeading';
 import { useParams, useNavigate, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -375,6 +376,7 @@ export default function ClientDetailPage() {
       <header className="hero">
         <div>
           <h1 className="display mt-2">{pageTitle}</h1>
+          <ScreenHeading title={pageTitle} />
         </div>
       </header>
 
