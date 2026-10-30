@@ -25,7 +25,7 @@ import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
 import SideDrawer from '../components/ui/SideDrawer';
 import SocialFactoryMap from '../components/SocialFactoryMap';
-import { useTabParam } from '../hooks/useTabParam';
+import { useScreen } from '../hooks/useScreen';
 import { palette as UiPalette } from '../styles/tokens';
 const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
 
@@ -79,22 +79,7 @@ export default function ClientSocialPage() {
   // different thing entirely: the Review readout inside Measure, which stays.)
   // Swipe, the first row, not Measure. You come to Shared to make something;
   // the numbers are a row away when you want them.
-  const [socialTab, setSocialTab] = useTabParam('swipe', [
-    // Capture
-    'swipe', 'subreddit',
-    // Create
-    'brainstorm', 'review', 'reels', 'video',
-    // Produce
-    'produce',
-    // Schedule
-    'plans', 'publish',
-    // Engage
-    'dm_bot', 'discover',
-    // Measure
-    'performance', 'competitors', 'audit', 'perf_insights',
-    // legacy aliases kept so old deep links resolve
-    'loop', 'learn',
-  ]);
+  const [socialTab, setSocialTab] = useScreen('shared');
   // The Create group is now one factory spanning the whole pipeline
   // (Ideas → Brief → Workbench → Plan → Publish). Schedule is no longer a
   // separate section — Plan + Publish are the factory's last two steps — so its
@@ -451,7 +436,12 @@ export default function ClientSocialPage() {
       <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
     </div>
   );
-  const [dmBotOpen, setDmBotOpen] = useState(false);
+  // Overlays are query params, not screens: the DM bot sits over whichever
+  // Shared screen you are on, so it has no path of its own. Same shape as
+  // ?analyst=1. The setup checklist links here, which is how it gets opened
+  // from outside.
+  const [dmBotOpen, setDmBotOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('drawer') === 'dm-bot');
 
   return (
     <div className="suite-social">

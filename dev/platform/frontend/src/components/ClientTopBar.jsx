@@ -63,7 +63,7 @@ export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst })
       <button
         type="button"
         className={`client-topbar-icon${onSetup ? ' active' : ''}`}
-        onClick={() => navigate(`/clients/${clientId}?tab=details`)}
+        onClick={() => navigate(`/clients/${clientId}/dashboard/setup`)}
         title="Setup"
         aria-label="Setup"
         aria-current={onSetup ? 'page' : undefined}
@@ -74,7 +74,7 @@ export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst })
       <button
         type="button"
         className={`client-topbar-icon${onConnectors ? ' active' : ''}${state ? ` tone-${state.tone}` : ''}`}
-        onClick={() => navigate(`/clients/${clientId}?tab=connectors`)}
+        onClick={() => navigate(`/clients/${clientId}/dashboard/connectors`)}
         title={plugTitle}
         aria-label={plugTitle}
         aria-current={onConnectors ? 'page' : undefined}

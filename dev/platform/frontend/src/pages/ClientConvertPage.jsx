@@ -6,7 +6,7 @@ import PillarMeasure from '../components/PillarMeasure';
 import ClarityCroPanel from '../components/ClarityCroPanel';
 import FormsTab from '../components/FormsTab';
 import ClientOutreachPage from './ClientOutreachPage';
-import { useTabParam } from '../hooks/useTabParam';
+import { useScreen } from '../hooks/useScreen';
 
 // Convert — turning a visitor into a lead, and a lead into a reply.
 //
@@ -23,7 +23,7 @@ export default function ClientConvertPage() {
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
-  const [tab] = useTabParam('cro', ['cro', 'forms', 'email']);
+  const [tab] = useScreen('convert');
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(setClient).catch(() => {});

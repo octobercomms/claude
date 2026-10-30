@@ -172,7 +172,7 @@ router.post('/reports/:id/email', async (req, res) => {
     // a URL that lands on Paid with no briefing on it. Matches the Monday
     // email in scheduler.js. No `report` param: nothing reads one, and the
     // panel opens the newest briefing, which is the one just sent.
-    const reportUrl = platformUrl ? `${platformUrl}/clients/${r.client_id}?tab=strategy` : null;
+    const reportUrl = platformUrl ? `${platformUrl}/clients/${r.client_id}/dashboard/strategist` : null;
     const emailService = require('../services/emailService');
     await emailService.sendStrategistBriefing({
       to, clientName: r.client_name, period,

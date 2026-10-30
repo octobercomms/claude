@@ -79,10 +79,20 @@ check('crucial items lead', () => {
   assert.ok(/priority = 'crucial'/.test(job) && /ORDER BY/.test(job));
 });
 
-check('the link goes to the Strategy tab, where the briefing now lives', () => {
-  assert.ok(/tab=strategy/.test(job),
-    'the old link pointed at /ads?tab=strategist, which no longer exists');
-  assert.ok(!/tab=strategist/.test(job));
+check('the link goes where the briefing actually lives', () => {
+  // Read the slug out of the frontend's own section table rather than pinning
+  // a string here. This assertion has now been wrong twice — first at
+  // /ads?tab=strategist, then at ?tab=strategy once every screen became a
+  // path — because it described the URL instead of deriving it.
+  const sections = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'frontend', 'src', 'nav', 'sections.js'), 'utf8');
+  const row = sections.match(/\{ tab: 'strategy', label: 'Strategist'[^}]*slug: '([a-z-]+)'/);
+  assert.ok(row, 'could not find the Strategist row in nav/sections.js — did it move?');
+  const want = `/dashboard/${row[1]}`;
+  assert.ok(job.includes(want),
+    `the Monday email must link to ${want}, which is where the panel puts the briefing`);
+  // And never back to a query param: those are gone from the app entirely.
+  assert.ok(!/\?tab=/.test(job), 'the email is still building a ?tab= link');
 });
 
 check('a client with no recipients is skipped rather than erroring', () => {

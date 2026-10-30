@@ -12,7 +12,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import PageShell from '../components/shells/PageShell';
 import StatStrip from '../components/shells/StatStrip';
 import SideDrawer from '../components/ui/SideDrawer';
-import { useTabParam } from '../hooks/useTabParam';
+import { useScreen } from '../hooks/useScreen';
 import { api } from '../utils/api';
 import { formatMoney } from '../utils/money';
 import { showCombined } from '../utils/adsTotals';
@@ -44,14 +44,7 @@ export default function ClientAdsPage() {
   //
   // Build takes the Produce shape: the guided route first, with the things
   // that are not steps as peer tabs rather than an accordion of "tools".
-  const [tab, setTab] = useTabParam('measure', [
-    'measure',
-    // legacy aliases, kept because links to them exist in emails and reports
-    'health', 'performance', 'playbook', 'resize', 'pipeline', 'creative',
-    // Build
-    'brief', 'concepts', 'render', 'approve', 'launch',
-    'library', 'audiences', 'competitor_ads',
-  ]);
+  const [tab, setTab] = useScreen('paid');
   const navigate = useNavigate();
   const PIPELINE_STEPS = ['brief', 'concepts', 'render', 'approve', 'launch'];
   // Shared Stepper metadata for the Build pipeline (mirrors Shared's Builder).
@@ -531,7 +524,7 @@ export default function ClientAdsPage() {
              into a brief by hand was the whole reason this felt like filing. */
           onUseInBrief={(seedText) => {
             setTab('brief');
-            navigate(`/clients/${id}/ads?tab=brief`, { replace: true, state: { briefSeed: seedText } });
+            navigate(`/clients/${id}/ads/brief`, { replace: true, state: { briefSeed: seedText } });
           }}
         />
       )}

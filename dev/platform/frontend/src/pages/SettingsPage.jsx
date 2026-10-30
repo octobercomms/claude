@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ScreenHeading from '../components/ScreenHeading';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useScreen } from '../hooks/useScreen';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
@@ -451,23 +452,12 @@ export default function SettingsPage() {
   const [testingPsi, setTestingPsi] = useState(false);
   const [psiTestMsg, setPsiTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
-  // Read from the router, not from window.location. This page used to hold
-  // the tab in its own state and write the URL with history.replaceState,
-  // which React Router never sees — so a section-panel row changed the address
-  // bar and the page carried on showing whatever it was showing.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const rawTab = searchParams.get('tab');
-  const tab = rawTab === 'general' ? 'costs'          // legacy deep links
-    : rawTab === 'aimodels' ? 'ai'
-      : (ALL_SUBS.includes(rawTab) ? rawTab : 'costs');
-
-  function switchTab(next) {
-    setSearchParams(prev => {
-      const p = new URLSearchParams(prev);
-      p.set('tab', next);
-      return p;
-    }, { replace: true });
-  }
+  // The screen is the path. This page has now been through three ways of
+  // holding it: component state plus history.replaceState (which React Router
+  // never saw, so a panel row did nothing), then ?tab=, now /settings/<slug>.
+  // ALL_SUBS stays as the page's own list of keys; nav/sections.js mirrors it
+  // and a test compares the two.
+  const [tab, switchTab] = useScreen('settings');
 
   // initialValues captures what came back from GET /platform-keys so the
   // save handler can tell "this field was already empty" from "this field

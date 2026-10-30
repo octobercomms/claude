@@ -5,11 +5,8 @@ import { api } from '../utils/api';
 import ClientTopBar from './ClientTopBar';
 import AnalystPanel from './AnalystPanel';
 import SectionPanel from './SectionPanel';
-import { SECTIONS, tabsOf } from '../nav/sections';
+import { SECTIONS, sectionForPath } from '../nav/sections';
 
-// The Dashboard's own rows, plus the setup screens that live on that route but
-// are reached from the cog and the plug rather than from the panel.
-const DASHBOARD_TABS = [...tabsOf(SECTIONS.dashboard), 'setup_overview', 'details', 'brand', 'connectors'];
 
 export default function Layout() {
   const { logout, user } = useAuth();
@@ -19,10 +16,8 @@ export default function Layout() {
   const location = useLocation();
   const mainRef = useRef(null);
   const panelRef = useRef(null);
-  // Start a new screen at the top. Keyed on the tab as well as the path,
-  // because a panel row changes only `?tab=` — without that you click a row
-  // while scrolled halfway down a long page and arrive halfway down the next
-  // one, which is how the SOSTAC page reads as "jumped".
+  // Start a new screen at the top. The screen is a path segment now, so the
+  // pathname alone identifies it; this used to need the tab watched as well.
   //
   // The panel is the exception: it has its own scrollbar, and in a tall
   // section (Owned's 27 rows, Settings' 26) you scroll it to reach a row and
@@ -36,13 +31,12 @@ export default function Layout() {
   // body grow instead, so the window is the real scroller and the scrollTop
   // line below does nothing on most pages. Both are set rather than guessing
   // which one is live on any given screen.
-  const tabParam = new URLSearchParams(location.search).get('tab') || '';
   useLayoutEffect(() => {
     const panelTop = panelRef.current ? panelRef.current.scrollTop : null;
     if (mainRef.current) mainRef.current.scrollTop = 0;
     window.scrollTo(0, 0);
     if (panelRef.current && panelTop != null) panelRef.current.scrollTop = panelTop;
-  }, [location.pathname, tabParam]);
+  }, [location.pathname]);
   // The internal tools October runs beside the platform — a project tracker and
   // a wiki, on their own subdomains. Fetched rather than hard-coded so the
   // hostnames can change without a deploy, and each item only appears once its
@@ -69,7 +63,10 @@ export default function Layout() {
   // sub-nav correctly stays hidden there.
   const clientId = (location.pathname.match(/^\/clients\/([^/]+)(?:\/|$)/) || [])[1]
     || clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id || clientAudiencesMatch?.params?.id || clientAiVisMatch?.params?.id;
-  const currentTab = new URLSearchParams(location.search).get('tab') || 'measure';
+  // Which section the current path is in, for lighting the nav. Derived, so
+  // adding a screen never means remembering to extend a list here — that list
+  // is how ?tab=plan un-lit the Dashboard item.
+  const currentSection = sectionForPath(location.pathname);
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
 
@@ -185,20 +182,19 @@ export default function Layout() {
                     its own tab strip because they are not touched once done.
                     Then one item per PESO group, each explained inside its own
                     Overview. */}
-                {/* Lit from the panel's own row list plus the setup tabs
-                    reached from the client bar, rather than a second list kept
-                    by hand here — that one had never been told about
-                    ?tab=plan, so opening SOSTAC un-lit the nav item you were
-                    standing in. */}
+                {/* Lit from the path's section, not from a hand-kept list of
+                    tab keys. The brand kit sits on its own route but belongs
+                    to the Dashboard as far as the nav is concerned. */}
                 {!readOnly && (
-                  <NavLink to={`/clients/${clientId}?tab=measure`}
-                    style={subLinkStyle(!!clientMatch && DASHBOARD_TABS.includes(currentTab))}>Dashboard</NavLink>
+                  <NavLink to={`/clients/${clientId}/dashboard`}
+                    style={subLinkStyle(currentSection?.key === 'dashboard'
+                      || location.pathname === `/clients/${clientId}/brand`)}>Dashboard</NavLink>
                 )}
                 {/* Data was the analyst behind a nav item. The analyst is now
                     on every page, so for the agency there is nothing left here.
                     A client login keeps it: it is where their own numbers are. */}
                 {readOnly && (
-                  <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
+                  <NavLink to={`/clients/${clientId}/data`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
                 )}
                 {/* PESO stays the label, with the plain-English name as a chip
                     beside it. Paid/Earned/Shared/Owned is the model we work in
@@ -223,7 +219,7 @@ export default function Layout() {
                 {/* Produce — the media suite: Record (video), Edit and Visualise
                     (images) in one place. Visible to clients (Record view-only;
                     Visualise only with the can_use_visualise grant). */}
-                <NavLink to={`/clients/${clientId}/video`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
+                <NavLink to={`/clients/${clientId}/produce`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
               </div>
             )}
           </li>

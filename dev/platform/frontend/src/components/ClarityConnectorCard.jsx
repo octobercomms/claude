@@ -82,7 +82,7 @@ export default function ClarityConnectorCard({ clientId }) {
                 <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => rename(s)}>Rename</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => remove(s)}>Disconnect</button>
-                  <Link to={`/clients/${clientId}/seo?tab=cro`} className="btn btn-secondary btn-sm">Open CRO scan</Link>
+                  <Link to={`/clients/${clientId}/convert/cro`} className="btn btn-secondary btn-sm">Open CRO scan</Link>
                 </div>
               </div>
             );

@@ -74,7 +74,7 @@ export default function ProposalEditorPage() {
   }
   async function remove() {
     if (!confirm('Delete this proposal?')) return;
-    try { await api.delete(`/proposals/${id}`); navigate('/settings?tab=proposals'); }
+    try { await api.delete(`/proposals/${id}`); navigate('/settings/proposals'); }
     catch (e) { toast(e.message, 'error'); }
   }
 
@@ -102,7 +102,7 @@ export default function ProposalEditorPage() {
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/settings?tab=proposals')} style={{ marginBottom: 'var(--s3)' }}>All proposals</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/settings/proposals')} style={{ marginBottom: 'var(--s3)' }}>All proposals</button>
       <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <div>
           <div className="kicker"><span className="pip" />Proposal · {STATUS[p.status] || p.status}</div>

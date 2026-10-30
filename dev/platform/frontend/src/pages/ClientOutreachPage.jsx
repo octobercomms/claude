@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import StepRail from '../components/shells/StepRail';
@@ -135,10 +135,19 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const toast = useToast();
   const { readOnly } = useAuth();
   const [client, setClient] = useState(null);
-  // When embedded (inside Owned → Email), use a separate ?etab= key so we don't
-  // fight the host page over ?tab=.
-  // Overview deleted Oct 2026. Campaigns is the work, so it is the landing.
-  const [tab, setTab] = useTabParam('campaigns', ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting'], embedded ? 'etab' : 'tab');
+  // Campaigns is the work, so it is the landing.
+  //
+  // Embedded inside Convert → Email, this reads the path's third segment
+  // (/convert/email/campaigns) rather than a second query param. Standalone
+  // it keeps ?tab=, which is the only place that param survives.
+  const OUTREACH_TABS = ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting'];
+  const { sub } = useParams();
+  const navigate = useNavigate();
+  const [qTab, setQTab] = useTabParam('campaigns', OUTREACH_TABS);
+  const tab = embedded ? (OUTREACH_TABS.includes(sub) ? sub : 'campaigns') : qTab;
+  const setTab = embedded
+    ? (next) => navigate(`/clients/${id}/convert/email/${next}`, { replace: true })
+    : setQTab;
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);

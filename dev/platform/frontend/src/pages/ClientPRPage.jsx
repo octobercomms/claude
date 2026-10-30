@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
-import { useTabParam } from '../hooks/useTabParam';
+import { useScreen } from '../hooks/useScreen';
 import PressReleaseEditor from '../components/PressReleaseEditor';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
@@ -104,8 +104,7 @@ export default function ClientPRPage() {
   //
   // 'overview' (a tab deleted in Oct 2026) and anything else unknown resolve
   // to Coverage rather than to a blank page.
-  const [tab, setTab] = useTabParam('coverage',
-    ['coverage', 'journalists', 'press', 'reports']);
+  const [tab, setTab] = useScreen('earned');
   // Which Health / Build accordion sections are open. A real toggle Set (like
   // Owned's) so clicking an open header collapses it — the tab-derived open
   // state used before could never close the one open section.

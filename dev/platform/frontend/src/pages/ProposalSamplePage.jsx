@@ -26,7 +26,7 @@ export default function ProposalSamplePage() {
         <button className="btn" style={{ padding: '6px 16px', fontSize: 13 }} onClick={() => window.print()}>
           print it
         </button>
-        <Link to="/settings?tab=proposals" style={{ color: '#111', marginLeft: 'auto' }}>
+        <Link to="/settings/proposals" style={{ color: '#111', marginLeft: 'auto' }}>
           edit the method →
         </Link>
       </div>

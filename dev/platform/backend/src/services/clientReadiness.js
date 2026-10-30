@@ -38,30 +38,30 @@ async function getReadiness(clientId) {
 
   const checks = [
     item('brief', 'Brief', 'Client brief written', !!(c.briefing_field && c.briefing_field.trim()),
-      'Powers on-brand generation across Social, Ads, SEO and the DM bot.', '?tab=details'),
+      'Powers on-brand generation across Social, Ads, SEO and the DM bot.', '/dashboard/setup'),
     item('domain', 'Brief', 'Website domain set', !!(c.domain && c.domain.trim()),
-      'Needed for SEO lookups and competitor analysis.', '?tab=details'),
+      'Needed for SEO lookups and competitor analysis.', '/dashboard/setup'),
     item('connectors', 'Data', 'A data connector is active', (conn[0]?.n || 0) > 0,
-      'Connect GA4 / Shopify / Meta / Search Console so dashboards and reports pull live data.', '?tab=connectors'),
+      'Connect GA4 / Shopify / Meta / Search Console so dashboards and reports pull live data.', '/dashboard/connectors'),
     item('logo', 'Brand kit', 'Logo uploaded', (byKind.logo?.n || 0) > 0,
-      'Used as overlay/watermark reference in generated creative.', '?tab=brand'),
+      'Used as overlay/watermark reference in generated creative.', '/brand'),
     item('palette', 'Brand kit', 'Colour palette added', (byKind.palette?.n || 0) > 0,
-      'Brand colours drive image generation and video caption styling.', '?tab=brand'),
+      'Brand colours drive image generation and video caption styling.', '/brand'),
     item('font_roles', 'Brand kit', 'Brand fonts have usage roles',
       !!(fontRow && fontRow.fonts_with_role > 0),
       fontRow ? 'Set each font\'s role (headings / body) so Video & creative apply typography deterministically.'
-              : 'Upload the brand fonts and tag their roles for deterministic video/creative typography.', '?tab=brand'),
+              : 'Upload the brand fonts and tag their roles for deterministic video/creative typography.', '/brand'),
     item('competitors', 'Social', 'Social competitors configured', !!(c.social_competitors && c.social_competitors.length),
-      'Feeds the weekly scrape, the AI Social Audit and the GBP/AI-SEO competitor analyses.', '/social?tab=competitors'),
+      'Feeds the weekly scrape, the AI Social Audit and the GBP/AI-SEO competitor analyses.', '/social/compare'),
     item('clarity', 'CRO', 'Microsoft Clarity connected', clarity.length > 0,
-      'Connect Clarity to get the AI CRO/funnel-leak scan.', '/sales-traffic?tab=cro'),
+      'Connect Clarity to get the AI CRO/funnel-leak scan.', '/convert/cro'),
     item('dm_persona', 'DM bot', 'DM bot persona configured', !!(persona.system_prompt || persona.faqs),
-      'Set the persona so the Instagram DM autoresponder speaks for the brand.', '/social?tab=dm_bot'),
+      'Set the persona so the Instagram DM autoresponder speaks for the brand.', '/social/swipe?drawer=dm-bot'),
     item('recipients', 'Reports', 'Weekly report recipients set', hasRecipients,
       hasRecipients
         ? `Weekly reports go to ${weeklyTo.length} recipient${weeklyTo.length === 1 ? '' : 's'}${monthlyTo.length ? `; monthly to ${monthlyTo.length}` : '; no monthly recipients'}.`
         : 'Weekly reports run every Monday by default. With no recipients the scheduler records them as not sent and skips generating them, so this client receives nothing.',
-      '?tab=details'),
+      '/dashboard/setup'),
   ];
 
   const done = checks.filter(c => c.status === 'ok').length;

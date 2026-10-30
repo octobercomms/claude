@@ -1503,11 +1503,21 @@ What this means in practice:
 - **`scope` is `'client'` or `'global'`.** The panel needs it: it used to
   require a client id before rendering anything, so Settings' rows never
   appeared and the panel looked unwired rather than broken.
-- **The panel does not route.** Rows are `?tab=` links on the section's own
-  page, so pages keep owning their state. A page that holds its tab in its own
-  state and writes the URL with `history.replaceState` will not notice a row
-  being clicked — React Router never sees that write. Settings did exactly
-  this; it reads `useSearchParams` now.
+- **Every screen is a path segment**, `/clients/:id/<leaf>/<slug>`, and
+  `/settings/<slug>`. There is no `?tab=` left in the app and no redirect from
+  the old scheme: nothing external links into OMI (the only outward URLs are
+  the `/coverage` and `/watch` token pages), so 21 legacy aliases and 11
+  redirect routes were deleted rather than carried.
+- **A row has two names and they are allowed to differ.** `tab` is what the
+  page compares against; `slug` is what the URL says, defaulting to `tab` with
+  underscores hyphenated. They differ on 23 rows where the key predates the
+  name the section settled on (Paid's Draft is `concepts`, Earned's Track is
+  `coverage`, Shared's Workbench is `produce`). Renaming the keys would mean
+  blind string surgery across six large files — `'ads'` is also a connector
+  type, `'audit'` an API path — for nothing the URL can see.
+- **Pages read `useScreen('<section>')`**, which returns the page's own key.
+  `useTabParam` survives only for a page embedded inside another (Outreach,
+  the analyst chat), which is the one place a query param is still right.
 - **A numbered step is for a real sequence only** (the Produce pipelines). A
   vertical row can print "4" but cannot show you that three are behind it, so
   those keep an in-page `StepRail` as well. Everything else is a directory.

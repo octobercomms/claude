@@ -62,7 +62,7 @@ export default function ReportDelivery() {
               <td><Recipients n={c.monthly.recipients} scheduled={c.monthly.scheduled} /></td>
               <td className="num">
                 {!c.weekly.recipients && (
-                  <Link to={`/clients/${c.id}?tab=details`} className="text-ink underline" style={{ fontWeight: 600 }}>
+                  <Link to={`/clients/${c.id}/dashboard/setup`} className="text-ink underline" style={{ fontWeight: 600 }}>
                     Add recipients →
                   </Link>
                 )}
