@@ -506,7 +506,23 @@ check('the editor is code-split',
   /lazy\(\(\) => import\('\.\/ClientDesignPage'\)\)/.test(tab),
   'Fabric is 300KB; nobody who never opens this tab should download it');
 check('with something on screen while it loads', /Suspense/.test(tab));
-check('and it is agency-only', /readOnly \? \[\] : \[\{ key: 'design'/.test(tab));
+// This used to assert the gate by the shape of the tab strip entry. The
+// strips are gone — every destination is a row in nav/sections.js now — and a
+// hidden nav row was always the weakest of the three gates anyway: it stops
+// the link appearing, not the page rendering. So check the two that hold, and
+// the row for completeness.
+const sections = codeOnly(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'frontend', 'src', 'nav', 'sections.js'), 'utf8'));
+check('the Produce panel hides Design from a client login',
+  /\{ tab: 'design',\s+label: 'Design',\s+when: agencyOnly \}/.test(sections),
+  'the row is offered to a read-only login');
+check('and a client who types ?tab=design is sent away',
+  /readOnly && \([^)]*tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab)
+    || /tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab),
+  'hiding the row is not a gate — the tab is still reachable by URL');
+check('and the editor refuses to render for them regardless',
+  /\{tab === 'design' && !readOnly &&/.test(tab),
+  'the last line of defence is the render itself');
 
 // --- the page's own background ----------------------------------------------
 //
