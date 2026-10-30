@@ -303,7 +303,11 @@ export default function ClientSEOPage() {
   const [newKw, setNewKw] = useState({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: 'United Kingdom', location_code: 2826 });
   const [connectors, setConnectors] = useState([]); // for the Convert › Forms tab
   const [seoMetrics, setSeoMetrics] = useState([]);
-  const [seoMetricEdit, setSeoMetricEdit] = useState({ month: '', moz_da: '', authority_score: '', referring_domains: '', notes: '' });
+  // Month + note only. The figures are fetched, so there is nothing else here
+  // for a person to fill in.
+  const [seoMetricEdit, setSeoMetricEdit] = useState({ month: '', notes: '' });
+  const [refreshingAuthority, setRefreshingAuthority] = useState(false);
+  const [authorityMsg, setAuthorityMsg] = useState(null);
   const [savingMetrics, setSavingMetrics] = useState(false);
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
@@ -338,9 +342,6 @@ export default function ClientSEOPage() {
       if (existing) {
         setSeoMetricEdit({
           month: today,
-          moz_da: existing.moz_da ?? '',
-          authority_score: existing.authority_score ?? '',
-          referring_domains: existing.referring_domains ?? '',
           notes: existing.notes ?? '',
         });
       } else {
@@ -532,9 +533,6 @@ export default function ClientSEOPage() {
     try {
       const updated = await api.put(`/rankings/seo-metrics/${id}`, {
         month: seoMetricEdit.month,
-        moz_da: seoMetricEdit.moz_da !== '' ? Number(seoMetricEdit.moz_da) : null,
-        authority_score: seoMetricEdit.authority_score !== '' ? Number(seoMetricEdit.authority_score) : null,
-        referring_domains: seoMetricEdit.referring_domains !== '' ? Number(seoMetricEdit.referring_domains) : null,
         notes: seoMetricEdit.notes || null,
       });
       setSeoMetrics(prev => {
@@ -542,9 +540,33 @@ export default function ClientSEOPage() {
         if (idx >= 0) { const next = [...prev]; next[idx] = updated; return next; }
         return [updated, ...prev].sort((a, b) => b.month.localeCompare(a.month));
       });
-      toast('SEO metrics saved', 'success');
+      toast('Note saved', 'success');
     } catch (err) { toast(err.message, 'error'); }
     finally { setSavingMetrics(false); }
+  }
+
+  // Fetch now rather than waiting for the 1st. Spends one Moz row, which is
+  // why it is a button: a page that fetched on load would burn the month's
+  // free allowance on whoever opened the tab most.
+  async function handleRefreshAuthority() {
+    setRefreshingAuthority(true); setAuthorityMsg(null);
+    try {
+      const out = await api.post(`/rankings/seo-metrics/${id}/refresh`, {});
+      const got = [];
+      if (out.moz_da != null) got.push(`DA ${out.moz_da}`);
+      if (out.referring_domains != null) got.push(`${Number(out.referring_domains).toLocaleString('en-GB')} referring domains`);
+      const problems = Object.entries(out.errors || {}).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`);
+      setAuthorityMsg({
+        ok: problems.length === 0,
+        // Both halves, always. A partial fetch reported as a success is how
+        // a missing number reaches a client report unnoticed.
+        text: [got.length ? `Fetched ${got.join(' and ')}.` : 'Nothing fetched.', ...problems].join(' '),
+      });
+      const fresh = await api.get(`/rankings/seo-metrics/${id}`);
+      setSeoMetrics(fresh);
+    } catch (err) {
+      setAuthorityMsg({ ok: false, text: err.message });
+    } finally { setRefreshingAuthority(false); }
   }
 
   async function handleDeleteSeoMetric(month) {
@@ -554,7 +576,7 @@ export default function ClientSEOPage() {
       setSeoMetrics(prev => prev.filter(m => (m.month ? m.month.slice(0, 10) : '') !== month));
       // If the edit form was pointed at the deleted row, clear its values.
       setSeoMetricEdit(p => (p.month && p.month.slice(0, 7) === month.slice(0, 7)
-        ? { ...p, moz_da: '', authority_score: '', referring_domains: '', notes: '' }
+        ? { ...p, notes: '' }
         : p));
       toast('Metrics deleted', 'success');
     } catch (err) { toast(err.message, 'error'); }
@@ -1037,55 +1059,88 @@ export default function ClientSEOPage() {
 
     </>
   );
+  // Authority. The numbers are fetched now, not typed.
+  //
+  // Moz DA comes from the Moz API, one row per client per month. Referring
+  // domains comes from the DataForSEO backlinks snapshot that has been
+  // landing every three days since July — it was always there, and the
+  // monthly hand-typed figure was a staler copy of it shown further down the
+  // same page. Semrush Authority Score is retired: it measures what DA
+  // measures, so collecting both was typing two numbers that move together.
+  //
+  // The figures are deliberately not editable. A hand value that the next
+  // monthly fill overwrites is worse than no field, because you would not
+  // know which number the report used. What is still a person's to write is
+  // the note.
+  const sourceLabel = (src) => (
+    src === 'moz' ? 'Moz API'
+      : src === 'dataforseo' ? 'DataForSEO'
+      : src === 'manual' ? 'typed'
+      : null
+  );
+
   const renderAuthorityBody = () => (
       <div className="card" style={{ marginTop: 0 }}>
-        <div className="caption">Manual SEO Metrics</div>
+        <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
+          <div className="caption">Authority metrics</div>
+          <button className="btn btn-secondary btn-sm" onClick={handleRefreshAuthority} disabled={refreshingAuthority}>
+            {refreshingAuthority ? 'Fetching…' : 'Fetch this month'}
+          </button>
+        </div>
 
-        {/* Metrics history table */}
-        <div style={{ overflowX: 'auto', marginTop: 'var(--s3)' }}>
+        <p className="body-sm text-muted" style={{ lineHeight: 1.6, margin: 'var(--s3) 0 0', maxWidth: 720 }}>
+          Filled automatically on the 1st of each month. <strong>Domain authority</strong> from
+          the Moz API, <strong>referring domains</strong> from the DataForSEO backlinks
+          snapshot. Authority Score is no longer collected: it measured the
+          same thing as DA from a different vendor. Older rows marked
+          <em> typed</em> were entered by hand before this.
+        </p>
+
+        {authorityMsg && (
+          <div className={`callout ${authorityMsg.ok ? '' : 'callout-danger'}`} style={{ fontSize: 'var(--fs-caption)', marginTop: 'var(--s3)' }}>
+            {authorityMsg.text}
+          </div>
+        )}
+
+        <div style={{ overflowX: 'auto', marginTop: 'var(--s4)' }}>
           <table className="table">
             <thead>
               <tr>
-                {['Month', 'Moz DA', 'Authority Score', 'Referring Domains', 'Notes', 'Actions'].map(h => (
-                  <th key={h} >{h}</th>
+                {['Month', 'Domain authority', 'Referring domains', 'Authority score', 'Notes', ''].map(h => (
+                  <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {seoMetrics.slice(0, 6).length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No metrics yet — enter values below</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>
+                  Nothing yet. These fill on the 1st, or press <strong>Fetch this month</strong>.
+                </td></tr>
               ) : seoMetrics.slice(0, 6).map((m, i) => {
                 const monthLabel = m.month
                   ? new Date(m.month).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })
                   : '—';
+                const daSrc = sourceLabel(m.moz_da_source);
+                const rdSrc = sourceLabel(m.referring_domains_source);
                 return (
                   <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                    <td >{monthLabel}</td>
-                    <td >{m.moz_da ?? '—'}</td>
-                    <td >{m.authority_score ?? '—'}</td>
-                    <td >{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
-                    <td style={{ maxWidth: 200, color: 'var(--text-muted)' }}>{m.notes || '—'}</td>
-                    <td >
-                      <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => {
-                            const iso = m.month ? m.month.slice(0, 10) : '';
-                            setSeoMetricEdit({
-                              month: iso,
-                              moz_da: m.moz_da ?? '',
-                              authority_score: m.authority_score ?? '',
-                              referring_domains: m.referring_domains ?? '',
-                              notes: m.notes ?? '',
-                            });
-                          }}
-                        >Edit</button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          style={{ color: 'var(--negative, #b3261e)' }}
-                          onClick={() => handleDeleteSeoMetric(m.month ? m.month.slice(0, 10) : '')}
-                        >Delete</button>
-                      </div>
+                    <td>{monthLabel}</td>
+                    <td>
+                      {m.moz_da ?? '—'}
+                      {daSrc && <span className="body-xs text-subtle" style={{ marginLeft: 'var(--s2)' }}>{daSrc}</span>}
+                    </td>
+                    <td>
+                      {m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}
+                      {rdSrc && <span className="body-xs text-subtle" style={{ marginLeft: 'var(--s2)' }}>{rdSrc}</span>}
+                    </td>
+                    {/* Retired, but the history stays readable. */}
+                    <td style={{ color: 'var(--text-subtle)' }}>{m.authority_score ?? '—'}</td>
+                    <td style={{ maxWidth: 220, color: 'var(--text-muted)' }}>{m.notes || '—'}</td>
+                    <td>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setSeoMetricEdit({ month: m.month ? m.month.slice(0, 10) : '', notes: m.notes ?? '' })}
+                      >Note</button>
                     </td>
                   </tr>
                 );
@@ -1094,30 +1149,26 @@ export default function ClientSEOPage() {
           </table>
         </div>
 
-        {/* Inline edit / entry form */}
-        <form onSubmit={handleSaveSeoMetrics} style={{ marginTop: 'var(--s5)', display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>
+        <form onSubmit={handleSaveSeoMetrics} style={{ marginTop: 'var(--s5)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+          <div className="caption">
             {seoMetricEdit.month
-              ? `Editing: ${new Date(seoMetricEdit.month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`
-              : 'Enter / update metrics'}
+              ? `Note for ${new Date(seoMetricEdit.month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`
+              : 'Add a note'}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr', gap: 'var(--s3)' }}>
-            {[
-              { label: 'Month', el: <input type="date" className="input" value={seoMetricEdit.month} onChange={e => setSeoMetricEdit(p => ({ ...p, month: e.target.value }))} required /> },
-              { label: 'Moz DA', el: <input type="number" min="0" max="100" className="input" value={seoMetricEdit.moz_da} onChange={e => setSeoMetricEdit(p => ({ ...p, moz_da: e.target.value }))} placeholder="0–100" /> },
-              { label: 'Authority Score', el: <input type="number" min="0" max="100" className="input" value={seoMetricEdit.authority_score} onChange={e => setSeoMetricEdit(p => ({ ...p, authority_score: e.target.value }))} placeholder="0–100" /> },
-              { label: 'Referring Domains', el: <input type="number" min="0" className="input" value={seoMetricEdit.referring_domains} onChange={e => setSeoMetricEdit(p => ({ ...p, referring_domains: e.target.value }))} placeholder="0" /> },
-              { label: 'Notes', el: <input className="input" value={seoMetricEdit.notes} onChange={e => setSeoMetricEdit(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes…" /> },
-            ].map(({ label, el }) => (
-              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-                <label className="field-label">{label}</label>
-                {el}
-              </div>
-            ))}
-          </div>
-          <div>
+          <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr auto', gap: 'var(--s3)', alignItems: 'end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+              <label className="field-label">Month</label>
+              <input type="date" className="input" value={seoMetricEdit.month}
+                onChange={e => setSeoMetricEdit(p => ({ ...p, month: e.target.value }))} required />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+              <label className="field-label">Note</label>
+              <input className="input" value={seoMetricEdit.notes}
+                onChange={e => setSeoMetricEdit(p => ({ ...p, notes: e.target.value }))}
+                placeholder="What happened this month that explains the numbers…" />
+            </div>
             <button type="submit" className="btn btn-primary" disabled={savingMetrics}>
-              {savingMetrics ? 'Saving…' : 'Save Metrics'}
+              {savingMetrics ? 'Saving…' : 'Save note'}
             </button>
           </div>
         </form>

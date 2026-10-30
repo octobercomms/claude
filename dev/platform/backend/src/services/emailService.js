@@ -674,30 +674,6 @@ async function sendVideoReady({ to, clientName, projectName, score, studioUrl, d
   });
 }
 
-async function sendReportReminderEmail(client) {
-  if (!process.env.ALERT_EMAIL) return;
-
-  const schedule = client.report_schedule || {};
-  const monthlyDay = schedule.monthly_day || 1;
-  const now = new Date();
-  // Next report date: if today is before monthly_day this month, use this month; else next month
-  let reportDate = new Date(now.getFullYear(), now.getMonth(), monthlyDay);
-  if (reportDate <= now) {
-    reportDate = new Date(now.getFullYear(), now.getMonth() + 1, monthlyDay);
-  }
-  const dateStr = reportDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  const subject = `Reminder: ${client.name} monthly report due in 48 hours`;
-  const text = `The monthly report for ${client.name} is scheduled to run on ${dateStr}.\n\nPlease log in to update any manual SEO metrics before the report runs: https://platform.octobercomms.com/clients/${client.id}/seo\n\nOctober Marketing Intelligence`;
-
-  return getTransporter().sendMail({
-    from: getSenderAddress(),
-    to: process.env.ALERT_EMAIL,
-    subject,
-    text,
-  });
-}
-
 // Alert #1 — someone ran a public Growth Snapshot (URL submitted, no email yet).
 // A genuinely useful lead even without the email: worth looking them up on
 // Instagram and following. Goes to the October inbox, not a client.
@@ -1277,4 +1253,4 @@ async function sendPipelineAlert({ subject, headline, lines = [], suggestion, li
 }
 
 module.exports = {
-  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert };
+  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert };

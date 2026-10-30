@@ -113,6 +113,8 @@ jobs:
         run: node tests/strategist-fallback.test.js
       - name: Guard — a worked example is made once, and a failure is never called success
         run: node tests/worked-examples.test.js
+      - name: Guard — Moz is asked about the right domain, and the sweep clears the rate limit
+        run: node tests/seo-authority.test.js
       - name: Guard — "needs attention" only counts what is actually slipping
         run: node tests/strategist-attention.test.js
       - name: Guard — the Monday email sends the briefing the platform shows

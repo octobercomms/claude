@@ -1208,7 +1208,22 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .ad-acct-name {
   display: flex; align-items: center; gap: var(--s2);
   font-size: var(--fs-body); font-weight: 700; color: var(--text-muted);
+  background: none; border: none; padding: 0; font-family: inherit;
+  text-align: left;
 }
+.ad-acct-name.is-toggle { cursor: pointer; }
+.ad-acct-name.is-toggle:hover { color: var(--text); }
+.ad-acct-name:disabled { cursor: default; }
+/* The +/- itself: a fixed box so the labels line up down the page whether a
+   section can expand or not. */
+.ad-acct-toggle {
+  flex: 0 0 auto; width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--card-border); border-radius: var(--r-sm);
+  font-size: var(--fs-body); font-weight: 700; line-height: 1;
+  color: var(--text); background: var(--surface);
+}
+.ad-acct-name.is-toggle:hover .ad-acct-toggle { border-color: var(--text); }
 .ad-acct-cur { font-size: var(--fs-caption); letter-spacing: 0.04em; }
 .ad-acct-detail { margin-top: var(--s4); }
 .ads-platform { margin-top: var(--s7); }

@@ -25,7 +25,18 @@ export default function AdAccountSection({ label, currency, stats, note, default
     <section className="ad-acct">
       {(label || collapsible) && (
         <div className="ad-acct-head">
-          <div className="ad-acct-name">
+          {/* The toggle sits before the label rather than as a button on the
+              far right, which put the control a foot away from the thing it
+              controls. Same +/- as the playbook rows in the drawer, so the
+              two read as one idea. The whole header is the hit target. */}
+          <button
+            type="button"
+            className={`ad-acct-name${collapsible ? ' is-toggle' : ''}`}
+            onClick={collapsible ? () => setOpen(o => !o) : undefined}
+            aria-expanded={collapsible ? open : undefined}
+            disabled={!collapsible}
+          >
+            {collapsible && <span className="ad-acct-toggle" aria-hidden="true">{open ? '−' : '+'}</span>}
             {label && <span>{label}</span>}
             {/* The account's own billing currency, beside its own name.
                 A section headed "US" showing £ reads as a bug; it is not.
@@ -35,13 +46,7 @@ export default function AdAccountSection({ label, currency, stats, note, default
                 here is the difference between a wrong-looking number and an
                 explained one. */}
             {currency && <span className="chip chip-neutral ad-acct-cur">{currency}</span>}
-          </div>
-          {collapsible && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(o => !o)}
-              aria-expanded={open}>
-              {open ? 'Hide campaigns' : 'Show campaigns'}
-            </button>
-          )}
+          </button>
         </div>
       )}
 
