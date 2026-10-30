@@ -50,13 +50,18 @@ function AttrStat({ value, label, big, hint }) {
   );
 }
 
-export default function PressCampaignDetail({ clientId, campaignId, onExit, autoBuild = false }) {
+export default function PressCampaignDetail({ clientId, campaignId, onExit, autoBuild = false,
+  view: viewProp = 'setup', onView = () => {} }) {
   const toast = useToast();
   const { readOnly, user } = useAuth();
   const [release, setRelease] = useState(null);
   const [attribution, setAttribution] = useState(null);
   const [loadError, setLoadError] = useState(null);
-  const [view, setView] = useState('setup'); // setup | results
+  // `view` comes from the URL (?view=results), so "Results & interest" is a
+  // link you can send someone rather than a place you have to be walked to.
+  // ClientPRPage owns the parameter; this component just reads and sets it.
+  const view = viewProp;
+  const setView = onView;
   const [step, setStep] = useState('who');
 
   // Audience — built from tags (each tag = a segment of the media DB).

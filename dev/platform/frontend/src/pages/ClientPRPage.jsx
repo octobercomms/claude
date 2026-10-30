@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useScreen } from '../hooks/useScreen';
-import { useOpenOnce } from '../hooks/useOpenRecord';
+import { useOpenOnce, useOpenState, useViewParam } from '../hooks/useOpenRecord';
 import PressReleaseEditor from '../components/PressReleaseEditor';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
@@ -129,7 +129,18 @@ export default function ClientPRPage() {
   // send/preview/autopilot/results view is the PressCampaignDetail component.
   const [pressReleases, setPressReleases] = useState([]);
   const [pressContacts, setPressContacts] = useState([]);
-  const [openPressCampaign, setOpenPressCampaign] = useState(() => lsGet('campaign') || null); // campaign_id
+  // Which campaign is open, and which half of it, both live in the URL.
+  //
+  // This was component state mirrored into localStorage. Two things were
+  // wrong with that, and this file's own comment on the tab (just above)
+  // already describes having fixed the same thing once: a campaign you were
+  // looking at had no address, so it could not be sent to anyone or
+  // bookmarked, and a refresh restored it from a different source than the
+  // address bar. The id is not an instruction here the way it is for a modal
+  // — opening a campaign replaces the screen — so it stays in the URL for as
+  // long as the campaign is open, and goes when you leave it.
+  const [openPressCampaign, setOpenPressCampaign] = useOpenState();
+  const [campaignView, setCampaignView] = useViewParam(['setup', 'results'], 'setup');
   const [pressAutoBuild, setPressAutoBuild] = useState(false); // auto-build audience on land (fresh campaigns only)
   const [showPressWizard, setShowPressWizard] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -444,9 +455,8 @@ export default function ClientPRPage() {
   // Each is held back until its own tab is showing: this page renders four
   // screens and only one of them owns the parameter at a time.
   useOpenOnce(openRelease, tab === 'press');
-  useOpenOnce(
-    useCallback((cid) => setOpenPressCampaign(cid), []),
-    tab === 'journalists');
+  // No useOpenOnce for campaigns: the id in the URL IS the open campaign, so
+  // a search result lands on it with nothing left to do.
   useOpenOnce(
     useCallback((jid) => setProfileTarget({ type: 'journalist', id: jid }), []),
     tab === 'contacts');
@@ -488,12 +498,13 @@ export default function ClientPRPage() {
   useEffect(() => { loadData(); }, [id]);
   // Persist the active tab + open campaign so a refresh restores your place.
   useEffect(() => { try { localStorage.setItem(`omi.earned.${id}.tab`, tab); } catch { /* private mode */ } }, [tab, id]);
+  // The open campaign used to be mirrored here. The URL holds it now, so a
+  // refresh restores it from the address bar — one source, nothing to drift.
+  // Clear the old key so a stale value from before this change cannot be read
+  // by anything that still looks for it.
   useEffect(() => {
-    try {
-      if (openPressCampaign) localStorage.setItem(`omi.earned.${id}.campaign`, openPressCampaign);
-      else localStorage.removeItem(`omi.earned.${id}.campaign`);
-    } catch { /* private mode */ }
-  }, [openPressCampaign, id]);
+    try { localStorage.removeItem(`omi.earned.${id}.campaign`); } catch { /* private mode */ }
+  }, [id]);
   // Live sending: while any campaign is actively draining, re-poll the list
   // every 15s so the progress bar, counts and ETA tick up on their own. Stops
   // as soon as nothing is going out (keyed on that boolean so it doesn't reset
@@ -721,6 +732,7 @@ export default function ClientPRPage() {
     if (openPressCampaign) {
       return (
         <PressCampaignDetail clientId={id} campaignId={openPressCampaign} contacts={pressContacts} autoBuild={pressAutoBuild}
+          view={campaignView} onView={setCampaignView}
           onExit={() => { setOpenPressCampaign(null); setPressAutoBuild(false); reloadPress(); }} />
       );
     }
