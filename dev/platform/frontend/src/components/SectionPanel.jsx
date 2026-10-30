@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, forwardRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sectionForPath, visibleGroups } from '../nav/sections';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 //
 // Contents live in nav/sections.js, not here, so there is one list to read and
 // one list for tests/sectionPanel.test.mjs to check against the pages.
-export default function SectionPanel({ navCollapsed, onToggleNav }) {
+function SectionPanel({ navCollapsed, onToggleNav }, ref) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -95,7 +95,7 @@ export default function SectionPanel({ navCollapsed, onToggleNav }) {
   };
 
   return (
-    <aside className="section-panel" aria-label={`${section.title} sections`}>
+    <aside ref={ref} className="section-panel" aria-label={`${section.title} sections`}>
       <div className="sp-head">
         <span className="sp-title">{section.title}</span>
         <button
@@ -130,3 +130,8 @@ export default function SectionPanel({ navCollapsed, onToggleNav }) {
     </aside>
   );
 }
+
+// Forwarded so Layout can hold this element's scroll position across a
+// navigation: it is the one thing on screen that must NOT jump to the top
+// when the page does.
+export default forwardRef(SectionPanel);

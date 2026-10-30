@@ -24,6 +24,7 @@ import { SECTIONS, tabsOf } from '../src/nav/sections.js';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const page = (f) => readFileSync(path.join(SRC, 'pages', f), 'utf8');
+const readLib = (rel) => readFileSync(path.join(SRC, rel), 'utf8');
 
 // Pull the allow-list out of the page's own useTabParam call. Brace/bracket
 // counting rather than a regex over the whole call: the lists run to dozens of
@@ -47,8 +48,13 @@ function whitelistOf(src) {
 // for one of these would be a second door to a screen that already has one.
 const LEGACY = {
   paid:   ['health', 'performance', 'playbook', 'resize', 'pipeline', 'creative'],
-  shared: ['loop', 'learn', 'dm_bot', 'video', 'produce'],
-  owned:  ['aio', 'fanout', 'gaps', 'perf_hub', 'optimise', 'convert', 'cro', 'forms', 'email'],
+  // 'reels' is the avatar-reel overlay, not a step, and 'publish' lands on the
+  // same factory step as 'plans' — each had a row that opened a screen other
+  // than the one it named, which reads as the row being broken.
+  shared: ['loop', 'learn', 'dm_bot', 'video', 'reels', 'publish'],
+  // 'perf_insights' renders the same panel as 'health', so a row for it was a
+  // second door onto the Dashboard.
+  owned:  ['aio', 'fanout', 'gaps', 'perf_hub', 'perf_insights', 'optimise', 'convert', 'cro', 'forms', 'email'],
   produce: [],
   earned: [],
 };
@@ -140,6 +146,48 @@ test('earned: the panel rows match the page, which keeps its tabs elsewhere', ()
   for (const tab of tabsOf(SECTIONS.earned)) {
     assert.ok(src.includes(`'${tab}'`), `ClientPRPage.jsx never mentions the tab '${tab}'`);
   }
+});
+
+// A legacy alias earns its place by landing somewhere, not by being listed. An
+// alias nobody redirects is a dead link that this file's own allow-list is
+// hiding — which is the failure mode of allow-lists.
+test('every legacy alias actually resolves somewhere', () => {
+  const RESOLVES = {
+    paid:   page('ClientAdsPage.jsx') + readLib('utils/paidTabs.js'),
+    shared: page('ClientSocialPage.jsx'),
+    owned:  page('ClientSEOPage.jsx'),
+    produce: page('ClientVideoTab.jsx'),
+    earned: page('ClientPRPage.jsx'),
+  };
+  for (const [key, aliases] of Object.entries(LEGACY)) {
+    for (const alias of aliases) {
+      assert.ok(RESOLVES[key].includes(`'${alias}'`),
+        `${key}: '${alias}' is allow-listed as a legacy alias but ${key}'s page never mentions it, so the link goes nowhere`);
+    }
+  }
+});
+
+// Every section's page says which screen you are on. The strips used to do
+// that; the panel says it 170px away in a list of up to 27. A page that draws
+// its own hero instead of using PageShell has to opt in by hand, which is
+// exactly the kind of thing that gets forgotten on the next page someone adds.
+test('every page behind a section panel prints the screen name', () => {
+  const HEROES = [
+    // PageShell renders ScreenHeading for everything that uses it.
+    ['ClientAdsPage.jsx', 'PageShell'], ['ClientPRPage.jsx', 'PageShell'],
+    ['ClientSocialPage.jsx', 'PageShell'], ['ClientSEOPage.jsx', 'PageShell'],
+    ['ClientConvertPage.jsx', 'PageShell'],
+    // These three draw their own <header className="hero">.
+    ['ClientDetailPage.jsx', 'ScreenHeading'], ['SettingsPage.jsx', 'ScreenHeading'],
+    ['ClientVideoTab.jsx', 'ScreenHeading'],
+  ];
+  const missing = HEROES
+    .filter(([file, needle]) => !page(file).includes(needle))
+    .map(([file, needle]) => `${file} renders neither ${needle} nor anything that would`);
+  assert.deepEqual(missing, []);
+
+  assert.ok(readLib('components/shells/PageShell.jsx').includes('ScreenHeading'),
+    'PageShell stopped rendering the screen name, so five pages lost it at once');
 });
 
 test('no row is listed twice across a section, which would mean two doors to one screen', () => {

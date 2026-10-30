@@ -2452,3 +2452,13 @@ a:hover > .card-stat,
   /* The panel takes 44px under the 56px top bar, so the page starts lower. */
   .app-shell:has(.section-panel) .app-main { padding-top: 116px; }
 }
+
+/* The screen's own name under the section title. Quieter than the display
+   heading above it, because it is answering "which page is this" rather than
+   "which section am I in" — the panel row is the same words, 170px away. */
+.ds-shell__screen {
+  margin-top: var(--s2);
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}

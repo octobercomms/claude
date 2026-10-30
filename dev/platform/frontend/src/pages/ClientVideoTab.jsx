@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
+import ScreenHeading from '../components/ScreenHeading';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import RecordingsPage from './RecordingsPage';
@@ -46,7 +47,12 @@ export default function ClientVideoTab() {
   return (
     <div>
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Produce</span></div>
-      <header className="hero"><div><h1 className="display mt-2">Produce</h1></div></header>
+      <header className="hero">
+        <div>
+          <h1 className="display mt-2">Produce</h1>
+          <ScreenHeading title="Produce" />
+        </div>
+      </header>
       {tab === 'reel' && !readOnly && (
         <MakeAReel clientId={id} clientName={client?.name || ''} />
       )}

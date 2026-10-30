@@ -1,10 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 import ClientTopBar from './ClientTopBar';
 import AnalystPanel from './AnalystPanel';
 import SectionPanel from './SectionPanel';
+import { SECTIONS, tabsOf } from '../nav/sections';
+
+// The Dashboard's own rows, plus the setup screens that live on that route but
+// are reached from the cog and the plug rather than from the panel.
+const DASHBOARD_TABS = [...tabsOf(SECTIONS.dashboard), 'setup_overview', 'details', 'brand', 'connectors'];
 
 export default function Layout() {
   const { logout, user } = useAuth();
@@ -13,13 +18,31 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef(null);
-  // Reset the scroll position to the top whenever the route (path) changes, so
-  // landing on a new page starts at the top — not wherever you were before.
-  // Keyed on pathname only, so switching tabs (?tab=…) leaves scroll alone.
-  useEffect(() => {
+  const panelRef = useRef(null);
+  // Start a new screen at the top. Keyed on the tab as well as the path,
+  // because a panel row changes only `?tab=` — without that you click a row
+  // while scrolled halfway down a long page and arrive halfway down the next
+  // one, which is how the SOSTAC page reads as "jumped".
+  //
+  // The panel is the exception: it has its own scrollbar, and in a tall
+  // section (Owned's 27 rows, Settings' 26) you scroll it to reach a row and
+  // then watch it snap back the moment you click. Daniel: "clicking an item
+  // low down shouldn't make the second panel jump to top — only when i
+  // scroll." So its position is captured before the page moves and put back
+  // after, in a layout effect, so it is restored before the browser paints
+  // and there is no visible jump to correct.
+  //
+  // .app-main carries `overflow: auto`, but the shell's min-height lets the
+  // body grow instead, so the window is the real scroller and the scrollTop
+  // line below does nothing on most pages. Both are set rather than guessing
+  // which one is live on any given screen.
+  const tabParam = new URLSearchParams(location.search).get('tab') || '';
+  useLayoutEffect(() => {
+    const panelTop = panelRef.current ? panelRef.current.scrollTop : null;
     if (mainRef.current) mainRef.current.scrollTop = 0;
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+    if (panelRef.current && panelTop != null) panelRef.current.scrollTop = panelTop;
+  }, [location.pathname, tabParam]);
   // The internal tools October runs beside the platform — a project tracker and
   // a wiki, on their own subdomains. Fetched rather than hard-coded so the
   // hostnames can change without a deploy, and each item only appears once its
@@ -162,9 +185,14 @@ export default function Layout() {
                     its own tab strip because they are not touched once done.
                     Then one item per PESO group, each explained inside its own
                     Overview. */}
+                {/* Lit from the panel's own row list plus the setup tabs
+                    reached from the client bar, rather than a second list kept
+                    by hand here — that one had never been told about
+                    ?tab=plan, so opening SOSTAC un-lit the nav item you were
+                    standing in. */}
                 {!readOnly && (
                   <NavLink to={`/clients/${clientId}?tab=measure`}
-                    style={subLinkStyle(!!clientMatch && ['measure', 'reports', 'strategy', 'setup_overview', 'details', 'brand', 'connectors'].includes(currentTab))}>Dashboard</NavLink>
+                    style={subLinkStyle(!!clientMatch && DASHBOARD_TABS.includes(currentTab))}>Dashboard</NavLink>
                 )}
                 {/* Data was the analyst behind a nav item. The analyst is now
                     on every page, so for the agency there is nothing left here.
@@ -255,7 +283,7 @@ export default function Layout() {
       {/* The section's own directory, beside the nav. Renders itself to null
           outside a client section, so /clients, /settings and /guide keep the
           single column they have always had. */}
-      <SectionPanel navCollapsed={navCollapsed} onToggleNav={toggleNav} />
+      <SectionPanel ref={panelRef} navCollapsed={navCollapsed} onToggleNav={toggleNav} />
       <main className="app-main" ref={mainRef}>
         {readOnly && (
           <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
