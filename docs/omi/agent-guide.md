@@ -927,9 +927,12 @@ returned no metrics", which sends whoever is debugging it to the wrong place.
 moz.com is blocked by the session network policy, so none of this could be
 read from Moz's own docs. It was pieced together from a working client and
 cross-checked against two independent write-ups, then pinned by tests that
-assert the header, the method name, the scope and the normalised query. The
-Settings **Test** button is the real proof: it spends one row and reads a DA
-back.
+assert the header, the method name, the scope and the normalised query.
+
+**Confirmed working on the live platform on 30 Oct 2026**, with a real token
+through the Settings → Connections → Moz **Test** button, which spends one row
+and reads a DA back. The shape above is right; treat it as settled rather than
+re-deriving it.
 
 **Semrush Authority Score is retired, not dropped.** It measures what DA
 measures from another vendor, so collecting both was typing two numbers that
