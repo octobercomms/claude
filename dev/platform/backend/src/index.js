@@ -223,6 +223,9 @@ app.use('/api/pr-portal', require('./routes/prPortal')); // public, token-gated
 app.use('/api/pr-addon', require('./routes/prAddon')); // Gmail add-on, X-OMI-Key auth
 app.use('/api/sales-traffic', require('./routes/salesTraffic'));
 app.use('/api/recordings', require('./routes/recordings'));
+// One box over every record the caller can see. Scoping lives in
+// services/globalSearch.js; see the note there on why it is all in one place.
+app.use('/api/search', require('./routes/search'));
 app.use('/api/transcripts', require('./routes/transcripts'));
 app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));

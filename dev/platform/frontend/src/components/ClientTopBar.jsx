@@ -7,9 +7,11 @@
 // of the connectors matters everywhere, because every number on every page is
 // downstream of them.
 //
-// So: two icons that follow you around. The cog opens Setup. The plug shows
+// So: icons that follow you around. The cog opens Setup. The plug shows
 // connector health as a colour and opens Connectors. Red means something is
-// broken and the data you are reading is stale or missing.
+// broken and the data you are reading is stale or missing. The magnifier opens
+// the search palette, which Layout owns so ⌘K also works where this bar does
+// not render.
 //
 // Agency-only. A client login has no setup to do and no connectors to fix.
 
@@ -17,6 +19,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils/api';
 import ClientSwitcher from './ClientSwitcher';
+import { SearchIcon } from './GlobalSearch';
 
 // What each health state means, and how loudly to say it.
 const HEALTH = {
@@ -27,7 +30,7 @@ const HEALTH = {
   ok: { tone: 'positive', label: 'all connectors live' },
 };
 
-export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst }) {
+export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst, onOpenSearch }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [health, setHealth] = useState(null);
@@ -60,6 +63,21 @@ export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst })
   // to stay reachable to give you a way out.
   return (
     <div className="client-topbar">
+      {/* Search leads the row. It is the only one of the four that answers
+          "where is that thing", which is the question you have before you have
+          a page in mind — the other three act on the page you are already on.
+          ⌘K does the same from anywhere; the icon is here because an unlabelled
+          shortcut is a feature only the person who built it knows about. */}
+      <button
+        type="button"
+        className="client-topbar-icon"
+        onClick={onOpenSearch}
+        title="Search (⌘K)"
+        aria-label="Search"
+      >
+        <SearchIcon />
+      </button>
+
       <button
         type="button"
         className={`client-topbar-icon${onSetup ? ' active' : ''}`}

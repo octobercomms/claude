@@ -127,12 +127,15 @@ export const SECTIONS = {
       // matchers both answer "who do I send this to" so they share a screen;
       // the contact book and the thank-yous owed are one record of the same
       // relationships, so they do too.
+      // Ordered the way the work runs, which Daniel described as: build the
+      // list, write the release, work on it, and only then pitch it. Campaigns
+      // first was alphabetical-by-accident and put the last step at the top.
       { heading: 'Build', rows: [
-        { tab: 'journalists', label: 'Campaigns', slug: 'campaigns' },
         { tab: 'contacts',    label: 'Contacts' },
         { tab: 'find',        label: 'Find' },
-        { tab: 'match',       label: 'Match' },
         { tab: 'press',       label: 'Releases', slug: 'releases' },
+        { tab: 'journalists', label: 'Campaigns', slug: 'campaigns' },
+        { tab: 'match',       label: 'Match' },
       ] },
       { heading: 'Measure', rows: [
         { tab: 'reports', label: 'Reports' },
@@ -395,4 +398,36 @@ export function labelForTab(section, tab) {
 // second list that drifts.
 export function tabsOf(section) {
   return section.groups.flatMap(g => g.rows.map(r => r.tab));
+}
+
+// Every screen in the product, flattened, for the search box.
+//
+// The search endpoint finds records; screens are matched here in the browser
+// instead, because this file already knows all of them and the alternative is
+// a second list on the server that drifts the first time a screen is renamed.
+// Each entry carries its own section, so the caller builds the path the one
+// way the panel builds it — `section.base(clientId)` plus the slug — rather
+// than reassembling `clients/<id>/<leaf>/<slug>` by hand.
+//
+// `ctx` gates the same rows the panel gates, so a read-only login cannot find
+// a screen it is not shown.
+export function allScreens(ctx = {}) {
+  const out = [];
+  for (const section of Object.values(SECTIONS)) {
+    for (const group of visibleGroups(section, ctx)) {
+      for (const row of group.rows) {
+        out.push({
+          section,
+          sectionKey: section.key,
+          sectionTitle: section.title,
+          scope: section.scope,
+          heading: group.heading || null,
+          label: row.label,
+          tab: row.tab,
+          slug: slugOf(row),
+        });
+      }
+    }
+  }
+  return out;
 }

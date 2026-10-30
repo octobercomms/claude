@@ -24,6 +24,14 @@
 // worse than no preflight, so each check is shown to catch the thing it is
 // there for.
 
+// Load the backend's own .env before anything reads process.env.
+//
+// Only src/index.js did this, so a script run straight from the shell saw none
+// of it: the preflight reported "Not configured yet" with all four R2 values
+// correctly in place, and the scripts that touch Postgres tried to connect to
+// localhost:5432 with no credentials. The path is resolved from __dirname
+// rather than the working directory so it works from anywhere on the box.
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

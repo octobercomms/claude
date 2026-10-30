@@ -26,6 +26,14 @@
 // object nothing references is not worth paying to keep and a directory listing
 // would quietly carry over every orphan ever made.
 
+// Load the backend's own .env before anything reads process.env.
+//
+// Only src/index.js did this, so a script run straight from the shell saw none
+// of it: the preflight reported "Not configured yet" with all four R2 values
+// correctly in place, and the scripts that touch Postgres tried to connect to
+// localhost:5432 with no credentials. The path is resolved from __dirname
+// rather than the working directory so it works from anywhere on the box.
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const fmt = (b) => (b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : (b / 1e6).toFixed(1) + ' MB');
 
 // Every column in the schema that holds a media-store key. One key can appear

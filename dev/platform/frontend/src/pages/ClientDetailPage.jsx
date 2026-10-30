@@ -636,10 +636,10 @@ export default function ClientDetailPage() {
             <div className="card">
               <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Weekly</h2>
 
+              {/* Schedule · Template · Recipients, across the card. */}
               <div className="report-setup">
               <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
-              <div className="grid grid-2">
                 <Field label="Day">
                   <select className="input"
                     value={client.report_schedule?.weekly_day || 'monday'}
@@ -656,27 +656,26 @@ export default function ClientDetailPage() {
                 </Field>
               </div>
 
-              <Field label="Recipients (one per line)">
-                <textarea className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
-                  value={(client.report_recipients?.weekly || []).join('\n')}
-                  onChange={e => setClient(p => ({ ...p, report_recipients: { ...p.report_recipients, weekly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } }))} />
-              </Field>
-
-              </div>
-
               <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
                 <div className="caption" style={{ margin: 0 }}>Template</div>
                 <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm">✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
               </div>
               {(templateSummary.weekly?.sections || []).length ? (
-                <ol className="report-template-list" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)', margin: 0 }}>
+                <ol className={`report-template-list${(templateSummary.weekly.sections.length > 8 ? ' report-template-list--long' : '')}`} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)' }}>
                   {templateSummary.weekly.sections.map(s => (
                     <li key={s.id} style={{ marginBottom: 'var(--s1)' }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}>{s.type}</span></li>
                   ))}
                 </ol>
               ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
+              </div>
 
+              <div>
+              <Field label="Recipients (one per line)">
+                <textarea className="input" style={{ minHeight: 150, fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
+                  value={(client.report_recipients?.weekly || []).join('\n')}
+                  onChange={e => setClient(p => ({ ...p, report_recipients: { ...p.report_recipients, weekly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } }))} />
+              </Field>
               </div>
               </div>
 
@@ -696,6 +695,7 @@ export default function ClientDetailPage() {
             <div className="card">
               <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Monthly</h2>
 
+              {/* Schedule · Template · Recipients, across the card. */}
               <div className="report-setup">
               <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
@@ -704,23 +704,6 @@ export default function ClientDetailPage() {
                   value={client.report_schedule?.monthly_day || 1}
                   onChange={e => setClient(p => ({ ...p, report_schedule: { ...p.report_schedule, monthly_day: parseInt(e.target.value) } }))} />
               </Field>
-
-              <Field label="Recipients (one per line)">
-                <textarea className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
-                  value={(client.report_recipients?.monthly || []).join('\n')}
-                  onChange={e => setClient(p => ({ ...p, report_recipients: { ...p.report_recipients, monthly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } }))} />
-              </Field>
-
-              <div className="caption" style={{ margin: 'var(--s4) 0 var(--s1)' }}>This month's focus</div>
-              <p className="body-xs text-muted" style={{ marginBottom: 'var(--s2)' }}>Sets the priority for the next report — drives Claude's executive summary and recommendations.</p>
-              <textarea className="input" style={{ minHeight: 80, resize: 'vertical' }}
-                value={client.monthly_focus || ''}
-                onChange={e => setClient(p => ({ ...p, monthly_focus: e.target.value }))}
-                placeholder="e.g. Investigate the US Shopify refund spike; quantify the impact of the new B2B trade pricing on EU revenue." />
-              <button type="button" {...roWrite(readOnly, { onClick: handleSuggestFocus, disabled: loadingFocus })} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>
-                {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
-              </button>
-
               </div>
 
               <div>
@@ -729,17 +712,40 @@ export default function ClientDetailPage() {
                 <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm">✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
               </div>
               {(templateSummary.monthly?.sections || []).length ? (
-                <ol className="report-template-list" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)', margin: 0 }}>
+                <ol className={`report-template-list${(templateSummary.monthly.sections.length > 8 ? ' report-template-list--long' : '')}`} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)' }}>
                   {templateSummary.monthly.sections.map(s => (
                     <li key={s.id} style={{ marginBottom: 'var(--s1)' }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}>{s.type}</span></li>
                   ))}
                 </ol>
               ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
+              </div>
 
+              <div>
+              <Field label="Recipients (one per line)">
+                <textarea className="input" style={{ minHeight: 150, fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
+                  value={(client.report_recipients?.monthly || []).join('\n')}
+                  onChange={e => setClient(p => ({ ...p, report_recipients: { ...p.report_recipients, monthly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } }))} />
+              </Field>
               </div>
               </div>
 
-              {/* Across the foot of the card, below both columns. */}
+              {/* Full width under the three columns rather than squeezed into
+                  the schedule one. It is a paragraph you write, not a setting
+                  you pick, and the only field on this screen with no weekly
+                  counterpart. */}
+              <div style={{ marginTop: 'var(--s5)' }}>
+                <div className="caption" style={{ marginBottom: 'var(--s1)' }}>This month's focus</div>
+                <p className="body-xs text-muted" style={{ marginBottom: 'var(--s2)' }}>Sets the priority for the next report — drives Claude's executive summary and recommendations.</p>
+                <textarea className="input" style={{ minHeight: 70, resize: 'vertical', width: '100%' }}
+                  value={client.monthly_focus || ''}
+                  onChange={e => setClient(p => ({ ...p, monthly_focus: e.target.value }))}
+                  placeholder="e.g. Investigate the US Shopify refund spike; quantify the impact of the new B2B trade pricing on EU revenue." />
+                <button type="button" {...roWrite(readOnly, { onClick: handleSuggestFocus, disabled: loadingFocus })} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>
+                  {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
+                </button>
+              </div>
+
+              {/* Across the foot of the card. */}
               <div style={{ display: 'flex', gap: 'var(--s2)', paddingTop: 'var(--s5)' }}>
                 <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                 <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
