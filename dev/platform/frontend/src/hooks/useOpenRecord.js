@@ -115,3 +115,72 @@ export function useRevealRow(items, loaded = Array.isArray(items)) {
 
   return { missing, dismissMissing: () => setMissing(false) };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// When the open record IS the screen.
+//
+// The two hooks above are for a record that opens *over* a list: a modal, a
+// detail panel, an editor. The id does its job and goes, because leaving it
+// would reopen the thing every time the list re-renders.
+//
+// A press campaign is not that. Opening one replaces the whole screen, and it
+// stays open until you leave it — so the id is not an instruction, it is the
+// address of what you are looking at. ClientPRPage kept it in component state
+// and mirrored it into localStorage, which is the same mistake that file's own
+// comment describes having already fixed once for the tab: "it used to be
+// component state restored from localStorage, which meant a section-panel row
+// changed the address bar and this page carried on showing whatever it had
+// remembered". A campaign you are looking at had no URL, so it could not be
+// linked, sent, or bookmarked, and a refresh restored it from a different
+// source than the address bar.
+//
+// Here the URL is the only source of truth. Nothing to keep in step.
+
+export function useOpenState() {
+  const { openId } = useOpenParam();
+  const navigate = useNavigate();
+
+  // replace, not push: moving between campaigns is moving around one screen,
+  // and Back should leave the campaigns screen rather than walk you through
+  // every campaign you glanced at.
+  const setOpenId = useCallback((next) => {
+    const params = new URLSearchParams(window.location.search);
+    if (next) params.set(OPEN_PARAM, String(next));
+    else {
+      params.delete(OPEN_PARAM);
+      // Closing the record closes its sub-view with it; a stray `view` left
+      // behind would decide which half of the *next* record you open.
+      params.delete(VIEW_PARAM);
+    }
+    const qs = params.toString();
+    navigate(window.location.pathname + (qs ? `?${qs}` : ''), { replace: true });
+  }, [navigate]);
+
+  return [openId, setOpenId];
+}
+
+export const VIEW_PARAM = 'view';
+
+// A named half of the open record, in the URL beside it.
+//
+// `allowed` is the list the screen answers to; anything else falls back,
+// because these URLs get typed and pasted and a typo should land somewhere.
+// The same reasoning as useScreen's unknown-slug fallback.
+export function useViewParam(allowed, fallback) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const raw = new URLSearchParams(location.search).get(VIEW_PARAM);
+  const view = allowed.includes(raw) ? raw : fallback;
+
+  const setView = useCallback((next) => {
+    const params = new URLSearchParams(window.location.search);
+    // The default view carries no parameter: a plain link to a campaign is
+    // shorter, and it is the one people will copy most.
+    if (next && next !== fallback) params.set(VIEW_PARAM, next);
+    else params.delete(VIEW_PARAM);
+    const qs = params.toString();
+    navigate(window.location.pathname + (qs ? `?${qs}` : ''), { replace: true });
+  }, [navigate, fallback]);
+
+  return [view, setView];
+}

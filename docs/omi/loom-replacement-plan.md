@@ -84,11 +84,22 @@ preview URL. Take this value from the R2 overview page, nowhere else.
    share link 404.
    ```
    MEDIA_STORE=disk
-   R2_ACCOUNT_ID=…
-   R2_ACCESS_KEY_ID=…
-   R2_SECRET_ACCESS_KEY=…
+   R2_ACCOUNT_ID=24e942f4e3f7ee55504eabf271f206a8
+   R2_ACCESS_KEY_ID=0123456789abcdef0123456789abcdef
+   R2_SECRET_ACCESS_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
    R2_BUCKET=omi-recordings
    ```
+
+   The two keys are shown here at their real lengths — 32 hex characters and
+   64 — rather than as `…` or `<the Access Key ID>`. An earlier version of this
+   section used a bracketed placeholder and it went into the file verbatim: the
+   preflight answered `Credential access key has length 37, should be 32`,
+   which is the check working, but it cost a round trip. A placeholder that
+   looks like the thing cannot be pasted by mistake.
+
+   The **Access Key ID stays visible** in Cloudflare under R2 → Manage R2 API
+   Tokens; only the secret is shown once. Getting the key wrong does not mean
+   regenerating the token.
 
 Until those are set, `MEDIA_STORE` defaults to `disk` and everything still works.
 
