@@ -46,6 +46,12 @@ const SETTINGS_KEYS = [
   // fetch Instagram reels as logged-in-you (IG blocks anonymous downloads).
   'IG_SESSIONID',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
+  // Moz Links API — Domain Authority on the Authority panel, one call per
+  // client per month. The free tier is 50 rows a month and a row is one
+  // domain, so twelve clients use twelve. Access ID then Secret Key, both
+  // from the Moz API dashboard; the order matters and reversing them
+  // authenticates as nothing.
+  'MOZ_ACCESS_ID', 'MOZ_SECRET_KEY',
   // SAM.gov (US) Opportunities API key — enables the US source in the Tender
   // Agent. Free key from sam.gov. Saved here (and to process.env) so the
   // tender ingest can read it. Set/managed from the Tenders panel.
@@ -290,6 +296,24 @@ router.put('/ai-models', async (req, res) => {
     aiModels.clearCache();
     res.json({ map: clean });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST test Moz credentials. Spends one of the 50 free rows on purpose: a
+// credential that cannot fetch a number is not configured, whatever the form
+// says, and finding that out in the Settings page beats finding it out on the
+// 1st of the month when a report runs with no DA in it.
+router.post('/test-moz', async (req, res) => {
+  const clean = v => (v && v !== '••••••••' ? v : undefined);
+  try {
+    const moz = require('../connectors/moz');
+    const result = await moz.testCredentials({
+      accessId: clean(req.body.accessId),
+      secretKey: clean(req.body.secretKey),
+    });
+    res.json(result);
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
 });
 
 // POST test DataForSEO credentials (uses supplied values, or the saved ones)

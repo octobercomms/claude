@@ -884,6 +884,88 @@ A deep link that lands nowhere is the quietest breakage there is, because
 whoever follows it assumes the feature was removed. `?tab=playbook` opens the
 drawer rather than only landing on Measure, for the same reason.
 
+#### The Authority numbers stopped being typed (30 Oct 2026)
+
+Three figures on Owned → Authority were copied by hand every month, and a cron
+emailed a reminder to go and do it: **one email per client**, so twelve
+identical messages at 08:00 on the same morning, because every client runs on
+day 1. That screenshot is what prompted this.
+
+**Referring domains was never missing.** `dfs_backlinks_summary.referring_domains_total`
+has been filled for every active client every three days since the DataForSEO
+Backlinks API came off its $100/mo commitment on 1 July 2026. SeoDrift reads
+it. The Dashboard reads it. The Backlinks panel on the same SEO page displays
+it. The Authority panel did not, so the account lead typed a monthly figure
+that sat in the same database, ten times fresher, a few hundred pixels away.
+**Before building an integration, check whether the number is already there.**
+
+**Moz DA** is now one Moz API call per client per month. The free tier is 50
+rows and a row is one domain, so twelve clients use twelve. Two properties of
+that tier shape `connectors/moz.js`: batching twenty-five domains still spends
+twenty-five rows and lets one bad domain fail the whole call, so it fetches one
+at a time; and the free limit is about one request per ten seconds, so
+`seoAuthority.MOZ_GAP_MS` is 11s and the sweep takes two minutes.
+
+**Semrush Authority Score is retired, not dropped.** It measures what DA
+measures from another vendor, so collecting both was typing two numbers that
+move together. The input is gone; the column stays so the existing trend is
+still readable.
+
+The reminder email and its cron are gone with them. A reminder to do work that
+no longer exists is worse than no reminder, because it trains you to filter
+the sender.
+
+**The rule the whole thing rests on:** a fetch that fails must never blank a
+number that is already there. These figures go into a client's monthly report,
+so a month that silently loses its DA because Moz was down on the 1st is a gap
+in a document that goes to a client. The upsert COALESCEs every metric against
+what the row already holds, and a run that fetched nothing writes no row at
+all. That is a SQL claim, so it is guarded in `tests/seo-authority.db.test.js`
+against a real Postgres rather than asserted about a query string.
+
+Provenance is recorded per metric (`moz_da_source`, `referring_domains_source`)
+and shown on the page, because the moment a page starts displaying where a
+number came from, every historical row silently reads as API-sourced unless
+the migration says otherwise. 219 backfills them as `manual`.
+
+#### Running a .db test in a cloud session (30 Oct 2026)
+
+`migrations/run.js` cannot bootstrap an empty database: it creates
+`schema_migrations` itself, then `001_initial_schema.sql` tries to create the
+same table without `IF NOT EXISTS` and the run dies on the first file. Postgres
+is installed in these sessions but `pg_ctl` refuses to run as root.
+
+What works:
+
+```sh
+mkdir -p /tmp/pgdata && chown postgres:postgres /tmp/pgdata
+su postgres -c "/usr/lib/postgresql/16/bin/initdb -D /tmp/pgdata -U postgres"
+su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata \
+  -o \"-k /tmp -p 55434 -c listen_addresses=''\" -l /tmp/pg.log start"
+psql -h /tmp -p 55434 -U postgres -c "CREATE DATABASE omi"
+# bootstrap around the chicken-and-egg, then run the rest normally
+psql -h /tmp -p 55434 -U postgres -d omi -c "DROP TABLE IF EXISTS schema_migrations"
+psql -h /tmp -p 55434 -U postgres -d omi -f migrations/001_initial_schema.sql
+psql -h /tmp -p 55434 -U postgres -d omi -c \
+  "INSERT INTO schema_migrations (version) VALUES ('001_initial_schema.sql')"
+DB_HOST=/tmp DB_PORT=55434 DB_NAME=omi DB_USER=postgres node migrations/run.js
+```
+
+`clients.slug` is NOT NULL, which every fixture has to supply.
+
+#### A check scoped to the page passes on another section's state (30 Oct 2026)
+
+Swapping Paid's "Show campaigns" button for a `+`/`−` before the label, the
+check read `document.querySelectorAll('.ad-acct-detail table').length`. That is
+never zero on this page: an account that is the only one on its platform opens
+by default, and Meta has one. So "expanding reveals the campaign table" passed
+whether or not the section under test expanded, and "clicking the label closes
+it again" failed on correct code.
+
+**A check on a toggle belongs inside the thing being toggled.** The fix scopes
+the locator to the one section. This is the same family as the earlier
+`?tab=setup` mistake: both judged something that was never drawn.
+
 #### Worked examples, one per pillar (30 Oct 2026)
 
 Paid had a worked example since October: a real batch drawn from the client's

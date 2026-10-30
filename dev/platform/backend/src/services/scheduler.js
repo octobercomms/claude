@@ -553,10 +553,29 @@ cron.schedule('30 2 * * *', async () => {
   }
 });
 
-// Daily report reminder: 08:00 AM — check if any client's monthly report is due in 48 hours
-cron.schedule('0 8 * * *', async () => {
-  console.log('[Scheduler] Checking for report reminders...');
-  await runReportReminderCheck();
+// Authority numbers for the month: 07:00 on the 1st.
+//
+// One hour before the monthly reports at 08:00 (see the cron near the top of
+// this file). The sweep takes about two minutes for twelve clients, so the
+// margin is wide, but the ordering is the point: move either time and the
+// reports will run on last month's figures without saying so.
+//
+// This replaces the 48-hour reminder email, which existed to tell the account
+// lead to go and type three figures by hand and sent one message per client:
+// twelve identical emails at 08:00 on the same morning, because every client
+// runs on day 1. Two of the three figures are now fetched (Moz DA, and
+// referring domains from the DataForSEO snapshot that was already on disk)
+// and the third, Semrush Authority Score, is retired as a duplicate of DA.
+// With nothing left to type there is nothing to remind anyone about.
+//
+// Paced for the free Moz tier, so twelve clients take about two minutes.
+cron.schedule('0 7 1 * *', async () => {
+  console.log('[Scheduler] Filling SEO authority metrics for the month…');
+  try {
+    const r = await require('./seoAuthority').fillAllClients();
+    console.log(`[Authority] ${r.filled_da}/${r.clients} DA, ${r.filled_rd}/${r.clients} referring domains`
+      + (r.moz_configured ? '' : ' — Moz API not configured, DA skipped'));
+  } catch (err) { console.error('[Authority] monthly fill failed:', err.message); }
 });
 
 async function runScheduledReports(reportType) {
@@ -806,49 +825,6 @@ async function runConnectorHealthCheck() {
   }
 }
 
-async function runReportReminderCheck() {
-  try {
-    const { rows: clients } = await pool.query(
-      'SELECT * FROM clients WHERE active = true'
-    );
-
-    const now = new Date();
-    const twoDaysFromNow = new Date(now);
-    twoDaysFromNow.setDate(now.getDate() + 2);
-    const targetDay = twoDaysFromNow.getDate();
-    const targetMonth = twoDaysFromNow.getMonth();
-    const targetYear = twoDaysFromNow.getFullYear();
-
-    for (const client of clients) {
-      const schedule = client.report_schedule || {};
-      if (!schedule.monthly_day) continue;
-
-      const monthlyDay = schedule.monthly_day;
-
-      // Calculate next report date from today
-      let nextReportDate = new Date(now.getFullYear(), now.getMonth(), monthlyDay);
-      if (nextReportDate <= now) {
-        nextReportDate = new Date(now.getFullYear(), now.getMonth() + 1, monthlyDay);
-      }
-
-      // Check if next report date is exactly 2 days from now
-      if (
-        nextReportDate.getDate() === targetDay &&
-        nextReportDate.getMonth() === targetMonth &&
-        nextReportDate.getFullYear() === targetYear
-      ) {
-        try {
-          console.log(`[Scheduler] Sending report reminder for ${client.name}`);
-          await emailService.sendReportReminderEmail(client);
-        } catch (err) {
-          console.error(`[Scheduler] Failed to send reminder for ${client.name}:`, err.message);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[Scheduler] Fatal error in runReportReminderCheck:', err.message);
-  }
-}
 
 function getPeriodDates(reportType) {
   const now = new Date();
@@ -1277,4 +1253,4 @@ async function runAutopilotDigest() {
   console.log(`[Autopilot] digest sent for ${perClient.length} clients.`);
 }
 
-module.exports = { runScheduledReports, runDailyRankChecks, runWeeklyAIOChecks, runSocialEngagementRefresh, runReportReminderCheck, runOutreachSends, runAutopilotDigest };
+module.exports = { runScheduledReports, runDailyRankChecks, runWeeklyAIOChecks, runSocialEngagementRefresh, runOutreachSends, runAutopilotDigest };

@@ -236,6 +236,16 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Moz',
+    category: 'SEO',
+    hint: 'Domain Authority on the Owned → Authority panel, fetched once a month per client. Copy the Access ID and Secret Key from moz.com/products/api — the order matters, and reversing them authenticates as nothing. The free tier allows 50 rows a month and a row is one domain, so twelve clients use twelve. Leave blank and DA is simply not collected.',
+    test: 'moz',
+    keys: [
+      { key: 'MOZ_ACCESS_ID', label: 'Access ID', placeholder: 'mozscape-…', type: 'text' },
+      { key: 'MOZ_SECRET_KEY', label: 'Secret Key', placeholder: 'From moz.com/products/api', type: 'password' },
+    ],
+  },
+  {
     title: 'PageSpeed / Core Web Vitals',
     category: 'SEO',
     hint: 'Google PageSpeed Insights API key (key only, no OAuth) — powers real Core Web Vitals (LCP / INP / CLS) in the Site audit. Create one in the Google Cloud console → APIs & Services, enable the PageSpeed Insights API, and paste the key here. Leave blank to keep the built-in heuristics.',
@@ -430,6 +440,8 @@ export default function SettingsPage() {
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const [testMsg, setTestMsg] = useState('');
+  const [testingMoz, setTestingMoz] = useState(false);
+  const [mozTestMsg, setMozTestMsg] = useState(null);
   const [testingDfs, setTestingDfs] = useState(false);
   const [dfsTestMsg, setDfsTestMsg] = useState(null);
   const [testingFs, setTestingFs] = useState(false);
@@ -537,6 +549,22 @@ export default function SettingsPage() {
       setTestMsg(`Error: ${err.message}`);
     } finally {
       setSendingTest(false);
+    }
+  }
+
+  async function handleTestMoz() {
+    setTestingMoz(true);
+    setMozTestMsg(null);
+    try {
+      const result = await api.post('/settings/test-moz', {
+        accessId: values.MOZ_ACCESS_ID,
+        secretKey: values.MOZ_SECRET_KEY,
+      });
+      setMozTestMsg(result);
+    } catch (err) {
+      setMozTestMsg({ ok: false, error: err.message });
+    } finally {
+      setTestingMoz(false);
     }
   }
 
@@ -768,6 +796,29 @@ export default function SettingsPage() {
                             );
                           })}
                         </div>
+                        {group.test === 'moz' && (
+                          <div style={{ marginTop: 'var(--s3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+                              <button type="button" onClick={handleTestMoz} disabled={testingMoz}
+                                className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)' }}>
+                                {testingMoz ? 'Testing…' : 'Test connection'}
+                              </button>
+                              {mozTestMsg && (
+                                <span style={{ fontSize: 'var(--fs-caption)', color: mozTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                  {mozTestMsg.ok ? `✓ Authenticated — moz.com reads DA ${mozTestMsg.domain_authority}` : `✗ ${mozTestMsg.error}`}
+                                </span>
+                              )}
+                            </div>
+                            {/* Said plainly, because the free allowance is 50
+                                a month and a test that quietly spends one is
+                                a test you run three times before noticing. */}
+                            {mozTestMsg?.note && (
+                              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
+                                {mozTestMsg.note}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {group.test === 'dataforseo' && (
                           <div style={{ marginTop: 'var(--s3)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>

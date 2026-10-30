@@ -381,7 +381,9 @@ router.get('/seo-metrics/:clientId', async (req, res) => {
       // listed explicitly — `SELECT *, … AS month` yields two `month` columns
       // and makes `ORDER BY month` ambiguous.
       `SELECT id, client_id, to_char(month, 'YYYY-MM-DD') AS month,
-              moz_da, authority_score, referring_domains, notes, created_at, updated_at
+              moz_da, authority_score, referring_domains, notes,
+              moz_da_source, referring_domains_source, sources_filled_at,
+              created_at, updated_at
        FROM seo_manual_metrics
        WHERE client_id = $1
          AND month >= date_trunc('month', CURRENT_DATE - INTERVAL '11 months')
@@ -394,27 +396,48 @@ router.get('/seo-metrics/:clientId', async (req, res) => {
   }
 });
 
-// Upsert manual SEO metrics for a client/month
+// Notes for a client/month.
+//
+// Was an upsert of three typed numbers. Moz DA and referring domains are
+// fetched now (see services/seoAuthority.js) and Semrush Authority Score is
+// retired as a duplicate of DA, so the only thing left for a person to write
+// is the note. The numbers are deliberately **not** writable here: a hand
+// value that the next monthly fill overwrites is worse than no field, because
+// you would not know which number the report used.
 router.put('/seo-metrics/:clientId', async (req, res) => {
-  const { month, moz_da, authority_score, referring_domains, notes } = req.body;
+  const { month, notes } = req.body;
   if (!month) return res.status(400).json({ error: 'month is required (YYYY-MM-DD)' });
   try {
     const { rows } = await pool.query(
       // Normalise to the first of the month so the day picked never creates a
       // duplicate row — these metrics are month-keyed by design.
-      `INSERT INTO seo_manual_metrics (client_id, month, moz_da, authority_score, referring_domains, notes)
-       VALUES ($1, date_trunc('month', $2::date)::date, $3, $4, $5, $6)
+      `INSERT INTO seo_manual_metrics (client_id, month, notes)
+       VALUES ($1, date_trunc('month', $2::date)::date, $3)
        ON CONFLICT (client_id, month) DO UPDATE SET
-         moz_da = EXCLUDED.moz_da,
-         authority_score = EXCLUDED.authority_score,
-         referring_domains = EXCLUDED.referring_domains,
          notes = EXCLUDED.notes,
          updated_at = NOW()
        RETURNING id, client_id, to_char(month, 'YYYY-MM-DD') AS month,
-                 moz_da, authority_score, referring_domains, notes, created_at, updated_at`,
-      [req.params.clientId, month, moz_da ?? null, authority_score ?? null, referring_domains ?? null, notes ?? null]
+                 moz_da, authority_score, referring_domains, notes,
+                 moz_da_source, referring_domains_source, sources_filled_at,
+                 created_at, updated_at`,
+      [req.params.clientId, month, notes ?? null]
     );
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch this month's authority figures now, rather than waiting for the 1st.
+// Spends one Moz row when Moz is configured, which is why it is a button and
+// not something the page does on load.
+router.post('/seo-metrics/:clientId/refresh', async (req, res) => {
+  try {
+    const seoAuthority = require('../services/seoAuthority');
+    const out = await seoAuthority.fillForClient(req.params.clientId, {
+      month: req.body?.month || seoAuthority.monthKey(),
+    });
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
