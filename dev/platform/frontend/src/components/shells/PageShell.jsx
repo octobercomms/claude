@@ -12,10 +12,15 @@ import SuiteTabs from '../SuiteTabs';
 //   actions  — optional node, top-right of the hero
 //   tabs / subTabs — SuiteTabs arrays:
 //     [{ key, label, active, onClick | to } | { groupLabel }]
-//   tabActions — optional node pinned to the right of the group tab strip.
-//     Page-level controls belong on the page's own row: put one in `actions`
-//     and it lands under the client bar's icon cluster, reading as a stray
-//     fourth circle that missed its row.
+//   tabActions — the section's action row: the drawer openers and the one
+//     control that applies across the whole section, whichever row of the
+//     panel you are on. It used to be pinned to the right of the group tab
+//     strip, which meant it rendered only when `tabs` was passed — so when
+//     the strips moved into the section panel, Paid's Playbook and Earned's
+//     Share quietly stopped rendering at all. It now stands on its own row.
+//     Page-level controls still belong here rather than in `actions`: one in
+//     `actions` lands under the client bar's icon cluster and reads as a
+//     stray fourth circle that missed its row.
 export default function PageShell({ title, subtitle, actions, tabActions, tabs, subTabs, children }) {
   return (
     <div>
@@ -36,16 +41,20 @@ export default function PageShell({ title, subtitle, actions, tabActions, tabs, 
           </header>
         </>
       )}
-      {tabs && (
-        tabActions
+      {tabs
+        ? (tabActions
           ? (
             <div className="tabs-row">
               <SuiteTabs tabs={tabs} />
               <div className="tabs-row-actions">{tabActions}</div>
             </div>
           )
-          : <SuiteTabs tabs={tabs} />
-      )}
+          : <SuiteTabs tabs={tabs} />)
+        : (tabActions && (
+          <div className="tabs-row tabs-row--bare">
+            <div className="tabs-row-actions">{tabActions}</div>
+          </div>
+        ))}
       {subTabs && <SuiteTabs tabs={subTabs} variant="sub" />}
       {children}
     </div>

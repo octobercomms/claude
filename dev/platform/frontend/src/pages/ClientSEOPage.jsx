@@ -2,12 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
-import ClarityCroPanel from '../components/ClarityCroPanel';
 import PillarMeasure from '../components/PillarMeasure';
-import FormsTab from '../components/FormsTab';
-import ClientOutreachPage from './ClientOutreachPage';
 import { useToast } from '../context/ToastContext';
-import SuiteTabs from '../components/SuiteTabs';
 import { useTabParam } from '../hooks/useTabParam';
 
 import {
@@ -19,7 +15,6 @@ import AiSeoPanel from '../components/organic/AiSeoPanel';
 import StepRail from '../components/shells/StepRail';
 import StatStrip from '../components/shells/StatStrip';
 import PageShell from '../components/shells/PageShell';
-import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import FindPanel from '../components/organic/FindPanel';
 import TopicMapPanel from '../components/organic/TopicMapPanel';
 import BriefPanel from '../components/organic/BriefPanel';
@@ -706,51 +701,27 @@ export default function ClientSEOPage() {
     api.get(`/connectors/client/${id}`).then(r => setConnectors(Array.isArray(r) ? r : (r.connectors || []))).catch(() => {});
   }, [id]);
 
-  // Process Rails — derived ✓ status for the current Owned group's "work
-  // through these tabs" rail (Search / Optimise).
-  const railSuite =
-    ['perf_insights', 'keywords', 'gsc', 'ai_visibility', 'authority', 'backlinks', 'drift'].includes(activeTab) ? 'owned_search'
-    : ['site_audit', 'content_audit', 'keyword_footprint', 'quick_wins', 'ctr_boost', 'ai_seo', 'agent_ready'].includes(activeTab) ? 'owned_optimise'
-    : null;
-  const [railStatus, setRailStatus] = useState({});
-  // Health dashboard — which accordion sections are open. Review (the headline
-  // read-out) is open by default; the rest are one tap away.
-  // Single-open accordions across the app: opening a section closes the rest.
-  const [healthOpen, setHealthOpen] = useState(() => new Set(['review']));
-  const toggleHealth = (id) => setHealthOpen(prev => (prev.has(id) ? new Set() : new Set([id])));
-  const openHealth = (id) => setHealthOpen(new Set([id]));
-  // Jump to the Health dashboard with a given section opened.
-  const goHealth = (section) => { if (section) openHealth(section); setActiveTab('health'); };
-  // Optimise dashboard — the fix-it tools, worked top-to-bottom. Scan (the
-  // audit you run first) is open by default.
-  const [optimiseOpen, setOptimiseOpen] = useState(() => new Set(['scan']));
-  const toggleOptimise = (id) => setOptimiseOpen(prev => (prev.has(id) ? new Set() : new Set([id])));
-  const openOptimise = (id) => setOptimiseOpen(new Set([id]));
-  const goOptimise = (section) => { if (section) openOptimise(section); setActiveTab('optimise'); };
-  // Convert dashboard — turn visits into leads (CRO · Forms).
-  const [convertOpen, setConvertOpen] = useState(() => new Set(['cro']));
-  const toggleConvert = (id) => setConvertOpen(prev => (prev.has(id) ? new Set() : new Set([id])));
-  const openConvert = (id) => setConvertOpen(new Set([id]));
-  const goConvert = (section) => { if (section) openConvert(section); setActiveTab('convert'); };
 
-  // Optimise and Convert are now single accordions, not secondary tab strips.
-  // Normalise any legacy / deep-linked tool key onto its group tab with the
-  // matching section opened, so old ?tab=content_audit links still land right.
+  // ?tab=optimise was a group tab in front of an accordion and renders nothing
+  // on its own now, so it lands on the first tool it used to contain.
+  //
+  // CRO, Forms and Email left for the Convert page. Links to them exist in
+  // saved reports and in the Monday email, and a deep link that lands nowhere
+  // is the quietest kind of breakage — the person following it assumes the
+  // feature was removed. Replace rather than push, so Back goes where it came
+  // from instead of bouncing off this redirect.
   useEffect(() => {
-    const OPT = { site_audit: 'scan', content_audit: 'grade', keyword_footprint: 'map', quick_wins: 'win', ctr_boost: 'sharpen', ai_seo: 'target', agent_ready: 'prep',
-      // Local tools absorbed into Optimise.
-      local_schema: 'loc_schema', local_keywords: 'loc_keywords', local_playbook: 'loc_playbook', local_gbp: 'loc_gbp' };
-    // Local read-outs absorbed into Health.
-    const HLTH = { local_gap: 'loc_compare', local_xray: 'loc_xray', local_outliers: 'loc_flag' };
-    if (OPT[activeTab]) { openOptimise(OPT[activeTab]); setActiveTab('optimise'); }
-    else if (HLTH[activeTab]) { openHealth(HLTH[activeTab]); setActiveTab('health'); }
-    else if (activeTab === 'cro' || activeTab === 'forms') { openConvert(activeTab); setActiveTab('convert'); }
+    if (activeTab === 'optimise') { setActiveTab('site_audit'); return; }
+    const MOVED = { cro: 'cro', forms: 'forms', email: 'email', convert: 'cro' };
+    if (MOVED[activeTab]) navigate(`/clients/${id}/convert?tab=${MOVED[activeTab]}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  useEffect(() => {
-    if (!railSuite) return;
-    api.get(`/clients/${id}/suite-progress/${railSuite}`).then(r => setRailStatus(r.steps || {})).catch(() => {});
-  }, [railSuite, id]);
+  // The accordion normaliser is gone. It used to rewrite ?tab=site_audit into
+  // ?tab=optimise and open a section inside it, because 26 tools could not fit
+  // a horizontal strip and had to be folded away. Each tool is now its own row
+  // in the section panel with its own key, so the rewrite had nothing left to
+  // do except stop the panel highlighting the row you had clicked.
 
   useEffect(() => {
     loadRankMatrix();
@@ -758,23 +729,6 @@ export default function ClientSEOPage() {
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
 
-  // Which top-level group the active tab belongs to. Defined in the component
-  // body (not inside the tab-strip IIFE) so the whole render — including the
-  // Optimise / Convert accordions below — can read it.
-  const GROUP_OF = {
-    overview: 'overview',
-    health: 'health', perf_insights: 'health', keywords: 'health', gsc: 'health',
-    authority: 'health', backlinks: 'health', ai_visibility: 'health', drift: 'health',
-    optimise: 'optimise', site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise',
-    keyword_footprint: 'optimise', ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
-    topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
-    // Local tools absorbed into Health (read-outs) and Optimise (tools).
-    local_gap: 'health', local_xray: 'health', local_outliers: 'health',
-    local_schema: 'optimise', local_keywords: 'optimise', local_playbook: 'optimise', local_gbp: 'optimise',
-    convert: 'convert', cro: 'convert', forms: 'convert',
-    email: 'email',
-  };
-  const currentGroup = GROUP_OF[activeTab] || 'health';
 
   // Health-dashboard section bodies. Extracted verbatim from the former
   // Keywords / Authority tabs so the Health page can compose them as
@@ -1195,107 +1149,31 @@ export default function ClientSEOPage() {
             Local SEO    — the local toolkit
           Performance and Optimise were one overloaded "Performance" group;
           splitting reporting from action keeps each strip scannable. */}
-      {(() => {
-        const SUB_TABS = {
-          // Performance sub-tabs grouped with inline labels (rendered
-          // by SuiteTabs as small uppercase separators) so 10 entries
-          // scan as 3 logical clusters rather than a wall of options.
-          //   Measurement — what's happening today: ranks + GSC + AI visibility
-          //   On-page     — health of pages we control: site/content/footprint/wins
-          //   Off-page    — authority + links
-          // Search = reporting/measurement only ("where do we stand today").
-          // The action-oriented tools moved to Optimise below, so this group
-          // stays a clean read-out rather than a wall of options.
-          search: [
-            { groupLabel: 'Measurement' },
-            { key: 'perf_insights', label: 'Review' },
-            { key: 'keywords',      label: 'Keywords' },
-            { key: 'gsc',           label: 'Search Console' },
-            { key: 'ai_visibility', label: 'AI Visibility' },
-            { groupLabel: 'Off-page' },
-            { key: 'authority',     label: 'Authority' },
-            { key: 'backlinks',     label: 'Backlinks' },
-            { groupLabel: 'Monitoring' },
-            { key: 'drift',         label: 'Watch' },
-          ],
-          // Optimise and Convert are worked as accordions (below), not a
-          // secondary tab strip — so they intentionally have no SUB_TABS entry.
-          content: [
-            { key: 'find',     label: '1 · Find' },
-            { key: 'planning', label: '2 · Brief' },
-            { key: 'draft',    label: '3 · Draft' },
-            { key: 'publish',  label: '4 · Publish' },
-            { key: 'promote',  label: '5 · Promote' },
-          ],
-        };
-        const topTabs = [
-          { key: 'health',   label: 'Health',   fn: 'measure',    active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
-          { key: 'optimise', label: 'Optimise', fn: 'strategy',   active: currentGroup === 'optimise', onClick: () => setActiveTab('optimise') },
-          { key: 'content',  label: 'Build',    fn: 'create',     active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
-          { key: 'convert',  label: 'Convert',  fn: 'strategy',   active: currentGroup === 'convert',  onClick: () => setActiveTab('convert') },
-          { key: 'email',    label: 'Email',    fn: 'distribute', active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
-        ];
-        const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
-          ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
-        }));
-        // Groups that render as a numbered "work through these tabs" rail with
-        // derived ✓, rather than a flat sub-tab strip.
-        // Titles are verbs (hybrid) — where the verb replaces a tool name, the
-        // sub keeps that name so nothing recognisable is lost.
-        const RAIL_SUB = {
-          perf_insights: 'The headline read', keywords: 'What you rank for', gsc: 'Real Google clicks',
-          ai_visibility: 'Where AI cites you', authority: 'Domain strength', backlinks: 'Who links to you', drift: 'Drift · track regressions',
-          site_audit: 'Site audit · technical fixes', content_audit: 'Content audit · one page', keyword_footprint: 'Keyword footprint', quick_wins: 'Quick wins · page-2 keywords',
-          ctr_boost: 'CTR boosters · titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
-          cro: 'Fix the funnel', forms: 'Lead capture',
-        };
-        const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
-        const RAIL_GROUPS = new Set();
-        const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
-          ? { groupLabel: t.groupLabel }
-          : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
-        // When the group has section labels (Search, Optimise), render each
-        // section as its own titled bento rather than inline separators.
-        const railGrouped = (SUB_TABS[currentGroup] || []).some(t => t.groupLabel);
-
-        // Build (content) is a linear pipeline → render the shared Stepper
-        // instead of a sub-tab strip, matching Shared's and Paid's Build.
-        const CONTENT_KEYS = ['topic_map', 'find', 'planning', 'draft', 'publish', 'promote'];
-        const CONTENT_META = [
-          { title: 'Topic map', sub: 'Plan the cluster' },
-          { title: 'Find', sub: 'Topics & keywords' },
-          { title: 'Brief', sub: 'Outline & angle' },
-          { title: 'Draft', sub: 'Write it' },
-          { title: 'Publish', sub: 'Ship the page' },
-          { title: 'Promote', sub: 'Links & distribution' },
-        ];
-        return (
-          <>
-            <SuiteTabs tabs={topTabs} />
-            {currentGroup === 'content' ? (
-              <div className="stepper-block">
-                <StepRail
-                  numbered
-                  activeKey={activeTab}
-                  onStep={setActiveTab}
-                  steps={CONTENT_META.map((m, i) => ({
-                    key: CONTENT_KEYS[i],
-                    label: m.title,
-                    sub: m.sub,
-                    status: i < Math.max(0, CONTENT_KEYS.indexOf(activeTab)) ? 'done' : 'todo',
-                  }))}
-                />
-              </div>
-            ) : RAIL_GROUPS.has(currentGroup) ? (
-              <div className="stepper-block">
-                <StepRail numbered wrap grouped={railGrouped} activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
-              </div>
-            ) : (
-              subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
-            )}
-          </>
-        );
-      })()}
+      {/* The Produce pipeline keeps its numbered rail with derived ✓: it is a
+          real sequence, and a vertical list of rows can say "4" but cannot
+          show you that three of them are behind you. Every other group here
+          was a strip or a step rail standing in front of a directory, and the
+          section panel is that directory now. */}
+      {['topic_map', 'find', 'planning', 'draft', 'publish', 'promote'].includes(activeTab) && (
+        <div className="stepper-block">
+          <StepRail
+            numbered
+            activeKey={activeTab}
+            onStep={setActiveTab}
+            steps={[
+              { key: 'topic_map', label: 'Topic map', sub: 'Plan the cluster' },
+              { key: 'find',      label: 'Find',      sub: 'Topics & keywords' },
+              { key: 'planning',  label: 'Brief',     sub: 'Outline & angle' },
+              { key: 'draft',     label: 'Draft',     sub: 'Write it' },
+              { key: 'publish',   label: 'Publish',   sub: 'Ship the page' },
+              { key: 'promote',   label: 'Promote',   sub: 'Links & distribution' },
+            ].map((st, i, all) => ({
+              ...st,
+              status: i < all.findIndex(x => x.key === activeTab) ? 'done' : 'todo',
+            }))}
+          />
+        </div>
+      )}
 
 
       {historyKeyword && (
@@ -1312,48 +1190,18 @@ export default function ClientSEOPage() {
           consolidation: each panel is the exact same content as its former tab.
           Section bodies are passed as functions so a panel only mounts when
           opened — matching the one-tab-at-a-time behaviour it replaces. */}
+      {/* Dashboard — the headline read, and every number in it a door into
+          the tool that owns it. It was an accordion of ten panels, which meant
+          the page opened showing one of them and hiding nine; the nine are
+          rows in the panel now. */}
       {activeTab === 'health' && (
-        <Accordion open={healthOpen} onToggle={toggleHealth}>
-          <AccordionItem id="review" fn="measure" title="Review" subtitle="The headline read">
-            {() => (
-              <OrganicInsightsPanel
-                keywords={keywords}
-                onOpenKeywords={() => openHealth('keywords')}
-                onOpenAiVisibility={() => openHealth('ai_visibility')}
-                onOpenSiteAudit={() => setActiveTab('site_audit')}
-                onOpenQuickWins={() => setActiveTab('quick_wins')}
-              />
-            )}
-          </AccordionItem>
-          <AccordionItem id="keywords" fn="measure" title="Keywords" subtitle="What you rank for">
-            {() => renderKeywordsBody()}
-          </AccordionItem>
-          <AccordionItem id="gsc" fn="measure" title="Search Console" subtitle="Real Google clicks">
-            {() => <SearchConsoleTab clientId={id} />}
-          </AccordionItem>
-          <AccordionItem id="ai_visibility" fn="measure" title="AI Visibility" subtitle="Where AI cites you">
-            {() => <AIVisibilityPanel clientId={id} />}
-          </AccordionItem>
-          <AccordionItem id="authority" fn="measure" title="Authority" subtitle="Domain strength">
-            {() => renderAuthorityBody()}
-          </AccordionItem>
-          <AccordionItem id="backlinks" fn="measure" title="Backlinks" subtitle="Who links to you">
-            {() => <BacklinksPanel clientId={id} clientName={client?.name} domain={client?.domain} />}
-          </AccordionItem>
-          <AccordionItem id="watch" fn="measure" title="Watch" subtitle="Drift · track regressions">
-            {() => <SeoDriftPanel clientId={id} />}
-          </AccordionItem>
-          {/* Local read-outs — absorbed from the old Localise section. */}
-          <AccordionItem id="loc_compare" fn="research" title="Local compare" subtitle="Local competition gap">
-            {() => <LocalSeoPanel clientId={id} tool="competition_gap" />}
-          </AccordionItem>
-          <AccordionItem id="loc_xray" fn="research" title="Local X-ray" subtitle="Rival teardown">
-            {() => <LocalSeoPanel clientId={id} tool="competitor_xray" />}
-          </AccordionItem>
-          <AccordionItem id="loc_flag" fn="research" title="Local outliers" subtitle="Ranking outliers · flag">
-            {() => <LocalSeoPanel clientId={id} tool="ranking_outliers" />}
-          </AccordionItem>
-        </Accordion>
+        <OrganicInsightsPanel
+          keywords={keywords}
+          onOpenKeywords={() => setActiveTab('keywords')}
+          onOpenAiVisibility={() => setActiveTab('ai_visibility')}
+          onOpenSiteAudit={() => setActiveTab('site_audit')}
+          onOpenQuickWins={() => setActiveTab('quick_wins')}
+        />
       )}
 
       {activeTab === 'perf_insights' && (
@@ -1369,63 +1217,34 @@ export default function ClientSEOPage() {
 
       {/* Convert — turn visitors into leads. */}
       {/* Convert — CRO + Forms as one accordion dashboard. */}
-      {currentGroup === 'convert' && (
-        <Accordion open={convertOpen} onToggle={toggleConvert}>
-          <AccordionItem id="cro" fn="strategy" title="CRO" subtitle="Conversion-rate optimisation">
-            {() => <ClarityCroPanel clientId={id} />}
-          </AccordionItem>
-          <AccordionItem id="forms" fn="create" title="Forms" subtitle="Lead-capture forms">
-            {() => <FormsTab clientId={id} connectors={connectors} />}
-          </AccordionItem>
-        </Accordion>
-      )}
 
       {/* Email — the full Outreach suite, embedded (uses its own ?etab=). */}
-      {activeTab === 'email' && <ClientOutreachPage embedded clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'drift' && <SeoDriftPanel clientId={id} />}
       {/* Optimise — the fix-it tools as one worked-top-to-bottom accordion,
           absorbing the old Optimise rail (Scan · Grade · Map · Win · Sharpen ·
           Target · Prep). Same primitive as Health; each panel is its former
           tab's content unchanged. Lazy bodies mount only when opened. */}
-      {currentGroup === 'optimise' && (
-        <Accordion open={optimiseOpen} onToggle={toggleOptimise}>
-          <AccordionItem id="scan" fn="strategy" title="Scan" subtitle="Site audit · technical fixes">
-            {() => <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
-          </AccordionItem>
-          <AccordionItem id="grade" fn="strategy" title="Grade" subtitle="Content audit · one page">
-            {() => <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
-          </AccordionItem>
-          <AccordionItem id="map" fn="research" title="Map" subtitle="Keyword footprint">
-            {() => <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
-          </AccordionItem>
-          <AccordionItem id="win" fn="strategy" title="Win" subtitle="Quick wins · page-2 keywords">
-            {() => <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
-          </AccordionItem>
-          <AccordionItem id="sharpen" fn="create" title="Sharpen" subtitle="CTR boosters · titles & meta">
-            {() => <CtrBoostPanel clientId={id} />}
-          </AccordionItem>
-          <AccordionItem id="target" fn="research" title="Target" subtitle="AI keywords · answer-engine terms">
-            {() => <AiSeoPanel clientId={id} />}
-          </AccordionItem>
-          <AccordionItem id="prep" fn="strategy" title="Prep" subtitle="Agent readiness · llms.txt & structure">
-            {() => <AgentReadinessPanel clientId={id} />}
-          </AccordionItem>
-          {/* Local tools — absorbed from the old Localise section. */}
-          <AccordionItem id="loc_schema" fn="strategy" title="Local schema" subtitle="Validate local schema">
-            {() => <LocalSeoPanel clientId={id} tool="schema_audit" />}
-          </AccordionItem>
-          <AccordionItem id="loc_keywords" fn="research" title="Local keywords" subtitle="Buyer-intent · find">
-            {() => <LocalSeoPanel clientId={id} tool="buyer_intent" />}
-          </AccordionItem>
-          <AccordionItem id="loc_playbook" fn="strategy" title="Local playbook" subtitle="GBP ranking · plan">
-            {() => <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
-          </AccordionItem>
-          <AccordionItem id="loc_gbp" fn="create" title="GBP posts" subtitle="Google Business Profile posts">
-            {() => <LocalSeoPanel clientId={id} tool="gbp_posts" />}
-          </AccordionItem>
-        </Accordion>
-      )}
+      {/* Fix — each tool its own row and its own key. These were sections of
+          a single-open accordion behind ?tab=optimise, which is why a link to
+          one of them could not be shared. */}
+      {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
+      {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
+      {activeTab === 'keyword_footprint' && <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
+      {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
+      {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
+      {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
+      {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
+
+      {/* Local — seven tools that were split across two accordions, three in
+          Health and four in Optimise, for no reason a user could see. */}
+      {activeTab === 'local_gap' && <LocalSeoPanel clientId={id} tool="competition_gap" />}
+      {activeTab === 'local_schema' && <LocalSeoPanel clientId={id} tool="schema_audit" />}
+      {activeTab === 'local_keywords' && <LocalSeoPanel clientId={id} tool="buyer_intent" />}
+      {activeTab === 'local_xray' && <LocalSeoPanel clientId={id} tool="competitor_xray" />}
+      {activeTab === 'local_playbook' && <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
+      {activeTab === 'local_outliers' && <LocalSeoPanel clientId={id} tool="ranking_outliers" />}
+      {activeTab === 'local_gbp' && <LocalSeoPanel clientId={id} tool="gbp_posts" />}
       {/* Pipeline steps */}
       {activeTab === 'topic_map' && <TopicMapPanel clientId={id} />}
       {activeTab === 'find' && <FindPanel clientId={id} onBuildContent={buildFromKeyword} onNext={() => setActiveTab('planning')} />}

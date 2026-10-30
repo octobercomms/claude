@@ -478,19 +478,6 @@ export default function ClientAdsPage() {
             Playbook
           </button>
         )}
-        tabs={[
-          { key: 'measure', label: 'Measure', fn: 'measure', active: currentGroup === 'measure', onClick: () => setTab('measure') },
-          { key: 'build',   label: 'Build',   fn: 'create',  active: currentGroup === 'build',   onClick: () => setTab('brief') },
-        ]}
-        subTabs={currentGroup === 'build' ? [
-          /* The guided route first, then the things that are not steps of a
-             batch. Produce's shape: one path through for an operator who
-             wants the path, and direct tabs for whoever wants one section. */
-          { key: 'batch',         label: 'Batch', fn: 'create',   active: isPipelineGroup,          onClick: () => setTab('brief') },
-          { key: 'library',       label: 'Creative',     fn: 'create',   active: tab === 'library',        onClick: () => setTab('library') },
-          { key: 'audiences',     label: 'Audiences',    fn: 'research', active: tab === 'audiences',      onClick: () => setTab('audiences') },
-          { key: 'competitor_ads', label: 'Competitors', fn: 'research', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
-        ] : undefined}
       >
       {/* What this pillar actually drove, and its share of the account —
           on Measure only. Above Build it put "27% of the account" over a

@@ -128,14 +128,14 @@ async function leaderboard(visibleClientIds, { limit = 25 } = {}) {
   if (!Array.isArray(visibleClientIds) || !visibleClientIds.length) return [];
   const { rows } = await pool.query(
     `WITH launched AS (
-       SELECT pr.id, pr.client_id, pr.title,
+       SELECT pr.id, pr.client_id, pr.campaign_id, pr.title,
               MIN(s.sent_at) AS launch_at,
               COUNT(DISTINCT s.contact_id) AS recipients
          FROM outreach_press_releases pr
          JOIN outreach_sends s
            ON s.campaign_id = pr.campaign_id AND s.sent_at IS NOT NULL
         WHERE pr.client_id = ANY($1::uuid[])
-        GROUP BY pr.id, pr.client_id, pr.title
+        GROUP BY pr.id, pr.client_id, pr.campaign_id, pr.title
      ),
      latest_cap AS (
        SELECT client_id, MAX(captured_at) AS captured_at
@@ -143,28 +143,71 @@ async function leaderboard(visibleClientIds, { limit = 25 } = {}) {
         WHERE client_id = ANY($1::uuid[])
         GROUP BY client_id
      ),
+     -- The outlets each campaign actually emailed, reduced to a bare host.
+     -- Mirrors hostFrom() in this file: take what follows the @, drop the
+     -- scheme, drop a leading www., cut at the first /, :, ? or #.
+     pitched AS (
+       SELECT DISTINCT l.id AS pr_id, host FROM launched l
+         JOIN outreach_sends s ON s.campaign_id = l.campaign_id AND s.sent_at IS NOT NULL
+         JOIN outreach_contacts c ON c.id = s.contact_id
+         CROSS JOIN LATERAL (
+           VALUES
+             (NULLIF(lower(split_part(COALESCE(c.email, ''), '@', 2)), '')),
+             (NULLIF(regexp_replace(
+                regexp_replace(
+                  regexp_replace(lower(COALESCE(c.website, '')), '^https?://', ''),
+                  '^www\\.', ''),
+                '[/:?#].*$', ''), ''))
+         ) AS h(host)
+        WHERE host IS NOT NULL
+     ),
      earned AS (
-       SELECT l.id AS pr_id,
-              COUNT(*) AS new_rds,
-              COUNT(*) FILTER (WHERE rd.dofollow) AS dofollow_rds
+       SELECT l.id AS pr_id, rd.domain, rd.dofollow
          FROM launched l
          JOIN latest_cap lc ON lc.client_id = l.client_id
          JOIN dfs_referring_domains rd
            ON rd.client_id = l.client_id AND rd.captured_at = lc.captured_at
           AND rd.first_seen >= l.launch_at
           AND rd.first_seen <= l.launch_at + INTERVAL '${WINDOW_DAYS} days'
-        GROUP BY l.id
+     ),
+     tallied AS (
+       SELECT e.pr_id,
+              -- DISTINCT on all three counts. dfs_referring_domains has no
+              -- unique index on (client_id, captured_at, domain), so a capture
+              -- written twice duplicates rows, and COUNT(*) turns that into
+              -- extra press coverage out of nowhere.
+              COUNT(DISTINCT e.domain) AS new_rds,
+              COUNT(DISTINCT e.domain) FILTER (WHERE e.dofollow) AS dofollow_rds,
+              -- The defensible number: a domain counts only when it matches an
+              -- outlet this campaign emailed. Everything else in the window is
+              -- whatever the site happened to pick up.
+              COUNT(DISTINCT e.domain) FILTER (WHERE EXISTS (
+                SELECT 1 FROM pitched p
+                 WHERE p.pr_id = e.pr_id
+                   AND (lower(e.domain) = p.host
+                     OR lower(e.domain) LIKE '%.' || p.host
+                     OR p.host LIKE '%.' || lower(e.domain))
+              )) AS pitched_rds
+         FROM earned e
+        GROUP BY e.pr_id
      )
      SELECT l.id AS press_release_id, l.client_id, l.title, l.launch_at, l.recipients,
             cl.name AS client_name,
-            COALESCE(e.new_rds, 0) AS new_rds,
-            COALESCE(e.dofollow_rds, 0) AS dofollow_rds,
-            ROUND(COALESCE(e.new_rds, 0)::numeric / NULLIF(l.recipients, 0), 3) AS rds_per_recipient
+            COALESCE(t.new_rds, 0) AS new_rds,
+            COALESCE(t.dofollow_rds, 0) AS dofollow_rds,
+            COALESCE(t.pitched_rds, 0) AS pitched_rds,
+            ROUND(COALESCE(t.pitched_rds, 0)::numeric / NULLIF(l.recipients, 0), 3) AS pitched_rate,
+            ROUND(COALESCE(t.new_rds, 0)::numeric / NULLIF(l.recipients, 0), 3) AS rds_per_recipient
        FROM launched l
        JOIN clients cl ON cl.id = l.client_id
-       LEFT JOIN earned e ON e.pr_id = l.id
+       LEFT JOIN tallied t ON t.pr_id = l.id
       WHERE l.recipients > 0
-      ORDER BY rds_per_recipient DESC NULLS LAST, new_rds DESC, l.launch_at DESC
+      -- Ranked on links actually won, then on efficiency. Ranking on new_rds
+      -- put whichever campaign coincided with a backlink crawl at the top;
+      -- ranking on the hit rate alone is just as bad the other way, because a
+      -- campaign that pitched one outlet and got it scores 100% and outranks
+      -- one that pitched forty and won twenty.
+      ORDER BY pitched_rds DESC, pitched_rate DESC NULLS LAST, l.launch_at DESC
       LIMIT $2`,
     [visibleClientIds, limit]
   );

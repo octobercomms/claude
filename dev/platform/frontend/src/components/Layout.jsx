@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 import ClientTopBar from './ClientTopBar';
 import AnalystPanel from './AnalystPanel';
+import SectionPanel from './SectionPanel';
 
 export default function Layout() {
   const { logout, user } = useAuth();
@@ -72,6 +73,18 @@ export default function Layout() {
   const workspaceActive = !!clientId;
 
   const [navOpen, setNavOpen] = useState(false);
+  // Hiding the main menu is a preference about how you work, not about where
+  // you are, so it survives navigation and reloads. localStorage can throw in
+  // a locked-down browser, and a nav that fails to render is worse than one
+  // that forgets, hence the guards.
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try { return localStorage.getItem('navCollapsed') === '1'; } catch { return false; }
+  });
+  const toggleNav = () => setNavCollapsed(v => {
+    const next = !v;
+    try { localStorage.setItem('navCollapsed', next ? '1' : '0'); } catch { /* ignore */ }
+    return next;
+  });
   // The analyst panel is page-level state: the icon that opens it lives in the
   // top bar and the panel itself sits outside the page, so neither can own it.
   // ?analyst=1 opens it. That is how the old /clients/:id/chat URL still lands
@@ -94,20 +107,23 @@ export default function Layout() {
   function handleLogout() { logout(); navigate('/login'); }
 
   const linkStyle = (isActive) => ({
-    display: 'block', padding: 'var(--s3) var(--s6)', color: isActive ? '#fff' : 'var(--surface)',
+    display: 'block', padding: 'var(--s3) var(--s4)', color: isActive ? '#fff' : 'var(--surface)',
     textDecoration: 'none', fontSize: 'var(--fs-title)', fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2, background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
   });
 
+  // 24px in, 16px out. At the old 40/24 the lane in a 170px nav is 106px and
+  // the widest row ("Shared" plus its Social chip, 110px in Brockmann at 14px)
+  // clipped; at 24/16 the lane is 130px.
   const subLinkStyle = (isActive) => ({
-    display: 'block', padding: 'var(--s2) var(--s6) var(--s2) var(--s8)', color: isActive ? '#fff' : 'rgba(255,255,255,0.78)',
+    display: 'block', padding: 'var(--s2) var(--s4) var(--s2) var(--s6)', color: isActive ? '#fff' : 'rgba(255,255,255,0.78)',
     textDecoration: 'none', fontSize: 'var(--fs-body)', fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
   });
   const subSubLinkStyle = (isActive) => ({
-    display: 'block', padding: 'var(--s2) var(--s6) var(--s2) var(--s9)', color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
+    display: 'block', padding: 'var(--s2) var(--s4) var(--s2) var(--s7)', color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
     textDecoration: 'none', fontSize: 'var(--fs-body)', fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
@@ -122,7 +138,8 @@ export default function Layout() {
         </button>
       </header>
       <div className={'app-overlay' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)} />
-      <nav className={'app-nav' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)}>
+      <nav className={'app-nav' + (navOpen ? ' open' : '') + (navCollapsed ? ' is-collapsed' : '')}
+        onClick={() => setNavOpen(false)}>
         <div className="app-nav-brand">
           <img src="/logo-black.gif" alt="October" />
           <div className="brand-sub">Marketing<br/>Intelligence</div>
@@ -173,6 +190,11 @@ export default function Layout() {
                     (images) in one place. Visible to clients (Record view-only;
                     Visualise only with the can_use_visualise grant). */}
                 <NavLink to={`/clients/${clientId}/video`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
+                {/* Convert — CRO, Forms and Email, lifted out of Owned. No
+                    chip for the same reason Produce has none: the four
+                    pillars carry one because PESO needs translating, and
+                    "Convert" already says what it is. */}
+                <NavLink to={`/clients/${clientId}/convert`} style={({ isActive }) => subLinkStyle(isActive)}>Convert</NavLink>
               </div>
             )}
           </li>
@@ -229,6 +251,10 @@ export default function Layout() {
           </div>
         </div>
       </nav>
+      {/* The section's own directory, beside the nav. Renders itself to null
+          outside a client section, so /clients, /settings and /guide keep the
+          single column they have always had. */}
+      <SectionPanel navCollapsed={navCollapsed} onToggleNav={toggleNav} />
       <main className="app-main" ref={mainRef}>
         {readOnly && (
           <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>

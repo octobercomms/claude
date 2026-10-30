@@ -849,7 +849,9 @@ five-step pipeline, with Audiences and Resize in an accordion of "tools").
 Everyone opened Measure. A tab whose only job is to hold the tab you wanted is
 a tax, so Health is gone and **Measure is the landing**.
 
-The redesign's organising question was "is this a stage of making an ad?":
+The redesign's organising question was "is this a stage of making an ad?".
+**The answers still hold; the chrome they describe does not — every tab below
+is a row in Paid's section panel now (§5).**
 
 | Was | Is | Because |
 |---|---|---|
@@ -980,6 +982,18 @@ DB_HOST=/tmp DB_PORT=55434 DB_NAME=omi DB_USER=postgres node migrations/run.js
 ```
 
 `clients.slug` is NOT NULL, which every fixture has to supply.
+
+Two things that cost time on the second use of this recipe. `initdb` refuses a
+non-empty `/tmp/pgdata`, so within one session you **start the existing cluster
+rather than re-running the recipe** — the schema is already in it. And a
+Postgres started from a backgrounded Bash tool call dies when that call is
+reaped, so start it with `run_in_background: true` and a long timeout, or it
+will be gone by the next command and the error will look like a code problem.
+
+`backend/tests/press-attribution.db.test.js` is the worked example: two
+clients, two overlapping campaigns, and a fixture built so that a join which
+forgets to scope by client produces a visibly wrong answer rather than the
+right one by luck.
 
 #### A check scoped to the page passes on another section's state (30 Oct 2026)
 
@@ -1457,6 +1471,68 @@ its purpose and should go.
 
 ## 5. The design system + the 6 shells
 
+### Navigation: the two panels (30 Oct 2026)
+
+**There are no horizontal tab strips left in a client section.** Every
+destination is a row in the section panel, the narrow column between the nav
+and the page. If you are adding a screen, you are adding a row to
+`frontend/src/nav/sections.js`, not a tab.
+
+Why it changed: a strip holds four or five items. Owned had 29, so they were
+folded two levels deep into single-open accordions behind group tabs, and
+`?tab=site_audit` was rewritten to `?tab=optimise` with a section opened inside
+it, so a link to a tool could not be shared. Give each job a row with its own
+`?tab=` and the accordion has nothing left to do.
+
+What this means in practice:
+
+- **`nav/sections.js` is the single source of truth.** Written out literally,
+  a row per destination, so a screen with no way in shows as a missing line
+  rather than as a working page nobody can open (this codebase has shipped that
+  three times). `tests/sectionPanel.test.mjs` reads each page's own
+  `useTabParam` whitelist and checks both directions. A tab you add to a page
+  and not to the panel fails that test; so does a row naming a tab the page
+  does not accept, which would silently land on the page's default.
+- **The panel does not route.** Rows are `?tab=` links on the section's own
+  page, so pages keep owning their state.
+- **A numbered step is for a real sequence only** (the Produce pipelines). A
+  vertical row can print "4" but cannot show you that three are behind it, so
+  those keep an in-page `StepRail` as well. Everything else is a directory.
+- **`PageShell`'s `tabActions` is the section's action row** — the drawer
+  openers and the one control that applies section-wide. It used to render only
+  when `tabs` was passed, so removing the strips silently dropped Paid's
+  Playbook, Earned's Share and Shared's DM bot openers while every test stayed
+  green. It stands on its own row now.
+- **A drawer mounts at page level, never inside a tab**, with its opener in
+  that action row, and the row holds two or three at most. That ceiling is what
+  stops the junk-drawer problem: a section needing a fourth drawer has
+  something in there that should be a page.
+- **`tests/lib/tabDoors.mjs` counts a panel row as a door**, which it is and a
+  better one than the in-page links it looks for.
+
+Widths and colours are measured, not chosen, and the numbers have no slack in
+them worth spending. In Brockmann at 14px the widest nav row is "Shared" plus
+its Social chip at 110px, so the 170px nav indents 24px rather than 40px (at 40
+the lane is 106px and the chip clips). The widest panel row is `Keyword
+footprint` at 124px against a 142px lane, so a 150px panel breaks it. The nav
+is `#000000` because the logo has a black background and `#0b0b0c` shows an
+edge — **do not put a gradient back on `.app-nav`**, there was one and that was
+the cause. `#000` against the panel's `#222` is only 1.32:1, so the 1px `#333`
+divider is doing the separation, not the fill.
+
+### Layout inside the page responds to the page (30 Oct 2026)
+
+`.app-main` is a named container (`container: appmain / inline-size`) and
+in-content layout uses `@container appmain (...)`, not `@media`. Chrome is no
+longer one width — the nav collapses, the panel opens — so a viewport query
+cannot see a content box that has already shrunk.
+
+If you write a breakpoint for something inside the page, write a container
+query, and rebase the threshold: the gap between the window and the content box
+is 322px above 768px (nav, border, padding) and 32px at or below, where the nav
+is `position: fixed` and out of the flow. `tests/containerQueries.test.mjs`
+fails a viewport query that lays out content inside `.app-main`.
+
 ### Design tokens (`index.css :root`)
 - Type scale `--fs-*`, spacing `--s1..--s10`, radii `--r-sm/md/lg/pill`,
   colours, `--warm`/`--warm-soft`.
@@ -1705,6 +1781,30 @@ plainly, and prefer to fold at least one visible improvement into each PR so
 progress is obvious on `platform.octobercomms.com`.
 
 ## 10. Fast facts / gotchas checklist
+
+- **No client section has a horizontal tab strip.** A new screen is a row in
+  `frontend/src/nav/sections.js`, checked both ways by
+  `tests/sectionPanel.test.mjs`. See §5 for the panel, the measured widths, and
+  why `.app-nav` must stay flat `#000000`.
+- **In-content breakpoints are `@container appmain (...)`, not `@media`**, and
+  the thresholds are rebased (−322px above 768, −32px below). §5.
+- **A number that reaches a client report has to be one you can account for.**
+  Earned's "new referring domains" counted every domain the whole site gained
+  in a 21-day window after a release, with nothing tying a domain to the
+  release: one campaign read 939. `first_seen` in `dfs_referring_domains` is
+  **DataForSEO's discovery date**, not when the link appeared, so a newly
+  indexed site dumps years of history into one window — never read it as "this
+  link is new". The panel leads on `pitched_rds`, domains matching an outlet
+  the campaign emailed. When a figure cannot be defended, the fix is a smaller
+  honest number, not a caveat under a big one.
+- **`dfs_referring_domains` has no unique index on
+  `(client_id, captured_at, domain)`.** A capture written twice duplicates
+  rows, so count `DISTINCT domain` or a re-run reads as extra coverage.
+- **`.grid-2` and `.grid-3` are modifiers for `.grid`.** On their own they set
+  columns on a block element and nothing happens. `className="grid grid-2"`.
+- **`SideDrawer` renders its children while shut** (it slides rather than
+  unmounts), so a browser check that grabs `.first()` of anything may be
+  holding a closed drawer's field. Target by placeholder or within a scope.
 
 - **Leave this guide truer than you found it** (§8). Correct what your change
   made wrong, record what a future agent would otherwise learn the hard way,

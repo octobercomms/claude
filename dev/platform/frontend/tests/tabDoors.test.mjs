@@ -1,6 +1,6 @@
 // No tab may depend on an Overview for its only way in.
 //
-// The suites are large — Owned carries 38 tabs, Shared 18, Paid 14 — and each
+// The suites are large — Owned carries 29 destinations, Shared 13, Paid 9 — and each
 // Overview is partly a diagram of links into them. That makes deleting one a
 // navigation change: a tab linked only from inside it becomes a working page
 // nobody can open. This codebase has produced that failure three times
@@ -32,6 +32,12 @@ import { fileURLToPath } from 'node:url';
 import {
   knownTabs, overviewBlocks, tabsOnlyReachableFromOverview,
 } from './lib/tabDoors.mjs';
+import { SECTIONS, tabsOf } from '../src/nav/sections.js';
+
+// Every tab any section panel offers. A row there is a door from anywhere in
+// the section, which is a stronger guarantee than the in-page links this
+// scanner looks for, so those tabs are never orphans.
+const PANEL_TABS = new Set(Object.values(SECTIONS).flatMap(tabsOf));
 
 const PAGES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'pages');
 
@@ -54,7 +60,7 @@ test('only the pages we expect render an Overview-named component', () => {
 
 test('no tab is reachable only from an Overview', () => {
   const stranded = withOverview
-    .map(p => ({ file: p.file, tabs: tabsOnlyReachableFromOverview(p.src) }))
+    .map(p => ({ file: p.file, tabs: tabsOnlyReachableFromOverview(p.src, PANEL_TABS) }))
     .filter(p => p.tabs.length)
     .map(p => `${p.file}: ${p.tabs.join(', ')}`);
 

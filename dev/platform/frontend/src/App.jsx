@@ -9,6 +9,7 @@ import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import RankingsPage from './pages/RankingsPage';
 import ClientSEOPage from './pages/ClientSEOPage';
+import ClientConvertPage from './pages/ClientConvertPage';
 import ClientAdsPage from './pages/ClientAdsPage';
 import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
 import ClientSocialPage from './pages/ClientSocialPage';
@@ -106,6 +107,7 @@ export default function App() {
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
             <Route path="clients/:id/seo" element={<ClientSEOPage />} />
+            <Route path="clients/:id/convert" element={<ClientConvertPage />} />
             <Route path="clients/:id/chat" element={<ChatRedirect />} />
             <Route path="clients/:id/ads" element={<ClientAdsPage />} />
             <Route path="clients/:id/outreach" element={<OutreachRedirect />} />

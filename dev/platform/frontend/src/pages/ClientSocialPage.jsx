@@ -7,6 +7,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import PillarMeasure from '../components/PillarMeasure';
+import SocialDecisions from '../components/SocialDecisions';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import StepRail from '../components/shells/StepRail';
@@ -14,7 +15,6 @@ import PageShell from '../components/shells/PageShell';
 import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
-import SuiteTabs from '../components/SuiteTabs';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
@@ -23,7 +23,7 @@ import SubredditResearchPanel from '../components/SubredditResearchPanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
-import { Accordion, AccordionItem } from '../components/ui/Accordion';
+import SideDrawer from '../components/ui/SideDrawer';
 import SocialFactoryMap from '../components/SocialFactoryMap';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -403,7 +403,19 @@ export default function ClientSocialPage() {
   // Capture / Engage / Measure are parallel tools & read-outs, not a numbered
   // sequence — so they're accordions (same primitive as Owned's Health), not a
   // ProcessRail. Section bodies are the former per-tab panels, rendered lazily.
+  // Measure leads with the decisions, then the read-out underneath. The
+  // read-out was the whole of it, which is why it had no daily use.
   const renderReview = () => (
+    <div className="stack-lg">
+      <SocialDecisions
+        winners={winners}
+        frameworks={frameworkBreakdown}
+        onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }}
+      />
+      {renderReviewOverview()}
+    </div>
+  );
+  const renderReviewOverview = () => (
     <SocialSuiteOverview
       clientId={id} client={client} batches={batches} posts={posts} plans={plans}
       competitors={competitors} winners={winners} competitorPosts={competitorPosts} sparkline={sparkline}
@@ -437,37 +449,23 @@ export default function ClientSocialPage() {
       <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
     </div>
   );
-  const CAPTURE_SECTIONS = [
-    { id: 'swipe', fn: 'research', title: 'Swipe file', sub: 'Save posts to model', render: () => <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} /> },
-    { id: 'subreddit', fn: 'research', title: 'Subreddit research', sub: 'Mine Reddit for angles', render: () => <SubredditResearchPanel clientId={id} onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} /> },
-  ];
-  const ENGAGE_SECTIONS = [
-    { id: 'dm_bot', fn: 'distribute', title: 'DM bot', sub: 'Auto-reply brain & drafts', render: () => <SocialDmBotPanel clientId={id} /> },
-    { id: 'discover', fn: 'distribute', title: 'Discover', sub: 'Find & engage accounts', render: () => <IgOutreachPanel clientId={id} /> },
-  ];
-  const MEASURE_SECTIONS = [
-    { id: 'perf_insights', fn: 'measure', title: 'Review', sub: 'Your headline numbers', render: renderReview },
-    { id: 'performance', fn: 'measure', title: 'Learn', sub: 'Top posts & hooks', render: renderLearn },
-    { id: 'competitors', fn: 'research', title: 'Compare', sub: 'Benchmark vs rivals', render: renderCompare },
-    { id: 'audit', fn: 'strategy', title: 'Improve', sub: 'What to change next', render: () => <SocialAuditPanel clientId={id} /> },
-  ];
-  const SUB_ACCORDION = { capture: CAPTURE_SECTIONS, engage: ENGAGE_SECTIONS, measure: MEASURE_SECTIONS };
-  const subGroup = { swipe: 'capture', subreddit: 'capture', dm_bot: 'engage', discover: 'engage', perf_insights: 'measure', performance: 'measure', competitors: 'measure', audit: 'measure' }[socialTab];
-  const [subOpen, setSubOpen] = useState(() => new Set());
-  useEffect(() => {
-    if (subGroup) setSubOpen(prev => (prev.has(socialTab) ? prev : new Set([socialTab])));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socialTab]);
+  const [dmBotOpen, setDmBotOpen] = useState(false);
 
   return (
     <div className="suite-social">
       {/* HERO — always visible across tabs. Tab-specific actions sit
           inside each tab's section head instead of a global toolbar. */}
-      <PageShell title="Shared" subtitle={client?.name} actions={
-        <UiButton variant="secondary" size="sm" {...roWrite(readOnly, { onClick: toggleAutopilotPaused })}>
-          {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
-        </UiButton>
-      }>
+      <PageShell
+        title="Shared"
+        subtitle={client?.name}
+        tabActions={(
+          /* The DM bot was a tab inside Engage, which made it a place you had
+             to be rather than a thing you check on. Section-wide, so it is
+             reachable from Capture through Measure and Discover is left with
+             one job. */
+          <UiButton variant="secondary" size="sm" onClick={() => setDmBotOpen(true)}>DM bot</UiButton>
+        )}
+      >
       {/* What this pillar actually drove, and its share of the account. The
           whole Measure panel on four pages would put refund rate on the PR
           page; this is the three headline numbers filtered to this pillar's
@@ -475,58 +473,27 @@ export default function ClientSocialPage() {
           working". */}
       <PillarMeasure clientId={id} pillar="shared" />
 
-      {/* Four top groups in workflow order: Overview / Create / Engage / Measure.
-          Create is now the whole factory — Ideas → Brief → Workbench → Plan →
-          Publish — so Schedule is no longer a separate section; its 'plans'/
-          'publish' keys map into Create (steps 4 & 5) and stay valid as deep
-          links. Legacy 'loop'/'learn' redirect. */}
-      {(() => {
-        // Workflow order, left → right: Create → Engage → Measure.
-        const SUB_TABS = {
-          capture: [
-            { key: 'swipe',     label: 'Swipe file' },
-            { key: 'subreddit', label: 'Subreddit research' },
-          ],
-          engage: [
-            { key: 'dm_bot',   label: 'DM bot' },
-            { key: 'discover', label: 'Discover' },
-          ],
-          measure: [
-            { key: 'perf_insights', label: 'Review' },
-            { key: 'performance',   label: 'Learn' },
-            { key: 'competitors',   label: 'Compare' },
-            { key: 'audit',         label: 'Improve' },
-          ],
-        };
-        const GROUP_OF = {
-          overview: 'overview',
-          swipe: 'capture', subreddit: 'capture',
-          brainstorm: 'create', review: 'create', reels: 'create', video: 'create', produce: 'create',
-          plans: 'create', publish: 'create',
-          dm_bot: 'engage', discover: 'engage',
-          performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
-          learn: 'measure', loop: 'measure',
-        };
-        const currentGroup = GROUP_OF[socialTab] || 'measure';
-        const topTabs = [
-          { key: 'capture',  label: 'Capture',  fn: 'research',   active: currentGroup === 'capture',  onClick: () => setSocialTab('swipe') },
-          { key: 'create',   label: 'Build',    fn: 'create',     active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
-          { key: 'engage',   label: 'Engage',   fn: 'distribute', active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
-          { key: 'measure',  label: 'Measure',  fn: 'measure',    active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
-        ];
-        return (
-          <>
-            <SuiteTabs tabs={topTabs} />
-            {SUB_ACCORDION[currentGroup] && (
-              <Accordion open={subOpen} onToggle={(sid) => setSubOpen(prev => (prev.has(sid) ? new Set() : new Set([sid])))}>
-                {SUB_ACCORDION[currentGroup].map(s => (
-                  <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
-                ))}
-              </Accordion>
-            )}
-          </>
-        );
-      })()}
+      {/* The Capture, Engage and Measure groups were a tab strip over a
+          single-open accordion: two layers of container in front of six
+          panels. Each is a row in the section panel now, with its own key. */}
+      {socialTab === 'swipe' && <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} />}
+      {socialTab === 'subreddit' && <SubredditResearchPanel clientId={id} onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} />}
+      {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
+      {socialTab === 'perf_insights' && renderReview()}
+      {socialTab === 'performance' && renderLearn()}
+      {socialTab === 'competitors' && renderCompare()}
+      {socialTab === 'audit' && <SocialAuditPanel clientId={id} />}
+
+      {/* The DM bot, section-wide. */}
+      <SideDrawer
+        open={dmBotOpen}
+        onClose={() => setDmBotOpen(false)}
+        kicker="Shared"
+        title="DM bot"
+        width={860}
+      >
+        <SocialDmBotPanel clientId={id} />
+      </SideDrawer>
 
 
       {/* PERFORMANCE → INSIGHTS — hero metrics, loop, next-up, recap. */}
@@ -551,6 +518,8 @@ export default function ClientSocialPage() {
           onEditReel={openReelEditor}
           onReuseBrief={(b) => setBrief(b.brief || '')}
           onBulkSchedule={() => setBulkOpen(true)}
+          autopilotPaused={!!client?.social_autopilot_paused}
+          onToggleAutopilot={toggleAutopilotPaused}
           onShareForApproval={shareBatchForApproval}
           generating={generating}
           shareUrl={shareUrl}
@@ -649,6 +618,7 @@ export default function ClientSocialPage() {
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel, onOpenReels, onEditReel,
   onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
+  autopilotPaused, onToggleAutopilot,
   socialTab, onNavTab, briefContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
@@ -934,6 +904,13 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap" style={{ gap: 'var(--s2)' }}>
+              {/* Pause autopilot lived in the page header, a group away from
+                  the queue it halts. A control that stops a client's posting
+                  belongs beside the posting it stops, where you can see what
+                  you are about to freeze. */}
+              <UiButton variant="secondary" {...roWrite(readOnly, { onClick: onToggleAutopilot })}>
+                {autopilotPaused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+              </UiButton>
               <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>Bulk schedule</UiButton>
             </div>
           </div>
