@@ -52,7 +52,7 @@ class YAA_Shortcode {
 		?>
 		<div class="yaa"><div class="archie-embed">
 			<div class="ob-top">
-				<span class="ob-title"><span class="archie-face"><?php echo $face; // phpcs:ignore ?></span> <?php esc_html_e( 'Talk to Archie — your personalised price builds as you answer', 'your-architect-archie' ); ?></span>
+				<span class="ob-title"><span class="archie-face"><?php echo $face; // phpcs:ignore ?></span> <span class="ob-title-text"><strong><?php esc_html_e( 'Talk to Archie', 'your-architect-archie' ); ?></strong><span class="ob-title-sub"> — <?php esc_html_e( 'your personalised price builds as you answer', 'your-architect-archie' ); ?></span></span></span>
 				<div class="ob-actions"><button class="btn btn-outline" id="restartBtn" type="button"><?php esc_html_e( 'Start over', 'your-architect-archie' ); ?></button></div>
 			</div>
 			<div class="ob-body">

@@ -185,6 +185,13 @@
 .yaa .archie-embed .ob-panel { position: static; transform: none; max-height: none; z-index: auto; border-top: 1px solid var(--line); border-radius: 0; }
 .yaa .archie-embed .ob-panel-toggle { display: none; }
 .yaa .archie-embed .ob-nodes { overflow: visible; max-height: none; }
+/* Compact header on phones: just "Talk to Archie" + Start over on one line. The
+   marketing tail wrapped to six lines and ate the first screen. */
+.yaa .archie-embed .ob-top { min-height: 0; padding: 9px 14px; gap: 10px; }
+.yaa .archie-embed .ob-top .ob-title { font-size: .98rem; gap: 9px; }
+.yaa .archie-embed .ob-top .archie-face { width: 26px; height: 26px; }
+.yaa .archie-embed .ob-title-sub { display: none; }
+.yaa .archie-embed .ob-top .ob-actions .btn { padding: 7px 14px; font-size: .85rem; }
 }
 .yaa .archie-badge { width: 24px; height: 24px; border-radius: 7px; background: var(--navy); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .yaa .archie-badge svg { width: 16px; height: 16px; }
