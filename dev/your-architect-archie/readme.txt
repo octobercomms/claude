@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.31
+Stable tag: 0.7.32
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,12 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.32 =
+* Smaller chat header on phones. The "Talk to Archie — your personalised price
+  builds as you answer" line wrapped to six lines and ate the top of the screen;
+  on mobile it's now a single compact "Talk to Archie" line next to Start over, so
+  the conversation is visible straight away. The full line still shows on desktop.
 
 = 0.7.31 =
 * Fixed the mobile scroll freeze. On phones the embedded chat was a full-height app
