@@ -7,6 +7,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import PillarMeasure from '../components/PillarMeasure';
+import SocialDecisions from '../components/SocialDecisions';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import StepRail from '../components/shells/StepRail';
@@ -402,7 +403,19 @@ export default function ClientSocialPage() {
   // Capture / Engage / Measure are parallel tools & read-outs, not a numbered
   // sequence — so they're accordions (same primitive as Owned's Health), not a
   // ProcessRail. Section bodies are the former per-tab panels, rendered lazily.
+  // Measure leads with the decisions, then the read-out underneath. The
+  // read-out was the whole of it, which is why it had no daily use.
   const renderReview = () => (
+    <div className="stack-lg">
+      <SocialDecisions
+        winners={winners}
+        frameworks={frameworkBreakdown}
+        onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }}
+      />
+      {renderReviewOverview()}
+    </div>
+  );
+  const renderReviewOverview = () => (
     <SocialSuiteOverview
       clientId={id} client={client} batches={batches} posts={posts} plans={plans}
       competitors={competitors} winners={winners} competitorPosts={competitorPosts} sparkline={sparkline}
