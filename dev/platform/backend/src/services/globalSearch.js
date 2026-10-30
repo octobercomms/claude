@@ -43,6 +43,11 @@ function selectFor(e) {
   const scope = `${e.scopeColumn || 'client_id'} = ANY($1::uuid[])`;
   const match = e.columns.map(c => `${c} ILIKE $2`).join(' OR ');
   const subtitle = e.subtitle ? `${e.subtitle}::text` : 'NULL::text';
+  // An entity's own condition, where searching the whole table would offer
+  // rows the screen it opens cannot show. Coverage is the case: its screen
+  // hides 'new' and 'dismissed', so without this, search hands you a result
+  // that opens a list the row is not in.
+  const extra = e.where ? `\n       AND (${e.where})` : '';
   return `
     (SELECT '${e.type}'::text          AS type,
            id::text                   AS id,
@@ -58,7 +63,7 @@ function selectFor(e) {
       FROM ${e.table}
      WHERE ${scope}
        AND ${e.title} IS NOT NULL AND ${e.title} <> ''
-       AND (${match})
+       AND (${match})${extra}
      ORDER BY rank, created_at DESC
      LIMIT ${PER_TYPE})`;
 }
@@ -81,9 +86,14 @@ async function search(q, { visibleClientIds }) {
   // type -> label map in the browser, which is the same list written twice and
   // drifts the first time an entity is renamed.
   const labels = Object.fromEntries(ENTITIES.map(e => [e.type, e.label]));
+  // `opens` travels with the row too: the browser needs it to decide whether
+  // to put the record's id in the URL, and the alternative is a third copy of
+  // the table.
+  const opens = Object.fromEntries(ENTITIES.map(e => [e.type, e.opens]));
   return rows.map(r => ({
     type: r.type,
     label: labels[r.type] || r.type,
+    opens: opens[r.type] || 'screen',
     id: r.id,
     title: r.title,
     subtitle: r.subtitle || null,

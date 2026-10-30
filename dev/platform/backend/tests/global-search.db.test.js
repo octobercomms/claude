@@ -77,6 +77,11 @@ async function main() {
     ok(both.every(r => r.leaf && r.screen && r.client_id),
       'every result carries somewhere to open',
       both.filter(r => !(r.leaf && r.screen && r.client_id)));
+    ok(both.every(r => ['record', 'reveal', 'screen'].includes(r.opens)),
+      'and says what opening it does, which the browser needs to decide '
+      + 'whether to put the record id in the URL',
+      both.filter(r => !['record', 'reveal', 'screen'].includes(r.opens))
+        .map(r => `${r.type}:${r.opens}`));
 
     // ── the edges ────────────────────────────────────────────────────────────
     ok((await search(TERM, { visibleClientIds: [] })).length === 0,
@@ -91,6 +96,26 @@ async function main() {
     ok(inject.length === 0 && clientsAlive > 0,
       'a term full of SQL is a term, not SQL',
       { results: inject.length, clients: clientsAlive });
+
+    // ── an entity's own condition ────────────────────────────────────────────
+    // The Coverage screen lists `status NOT IN ('new','dismissed')`: a 'new'
+    // row is still in the Monitor review queue and has never been confirmed as
+    // coverage. Search read the whole table, so it could hand back a row whose
+    // result opened a screen the row is not on.
+    await pool.query(
+      `INSERT INTO pr_editorial_log (client_id, story_title, status) VALUES ($1,$2,'new')`,
+      [A, `${TERM} unreviewed mention`]);
+    await pool.query(
+      `INSERT INTO pr_editorial_log (client_id, story_title, status) VALUES ($1,$2,'dismissed')`,
+      [A, `${TERM} dismissed mention`]);
+    const cov = await search(TERM, { visibleClientIds: [A] });
+    const titles = cov.map(r => r.title);
+    ok(!titles.includes(`${TERM} unreviewed mention`),
+      'a coverage row still in the review queue is not offered', titles);
+    ok(!titles.includes(`${TERM} dismissed mention`),
+      'nor is a dismissed one', titles);
+    ok(titles.includes(`${TERM} own coverage`),
+      'while confirmed coverage still is', titles);
 
     // ── ranking ──────────────────────────────────────────────────────────────
     const exact = await search(`${TERM} Ltd`, { visibleClientIds: [A, B] });

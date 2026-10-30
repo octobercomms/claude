@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../utils/api';
+import { useRevealRow } from '../hooks/useOpenRecord';
 
 /**
  * Everything October has made for one client.
@@ -111,6 +112,12 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
   const shown = data.assets || [];
   const sources = useMemo(() => data.sources || [], [data.sources]);
 
+  // A search result for an asset scrolls to its card and marks it: a card is
+  // the whole of an asset here, so there is nothing further to open. `loading`
+  // rather than the list being empty, because a library with nothing in it and
+  // one still fetching look identical from the array alone.
+  const { missing, dismissMissing } = useRevealRow(shown, !loading);
+
   if (error) return <div style={{ ...CAP, color: 'var(--negative)' }}>{error}</div>;
 
   return (
@@ -145,6 +152,17 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
         )}
       </div>
 
+      {/* Above the list rather than inside it: the case where the item is
+          missing is also the case where the list may be empty, and the empty
+          state is its own branch. */}
+      {missing && (
+        <div className="notice-missing" role="status" style={{ marginTop: 'var(--s3)', marginBottom: 0 }}>
+          That item is not in this library — it may have been deleted, or hidden
+          by a filter above.
+          <button type="button" className="btn-link" onClick={dismissMissing}>Dismiss</button>
+        </div>
+      )}
+
       {loading && !shown.length ? (
         <div style={{ ...CAP, marginTop: 'var(--s3)' }}>Loading…</div>
       ) : !shown.length ? (
@@ -163,7 +181,7 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
           {shown.map((a) => {
             const pickable = !!onPick;
             return (
-              <div key={a.id} role={pickable ? 'button' : undefined} tabIndex={pickable ? 0 : undefined}
+              <div key={a.id} data-open-id={a.id} role={pickable ? 'button' : undefined} tabIndex={pickable ? 0 : undefined}
                 onClick={pickable ? () => onPick(a) : undefined}
                 onKeyDown={pickable ? (e) => {
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(a); }

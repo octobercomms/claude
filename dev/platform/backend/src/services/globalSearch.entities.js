@@ -14,12 +14,27 @@
 // next thing added to it cannot quietly reintroduce that.
 //
 // `columns` are searched; `title` names the one shown, and must be among them.
-// `leaf` and `screen` are where a result opens. Keep each entry small: the cost
-// of another one should be six lines, so that "search does not find X" is cheap
-// to fix.
+// `leaf` and `screen` are where a result opens.
+//
+// `opens` says what happens once you are there, and every entity declares it:
+//
+//   'record'  the screen has a view of one record and opens it, from the id in
+//             `?open=`. Contacts, releases, coverage, campaigns, transcripts.
+//   'reveal'  the screen has no single-record view, so the row is scrolled to
+//             and marked for a moment. Recordings and assets: a recording row
+//             is rename / copy link / export, and an asset is a card.
+//   'screen'  the screen IS the record. Only clients, whose result opens their
+//             own dashboard; `?open=` would say nothing the path does not.
+//
+// A test asserts every entity declares one of the three, so a kind added later
+// has to decide rather than silently landing on a list.
+//
+// Keep each entry small: the cost of another one should be six lines, so that
+// "search does not find X" is cheap to fix.
 const ENTITIES = [
   {
     type: 'client',
+    opens: 'screen',
     label: 'Clients',
     table: 'clients',
     // A client is scoped by its own id rather than a client_id column.
@@ -33,6 +48,7 @@ const ENTITIES = [
   },
   {
     type: 'contact',
+    opens: 'record',
     label: 'Journalists & contacts',
     table: 'outreach_contacts',
     title: 'name',
@@ -43,6 +59,7 @@ const ENTITIES = [
   },
   {
     type: 'release',
+    opens: 'record',
     label: 'Press releases',
     table: 'pr_press_releases',
     title: 'title',
@@ -53,8 +70,14 @@ const ENTITIES = [
   },
   {
     type: 'coverage',
+    opens: 'record',
     label: 'Coverage',
     table: 'pr_editorial_log',
+    // The Coverage screen's own list is `status NOT IN ('new','dismissed')` —
+    // a 'new' row is in the Monitor review queue and has never been confirmed
+    // as coverage. Searching the whole table offered rows whose result opened
+    // a list they were not in.
+    where: "status NOT IN ('new','dismissed')",
     title: 'story_title',
     subtitle: 'status',
     columns: ['story_title', 'story_url'],
@@ -63,6 +86,7 @@ const ENTITIES = [
   },
   {
     type: 'campaign',
+    opens: 'record',
     label: 'Campaigns',
     table: 'outreach_campaigns',
     title: 'name',
@@ -73,16 +97,24 @@ const ENTITIES = [
   },
   {
     type: 'recording',
+    opens: 'reveal',
     label: 'Recordings',
     table: 'recordings',
     title: 'title',
     subtitle: 'status',
     columns: ['title'],
     leaf: 'produce',
-    screen: 'library',
+    // 'record', not 'library': Produce has both, and the library lists
+    // client_assets. This said 'library' at first — a valid slug of the right
+    // section, which is all the route test can check, so a recording result
+    // opened a screen that lists a different table entirely. The browser drive
+    // is what catches that now: it opens one result of every kind and asserts
+    // the record is actually there.
+    screen: 'record',
   },
   {
     type: 'transcript',
+    opens: 'record',
     label: 'Transcripts',
     table: 'transcripts',
     title: 'title',
@@ -93,6 +125,7 @@ const ENTITIES = [
   },
   {
     type: 'asset',
+    opens: 'reveal',
     label: 'Library',
     table: 'client_assets',
     title: 'title',

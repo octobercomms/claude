@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useScreen } from '../hooks/useScreen';
+import { useOpenOnce } from '../hooks/useOpenRecord';
 import PressReleaseEditor from '../components/PressReleaseEditor';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
@@ -435,6 +436,32 @@ export default function ClientPRPage() {
     } catch (e) { toast(e.message, 'error'); }
   }
   // Inline rename: which release is being renamed + its draft text.
+  // A search result opens the record, not the list it is in: `?open=<id>` on
+  // this screen's URL, read once and then dropped. Four of the screens here
+  // have a view of one record, and which one the id means is settled by the
+  // path, since a screen holds one kind.
+  //
+  // Each is held back until its own tab is showing: this page renders four
+  // screens and only one of them owns the parameter at a time.
+  useOpenOnce(openRelease, tab === 'press');
+  useOpenOnce(
+    useCallback((cid) => setOpenPressCampaign(cid), []),
+    tab === 'journalists');
+  useOpenOnce(
+    useCallback((jid) => setProfileTarget({ type: 'journalist', id: jid }), []),
+    tab === 'contacts');
+  // Coverage is the one that needs the row rather than an id: startEdit builds
+  // its form from the fields the list already carries, and there is no GET for
+  // a single entry. `missingCoverage` is what the screen says when the row is
+  // not there — past the 500 the list loads, or deleted since.
+  const [missingCoverage, setMissingCoverage] = useState(false);
+  useOpenOnce(
+    useCallback((eid) => {
+      const row = log.find(x => String(x.id) === String(eid));
+      if (row) startEdit(row); else setMissingCoverage(true);
+    }, [log]),
+    tab === 'coverage' && log.length > 0);
+
   const [renamingPR, setRenamingPR] = useState(null); // release id
   const [renameText, setRenameText] = useState('');
   const [expandedPR, setExpandedPR] = useState(null);  // release id whose stats are open
@@ -1041,6 +1068,16 @@ export default function ClientPRPage() {
   // used to be one tab.
   const renderCoverage = () => (
         <div>
+          {/* A search result whose row is not here. The list loads the most
+              recent 500, so an old entry can be addressed and not present —
+              and saying nothing would read as the link being broken. */}
+          {missingCoverage && (
+            <div className="notice-missing" role="status">
+              That entry is not in this list. The list holds the most recent 500,
+              so it may be older than those, or it may have been deleted.
+              <button type="button" className="btn-link" onClick={() => setMissingCoverage(false)}>Dismiss</button>
+            </div>
+          )}
           {/* One primary action, one secondary; the CSV imports fold into a
               single menu and the utilities become quiet links, so the row
               reads as a clear hierarchy rather than six equal pills. */}

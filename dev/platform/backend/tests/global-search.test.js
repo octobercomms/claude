@@ -104,6 +104,47 @@ check('a client result links to the client it is', () => {
     'a client result must carry its own id as the client to open');
 });
 
+check('every entity says what opening its result does', () => {
+  // Three answers, and a kind added later has to pick one rather than
+  // defaulting to "land on a list and leave them to find it", which is what
+  // every result did before.
+  const KINDS = ['record', 'reveal', 'screen'];
+  for (const e of ENTITIES) {
+    assert.ok(KINDS.includes(e.opens),
+      `${e.type}: opens is ${JSON.stringify(e.opens)}, not one of ${KINDS.join(' / ')}`);
+  }
+  // 'screen' is for a result that IS its screen. Only a client is, and giving
+  // another entity that answer silently drops the record id from the URL.
+  const asScreen = ENTITIES.filter(e => e.opens === 'screen').map(e => e.type);
+  assert.deepStrictEqual(asScreen, ['client'],
+    'only the client entity is its own screen; anything else with opens:"screen" '
+    + 'loses the record id and lands on a list');
+});
+
+check('an entity whose screen shows a subset of its table says so', () => {
+  // Coverage was the case: the screen lists `status NOT IN ('new','dismissed')`
+  // and search read the whole table, so a 'new' row — one still in the Monitor
+  // review queue — could be found and then not be on the screen it opened.
+  const coverage = ENTITIES.find(e => e.type === 'coverage');
+  assert.ok(coverage.where && /status NOT IN/.test(coverage.where),
+    'the coverage entity no longer narrows to what its screen shows');
+  assert.ok(selectFor(coverage).includes(coverage.where),
+    'the where clause is declared but never reaches the SQL');
+
+  // And the clause is a WHERE, not something applied after the per-type limit.
+  const sql = selectFor(coverage);
+  assert.ok(sql.indexOf(coverage.where) < sql.indexOf('LIMIT'),
+    'the entity condition is applied after the row limit, so excluded rows '
+    + 'still take up slots the visible ones should have had');
+});
+
+check('an entity with no condition generates no stray AND', () => {
+  // `where` is optional; the ones without it must not emit an empty predicate.
+  const plain = ENTITIES.find(e => !e.where);
+  assert.ok(plain, 'every entity now has a where clause — this check is moot');
+  assert.ok(!/AND \(\)/.test(selectFor(plain)), `${plain.type} emits an empty AND ()`);
+});
+
 check('the entity table can be read without a database', () => {
   // routeTargets.test.mjs loads this table to check where each kind of result
   // opens, and it runs in the frontend CI job, which installs only the

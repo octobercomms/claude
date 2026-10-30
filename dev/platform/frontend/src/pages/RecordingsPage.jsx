@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { CAPTURE, displayConstraints, compositeSize, recorderOptions } from '../utils/captureSettings';
+import { useRevealRow } from '../hooks/useOpenRecord';
 
 // In-OMI screen recorder (internal Loom replacement). Record a screen
 // walkthrough with your voice, save it, and share the /watch/:token link.
@@ -101,6 +102,13 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   }, [keepLocalCopy]);
   // Set once a copy has actually been written, so the UI can say so.
   const [localCopyName, setLocalCopyName] = useState(null);
+
+  // A search result for a recording scrolls to its row and marks it. There is
+  // no single-recording view to open — a row here is rename, copy link,
+  // export, send to edit — so revealing it is the whole of "open this one".
+  // `missing` covers a recording that has since been deleted or detached from
+  // this client.
+  const { missing: missingRecording, dismissMissing: dismissMissingRecording } = useRevealRow(list);
   const fileImportRef = useRef(null);
 
   const recorderRef = useRef(null);
@@ -830,6 +838,13 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
           </button>
         )}
       </div>
+      {missingRecording && (
+        <div className="notice-missing" role="status">
+          That video is not in this list — it may have been deleted, or no longer
+          attached to this client.
+          <button type="button" className="btn-link" onClick={dismissMissingRecording}>Dismiss</button>
+        </div>
+      )}
       {list === null ? (
         <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>
       ) : list.length === 0 ? (
@@ -839,7 +854,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
           {list.map(r => {
             const views = (r.view_count || 0) + (r.imported_views || 0);
             return (
-            <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', flexWrap: 'wrap', outline: selected.has(r.id) ? '2px solid var(--accent)' : 'none' }}>
+            <div key={r.id} data-open-id={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', flexWrap: 'wrap', outline: selected.has(r.id) ? '2px solid var(--accent)' : 'none' }}>
               {canEdit && <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.title}`} />}
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontWeight: 700 }}>{r.title}</div>
