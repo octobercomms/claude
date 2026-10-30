@@ -1,6 +1,6 @@
 // No tab may depend on an Overview for its only way in.
 //
-// The suites are large — Owned carries 38 tabs, Shared 18, Paid 14 — and each
+// The suites are large — Owned carries 29 destinations, Shared 13, Paid 9 — and each
 // Overview is partly a diagram of links into them. That makes deleting one a
 // navigation change: a tab linked only from inside it becomes a working page
 // nobody can open. This codebase has produced that failure three times

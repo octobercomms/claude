@@ -1,6 +1,6 @@
 // Finding the tabs that only an overview can reach.
 //
-// The suites are big — Owned carries 38 tabs, Shared 18, Paid 14 — and each
+// The suites are big — Owned carries 29 destinations, Shared 13, Paid 9 — and each
 // one's Overview is a diagram of links into them. Deleting an overview is
 // therefore a navigation change, not a cosmetic one: any tab whose only link
 // lives inside it becomes a working page nobody can open. That has already
