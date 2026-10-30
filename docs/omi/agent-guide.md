@@ -1478,7 +1478,7 @@ destination is a row in the section panel, the narrow column between the nav
 and the page. If you are adding a screen, you are adding a row to
 `frontend/src/nav/sections.js`, not a tab.
 
-Why it changed: a strip holds four or five items. Owned had 29, so they were
+Why it changed: a strip holds four or five items. Owned had 28, so they were
 folded two levels deep into single-open accordions behind group tabs, and
 `?tab=site_audit` was rewritten to `?tab=optimise` with a section opened inside
 it, so a link to a tool could not be shared. Give each job a row with its own
@@ -1493,8 +1493,21 @@ What this means in practice:
   `useTabParam` whitelist and checks both directions. A tab you add to a page
   and not to the panel fails that test; so does a row naming a tab the page
   does not accept, which would silently land on the page's default.
+- **Every group is open.** The first version kept one open at a time to avoid
+  scrolling; Daniel's read after using it was "i dont want pages hidden. thats
+  more clicks", and he is right that the cost sits in the wrong place — a
+  collapsed group charges a click on every visit to save a scroll that costs
+  nothing. A heading still collapses by hand. Do not seed the collapsed-set
+  state to change that: the effect that resets it on a section change also
+  runs on mount, so an initial value is cleared before the first paint.
+- **`scope` is `'client'` or `'global'`.** The panel needs it: it used to
+  require a client id before rendering anything, so Settings' rows never
+  appeared and the panel looked unwired rather than broken.
 - **The panel does not route.** Rows are `?tab=` links on the section's own
-  page, so pages keep owning their state.
+  page, so pages keep owning their state. A page that holds its tab in its own
+  state and writes the URL with `history.replaceState` will not notice a row
+  being clicked — React Router never sees that write. Settings did exactly
+  this; it reads `useSearchParams` now.
 - **A numbered step is for a real sequence only** (the Produce pipelines). A
   vertical row can print "4" but cannot show you that three are behind it, so
   those keep an in-page `StepRail` as well. Everything else is a directory.

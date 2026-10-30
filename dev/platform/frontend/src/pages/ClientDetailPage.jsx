@@ -378,28 +378,11 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['measure', 'details', 'connectors', 'strategy', 'plan', 'reports'].includes(tab) && (
-        <div className="tabs">
-          {/* Three tabs, and only three. Setup and Connectors are reached from
-              the cog and the plug in the client bar, top right, where their
-              state is visible from every page rather than only from here. */}
-          {/* The labels say what each tab holds; the URL keys do not change.
-              The Monday email links straight to ?tab=strategy, and every
-              briefing already sent carries that link. "Plan" was always the
-              SOSTAC plan — Situation, Objectives, Strategy, Tactics, Action,
-              Control — and calling it by its name stops "Strategy" and "Plan"
-              reading as two words for the same thing. */}
-          {[
-            ['measure', 'Measure'],
-            ['reports', 'Reports'],
-            ['strategy', 'Strategist'],
-            ['plan', 'SOSTAC'],
-          ].map(([key, label]) => (
-            <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
-              className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
-          ))}
-        </div>
-      )}
+      {/* The strip is gone. Measure, Reports, Strategist and SOSTAC are rows
+          in the section panel, reachable from each other and from anywhere
+          else in the client without coming back here first. The URL keys did
+          not change: the Monday email links straight to ?tab=strategy and
+          every briefing already sent carries that link. */}
 
       {tab === 'measure' && <MeasurePanel clientId={id} />}
 

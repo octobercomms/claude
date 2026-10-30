@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
@@ -450,18 +450,22 @@ export default function SettingsPage() {
   const [testingPsi, setTestingPsi] = useState(false);
   const [psiTestMsg, setPsiTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
-  const [tab, setTab] = useState(() => {
-    const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'general') return 'costs';      // legacy deep links
-    if (t === 'aimodels') return 'ai';
-    return ALL_SUBS.includes(t) ? t : 'costs';
-  });
+  // Read from the router, not from window.location. This page used to hold
+  // the tab in its own state and write the URL with history.replaceState,
+  // which React Router never sees — so a section-panel row changed the address
+  // bar and the page carried on showing whatever it was showing.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get('tab');
+  const tab = rawTab === 'general' ? 'costs'          // legacy deep links
+    : rawTab === 'aimodels' ? 'ai'
+      : (ALL_SUBS.includes(rawTab) ? rawTab : 'costs');
 
   function switchTab(next) {
-    setTab(next);
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', next);
-    window.history.replaceState(null, '', url.toString());
+    setSearchParams(prev => {
+      const p = new URLSearchParams(prev);
+      p.set('tab', next);
+      return p;
+    }, { replace: true });
   }
 
   // initialValues captures what came back from GET /platform-keys so the
@@ -629,49 +633,11 @@ export default function SettingsPage() {
         <h1 className="display">Settings</h1>
       </header>
 
-      <div className="tabs">
-        {SECTIONS.map(s => (
-          <button key={s.key} onClick={() => switchTab(s.subs[0].k)}
-            className={`tab ${s.subs.some(x => x.k === tab) ? 'active' : ''}`}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-      {(() => {
-        const section = SECTIONS.find(s => s.subs.some(x => x.k === tab)) || SECTIONS[0];
-        const groups = SECTION_GROUPS[section.key];
-        // Sections with a group map render labelled bentos; anything else keeps
-        // the flat sub-tab strip.
-        if (!groups) {
-          return (
-            <div className="tabs tabs-sub">
-              {section.subs.map(x => (
-                <button key={x.k} onClick={() => switchTab(x.k)}
-                  className={`tab ${tab === x.k ? 'active' : ''}`}>
-                  {x.label}
-                </button>
-              ))}
-            </div>
-          );
-        }
-        const byKey = Object.fromEntries(section.subs.map(x => [x.k, x]));
-        return (
-          <div className="stepper-grouped" style={{ marginBottom: 'var(--s5)' }}>
-            {groups.map(g => (
-              <div key={g.label} className="stepper-group-card">
-                <div className="stepper-group-heading">{g.label}</div>
-                <div className="row wrap" style={{ gap: 'var(--s2)' }}>
-                  {g.subs.filter(k => byKey[k]).map(k => (
-                    <button key={k} onClick={() => switchTab(k)} className={`tab ${tab === k ? 'active' : ''}`}>
-                      {byKey[k].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
+      {/* The section strip and the sub-tab bentos are gone: all 26 settings
+          are rows in the section panel, grouped the same way SECTIONS groups
+          them here. SECTIONS stays as the source of the tab keys and the
+          legacy-alias handling; nav/sections.js mirrors its shape, and
+          tests/sectionPanel.test.mjs checks the two have not drifted. */}
 
       {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'health' && <MediaHealthPanel />}

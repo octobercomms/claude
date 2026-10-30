@@ -34,29 +34,46 @@ export default function SectionPanel({ navCollapsed, onToggleNav }) {
     [section, ctx]
   );
 
-  // Which named group is expanded. One at a time: all 29 Owned rows plus their
-  // headings run to about 1150px, and a 1080p window gives roughly 950px of
-  // usable height, so the whole list open means the bottom group is below the
-  // fold. One group open is around 400px — no scrolling, every other group one
-  // click away.
-  const groupOf = (tab) => groups.find(g => g.heading && g.rows.some(r => r.tab === tab))?.heading || null;
-  const [openGroup, setOpenGroup] = useState(() => groupOf(activeTab));
+  // Everything is open. The first version kept one group open at a time,
+  // because Owned's 29 rows plus headings run to about 1150px against roughly
+  // 950px of usable height, so the list scrolls. Daniel's read after using it:
+  // "i dont want pages hidden. thats more clicks." He is right that the cost
+  // is in the wrong place — a collapsed group charges a click on every visit
+  // to save a scroll that costs nothing, and the whole point of the panel is
+  // that anywhere in the section is one click from anywhere else. Semrush's
+  // own panel scrolls for the same reason.
+  //
+  // A heading still collapses on click, for whoever wants a shorter list; it
+  // is just not the default, and nothing stays collapsed across a navigation.
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const isOpen = (heading) => !collapsed.has(heading);
+  const toggle = (heading) => setCollapsed(prev => {
+    const next = new Set(prev);
+    if (next.has(heading)) next.delete(heading); else next.add(heading);
+    return next;
+  });
 
-  // Following a link into another group has to open that group, or the active
-  // row is hidden behind a collapsed heading and the panel looks like it did
-  // nothing. Keyed on the active tab rather than on every render, so a heading
-  // the user collapsed by hand stays collapsed.
-  useEffect(() => {
-    const g = groupOf(activeTab);
-    if (g) setOpenGroup(g);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, section?.key]);
+  // Moving to another section starts fresh: a group someone collapsed inside
+  // Owned should not come back collapsed in Shared.
+  //
+  // This also runs on mount, so seeding the state above with anything is dead
+  // code — it is cleared before the first paint. Worth knowing before trying
+  // to remember a collapsed group across a reload: that needs storage plus a
+  // skip-the-first-run ref, not an initial value.
+  useEffect(() => { setCollapsed(new Set()); }, [section?.key]);
 
-  if (!section || !clientId) return null;
+  // A client section needs an id to build its rows' links; a global one (
+  // Settings) does not, and requiring one here is what kept the Settings
+  // panel from ever rendering.
+  if (!section) return null;
+  if (section.scope === 'client' && !clientId) return null;
 
   const go = (tab) => {
     const base = section.base(clientId);
-    navigate(tab === section.defaultTab ? base : `${base}?tab=${tab}`);
+    // The default tab drops ?tab= so the bare URL is the default view —
+    // except on a global section, where the bare path is the page itself and
+    // a row still has to name its tab to be linkable.
+    navigate(tab === section.defaultTab && section.scope === 'client' ? base : `${base}?tab=${tab}`);
   };
 
   const Row = ({ row }) => {
@@ -99,14 +116,14 @@ export default function SectionPanel({ navCollapsed, onToggleNav }) {
               <button
                 type="button"
                 className="sp-heading"
-                onClick={() => setOpenGroup(cur => (cur === g.heading ? null : g.heading))}
-                aria-expanded={openGroup === g.heading}
+                onClick={() => toggle(g.heading)}
+                aria-expanded={isOpen(g.heading)}
               >
                 <span>{g.heading}</span>
-                <span className="sp-heading-mark" aria-hidden="true">{openGroup === g.heading ? '−' : '+'}</span>
+                <span className="sp-heading-mark" aria-hidden="true">{isOpen(g.heading) ? '−' : '+'}</span>
               </button>
             ) : null}
-            {(!g.heading || openGroup === g.heading) && g.rows.map(row => <Row key={row.tab} row={row} />)}
+            {(!g.heading || isOpen(g.heading)) && g.rows.map(row => <Row key={row.tab} row={row} />)}
           </div>
         ))}
       </nav>
