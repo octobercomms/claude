@@ -133,6 +133,8 @@ jobs:
         run: node tests/watch-stream.test.js
       - name: Guard — the R2 migration never frees a copy it has not verified
         run: node tests/media-to-r2.test.js
+      - name: Guard — the R2 preflight catches a bucket that only looks healthy
+        run: node tests/r2-preflight.test.js
       # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
       # the runner is given ffmpeg rather than trusted to have it, and each

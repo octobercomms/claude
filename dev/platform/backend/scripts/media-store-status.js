@@ -26,8 +26,13 @@ async function main() {
   console.log(`R2 configured:   ${mediaStore.r2Configured() ? 'yes' : 'no'}`);
   console.log(`MEDIA_STORE env: ${process.env.MEDIA_STORE || '(unset — defaults to disk)'}`);
   if (mediaStore.r2Configured() && mediaStore.driverName === 'disk') {
-    console.log('\n  R2 is configured but the active driver is disk. Set MEDIA_STORE=r2');
-    console.log('  to switch, after scripts/media-to-r2.js has copied everything over.');
+    console.log('\n  R2 is configured but the active driver is disk. Before switching:');
+    console.log('    node scripts/r2-preflight.js    — prove the bucket and token work');
+    console.log('    node scripts/media-to-r2.js --commit');
+    console.log('  then set MEDIA_STORE=r2. Switching before the copy 404s every share link.');
+  } else if (!mediaStore.r2Configured()) {
+    console.log('\n  Every recording is served off this box. Start with the four R2_* vars');
+    console.log('  in .env, then: node scripts/r2-preflight.js');
   }
 
   console.log('\n--- objects referenced, and whether they are there ---');

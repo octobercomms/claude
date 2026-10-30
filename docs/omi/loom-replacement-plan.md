@@ -38,8 +38,11 @@ already on Cloudflare. Storage sits behind a thin driver interface
 - `disk` — the default, used in dev/test and as a zero-infra fallback. Serves
   from a local dir like the existing `video-outputs/`.
 - `r2` — activated when the `R2_*` env vars are set. Uploads via the
-  S3-compatible API; large recordings use a **presigned PUT** so the browser
-  uploads straight to R2 without proxying gigabytes through the app server.
+  S3-compatible API. The browser still posts the blob to our own endpoint and
+  the backend streams it up (`uploadDescriptor` returns `mode: 'app'` on both
+  drivers); a presigned direct-to-R2 PUT is a later optimisation that needs
+  bucket CORS. Playback redirects to a short-lived presigned GET, so the bytes
+  themselves come straight from R2.
 
 Swapping backends is an env change, not a code change — so the recorder works
 end-to-end immediately (disk) and moves to R2 the moment the bucket is live.
@@ -48,16 +51,31 @@ end-to-end immediately (disk) and moves to R2 the moment the bucket is live.
 
 In the Cloudflare dashboard:
 
-1. **R2 → Create bucket** — e.g. `omi-recordings` (private).
+**Account ID: `ead9401db49f4dd778962bedfaa21cff`** — read off the Cloudflare Pages
+check URL on an OMI pull request (`dash.cloudflare.com/?to=/<account id>/pages/…`).
+That is the account the Events app's Pages project lives in, so confirm the R2
+page shows the same id before using it as `R2_ACCOUNT_ID`.
+
+1. **R2 → Create bucket** — e.g. `omi-recordings`. Leave public access off: the
+   watch route hands out short-lived signed URLs, and a public bucket would
+   make every recording readable to anyone who guessed an object key.
 2. **R2 → Manage API Tokens → Create** — an **Object Read & Write** token scoped
-   to that bucket. Note the **Access Key ID** and **Secret Access Key**.
-3. Note your **Account ID** (R2 endpoint is
-   `https://<accountid>.r2.cloudflarestorage.com`).
-4. (Optional) Attach a custom domain / public bucket URL if we ever want direct
+   to that one bucket, not to all buckets. The platform writes, reads, signs and
+   deletes objects; it never creates or lists buckets, so an admin token buys
+   nothing and costs blast radius. Note the **Access Key ID** and **Secret
+   Access Key** — the secret is shown once.
+
+   Do not paste either into a chat. They go straight into
+   `dev/platform/backend/.env` on the box; `scripts/r2-preflight.js` then
+   confirms they work without printing them.
+3. (Optional) Attach a custom domain / public bucket URL if we ever want direct
    CDN playback; not required — we serve via short-lived signed URLs.
-5. Set these env vars on the backend:
+4. Put these in `dev/platform/backend/.env` on the box. **Note that
+   `MEDIA_STORE` stays `disk` at this point** — see the switch order below.
+   Setting it to `r2` before the bytes have been copied makes every existing
+   share link 404.
    ```
-   MEDIA_STORE=r2
+   MEDIA_STORE=disk
    R2_ACCOUNT_ID=…
    R2_ACCESS_KEY_ID=…
    R2_SECRET_ACCESS_KEY=…
@@ -73,21 +91,32 @@ interface and nothing else, so the moment the active driver changes, every key
 already on disk reads as missing and every existing share link 404s. The bytes
 have to go first, which is what `scripts/media-to-r2.js` is for.
 
-1. Set the four `R2_*` vars and **leave `MEDIA_STORE=disk`**. The platform keeps
-   serving from disk; the script only needs the credentials.
-2. `node scripts/media-to-r2.js` — a dry run. It lists every object the database
+1. Set the four `R2_*` vars in `dev/platform/backend/.env` on the box and
+   **leave `MEDIA_STORE=disk`**. The platform keeps serving from disk; the
+   scripts only need the credentials. `pm2 reload … --update-env` to pick them
+   up.
+2. `node scripts/r2-preflight.js` — proves the bucket and token do everything
+   playback needs: write, read the size back, read the bytes back, stream down,
+   sign a playback URL and fetch it, serve a byte range from it, delete. It
+   writes one 64KB object under `__omi-preflight/` and removes it. It never
+   prints the secret. Every check is shown to catch its own failure in
+   `tests/r2-preflight.test.js`, including the two that look like success from
+   outside: a store that ignores `Range`, and one that answers a range with 200
+   instead of 206, either of which leaves playback working and seeking silently
+   broken.
+3. `node scripts/media-to-r2.js` — a dry run. It lists every object the database
    references, what it would copy, and anything already missing from the store.
    Nothing is written.
-3. `node scripts/media-to-r2.js --commit` — copies, reading back each object's
+4. `node scripts/media-to-r2.js --commit` — copies, reading back each object's
    length from R2 and failing the object if it does not match. Re-runnable: an
    object already there at the right length is skipped, so an interrupted run
    carries on where it stopped.
-4. `node scripts/media-store-status.js` — confirms what is referenced, what is
+5. `node scripts/media-store-status.js` — confirms what is referenced, what is
    present, and that nothing is missing.
-5. Only now set `MEDIA_STORE=r2` and restart. Playback starts redirecting to
+6. Only now set `MEDIA_STORE=r2` and reload. Playback starts redirecting to
    signed R2 URLs.
-6. Watch a share link, then `node scripts/media-store-status.js` again.
-7. Days later, once you are satisfied:
+7. Watch a share link, then `node scripts/media-store-status.js` again.
+8. Days later, once you are satisfied:
    `node scripts/media-to-r2.js --commit --prune-verified` frees the disk
    copies. It only ever removes an object whose length in R2 has been read back
    and matches, and it removes nothing on a dry run. There is no hurry — the
@@ -149,8 +178,9 @@ player, title, transcript toggle, and the view ping.
    public routes, mounting. (disk-backed, fully testable now)
 2. **Recorder + watch UI** — the admin recorder + library, the public
    `/watch/:token` player + view ping.
-3. **R2 + transcripts** — flip `MEDIA_STORE=r2` once the bucket is live; wire the
-   Whisper transcript into the watch page. Transcripts shipped (3b below). **R2
+3. **R2 + transcripts** — move the bytes, then flip `MEDIA_STORE=r2` (the order
+   matters; see "The order to throw the switch in" above). Wire the Whisper
+   transcript into the watch page. Transcripts shipped (3b below). **R2
    has not been switched on** — the driver, the migration script and the status
    reporter are all written and tested, but the bucket does not exist yet, so
    every recording is still served off the box's own disk and uplink. That is
