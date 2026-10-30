@@ -25,7 +25,15 @@
 
   /* Sidebar — kept dark for chrome contrast. Only the sidebar uses
      these so the rest of the app stays two-tone clean. */
-  --sidebar-bg: #0b0b0c;
+  --sidebar-bg: #000000;
+  /* The section panel sits beside the nav, lighter so it reads as raised.
+     #000 against #222 is only 1.32:1, which is not enough separation on its
+     own — on an LCD at anything but full brightness the two merge into one
+     slab. --panel-divider is what actually draws the edge; the fill would
+     have to go past #404040 to do that job alone, and by then it has stopped
+     reading as chrome. */
+  --panel-bg: #222222;
+  --panel-divider: #333333;
   --sidebar-fg: #fafafa;
   --sidebar-muted: #a0a0a8;
   --sidebar-subtle: #6e6e76;
@@ -137,12 +145,25 @@ button { font-family: inherit; }
 .app-shell { display: flex; min-height: 100vh; background: var(--page-bg); }
 
 .app-nav {
-  width: 240px;
+  /* 170px, down from 240px. The sub-link indent drops with it (24px rather
+     than 40px), because the widest row — "Shared" plus its Social chip — is
+     110px and a 40px indent leaves a 106px lane, so the chip clipped by 4px.
+     At 24px the lane is 130px. Measured in Brockmann at 14px, not estimated. */
+  width: 170px;
   background: var(--sidebar-bg);
   color: var(--sidebar-fg);
   border-right: var(--border-w) solid var(--sidebar-border);
   display: flex; flex-direction: column; flex-shrink: 0;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  transition: width 120ms ease;
+}
+
+/* Collapsed, the nav goes away rather than shrinking to a rail of initials:
+   half these labels start with the same letter, and an icon set invented for
+   seven items would be seven more things to learn. The section panel already
+   says where you are, and » brings the nav back in one click. */
+.app-nav.is-collapsed {
+  width: 0; min-width: 0; border-right: none; overflow: hidden;
 }
 
 .app-main {
@@ -2183,10 +2204,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   background-attachment: fixed;
 }
 
-/* Sidebar — a top-to-bottom gradient so the dark chrome reads as
-   dimensional rather than one flat slab. */
+/* The nav is flat #000000, and the gradient that used to sit here is gone.
+   It ran #1a1a1f → #0b0b0c → #050506, so the logo's own black background
+   never matched the chrome behind it and the mark sat in a visible square.
+   Dimension on the dark chrome now comes from the section panel beside it
+   (#222 with a #333 divider), which is a real edge between two things rather
+   than a gradient on one. */
 .app-nav {
-  background: linear-gradient(180deg, #1a1a1f 0%, #0b0b0c 55%, #050506 100%);
+  background: var(--sidebar-bg);
 }
 
 /* Surfaces — soft elevation. Cards, stats and status pills now lift a
@@ -2323,4 +2348,103 @@ a:hover > .card-stat,
 @container appmain (max-width: 736px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .sequence-step { grid-template-columns: 36px 1fr; gap: var(--s2); }
+}
+
+/* ─── Section panel ───────────────────────────────────────────────────
+   The second panel: every destination in the current section, beside the
+   nav rather than in a strip above the page. Semrush's answer to the same
+   problem, and for the same reason — a horizontal strip cannot hold 29
+   items, so they get folded away into accordions and nobody finds them.
+
+   170px, because the widest label is "Keyword footprint" at 124px and the
+   lane here is 142px. At 150px that label breaks, so this number has about
+   18px of room in it and is not a round guess. */
+.section-panel {
+  width: 170px; flex-shrink: 0;
+  background: var(--panel-bg);
+  color: var(--sidebar-fg);
+  border-left: 1px solid var(--panel-divider);
+  border-right: var(--border-w) solid var(--sidebar-border);
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+.sp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s2); padding: var(--s5) var(--s3) var(--s3) var(--s4);
+  border-bottom: 1px solid var(--panel-divider);
+}
+.sp-title {
+  font-size: var(--fs-caption); font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; color: rgba(255,255,255,0.9);
+}
+.sp-navtoggle {
+  background: none; border: none; cursor: pointer; padding: 2px 6px;
+  color: rgba(255,255,255,0.55); font-size: var(--fs-body); line-height: 1;
+  border-radius: var(--r-sm);
+}
+.sp-navtoggle:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+.sp-list { padding: var(--s2) 0 var(--s6); }
+.sp-group + .sp-group { margin-top: var(--s2); }
+
+.sp-heading {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: none; cursor: pointer; text-align: left;
+  padding: var(--s3) var(--s3) var(--s1) var(--s4);
+  font-family: inherit; font-size: var(--fs-caption); font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.45);
+}
+.sp-heading:hover { color: rgba(255,255,255,0.75); }
+.sp-heading-mark { font-weight: 400; font-size: var(--fs-body); line-height: 1; }
+
+.sp-row {
+  display: flex; align-items: center; gap: var(--s2); width: 100%;
+  background: none; border: none; cursor: pointer; text-align: left;
+  padding: 7px var(--s3) 7px var(--s4);
+  border-left: 2px solid transparent;
+  font-family: inherit; font-size: var(--fs-body); font-weight: 400;
+  letter-spacing: 0.2px; color: rgba(255,255,255,0.72);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sp-row:hover { color: #fff; background: rgba(255,255,255,0.06); }
+.sp-row.is-active {
+  color: #fff; font-weight: 600;
+  border-left-color: var(--accent);
+  background: rgba(255,255,255,0.08);
+}
+.sp-step {
+  flex: 0 0 auto; width: 15px;
+  font-size: var(--fs-caption); font-weight: 700; color: rgba(255,255,255,0.4);
+}
+.sp-row.is-active .sp-step { color: var(--accent); }
+.sp-label { overflow: hidden; text-overflow: ellipsis; }
+
+/* On a phone the nav is already a drawer over the page; a second fixed column
+   beside it would leave nothing for the content. The panel becomes a
+   horizontal scroller under the top bar instead — the one place a strip is
+   the right shape, because there is only ever one group open. */
+@media (max-width: 768px) {
+  .section-panel {
+    position: fixed; top: 56px; left: 0; right: 0;
+    width: auto; height: auto; max-height: 44px;
+    flex-direction: row; align-items: center; gap: 2px;
+    overflow-x: auto; overflow-y: hidden;
+    border-left: none; border-right: none;
+    border-bottom: 1px solid var(--panel-divider);
+    z-index: 220;
+  }
+  .sp-head { display: none; }
+  .sp-list { display: flex; padding: 0; }
+  .sp-group { display: flex; align-items: center; }
+  .sp-group + .sp-group { margin-top: 0; }
+  .sp-heading { width: auto; padding: 0 var(--s2) 0 var(--s3); }
+  .sp-heading-mark { display: none; }
+  .sp-row {
+    width: auto; padding: 10px var(--s3);
+    border-left: none; border-bottom: 2px solid transparent;
+  }
+  .sp-row.is-active { border-left-color: transparent; border-bottom-color: var(--accent); }
+  /* The panel takes 44px under the 56px top bar, so the page starts lower. */
+  .app-shell:has(.section-panel) .app-main { padding-top: 116px; }
 }
