@@ -123,12 +123,20 @@ class YAA_Admin {
 			<?php if ( isset( $_GET['updated'] ) ) : ?><div class="notice notice-success"><p><?php esc_html_e( 'Saved.', 'your-architect-archie' ); ?></p></div><?php endif; ?>
 			<?php
 			if ( isset( $_GET['smtp_test'] ) ) :
-				$tr  = get_transient( 'yaa_smtp_test_' . get_current_user_id() );
-				$to  = $tr && false !== strpos( (string) $tr, '|' ) ? substr( (string) $tr, strpos( (string) $tr, '|' ) + 1 ) : '';
+				$tr = get_transient( 'yaa_smtp_test_' . get_current_user_id() );
+				// New format is an array; tolerate the old "status|to" string too.
+				if ( is_array( $tr ) ) {
+					$to  = isset( $tr['to'] ) ? $tr['to'] : '';
+					$err = isset( $tr['error'] ) ? $tr['error'] : '';
+				} else {
+					$to  = $tr && false !== strpos( (string) $tr, '|' ) ? substr( (string) $tr, strpos( (string) $tr, '|' ) + 1 ) : '';
+					$err = '';
+				}
 				if ( '1' === $_GET['smtp_test'] ) : ?>
 					<div class="notice notice-success"><p><?php echo esc_html( sprintf( __( 'Test email sent to %s. Check it arrived (and which inbox tab it landed in).', 'your-architect-archie' ), $to ) ); ?></p></div>
 				<?php else : ?>
-					<div class="notice notice-error"><p><?php echo esc_html( sprintf( __( 'Test email to %s failed — WordPress/PHPMailer could not send it. Check the host, port, encryption and login below.', 'your-architect-archie' ), $to ) ); ?></p></div>
+					<div class="notice notice-error"><p><?php echo esc_html( sprintf( __( 'Test email to %s failed — WordPress/PHPMailer could not send it. Check the host, port, encryption and login below.', 'your-architect-archie' ), $to ) ); ?></p>
+					<?php if ( $err ) : ?><p><strong><?php esc_html_e( 'SMTP error:', 'your-architect-archie' ); ?></strong> <code><?php echo esc_html( $err ); ?></code></p><?php endif; ?></div>
 				<?php endif; ?>
 			<?php endif; ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

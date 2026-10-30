@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.34
+Stable tag: 0.7.35
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,12 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.35 =
+* The SMTP "Send test email" screen now shows the actual PHPMailer/SMTP error on
+  failure (e.g. authentication failed, could not connect, IP not authorised)
+  instead of only the generic "could not send it" line — so a misconfigured relay
+  is diagnosable at a glance.
 
 = 0.7.34 =
 * Performance: Archie's web font (Plus Jakarta Sans) now loads non-render-blocking
