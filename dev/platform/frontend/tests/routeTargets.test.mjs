@@ -56,6 +56,12 @@ const SECTION_PAGES = {
 };
 
 const TAB_COMPARE = /\b\w*[Tt]ab === '([a-z0-9_]+)'/g;
+// A *render* branch, not any comparison: a JSX expression that switches on the
+// tab. Direction 2 needs this narrower match because the pages also compare the
+// tab inside useEffect data loaders — `if (tab === 'monitor') loadMonitor()` —
+// and counting those as "renders it" let two rows that opened a blank screen
+// pass.
+const RENDER_BRANCH = /^\s*\{(?:!?\w+\s*&&\s*)*\w*[Tt]ab === '([a-z0-9_]+)'\s*&&/gm;
 const TAB_SETTER = /\bset\w*[Tt]ab\('([a-z0-9_]+)'\)/g;
 
 function rowTabs(key) {
@@ -105,11 +111,42 @@ test('every in-page tab switch targets a row that exists', () => {
   assert.deepStrictEqual([...new Set(problems)], [], '\n  ' + [...new Set(problems)].join('\n  '));
 });
 
-// The reverse — a row whose screen nothing renders — is deliberately not
-// checked here. Pages dispatch in several styles (a group boolean in Paid, a
-// numbered step in Shared's factory), so a source scan produces false
-// positives, and tests/browser already drives all 90 rows and asserts real
-// content on the 87 the stub can feed.
+// Rows whose screen is reached some other way than a `tab === 'x'` branch.
+// Each needs a reason: "the scan does not see it" is how a blank screen hides.
+const DISPATCHED_ELSEWHERE = {
+  // Paid groups its screens — `currentGroup === 'measure'` renders the whole
+  // measure group rather than one branch per row.
+  paid: ['measure'],
+};
+
+test('every panel row points at a screen its page renders', () => {
+  // The other direction, and the one a row-level mutation slips through: a row
+  // whose tab nothing renders is a menu item that opens a blank page. It is
+  // checked here rather than left to the browser drive because the drive does
+  // not run in CI.
+  //
+  // Rows carrying a `step` drive Shared's numbered factory rather than a
+  // branch, so the step is what reaches them.
+  const problems = [];
+  for (const [key, rel] of Object.entries(SECTION_PAGES)) {
+    const file = path.join(src, rel);
+    if (!fs.existsSync(file)) continue;
+    const body = read(file);
+    const rendered = new Set([...body.matchAll(RENDER_BRANCH)].map(m => m[1]));
+    const allowed = DISPATCHED_ELSEWHERE[key] || [];
+    for (const g of SECTIONS[key].groups) {
+      for (const r of g.rows) {
+        if (r.step) continue;
+        if (rendered.has(r.tab) || allowed.includes(r.tab)) continue;
+        problems.push(
+          `${key}: row '${r.label}' (tab '${r.tab}') — ${rel} never renders it, `
+          + `so that row opens a blank screen.`);
+      }
+    }
+  }
+  assert.deepStrictEqual(problems, [], '\n  ' + problems.join('\n  '));
+});
+
 
 // ── 2. every hardcoded navigation resolves ───────────────────────────────────
 
@@ -131,6 +168,24 @@ function routeShape() {
   }
   return { withScreen, bare };
 }
+
+test('the dispatched-elsewhere list cannot hide a screen that is simply missing', () => {
+  // An allow-list is only as good as the discipline around it, and widening it
+  // is the cheapest way to make the test above go quiet. A page that renders a
+  // tab some other way still mentions that tab somewhere; one that has no
+  // screen for it does not mention it at all.
+  const problems = [];
+  for (const [key, tabs] of Object.entries(DISPATCHED_ELSEWHERE)) {
+    const body = read(path.join(src, SECTION_PAGES[key]));
+    for (const t of tabs) {
+      if (new RegExp(`'${t}'`).test(body)) continue;
+      problems.push(
+        `${key}: '${t}' is allow-listed as dispatched elsewhere, but `
+        + `${SECTION_PAGES[key]} never mentions it. That row opens a blank screen.`);
+    }
+  }
+  assert.deepStrictEqual(problems, [], '\n  ' + problems.join('\n  '));
+});
 
 test('the route table and the section table name the same leaves', () => {
   const { withScreen } = routeShape();
