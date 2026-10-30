@@ -5,7 +5,7 @@ import PressReleaseEditor from '../components/PressReleaseEditor';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
 import PageShell from '../components/shells/PageShell';
-import { Accordion, AccordionItem } from '../components/ui/Accordion';
+import SideDrawer from '../components/ui/SideDrawer';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import ProfileModal from '../components/ProfileModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
@@ -104,8 +104,7 @@ export default function ClientPRPage() {
   // Which Health / Build accordion sections are open. A real toggle Set (like
   // Owned's) so clicking an open header collapses it — the tab-derived open
   // state used before could never close the one open section.
-  const [healthOpen, setHealthOpen] = useState(() => new Set(['track']));
-  const [buildOpen, setBuildOpen] = useState(() => new Set(['pitch']));
+  const [shareOpen, setShareOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [log, setLog] = useState([]);
   // Journalist / publication card opened in place from a table cell (no nav).
@@ -140,6 +139,8 @@ export default function ClientPRPage() {
   const [coverageSort, setCoverageSort] = useState('date_desc');
   const [coverageQuery, setCoverageQuery] = useState('');
   const [checkingLinks, setCheckingLinks] = useState(false);
+  // What the last verification found, kept on screen rather than in a toast.
+  const [linkResult, setLinkResult] = useState(null);
   const [importOpen, setImportOpen] = useState(false); // Import ▾ dropdown
   const importMenuRef = useRef(null);
   useEffect(() => {
@@ -571,25 +572,42 @@ export default function ClientPRPage() {
     } catch (err) { toast(err.message, 'error'); }
   }
 
-  async function checkLinks() {
+  // Verifying coverage: HEAD every story URL and report what is still live.
+  // It was called "Check links", which says what it does to the machine and
+  // nothing to the person: a publication moving or killing a piece is the
+  // thing you want to know, so the result leads with how many survived.
+  async function verifyCoverage() {
     setCheckingLinks(true);
     try {
       const r = await api.post(`/pr/clients/${id}/check-links`, {});
-      const parts = [`Checked ${r.checked}`];
-      if (r.broken) parts.push(`${r.broken} broken`);
-      if (r.uncertain) parts.push(`${r.uncertain} uncertain`);
-      toast(parts.join(' · '), r.broken ? 'error' : 'success');
+      const checked = Number(r.checked || 0);
+      const broken = Number(r.broken || 0);
+      const uncertain = Number(r.uncertain || 0);
+      const live = Math.max(0, checked - broken - uncertain);
+      setLinkResult({ checked, live, broken, uncertain });
+      const parts = [`${live} of ${checked} live`];
+      if (broken) parts.push(`${broken} dead`);
+      if (uncertain) parts.push(`${uncertain} unreachable`);
+      toast(parts.join(' · '), broken ? 'error' : 'success');
       loadData();
     } catch (err) { toast(err.message, 'error'); }
     finally { setCheckingLinks(false); }
   }
 
-  async function copyPortalLink() {
+  // "Copy coverage link" put a URL on the clipboard that you then had to
+  // paste somewhere to find out what was on it. Opening it is the same click
+  // and you see what you are about to send.
+  async function openCoverageReport() {
     try {
       const { token } = await api.get(`/pr/clients/${id}/portal`);
       const url = `${window.location.origin}/coverage/${token}`;
-      try { await navigator.clipboard.writeText(url); toast('Client coverage link copied to clipboard', 'success'); }
-      catch { window.prompt('Client coverage link:', url); }
+      const w = window.open(url, '_blank', 'noopener');
+      // A blocked popup must not look like a dead button, so fall back to the
+      // clipboard and say so.
+      if (!w) {
+        try { await navigator.clipboard.writeText(url); toast('Popup blocked — the coverage link is on your clipboard', 'warning'); }
+        catch { window.prompt('Client coverage report:', url); }
+      }
     } catch (err) { toast(err.message, 'error'); }
   }
 
@@ -613,7 +631,7 @@ export default function ClientPRPage() {
             <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: sendReportNow })}>Send report now</button>
           </div>
           <div style={{ marginTop: 'var(--s4)', borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 'var(--s4)' }}>
-            <button className="btn-link" onClick={copyPortalLink}>Copy client coverage link</button>
+            <button className="btn-link" onClick={openCoverageReport}>Open the client coverage report ↗</button>
             <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)', marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
           </div>
         </div>
@@ -1022,8 +1040,20 @@ export default function ClientPRPage() {
               </div>
             </div>
             <div className="row" style={{ gap: 'var(--s4)', alignItems: 'center' }}>
-              <button className="btn-link" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">Copy coverage link</button>
-              <button className="btn-link" disabled={checkingLinks} onClick={checkLinks} title="HEAD every story URL — flags 404s and DNS failures so you can hunt for the new link">{checkingLinks ? 'Checking…' : '🔍 Check links'}</button>
+              <button className="btn btn-secondary btn-sm" onClick={openCoverageReport}
+                title="Open the read-only coverage report the client sees, in a new tab">Coverage Report ↗</button>
+              <button className="btn-link" disabled={checkingLinks} onClick={verifyCoverage}
+                title="Request every story URL and report which are still live, so a piece that was moved or pulled does not sit in the log looking fine">
+                {checkingLinks ? 'Verifying…' : 'Verify coverage'}</button>
+              {/* The result, where you can read it. A toast says it once and
+                  goes; the number you want to look at twice belongs on screen. */}
+              {linkResult && (
+                <span className="body-xs text-subtle">
+                  {linkResult.live} of {linkResult.checked} live
+                  {linkResult.broken ? ` · ${linkResult.broken} dead` : ''}
+                  {linkResult.uncertain ? ` · ${linkResult.uncertain} unreachable` : ''}
+                </span>
+              )}
             </div>
           </div>
 
@@ -1193,36 +1223,20 @@ export default function ClientPRPage() {
         </div>
   );
 
-  // Redesign spine (docs/omi/redesign-brief.md §3): Overview + Health + Build.
-  // Health (read-outs) = Track + Share; Build (make & ship) = Pitch + Releases.
-  // Accordions are tab-driven — opening a section sets the underlying tab so the
-  // existing lazy-load effects (coverage monitor, releases) still fire.
-  const HEALTH_SECTIONS = [
-    { id: 'track', tab: 'coverage', fn: 'measure',    title: 'Track', sub: 'Coverage log & auto-monitor', render: renderTrack },
-    { id: 'share', tab: 'reports',  fn: 'distribute', title: 'Share', sub: 'Client digests & live coverage', render: renderShare },
-    // Moved off the agency client list, where it was a cross-client table that
-    // an admin could never get data out of. Scoped to this client it works.
-    { id: 'earned', tab: 'coverage', fn: 'measure', title: 'Earned links', sub: 'Referring domains won per campaign', render: () => <PrBacklinkRoi clientId={id} /> },
-  ];
-  const BUILD_SECTIONS = [
-    { id: 'pitch',    tab: 'journalists', fn: 'research', title: 'Pitch',    sub: 'Media database & targeting', render: renderPitch },
-    { id: 'releases', tab: 'press',       fn: 'create',   title: 'Releases', sub: 'Draft, sign-off & pitch', render: renderReleases },
-  ];
-  const suiteGroup = (tab === 'journalists' || tab === 'press') ? 'build' : 'health';
-
   return (
     <div className="suite-client-pr">
-      {/* Tab labels show natural totals (coverage rows / journalist heads)
-          rather than workflow-queue counts — the previous "(N)" badges on
-          Coverage and Journalists were the number of items in the
-          auto-monitor queue and the unsent-thank-yous list respectively,
-          which read as "Journalists (2)" but meant "2 thank-yous pending"
-          and was confusing. Workflow nudges are surfaced on the Overview
-          page's "needs attention" rail instead. */}
-      <PageShell title="Earned" subtitle={client?.name} tabs={[
-        { key: 'health',   label: 'Health',   fn: 'measure', active: suiteGroup === 'health',   onClick: () => setTab('coverage') },
-        { key: 'build',    label: 'Build',    fn: 'create',  active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
-      ]}>
+      <PageShell
+        title="Earned"
+        subtitle={client?.name}
+        tabActions={(
+          /* Share stopped being a section you scroll past on the way to the
+             coverage log. It is something you do when a report is due, so it
+             opens over the page and closes again. */
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShareOpen(true)}>
+            Share
+          </button>
+        )}
+      >
       {/* What this pillar actually drove, and its share of the account. The
           whole Measure panel on four pages would put refund rate on the PR
           page; this is the three headline numbers filtered to this pillar's
@@ -1232,34 +1246,25 @@ export default function ClientPRPage() {
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>Loading…</p></div>}
 
-      {!loading && suiteGroup === 'health' && (
-        <Accordion open={healthOpen} onToggle={(sid) => setHealthOpen(prev => {
-          if (prev.has(sid)) return new Set();
-          const s = HEALTH_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab);
-          return new Set([sid]);
-        })}>
-          {HEALTH_SECTIONS.map(s => (
-            <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
-          ))}
-        </Accordion>
-      )}
+      {/* Track is the page. It was the only thing behind a "Health" tab, and
+          then the first section of an accordion inside it, so reaching the
+          coverage log — the reason anyone opens Earned — took two clicks
+          through containers that held one useful thing each. */}
+      {!loading && tab === 'coverage' && renderTrack()}
+      {!loading && tab === 'journalists' && renderPitch()}
+      {!loading && tab === 'press' && renderReleases()}
+      {!loading && tab === 'reports' && <PrBacklinkRoi clientId={id} />}
 
-      {!loading && suiteGroup === 'build' && (
-        <Accordion open={buildOpen} onToggle={(sid) => setBuildOpen(prev => {
-          if (prev.has(sid)) return new Set();
-          const s = BUILD_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab);
-          return new Set([sid]);
-        })}>
-          {BUILD_SECTIONS.map(s => (
-            <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
-          ))}
-        </Accordion>
-      )}
-
-
-
-
-
+      {/* Share — the client digest and the live coverage report. */}
+      <SideDrawer
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        kicker="Earned"
+        title="Share with the client"
+        width={860}
+      >
+        {renderShare()}
+      </SideDrawer>
 
       {editing && (
         <div className="modal-backdrop" onClick={() => !saving && setEditing(null)}>
