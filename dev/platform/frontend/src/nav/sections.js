@@ -14,6 +14,11 @@
 // checks it both ways: every tab a page accepts has a row, and every row names
 // a tab that page accepts.
 //
+//   scope      — 'client' for a section under /clients/:id, 'global' for one
+//                that has no client (Settings). The panel needs this: it used
+//                to require a client id before rendering at all, which meant
+//                a global section's rows never appeared and the panel looked
+//                like it had simply not been wired up.
 //   base       — the route the rows hang off
 //   defaultTab — what the page shows when ?tab= is absent, so the right row
 //                lights up on a bare URL
@@ -29,9 +34,30 @@
 const agencyOnly = (ctx) => !ctx.readOnly;
 
 export const SECTIONS = {
+  // The client's own Dashboard. Its four tabs were a strip like everything
+  // else; Setup, Brand and Connectors are reached from the cog and the plug in
+  // the client bar and stay out of the panel, because they are done once and
+  // then not touched.
+  dashboard: {
+    key: 'dashboard',
+    title: 'Dashboard',
+    scope: 'client',
+    base: (id) => `/clients/${id}`,
+    defaultTab: 'measure',
+    groups: [
+      { heading: null, rows: [
+        { tab: 'measure',  label: 'Measure' },
+        { tab: 'reports',  label: 'Reports' },
+        { tab: 'strategy', label: 'Strategist' },
+        { tab: 'plan',     label: 'SOSTAC' },
+      ] },
+    ],
+  },
+
   paid: {
     key: 'paid',
     title: 'Paid',
+    scope: 'client',
     base: (id) => `/clients/${id}/ads`,
     defaultTab: 'measure',
     groups: [
@@ -54,6 +80,7 @@ export const SECTIONS = {
   earned: {
     key: 'earned',
     title: 'Earned',
+    scope: 'client',
     base: (id) => `/clients/${id}/pr`,
     defaultTab: 'coverage',
     groups: [
@@ -72,6 +99,7 @@ export const SECTIONS = {
   shared: {
     key: 'shared',
     title: 'Shared',
+    scope: 'client',
     base: (id) => `/clients/${id}/social`,
     defaultTab: 'perf_insights',
     groups: [
@@ -103,6 +131,7 @@ export const SECTIONS = {
   owned: {
     key: 'owned',
     title: 'Owned',
+    scope: 'client',
     base: (id) => `/clients/${id}/seo`,
     defaultTab: 'health',
     groups: [
@@ -148,6 +177,7 @@ export const SECTIONS = {
   convert: {
     key: 'convert',
     title: 'Convert',
+    scope: 'client',
     base: (id) => `/clients/${id}/convert`,
     defaultTab: 'cro',
     groups: [
@@ -162,6 +192,7 @@ export const SECTIONS = {
   produce: {
     key: 'produce',
     title: 'Produce',
+    scope: 'client',
     base: (id) => `/clients/${id}/video`,
     defaultTab: 'reel',
     groups: [
@@ -176,17 +207,70 @@ export const SECTIONS = {
       { heading: null, rows: [{ tab: 'library', label: 'Library' }] },
     ],
   },
+  // Settings. Its sections and sub-tabs were already a two-level tree in
+  // SettingsPage's own SECTIONS table; this is that tree, as rows.
+  settings: {
+    key: 'settings',
+    title: 'Settings',
+    scope: 'global',
+    base: () => '/settings',
+    defaultTab: 'costs',
+    groups: [
+      { heading: 'Connections', rows: [
+        { tab: 'costs',        label: 'Costs & usage' },
+        { tab: 'ai',           label: 'AI' },
+        { tab: 'email',        label: 'Email' },
+        { tab: 'ads',          label: 'Ad platforms' },
+        { tab: 'commerce',     label: 'E-commerce' },
+        { tab: 'seo',          label: 'SEO' },
+        { tab: 'outreach',     label: 'Outreach finders' },
+        { tab: 'integrations', label: 'Integrations' },
+        { tab: 'other',        label: 'Other' },
+      ] },
+      { heading: 'Database', rows: [
+        { tab: 'health',       label: 'Health' },
+        { tab: 'contacts',     label: 'Journalists' },
+        { tab: 'publications', label: 'Publications' },
+        { tab: 'tags',         label: 'Tags' },
+        { tab: 'tasks',        label: 'Tasks' },
+        { tab: 'assistant',    label: 'Assistant' },
+      ] },
+      { heading: 'Tools', rows: [
+        { tab: 'reports',  label: 'Reports' },
+        { tab: 'strategy', label: 'Strategy templates' },
+        { tab: 'praddon',  label: 'PR Gmail add-on' },
+        { tab: 'checker',  label: 'Checker bench' },
+      ] },
+      { heading: 'Biz dev', rows: [
+        { tab: 'leads',     label: 'Leads' },
+        { tab: 'proposals', label: 'Proposals' },
+        { tab: 'proof',     label: 'Proof library' },
+        { tab: 'booking',   label: 'Booking' },
+        { tab: 'tenders',   label: 'Tenders' },
+      ] },
+      { heading: 'Account', rows: [
+        { tab: 'users',    label: 'Users & access' },
+        { tab: 'security', label: 'Security' },
+      ] },
+    ],
+  },
 };
 
-// Which section a path is in. Ordered longest-first so /clients/:id/seo cannot
-// be swallowed by a shorter prefix if one is ever added.
+// Which section a path is in.
 export function sectionForPath(pathname) {
+  // Settings is not under /clients and has no client id; its rows hang off
+  // /settings directly.
+  if (/^\/settings(\/|$)/.test(pathname)) return SECTIONS.settings;
+
   const m = pathname.match(/^\/clients\/([^/]+)(?:\/([^/?]+))?/);
   if (!m) return null;
+  // /clients (the list) matches nothing here because it has no id segment.
   const leaf = m[2] || '';
   const byLeaf = {
     ads: 'paid', pr: 'earned', social: 'shared', seo: 'owned', video: 'produce',
     convert: 'convert',
+    // No leaf at all is the client's Dashboard.
+    '': 'dashboard',
   };
   const key = byLeaf[leaf];
   return key ? SECTIONS[key] : null;

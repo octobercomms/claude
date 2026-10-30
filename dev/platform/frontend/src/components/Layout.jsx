@@ -186,15 +186,16 @@ export default function Layout() {
                 <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned<span className="nav-chip">PR</span></NavLink>
                 <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared<span className="nav-chip">Social</span></NavLink>
                 <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned<span className="nav-chip">SEO</span></NavLink>
+                {/* Convert — CRO, Forms and Email, lifted out of Owned. No
+                    chip for the same reason Produce has none: the four
+                    pillars carry one because PESO needs translating, and
+                    "Convert" already says what it is. Above Produce because
+                    it is closer to the pillars' job than the media suite is. */}
+                <NavLink to={`/clients/${clientId}/convert`} style={({ isActive }) => subLinkStyle(isActive)}>Convert</NavLink>
                 {/* Produce — the media suite: Record (video), Edit and Visualise
                     (images) in one place. Visible to clients (Record view-only;
                     Visualise only with the can_use_visualise grant). */}
                 <NavLink to={`/clients/${clientId}/video`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
-                {/* Convert — CRO, Forms and Email, lifted out of Owned. No
-                    chip for the same reason Produce has none: the four
-                    pillars carry one because PESO needs translating, and
-                    "Convert" already says what it is. */}
-                <NavLink to={`/clients/${clientId}/convert`} style={({ isActive }) => subLinkStyle(isActive)}>Convert</NavLink>
               </div>
             )}
           </li>
