@@ -51,12 +51,20 @@ end-to-end immediately (disk) and moves to R2 the moment the bucket is live.
 
 In the Cloudflare dashboard:
 
-**Account ID: `ead9401db49f4dd778962bedfaa21cff`** — read off the Cloudflare Pages
-check URL on an OMI pull request (`dash.cloudflare.com/?to=/<account id>/pages/…`).
-That is the account the Events app's Pages project lives in, so confirm the R2
-page shows the same id before using it as `R2_ACCOUNT_ID`.
+**Account ID: `24e942f4e3f7ee55504eabf271f206a8`** — the one the R2 page itself
+shows, under Account Details.
 
-1. **R2 → Create bucket** — e.g. `omi-recordings`. Leave public access off: the
+It is worth saying where this did not come from. An earlier version of this
+line carried `ead9401db49f4dd778962bedfaa21cff`, read off the Cloudflare Pages
+check URL on an OMI pull request, with a note to confirm it against the R2
+page. They are different accounts: the Pages project that builds on every PR is
+the **Events app**, not OMI, which `agent-guide.md` already warns is a red
+herring — and it turns out that holds for its account id too, not just its
+preview URL. Take this value from the R2 overview page, nowhere else.
+
+1. **R2 → Create bucket** — `omi-recordings`. **Done, 30 Oct 2026**: the bucket
+   exists and reads 0 objects / 0 B, which is correct until the migration runs.
+   Leave public access off: the
    watch route hands out short-lived signed URLs, and a public bucket would
    make every recording readable to anyone who guessed an object key.
 2. **R2 → Manage API Tokens → Create** — an **Object Read & Write** token scoped
