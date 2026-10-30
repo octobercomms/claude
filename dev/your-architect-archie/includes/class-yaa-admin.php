@@ -180,7 +180,18 @@ class YAA_Admin {
 				</table>
 
 				<h2><?php esc_html_e( 'Email delivery (SMTP)', 'your-architect-archie' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Send all of Archie\'s mail through an authenticated SMTP relay instead of raw server mail, so quotes and summaries land reliably and pass SPF/DKIM. For Brevo\'s free relay: host smtp-relay.brevo.com, port 587, STARTTLS, login = your Brevo SMTP user, password = your Brevo SMTP key. Save, then send a test below.', 'your-architect-archie' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Send all of Archie\'s mail through an authenticated SMTP relay instead of raw server mail, so quotes and summaries land reliably and pass SPF/DKIM. For Brevo\'s relay: host smtp-relay.brevo.com, port 587, STARTTLS, login = your Brevo SMTP user, password = your Brevo SMTP key. Save, then send a test below.', 'your-architect-archie' ); ?></p>
+				<?php if ( YAA_SMTP::managed() ) : $sc = YAA_SMTP::creds(); ?>
+					<div class="notice notice-info inline" style="margin:8px 0;padding:10px 12px"><p style="margin:0">
+						<strong><?php esc_html_e( 'Credentials supplied by wp-config.php / environment.', 'your-architect-archie' ); ?></strong>
+						<?php printf(
+							/* translators: %s: where the SMTP key is coming from. */
+							esc_html__( 'The relay key is being read from %s, not from the database, and the relay is active without ticking the box below. Any field also set as a constant/env var overrides what you enter here.', 'your-architect-archie' ),
+							'constant' === $sc['pass_source'] ? esc_html__( 'a wp-config.php constant', 'your-architect-archie' ) : esc_html__( 'an environment variable', 'your-architect-archie' )
+						); ?>
+					</p></div>
+				<?php endif; ?>
+				<p class="description" style="margin-top:4px"><?php esc_html_e( 'Preferred for the key: add to wp-config.php so it is never stored in the database — define( \'YAA_SMTP_HOST\', \'smtp-relay.brevo.com\' ); define( \'YAA_SMTP_PORT\', 587 ); define( \'YAA_SMTP_SECURE\', \'tls\' ); define( \'YAA_SMTP_USER\', \'<your Brevo SMTP login>\' ); define( \'YAA_SMTP_PASS\', \'<your Brevo SMTP key>\' ); define( \'YAA_SMTP_FROM\', \'info@yourarchitect.uk\' );', 'your-architect-archie' ); ?></p>
 				<table class="form-table" role="presentation">
 					<tr><th><?php esc_html_e( 'Use SMTP relay', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="smtp_enabled" value="1" <?php checked( (int) $s['smtp_enabled'], 1 ); ?>> <?php esc_html_e( 'Route every email through the relay below.', 'your-architect-archie' ); ?></label></td></tr>
 					<tr><th><?php esc_html_e( 'SMTP host', 'your-architect-archie' ); ?></th><td><input type="text" name="smtp_host" class="regular-text" value="<?php echo esc_attr( $s['smtp_host'] ); ?>" placeholder="smtp-relay.brevo.com"></td></tr>
@@ -192,7 +203,7 @@ class YAA_Admin {
 					</select></td></tr>
 					<tr><th><?php esc_html_e( 'Authenticate', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="smtp_auth" value="1" <?php checked( (int) $s['smtp_auth'], 1 ); ?>> <?php esc_html_e( 'Log in with the username and password below (usually yes).', 'your-architect-archie' ); ?></label></td></tr>
 					<tr><th><?php esc_html_e( 'SMTP username', 'your-architect-archie' ); ?></th><td><input type="text" name="smtp_user" class="regular-text" autocomplete="off" value="<?php echo esc_attr( $s['smtp_user'] ); ?>"></td></tr>
-					<tr><th><?php esc_html_e( 'SMTP password / key', 'your-architect-archie' ); ?></th><td><input type="password" name="smtp_pass" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'smtp_pass' ) ); ?>"><?php if ( YAA_Settings::has_secret( 'smtp_pass' ) ) : ?> <label style="margin-left:8px;white-space:nowrap"><input type="checkbox" name="clear_secrets[]" value="smtp_pass"> <?php esc_html_e( 'Clear this key', 'your-architect-archie' ); ?></label><?php endif; ?><p class="description"><?php esc_html_e( 'Stored encrypted. Leave blank to keep the saved value.', 'your-architect-archie' ); ?></p></td></tr>
+					<tr><th><?php esc_html_e( 'SMTP password / key', 'your-architect-archie' ); ?></th><td><input type="password" name="smtp_pass" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'smtp_pass' ) ); ?>"><?php if ( YAA_Settings::has_secret( 'smtp_pass' ) ) : ?> <label style="margin-left:8px;white-space:nowrap"><input type="checkbox" name="clear_secrets[]" value="smtp_pass"> <?php esc_html_e( 'Clear this key', 'your-architect-archie' ); ?></label><?php endif; ?><p class="description"><?php esc_html_e( 'Stored encrypted. Leave blank to keep the saved value. If YAA_SMTP_PASS is defined in wp-config.php (or the environment), that key is used instead and this field is ignored — the recommended way to keep the key out of the database.', 'your-architect-archie' ); ?></p></td></tr>
 				</table>
 
 				<h2><?php esc_html_e( 'Client email templates', 'your-architect-archie' ); ?></h2>
