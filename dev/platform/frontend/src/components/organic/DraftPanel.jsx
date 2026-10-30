@@ -136,7 +136,13 @@ export default function DraftPanel({ clientId, onNext }) {
                 style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: 'pointer',
                   background: d.id === activeDraft?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                 onClick={() => openDraft(d.id)}>
-                <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3 }}>{d.title}</div>
+                <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3 }}>
+                  {/* Badged wherever it appears. An example that cannot be
+                      told apart from real work is worse than no example,
+                      because somebody eventually publishes it. */}
+                  {d.is_example && <span className="chip chip-accent" style={{ marginRight: 'var(--s2)' }}>Example</span>}
+                  {d.title}
+                </div>
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                   {new Date(d.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short' })}
                   {' · '}{d.word_count?.toLocaleString() || 0} words

@@ -884,6 +884,45 @@ A deep link that lands nowhere is the quietest breakage there is, because
 whoever follows it assumes the feature was removed. `?tab=playbook` opens the
 drawer rather than only landing on Measure, for the same reason.
 
+#### Worked examples, one per pillar (30 Oct 2026)
+
+Paid had a worked example since October: a real batch drawn from the client's
+own profile, badged "Example", so a brand-new client has something that runs
+through every Build step and can be shown to a client. Shared, Earned and
+Owned had nothing, so a newly set-up client opened three empty pages and had
+to imagine what each produced.
+
+`services/workedExamples.js` is the orchestration, `218_worked_examples.sql`
+adds `is_example` to `social_batches`, `content_drafts` and
+`pr_press_releases`, and `WorkedExamplesPanel` is the button, on Setup.
+
+Three rules it follows, each the reason a line of code looks the way it does:
+
+- **Idempotent.** The account lead cannot tell by looking whether the button
+  has been pressed, so a second press must cost nothing. Every pillar checks
+  for an existing example before making one.
+- **Badged, always.** An example that cannot be told apart from real work is
+  worse than no example, because somebody eventually sends it to a client.
+  Every list that shows one carries the chip.
+- **Never silent about failure.** One pillar failing neither stops the others
+  nor gets folded into a success message. Each returns its own status and the
+  panel shows all four, with the reason.
+
+**The flag is set by updating the row the existing generator wrote**, rather
+than threading an `isExample` argument through `social.generateBatch`,
+`contentDraft.generateDraft` and the press-release insert. Changing three
+every-day code paths to serve a setup button is risk taken in the wrong place.
+
+**Placement is deliberate.** It sits below the readiness checklist because the
+examples are only as good as the briefing and brand assets that checklist asks
+for. Quick Start, higher up the same page, writes the profile; this reads it.
+Run them the other way round and you get four thin examples.
+
+The orchestration takes an injectable `registry`, so the behaviour worth
+guarding is testable without a database or four Claude calls. What
+`tests/worked-examples.test.js` pins is not what any generator writes; it is
+that a second press makes nothing twice and that a failure is reported as one.
+
 #### Paid, second pass: the page the account lead actually read (30 Oct 2026)
 
 Eleven points off the live page the morning after the first pass. Two read as

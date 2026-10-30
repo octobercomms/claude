@@ -639,7 +639,13 @@ export default function ClientPRPage() {
                 <tbody>
                   {releases.map((r) => (
                     <tr key={r.id}>
-                      <td><button className="row-trigger" onClick={() => openRelease(r.id)}>{r.title || '(untitled)'}</button></td>
+                      <td>
+                        {/* Badged wherever it appears. An example that cannot
+                            be told apart from real work is worse than no
+                            example, because somebody eventually sends it. */}
+                        {r.is_example && <span className="chip chip-accent" style={{ marginRight: 'var(--s2)' }}>Example</span>}
+                        <button className="row-trigger" onClick={() => openRelease(r.id)}>{r.title || '(untitled)'}</button>
+                      </td>
                       <td>{r.brand || '—'}</td>
                       <td>{fmtDate(r.created_at)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

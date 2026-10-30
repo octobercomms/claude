@@ -1330,7 +1330,7 @@ const PR_STATUSES = ['draft', 'in_review', 'approved', 'sent'];
 router.get('/clients/:clientId/press-releases', async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, title, brand, status, review_token, approved_at, created_at FROM pr_press_releases WHERE client_id = $1 ORDER BY created_at DESC',
+      'SELECT id, title, brand, status, review_token, approved_at, created_at, is_example FROM pr_press_releases WHERE client_id = $1 ORDER BY created_at DESC',
       [req.params.clientId]
     );
     res.json({ items: rows });

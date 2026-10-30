@@ -10,6 +10,7 @@ import FormsTab from '../components/FormsTab';
 import ClarityConnectorCard from '../components/ClarityConnectorCard';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
+import WorkedExamplesPanel from '../components/WorkedExamplesPanel';
 import ClientStrategyPanel from '../components/ClientStrategyPanel';
 import MeasurePanel from '../components/MeasurePanel';
 import StrategistBriefingPanel from '../components/StrategistBriefingPanel';
@@ -544,6 +545,10 @@ export default function ClientDetailPage() {
       {tab === 'details' && (
         <div style={{ marginTop: 'var(--s8)' }}>
           <SetupReadinessPanel clientId={id} />
+          {/* Below readiness on purpose: the examples are drawn from the
+              briefing and brand assets the checklist above is asking for, so
+              running this first gives you four thin examples. */}
+          <WorkedExamplesPanel clientId={id} />
         </div>
       )}
 
