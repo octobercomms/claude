@@ -99,10 +99,25 @@ interface and nothing else, so the moment the active driver changes, every key
 already on disk reads as missing and every existing share link 404s. The bytes
 have to go first, which is what `scripts/media-to-r2.js` is for.
 
-1. Set the four `R2_*` vars in `dev/platform/backend/.env` on the box and
-   **leave `MEDIA_STORE=disk`**. The platform keeps serving from disk; the
-   scripts only need the credentials. `pm2 reload … --update-env` to pick them
-   up.
+1. Set the four `R2_*` vars in the backend's `.env` on the box and **leave
+   `MEDIA_STORE=disk`**. The platform keeps serving from disk; the scripts only
+   need the credentials.
+
+   The box, from `update.sh` and `platform-deploy.yml`:
+
+   | | |
+   |---|---|
+   | source | `/opt/october-source` |
+   | backend | `/opt/october-source/dev/platform/backend` |
+   | env file | `/opt/october-source/dev/platform/backend/.env` |
+   | reload | `pm2 reload /opt/october-source/dev/platform/backend/ecosystem.config.js --update-env` |
+
+   `.env` is gitignored, so `git reset --hard origin/main` on every deploy
+   leaves it alone. Set it once.
+
+   The running backend only re-reads it on `pm2 reload --update-env`; the
+   scripts below read it themselves on each run, so the reload is only needed
+   before step 6.
 2. `node scripts/r2-preflight.js` — proves the bucket and token do everything
    playback needs: write, read the size back, read the bytes back, stream down,
    sign a playback URL and fetch it, serve a byte range from it, delete. It
