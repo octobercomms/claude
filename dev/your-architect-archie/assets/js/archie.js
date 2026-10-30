@@ -38,12 +38,18 @@
   var mq = window.matchMedia ? window.matchMedia('(max-width: 860px)') : null;
   function mobileFlow() { return !!(mq && mq.matches); }
   var composerEl = document.querySelector('.archie-embed .ob-composer');
+  var userEngaged = false; // set once the visitor actually interacts (types/taps/uploads).
   function scrollToLatest() {
     requestAnimationFrame(function () {
       if (mobileFlow()) {
+        // First load must be completely passive: the visitor is up at the hero and
+        // scrolling the page themselves. Moving the window while they drag fights the
+        // touch scroll and the page feels frozen, so we don't touch it until they've
+        // engaged. Instant (not smooth) afterwards, so it never animates against a drag.
+        if (!userEngaged) return;
         var ch = composerEl ? composerEl.offsetHeight : 0;
         var target = msgList.getBoundingClientRect().bottom + window.pageYOffset - window.innerHeight + ch + 16;
-        if (target > window.pageYOffset) window.scrollTo({ top: target, behavior: 'smooth' });
+        if (target > window.pageYOffset) window.scrollTo(0, target);
       } else {
         messages.scrollTop = messages.scrollHeight;
       }
@@ -172,6 +178,7 @@
   function send(preset) {
     var text = typeof preset === 'string' ? preset : (input.value || '').trim();
     if (!text || busy || submitted) return;
+    userEngaged = true; // from here on, following the conversation with the scroll is wanted
     cancelCountdown(); // a new message means they're still editing — don't auto-submit under them
     if (text.length > 1000) text = text.slice(0, 1000);
     if (typeof preset !== 'string') { input.value = ''; autoGrow(); }
@@ -389,6 +396,7 @@
       var file = photoInput.files && photoInput.files[0];
       photoInput.value = ''; // let the same file be re-picked later
       if (!file || busy || submitted) return;
+      userEngaged = true;
       var isImg = /^image\//.test(file.type);
       var thumb = isImg
         ? '<img class="up-thumb" src="' + URL.createObjectURL(file) + '" alt="">'
@@ -441,7 +449,9 @@
       // Resumed with a finished quote (e.g. from the emailed "Finish & submit"
       // link) — surface the consent + pulsing submit button straight away.
       if (d.done) { done = true; showSubmitReady(); }
-      input.focus({ preventScroll: true });
+      // Don't grab focus on load on phones — it can pop the keyboard and wrestle the
+      // scroll before the visitor has even reached the chat. They tap it when ready.
+      if (!mobileFlow()) input.focus({ preventScroll: true });
     }
   }).catch(function () { typing(false); addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });
 })();
