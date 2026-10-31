@@ -6,7 +6,8 @@ import ClientTopBar from './ClientTopBar';
 import GlobalSearch, { SearchIcon } from './GlobalSearch';
 import AnalystPanel from './AnalystPanel';
 import SectionPanel from './SectionPanel';
-import { SECTIONS, sectionForPath } from '../nav/sections';
+import MobileScreenNav from './MobileScreenNav';
+import { SECTIONS, sectionForPath, screenForPath, labelForTab } from '../nav/sections';
 
 
 export default function Layout() {
@@ -162,10 +163,28 @@ export default function Layout() {
     letterSpacing: 0.2,
   });
 
+  // What the phone's top bar says. The section, plus the screen inside it
+  // when the two are different words — "Shared · Swipe" rather than a bare
+  // "Shared", and a bare "Clients" rather than "Clients · Clients".
+  const currentScreenLabel = currentSection
+    ? labelForTab(currentSection, screenForPath(location.pathname))
+    : null;
+  const topbarTitle = currentSection
+    ? [currentSection.title, currentScreenLabel].filter(Boolean)
+        .filter((v, i, a) => a.indexOf(v) === i).join(' · ')
+    : 'Marketing Intelligence';
+
   return (
     <div className="app-shell">
       <header className="app-topbar">
-        <span className="app-topbar-brand">Marketing Intelligence</span>
+        {/* On a phone this said "Marketing Intelligence", which is the one
+            thing you already know: you opened the app. The bar is 56px of
+            the most valuable space on the screen, so it answers the question
+            you actually have — which client, and which part of it — with the
+            product name kept as a subtitle only where there is no client to
+            name. Daniel: "The navigation and titles need to be cleverly
+            thought through for mobile purposes." */}
+        <span className="app-topbar-brand">{topbarTitle}</span>
         <button className="app-hamburger" onClick={() => setNavOpen(o => !o)} aria-label="Menu" aria-expanded={navOpen}>
           {navOpen ? '✕' : '☰'}
         </button>
@@ -310,6 +329,10 @@ export default function Layout() {
           outside a client section, so /clients, /settings and /guide keep the
           single column they have always had. */}
       <SectionPanel ref={panelRef} navCollapsed={navCollapsed} onToggleNav={toggleNav} />
+      {/* The same directory on a phone, as a sheet rather than a column. The
+          panel itself is display:none at that width — a 170px fixed column
+          beside a 260px drawer leaves nothing for the page. */}
+      <MobileScreenNav />
       <main className="app-main" ref={mainRef}>
         {readOnly && (
           <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>

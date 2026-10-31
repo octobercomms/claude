@@ -44,6 +44,14 @@
 //                      order the way a strip can, so it has to say it)
 //                when  gates a row on the viewer, for the handful that are
 //                      role- or grant-dependent
+//                phone `false` leaves the row out of the phone's screen
+//                      picker. The bar is mechanical, not editorial: the
+//                      screen must be something a phone genuinely cannot
+//                      operate — a timeline or a drag canvas — not merely
+//                      something nobody would choose to do on a phone. Two
+//                      rows qualify today. The route still works if you type
+//                      it or follow a link, so nothing becomes unreachable;
+//                      it is only absent from the list.
 
 // `ctx` is { readOnly, canVisualise }.
 const agencyOnly = (ctx) => !ctx.readOnly;
@@ -259,9 +267,9 @@ export const SECTIONS = {
     defaultTab: 'reel',
     groups: [
       { heading: 'Make', rows: [
-        { tab: 'reel',       label: 'Make a reel', when: agencyOnly },
+        { tab: 'reel',       label: 'Make a reel', when: agencyOnly, phone: false },
         { tab: 'record',     label: 'Record' },
-        { tab: 'edit',       label: 'Edit',        when: agencyOnly },
+        { tab: 'edit',       label: 'Edit',        when: agencyOnly, phone: false },
         { tab: 'design',     label: 'Design',      when: agencyOnly },
         { tab: 'visualise',  label: 'Visualise',   when: (ctx) => !!ctx.canVisualise },
         { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly },
@@ -368,11 +376,19 @@ export function sectionForPath(pathname) {
 
 // The screen in a path, as the page's own key. Null when the path names no
 // screen or names one this section does not have.
+//
+// The global branch reads the section's own `leaf` rather than naming
+// /settings literally. It used to be literal, and when Database and Biz dev
+// became sections of their own the literal did not grow with them: every
+// /database/* and /biz-dev/* path answered null, so the panel lit Health
+// while the page showed Journalists. A derived leaf cannot drift that way.
 export function screenForPath(pathname) {
   const section = sectionForPath(pathname);
   if (!section) return null;
-  const m = pathname.match(/^\/clients\/[^/]+\/[^/]+\/([^/?]+)|^\/settings\/([^/?]+)/);
-  const slug = m && (m[1] || m[2]);
+  const pattern = section.scope === 'global'
+    ? new RegExp(`^/${section.leaf}/([^/?]+)`)
+    : /^\/clients\/[^/]+\/[^/]+\/([^/?]+)/;
+  const slug = (pathname.match(pattern) || [])[1];
   return slug ? tabForSlug(section, slug) : null;
 }
 
@@ -380,6 +396,17 @@ export function screenForPath(pathname) {
 export function visibleGroups(section, ctx) {
   return section.groups
     .map(g => ({ ...g, rows: g.rows.filter(r => !r.when || r.when(ctx)) }))
+    .filter(g => g.rows.length > 0);
+}
+
+// The same list, minus the rows a phone cannot operate. Separate from
+// visibleGroups rather than another flag on `ctx`, because the two answer
+// different questions: `when` decides what a viewer is allowed to see, and
+// this decides what fits the device. Conflating them would mean a desktop
+// browser narrowed to 700px hid screens from a user who has them.
+export function phoneGroups(section, ctx) {
+  return visibleGroups(section, ctx)
+    .map(g => ({ ...g, rows: g.rows.filter(r => r.phone !== false) }))
     .filter(g => g.rows.length > 0);
 }
 
