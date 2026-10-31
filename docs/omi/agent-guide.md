@@ -2168,6 +2168,55 @@ to open the record (`Open` on the Record list), which is the yellow.
 
 ---
 
+### The 31 Oct review, later batches (31 Oct 2026)
+
+Twelve PRs off one review. What is worth carrying forward is not the list of
+changes; it is these.
+
+**The expiring-provider-link fault has now appeared three times in one day**, and
+the fix has a settled shape. Migrations 223 (ad creative), 224 (avatar reels),
+225 (library clips): add `source_url` and `stored_bytes` to whatever table
+holds the row, fetch the bytes through `services/generatedMedia.js`, point
+`url` at the local copy, keep the provider link in `source_url`, and give the
+table a partial index on "still somebody else's". **Assume the fourth exists.**
+Any table with a `url` column that a provider wrote is a candidate; grep for
+one before building anything that reads media.
+
+**`assets.keepRemote(asset, { check })`** does this for `client_assets`, and
+`assets.unstored(clientId)` is the backfill's question. The `check` is the URL
+guard, injectable only so a test can serve from loopback. No caller in the app
+passes one, and the default refuses loopback, private ranges and link-local —
+a provider answering with 169.254.169.254 would otherwise have this box fetch
+its own cloud credentials and file them in a client's folder as a video. **A
+drive that injects a permissive check must first assert the default refuses
+its own origin**, or the drive becomes evidence the guard is off.
+
+**Both media services hardcode `backend/uploads`.** `socialCaptionRender.js`
+and `generatedMedia.js` build their store from `__dirname`, not from an env
+var. `UPLOAD_ROOT` is not a thing. A test fixture has to be written there
+(it is gitignored) and cleaned up after.
+
+**`adExport.readAsset` is the one asset reader.** `socialExport.js` reuses it,
+plus `toCsv`, `slug` and `extFor`. The two exports answer the same question
+about different records and the place they must not disagree is "where did
+this asset go". Do not write a third.
+
+**`utils/fieldEdit.js`** holds the rule for two things editing one field, which
+is the ordinary case on Shared's Review screen: the post's fields on the left,
+a Claude refine chat on the right, both writing the same hook and caption.
+`fieldState` tells "I changed this" apart from "somebody changed it under me"
+by comparing the record against the value **at focus**, not against the draft.
+Comparing against the draft is arithmetically identical to `dirty`, so the
+warning fires on every keystroke — a mutation proved that while every test
+still passed.
+
+**The section panel's markup is `.sp-group` → `.sp-heading` → `.sp-label`.**
+Read groups as groups. An earlier drive inferred headings by walking text
+nodes beside `.sp-heading-mark`; that works on Settings and returns *nothing*
+on Shared, so it passed by luck of markup.
+
+---
+
 ## 8. Working conventions
 
 - **Keep this guide true. Do it as part of every change, before you open the
@@ -2231,6 +2280,24 @@ progress is obvious on `platform.octobercomms.com`.
 
 ## 10. Fast facts / gotchas checklist
 
+- **A slug that equals a different row's tab key is a trap, and one exists.**
+  Shared has `tab: 'review'` at slug `brief` and `tab: 'perf_insights'` at slug
+  `review`. The round trip holds, so nothing is broken; pass a slug where a tab
+  is expected and you land on the other screen with no error, and both render.
+  `tests/sectionPanel.test.mjs` records every such collision with that one
+  allowlisted.
+- **A hardcoded client path must be built from the section, base included.**
+  `routeTargets` direction 2 reads literal `/clients/…` strings and cannot
+  evaluate an interpolated segment, so
+  `` `/clients/${id}/convert/${slugForTab(...)}` `` is reported as a dead
+  screen. Write `` `${SECTIONS.convert.base(id)}/${slugForTab(...)}` ``, which
+  is what the other links do.
+- **Settings slugs moved on 31 Oct**: `ai` → `models`, and `gen`, `scraping`
+  and `alerts` are new. `other` is gone, its four groups re-filed. Anything
+  linking to `/settings/ai` or `/settings/other` is dead.
+- **Auto-merge fires within ~3 minutes of CI going green**, so a commit pushed
+  while a PR is open joins it and a commit pushed after the merge needs a new
+  PR. Open the PR in the same breath as the push, not after writing it up.
 - **A section's URL base is not its name.** `nav/sections.js` keeps the
   pillar's old leaf: Paid is `/clients/:id/ads`, Earned `/clients/:id/pr`,
   Shared `/clients/:id/social`, Owned `/clients/:id/seo`. Guessing

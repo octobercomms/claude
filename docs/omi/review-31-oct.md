@@ -397,3 +397,68 @@ wrong noun.
 
 Groups 1 to 4 are roughly three sessions. Group 5 is two or three on its own.
 Group 7.2 is weeks and I would not start it on this evidence.
+
+---
+
+## Decisions still open (as of 31 Oct, end of the build session)
+
+Three items are blocked on Daniel, and none should be acted on without his
+answer. Recorded here rather than only in a PR body, because a PR body is read
+once and this list is what the next session needs.
+
+### 1 · The Shared autopilot
+
+**What it is.** A cron finds `social_post_plans` whose `scheduled_at` has
+passed, reads the client's Drive folder for media, generates captions fresh
+(about three Claude calls per plan, so the last edit is always reflected),
+fetches the client's Meta and LinkedIn credentials, and posts to Instagram,
+Facebook and LinkedIn. Each platform's outcome lands in
+`social_post_publications`; failures defer and eventually give up. Media
+reaches Meta through a signed URL on OMI's own domain with a 24-hour TTL.
+
+**Size.** ~1,030 lines across `socialPublisher.js` (521),
+`socialPlanner.js` (362) and `socialDrive.js` (148), one cron, the
+`social_post_plans` and `social_post_publications` tables, plus
+`clients.social_autopilot_paused`.
+
+**The recommendation: delete it.** Not because it is unused — because OMI's
+standing rule is that it never hits go on anything without a human clicking
+go, and this is the one feature that breaks that by design. Keeping it also
+keeps two sets of platform credentials live, a signed public media URL, and
+~3 Claude calls per plan at publish time, all for a path nobody walks.
+
+**Why it has not been done.** Daniel asked "how does it work?" and decided to
+delete it before that answer existed. The replacement was built first (the
+batch download, PR #1881) precisely so the decision is not forced: Shared can
+be worked by hand either way.
+
+### 2 · Earned → Measure
+
+Renders `PrBacklinkRoi` — the backlink ROI total **across** campaigns. The
+Campaigns reshape (#1877) put per-campaign attribution on each campaign's
+Results, which covers most of what "it can be added to each campaign results
+page" meant. The cross-campaign aggregate exists only on this screen.
+
+Delete it and that total goes. Keeping it and renaming it is the safer move.
+Not a call to make on inference.
+
+### 3 · The Shared Create row names
+
+Worse than the "Ideas vs Create nav mismatch" as reported. Every row in the
+Create group is named differently from the step it opens:
+
+| Nav row | Opens |
+|---|---|
+| Ideas | 1 · Create — *Brief & generate* |
+| Brief | 2 · Review — *Refine your posts* |
+| Workbench | 3 · Produce — *Make the assets* |
+| Schedule | 4 · Schedule |
+
+Only Schedule agrees, and "Brief" names a row while also being half of a
+different row's subtitle. That is why the review asked "is this first step
+Generate?" — it is; step 1 is "Brief & generate".
+
+Naming the rows after their steps fixes it, **except** step 2 is called Review
+and Measure already has a row called Review at slug `review`. Two screens in
+one section both legitimately called Review is the real problem, and choosing
+the replacement names is a product decision.

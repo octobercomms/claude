@@ -223,3 +223,43 @@ test('the three SettingsPage sections together name exactly its screens', () => 
 // A test whose failure mode no longer exists passes on nothing, which is worse
 // than not having it. What remains worth checking is whether a row opens
 // something, and that is in the browser drive where it can be proven.
+
+test('no slug names a different row in the same section', () => {
+  // Shared has `tab: 'review'` at slug 'brief' (step 2, refine the posts) and
+  // `tab: 'perf_insights'` at slug 'review' (Measure). So the word "review" is
+  // a tab key for one screen and a slug for another, in the same section.
+  //
+  // Nothing is broken today: the round trip tab → slug → tab holds. The trap is
+  // one line away. Any code that passes a slug where a tab is expected, or the
+  // reverse, lands on the other screen with no error — and both screens render,
+  // so it looks like a working page showing the wrong thing. Six dead links got
+  // into this app the same way, by a path and a key being almost the same word.
+  //
+  // This does not forbid the collision. It records every one that exists, so
+  // adding another is a decision somebody makes on purpose rather than a thing
+  // that happens.
+  const KNOWN = ['shared:review'];
+  const found = [];
+  for (const key of Object.keys(SECTIONS)) {
+    const section = SECTIONS[key];
+    const tabs = new Set(tabsOf(section));
+    for (const slug of slugsOf(section)) {
+      // A row whose slug equals its own tab is the ordinary case.
+      const ownTab = tabForSlugIn(section, slug);
+      if (tabs.has(slug) && slug !== ownTab) found.push(`${key}:${slug}`);
+    }
+  }
+  assert.deepEqual(found.sort(), KNOWN.sort(),
+    'a slug now names a different row\'s tab. Either rename one, or add it here '
+    + 'with a note on why the collision is safe.');
+});
+
+// The tab a slug resolves to, within one section.
+function tabForSlugIn(section, slug) {
+  for (const g of section.groups) {
+    for (const r of g.rows) {
+      if ((r.slug || r.tab.replace(/_/g, '-')) === slug) return r.tab;
+    }
+  }
+  return null;
+}
