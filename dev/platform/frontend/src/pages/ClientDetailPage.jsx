@@ -13,6 +13,7 @@ import ClarityConnectorCard from '../components/ClarityConnectorCard';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
 import WorkedExamplesPanel from '../components/WorkedExamplesPanel';
+import SetupScansPanel from '../components/SetupScansPanel';
 import ClientStrategyPanel from '../components/ClientStrategyPanel';
 import MeasurePanel from '../components/MeasurePanel';
 import StrategistBriefingPanel from '../components/StrategistBriefingPanel';
@@ -538,6 +539,11 @@ export default function ClientDetailPage() {
               briefing and brand assets the checklist above is asking for, so
               running this first gives you four thin examples. */}
           <WorkedExamplesPanel clientId={id} />
+          {/* The nine research scans, after the examples for the same reason
+              the examples come after readiness: they read the brief and the
+              domain the checklist above is asking for. Nothing is ticked and
+              nothing runs on its own, because each one spends. */}
+          <SetupScansPanel clientId={id} />
         </div>
       )}
 
