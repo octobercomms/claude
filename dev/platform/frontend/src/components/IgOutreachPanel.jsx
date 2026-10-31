@@ -182,7 +182,7 @@ export default function IgOutreachPanel({ clientId }) {
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createAndRun, disabled: busy })}>{busy ? 'Searching…' : 'Create & run'}</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
           </div>
-          <input className="input" style={{ marginTop: 'var(--s2)' }} placeholder="What are you DMing them about? e.g. inviting them to exhibit at Atlanta Design Festival (Sept 26–Oct 4)"
+          <input className="input" style={{ marginTop: 'var(--s2)' }} placeholder="What are you DMing them about? e.g. inviting them to exhibit at a design festival in September"
             value={goal} onChange={e => setGoal(e.target.value)} />
           <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>Several roles at once is fine. The outreach goal drives the drafted messages — and drafts won't invent specifics they can't see.</div>
         </div>

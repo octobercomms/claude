@@ -1246,7 +1246,7 @@ export default function ClientPRPage() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--s3)' }}>
-              <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Google News query</span><input className="input" value={newSearch.query} onChange={(e) => setNewSearch((s) => ({ ...s, query: e.target.value }))} placeholder='e.g. "Forgeworks" architecture' /></label>
+              <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Google News query</span><input className="input" value={newSearch.query} onChange={(e) => setNewSearch((s) => ({ ...s, query: e.target.value }))} placeholder='e.g. "Northgate Studio" architecture' /></label>
               <label className="field" style={{ minWidth: 220 }}><span className="field-label">Google Alerts RSS (optional)</span><input className="input" value={newSearch.alerts_rss} onChange={(e) => setNewSearch((s) => ({ ...s, alerts_rss: e.target.value }))} placeholder="https://www.google.com/alerts/feeds/…" /></label>
               <label className="field"><span className="field-label">Frequency</span><select className="input" value={newSearch.cadence} onChange={(e) => setNewSearch((s) => ({ ...s, cadence: e.target.value }))}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
               <button className="btn btn-primary" onClick={addSearch}>Add search</button>
