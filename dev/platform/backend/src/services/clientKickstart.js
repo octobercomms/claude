@@ -13,6 +13,7 @@
 const pool = require('../db');
 const claudeService = require('./claude');
 const competitorSuggest = require('./competitorSuggest');
+const clientCompetitors = require('./clientCompetitors');
 
 async function proposeKeywords(client) {
   const raw = await claudeService.callClaude({
@@ -73,9 +74,17 @@ async function kickstart(clientId) {
   // Competitors
   if (!compEmpty) skipped.push({ section: 'Competitors', reason: 'already set' });
   else if (compR.status === 'fulfilled' && Array.isArray(compR.value) && compR.value.length) {
-    const domains = compR.value.map(c => c.domain).filter(Boolean).slice(0, 5);
-    if (domains.length) await pool.query('UPDATE clients SET competitor_domains = $1 WHERE id = $2', [domains, clientId]);
-    filled.push({ section: 'Competitors', detail: `${domains.length} added` });
+    // Through the service, not a direct UPDATE. This used to write the
+    // hostnames straight into clients.competitor_domains and drop the brand
+    // name and the reason Claude had just been paid to write, so the Paid →
+    // Competitors panel had nothing to show and asked Claude all over again.
+    // The service keeps the whole record and rebuilds that column from it.
+    let added = 0;
+    for (const c of compR.value.slice(0, 5)) {
+      try { await clientCompetitors.add(clientId, { ...c, source: 'quickstart' }); added++; }
+      catch (err) { console.error('[kickstart] competitor not stored:', c.domain || c.name, err.message); }
+    }
+    filled.push({ section: 'Competitors', detail: `${added} added` });
     suggestions.competitors = compR.value;
   } else skipped.push({ section: 'Competitors', reason: 'none suggested' });
 
