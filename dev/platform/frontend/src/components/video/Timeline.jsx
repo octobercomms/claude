@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as EDL from '@shared/edl.mjs';
 import { roWrite } from '../../utils/readOnly';
+import { useFilmstrips, thumbsForBlock, THUMB_HEIGHT } from '../../utils/filmstrip';
 
 /**
  * The timeline surface: the edit, drawn, and editable by dragging it.
@@ -89,6 +90,11 @@ export default function Timeline({
   const [pps, setPps] = useState(null);          // null = fit to the width
   const [drag, setDrag] = useState(null);
   const [laneWidth, setLaneWidth] = useState(0);
+
+  // Stills along each block, so a cut can be placed by eye instead of by
+  // scrubbing to find out where it landed. Extracted in the browser; see
+  // utils/filmstrip.js for why not on the server.
+  const strips = useFilmstrips(clips);
 
   const rows = useMemo(() => drawRows(edl), [edl]);
   const drawnTotal = useMemo(
@@ -366,15 +372,50 @@ export default function Timeline({
                   boxSizing: 'border-box',
                 }}
               >
+                {/* The filmstrip, behind the label. Each still is placed by
+                    its own source time, so a trim or a split moves the frames
+                    to where they belong without re-extracting anything. */}
+                {(() => {
+                  const strip = strips[clips[row.item.clip]?.id];
+                  const shots = thumbsForBlock(strip, row.item.in, row.item.out);
+                  if (!shots.length) return null;
+                  return (
+                    <div aria-hidden="true" style={{
+                      position: 'absolute', inset: 0, overflow: 'hidden',
+                      pointerEvents: 'none', opacity: isSel ? 0.5 : 0.72,
+                    }}>
+                      {shots.map((sh) => (
+                        <img key={sh.t} src={sh.src} alt=""
+                          style={{
+                            position: 'absolute', left: `${sh.at * 100}%`, top: 0,
+                            height: Math.min(height, THUMB_HEIGHT + 20),
+                            // Each still marks the point it was taken from, so
+                            // it hangs from that point rather than being
+                            // centred on it: a frame drawn either side of its
+                            // own timestamp is a frame in the wrong place.
+                            transform: 'translateX(0)',
+                            objectFit: 'cover',
+                          }} />
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 <div style={{
+                  position: 'relative',
                   padding: '4px 6px', fontSize: 'var(--fs-caption)', lineHeight: 1.3,
                   pointerEvents: 'none', whiteSpace: 'nowrap',
+                  // The label has to stay readable over footage of any
+                  // brightness, so it carries its own ground rather than
+                  // relying on the frames behind it being dark.
+                  background: 'linear-gradient(to bottom, var(--surface) 0%, var(--surface) 62%, transparent 100%)',
                 }}>
                   <div style={{ fontWeight: 700 }}>
                     {clips[row.item.clip]?.name || `Clip ${row.item.clip + 1}`}
                   </div>
                   <div className="text-subtle">
                     {row.known ? stamp(row.length) : 'length unknown'}
+                    {strips[clips[row.item.clip]?.id]?.state === 'working' ? ' · reading frames' : ''}
                   </div>
                 </div>
 

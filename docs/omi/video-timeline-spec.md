@@ -312,6 +312,63 @@ reopening an older edit keeps its cuts.
    and every trim landed short. The scale is now frozen for the duration of a
    drag, which is what desktop editors do and why their trims feel direct.
 
+### Session 2 · the filmstrip
+
+Built: **2.3 (filmstrip thumbnails)**.
+
+| What | Where |
+|---|---|
+| Extraction, in the browser | `frontend/src/utils/filmstrip.js` |
+| Placement, pure and tested | `frontend/src/utils/filmstripPlace.js` |
+| Drawn on the block | `Timeline.jsx` |
+| Guards | `frontend/tests/filmstripPlace.test.mjs` (12), plus a 66-assertion browser drive |
+
+**The scope was wrong about where this runs, and the correction matters.** It
+said "ffmpeg extracts them at an interval on upload; the front end places
+them". On the Edit page a clip is a local `File` with a `blob:` URL from the
+moment it is dropped and does not reach the server until Render is pressed, so
+server-side extraction would leave the timeline blank for exactly as long as
+the timeline is being used, filling in only for a job reopened later. The
+filmstrip is most of what makes a timeline feel like one, so it has to be there
+while the edit is being made.
+
+A browser can do it: seek a `<video>`, draw the frame to a canvas, keep the
+JPEG. Thumbnails are the one part of a timeline that does not need frame
+accuracy, so seeking to a keyframe rather than a frame costs nothing here,
+which is exactly why this is cheap when 2.2 is not. Twelve stills per clip at
+44 CSS pixels tall, sampled at the middle of each slice rather than the start
+because a still taken at 0 is often a black frame from a fade-in.
+
+One strip per source clip serves any number of blocks over that clip. A trim
+changes which stills are in range, a split changes which block each belongs to,
+a reorder changes neither, and nothing is re-extracted for any of them. The
+half-open interval matters: a still at exactly the cut point belongs to the
+block starting there, or a split draws one frame twice.
+
+**Still no server work, and no waveform yet.** 2.4 needs peaks, which a browser
+*can* compute via `AudioContext.decodeAudioData`, but decoding a whole audio
+track to float arrays is a different order of cost from twelve seeks. That one
+is worth doing on the server, on upload, for remote clips, with the local case
+honestly left blank until the first render. Decide that at the start of 2.4
+rather than assuming either way.
+
+### Two bugs in the extraction loop, both only findable by driving it
+
+1. **A duration arriving tore down the extraction.** The hook keyed its effect
+   on the clips array, and the page replaces that array whenever the browser's
+   metadata probe lands a duration, which is within a second of every upload.
+   The in-flight extraction was cancelled and never retried, because the cache
+   already held a `working` entry for that clip. Every block said "reading
+   frames" for the rest of the session. Keyed on the clip ids now.
+2. **A mutex plus a teardown deadlocked.** With the first fix in, adding a
+   second file still killed it: the loop reading the first clip was cancelled,
+   and the replacement loop found the `running` mutex still held by the loop
+   that had not finished unwinding, so it returned and nothing was read again.
+   Replaced with one pump for the life of the component that takes another pass
+   when the clip list changes, rather than being replaced.
+
+Neither would have been caught by reading the code, and neither throws.
+
 ### Next session
 
 **2.2, the frame-accurate preview, on WebCodecs** — but not before the
