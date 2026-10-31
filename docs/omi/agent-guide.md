@@ -76,6 +76,14 @@ What this changes for you:
 `docs/omi/loom-replacement-plan.md` has the whole switch, including what it
 looked like on the day and the two things that bit.
 
+The box is also on **Node 20.20.2 and ffmpeg 4.4**, both of which cost
+something: the AWS SDK drops Node under 22 after early January 2027, and
+ffmpeg before 6.0 has no `-cues_to_front`, so every WebM recording gets its
+seek index written at the tail of the file instead of the front. Neither
+breaks anything today and both want doing in one sitting —
+`docs/omi/node-22-upgrade.md` is the runbook, including the three recordings
+to rebuild with `remux-backfill.js --commit --force` afterwards.
+
 ## 3. How OMI is deployed (READ THIS — it is the #1 source of mistakes)
 
 **Production URL: `https://platform.octobercomms.com`** (that is where the user
