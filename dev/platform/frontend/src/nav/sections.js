@@ -290,7 +290,35 @@ export const SECTIONS = {
         { tab: 'integrations', label: 'Integrations' },
         { tab: 'other',        label: 'Other' },
       ] },
-      { heading: 'Database', rows: [
+      { heading: 'Tools', rows: [
+        { tab: 'reports',  label: 'Reports' },
+        { tab: 'strategy', label: 'Strategy templates', slug: 'strategy-templates' },
+        { tab: 'praddon',  label: 'PR Gmail add-on', slug: 'gmail-add-on' },
+        { tab: 'checker',  label: 'Checker bench' },
+      ] },
+      { heading: 'Account', rows: [
+        { tab: 'users',    label: 'Users & access' },
+        { tab: 'security', label: 'Security' },
+      ] },
+    ],
+  },
+
+  // Database and Biz dev used to be two groups inside Settings. Neither is
+  // configuration: the media database is a working surface you edit all day,
+  // and the sales pipeline is the agency's own funnel. They sat in Settings
+  // because that is where their screens were first built, not because anyone
+  // decided they belonged there. Both now have their own section, their own
+  // path and their own nav item, and SettingsPage still renders them — the
+  // screens did not move, only the way in.
+  database: {
+    key: 'database',
+    leaf: 'database',
+    title: 'Database',
+    scope: 'global',
+    base: () => '/database',
+    defaultTab: 'health',
+    groups: [
+      { heading: null, rows: [
         { tab: 'health',       label: 'Health' },
         { tab: 'contacts',     label: 'Journalists', slug: 'journalists' },
         { tab: 'publications', label: 'Publications' },
@@ -298,22 +326,22 @@ export const SECTIONS = {
         { tab: 'tasks',        label: 'Tasks' },
         { tab: 'assistant',    label: 'Assistant' },
       ] },
-      { heading: 'Tools', rows: [
-        { tab: 'reports',  label: 'Reports' },
-        { tab: 'strategy', label: 'Strategy templates', slug: 'strategy-templates' },
-        { tab: 'praddon',  label: 'PR Gmail add-on', slug: 'gmail-add-on' },
-        { tab: 'checker',  label: 'Checker bench' },
-      ] },
-      { heading: 'Biz dev', rows: [
+    ],
+  },
+  bizdev: {
+    key: 'bizdev',
+    leaf: 'biz-dev',
+    title: 'Biz dev',
+    scope: 'global',
+    base: () => '/biz-dev',
+    defaultTab: 'leads',
+    groups: [
+      { heading: null, rows: [
         { tab: 'leads',     label: 'Leads' },
         { tab: 'proposals', label: 'Proposals' },
         { tab: 'proof',     label: 'Proof library' },
         { tab: 'booking',   label: 'Booking' },
         { tab: 'tenders',   label: 'Tenders' },
-      ] },
-      { heading: 'Account', rows: [
-        { tab: 'users',    label: 'Users & access' },
-        { tab: 'security', label: 'Security' },
       ] },
     ],
   },
@@ -324,8 +352,13 @@ export const SECTIONS = {
 const BY_LEAF = Object.fromEntries(Object.values(SECTIONS).map(s => [s.leaf, s]));
 
 export function sectionForPath(pathname) {
-  // Settings is not under /clients and has no client id.
-  if (/^\/settings(\/|$)/.test(pathname)) return SECTIONS.settings;
+  // The global sections are not under /clients and have no client id. Keyed
+  // off each section's own `leaf` so a path segment is still decided in one
+  // place; the literal list is only the order to try them in.
+  for (const key of ['settings', 'database', 'bizdev']) {
+    const leaf = SECTIONS[key].leaf;
+    if (new RegExp(`^/${leaf}(/|$)`).test(pathname)) return SECTIONS[key];
+  }
   const m = pathname.match(/^\/clients\/([^/]+)\/([^/?]+)/);
   // /clients (the list) and a bare /clients/:id match nothing: the bare path
   // redirects to /dashboard rather than being a section of its own, so there

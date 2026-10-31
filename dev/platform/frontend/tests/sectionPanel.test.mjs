@@ -33,8 +33,15 @@ const PAGES = {
   owned:     { file: 'ClientSEOPage.jsx',    v: 'activeTab' },
   convert:   { file: 'ClientConvertPage.jsx', v: 'tab' },
   produce:   { file: 'ClientVideoTab.jsx',   v: 'tab' },
+  // Three sections, one page. Settings, Database and Biz dev are three paths
+  // over SettingsPage, which reads which one it is in from the path.
   settings:  { file: 'SettingsPage.jsx',     v: 'tab' },
+  database:  { file: 'SettingsPage.jsx',     v: 'tab' },
+  bizdev:    { file: 'SettingsPage.jsx',     v: 'tab' },
 };
+
+// The sections that live at the top level rather than under /clients/:id.
+const GLOBAL = new Set(['settings', 'database', 'bizdev']);
 
 test('every section is covered by this file, so nothing is silently skipped', () => {
   assert.deepEqual(Object.keys(PAGES).sort(), Object.keys(SECTIONS).sort());
@@ -93,8 +100,8 @@ test('no slug repeats its own section leaf', () => {
 test('every section has a route that takes a screen', () => {
   const missing = [];
   for (const [key, section] of Object.entries(SECTIONS)) {
-    const pat = key === 'settings'
-      ? 'path="settings/:screen?"'
+    const pat = GLOBAL.has(key)
+      ? `path="${section.leaf}/:screen?"`
       : `path="clients/:id/${section.leaf}/:screen?`;
     if (!app.includes(pat)) missing.push(`${key} (${pat})`);
   }
@@ -125,7 +132,19 @@ test('no route or link still carries ?tab=', () => {
 
 test('each page reads its screen from the path, not from a query', () => {
   for (const [key, { file }] of Object.entries(PAGES)) {
-    assert.ok(page(file).includes(`useScreen('${key}')`),
+    const src = page(file);
+    if (GLOBAL.has(key)) {
+      // SettingsPage serves three sections, so it cannot name one. It has to
+      // derive the section from the path instead — a literal would send
+      // /database/journalists to the Settings default and the row would look
+      // broken. Both halves are required: the lookup and the use.
+      assert.ok(/sectionForPath\(location\.pathname\)/.test(src),
+        `${file} serves ${key} but does not read the section from the path`);
+      assert.ok(/useScreen\(sectionKey\)/.test(src),
+        `${file} looks the section up and then ignores it`);
+      continue;
+    }
+    assert.ok(src.includes(`useScreen('${key}')`),
       `${file} does not call useScreen('${key}') — its rows cannot drive it`);
   }
 });
@@ -165,12 +184,22 @@ test('the default screen has a row, so a bare section URL highlights something',
   }
 });
 
-test('settings: the panel and SettingsPage name the same screens', () => {
+test('the three SettingsPage sections together name exactly its screens', () => {
+  // Was settings alone. Database and Biz dev moved out into sections of their
+  // own, so the page's table is now the union of all three — and the union is
+  // what has to match, or a screen is either unreachable or orphaned.
   const src = page('SettingsPage.jsx');
   const table = src.slice(src.indexOf('const SECTIONS = ['), src.indexOf('const SECTION_GROUPS'));
   const pageKeys = [...table.matchAll(/\{ k: '([a-z_]+)'/g)].map(m => m[1]).sort();
   assert.ok(pageKeys.length >= 20, `only read ${pageKeys.length} keys out of SettingsPage — the table moved`);
-  assert.deepEqual(tabsOf(SECTIONS.settings).sort(), pageKeys);
+
+  const navKeys = [...GLOBAL].flatMap(k => tabsOf(SECTIONS[k])).sort();
+  assert.deepEqual(navKeys, pageKeys);
+
+  // And no screen appears in two of them, which would make one row dead.
+  const seen = new Set(); const dupes = [];
+  for (const k of navKeys) { if (seen.has(k)) dupes.push(k); seen.add(k); }
+  assert.deepEqual(dupes, [], 'a screen is listed under more than one section');
 });
 
 // tabDoors.test.mjs, tabDoorsLib.test.mjs and lib/tabDoors.mjs were deleted

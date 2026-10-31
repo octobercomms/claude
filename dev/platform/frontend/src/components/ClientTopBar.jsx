@@ -48,10 +48,10 @@ export default function ClientTopBar({ clientId, analystOpen, onToggleAnalyst, o
 
   const state = health ? (HEALTH[health.worst] || HEALTH.none) : null;
   // The cog opens the setup itself — the client brief — not a page describing
-  // where setup lives. Brand kit is its own route and lights the cog too.
+  // where setup lives. The brand kit used to be its own route and lit the cog
+  // too; it now renders inside Setup, so that clause went with the route.
   const tabNow = new URLSearchParams(location.search).get('tab');
-  const onSetup = (location.pathname === `/clients/${clientId}` && ['details', 'setup_overview'].includes(tabNow))
-    || location.pathname === `/clients/${clientId}/brand`;
+  const onSetup = location.pathname === `/clients/${clientId}` && ['details', 'setup_overview'].includes(tabNow);
   const onConnectors = location.pathname === `/clients/${clientId}` && tabNow === 'connectors';
 
   const plugTitle = state

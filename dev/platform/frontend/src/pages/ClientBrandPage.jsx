@@ -13,6 +13,15 @@ const KINDS = [
   { value: 'prop_image',    label: 'Prop image',   description: 'Photos for Style F — drawings, notebooks, material samples, hands holding objects. Bulk upload supported.' },
 ];
 
+// The two production banks are not brand identity. B-roll clips and prop
+// images are bulk-uploaded thirty at a time for the video styles, and they
+// swamped the kit: open it to check a logo and you scrolled past a wall of
+// photographs. They stay in brand_assets because the video pipeline reads
+// them from there by kind (editProcessor, socialCaptionRender, adCreative),
+// so this separates what you look at, not where the bytes live.
+const BANK_KINDS = new Set(['b_roll_clip', 'prop_image']);
+const IDENTITY_KINDS = KINDS.filter(k => !BANK_KINDS.has(k.value));
+
 // `embedded` true means this page is rendered inside ClientDetailPage's
 // Setup → Brand tab, where the parent owns the hero + tab strip. In
 // that mode we drop our own hero so the AM doesn't see two "October
@@ -131,7 +140,10 @@ export default function ClientBrandPage({ embedded = false } = {}) {
     }
   }
 
-  const filtered = assets.filter(a => filter === 'all' ? true : a.kind === filter);
+  // `assets` holds everything the API returned; the kit shows identity only.
+  const identity = assets.filter(a => !BANK_KINDS.has(a.kind));
+  const bankAssets = assets.filter(a => BANK_KINDS.has(a.kind));
+  const filtered = identity.filter(a => filter === 'all' ? true : a.kind === filter);
   const byKind = (k) => assets.filter(a => a.kind === k);
 
   return (
@@ -154,8 +166,8 @@ export default function ClientBrandPage({ embedded = false } = {}) {
 
       {/* Filter chips */}
       <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
-        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>All ({assets.length})</FilterChip>
-        {KINDS.map(k => (
+        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>All ({identity.length})</FilterChip>
+        {IDENTITY_KINDS.map(k => (
           <FilterChip key={k.value} active={filter === k.value} onClick={() => setFilter(k.value)}>
             {k.label} ({byKind(k.value).length})
           </FilterChip>
@@ -170,8 +182,6 @@ export default function ClientBrandPage({ embedded = false } = {}) {
         <UploadButton label="+ Upload logo" disabled={uploadingKind === 'logo'} onPick={f => handleFileUpload(f, 'logo')} accept="image/png,image/jpeg,image/webp,image/gif" />
         <UploadButton label="+ Upload product image" disabled={uploadingKind === 'product_image'} onPick={f => handleFileUpload(f, 'product_image')} accept="image/png,image/jpeg,image/webp,image/gif" />
         <UploadButton label="+ Upload font" disabled={uploadingKind === 'font'} onPick={f => handleFileUpload(f, 'font')} accept=".woff,.woff2,.ttf,.otf" />
-        <BulkUploadButton label="+ Bulk upload B-roll" disabled={uploadingKind === 'b_roll_clip'} onPick={files => handleBulkUpload(files, 'b_roll_clip')} accept="video/*" />
-        <BulkUploadButton label="+ Bulk upload props" disabled={uploadingKind === 'prop_image'} onPick={files => handleBulkUpload(files, 'prop_image')} accept="image/png,image/jpeg,image/webp,image/gif" />
         <button className="btn btn-secondary" onClick={() => setShowPaletteForm(true)}>+ Add palette</button>
         <button className="btn btn-secondary" onClick={() => setShowGuidelineForm(true)}>+ Add guideline</button>
       </div>
@@ -201,6 +211,31 @@ export default function ClientBrandPage({ embedded = false } = {}) {
             onEdit={() => setEditingAsset(a)} onUpdate={updateAsset} />
         ))}
       </div>
+
+      {/* The production banks, folded away. Open the kit to check a logo and
+          you should not scroll past thirty prop photographs to find it. They
+          are still here, and still uploaded here, because the video pipeline
+          reads them from brand_assets by kind — this is about what the page
+          leads with, not about moving the files. */}
+      <details className="card" style={{ marginTop: 'var(--s6)' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>
+          Production banks — B-roll and props ({bankAssets.length})
+        </summary>
+        <p className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
+          Bulk footage and prop photography for the video styles. Not brand
+          identity, so they are kept out of the kit above.
+        </p>
+        <div className="row wrap" style={{ margin: 'var(--s4) 0' }}>
+          <BulkUploadButton label="+ Bulk upload B-roll" disabled={uploadingKind === 'b_roll_clip'} onPick={files => handleBulkUpload(files, 'b_roll_clip')} accept="video/*" />
+          <BulkUploadButton label="+ Bulk upload props" disabled={uploadingKind === 'prop_image'} onPick={files => handleBulkUpload(files, 'prop_image')} accept="image/png,image/jpeg,image/webp,image/gif" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s4)' }}>
+          {bankAssets.map(a => (
+            <AssetCard key={a.id} asset={a} onDelete={() => deleteAsset(a)}
+              onEdit={() => setEditingAsset(a)} onUpdate={updateAsset} />
+          ))}
+        </div>
+      </details>
 
       <BrandVoicePanel clientId={id} />
     </div>

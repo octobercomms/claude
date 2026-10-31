@@ -125,7 +125,11 @@ cron.schedule('20 5 * * 0', async () => {
 cron.schedule('30 2 * * *', async () => {
   try {
     const disc = await require('./rssDiscover').sweep({ limit: 400, log: (m) => console.log('[Scheduler]', m) });
-    const res = await require('./outletResolve').sweepMissing({ limit: 150, log: (m) => console.log('[Scheduler]', m) });
+    // 25, not 150. This is a backlog drain that has been running every night
+    // as if it were a daily need: each outlet costs an AI call, and the
+    // queue converges either way — it just converges six times cheaper.
+    // ~$5/month of the October 2026 bill. See docs/omi/ai-cost.md.
+    const res = await require('./outletResolve').sweepMissing({ limit: 25, log: (m) => console.log('[Scheduler]', m) });
     console.log(`[Scheduler] Feed coverage: discover ${disc.found}/${disc.checked} feeds; resolve ${res.websites} websites, ${res.feeds} feeds from ${res.checked} unknown-site outlets`);
   } catch (e) { console.error('[Scheduler] Feed coverage sweep failed:', e.message); }
 });

@@ -196,12 +196,14 @@ export default function Layout() {
                     Then one item per PESO group, each explained inside its own
                     Overview. */}
                 {/* Lit from the path's section, not from a hand-kept list of
-                    tab keys. The brand kit sits on its own route but belongs
+                    tab keys. The brand kit used to sit on its own route; it
+                    is now inside Setup, which is already a Dashboard screen,
+                    so no extra clause is needed for it. It still belongs
                     to the Dashboard as far as the nav is concerned. */}
                 {!readOnly && (
                   <NavLink to={`/clients/${clientId}/dashboard`}
                     style={subLinkStyle(currentSection?.key === 'dashboard'
-                      || location.pathname === `/clients/${clientId}/brand`)}>Dashboard</NavLink>
+                      )}>Dashboard</NavLink>
                 )}
                 {/* Data was the analyst behind a nav item. The analyst is now
                     on every page, so for the agency there is nothing left here.
@@ -266,6 +268,21 @@ export default function Layout() {
                   KPI on Clients, the page you land on, linking straight to the
                   filtered view. */}
               <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
+            </li>
+          )}
+          {/* Database and Biz dev were groups inside Settings. Neither is
+              configuration — the media database is a working surface edited
+              all day, and Biz dev is the agency's own pipeline — so both are
+              rail items now. Admin-only, like Settings: a client login has no
+              business in either. */}
+          {user?.role === 'admin' && (
+            <li>
+              <NavLink to="/database" style={({ isActive }) => linkStyle(isActive)}>Database</NavLink>
+            </li>
+          )}
+          {user?.role === 'admin' && (
+            <li>
+              <NavLink to="/biz-dev" style={({ isActive }) => linkStyle(isActive)}>Biz dev</NavLink>
             </li>
           )}
           <li>
