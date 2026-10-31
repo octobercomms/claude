@@ -166,11 +166,69 @@ const POLLERS = [
       // ourselves from our pricing tables (services/costLog.js) — same
       // tables we use for per-call cost logging, so the dashboard total
       // and the per-call log are denominated identically.
+      //
+      // The report is organisation-wide by default, and that is not what this
+      // card is for. On this account a separate mail app on its own key was
+      // $55 of an $89 month, so "Anthropic (Claude)" on OMI's Costs panel was
+      // reporting four times OMI's own spend and calling it the platform's.
+      // The report takes an api_key_ids[] filter; services/anthropicKeyScope.js
+      // works out which ids are OMI's. When it cannot, no figure is shown and
+      // the card says why — an org-wide total is not an acceptable fallback.
+      const { resolveOmiKeyIds } = require('./anthropicKeyScope');
+      const omiKey = (await getSetting('CLAUDE_API_KEY')) || process.env.CLAUDE_API_KEY;
+      const scope = await resolveOmiKeyIds({
+        adminKey,
+        apiKey: omiKey,
+        override: await getSetting('ANTHROPIC_OMI_KEY_IDS'),
+      });
+      if (!scope.ids.length) {
+        return {
+          unit_label: 'tokens',
+          raw: { note: scope.detail, _scope: scope.source },
+        };
+      }
+
       const { period_start, period_end } = monthBounds();
       const starting_at = `${period_start}T00:00:00Z`;
       const ending_at = `${period_end}T23:59:59Z`;
       const headers = { 'x-api-key': adminKey, 'anthropic-version': '2023-06-01' };
       const { claudeCostFromUsage, CLAUDE_PRICES } = require('./costLog');
+
+      // Built by hand rather than handed to axios as an object: these are
+      // repeated bracket params (api_key_ids[]=a&api_key_ids[]=b), and axios
+      // appends its own brackets to an array value, which would send
+      // api_key_ids[][]= and filter nothing.
+      //
+      // group_by[]=model matters more than it looks. Without it the report
+      // returns model as null on every row, and the line below that reads
+      // `r.model || 'claude-sonnet-4-6'` then priced the entire month at
+      // Sonnet rates — under-reporting an Opus-heavy month by about five
+      // times, in the one place that exists to tell you what you spent.
+      //
+      // group_by[]=api_key_id is not for the breakdown. It makes each row
+      // say which key it belongs to, so the rows can be filtered here as
+      // well as at the API. The documented parameter is an array and this
+      // sends it the conventional bracket way, but if that serialisation
+      // were ever wrong the API would ignore the filter and answer with the
+      // whole organisation — the exact failure this change exists to
+      // prevent, and one that looks like a plausible number rather than an
+      // error. Checking the rows on the way in costs nothing and cannot be
+      // fooled by a query string.
+      const baseParams = () => {
+        const p = new URLSearchParams({ starting_at, ending_at });
+        p.append('group_by[]', 'model');
+        p.append('group_by[]', 'api_key_id');
+        for (const id of scope.ids) p.append('api_key_ids[]', id);
+        return p;
+      };
+      const wanted = new Set(scope.ids);
+      // Counted, not just dropped: a non-zero figure here means the API
+      // filter did nothing and only the local check kept the total honest.
+      let rowsOutsideScope = 0;
+      // Rows the report could not attribute to a key. Non-zero means either
+      // the api_key_id grouping did not come back, or there is Console usage
+      // on this account, and the figure may include spend that is not OMI's.
+      let rowsWithoutKey = 0;
 
       // Track buckets by (starting_at, ending_at) and pages by cursor so a
       // pagination loop that doesn't advance can't 20x our total. Previous
@@ -191,8 +249,12 @@ const POLLERS = [
 
       while (pageCount < 20) {
         pageCount++;
-        const params = page ? { starting_at, ending_at, page } : { starting_at, ending_at };
-        const { data } = await axios.get('https://api.anthropic.com/v1/organizations/usage_report/messages', { params, headers });
+        const params = baseParams();
+        if (page) params.append('page', page);
+        const { data } = await axios.get(
+          `https://api.anthropic.com/v1/organizations/usage_report/messages?${params.toString()}`,
+          { headers }
+        );
         if (!firstPageRaw) firstPageRaw = data;
 
         for (const bucket of (data.data || [])) {
@@ -202,20 +264,48 @@ const POLLERS = [
           if (bucketSamples.length < 2) bucketSamples.push(bucket);
 
           for (const r of (bucket.results || [])) {
+            // Grouped by api_key_id, so every row says whose it is, and a
+            // row naming another key is dropped here even if the API's own
+            // filter let it through.
+            //
+            // A row with a null key id is a different matter and must not be
+            // dropped. The report returns null when it was not grouped by
+            // key, so treating null as "someone else's" would discard every
+            // row the moment that grouping went missing and report OMI's
+            // spend as zero — a wrong number that reads like a quiet month.
+            // Null rows are counted and tallied separately instead.
+            if (r.api_key_id) {
+              if (!wanted.has(r.api_key_id)) { rowsOutsideScope++; continue; }
+            } else if (r.api_key_id === null) {
+              rowsWithoutKey++;
+            }
             // usage_report/messages returns token counts per (model,
             // service_tier, token_type, …) breakdown. Compute the dollar
             // value from our pricing tables — same logic the per-call cost
             // log uses, so totals are denominated identically.
+            // The report reports cached writes as
+            // cache_creation: { ephemeral_5m_input_tokens,
+            // ephemeral_1h_input_tokens } and carries no flat
+            // cache_creation_input_tokens at all, so the old code read zero
+            // for every one of them. On a long cached prompt that is most of
+            // the input cost. Passed through whole; costLog prices the two
+            // tiers separately.
             const usage = {
               input_tokens: r.uncached_input_tokens ?? r.input_tokens ?? 0,
               output_tokens: r.output_tokens ?? 0,
+              cache_creation: r.cache_creation || undefined,
               cache_creation_input_tokens: r.cache_creation_input_tokens ?? 0,
               cache_read_input_tokens: r.cache_read_input_tokens ?? 0,
+              server_tool_use: r.server_tool_use || undefined,
             };
             const model = r.model || 'claude-sonnet-4-6';
             const cost = claudeCostFromUsage(model, usage);
+            const writes = usage.cache_creation
+              ? Number(usage.cache_creation.ephemeral_5m_input_tokens || 0)
+                + Number(usage.cache_creation.ephemeral_1h_input_tokens || 0)
+              : Number(usage.cache_creation_input_tokens || 0);
             totalCost += cost;
-            totalInTokens += Number(usage.input_tokens) + Number(usage.cache_creation_input_tokens) + Number(usage.cache_read_input_tokens);
+            totalInTokens += Number(usage.input_tokens) + writes + Number(usage.cache_read_input_tokens);
             totalOutTokens += Number(usage.output_tokens);
             byModel[model] = (byModel[model] || 0) + cost;
           }
@@ -235,7 +325,22 @@ const POLLERS = [
         unit_label: 'tokens',
         period_start, period_end,
         raw: {
-          _source: 'usage_report/messages (token counts × local pricing)',
+          // What the card shows under the figure, so a reader knows this is
+          // OMI's spend and not the account's.
+          note: scope.detail,
+          _source: 'usage_report/messages (token counts × local pricing), scoped to OMI\'s API key',
+          _scope: scope.source,
+          _scoped_key_ids: scope.ids,
+          _scoped_keys: scope.keys,
+          // Rows the API returned that belong to another key. Should be 0:
+          // anything else means the api_key_ids[] filter was ignored and the
+          // local check is the only thing keeping this figure OMI's.
+          _rows_outside_scope: rowsOutsideScope,
+          _rows_without_key: rowsWithoutKey,
+          // Models the pricing table does not carry. Empty is the normal
+          // case; anything here was priced at the Sonnet 4.6 default and
+          // should be added to CLAUDE_PRICES in services/costLog.js.
+          _unpriced_models: [...require('./costLog').UNPRICED],
           _first_page: firstPageRaw,
           _bucket_samples: bucketSamples,
           _aggregated_buckets: seenBuckets.size,

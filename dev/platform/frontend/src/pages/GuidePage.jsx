@@ -230,7 +230,7 @@ const SECTIONS = [
     body: [
       'Three sections, each grouped into labelled bentos: **Connections · Workspace · Account**.',
       '**Connections** — **Spend** (Costs & usage: latest balance / monthly spend per provider, colour-coded, auto-refreshed nightly at 02:00) · **Marketing data** (Ad platforms · E-commerce · SEO) · **AI & outreach** (AI models · Email sending · Outreach finders) · **Platform** (Integrations · Other).',
-      'For Anthropic **spend tracking**, add an `ANTHROPIC_ADMIN_KEY` alongside the Claude key — it\'s the only provider that exposes an actual £/$ figure. Providers without a balance API (Replicate, Ideogram, Serper) are estimated from a manual checkpoint you enter.',
+      'For Anthropic **spend tracking**, add an `ANTHROPIC_ADMIN_KEY` alongside the Claude key — it\'s the only provider that exposes an actual £/$ figure. The figure covers the key OMI uses, not the whole Anthropic account: anything else you run on that account is billed to you but is not OMI\u2019s cost, so it is left out. Providers without a balance API (Replicate, Ideogram, Serper) are estimated from a manual checkpoint you enter.',
       '**Workspace** — **Library** (Journalists · Publications · Tags — reusable across clients) and **Templates & tools** (Strategy templates · PR Gmail add-on).',
       '**Account** — **Access**: Users & access (add users, set role, assign clients — viewers see only what you tick) and Security. Change **your own password** from the sidebar footer on any page.',
     ],
