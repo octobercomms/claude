@@ -2488,6 +2488,9 @@ a:hover > .card-stat,
   gap: var(--s3); flex-wrap: wrap;
   margin-bottom: var(--s5);
 }
+/* The card's name and the control that edits its template, together on the
+   left; the three that act on the report itself on the right. */
+.report-card-title { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
 .report-card-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
 /* "This month's focus" and the button that drafts one, on a line. Same shape
