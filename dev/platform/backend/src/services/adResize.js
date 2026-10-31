@@ -150,8 +150,16 @@ async function stitch(canvasImg, editedBuf, maskImg) {
 // ── Main ────────────────────────────────────────────────────────────────────
 // Reshape `buffer` into every requested ad size. Upscales the source once up
 // front when it's too small to fill the biggest target sharply.
-async function resizeImage({ clientId, buffer, sizeKeys, userId = null, saveSource = true }) {
-  const requested = AD_SIZES.filter(s => sizeKeys.includes(s.key));
+// `sizeKeys` picks sizes out of the catalogue, which is what the Resize tool
+// sends. `sizes` passes explicit targets instead, for a caller that reshapes
+// to a ratio the catalogue has no entry for — the ad-creative fan-out wants a
+// true 16:9, and the catalogue's nearest is 1.91:1. Each explicit size needs
+// the same fields a catalogue row has, because the output filename and the
+// row returned to the caller are built from them.
+async function resizeImage({ clientId, buffer, sizeKeys, sizes = null, userId = null, saveSource = true }) {
+  const requested = sizes && sizes.length
+    ? sizes
+    : AD_SIZES.filter(s => sizeKeys?.includes(s.key));
   if (!requested.length) { const e = new Error('Pick at least one ad size.'); e.status = 400; throw e; }
 
   const Jimp = await getJimp();
@@ -233,6 +241,16 @@ function diskPathForOutput(url) {
   const base = path.join(UPLOAD_ROOT, m[1]);
   const p = path.join(base, m[2]);
   return p.startsWith(base + path.sep) ? p : null;
+}
+
+// How big a saved output is, by its served URL. Used to record stored_bytes
+// on an ad_creative_images row without reading the file back into memory.
+// Null when the path does not resolve, which is a missing file rather than a
+// zero-byte one and should not be recorded as a size.
+function sizeOnDisk(url) {
+  const p = diskPathForOutput(url);
+  if (!p) return null;
+  try { return fs.statSync(p).size; } catch { return null; }
 }
 
 // Save a completed run so it can be reopened / bulk-downloaded later.
@@ -366,4 +384,5 @@ async function zipBatch(batch) {
 module.exports = {
   catalog, prices, resizeImage, AD_SIZES, priceFor,
   recordBatch, listBatches, getBatch, deleteBatch, zipBatch, retryBatch,
+  sizeOnDisk, diskPathForOutput,
 };

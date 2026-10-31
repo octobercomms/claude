@@ -244,6 +244,9 @@ export function usePaidPipeline({ clientId, clientName }) {
 
   return {
     batches, realBatches, exampleBatch, creatives, activeBatchId, activeBatch, assets, loaded,
+    // Exposed so a step that changes rows behind the page can pull the new
+    // state rather than leaving a stale count on screen.
+    refresh,
     ensuringExample, exampleError, ensureExample,
     showBrief, setShowBrief,
     generating, shareUrl, setShareUrl,

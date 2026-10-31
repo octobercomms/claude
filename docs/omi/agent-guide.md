@@ -1941,6 +1941,95 @@ Three phases:
    user before diving in. Related existing docs: `client-strategy.md`,
    `redesign-brief.md`, `sales-pipeline.md`.
 
+### The Costs panel reported the whole Anthropic account (31 Oct 2026)
+
+`usageTracking.js` called `/v1/organizations/usage_report/messages` with no
+filter, so the Anthropic card showed every key on the organisation and
+presented it as what OMI costs to run. On this account that is roughly four
+times the real figure: a separate mail app on its own key was $55 of an $89
+month. The account lead's instruction was explicit — "i dont want OMI to factor
+in all claude api costs - only OMI api costs."
+
+The report takes `api_key_ids[]`. OMI holds the key *secret* and the report
+wants the key *id*, and nothing converts one to the other — but the admin key
+can list the organisation's keys, each with a `partial_key_hint` of the form
+`sk-ant-api03-R2D...igAA`, and a hint matches a secret on its two visible ends.
+That is `services/anthropicKeyScope.js`. **When no key matches, the card shows
+no figure and says why.** An org-wide total is not a fallback; it is the bug.
+`ANTHROPIC_OMI_KEY_IDS` in Settings is the manual override for a rotated key or
+an admin key that cannot list.
+
+The rows are checked locally as well, by grouping on `api_key_id`. If the
+bracket serialisation were ever wrong the API would ignore the filter and
+answer with the whole organisation, which looks like a number rather than an
+error. **A null key id is kept, not dropped** — null is also what the report
+returns when the grouping is missing, so discarding those would turn a dropped
+parameter into "you spent nothing this month". A mutation test caught exactly
+that.
+
+Three pricing faults surfaced on the way, all silent, all in `costLog.js`:
+
+| | Was | Actually | Effect |
+|---|---|---|---|
+| Opus 4.8, Opus 5 | 15 / 75 | 5 / 25 | over-reported 3x, on the model behind ten call sites |
+| Fable 5 | 3 / 15 | 10 / 50 | under-reported 3.3x |
+| Cached writes | read from a flat field the report never sends | `cache_creation: { ephemeral_5m…, ephemeral_1h… }` | every cached write cost nothing |
+| Model attribution | no `group_by`, so `model` was null | grouped by model | the whole month priced at the Sonnet fallback |
+
+**If you touch pricing, check the published list rather than the table.** It
+was wrong for months and nothing complained. Models the table does not carry
+now land in `UNPRICED` and are reported in the card's raw payload instead of
+being quietly charged at the default, and cache reads take the model's own
+multiplier (0.05x on Opus 5.5 and Sonnet 5.5, 0.025x on Fable 5.1).
+
+One thing left: the endpoint is now marked legacy in favour of
+`/v1/organizations/analytics/usage`. Migrating is its own piece of work.
+
+### Generated creative is kept here now (31 Oct 2026)
+
+Every image generator returns a URL on its own CDN, and those URLs expire —
+Replicate's within about an hour, Ideogram's within a day. `ad_creative_images`
+stored that link as `url`, so the row stayed well formed while the asset behind
+it disappeared. What it cost: Launch's export zip wrote the file into
+MISSING.txt, the client approval page showed a broken image where the ad was,
+and Resize and the fan-out, which both work from an existing image, had to
+re-generate and re-pay for work already done.
+
+`services/generatedMedia.js` now fetches the bytes at generation time and
+writes them under the client's upload folder, exactly as an upload has always
+been stored. `source_url` keeps the provider link, `stored_bytes` records the
+size and doubles as the "is it kept" flag (NULL means it is not). A download
+that fails never loses the render: the row falls back to the provider URL and
+the response says why, which is the only honest option when the generation has
+already been paid for.
+
+**The part that is easy to miss.** Storing locally breaks anything that hands
+an asset URL to a third party, and there were three such places:
+
+- The **fan-out** ran on the Photoshop API, which fetches the source itself
+  from a URL. OMI's files sit behind authentication at a relative path, so it
+  could never read them — the fan-out was **already broken for every uploaded
+  source** and would have broken for all of them. It now runs on the same fal
+  expand path the Resize tool uses, which takes bytes as a data URI.
+  `adResize.resizeImage` grew a `sizes` parameter for that: the fan-out wants a
+  true 16:9 and the ad-size catalogue's nearest entry is 1.91:1.
+- **Resize from the library** called `fetch(img.url)` on a relative path.
+  `fetch()` cannot take one, so it threw on every library image and logged it
+  where nobody looked while the UI reported a resize of nothing. Also already
+  broken for uploads.
+- **Video** passes a reference still to Replicate, which reads a URL. A stored
+  still is handed over as a data URI instead. An image-to-video model given a
+  reference it cannot read does not fail — it produces a clip of something
+  else.
+
+If you add anything that sends an asset to an external API, assume the asset is
+a local file and send bytes. `generatedMedia.readBytes(row)` is the one way to
+get them, and it keeps a remote copy on the way past.
+
+Rows written before this change are backfilled from Launch, per client, and
+only the links still alive can be saved. The button disappears when there is
+nothing left to keep.
+
 ## 8. Working conventions
 
 - **Keep this guide true. Do it as part of every change, before you open the
@@ -2004,6 +2093,33 @@ progress is obvious on `platform.octobercomms.com`.
 
 ## 10. Fast facts / gotchas checklist
 
+- **An asset URL you send to an external API has to be bytes, not a path.**
+  Generated creative is stored on this box (`generatedMedia.js`), so
+  `/api/brand/file/...` is authenticated and relative: the Photoshop fan-out,
+  `fetch()` in the library resize and Replicate's reference still were all
+  silently broken by exactly that. `generatedMedia.readBytes(row)` is the way
+  in.
+- **The Anthropic spend card is scoped to OMI's own API key.** Not the
+  organisation. If it says it cannot identify the key, that is deliberate: no
+  figure beats the account's figure labelled as OMI's.
+- **`CLAUDE_PRICES` in `costLog.js` was wrong by 3x on three models for
+  months.** Check it against the published price list before trusting a cost
+  figure, and after adding a model.
+- **The admin usage report sends cached writes as
+  `cache_creation: { ephemeral_5m_input_tokens, ephemeral_1h_input_tokens }`**
+  and no flat `cache_creation_input_tokens`. Reading the flat field alone
+  prices a long cached prompt at nothing.
+- **A stub that holds state has to be reset at the start of a drive**, never at
+  the end, and the Launch backfill stub holds state. The second run of a drive
+  that tidies up afterwards fails for reasons unrelated to the code. There is a
+  `POST /api/stub/reset-backfill?mode=all|none|partial` for it.
+- **`innerText` reports what CSS rendered, not what the JSX says.** A
+  `.caption` is uppercased, so `/Keep a copy/` fails where `/keep a copy/i`
+  passes. Two drives have now lost time to this.
+- **Do not use `pkill` in this container.** A pattern broad enough to catch a
+  background node server also matches the shell running the command, and the
+  tool call dies with exit 144 mid-script. Stop background tasks with
+  `TaskStop`.
 - **No client section has a horizontal tab strip.** A new screen is a row in
   `frontend/src/nav/sections.js`, checked both ways by
   `tests/sectionPanel.test.mjs`. See §5 for the panel, the measured widths, and
