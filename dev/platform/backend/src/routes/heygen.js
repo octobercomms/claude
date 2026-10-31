@@ -39,6 +39,19 @@ router.post('/clients/:clientId/heygen/reels/:id/refresh', async (req, res) => {
   try { res.json(await heygen.refresh(req.params.clientId, id(req))); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
+// Keep the reels that are still on HeyGen. Every reel finished before
+// 31 Oct 2026 points at a presigned URL, which is why older ones played
+// blank: the row outlived the file. This saves the ones whose links are
+// still alive; nothing recovers the rest.
+router.post('/clients/:clientId/heygen/reels/keep', async (req, res) => {
+  try {
+    res.json(await heygen.keepExisting(req.params.clientId, { limit: req.body?.limit }));
+  } catch (e) {
+    console.error('[heygen] keep failed:', e.message);
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
 router.post('/clients/:clientId/heygen/reels/:id/retry', async (req, res) => {
   try { res.json(await heygen.retry(req.params.clientId, id(req), req.user?.id)); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }

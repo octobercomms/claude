@@ -3,6 +3,7 @@ import PipelineStep from '../organic/PipelineStep';
 import NoBriefYet from './NoBriefYet';
 import ExampleBanner from './ExampleBanner';
 import { api } from '../../utils/api';
+import { unstoredItems } from '../../utils/storedMedia';
 import { useToast } from '../../context/ToastContext';
 
 // Paid Pipeline → Launch. The hand-off to Ads Manager.
@@ -42,9 +43,7 @@ export default function PaidLaunchStep({ pipeline, onBack, clientId }) {
   // Ideogram or Replicate, and those links expire within hours or days. The
   // ones whose links are still alive can be kept, and this is the only
   // chance: nothing recovers a dead one.
-  const unkept = (creatives || [])
-    .flatMap(c => c.images || [])
-    .filter(i => !String(i.url || '').startsWith('/api/'));
+  const unkept = unstoredItems((creatives || []).flatMap(c => c.images || []));
 
   // Fetched rather than linked. A plain <a download> would authenticate
   // perfectly well — the session is an httpOnly cookie and this is

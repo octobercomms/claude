@@ -1875,7 +1875,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
           Trending TikTok sounds
         </span>
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
-          {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
+          {sounds.length ? `${sounds.length} cached · refreshed weekly` : '(none pulled yet — click Refresh)'}
         </span>
         <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
@@ -1893,10 +1893,19 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
               style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center', maxWidth: 280 }}
               title={`${s.title} — ${s.author || 'unknown'}`}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
+              {s.author && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.author}</span>}
               {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{s.use_count.toLocaleString()}</span>}
             </a>
           ))}
         </div>
+      )}
+      {!!visible.length && (
+        // The name and the artist together are what you type into TikTok or
+        // Instagram search to find the sound and attach it to a post, which is
+        // the step the chips alone left you to work out.
+        <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)', marginBottom: 0 }}>
+          A sound opens its TikTok page. To use one, search its name and artist in TikTok or Instagram.
+        </p>
       )}
     </div>
   );

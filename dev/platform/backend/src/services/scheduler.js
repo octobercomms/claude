@@ -315,6 +315,25 @@ cron.schedule('0 6 * * *', async () => {
   await runDailyRankChecks();
 });
 
+// Trending sounds: weekly on Mondays at 06:50.
+//
+// Until now there was no cron at all. The snapshot was only ever written
+// when somebody pressed refresh, and the read ignores anything older than
+// seven days, so a week after the last click the list simply read empty —
+// which is what "trending sounds refreshed weekly?" was asking about.
+//
+// One global snapshot (client_id NULL), which is what the reader falls back
+// to for every client, so this is one Apify actor run a week rather than one
+// per client. Sounds trend over weeks, not hours.
+cron.schedule('50 6 * * 1', async () => {
+  try {
+    const sounds = await require('./social').refreshTrendingSounds({ clientId: null, region: 'GB', limit: 25 });
+    console.log(`[Scheduler] Trending sounds: ${sounds.length} cached for the week`);
+  } catch (e) {
+    console.error('[Scheduler] Trending sounds refresh failed:', e.message);
+  }
+});
+
 // AI Overview tracking: weekly on Mondays at 06:30. Pay-per-call and AIO
 // doesn't churn day-to-day, so weekly is enough to spot trend changes.
 cron.schedule('30 6 * * 1', async () => {

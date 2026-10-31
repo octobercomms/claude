@@ -62,11 +62,28 @@ async function fetchTrendingSounds({ region = 'GB', limit = 25 } = {}) {
     const author = music?.musicAuthor || music?.authorName;
     if (!id || !title || seen.has(id)) continue;
     seen.add(id);
+    // The link has to be the music *page*, never music.playUrl.
+    //
+    // playUrl is TikTok's raw audio CDN link: signed, referrer-checked, and
+    // short-lived, so clicking it answered "access denied" rather than
+    // opening anything. The /music/ page is a real page that keeps working
+    // and is where you go to see what is using the sound.
+    //
+    // playUrl is kept separately as audio_url, because it is the only thing
+    // that could ever play inline, and the UI has to be able to tell the
+    // difference between a link it can open and a stream it can try.
+    const page = id
+      ? `https://www.tiktok.com/music/${encodeURIComponent(String(title).replace(/\s+/g, '-'))}-${id}`
+      : null;
     sounds.push({
       id, title, author,
       use_count: item.playCount || music?.useCount || null,
       cover_url: music?.coverThumb || music?.coverMedium || null,
-      tiktok_url: music?.playUrl || (id ? `https://www.tiktok.com/music/${encodeURIComponent(title.replace(/\s+/g, '-'))}-${id}` : null),
+      tiktok_url: page,
+      audio_url: music?.playUrl || null,
+      // What to type into TikTok or Instagram search to find this sound,
+      // which is the thing you actually need in order to use it in a post.
+      search_term: [title, author].filter(Boolean).join(' '),
     });
     if (sounds.length >= limit) break;
   }
