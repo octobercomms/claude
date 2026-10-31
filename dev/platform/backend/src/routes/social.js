@@ -796,10 +796,38 @@ router.get('/clients/:clientId/subreddit-research', async (req, res) => {
   try { res.json({ runs: await subredditResearch.list(req.params.clientId) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
-router.post('/clients/:clientId/subreddit-research/suggest', async (req, res) => {
-  try { res.json({ subreddits: await subredditResearch.suggest(req.params.clientId) }); }
-  catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+// The stored list, which is the first thing the Reddit screen shows now.
+// Suggest reads the table unless ?force=1, so reopening the screen is free.
+router.get('/clients/:clientId/subreddits', async (req, res) => {
+  try { res.json({ subreddits: await subredditResearch.listSubreddits(req.params.clientId) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
 });
+router.post('/clients/:clientId/subreddits/suggest', async (req, res) => {
+  try {
+    const force = req.query.force === '1' || req.body?.force === true;
+    res.json(await subredditResearch.suggestAndStore(req.params.clientId, { force }));
+  } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/subreddits', async (req, res) => {
+  try {
+    const { name, why, focus, time_window } = req.body || {};
+    res.status(201).json({ subreddit: await subredditResearch.addSubreddit(req.params.clientId, { name, why, focus, time_window }) });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.patch('/clients/:clientId/subreddits/:id', async (req, res) => {
+  try {
+    const { focus, time_window } = req.body || {};
+    res.json({ subreddit: await subredditResearch.updateSubreddit(req.params.clientId, req.params.id, { focus, time_window }) });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.delete('/clients/:clientId/subreddits/:id', async (req, res) => {
+  try { await subredditResearch.removeSubreddit(req.params.clientId, req.params.id); res.status(204).end(); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+// The old /subreddit-research/suggest is gone with the chips it filled: it
+// spent a Claude call on every press and stored nothing, so the same list
+// cost money every time anyone wanted to see it. /subreddits/suggest above
+// replaces it and reads the table unless forced.
 router.post('/clients/:clientId/subreddit-research', async (req, res) => {
   try {
     const { subreddit, focus, sort, time } = req.body || {};
