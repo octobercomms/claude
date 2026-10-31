@@ -1,0 +1,436 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as EDL from '@shared/edl.mjs';
+import { roWrite } from '../../utils/readOnly';
+
+/**
+ * The timeline surface: the edit, drawn, and editable by dragging it.
+ *
+ * This is the part of the Edit page that was missing. The render pipeline has
+ * been multi-clip since migration 129 and the processor cuts ranges, but the
+ * page showed none of it, which is what "there is only a render button" meant.
+ * Everything here reads and writes one `EDL` object (shared/edl.mjs) and does
+ * no arithmetic of its own: the model decides what a trim means, the surface
+ * decides what a drag means, and `compile()` is the only route to ffmpeg.
+ *
+ * DOM, not canvas. The spec put the crossover at about fifty blocks, and an
+ * edit assembled from uploads does not get near that; canvas costs a session
+ * and buys nothing yet. If an edit ever does, the hit testing is already in
+ * `laidOut`/`itemAt` rather than in this file, so the swap is local.
+ *
+ * **One video track**, deliberately. Stacked tracks mean overlay compositing,
+ * which the processor cannot do, and drawing a second track that renders to
+ * nothing is the page lying about its own output. That is the complaint this
+ * work exists to answer.
+ *
+ * Pointer events throughout, so a trackpad, a mouse and a touchscreen all take
+ * the same path; and every drag has a keyboard equivalent, because trimming by
+ * drag alone makes the page unusable for anyone who cannot.
+ */
+
+const MIN_PPS = 2;          // pixels per second, zoomed right out
+const MAX_PPS = 400;        // zoomed right in: 0.4s across a 160px block
+const BLOCK_H = 64;
+const RULER_H = 22;
+const HANDLE_W = 10;        // the grab zone on each edge of a block
+const NOMINAL_LEN = 5;      // seconds a block is drawn at before its clip is probed
+
+// mm:ss.cs — centiseconds, not frames. The frame rate of an arbitrary upload is
+// not known in the browser, and a readout that says "frame 12" when it is
+// guessing 30fps on 24fps footage is worse than one that does not claim to know.
+export function stamp(seconds) {
+  const t = Math.max(0, Number(seconds) || 0);
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  const cs = Math.round((t - Math.floor(t)) * 100) % 100;
+  return `${m}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
+}
+
+// A block's drawn length. An unprobed clip has no length to draw, so it gets a
+// nominal width and says so, rather than collapsing to nothing and looking as
+// though the upload failed.
+function drawLength(item) {
+  const d = EDL.itemDuration(item);
+  return d > 0 ? d : NOMINAL_LEN;
+}
+
+function drawRows(edl) {
+  let at = 0;
+  return (edl?.items || []).map((item) => {
+    const length = drawLength(item);
+    const row = { item, start: at, length, known: EDL.itemDuration(item) > 0 };
+    at += length;
+    return row;
+  });
+}
+
+// Ruler ticks at a spacing that stays readable at any zoom: roughly one label
+// every 80px, snapped to a round number of seconds.
+function tickStep(pps) {
+  const target = 80 / Math.max(0.0001, pps);
+  for (const step of [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600]) {
+    if (step >= target) return step;
+  }
+  return 900;
+}
+
+export default function Timeline({
+  clips = [],
+  edl,
+  onChange,
+  playhead = 0,
+  onSeek,
+  selectedId = null,
+  onSelect,
+  readOnly = false,
+  height = BLOCK_H,
+}) {
+  const scrollRef = useRef(null);
+  const laneRef = useRef(null);
+  const [pps, setPps] = useState(null);          // null = fit to the width
+  const [drag, setDrag] = useState(null);
+  const [laneWidth, setLaneWidth] = useState(0);
+
+  const rows = useMemo(() => drawRows(edl), [edl]);
+  const drawnTotal = useMemo(
+    () => rows.reduce((t, r) => t + r.length, 0), [rows]);
+  const realTotal = useMemo(() => EDL.duration(edl), [edl]);
+
+  // Fit-to-width until the person zooms, so a 20-minute recording and a
+  // 20-second reel both open showing the whole edit.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setLaneWidth(el.clientWidth));
+    ro.observe(el);
+    setLaneWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  // Fit-to-width recomputes the scale from the edit's length, so a trim that
+  // shortens the edit would stretch it back out to fill the lane while the
+  // finger is still down: the edge then chases the pointer and a drag feels
+  // slippery and lands short. The scale is held for the duration of a drag,
+  // which is what every desktop editor does and why their trims feel direct.
+  const frozen = useRef(null);
+  const scale = useMemo(() => {
+    if (frozen.current != null) return frozen.current;
+    if (pps) return pps;
+    if (!drawnTotal || !laneWidth) return 40;
+    // Fit is not bounded by MAX_PPS. MAX_PPS bounds how far the zoom buttons
+    // go; fit's contract is to show the whole edit across the lane, and
+    // clamping it leaves a short edit as a stub in the corner looking like a
+    // failed upload. A half-second edit at 2000 pixels a second is only
+    // pixels, and the person asked to see it.
+    return Math.max(MIN_PPS, (laneWidth - 24) / drawnTotal);
+  }, [pps, drawnTotal, laneWidth, drag]);
+
+  const xOf = useCallback((seconds) => seconds * scale, [scale]);
+  const secondsOf = useCallback((x) => x / scale, [scale]);
+
+  const commit = useCallback((next) => {
+    if (readOnly || !onChange || next === edl) return;
+    onChange(next);
+  }, [readOnly, onChange, edl]);
+
+  // ---- dragging ---------------------------------------------------------
+
+  // The pointer's position in timeline seconds, measured against the lane
+  // rather than the window, so a scrolled or zoomed lane still reads true.
+  const laneSeconds = useCallback((clientX) => {
+    const el = laneRef.current;
+    if (!el) return 0;
+    const box = el.getBoundingClientRect();
+    return Math.max(0, secondsOf(clientX - box.left));
+  }, [secondsOf]);
+
+  const startDrag = (e, mode, row) => {
+    if (readOnly) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    onSelect?.(row.item.id);
+    frozen.current = scale;
+    setDrag({
+      mode,
+      id: row.item.id,
+      pointerId: e.pointerId,
+      originX: e.clientX,
+      // Snapshot of the edit as the drag began. Every move recomputes from
+      // this rather than from the last frame, so a drag is one edit and not a
+      // hundred accumulating rounding errors.
+      base: edl,
+      baseIn: row.item.in,
+      baseOut: row.item.out,
+      index: rows.findIndex((r) => r.item.id === row.item.id),
+      dropIndex: null,
+    });
+  };
+
+  const onPointerMove = (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const dx = e.clientX - drag.originX;
+    const dt = secondsOf(dx);
+
+    if (drag.mode === 'trim-in') {
+      commit(EDL.trim(drag.base, drag.id, 'in', (drag.baseIn || 0) + dt, clips));
+      return;
+    }
+    if (drag.mode === 'trim-out') {
+      const from = drag.baseOut == null ? EDL.clipDuration(clips[0]) : drag.baseOut;
+      commit(EDL.trim(drag.base, drag.id, 'out', (from || 0) + dt, clips));
+      return;
+    }
+    if (drag.mode === 'move') {
+      // Target index from the pointer against each block's midpoint, which is
+      // how a strip reorder reads to the hand: the block lands where its
+      // centre is, not where its left edge happens to be.
+      const at = laneSeconds(e.clientX);
+      const base = drawRows(drag.base);
+      let target = base.length - 1;
+      for (let i = 0; i < base.length; i++) {
+        if (at < base[i].start + base[i].length / 2) { target = i; break; }
+      }
+      if (target !== drag.dropIndex) setDrag({ ...drag, dropIndex: target });
+    }
+  };
+
+  const endDrag = (e) => {
+    if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+    if (drag.mode === 'move' && drag.dropIndex != null && drag.dropIndex !== drag.index) {
+      commit(EDL.move(drag.base, drag.id, drag.dropIndex));
+    }
+    frozen.current = null;
+    setDrag(null);
+  };
+
+  // A cancelled drag (Escape, the pointer leaving the window, a system gesture)
+  // puts the edit back where it started. Half a trim is not an edit.
+  const cancelDrag = useCallback(() => {
+    if (!drag) return;
+    if (drag.mode !== 'move') commit(drag.base);
+    frozen.current = null;
+    setDrag(null);
+  }, [drag, commit]);
+
+  useEffect(() => {
+    if (!drag) return undefined;
+    const onKey = (ev) => { if (ev.key === 'Escape') cancelDrag(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drag, cancelDrag]);
+
+  // ---- keyboard ---------------------------------------------------------
+
+  const nudge = (id, edge, seconds) => {
+    const row = rows.find((r) => r.item.id === id);
+    if (!row) return;
+    const from = edge === 'in' ? row.item.in : row.item.out;
+    if (from == null) return;
+    commit(EDL.trim(edl, id, edge, from + seconds, clips));
+  };
+
+  const onLaneKeyDown = (e) => {
+    const id = selectedId;
+    const step = e.shiftKey ? 1 : 0.1;
+    const order = rows.findIndex((r) => r.item.id === id);
+    const keys = {
+      ArrowLeft: () => (e.altKey ? nudge(id, 'out', -step) : nudge(id, 'in', -step)),
+      ArrowRight: () => (e.altKey ? nudge(id, 'out', step) : nudge(id, 'in', step)),
+      ArrowUp: () => order > 0 && commit(EDL.move(edl, id, order - 1)),
+      ArrowDown: () => order >= 0 && order < rows.length - 1 && commit(EDL.move(edl, id, order + 1)),
+      Backspace: () => commit(EDL.remove(edl, id)),
+      Delete: () => commit(EDL.remove(edl, id)),
+      s: () => commit(EDL.split(edl, playhead)),
+      S: () => commit(EDL.split(edl, playhead)),
+    };
+    if (!keys[e.key]) return;
+    if (!id && e.key !== 's' && e.key !== 'S') return;
+    if (readOnly) return;
+    e.preventDefault();
+    keys[e.key]();
+  };
+
+  // ---- scrubbing --------------------------------------------------------
+
+  const scrub = (e) => {
+    if (!onSeek) return;
+    const at = laneSeconds(e.clientX);
+    onSeek(Math.min(realTotal || at, at));
+  };
+
+  const onRulerPointerDown = (e) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setDrag({ mode: 'scrub', pointerId: e.pointerId });
+    scrub(e);
+  };
+
+  const onRulerPointerMove = (e) => {
+    if (drag?.mode === 'scrub' && e.pointerId === drag.pointerId) scrub(e);
+  };
+
+  // ---- rendering --------------------------------------------------------
+
+  const step = tickStep(scale);
+  const ticks = [];
+  for (let t = 0; t <= drawnTotal + 0.001; t += step) ticks.push(t);
+
+  const zoomBtn = (label, fn, title) => (
+    <button type="button" className="btn-chip" style={{ fontSize: 'var(--fs-caption)' }}
+      {...roWrite(false, { onClick: fn, title })}>{label}</button>
+  );
+
+  const selected = rows.find((r) => r.item.id === selectedId) || null;
+
+  return (
+    <div>
+      <div className="row between center wrap" style={{ gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
+        <span className="caption">
+          Timeline · {rows.length} {rows.length === 1 ? 'block' : 'blocks'} · {stamp(realTotal)}
+        </span>
+        <div className="row center" style={{ gap: 'var(--s1)' }}>
+          {zoomBtn('Fit', () => setPps(null), 'Show the whole edit')}
+          {zoomBtn('−', () => setPps(Math.max(MIN_PPS, scale / 1.6)), 'Zoom out')}
+          {zoomBtn('+', () => setPps(Math.max(scale, Math.min(MAX_PPS, scale * 1.6))), 'Zoom in')}
+        </div>
+      </div>
+
+      <div ref={scrollRef} style={{
+        overflowX: 'auto', overflowY: 'hidden',
+        border: 'var(--border-w) solid var(--card-border)',
+        borderRadius: 'var(--r-sm)',
+        background: 'var(--surface-sunken)',
+        touchAction: 'pan-y',
+      }}>
+        <div
+          ref={laneRef}
+          role="application"
+          aria-label="Video edit timeline"
+          tabIndex={0}
+          onKeyDown={onLaneKeyDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={cancelDrag}
+          style={{
+            position: 'relative',
+            width: Math.max(laneWidth, xOf(drawnTotal) + 12),
+            minWidth: '100%',
+            height: RULER_H + height + 10,
+            outlineOffset: -2,
+          }}
+        >
+          {/* Ruler. Scrubbing lives here rather than on the blocks, so dragging
+              a block always means the block and never the playhead. */}
+          <div
+            onPointerDown={onRulerPointerDown}
+            onPointerMove={onRulerPointerMove}
+            onPointerUp={endDrag}
+            style={{
+              position: 'absolute', inset: `0 0 auto 0`, height: RULER_H,
+              borderBottom: 'var(--border-w) solid var(--card-border)',
+              cursor: onSeek ? 'ew-resize' : 'default',
+              userSelect: 'none',
+            }}
+          >
+            {ticks.map((t) => (
+              <div key={t} style={{
+                position: 'absolute', left: xOf(t), top: 0, height: '100%',
+                borderLeft: '1px solid var(--card-border)', paddingLeft: 3,
+                fontSize: 10, lineHeight: `${RULER_H}px`, color: 'var(--text-subtle)',
+                whiteSpace: 'nowrap', pointerEvents: 'none',
+              }}>{stamp(t)}</div>
+            ))}
+          </div>
+
+          {/* Blocks */}
+          {rows.map((row, i) => {
+            const isSel = row.item.id === selectedId;
+            const isDragging = drag?.id === row.item.id && drag.mode === 'move';
+            const w = Math.max(HANDLE_W * 2 + 4, xOf(row.length));
+            return (
+              <div
+                key={row.item.id}
+                onPointerDown={(e) => startDrag(e, 'move', row)}
+                onPointerUp={endDrag}
+                title={`Clip ${row.item.clip + 1} · ${stamp(row.item.in)} to ${
+                  row.item.out == null ? 'end' : stamp(row.item.out)}`}
+                style={{
+                  position: 'absolute', top: RULER_H + 5, left: xOf(row.start),
+                  width: w, height,
+                  background: isSel ? 'var(--accent-soft)' : 'var(--surface)',
+                  border: `var(--border-w) solid ${isSel ? 'var(--accent)' : 'var(--card-border)'}`,
+                  borderRadius: 'var(--r-sm)',
+                  cursor: readOnly ? 'default' : 'grab',
+                  opacity: isDragging ? 0.55 : 1,
+                  overflow: 'hidden',
+                  touchAction: 'none',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div style={{
+                  padding: '4px 6px', fontSize: 'var(--fs-caption)', lineHeight: 1.3,
+                  pointerEvents: 'none', whiteSpace: 'nowrap',
+                }}>
+                  <div style={{ fontWeight: 700 }}>
+                    {clips[row.item.clip]?.name || `Clip ${row.item.clip + 1}`}
+                  </div>
+                  <div className="text-subtle">
+                    {row.known ? stamp(row.length) : 'length unknown'}
+                  </div>
+                </div>
+
+                {/* Trim handles. Only drawn when there is room for them, so a
+                    block zoomed down to a sliver is not all handle. */}
+                {!readOnly && w > HANDLE_W * 3 && ['in', 'out'].map((edge) => (
+                  <div
+                    key={edge}
+                    onPointerDown={(e) => startDrag(e, `trim-${edge}`, row)}
+                    onPointerUp={endDrag}
+                    title={edge === 'in' ? 'Drag to trim the start' : 'Drag to trim the end'}
+                    style={{
+                      position: 'absolute', top: 0, bottom: 0,
+                      [edge === 'in' ? 'left' : 'right']: 0,
+                      width: HANDLE_W, cursor: 'ew-resize',
+                      background: isSel ? 'var(--accent)' : 'var(--card-border)',
+                      touchAction: 'none',
+                    }}
+                  />
+                ))}
+
+                {/* Where the next block would land during a reorder drag. */}
+                {drag?.mode === 'move' && drag.dropIndex === i && drag.index !== i && (
+                  <div style={{
+                    position: 'absolute', inset: 0, pointerEvents: 'none',
+                    border: '2px dashed var(--accent)', borderRadius: 'var(--r-sm)',
+                  }} />
+                )}
+              </div>
+            );
+          })}
+
+          {/* Playhead, above the blocks and never interactive: it is drawn
+              state, and clicking it would steal the drag from the block. */}
+          <div style={{
+            position: 'absolute', top: 0, bottom: 0, left: xOf(Math.min(playhead, drawnTotal)),
+            width: 2, background: 'var(--negative)', pointerEvents: 'none',
+          }} />
+        </div>
+      </div>
+
+      <div className="row between center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
+        <span className="body-xs text-subtle">
+          {readOnly
+            ? 'Read-only: the edit is shown but cannot be changed here.'
+            : 'Drag a block to reorder, drag its edges to trim, click the ruler to move the playhead. '
+              + 'With a block selected: arrows trim, alt-arrows trim the end, up and down reorder, '
+              + 'S splits at the playhead, delete removes.'}
+        </span>
+        {selected && (
+          <span className="body-xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {clips[selected.item.clip]?.name || `Clip ${selected.item.clip + 1}`}
+            {' · '}{stamp(selected.item.in)} to {selected.item.out == null ? 'end' : stamp(selected.item.out)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

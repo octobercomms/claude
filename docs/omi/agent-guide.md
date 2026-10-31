@@ -2306,25 +2306,59 @@ holds the default, the publisher's filter and the screen's wording. Earned's
 Measure group, its Reports row and `PrBacklinkRoi` are gone;
 `PrBacklinkTotal` puts three tiles at the top of Coverage.
 
-### The video timeline is scoped and waiting on an answer (31 Oct 2026)
+### The video timeline is being built, surface first (31 Oct 2026)
 
-`docs/omi/video-timeline-spec.md`. Do not start building it: it ends with
-three options and asks Daniel for one, and that answer had not come back when
-this was written.
+`docs/omi/video-timeline-spec.md`, whose section 7 is the build log and the
+place to add to. Daniel chose **option C, build it**, with **WebCodecs** for
+the preview, and said to go straight at the timeline with no interim fix. The
+surface and the model are in; the preview is not.
 
-Two findings in it are worth carrying even if the timeline never happens.
-`edit_jobs` already stores `clips` as an ordered list and `ops` as a set of
-choices, and `ClientEditPage` already combines several clips, so the gap is
-not the render pipeline. It is that you cannot see the edit, and that
-per-segment trimming is gated on `single && doTrim`, one clip only. And the
-reported failure "it just generated the exact same video" is the
-`nothingChosen` path: no option ticked, so the render was a re-encode of the
-input. The page did what it was asked and never said so.
+**The edit is one object now.** `dev/platform/shared/edl.mjs` is the edit
+decision list: a list of blocks, each naming a clip index and an in/out point
+within it, laid end to end on one track. It is pure, it is the only place the
+arithmetic lives, and both sides use it. `Timeline.jsx` edits it,
+`compile()` turns it into the cut list, and `editProcessor.cutEdl()` renders
+that. The EDL rides in the existing `edit_jobs.ops` JSONB as `ops.edl`, so no
+migration and reopen works unchanged.
 
-The expensive part of a timeline is not the surface, it is frame-accurate
-preview (an HTML `<video>` seeks to keyframes, not frames) and translating an
-edit decision list into one ffmpeg filter graph across clips that differ in
-resolution, frame rate and rotation.
+Four things to know before touching any of it:
+
+- **Never compare a block length to `MIN_ITEM` directly.** `(5 + 0.05) - 5` is
+  0.049999999999999822, so an exact comparison deletes blocks that are exactly
+  the minimum length, and deletes them at 5s while keeping them at 1s. Use
+  `atLeastMin(from, to)`. Times are pinned to the microsecond by `secs()` for
+  the same reason: without it two blocks that should abut are drawn with a
+  hairline between them.
+- **`compile()` output carries its own `clip` index, so read that, never the
+  position.** compile drops blocks (no URL, a cut too short to be a cut), so
+  `items[i]` and `compiled[i]` are not the same block. Getting this wrong
+  renders the right cut from the wrong footage, and nothing downstream catches
+  it.
+- **`clipPaths` in the processor is index-aligned with `clips`, with nulls.**
+  It used to be built by pushing only the files that existed, which shifted
+  every index after a missing clip. That was harmless while clips were whole
+  and in order and silently wrong once indices mean something.
+- **One video track, on purpose.** Stacked tracks mean overlay compositing,
+  which the processor cannot do. Do not draw a second track: a track that
+  renders to nothing is the page lying about its output, which is the whole
+  complaint this work answers.
+
+Still open, in the order they are worth doing: **2.3 filmstrip** and **2.4
+waveform** (one session each, server-side extraction on upload, need nothing
+from anybody), then **2.2 the frame-accurate preview**, which waits on the
+capability probe at https://claude.ai/artifact/6NujtFbjeRAkpurKH619mU coming
+back from Daniel's real devices. If a plain seek already lands inside a frame
+on his footage, the preview is cheaper than scoped; if Safari has no
+`VideoDecoder`, proxies are needed as a fallback. Then the EDL's render half,
+transitions, overlays, and the render queue.
+
+The scope's estimate for 2.5 was wrong in a useful direction: an arbitrary EDL
+does **not** need one ffmpeg filter graph. Cut each block, normalise it the way
+`combineClips` already normalises a whole clip, and stream-copy concat the
+results. The inputs-differ-in-everything problem the scope worried about was
+already solved in `combineClips` and is reused. The filter graph is still
+needed for transitions, because `xfade` overlaps two inputs and a concat
+cannot.
 
 ### Why the social report names LinkedIn as OMI's own record (31 Oct 2026)
 

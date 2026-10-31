@@ -1,8 +1,10 @@
 # A video timeline in OMI: what it is, what it costs, what it replaces
 
 Written 31 October 2026, against review item 7.2 ("Edit, and the CapCut
-question"). The decision taken on 31 October was **scope the timeline properly
-before any build**, so this is that scope. No code has been written for it.
+question"). Scoped first, then decided: **option C, build the timeline**, with
+**WebCodecs** for the preview. Section 7 records what has been built and what
+the build has already changed about the estimate; sections 1 to 6 are the
+original scope, left as written so the estimate can be judged against it.
 
 Read sections 1 and 6 if you read nothing else. Section 1 is what you already
 have, which is more than the Edit page lets you see. Section 6 is the decision.
@@ -231,3 +233,93 @@ If C, one further answer before any code: proxy renders or WebCodecs for the
 preview (section 2.2). I would take proxies, and the difference is an ffmpeg
 pass and some storage against a dependency on Safari's codec support. It is
 the one choice in here that is hard to reverse later.
+
+
+---
+
+## 7 · Build log, and what the build changed about the estimate
+
+### Session 1 · the model and the surface
+
+Built: **2.1 (the timeline surface)** and the model half of **2.5 (the edit
+decision list)**.
+
+| What | Where |
+|---|---|
+| The EDL, as a pure model | `dev/platform/shared/edl.mjs` |
+| The surface | `dev/platform/frontend/src/components/video/Timeline.jsx` |
+| Wired into the page | `frontend/src/pages/ClientEditPage.jsx` |
+| Render across clips | `backend/src/services/editProcessor.js` → `cutEdl()` |
+| Guards | `backend/tests/edl.test.js` (30), `edit-edl-render.test.js` (7), `edit-route-edl.test.js` (9), plus a 37-assertion browser drive |
+
+The surface does: blocks on one track, drag to reorder, drag either edge to
+trim, click the ruler to move the playhead, zoom with fit-to-width as the
+default, split at the playhead, delete, and a keyboard equivalent for every
+one of those. The preview follows the playhead and shows the clip it is over.
+
+**The one real capability gap is closed.** Trimming used to work only when
+there was exactly one clip (`single && doTrim` in the page,
+`segs.length && paths.length === 1` in the processor). An EDL cuts across any
+number of clips, and `cutEdl` renders it.
+
+### What this changed about the estimate
+
+**2.5 is cheaper than scoped: 1.5 to 2 sessions, not 3 to 4.** The scope
+assumed an arbitrary EDL needs one ffmpeg filter graph, and that normalising
+inputs that differ in resolution, frame rate, pixel format or rotation was the
+hard part. Neither held. Cut each block, normalise it the way `combineClips`
+already normalises a whole clip, and concatenate by stream copy: the
+normalisation problem was solved in that function in migration 129's work and
+is reused rather than rebuilt. The filter graph is still needed for
+**transitions** (`xfade` has to overlap two inputs, which a concat cannot),
+so that cost moves from 2.5 into the transitions line rather than disappearing.
+
+**No migration was needed.** The EDL lives in the existing `edit_jobs.ops`
+JSONB as `ops.edl`, so reopening a job already carries it and the scope's
+"a migration, and then the hard part" is just the hard part. Jobs saved before
+this read their old `ops.segments` or `ops.trim` back as blocks over clip 0, so
+reopening an older edit keeps its cuts.
+
+### What is deliberately not there
+
+- **No second track.** Stacked tracks mean overlay compositing, which the
+  processor cannot do. A track that renders to nothing is the page lying about
+  its output, which is the complaint this work exists to answer.
+- **No playback across a cut.** The preview seeks within the block the playhead
+  is over and stops at its edge. Playing the assembled edit is 2.2, and a
+  preview that stitched clips in the browser would be showing frames the render
+  will not contain.
+- **No filmstrip or waveform yet** (2.3, 2.4). Both are server-side extraction
+  on upload plus placement on the block, and both are cheap; neither is built.
+
+### Three bugs found while building, worth knowing about
+
+1. **Float comparison deleted blocks.** `(5 + 0.05) - 5` is
+   0.049999999999999822 in IEEE doubles, so an exact `>= MIN_ITEM` check
+   rejected a block that was exactly the minimum length, and rejected it at 5s
+   while accepting it at 1s. Every length test now goes through
+   `atLeastMin()`, and times are pinned to the microsecond. This is the class
+   of bug the scope warned about under "the first thing in OMI that needs
+   frame-level correctness", and it arrived in the first hour.
+2. **`clipPaths` shifted every index after a missing clip.** The processor
+   built its path list by pushing only files that existed, so a job whose
+   second clip had gone from disk rendered the third clip's cuts from the
+   second clip's footage. Harmless while clips were whole and in order;
+   silently wrong the moment indices mean something. Now built with `map` and
+   a null hole.
+3. **Fit-to-width rescaled mid-drag.** A trim shortens the edit, fit stretches
+   the edit back across the lane, so the edge being dragged chased the pointer
+   and every trim landed short. The scale is now frozen for the duration of a
+   drag, which is what desktop editors do and why their trims feel direct.
+
+### Next session
+
+**2.2, the frame-accurate preview, on WebCodecs** — but not before the
+capability probe comes back from the real devices. The probe reports whether
+`VideoDecoder` exists and how far a plain seek lands from the frame asked for,
+on footage shot on that device. If a plain seek is already inside a frame, the
+preview is cheaper than scoped; if Safari has no `VideoDecoder`, proxies are
+needed as a fallback and that is better known now than in session 12.
+
+Cheapest useful work that needs no probe result: **2.3 filmstrip** and **2.4
+waveform**, one session each, both server-side extraction on upload.
