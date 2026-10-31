@@ -632,14 +632,7 @@ export default function ClientDetailPage() {
                   --s5 above it on both cards, for controls that act on the
                   card as a whole and read perfectly well beside its name. */}
               <div className="report-card-head">
-                <div className="report-card-title">
-                  <h2 className="h2" style={{ margin: 0 }}>Weekly</h2>
-                  {/* Beside the card's name, not in the Template column. It
-                      edits the template, but it is a control on this card like
-                      the three on the right, and sitting in the column made
-                      Template the one heading pushed down by a button. */}
-                  <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm">✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
-                </div>
+                <h2 className="h2" style={{ margin: 0 }}>Weekly</h2>
                 <div className="report-card-actions">
                   <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
                   <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
@@ -649,6 +642,12 @@ export default function ClientDetailPage() {
 
               {/* Schedule · Template · Recipients, across the card. */}
               <div className="report-setup report-setup--weekly">
+              {/* Above the word TEMPLATE, because the template is what it
+                  edits. In its own grid row rather than inside the column, so
+                  the three headings still start on one line — in the column it
+                  pushed TEMPLATE down and out of step with SCHEDULE and
+                  RECIPIENTS. */}
+              <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm report-template-edit">✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
               <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
                 <Field label="Day">
@@ -692,14 +691,7 @@ export default function ClientDetailPage() {
             {/* ── Monthly setup ── */}
             <div className="card">
               <div className="report-card-head">
-                <div className="report-card-title">
-                  <h2 className="h2" style={{ margin: 0 }}>Monthly</h2>
-                  {/* Beside the card's name, not in the Template column. It
-                      edits the template, but it is a control on this card like
-                      the three on the right, and sitting in the column made
-                      Template the one heading pushed down by a button. */}
-                  <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm">✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
-                </div>
+                <h2 className="h2" style={{ margin: 0 }}>Monthly</h2>
                 <div className="report-card-actions">
                   {/* "Save changes", not "Save monthly": both cards edit one
                       client record and the PUT sends all of it, so either
@@ -713,6 +705,12 @@ export default function ClientDetailPage() {
 
               {/* Schedule · Template · Recipients, across the card. */}
               <div className="report-setup report-setup--monthly">
+              {/* Above the word TEMPLATE, because the template is what it
+                  edits. In its own grid row rather than inside the column, so
+                  the three headings still start on one line — in the column it
+                  pushed TEMPLATE down and out of step with SCHEDULE and
+                  RECIPIENTS. */}
+              <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm report-template-edit">✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
               <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
               <Field label="Day of month">
