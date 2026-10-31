@@ -2488,9 +2488,6 @@ a:hover > .card-stat,
   gap: var(--s3); flex-wrap: wrap;
   margin-bottom: var(--s5);
 }
-/* The card's name and the control that edits its template, together on the
-   left; the three that act on the report itself on the right. */
-.report-card-title { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
 .report-card-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
 /* "This month's focus" and the button that drafts one, on a line. Same shape
@@ -2503,10 +2500,22 @@ a:hover > .card-stat,
 
 .report-setup {
   display: grid;
-  gap: var(--s6);
+  /* Two rows: the template control, then the three columns. The control is
+     the only thing in the first row, so that row is zero-height on a card
+     that has no template yet and the headings sit where they always did. */
+  grid-template-rows: auto auto;
+  column-gap: var(--s6);
+  row-gap: var(--s3);
   align-items: start;
 }
 .report-setup > * { min-width: 0; }
+.report-setup > div { grid-row: 2; }
+
+/* Above the word TEMPLATE, because the template is what it edits.
+   In its own row rather than inside the column: in the column it pushed
+   TEMPLATE down and out of step with SCHEDULE and RECIPIENTS, which is the
+   alignment that was asked for in the same breath. */
+.report-template-edit { grid-column: 2; grid-row: 1; justify-self: start; }
 
 /* Fractions, not a fixed slab for the schedule.
    Daniel: *"make the columns flex to fill the space, don't need to match
@@ -2532,9 +2541,16 @@ a:hover > .card-stat,
 
 /* Two columns, then one, as the content area narrows. Recipients drops under
    the schedule first because they are the two short ones. */
+/* Narrower than three columns, the control spans the whole first row and the
+   columns go back to flowing.
+   Pinning them to row 2 is what keeps the headings level in the three-column
+   layout, and it is exactly wrong once there are two: three items that cannot
+   leave one row push a phantom third column, which measured 26px wide. */
 @container appmain (max-width: 1100px) {
   .report-setup--weekly,
   .report-setup--monthly { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+  .report-setup > div { grid-row: auto; }
+  .report-template-edit { grid-column: 1 / -1; }
   .report-template-list--long { columns: 1; }
 }
 @container appmain (max-width: 760px) {
