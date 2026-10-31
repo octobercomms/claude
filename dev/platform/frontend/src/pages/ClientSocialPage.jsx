@@ -15,6 +15,8 @@ import PageShell from '../components/shells/PageShell';
 import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
+import { HookVaultList } from '../components/social/HookVaultList';
+import HookVaultPanel from '../components/social/HookVaultPanel';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
@@ -505,6 +507,12 @@ export default function ClientSocialPage() {
       {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
       {socialTab === 'perf_insights' && renderReview()}
       {socialTab === 'performance' && renderLearn()}
+      {/* The vault is a page now, not a modal on Learn. Same component, same
+          "Use this" into the planner, with the explanation around it. */}
+      {socialTab === 'hooks' && (
+        <HookVaultPanel clientId={id} clientName={client?.name}
+          onUse={(hook) => setPlannerOpen({ planId: null, seedHook: hook })} />
+      )}
       {socialTab === 'competitors' && renderCompare()}
       {socialTab === 'audit' && <SocialAuditPanel clientId={id} />}
 
@@ -1426,75 +1434,6 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 // that opens the planner chat with the hook pre-seeded as the brief.
 // Search runs server-side via ILIKE so a vault with thousands of hooks
 // stays snappy.
-// The Hook Vault search + list, with no modal chrome — so it can render both
-// inline on the Learn tab and inside HookVaultModal.
-function HookVaultList({ clientId, onUse }) {
-  const [hooks, setHooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [framework, setFramework] = useState('');
-  const [search, setSearch] = useState('');
-  // Debounce typing so we don't fire 8 requests for "carousel"
-  const [searchDebounced, setSearchDebounced] = useState('');
-  useEffect(() => {
-    const t = setTimeout(() => setSearchDebounced(search), 200);
-    return () => clearTimeout(t);
-  }, [search]);
-  useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (framework) params.set('framework', framework);
-    if (searchDebounced) params.set('q', searchDebounced);
-    api.get(`/social/clients/${clientId}/hooks?${params.toString()}`)
-      .then(r => setHooks(r || []))
-      .catch(() => setHooks([]))
-      .finally(() => setLoading(false));
-  }, [clientId, framework, searchDebounced]);
-
-  return (
-    <>
-      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search hooks…"
-          className="input" style={{ flex: 1 }} />
-        <select value={framework} onChange={e => setFramework(e.target.value)} className="select">
-          <option value="">All frameworks</option>
-          <option value="Hook-Story-Offer">Hook-Story-Offer</option>
-          <option value="AIDA">AIDA</option>
-          <option value="PAS">PAS</option>
-          <option value="UGC">UGC</option>
-        </select>
-      </div>
-      {loading ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', textAlign: 'center', fontSize: 'var(--fs-caption)' }}>Loading…</div>
-      ) : !hooks.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', textAlign: 'center', fontSize: 'var(--fs-caption)' }}>
-          No hooks yet. Generate a brainstorm batch — every hook you save lands here.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
-          {hooks.map((h, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s2) var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-              <div style={{ flex: 1, marginRight: 'var(--s3)' }}>
-                <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)', display: 'flex', gap: 'var(--s2)' }}>
-                  {h.framework && <span>{h.framework}</span>}
-                  <span>·</span>
-                  <span>{h.platform} / {h.kind}</span>
-                  {h.best_reach > 0 && (<><span>·</span><span>best {formatNum(h.best_reach)} reach</span></>)}
-                  {h.use_count > 1 && (<><span>·</span><span>used {h.use_count}×</span></>)}
-                </div>
-              </div>
-              <button type="button" onClick={() => onUse(h.hook)}
-                className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }}>
-                Use this</button>
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
 function HookVaultModal({ clientId, onClose, onUse }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
