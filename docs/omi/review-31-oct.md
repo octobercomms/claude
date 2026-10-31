@@ -343,6 +343,15 @@ it exactly ("there is only a render button… it just generated the exact same
 video"). Making the existing trim-and-assemble flow legible is a session.
 Building a timeline is a project to scope separately, if at all.
 
+**Scoped, as the 31 October decision asked: `docs/omi/video-timeline-spec.md`.**
+Seven parts, 14 to 20 sessions for a first usable version plus upkeep, against
+3 to 3.5 sessions for the cheap fix that answers the actual complaint. It ends
+with three options and asks for one. Nothing is being built until that answer
+comes back. Worth knowing before you read it: the data model already holds an
+ordered clip list and a set of operations, and the Edit page already combines
+clips. The gap is narrower than it looks, and it is that you cannot see the
+edit and cannot trim across more than one clip.
+
 ### 7.3 The other two links (S to answer)
 
 `freeapihub.com` Stable Video Diffusion and the `JustRin` mirror: Stable Video

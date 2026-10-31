@@ -2306,6 +2306,26 @@ holds the default, the publisher's filter and the screen's wording. Earned's
 Measure group, its Reports row and `PrBacklinkRoi` are gone;
 `PrBacklinkTotal` puts three tiles at the top of Coverage.
 
+### The video timeline is scoped and waiting on an answer (31 Oct 2026)
+
+`docs/omi/video-timeline-spec.md`. Do not start building it: it ends with
+three options and asks Daniel for one, and that answer had not come back when
+this was written.
+
+Two findings in it are worth carrying even if the timeline never happens.
+`edit_jobs` already stores `clips` as an ordered list and `ops` as a set of
+choices, and `ClientEditPage` already combines several clips, so the gap is
+not the render pipeline. It is that you cannot see the edit, and that
+per-segment trimming is gated on `single && doTrim`, one clip only. And the
+reported failure "it just generated the exact same video" is the
+`nothingChosen` path: no option ticked, so the render was a re-encode of the
+input. The page did what it was asked and never said so.
+
+The expensive part of a timeline is not the surface, it is frame-accurate
+preview (an HTML `<video>` seeks to keyframes, not frames) and translating an
+edit decision list into one ffmpeg filter graph across clips that differ in
+resolution, frame rate and rotation.
+
 ## 10. Fast facts / gotchas checklist
 
 - **A slug that equals a different row's tab key is a trap, and one exists.**
