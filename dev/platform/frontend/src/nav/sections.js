@@ -104,12 +104,16 @@ export const SECTIONS = {
     defaultTab: 'measure',
     groups: [
       { heading: null, rows: [{ tab: 'measure', label: 'Measure' }] },
+      // Four steps, not five. Approve was a step holding a three-line
+      // summary and one button, between two that do real work, and a step
+      // implies a decision it does not have: you press it and you get a URL.
+      // It is a header button now, beside Playbook, the way Earned shares
+      // coverage.
       { heading: 'Build', rows: [
         { tab: 'brief',    label: 'Brief',    step: 1 },
         { tab: 'concepts', label: 'Draft', slug: 'draft',    step: 2 },
         { tab: 'render',   label: 'Render',   step: 3 },
-        { tab: 'approve',  label: 'Approve',  step: 4 },
-        { tab: 'launch',   label: 'Launch',   step: 5 },
+        { tab: 'launch',   label: 'Launch',   step: 4 },
       ] },
       { heading: 'Research', rows: [
         { tab: 'competitor_ads', label: 'Competitors', slug: 'competitors' },

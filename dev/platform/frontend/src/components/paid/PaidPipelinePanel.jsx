@@ -5,7 +5,6 @@ import StepRail from '../shells/StepRail';
 import PaidBriefStep from './PaidBriefStep';
 import PaidConceptsStep from './PaidConceptsStep';
 import PaidRenderStep from './PaidRenderStep';
-import PaidApproveStep from './PaidApproveStep';
 import PaidLaunchStep from './PaidLaunchStep';
 
 // Paid → Build → Make a batch. Five steps over one shared state, so the
@@ -33,11 +32,10 @@ export default function PaidPipelinePanel({ clientId, clientName, step, steps, m
     brief: hasBatch,
     concepts: hasConcepts,
     render: hasRenders,
-    // Approve and Launch leave no mark on this state: the approval link lives
-    // in the approvals table and the launch is an export. Claiming them done
-    // off a transient share URL would be the positional lie again, in a
-    // different costume.
-    approve: false,
+    // Launch leaves no mark on this state: it is an export, and claiming it
+    // done because someone opened the step would be the positional lie again
+    // in a different costume. (Approve used to sit here for the same reason.
+    // It is no longer a step at all.)
     launch: false,
   };
 
@@ -48,8 +46,6 @@ export default function PaidPipelinePanel({ clientId, clientName, step, steps, m
           onBack={() => go('brief')} />;
       case 'render':
         return <PaidRenderStep pipeline={pipeline} onBack={() => go('brief')} />;
-      case 'approve':
-        return <PaidApproveStep pipeline={pipeline} onBack={() => go('brief')} />;
       case 'launch':
         return <PaidLaunchStep pipeline={pipeline} onBack={() => go('brief')} />;
       case 'brief':

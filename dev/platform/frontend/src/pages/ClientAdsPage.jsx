@@ -7,6 +7,7 @@ import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
 import GoogleAdsPlaybookQuick from '../components/GoogleAdsPlaybookQuick';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import PaidLibraryPanel from '../components/paid/PaidLibraryPanel';
+import ApprovalLinkModal from '../components/paid/ApprovalLinkModal';
 import AdAccountSection from '../components/paid/AdAccountSection';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageShell from '../components/shells/PageShell';
@@ -24,7 +25,9 @@ import { useToast } from '../context/ToastContext';
 // questions about performance, budgets and creative strategy live there now,
 // against the same underlying connector data.
 export default function ClientAdsPage() {
-  const { id } = useParams();
+  // `screen` is the raw slug out of the URL. The redirect below needs it
+  // rather than the resolved tab — see the note on that effect.
+  const { id, screen: rawScreen } = useParams();
   const toast = useToast();
   const [client, setClient] = useState(null);
   const [adsData, setAdsData] = useState(null);
@@ -46,14 +49,13 @@ export default function ClientAdsPage() {
   // that are not steps as peer tabs rather than an accordion of "tools".
   const [tab, setTab] = useScreen('paid');
   const navigate = useNavigate();
-  const PIPELINE_STEPS = ['brief', 'concepts', 'render', 'approve', 'launch'];
+  const PIPELINE_STEPS = ['brief', 'concepts', 'render', 'launch'];
   // Shared Stepper metadata for the Build pipeline (mirrors Shared's Builder).
   const PIPELINE_META = [
     { title: 'Brief', sub: 'One-line ask' },
     { title: 'Draft', sub: 'Angles & copy' },
     { title: 'Render', sub: 'On-brand creative' },
-    { title: 'Approve', sub: 'Sign-off' },
-    { title: 'Launch', sub: 'Push live' },
+    { title: 'Launch', sub: 'Export & build' },
   ];
   const isPipelineStep = PIPELINE_STEPS.includes(tab);
   // 'pipeline' and 'creative' were group keys from the tab-strip era. No row
@@ -68,6 +70,11 @@ export default function ClientAdsPage() {
   const currentGroup = (isPipelineGroup || BUILD_TABS.includes(tab)) ? 'build' : 'measure';
   // The playbook: reference, in a drawer, one job.
   const [playbookOpen, setPlaybookOpen] = useState(false);
+  // Minting a client approval link. It was step 4 of the Build pipeline,
+  // which made a URL look like a stage of production. Here it is reachable
+  // from anywhere in Paid, including Measure, which is where you are when a
+  // client asks to see the work.
+  const [approvalOpen, setApprovalOpen] = useState(false);
   // A creative sent from the library to Resize, which is where resizing
   // starts now. It used to be a tab asking you to upload the file you had
   // already made twenty feet away.
@@ -77,13 +84,25 @@ export default function ClientAdsPage() {
   // so both land on Measure; 'playbook' opens the drawer over it rather than
   // 404-ing a tab that no longer exists; 'resize' starts at the library,
   // which is where you now pick the thing to resize.
+  //
+  // The raw slug, not `tab`. This read `resolvePaidTab(tab)`, and `tab` comes
+  // from useScreen, which maps an unknown slug to the section default before
+  // anything here runs. So every alias arrived as 'measure', the table
+  // matched nothing, and not one of these redirects had ever fired:
+  // /ads/playbook showed Measure with no drawer — precisely the silent
+  // breakage the table was written to prevent — /ads/resize never reached
+  // the library, and the address bar kept the dead slug in all cases.
+  //
+  // The unit tests passed throughout, because they called resolvePaidTab
+  // with the alias directly. They were testing the table and nothing was
+  // testing the wiring.
   useEffect(() => {
-    const to = resolvePaidTab(tab);
+    const to = resolvePaidTab(rawScreen);
     if (!to) return;
     setTab(to.tab);
     if (to.openPlaybook) setPlaybookOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, [rawScreen]);
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
@@ -467,12 +486,17 @@ export default function ClientAdsPage() {
         title="Paid"
         subtitle={client?.name}
         tabActions={(
-          /* Named, not a ⋮. A kebab means "several things", which is honest
-             on the Strategist where it holds four. Exactly one thing lives
-             behind this one, so it says what that thing is. */
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPlaybookOpen(true)}>
-            Playbook
-          </button>
+          /* Named, not a ⋮. A kebab means "several things" and hides what
+             they are; two named buttons are shorter to read than the menu
+             that would hold them. */
+          <div className="row" style={{ gap: 'var(--s2)' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setApprovalOpen(true)}>
+              Approval link
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPlaybookOpen(true)}>
+              Playbook
+            </button>
+          </div>
         )}
       >
       {/* What this pillar actually drove, and its share of the account —
@@ -541,6 +565,14 @@ export default function ClientAdsPage() {
       >
         <GoogleAdsPlaybookQuick onOpenFull={() => { setPlaybookOpen(false); navigate('/guide?open=paid-playbook'); }} />
       </SideDrawer>
+
+      {approvalOpen && (
+        <ApprovalLinkModal
+          clientId={id}
+          clientName={client?.name || ''}
+          onClose={() => setApprovalOpen(false)}
+        />
+      )}
       </PageShell>
     </div>
   );

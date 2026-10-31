@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { showCombined } from '../src/utils/adsTotals.js';
 import { briefSeedFor } from '../src/utils/competitorBrief.js';
 import { resolvePaidTab } from '../src/utils/paidTabs.js';
+import { SECTIONS, tabsOf } from '../src/nav/sections.js';
 
 // ── Combined · Google + Meta ──────────────────────────────────────────────
 // The bug as it shipped: Falcon has a Meta ad account connected which spent
@@ -110,10 +111,45 @@ test('a playbook link opens the playbook, not just the page under it', () => {
 });
 
 test('a tab that still exists is never redirected', () => {
-  for (const t of ['measure', 'brief', 'concepts', 'render', 'approve', 'launch',
-                   'library', 'audiences', 'competitor_ads']) {
+  // Derived from the panel rather than listed here. This was a hardcoded
+  // array and it went stale the moment Approve stopped being a step: the
+  // test went on asserting that 'approve' must not redirect, which is the
+  // opposite of what the change needed. A list that cannot drift from
+  // sections.js cannot make that mistake again.
+  for (const t of tabsOf(SECTIONS.paid)) {
     assert.equal(resolvePaidTab(t), null, `${t} should stay put`);
   }
+});
+
+test('the redirect is fed the raw slug, not the resolved tab', () => {
+  // The table was correct and wired to the wrong input for months. useScreen
+  // maps an unknown slug to the section default before the page renders, so
+  // resolvePaidTab(tab) only ever saw 'measure' and not one of these
+  // redirects fired: /ads/playbook showed Measure with no drawer, /ads/resize
+  // never reached the library, and the dead slug stayed in the address bar.
+  //
+  // Every unit test here passed throughout, because they call the table
+  // directly with the alias. This one reads the call site instead, which is
+  // the only part that was ever wrong.
+  const page = readFileSync(new URL('../src/pages/ClientAdsPage.jsx', import.meta.url), 'utf8');
+  // Comments stripped first. The note above that call site quotes the broken
+  // version verbatim, and without this the test reads the explanation of the
+  // bug and reports the bug — which it duly did on the first run.
+  const code = page.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const call = code.match(/resolvePaidTab\(([^)]*)\)/);
+  assert.ok(call, 'ClientAdsPage no longer calls resolvePaidTab at all');
+  assert.notEqual(call[1].trim(), 'tab',
+    'resolvePaidTab must be given the raw URL slug; `tab` has already been resolved');
+  assert.match(code, /screen: rawScreen/,
+    'the raw slug has to come off useParams for this to be possible');
+});
+
+test('the retired steps land somewhere rather than nowhere', () => {
+  // Approve was step 4 until it became a header button. Its URL is in
+  // bookmarks and in at least one sent email, and a deep link that resolves
+  // to nothing reads as the feature having been deleted.
+  assert.deepEqual(resolvePaidTab('approve'), { tab: 'launch', openPlaybook: false });
+  assert.ok(!tabsOf(SECTIONS.paid).includes('approve'), 'and it is genuinely gone from the panel');
 });
 
 // ── Stat tiles ────────────────────────────────────────────────────────────
