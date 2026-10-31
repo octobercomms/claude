@@ -29,11 +29,22 @@ const CHECKLIST = [
   'Daily budget and bid strategy agreed with client',
 ];
 
-export default function PaidLaunchStep({ pipeline, onBack }) {
+export default function PaidLaunchStep({ pipeline, onBack, clientId }) {
   const { activeBatch, creatives } = pipeline;
   const toast = useToast();
   const [downloading, setDownloading] = useState(false);
+  const [keeping, setKeeping] = useState(false);
+  const [kept, setKept] = useState(null);
   const totalImages = (creatives || []).reduce((sum, c) => sum + ((c.images || []).length), 0);
+
+  // Assets still on a provider's CDN. Anything generated from now on is kept
+  // here at the moment it is made; a row from before that still points at
+  // Ideogram or Replicate, and those links expire within hours or days. The
+  // ones whose links are still alive can be kept, and this is the only
+  // chance: nothing recovers a dead one.
+  const unkept = (creatives || [])
+    .flatMap(c => c.images || [])
+    .filter(i => !String(i.url || '').startsWith('/api/'));
 
   // Fetched rather than linked. A plain <a download> would authenticate
   // perfectly well — the session is an httpOnly cookie and this is
@@ -53,9 +64,10 @@ export default function PaidLaunchStep({ pipeline, onBack }) {
       a.remove();
       URL.revokeObjectURL(url);
       if (missing > 0) {
-        // Said out loud, not buried in the zip. A generated image is stored
-        // as a link to the provider that made it and those links expire, so
-        // an old batch can export with assets missing and look complete.
+        // Said out loud, not buried in the zip. Anything missing is a row
+        // from before assets were kept here, whose provider link has since
+        // expired — which is what the button below exists to prevent on the
+        // batches where it has not happened yet.
         toast(`${assets} asset${assets === 1 ? '' : 's'} downloaded, ${missing} missing — see MISSING.txt in the zip.`, 'warning');
       } else {
         toast(`Downloaded ${assets} asset${assets === 1 ? '' : 's'} and the copy sheet.`, 'success');
@@ -63,6 +75,28 @@ export default function PaidLaunchStep({ pipeline, onBack }) {
     } catch (e) {
       toast(e.message, 'error');
     } finally { setDownloading(false); }
+  }
+
+  async function keepOlder() {
+    setKeeping(true);
+    try {
+      const out = await api.post(`/ad-creatives/clients/${clientId}/images/backfill`, {});
+      setKept(out);
+      if (out.stored > 0) {
+        toast(`Kept ${out.stored} asset${out.stored === 1 ? '' : 's'} here.`, 'success');
+        // The rows changed underneath the page, so what it is showing is now
+        // stale in exactly the way that matters: the count of what is left.
+        pipeline.refresh?.({ fresh: true });
+      } else {
+        toast(out.expired
+          ? (out.expired === 1
+            ? 'None could be kept — that link has expired.'
+            : `None could be kept — all ${out.expired} links have expired.`)
+          : 'Nothing left to keep.', out.expired ? 'warning' : 'info');
+      }
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally { setKeeping(false); }
   }
 
   return (
@@ -95,6 +129,28 @@ export default function PaidLaunchStep({ pipeline, onBack }) {
               </p>
             )}
           </div>
+
+          {unkept.length > 0 && (
+            <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+              <div className="caption mb-2">Keep a copy of older creative</div>
+              <p className="body-sm" style={{ lineHeight: 1.6, marginBottom: 'var(--s3)', maxWidth: 620 }}>
+                {unkept.length} asset{unkept.length === 1 ? '' : 's'} on this client still
+                {unkept.length === 1 ? ' points' : ' point'} at the generator that made
+                {unkept.length === 1 ? ' it' : ' them'} rather than at a copy here. Those links
+                expire, which is why an old batch can export short. This keeps the ones that
+                still work; the rest are already gone and nothing brings them back.
+              </p>
+              <button className="btn" onClick={keepOlder} disabled={keeping || !clientId}>
+                {keeping ? 'Keeping…' : `Keep ${unkept.length} asset${unkept.length === 1 ? '' : 's'}`}
+              </button>
+              {kept && (
+                <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                  {kept.stored} kept{kept.expired ? `, ${kept.expired} already expired` : ''}
+                  {kept.more ? ' — run it again for the rest' : ''}.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="card">
             <div className="caption mb-3">Before you set it live</div>

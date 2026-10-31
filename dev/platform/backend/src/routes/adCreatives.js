@@ -15,6 +15,9 @@ const replicate = require('../connectors/replicate');
 const ideogram = require('../connectors/ideogram');
 const adobe = require('../connectors/adobe');
 const users = require('../services/users');
+// Generated assets are fetched off the provider's CDN and kept here — see
+// services/generatedMedia.js for why that is not optional.
+const generatedMedia = require('../services/generatedMedia');
 
 // Uploads share the brand-asset store on disk (uploads/<clientId>/) and are
 // served back through the existing authenticated /api/brand/file route, so we
@@ -254,13 +257,40 @@ router.post('/creatives/:id/images', async (req, res) => {
       // duration at 10s — anything longer can run several minutes and
       // costs ~$1+ per render.
       const clipDuration = Math.min(Math.max(parseInt(duration) || 5, 5), 10);
+      // The still the clip is built from. Replicate fetches a URL it is
+      // given, and OMI's own files sit behind authentication at a relative
+      // path, so a stored asset is handed over as a data URI instead. The
+      // alternative — passing /api/brand/file/… — is a reference Replicate
+      // silently cannot read, and an image-to-video model given no image
+      // produces a clip of something else entirely.
       let referenceImage = null;
       if (from_image_id) {
         const { rows: ir } = await pool.query(
-          'SELECT url FROM ad_creative_images WHERE id = $1 AND creative_id = $2',
+          'SELECT url, source_url FROM ad_creative_images WHERE id = $1 AND creative_id = $2',
           [from_image_id, creative.id]
         );
-        if (ir.length) referenceImage = ir[0].url;
+        if (ir.length) {
+          const local = generatedMedia.localPathFor(ir[0].url);
+          if (local) {
+            try {
+              const buf = await fs.promises.readFile(local);
+              // Replicate takes a data URI up to around 10MB. A render is
+              // well under that; the guard is for a fan-out of something
+              // enormous, where the provider link is the better route.
+              if (buf.length > 8 * 1024 * 1024) throw new Error('too large to inline');
+              referenceImage = `data:${generatedMedia.mimeFor(local)};base64,${buf.toString('base64')}`;
+            } catch (err) {
+              referenceImage = ir[0].source_url || null;
+              if (!referenceImage) {
+                return res.status(409).json({
+                  error: `The still this clip would be built from could not be read: ${err.message}.`,
+                });
+              }
+            }
+          } else {
+            referenceImage = ir[0].source_url || ir[0].url;
+          }
+        }
       }
       const generated = [];
       for (const aspect of aspect_ratios) {
@@ -269,13 +299,19 @@ router.post('/creatives/:id/images', async (req, res) => {
             prompt: promptBase, aspect_ratio: aspect, duration: clipDuration,
             reference_image: referenceImage, seed,
           });
+          const kept = await generatedMedia.storeOrKeep({
+            clientId: creative.client_id, url: result.url,
+            stem: `video-${aspect.replace(':', 'x')}`,
+          });
           const { rows: row } = await pool.query(
             `INSERT INTO ad_creative_images
-             (creative_id, provider, aspect_ratio, url, prompt, media_type, duration_seconds)
-             VALUES ($1, $2, $3, $4, $5, 'video', $6) RETURNING *`,
-            [creative.id, 'replicate-video', aspect, result.url, promptBase, clipDuration]
+             (creative_id, provider, aspect_ratio, url, prompt, media_type, duration_seconds,
+              source_url, stored_bytes)
+             VALUES ($1, $2, $3, $4, $5, 'video', $6, $7, $8) RETURNING *`,
+            [creative.id, 'replicate-video', aspect, kept.url, promptBase, clipDuration,
+             kept.source_url || null, kept.bytes ?? null]
           );
-          generated.push(row[0]);
+          generated.push({ ...row[0], stored: kept.stored, store_error: kept.stored ? undefined : kept.reason });
         } catch (err) {
           console.error(`[ad-creative] video ${aspect} generation failed:`, err.message);
           generated.push({ aspect_ratio: aspect, error: err.message });
@@ -289,12 +325,18 @@ router.post('/creatives/:id/images', async (req, res) => {
     for (const aspect of aspect_ratios) {
       try {
         const result = await generator.generate({ prompt: promptBase, aspect_ratio: aspect, seed });
+        const kept = await generatedMedia.storeOrKeep({
+          clientId: creative.client_id, url: result.url,
+          stem: `${provider}-${aspect.replace(':', 'x')}`,
+        });
         const { rows: row } = await pool.query(
-          `INSERT INTO ad_creative_images (creative_id, provider, aspect_ratio, url, prompt)
-           VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-          [creative.id, provider, aspect, result.url, promptBase]
+          `INSERT INTO ad_creative_images
+             (creative_id, provider, aspect_ratio, url, prompt, source_url, stored_bytes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+          [creative.id, provider, aspect, kept.url, promptBase,
+           kept.source_url || null, kept.bytes ?? null]
         );
-        generated.push(row[0]);
+        generated.push({ ...row[0], stored: kept.stored, store_error: kept.stored ? undefined : kept.reason });
       } catch (err) {
         console.error(`[ad-creative] ${aspect} generation failed:`, err.message);
         generated.push({ aspect_ratio: aspect, error: err.message });
@@ -339,10 +381,20 @@ router.post('/creatives/:id/upload', uploadMem.single('file'), async (req, res) 
   }
 });
 
-// Photoshop generative resize — take one existing image on this creative
-// and fan it out to a list of target aspect ratios in one click. Saves
-// having to re-prompt the image generator just to get a different shape
-// of the same composition.
+// Fan one image out to other aspect ratios, expanding the background rather
+// than cropping it — the same composition reshaped, without re-prompting the
+// generator and paying for a new render.
+//
+// This ran on the Photoshop API until the assets moved onto this box. That
+// API takes the source as a URL it fetches itself, and OMI's own files live
+// behind authentication at a relative path, so it could never read them: the
+// fan-out was already broken for any uploaded source and would have broken
+// for every source once generated output stopped living on a provider CDN.
+//
+// It runs on the same expand path the Resize tool uses instead, which takes
+// the bytes as a data URI and needs nothing public. Three things follow from
+// that: an upload can be fanned out for the first time, the output is already
+// stored here, and the spend is logged per call the way Resize's is.
 router.post('/images/:id/fan-out', authenticate, loadVisibleClientIds, async (req, res) => {
   const { aspect_ratios = ['1:1', '4:5', '9:16', '16:9'] } = req.body || {};
   try {
@@ -357,26 +409,144 @@ router.post('/images/:id/fan-out', authenticate, loadVisibleClientIds, async (re
     if (!users.canAccessClient(req.visibleClientIds, src.client_id)) {
       return res.status(403).json({ error: 'Not authorised' });
     }
-    const sizeMap = { '1:1': [1024, 1024], '4:5': [1024, 1280], '9:16': [1024, 1820], '16:9': [1792, 1024] };
+    if (src.media_type === 'video') {
+      return res.status(400).json({ error: 'Fan-out reshapes a still image. Render the video at the ratio you need instead.' });
+    }
+
+    // The bytes, wherever they are. Normally the file is on this box; a row
+    // from before assets were kept here still points at a provider CDN, and
+    // that link may have expired, which is worth saying plainly rather than
+    // failing as "expand returned no image".
+    let buffer;
+    try {
+      buffer = await generatedMedia.readBytes(src, {
+        // A row that had to be re-fetched is kept, so the next read is local.
+        onKept: (got) => pool.query(
+          'UPDATE ad_creative_images SET url = $1, source_url = COALESCE(source_url, $2), stored_bytes = $3 WHERE id = $4',
+          [got.url, src.source_url || src.url, got.bytes, src.id]
+        ).catch(() => {}),
+      });
+    } catch (err) {
+      return res.status(409).json({
+        error: `The source image could not be read: ${err.message}. Re-render this concept, or upload the image, and the copy will be kept here.`,
+      });
+    }
+
+    // Explicit sizes, not catalogue keys: 16:9 is a real 16:9 here, where the
+    // ad-size catalogue's nearest entry is 1.91:1.
+    const SIZES = {
+      '1:1':  { w: 1024, h: 1024 },
+      '4:5':  { w: 1024, h: 1280 },
+      '9:16': { w: 1024, h: 1820 },
+      '16:9': { w: 1792, h: 1024 },
+    };
+    const wanted = aspect_ratios
+      .filter(a => SIZES[a] && a !== src.aspect_ratio)
+      .map(a => ({ key: `fanout-${a.replace(':', 'x')}`, label: a, ratio: a, family: 'Ad creative', ...SIZES[a] }));
+    if (!wanted.length) {
+      return res.status(400).json({ error: 'No new aspect ratios to produce — pick a shape this image is not already in.' });
+    }
+
+    // saveSource false: the source is already a row in this table, so keeping
+    // a second copy of it would just litter the client's folder.
+    const result = await adResize.resizeImage({
+      clientId: src.client_id, buffer, sizes: wanted, userId: req.user?.id, saveSource: false,
+    });
+
     const generated = [];
-    for (const aspect of aspect_ratios) {
-      if (aspect === src.aspect_ratio) continue;
-      const [w, h] = sizeMap[aspect] || sizeMap['1:1'];
-      try {
-        const result = await adobe.generativeResize({ image_url: src.url, width: w, height: h });
-        const { rows: row } = await pool.query(
-          `INSERT INTO ad_creative_images (creative_id, provider, aspect_ratio, url, prompt)
-           VALUES ($1, 'adobe-resize', $2, $3, $4) RETURNING *`,
-          [src.creative_id, aspect, result.url, `Generative resize from ${src.aspect_ratio} source`]
+    for (const out of result.outputs) {
+      if (out.error || !out.url) {
+        generated.push({ aspect_ratio: out.ratio, error: out.error || 'no image produced' });
+        continue;
+      }
+      const bytes = adResize.sizeOnDisk(out.url);
+      const { rows: row } = await pool.query(
+        `INSERT INTO ad_creative_images
+           (creative_id, provider, aspect_ratio, url, prompt, stored_bytes)
+         VALUES ($1, 'fal-expand', $2, $3, $4, $5) RETURNING *`,
+        [src.creative_id, out.ratio, out.url,
+         `Expanded from the ${src.aspect_ratio} render`, bytes]
+      );
+      generated.push({ ...row[0], method: out.method });
+    }
+    res.status(201).json({ source_image_id: src.id, generated, spend_usd: result.spend_usd });
+  } catch (err) {
+    console.error('[ad-creative] fan-out failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Keep whatever is still keepable.
+//
+// Every row written before generated assets were stored here points at a
+// provider CDN. Some of those links are dead already and nothing recovers
+// them; the ones from the last day or two are alive, and this is the only
+// chance to keep them. One pass per client, reporting what it managed.
+//
+// Ordered newest first for that reason: the recent rows are the ones with a
+// live link, so a run that hits the time limit has spent it on the assets it
+// could actually save.
+router.post('/clients/:clientId/images/backfill', async (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.body?.limit) || 200, 1), 1000);
+  try {
+    const { rows } = await pool.query(
+      `SELECT i.id, i.url, i.source_url, i.aspect_ratio, i.provider, c.client_id
+         FROM ad_creative_images i
+         JOIN ad_creatives c ON c.id = i.creative_id
+        WHERE c.client_id = $1 AND i.stored_bytes IS NULL
+        ORDER BY i.created_at DESC
+        LIMIT $2`,
+      [req.params.clientId, limit]
+    );
+
+    let stored = 0, bytes = 0, expired = 0, skipped = 0;
+    const failures = [];
+    for (const row of rows) {
+      // Already ours and simply never measured: record the size and move on,
+      // so the row stops coming back in this query.
+      const local = generatedMedia.localPathFor(row.url);
+      if (local) {
+        let size = null;
+        try { size = fs.statSync(local).size; } catch { /* gone */ }
+        if (size) {
+          await pool.query('UPDATE ad_creative_images SET stored_bytes = $1 WHERE id = $2', [size, row.id]);
+          stored++; bytes += size;
+        } else {
+          skipped++;
+          failures.push({ id: row.id, aspect_ratio: row.aspect_ratio, reason: 'local file missing' });
+        }
+        continue;
+      }
+
+      const kept = await generatedMedia.storeOrKeep({
+        clientId: row.client_id, url: row.source_url || row.url,
+        stem: `${row.provider || 'ad'}-${String(row.aspect_ratio || '').replace(':', 'x')}`,
+      });
+      if (kept.stored) {
+        await pool.query(
+          'UPDATE ad_creative_images SET url = $1, source_url = COALESCE(source_url, $2), stored_bytes = $3 WHERE id = $4',
+          [kept.url, row.source_url || row.url, kept.bytes, row.id]
         );
-        generated.push(row[0]);
-      } catch (err) {
-        console.error(`[ad-creative] fan-out ${aspect} failed:`, err.message);
-        generated.push({ aspect_ratio: aspect, error: err.message });
+        stored++; bytes += kept.bytes;
+      } else {
+        expired++;
+        failures.push({ id: row.id, aspect_ratio: row.aspect_ratio, reason: kept.reason });
       }
     }
-    res.status(201).json({ source_image_id: src.id, generated });
-  } catch (err) { res.status(502).json({ error: err.message }); }
+
+    res.json({
+      examined: rows.length,
+      stored, expired, skipped,
+      bytes,
+      // Capped: a client with hundreds of dead links does not need every one
+      // listed back, and the count is the part that matters.
+      failures: failures.slice(0, 25),
+      more: rows.length === limit,
+    });
+  } catch (err) {
+    console.error('[ad-creative] backfill failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Resize for ads ────────────────────────────────────────────────────────────
@@ -395,6 +565,9 @@ router.get('/clients/:clientId/ad-sizes', async (req, res) => {
 router.post('/clients/:clientId/resize', uploadMem.fields([{ name: 'files', maxCount: 25 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
   try {
     const files = [...(req.files?.files || []), ...(req.files?.file || [])];
+    // A library image that could not be read. Reported rather than only
+    // logged: "I picked four and got three back" needs an answer on screen.
+    const libraryFailures = [];
 
     // Creative picked out of this client's library rather than uploaded. The
     // request names image **ids**, never URLs: the server looks each one up,
@@ -408,7 +581,7 @@ router.post('/clients/:clientId/resize', uploadMem.fields([{ name: 'files', maxC
     }
     if (Array.isArray(imageIds) && imageIds.length) {
       const { rows: imgs } = await pool.query(
-        `SELECT i.id, i.url, i.media_type
+        `SELECT i.id, i.url, i.source_url, i.media_type, c.client_id
            FROM ad_creative_images i
            JOIN ad_creatives c ON c.id = i.creative_id
           WHERE i.id = ANY($1::uuid[]) AND c.client_id = $2
@@ -418,22 +591,38 @@ router.post('/clients/:clientId/resize', uploadMem.fields([{ name: 'files', maxC
       for (const img of imgs) {
         if ((img.media_type || 'image') !== 'image') continue;
         try {
-          const resp = await fetch(img.url);
-          if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
-          const type = resp.headers.get('content-type') || 'image/png';
-          if (!type.startsWith('image/')) throw new Error(`not an image (${type})`);
+          // Read through generatedMedia.readBytes, not fetch(). These urls are local
+          // paths, and fetch() cannot take a relative one: it threw
+          // "Failed to parse URL" on every upload picked out of the library,
+          // and logged it where nobody was looking while the UI reported a
+          // resize of nothing.
+          const buffer = await generatedMedia.readBytes(img, {
+            onKept: (got) => pool.query(
+              'UPDATE ad_creative_images SET url = $1, source_url = COALESCE(source_url, $2), stored_bytes = $3 WHERE id = $4',
+              [got.url, img.source_url || img.url, got.bytes, img.id]
+            ).catch(() => {}),
+          });
+          const ext = path.extname(String(img.url).split('?')[0]).toLowerCase() || '.png';
           files.push({
-            originalname: `library-${img.id}.${type.includes('jpeg') ? 'jpg' : type.split('/')[1] || 'png'}`,
-            mimetype: type,
-            buffer: Buffer.from(await resp.arrayBuffer()),
+            originalname: `library-${img.id}${/^\.(png|jpe?g|webp|gif|avif)$/.test(ext) ? ext : '.png'}`,
+            mimetype: generatedMedia.mimeFor(ext),
+            buffer,
           });
         } catch (err) {
           console.error(`[ad-resize] library image ${img.id} failed:`, err.message);
+          libraryFailures.push({ id: img.id, reason: err.message });
         }
       }
     }
 
-    if (!files.length) return res.status(400).json({ error: 'file required' });
+    if (!files.length) {
+      return res.status(libraryFailures.length ? 409 : 400).json({
+        error: libraryFailures.length
+          ? `None of the chosen images could be read: ${libraryFailures.map(f => f.reason).join('; ')}`
+          : 'file required',
+        library_failures: libraryFailures.length ? libraryFailures : undefined,
+      });
+    }
     let sizes = req.body?.sizes;
     if (typeof sizes === 'string') {
       try { sizes = JSON.parse(sizes); }
@@ -456,7 +645,10 @@ router.post('/clients/:clientId/resize', uploadMem.fields([{ name: 'files', maxC
         items.push({ name: f.originalname, error: err.message });
       }
     }
-    const result = { items, spend_usd: +total.toFixed(4) };
+    const result = {
+      items, spend_usd: +total.toFixed(4),
+      library_failures: libraryFailures.length ? libraryFailures : undefined,
+    };
     // Persist the run so it can be reopened / bulk-downloaded later. Don't fail
     // the response if the save hiccups — the outputs are already on disk.
     let batch = null;

@@ -12,12 +12,15 @@
 //
 // Two things about the assets are worth knowing before reading the code.
 //
-// Images come from two places. An upload is written to this box and carries
-// a local /api/brand/file/<client>/<name> path. A generated image keeps the
-// URL the provider returned, which is a CDN link belonging to Ideogram,
-// Replicate or Adobe. The first is a file read; the second is a fetch that
-// can fail, and those URLs are not permanent. An old batch may well export
-// with half its images gone.
+// Images are read off this box. An upload always was; a generated image is
+// now kept here too, at generation time, because the URL a provider returns
+// expires within hours or days and nothing announces it (see
+// services/generatedMedia.js). Before that, a batch approved on Monday could
+// export on Friday with half its images gone.
+//
+// A fetch is still possible for one case: a row written before assets were
+// kept here, whose provider link the backfill could not save. Those are the
+// rows that can still come up short.
 //
 // Which is why a short zip is never silent. Anything missing is listed in
 // MISSING.txt inside the zip and counted in the response headers, so the AM
