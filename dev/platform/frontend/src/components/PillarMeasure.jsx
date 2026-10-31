@@ -126,6 +126,19 @@ export default function PillarMeasure({ clientId, pillar }) {
               No {label.toLowerCase()} traffic in this period.
             </div>
           )}
+
+          {/* Same caveat as the Measure panel, because this prints money from
+              the same response. A pillar's revenue is a slice of the mixed
+              sum, so if the whole is not a true figure in its currency,
+              neither is the slice — and this panel is read on its own, with
+              Measure nowhere in sight. */}
+          {data.currency_unset ? (
+            <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>
+              Money is shown without a currency: none is set for this client and no connected store reported one.
+            </p>
+          ) : data.notes && data.notes.length > 0 ? (
+            <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{data.notes.join(' · ')}</p>
+          ) : null}
         </>
       )}
     </div>
