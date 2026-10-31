@@ -16,6 +16,10 @@ import PrBacklinkRoi from '../components/PrBacklinkRoi';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
+// The campaign detail's two views, hoisted so the view hooks get one stable
+// array rather than a new one on every render.
+const CAMPAIGN_VIEWS = ['setup', 'results'];
+
 // Ordered by importance for the AM: won first, in-motion next, dead last.
 const STATUSES = [
   ['published', 'Published'], ['confirmed', 'Confirmed'], ['pending', 'Pending'],
@@ -140,7 +144,7 @@ export default function ClientPRPage() {
   // — opening a campaign replaces the screen — so it stays in the URL for as
   // long as the campaign is open, and goes when you leave it.
   const [openPressCampaign, setOpenPressCampaign] = useOpenState();
-  const [campaignView, setCampaignView] = useViewParam(['setup', 'results'], 'setup');
+  const [campaignView, setCampaignView] = useViewParam(CAMPAIGN_VIEWS, 'setup');
   const [pressAutoBuild, setPressAutoBuild] = useState(false); // auto-build audience on land (fresh campaigns only)
   const [showPressWizard, setShowPressWizard] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -474,7 +478,6 @@ export default function ClientPRPage() {
 
   const [renamingPR, setRenamingPR] = useState(null); // release id
   const [renameText, setRenameText] = useState('');
-  const [expandedPR, setExpandedPR] = useState(null);  // release id whose stats are open
   function startRename(r) { setRenamingPR(r.id); setRenameText(r.display_name || r.title || ''); }
   async function saveRename(r) {
     const next = renameText.trim();
@@ -727,6 +730,28 @@ export default function ClientPRPage() {
   // matchers, journalist discovery, the contact book and thank-yous. Each is
   // now its own row. The campaign detail view still takes over the Campaigns
   // screen, because opening a campaign is a mode rather than a destination.
+  // The campaign list.
+  //
+  // "This is a really messy design." It was, and the mess was structural
+  // rather than cosmetic. In one row:
+  //
+  //  - Five columns, three of them with no header.
+  //  - The whole <tr> was clickable, and then four of its cells called
+  //    stopPropagation to cancel that. A row that is a link except in four
+  //    places is not a link, and nothing on screen said which parts were
+  //    which.
+  //  - Three ways to open the same campaign: the row, the underlined name,
+  //    and an "Open full results" button inside an expanded strip.
+  //  - The same send figures in three places: a progress bar under the name,
+  //    "12/40 · 30% ▾" in the Sending column, and the accordion that button
+  //    opened.
+  //  - Pause and Delete each took a column of their own.
+  //
+  // Now: four labelled columns, no row click, one progress bar, and two ways
+  // in that say where they go. Build opens the five-step flow; Results opens
+  // the analytics, and each writes both the record and the view to the URL, so
+  // each is a link you can send — a results view was not addressable at all
+  // before. The send figures live in Results, which is what Results is for.
   const renderCampaigns = () => {
     // A press campaign open? Show its full send/preview/autopilot/results view.
     if (openPressCampaign) {
@@ -736,6 +761,14 @@ export default function ClientPRPage() {
           onExit={() => { setOpenPressCampaign(null); setPressAutoBuild(false); reloadPress(); }} />
       );
     }
+    // Both params, set one after the other. I first wrote a combined hook for
+    // this, on the theory that two navigate(replace) calls in one handler would
+    // clobber each other because each reads window.location.search fresh and a
+    // navigate does not land synchronously. A mutation showed the combined
+    // version was not doing anything the two plain calls do not: both params
+    // arrive, and the view holds. The theory was wrong and the hook was code
+    // that earned nothing, so it is gone.
+    const openOn = (r, view) => { setPressAutoBuild(false); setCampaignView(view); setOpenPressCampaign(r.campaign_id); };
     return (
         <div>
           {/* Press campaigns — the front door: pitch a release to journalists. */}
@@ -751,19 +784,25 @@ export default function ClientPRPage() {
               <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>No press campaigns yet — start one from a downloadfor.press URL.</p>
             ) : (
               <table className="table">
-                <thead><tr><th>Campaign</th><th>Created</th><th style={{ textAlign: 'right' }}>Sending</th><th></th><th></th></tr></thead>
+                <thead><tr>
+                  <th>Campaign</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Open</th>
+                </tr></thead>
                 <tbody>
                   {pressReleases.map((r) => {
                     const paused = r.campaign_status === 'paused';
                     const sent = r.stat_sent || 0, firstTotal = r.stat_first_total || 0;
-                    const pending = r.stat_pending || 0, opened = r.stat_opened || 0, clicked = r.stat_clicked || 0, failed = r.stat_failed || 0;
+                    const pending = r.stat_pending || 0, failed = r.stat_failed || 0;
                     const pct = firstTotal ? Math.round((sent / firstTotal) * 100) : 0;
-                    const expanded = expandedPR === r.id;
                     const num = (n) => (n || 0).toLocaleString();
+                    const live = !!r.campaign_id && firstTotal > 0;
+                    const sending = live && !paused && pending > 0;
+                    const complete = live && pending === 0 && sent > 0;
                     return (
-                    <React.Fragment key={r.id}>
-                    <tr style={{ cursor: r.campaign_id ? 'pointer' : 'default' }} onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}>
-                      <td onClick={(e) => e.stopPropagation()} style={{ cursor: 'default' }}>
+                    <tr key={r.id} data-open-id={r.id}>
+                      <td>
                         {renamingPR === r.id ? (
                           <input className="input" autoFocus value={renameText}
                             onChange={(e) => setRenameText(e.target.value)}
@@ -772,84 +811,73 @@ export default function ClientPRPage() {
                             style={{ minWidth: 260, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-body)' }} />
                         ) : (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
-                            <button className="row-trigger" title="Open campaign"
-                              onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}
-                              style={{ textDecoration: 'underline', fontWeight: r.display_name ? 600 : 400 }}>
+                            {/* The name opens Build, the same as the button, so
+                                the obvious click is not a dead one. */}
+                            <button className="row-trigger" title="Open this campaign"
+                              disabled={!r.campaign_id}
+                              onClick={() => openOn(r, 'setup')}
+                              style={{ textDecoration: r.campaign_id ? 'underline' : 'none', fontWeight: r.display_name ? 600 : 400 }}>
                               {r.display_name || r.title || '(untitled release)'}
                             </button>
-                            <button className="btn btn-secondary btn-sm" title="Rename campaign" aria-label="Rename"
-                              {...roWrite(readOnly, { onClick: () => startRename(r) })} style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)' }}>✎</button>
+                            <button className="btn-icon btn-icon-sm" title="Rename campaign"
+                              aria-label={`Rename ${r.display_name || r.title || 'this campaign'}`}
+                              {...roWrite(readOnly, { onClick: () => startRename(r) })}>✎</button>
                           </span>
                         )}
                         {r.display_name && renamingPR !== r.id && (
                           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{r.title}</div>
                         )}
-                        {/* Live sending visual — a bar under the campaign name with
-                            status, live counts and an ETA. Auto-refreshes while
-                            anything is going out (see the poll effect above). */}
-                        {r.campaign_id && firstTotal > 0 && (() => {
-                          const sending = !paused && pending > 0;
-                          const complete = pending === 0 && sent > 0;
-                          const eta = fmtEta(r.stat_eta_seconds);
-                          const statusColor = sending ? 'var(--positive, #15803d)' : paused ? 'var(--warning, #b45309)' : complete ? 'var(--positive, #15803d)' : 'var(--text-muted)';
-                          const statusText = sending ? 'Sending' : paused ? 'Paused' : complete ? 'Sent ✓' : 'Idle';
-                          return (
-                            <div style={{ marginTop: 'var(--s2)', maxWidth: 620 }}>
-                              <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
-                                <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning, #b45309)' : 'var(--positive, #15803d)', borderRadius: 'var(--r-pill)', transition: 'width .4s' }} />
-                              </div>
-                              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center', marginTop: 'var(--s1)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', fontWeight: 600, color: statusColor }}>
-                                  {sending && <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2 }} />}
-                                  {statusText}
-                                </span>
-                                <span>· {num(sent)} of {num(firstTotal)} ({pct}%)</span>
-                                {pending > 0 && <span>· {num(pending)} to go</span>}
-                                {sending && eta && <span>· {eta} left</span>}
-                                {failed > 0 && <span style={{ color: 'var(--negative)' }}>· {num(failed)} failed</span>}
-                              </div>
+                        {/* The one live signal a list needs: how far through the
+                            send it is. The numbers behind it are in Results. */}
+                        {live && (
+                          <div style={{ marginTop: 'var(--s2)', maxWidth: 620 }}>
+                            <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning)' : 'var(--positive)', borderRadius: 'var(--r-pill)', transition: 'width .4s' }} />
                             </div>
-                          );
-                        })()}
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
+                              {num(sent)} of {num(firstTotal)} emailed
+                              {pending > 0 ? ` · ${num(pending)} to go` : ''}
+                              {sending && fmtEta(r.stat_eta_seconds) ? ` · ${fmtEta(r.stat_eta_seconds)} left` : ''}
+                              {failed > 0 ? <span style={{ color: 'var(--negative)' }}>{` · ${num(failed)} failed`}</span> : null}
+                            </div>
+                          </div>
+                        )}
                       </td>
-                      <td>{fmtDate(r.created_at)}</td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
-                        {r.campaign_id && firstTotal > 0 ? (
-                          <button className="row-trigger" onClick={() => setExpandedPR(expanded ? null : r.id)}
-                            title="Click for stats">
-                            {pending > 0 ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2, display: 'inline-block', verticalAlign: 'middle', marginRight: 'var(--s2)' }} /> : null}
-                            {num(sent)}/{num(firstTotal)} · {pct}% {expanded ? '▲' : '▾'}
-                          </button>
-                        ) : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
+                      <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.created_at)}</td>
+                      {/* Status in words. It was a percentage you clicked to see
+                          a percentage. */}
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {!r.campaign_id ? <span className="chip">Draft</span>
+                          : paused ? <span className="chip" style={{ color: 'var(--warning)' }}>Paused</span>
+                          : sending ? <span className="chip" style={{ color: 'var(--positive)' }}>
+                              <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2, marginRight: 'var(--s1)' }} />Sending
+                            </span>
+                          : complete ? <span className="chip chip-success">Sent</span>
+                          : <span className="chip">Ready</span>}
                       </td>
-                      <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                        {r.campaign_id
-                          ? <button className="btn btn-secondary btn-sm" title={paused ? 'Resume sending' : 'Pause sending'}
-                              {...roWrite(readOnly, { onClick: () => togglePausePR(r) })}>{paused ? '▶ Resume' : '⏸ Pause'}</button>
-                          : <span className="chip">draft</span>}
-                      </td>
-                      <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                        <button className="btn btn-danger btn-sm" title="Delete campaign"
-                          {...roWrite(readOnly, { onClick: () => deletePressCampaign(r) })}>Delete</button>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          <button className="btn btn-secondary btn-sm" disabled={!r.campaign_id}
+                            title="The audience, the emails and the send"
+                            onClick={() => openOn(r, 'setup')}>Build</button>
+                          {/* Disabled rather than absent while nothing has gone
+                              out, so the column keeps its shape down the list
+                              and the reason is on the control itself. */}
+                          <button className="btn btn-secondary btn-sm" disabled={!live}
+                            title={live ? 'Opens, clicks, replies and backlink attribution'
+                                        : 'Nothing has been sent yet, so there are no results'}
+                            onClick={() => openOn(r, 'results')}>Results</button>
+                          {r.campaign_id && (
+                            <button className="btn-icon" title={paused ? 'Resume sending' : 'Pause sending'}
+                              aria-label={paused ? 'Resume sending' : 'Pause sending'}
+                              {...roWrite(readOnly, { onClick: () => togglePausePR(r) })}>{paused ? '▶' : '⏸'}</button>
+                          )}
+                          <button className="btn-icon danger" title="Delete campaign"
+                            aria-label={`Delete ${r.display_name || r.title || 'this campaign'}`}
+                            {...roWrite(readOnly, { onClick: () => deletePressCampaign(r) })}>✕</button>
+                        </div>
                       </td>
                     </tr>
-                    {expanded && (
-                      <tr>
-                        <td colSpan={5} style={{ background: 'var(--surface-raised)' }}>
-                          <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', alignItems: 'center', padding: 'var(--s1) var(--s1)', fontSize: 'var(--fs-body)' }}>
-                            <span><strong>{num(sent)}</strong> <span style={{ color: 'var(--text-subtle)' }}>of {num(firstTotal)} emailed</span></span>
-                            {pending > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(pending)} still going out</span>}
-                            {failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(failed)} failed</span>}
-                            <span><strong>{num(opened)}</strong> <span style={{ color: 'var(--text-subtle)' }}>opened</span></span>
-                            <span><strong>{num(clicked)}</strong> <span style={{ color: 'var(--text-subtle)' }}>clicked</span></span>
-                            {paused && <span className="chip" style={{ color: 'var(--negative)' }}>paused</span>}
-                            <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}
-                              onClick={() => { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); }}>Open full results</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    </React.Fragment>
                   );})}
                 </tbody>
               </table>

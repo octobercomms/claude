@@ -7,6 +7,7 @@ import PressCampaignAnalytics from './PressCampaignAnalytics';
 import StepRail from './shells/StepRail';
 import PressAudiences, { AudienceBar, AudienceSend } from './PressAudiences';
 import PressCountryExclusions from './PressCountryExclusions';
+import StatStrip from './shells/StatStrip';
 
 // Detail view for one press_release campaign, run as a clear five-step flow:
 //   1 · Who     — build the audience from tags (scales to thousands) + adds.
@@ -39,16 +40,6 @@ const WHEN = (iso) => new Date(iso).toLocaleString('en-GB', {
   weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
 });
 
-function AttrStat({ value, label, big, hint }) {
-  return (
-    <div title={hint || undefined} style={hint ? { cursor: 'help' } : undefined}>
-      <div style={{ fontSize: big ? 26 : 20, fontWeight: 700, lineHeight: 1, color: big ? 'var(--accent)' : 'var(--text)' }}>
-        {value == null ? '—' : value}
-      </div>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{label}{hint ? ' ⓘ' : ''}</div>
-    </div>
-  );
-}
 
 export default function PressCampaignDetail({ clientId, campaignId, onExit, autoBuild = false,
   view: viewProp = 'setup', onView = () => {} }) {
@@ -879,31 +870,50 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         </button>
       </div>
 
-      {attribution?.launched && (
-        <div style={{ marginTop: 'var(--s4)', padding: 'var(--s4)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 'var(--s1)' }}>Backlink attribution · {attribution.window_days} days after launch</div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s3)', maxWidth: 640, lineHeight: 1.45 }}>
-            The SEO payoff of this pitch: websites that started linking to the client in the {attribution.window_days} days since launch. Links take days to weeks to appear, so early numbers stay low.
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', alignItems: 'baseline' }}>
-            <AttrStat value={attribution.new_rds} label="new referring domains" big
-              hint="Distinct websites whose first-ever link to this client appeared within the attribution window." />
-            <AttrStat value={attribution.dofollow_rds} label="dofollow"
-              hint="Of those new links, how many pass SEO ranking value (not tagged nofollow)." />
-            <AttrStat value={attribution.pitched_rds} label="from outlets you pitched"
-              hint="New links whose domain matches a journalist you emailed in this campaign — the defensible 'we caused this' number." />
-            <AttrStat value={attribution.recipients} label="emailed so far"
-              hint="Distinct journalists actually sent an email so far. This climbs as the paced send finishes — it's lower than the total audience until every batch has gone out." />
-          </div>
-        </div>
-      )}
-
+      {/* Build and Results, named for what they are. They were "Set up & send"
+          and "Results & interest", which is the same two things said at
+          length, and the campaign list now offers the same two words as its
+          way in, so the row and the tab agree. */}
       <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s4)', borderBottom: 'var(--border-w) solid var(--card-border)', paddingBottom: 'var(--s2)' }}>
-        <button className={`btn btn-sm ${view === 'setup' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('setup')}>Set up &amp; send</button>
-        <button className={`btn btn-sm ${view === 'results' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('results')}>Results &amp; interest</button>
+        <button className={`btn btn-sm ${view === 'setup' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('setup')}>Build</button>
+        <button className={`btn btn-sm ${view === 'results' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('results')}>Results</button>
       </div>
 
-      {view === 'results' && <PressCampaignAnalytics clientId={clientId} release={release} />}
+      {view === 'results' && (
+        <>
+          {/* Backlink attribution used to sit above the two tabs, so it showed
+              while you were still choosing an audience for a campaign that had
+              sent nothing. It is a result, so it is in Results, as its own row
+              of tiles above the engagement numbers: the SEO payoff is the
+              slowest-moving and most defensible figure here, and it was the
+              thing you had to scroll past rather than to.
+
+              On the house tile (.ds-stat) rather than a bespoke stat in a grey
+              box: white, 2px border, auto-fitting into as many columns as fit.
+              That is the bento every other stat row in the platform uses, and
+              the old box was the odd one out. */}
+          {attribution?.launched && (
+            <div style={{ marginTop: 'var(--s4)' }}>
+              <div className="caption">Backlink attribution · {attribution.window_days} days after launch</div>
+              <p className="body-xs text-muted" style={{ maxWidth: 640, margin: 'var(--s1) 0 var(--s3)', lineHeight: 1.5 }}>
+                The SEO payoff of this pitch: websites that started linking to the client in the {attribution.window_days} days
+                since launch. Links take days to weeks to appear, so early numbers stay low.
+              </p>
+              <StatStrip items={[
+                { label: 'new referring domains', value: attribution.new_rds ?? '—', feature: true,
+                  sub: 'first-ever link inside the window' },
+                { label: 'dofollow', value: attribution.dofollow_rds ?? '—',
+                  sub: 'pass ranking value' },
+                { label: 'from outlets you pitched', value: attribution.pitched_rds ?? '—',
+                  sub: 'the defensible number' },
+                { label: 'emailed so far', value: attribution.recipients ?? '—',
+                  sub: 'climbs as the paced send finishes' },
+              ]} />
+            </div>
+          )}
+          <PressCampaignAnalytics clientId={clientId} release={release} />
+        </>
+      )}
 
       {view === 'setup' && (
       <div style={{ marginTop: 'var(--s1)' }}>
