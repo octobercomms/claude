@@ -153,4 +153,34 @@ export const api = {
 
   // Raw fetch for CSV etc — the session cookie authenticates it.
   raw: (path) => fetch(`${BASE}${path}`, { credentials: 'include' }),
+
+  // A file download that can also report on itself.
+  //
+  // A plain <a download> is enough when all you need is the bytes, and the
+  // resize panel rightly still uses one: the session lives in an httpOnly
+  // cookie, so a same-origin link authenticates without any help from here.
+  // What a link cannot do is read the response headers. An export that
+  // leaves out assets whose provider links have expired has to say how many,
+  // and it has to say it at download time rather than inside the file, so
+  // this hands back the blob along with the filename and the counts.
+  //
+  // An error body is still JSON, so a failure reads as a sentence rather
+  // than downloading a zip-shaped file containing {"error": "..."}.
+  async download(path) {
+    const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('Session expired'); }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const disp = res.headers.get('content-disposition') || '';
+    const m = disp.match(/filename="?([^"]+)"?/);
+    const num = (h) => { const v = parseInt(res.headers.get(h), 10); return Number.isFinite(v) ? v : 0; };
+    return {
+      blob: await res.blob(),
+      filename: m ? m[1] : null,
+      assets: num('X-Export-Assets'),
+      missing: num('X-Export-Missing'),
+    };
+  },
 };
