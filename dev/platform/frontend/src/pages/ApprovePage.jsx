@@ -5,12 +5,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AdPlatformPreview from '../components/AdPlatformPreview';
+import usePersistedState from '../hooks/usePersistedState';
 
 export default function ApprovePage() {
   const { token } = useParams();
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
-  const [reviewerName, setReviewerName] = useState(() => localStorage.getItem('approve-name') || '');
+  // This is the page a client opens from an email, so it is the one most
+  // likely to be opened in a private window. The bare localStorage read it
+  // used to do threw there, during render, and a client who cannot load the
+  // page cannot approve anything.
+  const [reviewerName, setReviewerName] = usePersistedState('approve-name', '');
   // The asset being looked at full size. A preview answers "does this work in
   // a feed"; the lightbox answers "is the image any good", and a client
   // signing something off asks both.

@@ -377,7 +377,20 @@ export default function SettingsPage() {
                       const reqKeys = group.keys.filter(k => !/optional/i.test(k.label));
                       const groupSet = reqKeys.length > 0 && reqKeys.every(k => values[k.key] === '••••••••');
                       return (
-                      <div key={group.title} style={{ borderLeft: `4px solid ${groupSet ? 'var(--positive)' : 'var(--card-border)'}`, background: groupSet ? 'var(--positive-soft)' : 'var(--surface-raised)', borderRadius: 'var(--r-sm)', padding: 'var(--s4) var(--s4)' }}>
+                      /* No box. Settings used to be one long page of
+                         collapsed categories, where a filled panel with a
+                         4px left rule told you where one provider's fields
+                         ended and the next began. Now that it is split into
+                         sub-tabs, every category on a tab is open, so each
+                         provider sat in a tinted box inside an open category
+                         inside a card, with its set fields tinted again:
+                         four levels of chrome around a list of text inputs.
+
+                         A rule between groups does the separating. The green
+                         is not information lost — the ✓ Set chip beside the
+                         title says the same thing in words, and the field
+                         itself shows ●●●●●●●● once stored. */
+                      <div key={group.title} style={{ paddingTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
                         <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
                           <div className="h3" style={{ margin: 0 }}>{group.title}</div>
                           {groupSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ Set</span>}
@@ -395,7 +408,7 @@ export default function SettingsPage() {
                             // goes green when every required key is filled).
                             const fieldSet = values[key] === '••••••••';
                             return (
-                            <div key={key} className="field" style={{ borderLeft: `3px solid ${fieldSet && !groupSet ? 'var(--positive)' : 'transparent'}`, background: fieldSet && !groupSet ? 'var(--positive-soft)' : 'transparent', borderRadius: 'var(--r-sm)', padding: fieldSet && !groupSet ? '8px 10px' : '0', marginLeft: fieldSet && !groupSet ? '-10px' : '0', transition: 'background .15s, border-color .15s' }}>
+                            <div key={key} className="field">
                               <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                                 {label}
                                 {fieldSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ set</span>}

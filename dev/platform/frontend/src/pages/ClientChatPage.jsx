@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { useTabParam } from '../hooks/useTabParam';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
+import usePersistedState from '../hooks/usePersistedState';
 
 // Style overrides for ReactMarkdown — keeps headings, tables, lists,
 // and code blocks legible inside a chat bubble. Same component set is
@@ -103,8 +104,11 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   const [contextLog, setContextLog] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [model, setModel] = useState(() => localStorage.getItem('oc_analyst_model') || 'claude-sonnet-4-6');
-  useEffect(() => { localStorage.setItem('oc_analyst_model', model); }, [model]);
+  // Was a bare localStorage read in the initialiser and a bare write in an
+  // effect. Both throw where site data is blocked, and a throw in an
+  // initialiser happens during render, so the page went blank rather than
+  // falling back to the default.
+  const [model, setModel] = usePersistedState('analyst-model', 'claude-sonnet-4-6');
   const CHAT_MODELS = [
     { id: 'claude-haiku-4-5',  label: 'Haiku',    hint: 'Fastest, cheapest Claude · quick lookups' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet',   hint: 'Balanced · default' },
