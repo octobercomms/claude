@@ -32,6 +32,7 @@ import { useAuth } from '../context/AuthContext';
 import ReportsPage from './ReportsPage';
 import CheckerBenchPage from './CheckerBenchPage';
 import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
+import RecordTools, { ToolRow } from '../components/database/RecordTools';
 
 const SECTIONS = [
   { key: 'connections', label: 'Connections', subs: [
@@ -756,21 +757,27 @@ function PublicationsPanel() {
             publication's; a journalist inherits it.)
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
-          <Link to="/contacts/cleanup?tab=pubdupes" className="btn btn-secondary btn-sm"
-            title="Find duplicate publications, merge them, dismiss false-positive suggestions — same Cleanup Centre as Journalists.">
-            🧹 Cleanup Centre
-          </Link>
-          <button onClick={resolveWebsites} disabled={rssBusy === 'resolve'} className="btn btn-primary btn-sm"
-            title="One click for every publication: finds feeds for those that already have a website, and finds the website AND feed (via web search) for those with none. A batch per click; the rest run automatically every night.">
+        <RecordTools label="publication" primary={
+          <button onClick={resolveWebsites} disabled={rssBusy === 'resolve'} className="btn btn-primary btn-sm">
             {rssBusy === 'resolve' ? 'Finding feeds…' : '🔎 Find websites + feeds'}
           </button>
-          <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary btn-sm"
-            title={outlets?.length ? `Download ${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}` : 'Nothing to export'}>
-            ↓ Export CSV
-          </button>
-        </div>
+        }>
+          <ToolRow note="Find duplicate publications, merge them and dismiss false positives. The same Cleanup Centre as Journalists, on its publications tab.">
+            <Link to="/contacts/cleanup?tab=pubdupes" className="btn btn-secondary">🧹 Cleanup Centre</Link>
+          </ToolRow>
+          <ToolRow note={outlets?.length ? `${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}, as a spreadsheet.` : 'Nothing to export yet.'}>
+            <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary">↓ Export CSV</button>
+          </ToolRow>
+        </RecordTools>
       </div>
+      {/* "How does find websites and feeds button work? i think i have to
+          select publications or not?" — it does not take a selection, and
+          that was only ever said in a tooltip. */}
+      <p className="body-xs text-subtle" style={{ margin: 'var(--s3) 0 0', maxWidth: 640, lineHeight: 1.5 }}>
+        <strong>Find websites + feeds</strong> runs over every publication, not the ones you have ticked:
+        it finds the feed for any that already has a website, and searches for the website and the feed
+        for any that has neither. One batch per click, and the rest run on their own overnight.
+      </p>
       <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: 'var(--s3) 0' }} />
 
       {outlets && (
@@ -2451,20 +2458,21 @@ function ContactsLibrary() {
               to the others.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
-            <Link to="/contacts/cleanup" className="btn btn-secondary btn-sm"
-              title="Find and merge duplicates, fold orphaned coverage onto the right person, fix capitalisation/emails/companies, and strip leftover Notion-URL fragments — all in one place.">
-              🧹 Cleanup Centre
-            </Link>
-            <button onClick={exportCsv} disabled={!total} className="btn btn-secondary btn-sm"
-              title={total ? `Download ${total.toLocaleString()} journalist${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
-              ↓ Export CSV
-            </button>
-            <button onClick={() => setImportOpen(true)} className="btn btn-secondary btn-sm">Import CSV</button>
+          <RecordTools label="journalist" primary={
             <button {...roWrite(readOnly, { onClick: () => setAddOpen(true) })} className="btn btn-primary btn-sm">
               + Add journalist
             </button>
-          </div>
+          }>
+            <ToolRow note="Find and merge duplicates, fold orphaned coverage onto the right person, fix capitalisation, emails and companies, and strip leftover Notion-URL fragments. It is a workspace of its own, so it opens as a page.">
+              <Link to="/contacts/cleanup" className="btn btn-secondary">🧹 Cleanup Centre</Link>
+            </ToolRow>
+            <ToolRow note={total ? `${total.toLocaleString()} journalist${total === 1 ? '' : 's'} match the filters above, and those are what the file holds.` : 'Nothing matches the filters above, so there is nothing to export.'}>
+              <button onClick={exportCsv} disabled={!total} className="btn btn-secondary">↓ Export CSV</button>
+            </ToolRow>
+            <ToolRow note="A column header row and one journalist per line. Existing people are matched on email, so re-importing an updated file corrects them rather than duplicating them.">
+              <button onClick={() => setImportOpen(true)} className="btn btn-secondary">Import CSV</button>
+            </ToolRow>
+          </RecordTools>
         </div>
 
 

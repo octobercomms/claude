@@ -26,12 +26,18 @@ export default function ProfileModal({ target, onClose, onChanged }) {
   return (
     <div
       className="modal-backdrop"
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 60, padding: 'var(--s6)', overflow: 'auto' }}
+      // A narrower gutter than before, because the card is now wide enough
+      // that var(--s6) on each side was eating into it on a laptop.
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 60, padding: 'var(--s4)', overflow: 'auto' }}
       onClick={onClose}
     >
       <div
         className="card"
-        style={{ maxWidth: 720, width: '100%', margin: 'auto', maxHeight: '92vh', overflow: 'auto' }}
+        // 80% of the viewport, capped so it does not stretch to absurd widths
+        // on a 32-inch monitor. 720px was too narrow for what these cards
+        // hold: a journalist's beats, recent coverage and contact history
+        // side by side, and a publication's whole masthead.
+        style={{ width: 'min(80vw, 1400px)', maxWidth: '100%', margin: 'auto', maxHeight: '92vh', overflow: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         {t.type === 'journalist'

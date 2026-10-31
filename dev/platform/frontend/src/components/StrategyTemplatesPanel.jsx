@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import ListDetail from './shells/ListDetail';
 
 const blank = () => ({ name: '', business_type: '', lifecycle_stage: '', summary: '', phases: [{ title: '', items: [''] }] });
 
@@ -60,12 +61,22 @@ export default function StrategyTemplatesPanel() {
   const typeLabel = (v) => meta.business_types.find(t => t.value === v)?.label || v;
   const stageLabel = (v) => meta.lifecycle_stages.find(s => s.value === v)?.label || v;
 
-  if (editing) {
-    return (
-      <div style={{ maxWidth: 760 }}>
+  // List on the left, editor on the right, rather than the editor replacing
+  // the list.
+  //
+  // The account lead: "can this be full width? or 50% and edit opens on the
+  // other 50%?" The second, because the thing you lose when the editor takes
+  // over the page is the library you are editing against — the templates are
+  // assigned by business type and lifecycle stage, and the question you ask
+  // while writing one is which of those are already covered.
+  //
+  // One column when there is nothing open, and ds-workbench collapses to one
+  // on a narrow content box anyway.
+  const editor = !editing ? null : (
+      <div>
         <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
           <h3 className="h3">{editing.id ? 'Edit template' : 'New template'}</h3>
-          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>Back</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>Close</button>
         </div>
         <div className="field"><label className="field-label">Name</label>
           <input className="input" value={editing.name} onChange={e => set({ name: e.target.value })} placeholder="e.g. Retail · Launch" /></div>
@@ -109,11 +120,10 @@ export default function StrategyTemplatesPanel() {
           <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save template'}</button>
         </div>
       </div>
-    );
-  }
+  );
 
-  return (
-    <div style={{ maxWidth: 760 }}>
+  const list = (
+    <div>
       <div className="row between center" style={{ marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <p className="body-sm text-muted" style={{ margin: 0, maxWidth: 520 }}>
           The strategy-playbook library. Each is assigned to clients by business type + lifecycle stage on their dashboard.
@@ -122,7 +132,12 @@ export default function StrategyTemplatesPanel() {
       </div>
       <div className="stack stack-sm">
         {templates.map(t => (
-          <div key={t.id} className="card" style={{ padding: 'var(--s3) var(--s4)' }}>
+          <div key={t.id} className="card" style={{
+            padding: 'var(--s3) var(--s4)',
+            // The row being edited reads as the source of what is on the
+            // right, so the two columns are one thing rather than two.
+            borderColor: editing && editing.id === t.id ? 'var(--accent)' : undefined,
+          }}>
             <div className="row between center" style={{ gap: 'var(--s3)' }}>
               <div>
                 <div className="body" style={{ fontWeight: 600 }}>{t.name} {t.is_seed && <span className="body-xs text-subtle">· seed</span>}</div>
@@ -139,4 +154,6 @@ export default function StrategyTemplatesPanel() {
       </div>
     </div>
   );
+
+  return editing ? <ListDetail list={list} detail={editor} /> : list;
 }

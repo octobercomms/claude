@@ -89,7 +89,11 @@ export default function SecurityPanel() {
   }
 
   return (
-    <div style={{ maxWidth: 900 }}>
+    // Full width. 900px left the connector table scrolling sideways on a
+    // laptop while two thirds of the screen sat empty, and this is a page you
+    // read across: a row per connector, what it can reach, and whether the
+    // key is restricted.
+    <div>
       {/* Header card */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s4)', flexWrap: 'wrap', borderLeft: `4px solid ${risk.color}` }}>
         <div>
