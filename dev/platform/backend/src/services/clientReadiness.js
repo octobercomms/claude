@@ -54,7 +54,7 @@ async function getReadiness(clientId) {
     item('competitors', 'Social', 'Social competitors configured', !!(c.social_competitors && c.social_competitors.length),
       'Feeds the weekly scrape, the AI Social Audit and the GBP/AI-SEO competitor analyses.', '/social/compare'),
     item('clarity', 'CRO', 'Microsoft Clarity connected', clarity.length > 0,
-      'Connect Clarity to get the AI CRO/funnel-leak scan.', '/convert/cro'),
+      'Connect Clarity to get the AI funnel-leak scan.', '/convert/optimise'),
     item('dm_persona', 'DM bot', 'DM bot persona configured', !!(persona.system_prompt || persona.faqs),
       'Set the persona so the Instagram DM autoresponder speaks for the brand.', '/social/swipe?drawer=dm-bot'),
     item('recipients', 'Reports', 'Weekly report recipients set', hasRecipients,
