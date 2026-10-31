@@ -2,6 +2,25 @@
 # October Platform — pull latest and redeploy
 set -e
 
+# The whole deploy lives in main() for one reason: the `git reset --hard`
+# below overwrites THIS FILE while bash is still reading it. Bash reads a
+# script incrementally by byte offset, so inserting or removing lines shifts
+# everything past the read head and the rest of the deploy runs from the wrong
+# offsets — silently skipping whatever moved, or dying on half a word.
+#
+# Deploy 700 (31 Oct 2026) proved it: a new step that verifies puppeteer's
+# browser never ran, the log jumping from "Installing backend dependencies"
+# straight to "Building WordPress plugin package" a second later, so the fix
+# for broken PDF generation could not take effect on the deploy that carried
+# it. Reproduced outside the box too, where the corruption surfaced as
+# `line 6: rt: command not found` — bash resuming mid-way through `export`.
+#
+# A function body must be parsed to its closing brace before any of it runs,
+# so the entire script is in memory before the reset happens. The call and the
+# exit share a line on purpose: as separate lines, bash reads the exit from
+# the rewritten file at the stale offset and dies looking for a quote.
+main() {
+
 SOURCE_DIR="/opt/october-source"
 FRONTEND_DIST="/var/www/platform"
 
@@ -10,6 +29,7 @@ cd "$SOURCE_DIR"
 git fetch origin main
 git reset --hard origin/main
 echo "    HEAD is now: $(git log --oneline -1)"
+
 
 echo "==> Running migrations..."
 cd "$SOURCE_DIR/dev/platform/backend"
@@ -48,9 +68,15 @@ else
   # the cache is cleared first. Deliberately `browsers clear` rather than an
   # rm -rf of a derived path: `dirname` of an empty variable is ".", so a
   # constructed delete here can point at the working directory. Clearing the
-  # whole browser cache costs one re-download of something that is already
+  # whole browser cache costs one re-download of something already
   # re-downloadable, and cannot delete anything else.
-  npx --yes puppeteer browsers clear >/dev/null 2>&1 || true
+  #
+  # `yes |` because that command always asks "permanently and recursively
+  # delete ... (yes/No)?" with no force flag, and a deploy has no TTY. Given
+  # no answer it prints "Cancelled.", leaves the broken folder in place, and
+  # the reinstall below fails exactly as before — a fix that quietly does
+  # nothing. Measured both ways rather than assumed.
+  yes | npx --yes puppeteer browsers clear >/dev/null 2>&1 || true
   npx --yes puppeteer browsers install chrome \
     && echo "    Chrome installed." \
     || echo "    WARNING: Chrome install failed — PDF generation will not work. Check 'df -h' and that yauzl installed."
@@ -140,3 +166,6 @@ fi
 echo ""
 echo "Done. $(date)"
 pm2 list --no-color | grep -E "october-platform|october-mi-shopify"
+}
+
+main "$@"; exit $?
