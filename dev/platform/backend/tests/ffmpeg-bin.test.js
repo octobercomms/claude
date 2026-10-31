@@ -20,6 +20,7 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const { FFMPEG, FFPROBE, ffmpegLocationArgs } = require('../src/services/ffmpegBin');
+const { closingAdvice } = require('../scripts/ffmpeg-check');
 
 let failed = 0;
 function check(name, fn) {
@@ -147,6 +148,57 @@ check('every converted service imports the binary it uses', () => {
     if (uses) assert.ok(imported, `${f} uses FFMPEG/FFPROBE without importing services/ffmpegBin`);
     if (imported) assert.ok(uses, `${f} imports services/ffmpegBin and never uses it`);
   }
+});
+
+check('the check script tells you which state the box is in', () => {
+  // This is the same defect the R2 preflight had: closing advice that ignores
+  // the state it just read. ffmpeg-check shipped telling you to write
+  // FFMPEG_PATH into .env while reading it out of .env, which is advice to redo
+  // work already done. process.env alone cannot tell the two apart, because
+  // dotenv does not override an existing variable — the file's own keys do.
+  const text = o => closingAdvice(o).join('\n');
+
+  const live = text({ passed: true,
+    envFile: { FFMPEG_PATH: '/opt/ffmpeg/ffmpeg', FFPROBE_PATH: '/opt/ffmpeg/ffprobe' },
+    env: { FFMPEG_PATH: '/opt/ffmpeg/ffmpeg', FFPROBE_PATH: '/opt/ffmpeg/ffprobe' } });
+  assert.ok(/already using this build/.test(live), 'a switched-over box must be told so');
+  assert.ok(!/>> \.env/.test(live), 'a switched-over box was told to append to .env again');
+  assert.ok(/sed -i/.test(live), 'the switched-over state needs the way back, not the way in');
+
+  const proven = text({ passed: true, envFile: {},
+    env: { FFMPEG_PATH: '/opt/ffmpeg/ffmpeg', FFPROBE_PATH: '/opt/ffmpeg/ffprobe' } });
+  assert.ok(/not in use/.test(proven), 'a one-off env run must say the switch is not made');
+  assert.ok(/>> \.env/.test(proven), 'the one state that needs the append was not given it');
+  assert.ok(/FFPROBE_PATH=\/opt\/ffmpeg\/ffprobe/.test(proven),
+    'the suggested line must carry the ffprobe actually tested');
+  assert.ok(!/already using/.test(proven));
+
+  // The same process.env in both of the above; only the file differs. If this
+  // pair ever matches, the distinction has been lost.
+  assert.notStrictEqual(live, proven,
+    'a switched-over box and a one-off test run printed identical advice');
+
+  const path = text({ passed: true, envFile: {}, env: {} });
+  assert.ok(/binary on PATH/.test(path));
+  assert.ok(/FFMPEG_PATH=\/opt/.test(path), 'the baseline run should show how to test a candidate');
+
+  const bad = text({ passed: false });
+  assert.ok(/Do not point the platform at this build/.test(bad));
+  assert.ok(/Nothing has changed/.test(bad), 'a failure must say nothing was altered');
+  assert.ok(!/All checks passed/.test(bad));
+});
+
+check('half a switch is called out, not called done', () => {
+  // ffmpeg from /opt and ffprobe from PATH is two builds in one pipeline, and
+  // every check above would still pass: they run whichever ffprobe resolved.
+  const half = closingAdvice({ passed: true,
+    envFile: { FFMPEG_PATH: '/opt/ffmpeg/ffmpeg' }, env: {} }).join('\n');
+  assert.ok(/NOT FFPROBE_PATH/.test(half), 'the missing half was not named');
+  assert.ok(/two builds in one pipeline/.test(half), 'the consequence was not stated');
+  assert.ok(/FFPROBE_PATH=\/opt\/ffmpeg\/ffprobe/.test(half),
+    'the fix should derive the matching ffprobe from the ffmpeg path');
+  assert.ok(!/Nothing to do/.test(half), 'a half-done switch was reported as nothing to do');
+  assert.ok(!/sed -i/.test(half), 'the fix is to add the missing line, not to roll back');
 });
 
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
