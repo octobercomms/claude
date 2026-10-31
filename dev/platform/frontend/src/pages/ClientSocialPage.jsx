@@ -27,6 +27,7 @@ import SideDrawer from '../components/ui/SideDrawer';
 import SocialFactoryMap from '../components/SocialFactoryMap';
 import { useScreen } from '../hooks/useScreen';
 import { palette as UiPalette } from '../styles/tokens';
+import { fieldState, shouldCommit } from '../utils/fieldEdit';
 const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
 
 // Social Phase 1 — generate 9 posts at a time, grounded in the client's
@@ -1167,30 +1168,75 @@ function ProdGroup({ title, children }) {
 
 // Click-to-edit text — shows the value with a small "✎ edit" affordance; the
 // editor saves via onSave(newValue). Used for a post's hook and caption.
+// A post field you can just type in.
+//
+// "Edit text as well as refine with claude." The field was already editable —
+// behind a 12px "edit" pill beside the label, which is an affordance nobody
+// finds while a Claude panel takes the other half of the screen. So the
+// capability existed and read as if it did not, which is the same thing as not
+// having it. It is a real input now: no mode, no pill, no Save button. It
+// saves when you leave the field, and on Cmd/Ctrl+Enter for anyone who never
+// leaves it.
+//
+// It also fixes a quiet data loss the edit mode was hiding. The old effect was
+// `if (!editing) setDraft(value)`, so a revision Claude applied while you had
+// the field open was dropped the moment you pressed Save: your draft won and
+// Claude's rewrite vanished without a word. Now the field says so and offers
+// it rather than picking a winner quietly.
 function EditableText({ label, value, multiline, placeholder, onSave }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value || '');
-  useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
+  const current = value || '';
+  const [draft, setDraft] = useState(current);
+  const [focused, setFocused] = useState(false);
+  // What the field held when you started typing. Comparing against this, not
+  // against the draft, is how "somebody else changed it underneath me" is told
+  // apart from "I have changed it".
+  const atFocus = useRef(current);
+
+  // Follow the record while the field is yours to follow: not focused, and
+  // nothing typed that has not been saved. This is how Claude's revision
+  // reaches the field in the ordinary case.
+  useEffect(() => {
+    if (!focused) { setDraft(current); atFocus.current = current; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
+  // The decision is in utils/fieldEdit.js, where it can be tested: arranging
+  // "Claude applied a revision while the caret was in the textarea" from
+  // outside the page is not something a browser drive can do.
+  const { dirty, clash } = fieldState({ draft, current, atFocus: atFocus.current, focused });
+
+  function commit() {
+    setFocused(false);
+    if (shouldCommit({ draft, current })) onSave(draft);
+  }
+  function onFocus() { setFocused(true); atFocus.current = current; }
+  const take = () => { setDraft(current); atFocus.current = current; };
+
   return (
     <div style={{ marginTop: 'var(--s3)' }}>
       <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
         <span>{label}</span>
-        {!editing && <button type="button" onClick={() => setEditing(true)} className="inline-edit-btn">edit</button>}
+        {dirty && (
+          <span className="body-xs text-subtle" style={{ textTransform: 'none', letterSpacing: 0 }}>unsaved</span>
+        )}
       </div>
-      {editing ? (
-        <div>
-          {multiline
-            ? <textarea className="input" value={draft} onChange={e => setDraft(e.target.value)} style={{ minHeight: 90, width: '100%' }} placeholder={placeholder} />
-            : <input className="input" value={draft} onChange={e => setDraft(e.target.value)} style={{ width: '100%' }} placeholder={placeholder} />}
-          <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => { onSave(draft); setEditing(false); }}>Save</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setDraft(value || ''); setEditing(false); }}>Cancel</button>
-          </div>
+      {multiline
+        ? <textarea className="input" value={draft} placeholder={placeholder}
+            onChange={e => setDraft(e.target.value)} onFocus={onFocus} onBlur={commit}
+            onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+            style={{ minHeight: 90, width: '100%' }} />
+        : <input className="input" value={draft} placeholder={placeholder}
+            onChange={e => setDraft(e.target.value)} onFocus={onFocus} onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+            style={{ width: '100%', fontWeight: 700 }} />}
+      {clash && (
+        <div className="callout callout-warning" style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
+          Claude rewrote this while you were typing.{' '}
+          <button type="button" className="btn-link" style={{ fontSize: 'var(--fs-caption)' }} onClick={take}>
+            Take Claude&apos;s version
+          </button>
+          {' '}— or carry on, and yours is what saves.
         </div>
-      ) : (
-        multiline
-          ? <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
-          : <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, lineHeight: 1.4 }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
       )}
     </div>
   );
