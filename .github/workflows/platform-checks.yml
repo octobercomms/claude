@@ -141,6 +141,13 @@ jobs:
         run: node tests/r2-preflight.test.js
       - name: Guard — one ffmpeg for the whole backend
         run: node tests/ffmpeg-bin.test.js
+      # The box installs with --omit=dev, so this asks about that tree only.
+      # It replaced 59 findings (1 critical) on 31 Oct 2026; see
+      # docs/omi/dependency-audit.md for what was fixed and what is accepted.
+      - name: Guard — no known-vulnerable production dependencies
+        run: node scripts/audit-check.js --all
+      - name: Guard — a PDF leaves the service as a Buffer, not JSON
+        run: node tests/pdf-buffer.test.js
       # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
       # the runner is given ffmpeg rather than trusted to have it, and each

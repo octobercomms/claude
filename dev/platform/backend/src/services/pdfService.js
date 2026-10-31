@@ -778,7 +778,13 @@ async function generatePDFBuffer(htmlContent, options = {}) {
         ? { top: '0', right: '0', bottom: '30mm', left: '0' }
         : { top: '0', right: '0', bottom: '0', left: '0' },
     });
-    return buffer;
+    // puppeteer 24 changed page.pdf() to return a Uint8Array rather than a
+    // Node Buffer. Every caller here hands the result to res.send(), and
+    // Express only treats a real Buffer as binary: a bare Uint8Array falls
+    // through to its object branch and is JSON-stringified, so a downloaded
+    // report would arrive as {"0":37,"1":80,...} under a PDF content-type.
+    // Converting once, here, keeps all six call sites unchanged.
+    return Buffer.from(buffer);
   } finally {
     await browser.close();
   }
