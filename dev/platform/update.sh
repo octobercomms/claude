@@ -19,6 +19,43 @@ echo "==> Installing backend dependencies..."
 cd "$SOURCE_DIR/dev/platform/backend"
 npm install --omit=dev --silent
 
+# ─── puppeteer's browser ───────────────────────────────────────────────
+# npm install runs puppeteer's postinstall, which downloads Chrome. That can
+# fail — or finish half-written — while npm still exits 0, and --silent hides
+# it. On 31 Oct 2026 a puppeteer 22 -> 25 bump did exactly that: the deploy
+# reported success and every PDF (PR portal, overview, AI visibility, chat
+# export) failed at runtime with "Could not find Chrome", because the version
+# folder existed with no executable in it.
+#
+# The cause was extraction, not the download: puppeteer 22 bundled extract-zip
+# (one of the advisories this upgrade cleared) and 25 dropped it, so it needs
+# a system `unzip` or the optional `yauzl` package. `yauzl` is now a backend
+# dependency, which fixes it in the repo rather than on one box — but a
+# verified browser is still cheaper than a surprised account manager.
+#
+# Not fatal on failure: the backend is reloaded below and PDFs are one
+# feature. A loud warning in the deploy log is the right weight.
+echo "==> Checking puppeteer's browser..."
+# executablePath() returns a PROMISE in puppeteer 25 (it was a string in 22),
+# so this awaits it. Writing the sync value straight to stdout printed
+# "[object Promise]" and reported every healthy box as broken.
+CHROME_BIN="$(node -e "Promise.resolve(require('puppeteer').executablePath()).then(p=>process.stdout.write(String(p))).catch(()=>{})" 2>/dev/null || true)"
+if [ -n "$CHROME_BIN" ] && [ -x "$CHROME_BIN" ]; then
+  echo "    Chrome present: $CHROME_BIN"
+else
+  echo "    Chrome missing or incomplete — reinstalling."
+  # A part-written download leaves its folder behind and blocks the retry, so
+  # the cache is cleared first. Deliberately `browsers clear` rather than an
+  # rm -rf of a derived path: `dirname` of an empty variable is ".", so a
+  # constructed delete here can point at the working directory. Clearing the
+  # whole browser cache costs one re-download of something that is already
+  # re-downloadable, and cannot delete anything else.
+  npx --yes puppeteer browsers clear >/dev/null 2>&1 || true
+  npx --yes puppeteer browsers install chrome \
+    && echo "    Chrome installed." \
+    || echo "    WARNING: Chrome install failed — PDF generation will not work. Check 'df -h' and that yauzl installed."
+fi
+
 echo "==> Building WordPress plugin package..."
 # The platform is the plugin's distribution point: it serves this zip to new
 # installs and to the self-updater. Built in pure Node (no `zip` CLI needed) so
