@@ -166,8 +166,14 @@ export const api = {
   //
   // An error body is still JSON, so a failure reads as a sentence rather
   // than downloading a zip-shaped file containing {"error": "..."}.
-  async download(path) {
-    const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
+  // `body` makes it a POST, which is what a download that spends has to be:
+  // the auth middleware blocks every non-GET for the read-only client role,
+  // and that is the single guarantee a client login cannot run up a bill.
+  async download(path, body = null) {
+    const res = await fetch(`${BASE}${path}`, {
+      credentials: 'include',
+      ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
+    });
     if (res.status === 401) { window.location.href = '/login'; throw new Error('Session expired'); }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -185,6 +191,13 @@ export const api = {
       // does not tell you whether it took the four you ticked or the whole
       // batch of nine. Paid does not send it and 0 is the right answer there.
       posts: num('X-Export-Posts'),
+      // The social report says what it covered without being opened: a
+      // report that quietly left out half an account is the failure here.
+      report: {
+        posts: num('X-Report-Posts'),
+        viaOmi: num('X-Report-Via-Omi'),
+        connected: res.headers.get('X-Report-Connected') === '1',
+      },
     };
   },
 };

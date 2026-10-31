@@ -24,6 +24,7 @@ import SwipeFilePanel from '../components/SwipeFilePanel';
 import SubredditResearchPanel from '../components/SubredditResearchPanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import { tickedIds, toggleTick, tickSummary } from '../utils/ticks';
+import FeatureCost from '../components/FeatureCost';
 import usePersistedState from '../hooks/usePersistedState';
 import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
@@ -81,6 +82,8 @@ export default function ClientSocialPage() {
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [downloadingBatch, setDownloadingBatch] = useState(false);
+  const [reportDays, setReportDays] = useState(30);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   // Download the batch and post it by hand. Fetched rather than linked: a
   // plain <a download> would authenticate fine, since the session is an
@@ -120,6 +123,36 @@ export default function ClientSocialPage() {
       toast(e.message, 'error');
     } finally { setDownloadingBatch(false); }
   }
+  // The monthly report the client gets. A POST, because it spends: one
+  // Claude call for the analysis and a live read of the connected Instagram
+  // account. Fetched rather than linked for the same reason the batch export
+  // is: a plain link cannot read the headers that say what the report
+  // covered, and "did it include the posts we did not publish" is the first
+  // question worth answering about it.
+  async function downloadReport() {
+    setDownloadingReport(true);
+    try {
+      const { blob, filename, report } = await api.download(
+        `/social/clients/${id}/report`, { days: reportDays });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'social-report.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      const elsewhere = report.posts - report.viaOmi;
+      toast(report.connected
+        ? `${report.posts} post${report.posts === 1 ? '' : 's'} in the report`
+          + `${elsewhere > 0 ? `, ${elsewhere} of them published outside OMI.` : ', all published through OMI.'}`
+        : `${report.posts} post${report.posts === 1 ? '' : 's'}, from OMI's own record only — Instagram is not connected.`,
+        report.connected ? 'success' : 'warning');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally { setDownloadingReport(false); }
+  }
+
   // Top-level: overview / performance / pipeline / dm_bot (mirrors Organic).
   // Performance sub-tabs absorbed the old Insights group (winners +
   // competitors). Pipeline has 4 numbered steps. DM bot is its own
@@ -458,6 +491,39 @@ export default function ClientSocialPage() {
   // read-out was the whole of it, which is why it had no daily use.
   const renderReview = () => (
     <div className="stack-lg">
+      {/* The report, at the top of Measure, because it is the one thing on
+          this screen a client ever sees. "I'd love to build a social media
+          report I can download and send to clients" was four review items;
+          this is the download, and it covers the account rather than only
+          what OMI published. */}
+      <div className="card">
+        <div className="caption">Monthly report</div>
+        <h2 className="h2 mt-2">The report you send the client</h2>
+        <p className="body-sm text-muted mt-2" style={{ maxWidth: 680, lineHeight: 1.6 }}>
+          Every post on the account in the window, whoever published it, with
+          what worked and what did not and three things to do next month. Where
+          Instagram is connected it reads the account itself, so posts the
+          client put up are counted alongside ours and named as theirs. Where it
+          is not, the report says it covers OMI&apos;s own posts only rather than
+          passing off half a month as a whole one.
+        </p>
+        <div className="row wrap center mt-4" style={{ gap: 'var(--s3)' }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="field-label">Window</label>
+            <select className="input" value={reportDays} onChange={e => setReportDays(Number(e.target.value))}
+              disabled={downloadingReport}>
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+          </div>
+          <UiButton variant="primary"
+            {...roWrite(readOnly, { onClick: downloadReport, disabled: downloadingReport })}>
+            {downloadingReport ? 'Building…' : '↓ Download the report'}
+          </UiButton>
+          <FeatureCost feature="social_report_summary" />
+        </div>
+      </div>
       <SocialDecisions
         winners={winners}
         frameworks={frameworkBreakdown}

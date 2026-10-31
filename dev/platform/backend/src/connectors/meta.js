@@ -210,6 +210,80 @@ async function fetchInstagramMediaInsights(credentials, mediaId) {
   }
 }
 
+// Every post on the connected Instagram account in a window, whoever
+// published it.
+//
+// The engagement OMI stores covers the posts OMI published. A client's own
+// account also carries posts the client, an intern or a previous agency put
+// up, and a monthly report that silently omits those is not a report on the
+// account. This reads the account's own feed.
+//
+// Insights come back on the same request as a sub-field rather than one call
+// per post: a month of a busy account is 60+ posts, and 60 serial calls is a
+// minute of wall clock and a rate-limit risk. A post whose insights the API
+// refuses (too old, or a type the metric does not apply to) keeps its row with
+// `insights: null` rather than losing the post.
+//
+// `since`/`until` are Dates. The Graph API's media edge does not filter by
+// date, so the window is applied here and paging stops once the page is older
+// than `since` — media comes back newest first.
+async function fetchInstagramMedia(credentials, { igId, since, until, limit = 200 } = {}) {
+  if (!igId) throw new Error('No Instagram business account on this Meta connection.');
+  const fields = [
+    'id', 'caption', 'media_type', 'media_product_type', 'permalink', 'timestamp',
+    'like_count', 'comments_count',
+    'insights.metric(reach,total_interactions,saved,shares)',
+  ].join(',');
+
+  const out = [];
+  let url = `${BASE_URL}/${igId}/media`;
+  let params = { access_token: credentials.access_token, fields, limit: 50 };
+  // Capped rather than unbounded: a paging loop over somebody else's API
+  // needs a stop that does not depend on their cursor behaving.
+  for (let page = 0; page < 10 && out.length < limit; page += 1) {
+    const { data } = await axios.get(url, { params });
+    const rows = data.data || [];
+    if (!rows.length) break;
+    let olderThanWindow = false;
+    for (const m of rows) {
+      const when = m.timestamp ? new Date(m.timestamp) : null;
+      if (since && when && when < since) { olderThanWindow = true; continue; }
+      if (until && when && when > until) continue;
+      out.push({
+        id: m.id,
+        caption: m.caption || null,
+        media_type: m.media_product_type === 'REELS' ? 'reel' : String(m.media_type || '').toLowerCase() || null,
+        permalink: m.permalink || null,
+        posted_at: m.timestamp || null,
+        likes: m.like_count ?? null,
+        comments: m.comments_count ?? null,
+        insights: insightsFromEdge(m.insights),
+      });
+      if (out.length >= limit) break;
+    }
+    if (olderThanWindow) break;
+    const next = data.paging?.next;
+    if (!next) break;
+    url = next;
+    params = undefined;   // the cursor URL already carries the token and fields
+  }
+  return out;
+}
+
+// The insights sub-field comes back as { data: [{ name, values: [{ value }] }] }.
+// Returns null when the API declined to give any, so the caller can tell
+// "no insights" from "zero reach".
+function insightsFromEdge(edge) {
+  const rows = edge?.data;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const out = {};
+  for (const entry of rows) {
+    const v = entry.values?.[0]?.value;
+    if (typeof v === 'number') out[entry.name] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 // IG / TT URLs encode the media id in a base64-ish shortcode. Decoding
 // is well-known but undocumented. Used so the AM can paste an Instagram
 // post URL and we resolve the media id without round-tripping the API.
@@ -497,6 +571,7 @@ async function publishMultiPhotoToFacebook({ pageId, pageAccessToken, caption, i
 module.exports = {
   authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity,
   fetchData, listAccounts, getAccessReport, fetchInstagramMediaInsights,
+  fetchInstagramMedia, _insightsFromEdge: insightsFromEdge,
   fetchFacebookPostEngagement,
   parseSocialUrl, shortcodeToMediaId,
   pickPublishingTargets, publishToFacebookPage, publishToInstagram,
