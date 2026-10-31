@@ -39,7 +39,7 @@ up the new env with no downtime, and `october-mi-shopify` is never touched. (It
 does not use ffmpeg at all.)
 
 **The real risk is not the download, it is eleven services jumping three major
-versions.** Between 4.4 and 7.x, filter defaults change, filters get renamed,
+versions.** Between 4.4 and 8.x, filter defaults change, filters get renamed,
 and a static build may be compiled without libass (captions) or libmp3lame
 (transcription and swipe audio). None of that fails at startup. It fails later,
 in a background render, where the only symptom is a job that never finishes.
@@ -47,10 +47,9 @@ That is what `scripts/ffmpeg-check.js` is for, and why step 2 is not optional.
 
 ## 1. Install a build, changing nothing live
 
-Prefer a **pinned 7.x GPL build**, not a master snapshot. GPL builds are the
-ones that include libass, libfreetype, libmp3lame, libvpx, libopus and x264.
-
-List what is published, then take the newest `n7.` GPL tarball:
+List what is published rather than trusting a URL written down here, because
+the version lines move. On 31 Oct 2026 this returned 8.1 and 9.0, and no 7.x at
+all:
 
 ```bash
 curl -sL https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest \
@@ -58,15 +57,27 @@ curl -sL https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest \
   | cut -d'"' -f4
 ```
 
-Pick the one whose name carries a version (`ffmpeg-n7.1...-linux64-gpl-7.1.tar.xz`)
-over `ffmpeg-master-latest-...`, then:
+Three rules for picking out of that list:
+
+- **A version in the name, not `master-latest`.** A master snapshot is whatever
+  was committed that day.
+- **Not `-shared`.** The shared builds need their `lib/` directory beside them
+  and an `LD_LIBRARY_PATH`; the plain ones are static and self-contained, which
+  is the whole reason this lives in `/opt` instead of being a package.
+- **Not the newest major, unless the newest is all there is.** One line back
+  (8.1 when 9.0 exists) has had longer in the field, and the jump from 4.4 is
+  already three majors. Any 6.0 or later has `-cues_to_front`, so the newest
+  buys nothing here.
+
+That gave `ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz`:
 
 ```bash
+VER=ffmpeg-n8.1-latest-linux64-gpl-8.1        # whatever you picked, minus .tar.xz
 cd /tmp
-curl -LO "<the URL you picked>"
-tar xf ffmpeg-n7*.tar.xz
+curl -LO "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$VER.tar.xz"
+tar xf "$VER.tar.xz"
 sudo mkdir -p /opt/ffmpeg
-sudo cp ffmpeg-n7*/bin/ffmpeg ffmpeg-n7*/bin/ffprobe /opt/ffmpeg/
+sudo cp "$VER/bin/ffmpeg" "$VER/bin/ffprobe" /opt/ffmpeg/
 sudo chmod +x /opt/ffmpeg/ffmpeg /opt/ffmpeg/ffprobe
 /opt/ffmpeg/ffmpeg -version | head -1
 /usr/bin/ffmpeg -version | head -1      # still 4.4, untouched

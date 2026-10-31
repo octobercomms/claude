@@ -88,8 +88,10 @@ remuxed WebM keeps its seek index at the tail: on a 5-minute capture, byte
 and drops the flag where it is unsupported, so nothing fails; three recordings
 (`13464815`, `1b82dce3`, `b7f3d0c4`) are still indexed at the tail and want
 `remux-backfill.js --commit --force` after the upgrade.
-`docs/omi/ffmpeg-upgrade.md` is the runbook: a pinned 7.x static build in
-`/opt`, proven with `scripts/ffmpeg-check.js`, switched on with two lines in
+`docs/omi/ffmpeg-upgrade.md` is the runbook: a pinned static build in `/opt`
+(8.1 as of 31 Oct 2026; BtbN publishes 8.1 and 9.0 and no 7.x, so check the
+list rather than a version written down), proven with
+`scripts/ffmpeg-check.js`, switched on with two lines in
 `.env` and a reload, and rolled back by deleting them. The system package is
 never touched.
 
