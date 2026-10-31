@@ -119,6 +119,16 @@ genuinely needs step 3 is a change **outside** those four paths that still has
 to reach the box, or a merge where the dispatch step itself failed — it logs
 `could not dispatch platform-deploy` and says the merge is not live.
 
+**The box runs two pm2 apps, and `pm2 kill` stops both** (31 Oct 2026):
+`october-platform` (port 3001, platform.octobercomms.com, `dev/platform/backend`)
+and `october-mi-shopify` (port 3002, omi.octobercomms.com,
+`dev/october-mi-shopify`, started from `ecosystem.config.cjs`). `update.sh`
+reloads each one by name, so a normal deploy is safe. A manual `pm2 kill` —
+needed for a Node upgrade, since pm2 keeps the interpreter it started with —
+takes the daemon down and therefore both apps. The Node 22 runbook named only
+`october-platform`, so omi.octobercomms.com stayed dead after the kill until
+someone checked it. Run `pm2 list` first, then start every app it showed.
+
 `update.sh` also syncs `dev/platform/nginx/platform.conf` to
 `/etc/nginx/sites-available/`, runs `nginx -t`, and reloads only if that
 passes. An nginx change ships with the deploy; it needs nothing by hand.
@@ -1882,7 +1892,10 @@ progress is obvious on `platform.octobercomms.com`.
   and nothing else. It is a handover, not a changelog.
 - OMI = `platform.octobercomms.com` (`dev/platform`). Events app =
   `*.pages.dev` (`dev/october-platform`). Never confuse them.
-- Deploy is **manual after every merge** (auto-merge bypasses `on: push`).
+- Deploy is **dispatched for you** by `auto-merge-claude.yml` after a merge
+  touching the platform paths (auto-merge bypasses `on: push`, so the workflow
+  calls `platform-deploy.yml` itself). Verify the run; dispatch only if none
+  appeared. §3.
   Whether you run it yourself depends on the permissions in
   `.claude/settings.json`; this guide cannot grant them and neither can you.
 - The sandbox **does** run the full stack (Postgres + backend + Vite +

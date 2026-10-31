@@ -102,26 +102,57 @@ node --version
 
 ### Then, either way
 
-`node_modules` was installed by Node 20. Reinstall rather than trusting it:
+**The box runs two pm2 apps, not one.** List them before you touch anything,
+because `pm2 kill` stops the daemon and therefore every app under it:
+
+```bash
+pm2 list
+```
+
+| App | Port | Serves | Code |
+|-----|------|--------|------|
+| `october-platform` | 3001 | platform.octobercomms.com | `dev/platform/backend` |
+| `october-mi-shopify` | 3002 | omi.octobercomms.com | `dev/october-mi-shopify` |
+
+If `pm2 list` shows anything else, add it to the restart block below before
+you run it. A missing app comes back only when someone notices it is gone.
+
+Both apps' `node_modules` were installed by Node 20. Reinstall rather than
+trusting them:
 
 ```bash
 cd /opt/october-source/dev/platform/backend
 rm -rf node_modules
 npm ci --omit=dev
+
+cd /opt/october-source/dev/october-mi-shopify
+rm -rf node_modules
+npm ci                      # full install: the Remix build needs dev deps
+npx --yes prisma generate
+npm run build
+npm prune --omit=dev
 ```
 
 pm2 keeps running under the interpreter it was started with, so it needs more
-than a reload:
+than a reload. Start **both** apps back up:
 
 ```bash
 pm2 kill
 pm2 start /opt/october-source/dev/platform/backend/ecosystem.config.js
+pm2 start /opt/october-source/dev/october-mi-shopify/ecosystem.config.cjs
 pm2 save
-pm2 info october-platform | grep -i "node.js version"
+pm2 info october-platform   | grep -i "node.js version"
+pm2 info october-mi-shopify | grep -i "node.js version"
+pm2 list                    # both online, 0 restarts
 ```
 
-`pm2 kill` stops the daemon, so the site is down for the few seconds between
-those two commands. Do it when nobody is watching a share link.
+`pm2 kill` stops the daemon, so both sites are down for the few seconds
+between those commands. Do it when nobody is watching a share link.
+
+This cost us an outage on 31 October 2026: the runbook named only
+`october-platform`, so `october-mi-shopify` stayed dead after the kill until
+someone checked omi.octobercomms.com. `update.sh` restarts both; a manual
+`pm2 kill` does not.
 
 ## Checking it worked
 
@@ -131,6 +162,8 @@ node --version                              # v22.x
 node scripts/media-store-status.js          # driver r2, everything present
 node scripts/r2-preflight.js                # 7 of 7, and no SDK warning
 pm2 logs october-platform --lines 40        # no startup errors
+pm2 logs october-mi-shopify --lines 40      # no startup errors
+curl -s -o /dev/null -w "%{http_code}\n" localhost:3002   # 200
 ```
 
 Then open the platform, play a client video, and send a share link to
@@ -140,8 +173,8 @@ yourself. The preflight proves the SDK; only a real watch proves the route.
 
 The old Node is still installed under nvm (`nvm use 20.20.2`) or recoverable
 from NodeSource's `setup_20.x`. The sequence is the same in reverse: switch
-the interpreter, `rm -rf node_modules && npm ci --omit=dev`, `pm2 kill` and
-start again.
+the interpreter, rebuild both apps' `node_modules`, `pm2 kill` and start both
+again.
 
 Nothing in this upgrade touches the database, `.env`, or R2. The only state
 that changes is `node_modules`, which is rebuilt from `package-lock.json`
