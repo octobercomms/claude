@@ -936,21 +936,28 @@ is a row in Paid's section panel now (§5).**
 | Health → Competitors | Build → Competitors | research that feeds a brief |
 | Health → Playbook | the ⋮ drawer, full diagram in Guide | reference, not a section |
 | Build → Audiences (accordion) | Build → Audiences (tab) | standing data, never a step |
-| Build → Resize (accordion) | an action on a library item | you resize a thing, you do not visit Resize |
-| nothing | Build → Creative | see below |
+| Build → Resize (accordion) | a row of its own again (31 Oct) | see the correction below |
+| nothing | Build → Creative | removed again 31 Oct — see below |
 
 **Build takes Produce's shape**: the guided route first (Make a batch), then
 the things that are not steps as peer tabs. That answers the complaint wizards
 earn — useful until you want one section — without duplicating each step as
 its own tab.
 
-**The creative library did not exist.** Paid renders land in
-`ad_creative_images` and had no view anywhere, so the only route to a finished
-ad was the batch that made it. `GET /ad-creatives/clients/:id/library` and
-`PaidLibraryPanel` are that view. It is why Resize felt orphaned: a tool with
-nothing to point at. Resizing now starts from a library item, which the server
-resolves by **id, never a URL** — taking a URL from the client would be an
-open proxy pointed wherever the caller fancied.
+**The creative library did not exist**, so one was built: `GET
+/ad-creatives/clients/:id/library` and `PaidLibraryPanel`, with Resize
+starting from a library item.
+
+> **Superseded 31 Oct 2026.** Daniel asked for the library to be removed, and
+> it is gone along with its endpoint — finished creative is reachable from the
+> batch that made it and from the Launch export (§ Paid, third pass). Resize
+> has its own row again and takes an upload. The reasoning above was sound and
+> the account lead's preference beat it, which is the right order.
+>
+> The one thing to keep from it: the resize endpoint resolves creative by
+> **id, never a URL**, because taking a URL from the client would be an open
+> proxy pointed wherever the caller fancied. That branch survives even though
+> nothing in the UI reaches it today.
 
 Research reaches the brief now. `briefSeedFor` in `utils/competitorBrief.js`
 turns a competitor run into brief text, and the button does not render when
@@ -1172,6 +1179,121 @@ step does before committing to a brief.
 
 `PipelineStep` keeps `onNext` because Organic and Shared still pass it. Paid
 dropping its hand-offs is not a reason to change pages nobody has reviewed.
+
+#### Paid, third pass: the ten-item review (31 Oct 2026)
+
+Ten items off a page-by-page read of Paid, plus Setup, SOSTAC and the mobile
+view. What is worth carrying forward is mostly not the features.
+
+**The Build pipeline is four steps, not five.** Approve was a three-line
+summary and one button between two steps that do real work, and a step
+implies a decision it did not have. Minting a client link is a header button
+beside Playbook now, and it names the batch it is about to share — which the
+step could not, because it shared whatever happened to be selected.
+
+**Draft is editable.** Changing a headline used to mean briefing Claude.
+`ConceptEditModal` has plain fields with the refine chat beside them, and
+applying a revision fills the fields rather than saving, so you can keep
+Claude's headline and your own body.
+
+**The framework chip shows `framework_rationale`.** The generator has written
+and stored a per-concept rationale since the feature shipped and the frontend
+never displayed it. If a field exists in the schema and nothing renders it,
+check whether it is being paid for.
+
+**Launch exports.** It claimed to be "a manual export with the pre-launch
+checklist" and had no download. A page that describes a capability it does
+not have is worse than an empty one, because people plan around it.
+
+**`show_to_client`** (migration 222) holds a concept back from the approval
+link without deleting it. Render shows the count, the approval page filters,
+and the export records it.
+
+**The Paid library is gone** and Resize has its own row. Resize only ever
+hung off the library, so removing one without rehoming the other would have
+made a working tool unreachable.
+
+**Audiences is three screens** (ICP, Segments, Customers), behind one
+component with a `view` prop. The one-page version had no question it
+answered. Daniel overruled a proposal to fix it in place; the split was the
+right call and each screen states its job in a line.
+
+**Competitors buys one answer, not two.** Quick Start asked Claude to name
+competitors and kept only the hostnames; the panel asked again on every open
+and lost the answer on navigation. `client_competitors` (migration 221) holds
+the record and `clients.competitor_domains` is rebuilt from it in the same
+transaction, because seven services read that column.
+
+**SOSTAC items carry a `how`** — three or four steps written at tailor time,
+riding the generation that already runs. `max_tokens` went 5000 → 8000; at
+5000 the reply truncated and the parse threw.
+
+**The phone gets a screen picker,** not a 44px horizontal scroller holding
+four of Owned's 29 rows at a time.
+
+#### Four bugs nobody reported (31 Oct 2026)
+
+Each was found while doing something else, and each had been live for a while.
+
+**Every legacy Paid alias was broken.** `resolvePaidTab` was being handed the
+tab key from `useScreen`, which maps an unknown slug to the section default
+before anything else runs — so the table only ever saw `'measure'` and
+matched nothing. `/ads/playbook` showed Measure with no drawer, which is
+exactly the silent breakage the table's own comment says it exists to
+prevent. Every unit test passed throughout, because they called the table
+directly with the alias. **Nothing tested the call site.** There is now a
+test that reads it.
+
+**`screenForPath` matched `/settings` literally**, so when Database and Biz
+dev became sections of their own every `/database/*` path answered null and
+the panel lit Health while the page showed Journalists. Mine, from earlier
+the same day. It reads the section's own `leaf` now.
+
+**The report builder printed `£` on all e-commerce revenue** regardless of
+the store's currency. Harmless while every shop billed in sterling; the
+Stripe connector brought a dollar client, and the figure would have been
+wrong by whatever the rate is, in a direction nobody checks.
+
+**The connector credential form silently dropped a field's `hint`.** Found by
+writing one. Guidance a form discards is worse than none, because whoever
+wrote it believes the user was told.
+
+#### The shape of a test that passes for the wrong reason (31 Oct 2026)
+
+Three in one session, all caught by mutation testing rather than by care.
+They share a shape: **the assertion could not have failed.**
+
+- **An `||` with a clause that is always true.** `daily.every(d => …) ||
+  daily.length === 1` — the fixture put every charge on one date, so the
+  second clause held whatever the first did. Spread the fixture across days
+  and drop the escape hatch.
+- **A case that never reaches the code it names.** The path-traversal test
+  used a url with slashes in the filename, which never matches the route
+  pattern at all, so it exercised the regex and said nothing about the
+  containment check it claimed to test. Deleting that check kept the test
+  green.
+- **A measurement that does not mean what it looks like.**
+  `getBoundingClientRect()` returns a 16px box for a descendant of a closed
+  `<details>`, because content-visibility hides without collapsing. The fold
+  assertion would have passed with the fold removed. `checkVisibility()` is
+  the one that tells the truth.
+
+The lesson is not "write tests more carefully". It is **mutate the code and
+watch the test fail**, every time, because all three of these were written
+carefully.
+
+#### Three tooling traps in this container (31 Oct 2026)
+
+- **A python `.replace()` with no assert silently does nothing.** Two
+  assertions were added to a test file, the anchor did not match, the file
+  was unchanged, and the suite reported green with the new checks never run.
+  Every scripted edit needs `assert old in s`.
+- **Playwright's `uncheck()` fights a controlled checkbox.** It re-reads the
+  state before React has re-rendered, concludes its click failed, and clicks
+  again — landing back where it started. Use `click()` and wait.
+- **A drive must reset the stub at the start, not the end.** Tidying up at
+  the end leaves a mess whenever the drive crashes, and the next run then
+  fails for reasons unrelated to the code.
 
 #### Two test-shaped mistakes worth not repeating (30 Oct 2026)
 
@@ -2476,6 +2598,32 @@ progress is obvious on `platform.octobercomms.com`.
   success. `callClaude` hands back text only, so a caller cannot see
   `stop_reason: max_tokens` and must not assume a parse failure means empty
   input. Guarded by `backend/tests/press-import.test.js`.
+- **Shops are `services/ecomTypes.js`, not a literal pair.** The check
+  `connector_type === 'shopify' || 'woocommerce'` was written out in five
+  places and adding Stripe meant editing five and hoping. One of them was an
+  if/else, so a client on any third shop silently got no e-commerce section in
+  their report.
+- **A connector's own currency, never a hardcoded symbol.** The report builder
+  printed £ on every e-commerce row whatever the store billed in. Harmless
+  while every shop was sterling; the first dollar client makes it a wrong
+  number in a direction nobody checks. Every ecom summary carries `currency`.
+- **Stripe quotes amounts in the currency's smallest unit**, and the divisor
+  is per currency — 1000 is £10.00 but ¥1000. It comes from the runtime's ISO
+  4217 data (`Intl.NumberFormat(...).resolvedOptions().maximumFractionDigits`)
+  rather than a table in the file, because a hardcoded list goes stale
+  silently. `docs.stripe.com` is outside this container's allowed domains, so
+  Stripe's own table has never been checked against ISO here.
+- **`false ?? null` is `false`, and that is the point.** A boolean column
+  being set to false is the only write anyone makes to it, so a falsy check in
+  a PATCH/PUT handler discards the one value that matters.
+- **Mutate the code and watch the test fail.** Three tests in one session
+  passed for the wrong reason — an `||` clause that was always true, a case
+  that never matched the code path it named, and `getBoundingClientRect()`
+  reporting a box inside a closed `<details>` (use `checkVisibility()`). All
+  three were written carefully. Care is not the control; mutation is.
+- **A scripted edit needs `assert old in s`.** A python `.replace()` that
+  matches nothing changes nothing and says nothing, and the suite goes green
+  with the new assertions never run.
 - L1 masthead stays **big** (display title + kicker), matching Settings.
 - Two "Leads" screens — name which one. Owned→Email→Leads is two-pane;
   Biz dev→Leads stays a table.
