@@ -275,7 +275,13 @@ export const SECTIONS = {
     defaultTab: 'cro',
     groups: [
       { heading: null, rows: [
-        { tab: 'cro',   label: 'CRO' },
+        // "CRO funnel health says little on Falcon, rename the page Optimise."
+        // CRO names a discipline, not what the screen does; Optimise says what
+        // you came to do. The slug moves with it, which means the two in-app
+        // links and the one the backend readiness check generates all had to
+        // move too — a rename that leaves a path behind is the dead-link fault
+        // routeTargets direction 3 exists to catch.
+        { tab: 'cro',   label: 'Optimise', slug: 'optimise' },
         { tab: 'forms', label: 'Forms' },
         { tab: 'email', label: 'Email' },
       ] },
@@ -291,7 +297,10 @@ export const SECTIONS = {
     defaultTab: 'reel',
     groups: [
       { heading: 'Make', rows: [
-        { tab: 'reel',       label: 'Make a reel', when: agencyOnly, phone: false },
+        // "Make a reel should just be Video." It is the guided route through
+        // the tools end to end, so beside Record (capture one), Edit (change
+        // one) and Library (find one), Video is the one that makes one.
+        { tab: 'reel',       label: 'Video', when: agencyOnly, phone: false },
         { tab: 'record',     label: 'Record' },
         { tab: 'edit',       label: 'Edit',        when: agencyOnly, phone: false },
         { tab: 'design',     label: 'Design',      when: agencyOnly },

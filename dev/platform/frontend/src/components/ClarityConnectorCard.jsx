@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
+import { SECTIONS, slugForTab } from '../nav/sections';
 
 const ROW = { padding: 'var(--s3) var(--s3)', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: '1px solid var(--card-border)' };
 
@@ -82,7 +83,7 @@ export default function ClarityConnectorCard({ clientId }) {
                 <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => rename(s)}>Rename</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => remove(s)}>Disconnect</button>
-                  <Link to={`/clients/${clientId}/convert/cro`} className="btn btn-secondary btn-sm">Open CRO scan</Link>
+                  <Link to={`${SECTIONS.convert.base(clientId)}/${slugForTab(SECTIONS.convert, 'cro')}`} className="btn btn-secondary btn-sm">Open the scan</Link>
                 </div>
               </div>
             );

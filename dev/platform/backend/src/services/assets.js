@@ -182,6 +182,53 @@ async function archiveBySource(source, sourceId) {
  *
  * Judging either from here would archive assets that are perfectly fine.
  */
+/**
+ * Keep a clip that lives on somebody else's server.
+ *
+ * A library row whose `url` is a provider CDN link has one copy of the file
+ * and no control over how long it lasts. This fetches the bytes into the
+ * client's own upload folder, points `url` at that copy, and keeps the
+ * provider link in `source_url` — the same shape as ad creative (223) and the
+ * avatar reels (224), through the same service.
+ *
+ * Returns the updated row, or throws with what the provider said. A caller
+ * that merely wants to read the file should prefer this over a download of its
+ * own: the second click then costs nothing, and the clip stops depending on a
+ * link nobody controls.
+ */
+async function keepRemote(asset, { check } = {}) {
+  const generatedMedia = require('./generatedMedia');
+  const remote = asset.source_url || asset.url;
+  if (!/^https?:\/\//i.test(String(remote || ''))) {
+    throw new Error('no provider link recorded to fetch from');
+  }
+  // `check` is the URL guard, injectable the same way generatedMedia.store and
+  // readBytes take one, so a test can serve from loopback. Callers in the app
+  // never pass it: the default refuses loopback, private ranges and
+  // link-local, because a provider that answered with 169.254.169.254 would
+  // otherwise have this box fetch its own cloud credentials and file them in a
+  // client's folder as a video.
+  const got = await generatedMedia.store({
+    clientId: asset.client_id, url: remote, stem: 'clip', ...(check ? { check } : {}),
+  });
+  const { rows } = await pool.query(
+    `UPDATE client_assets
+        SET url = $2, source_url = COALESCE(source_url, $3), stored_bytes = $4
+      WHERE id = $1 RETURNING *`,
+    [asset.id, got.url, remote, got.bytes ?? null]);
+  return rows[0];
+}
+
+/** This client's live assets that still point at somebody else's server. */
+async function unstored(clientId, { limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT * FROM client_assets
+      WHERE client_id = $1 AND archived_at IS NULL
+        AND stored_bytes IS NULL AND url LIKE 'http%'
+      ORDER BY created_at DESC LIMIT $2`, [clientId, limit]);
+  return rows;
+}
+
 async function sweepMissingFiles({ dryRun = false } = {}) {
   const fs = require('fs');
   const socialCaptionRender = require('./socialCaptionRender');
@@ -209,4 +256,4 @@ async function sweepMissingFiles({ dryRun = false } = {}) {
 }
 
 module.exports = { record, list, counts, get, bySource, archive, archiveBySource,
-  sweepMissingFiles, kindOf, KINDS, SOURCES };
+  sweepMissingFiles, keepRemote, unstored, kindOf, KINDS, SOURCES };
