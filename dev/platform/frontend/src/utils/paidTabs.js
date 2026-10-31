@@ -24,6 +24,12 @@ export function resolvePaidTab(tab) {
     // The page it named is gone; the content opens over the landing tab.
     case 'playbook':
       return { tab: 'measure', openPlaybook: true };
+    // Approve stopped being a step: minting a client link is a button in the
+    // header, not a stage of production. The old URL lands on Launch, which
+    // is where someone following it was heading next anyway, and the button
+    // is on screen from there.
+    case 'approve':
+      return { tab: 'launch', openPlaybook: false };
     default:
       return null;
   }

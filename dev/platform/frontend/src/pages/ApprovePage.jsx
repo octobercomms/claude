@@ -4,12 +4,17 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import AdPlatformPreview from '../components/AdPlatformPreview';
 
 export default function ApprovePage() {
   const { token } = useParams();
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [reviewerName, setReviewerName] = useState(() => localStorage.getItem('approve-name') || '');
+  // The asset being looked at full size. A preview answers "does this work in
+  // a feed"; the lightbox answers "is the image any good", and a client
+  // signing something off asks both.
+  const [lightbox, setLightbox] = useState(null);
 
   async function load() {
     try {
@@ -73,10 +78,23 @@ export default function ApprovePage() {
         {(data.posts || []).map(p => (
           <PostReviewCard key={p.id} post={p} responses={responsesByPost[p.id] || []} onRespond={(decision, comment) => respond({ post_id: p.id, decision, comment })} />
         ))}
-        {(data.creatives || []).map(c => (
-          <CreativeReviewCard key={c.id} creative={c} responses={responsesByCreative[c.id] || []} onRespond={(decision, comment) => respond({ ad_creative_id: c.id, decision, comment })} />
-        ))}
       </div>
+
+      {/* Ads get their own grid with a wider minimum. A 360px column cannot
+          hold a feed preview, and the whole point of the preview is that the
+          client is looking at something the size of the real thing. */}
+      {!!(data.creatives || []).length && (
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))', marginTop: 'var(--s5)' }}>
+          {data.creatives.map(c => (
+            <CreativeReviewCard key={c.id} creative={c} brandName={data.client?.name}
+              responses={responsesByCreative[c.id] || []}
+              onEnlarge={setLightbox}
+              onRespond={(decision, comment) => respond({ ad_creative_id: c.id, decision, comment })} />
+          ))}
+        </div>
+      )}
+
+      {lightbox && <Lightbox image={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }
@@ -154,25 +172,73 @@ function PostReviewCard({ post, responses, onRespond }) {
   );
 }
 
-function CreativeReviewCard({ creative, responses, onRespond }) {
+function CreativeReviewCard({ creative, responses, onRespond, brandName, onEnlarge }) {
+  const images = creative.images || [];
   return (
     <div className="card">
       <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
         <span className="chip chip-accent">{creative.framework}</span>
         <span className="chip chip-accent">{creative.angle}</span>
       </div>
-      {(creative.images || []).length > 0 && (
-        <div className="row wrap" style={{ marginBottom: 'var(--s3)', gap: 'var(--s2)' }}>
-          {creative.images.map(img => (
-            <img key={img.id} src={img.url} alt="" style={{ width: 110, borderRadius: 'var(--r-sm)' }} />
+
+      {/* The ad in situ, with chips for the surfaces it will run on. This was
+          a row of 110px thumbnails, at which size a client cannot tell
+          whether a headline survives the crop or the caption gets cut. */}
+      <AdPlatformPreview creative={creative} brandName={brandName} onEnlarge={onEnlarge} />
+
+      {/* Every rendered size underneath, as a strip, because the preview only
+          ever shows one of them at a time and the client is signing off all
+          of them. Click to enlarge. */}
+      {images.length > 1 && (
+        <div className="row wrap" style={{ marginTop: 'var(--s3)', gap: 'var(--s2)' }}>
+          {images.map(img => (
+            <button key={img.id} type="button" className="approve-thumb" onClick={() => onEnlarge?.(img)}
+              title={`${img.aspect_ratio || ''} — click to enlarge`}>
+              {(img.media_type || 'image') === 'video'
+                ? <span className="approve-thumb-video">▶ {img.aspect_ratio}</span>
+                : <img src={img.url} alt="" />}
+            </button>
           ))}
         </div>
       )}
-      <div className="h2 mb-2">{creative.headline}</div>
-      <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{creative.body}</div>
-      <div className="text-accent mt-2" style={{ fontSize: 'var(--fs-caption)', fontWeight: 700 }}>{creative.cta}</div>
+
+      {/* The copy in full, under the preview, because the preview deliberately
+          truncates it the way the platform will and the client still needs to
+          read the whole thing before signing it off. */}
+      <div style={{ marginTop: 'var(--s4)' }}>
+        <div className="caption">The full copy</div>
+        <div className="h2 mb-2 mt-2">{creative.headline}</div>
+        <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{creative.body}</div>
+        <div className="text-accent mt-2" style={{ fontSize: 'var(--fs-caption)', fontWeight: 700 }}>{creative.cta}</div>
+      </div>
+
       <DecisionForm onRespond={onRespond} />
       <ResponsesList responses={responses} />
+    </div>
+  );
+}
+
+// Full size, over the page. Escape and a click anywhere both close it, since
+// the people using this page are clients rather than staff and will not have
+// been shown how it works.
+function Lightbox({ image, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="approve-lightbox" onClick={onClose} role="dialog" aria-label="Full size">
+      <button type="button" className="approve-lightbox-close" onClick={onClose} aria-label="Close">×</button>
+      {/* The video swallows the click so its own controls work; the image
+          does not, because a client who has finished looking at a picture
+          clicks the picture to dismiss it and should not have to find the
+          dark edge of the screen. */}
+      {(image.media_type || 'image') === 'video'
+        ? <video src={image.url} controls autoPlay playsInline onClick={e => e.stopPropagation()} />
+        : <img src={image.url} alt="" />}
+      {image.aspect_ratio && <div className="approve-lightbox-meta">{image.aspect_ratio}</div>}
     </div>
   );
 }
