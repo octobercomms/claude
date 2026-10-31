@@ -777,7 +777,7 @@ export default function PressReleaseEditor({
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
         <Field label="Headline / working title" value={pr.title} ro={readOnly}
-          onChange={(v) => setPr((p) => ({ ...p, title: v }))} placeholder="e.g. Forgeworks unveils House of Wood Shingle" />
+          onChange={(v) => setPr((p) => ({ ...p, title: v }))} placeholder="e.g. Northgate Studio unveils House of Wood Shingle" />
         <Field label="Brand" value={pr.brand} ro={readOnly} onChange={(v) => setPr((p) => ({ ...p, brand: v }))} />
       </div>
       <Field label="Angle" hint="why a journalist would care" rows={2} value={pr.angle} ro={readOnly}
