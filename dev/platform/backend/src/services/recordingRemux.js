@@ -53,11 +53,55 @@ function containerFor(mime) {
   return (ext === 'mp4' || ext === 'mov') ? 'mp4' : 'webm';
 }
 
+// Does this ffmpeg's WebM muxer take -cues_to_front?
+//
+// It arrived in ffmpeg 6.0. The platform box runs 4.4, where the flag is not
+// merely ignored — ffmpeg refuses the whole command with "Unrecognized option
+// 'cues_to_front'" before it opens the input. Three of the eight recordings in
+// the first backfill failed that way, and they were exactly the WebM ones.
+//
+// So the flag is probed rather than assumed. Probed, not version-parsed:
+// distributions backport, and the question is whether this muxer takes the
+// option, which `-h muxer=webm` answers directly.
+//
+// The probe runs once and is cached. It is a spawn, and remuxing is already
+// fire-and-forget behind an upload, so one extra process on the first call
+// costs nothing worth optimising away.
+let cuesSupport = null;
+function probeCuesToFront(bin = FFMPEG) {
+  return new Promise((resolve) => {
+    let out = '';
+    const p = spawn(bin, ['-hide_banner', '-h', 'muxer=webm']);
+    p.stdout.on('data', d => { out += d.toString(); });
+    p.stderr.on('data', d => { out += d.toString(); });
+    p.on('error', () => resolve(false));            // no ffmpeg at all
+    p.on('close', () => resolve(/-cues_to_front\b/.test(out)));
+  });
+}
+async function supportsCuesToFront() {
+  if (cuesSupport === null) cuesSupport = await probeCuesToFront();
+  return cuesSupport;
+}
+
 // The container decides which flag moves the index to the front. Both are
 // stream copies; neither touches the picture.
-function argsFor(container, inPath, outPath) {
+//
+// `cuesToFront` is what the probe found, passed in rather than read here so
+// this stays a pure function the tests can drive both ways.
+//
+// Without it the remux is still worth doing — the output is a clean,
+// non-fragmented WebM — but the Cues element stays at the tail. Measured on a
+// 5-minute capture: with the flag, Cues sit at byte 465, before the first
+// cluster; without it, at byte 16,329,148, so the player fetches the end of
+// the file before it can seek. Better than the recorder's own output, worse
+// than it should be, and worth upgrading ffmpeg on the box for.
+function argsFor(container, inPath, outPath, cuesToFront = true) {
   if (container === 'webm') {
-    return ['-y', '-i', inPath, '-c', 'copy', '-cues_to_front', '1', '-f', 'webm', outPath];
+    return [
+      '-y', '-i', inPath, '-c', 'copy',
+      ...(cuesToFront ? ['-cues_to_front', '1'] : []),
+      '-f', 'webm', outPath,
+    ];
   }
   return ['-y', '-i', inPath, '-c', 'copy', '-movflags', '+faststart', '-f', 'mp4', outPath];
 }
@@ -78,7 +122,8 @@ async function remuxRecording(id, { force = false } = {}) {
   try {
     src = await mediaStore.localFile(rec.storage_key);
     const outPath = path.join(work, `play.${container}`);
-    await run(FFMPEG, argsFor(container, src.path, outPath));
+    const cues = container === 'webm' ? await supportsCuesToFront() : true;
+    await run(FFMPEG, argsFor(container, src.path, outPath, cues));
 
     const st = await fs.promises.stat(outPath);
     if (!st.size) throw new Error('ffmpeg produced an empty file');
@@ -102,4 +147,4 @@ function remuxInBackground(id, opts) {
   remuxRecording(id, opts).catch(() => {});
 }
 
-module.exports = { remuxRecording, remuxInBackground, argsFor, containerFor };
+module.exports = { remuxRecording, remuxInBackground, argsFor, containerFor, supportsCuesToFront, probeCuesToFront };

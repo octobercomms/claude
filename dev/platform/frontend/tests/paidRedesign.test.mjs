@@ -7,6 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { showCombined } from '../src/utils/adsTotals.js';
 import { briefSeedFor } from '../src/utils/competitorBrief.js';
 import { resolvePaidTab } from '../src/utils/paidTabs.js';
@@ -124,7 +125,7 @@ test('a tab that still exists is never redirected', () => {
 // This affects every StatStrip in the platform, not only Paid, so the buckets
 // are pinned here rather than left to whoever next edits the CSS.
 
-import { valueSizeClass } from '../src/utils/statValue.js';
+import { valueSizeClass, rowSizeClass } from '../src/utils/statValue.js';
 
 test('a short value keeps the full display size', () => {
   assert.equal(valueSizeClass('3.70x'), '');
@@ -147,6 +148,60 @@ test('an em dash and an empty value never blow up', () => {
   assert.equal(valueSizeClass('—'), '');
   assert.equal(valueSizeClass(null), '');
   assert.equal(valueSizeClass(undefined), '');
+});
+
+// ─── one size per row ───────────────────────────────────────────────────────
+//
+// Sizing each tile on its own length fixed the clipping and broke the row.
+// Measure showed £70,271 at 30px beside 332, 30,791 and 1.08% at 40px, which
+// Daniel read as a rendering fault: *"can you make the font size the same
+// across them all?"*. The row is now sized by its longest value, which keeps
+// the anti-clipping property and loses the ragged look.
+
+test('a whole row renders at one size, set by its longest value', () => {
+  // The live Measure row, in order.
+  const measure = ['£70,271', '332', '£212', '30,791', '26,947', '1.08%'];
+  assert.equal(rowSizeClass(measure), 'ds-stat__value--md');
+  // And that is the size the longest of them needs on its own, so nothing clips.
+  assert.equal(rowSizeClass(measure), valueSizeClass('£70,271'));
+});
+
+test('one long value pulls the whole row down with it', () => {
+  // The alternative is that value clipping while its neighbours stay large.
+  assert.equal(rowSizeClass(['332', 'CHF 1,480,210.37']), 'ds-stat__value--xs');
+});
+
+test('a row of short values keeps the full display size', () => {
+  assert.equal(rowSizeClass(['332', '£212', '1.08%']), '');
+});
+
+test('an empty row, and a row of nothing, do not blow up', () => {
+  assert.equal(rowSizeClass([]), '');
+  assert.equal(rowSizeClass([null, undefined]), '');
+  assert.equal(rowSizeClass(), '');
+});
+
+test('order does not change the answer', () => {
+  // It reduces over the row, so the longest wins wherever it sits. A version
+  // that took the first or the last would depend on tile order, which pages
+  // change freely.
+  const a = rowSizeClass(['£70,271', '332', '1.08%']);
+  const b = rowSizeClass(['1.08%', '£70,271', '332']);
+  const c = rowSizeClass(['332', '1.08%', '£70,271']);
+  assert.equal(a, b);
+  assert.equal(b, c);
+});
+
+test('the strip asks for one size and gives it to every tile', () => {
+  // The component is where the two could still drift apart: computing a row
+  // size and then rendering per-tile classes would pass every test above.
+  const src = readFileSync(new URL('../src/components/shells/StatStrip.jsx', import.meta.url), 'utf8');
+  assert.match(src, /rowSizeClass\(items\.map\(/,
+    'StatStrip no longer derives one size from the whole row');
+  assert.doesNotMatch(src, /valueSizeClass\(/,
+    'StatStrip is sizing a tile from its own value again, which is the ragged row');
+  assert.match(src, /ds-stat__value \$\{size\}/,
+    'the row size is computed but not applied to the tiles');
 });
 
 test('the buckets only ever shrink, never grow', () => {

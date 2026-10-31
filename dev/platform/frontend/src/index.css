@@ -2479,13 +2479,37 @@ a:hover > .card-stat,
 
    Schedule first because it is the smallest and the most often changed;
    recipients last because it is the one you scroll. */
+/* The actions sit on the title line. A row across the foot cost its own
+   height plus the --s5 above it, on both cards, for controls that act on the
+   whole card and read fine beside its name. Wraps under the heading at narrow
+   widths rather than squeezing the title. */
+.report-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  margin-bottom: var(--s5);
+}
+.report-card-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
 .report-setup {
   display: grid;
-  grid-template-columns: minmax(0, 15rem) minmax(0, 1.4fr) minmax(0, 1fr);
   gap: var(--s6);
   align-items: start;
 }
 .report-setup > * { min-width: 0; }
+
+/* Fractions, not a fixed slab for the schedule.
+   Daniel: *"make the columns flex to fill the space, don't need to match
+   columns on weekly and monthly"*. The schedule column was 15rem on both,
+   which fitted weekly's day-and-time pair and left monthly's single
+   day-of-month number sitting in mostly empty space. Each card now divides
+   its own width by what it holds:
+
+     weekly   two selects, a long template list, a recipients box
+     monthly  one small number, the same long list, the same box
+
+   so monthly gives the schedule less and the list more. */
+.report-setup--weekly  { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.3fr); }
+.report-setup--monthly { grid-template-columns: minmax(0, 0.7fr) minmax(0, 2.2fr) minmax(0, 1.3fr); }
 
 /* The template list. columns, not a grid: the items are a numbered sequence
    and column flow keeps 1..10 above 11..20 rather than interleaving them.
@@ -2498,11 +2522,13 @@ a:hover > .card-stat,
 /* Two columns, then one, as the content area narrows. Recipients drops under
    the schedule first because they are the two short ones. */
 @container appmain (max-width: 1100px) {
-  .report-setup { grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); }
+  .report-setup--weekly,
+  .report-setup--monthly { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
   .report-template-list--long { columns: 1; }
 }
 @container appmain (max-width: 760px) {
-  .report-setup { grid-template-columns: minmax(0, 1fr); }
+  .report-setup--weekly,
+  .report-setup--monthly { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ─── Global search ──────────────────────────────────────────────── */
