@@ -679,9 +679,22 @@ function BrainstormTab({
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
   const [producePostId, setProducePostId] = useState(null); // post being produced on the Produce step
-  const producePost = producePostId ? posts.find(p => p.id === producePostId) : null;
-  // "Produce →" on a post: jump to the Produce step with that post's producer open.
-  function startProduce(post) { setProducePostId(post.id); goStep(3); }
+  // The ticked posts are what Produce works on, the one you arrived from
+  // first so it is not below the fold of a nine-post list.
+  const producePosts = React.useMemo(() => {
+    const ticks = tickedIds(ticked, posts);
+    const mine = posts.filter(p => ticks.has(p.id));
+    const first = mine.find(p => p.id === producePostId);
+    return first ? [first, ...mine.filter(p => p !== first)] : mine;
+  }, [posts, ticked, producePostId]);
+  // "Produce →" on a post: jump to the Produce step with that post's
+  // producer open. Producing a post you have unticked is a contradiction —
+  // Produce only lists the ticked ones — so asking for it ticks it.
+  function startProduce(post) {
+    if (!tickedIds(ticked, posts).has(post.id)) onToggleTick?.(post.id);
+    setProducePostId(post.id);
+    goStep(3);
+  }
   // Each pipeline stage owns its own tab so a refresh lands you back on the
   // exact step (no more Create → Review auto-jump just because a batch exists):
   //   1 Create   → 'brainstorm'    2 Review → 'review'
@@ -937,37 +950,53 @@ function BrainstormTab({
         </div>
       )}
 
-      {/* STAGE 3 — PRODUCE (pick a format for a chosen post, then the factory
-          floor: every asset in/through production, newest first). */}
+      {/* STAGE 3 — PRODUCE. The posts you ticked on Review, each with its
+          own production options, then the factory floor: every asset in or
+          through production, newest first.
+
+          This step used to offer an avatar reel or a schedule and no way to
+          take a post idea into production: the only route in was the
+          "Produce →" link on a Review tile, and arriving any other way you
+          got the board and nothing to make. The ticked posts are the work,
+          so the step opens with them. The one you arrived on has its
+          options already open; the rest sit collapsed behind their own
+          Produce button, because nine expanded cards is a page nobody
+          reads. */}
       {step === 3 && (
         <div className="panel-step">
-          {producePost && (
-            <div style={{ marginBottom: 'var(--s6)' }}>
-              <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
-                <div style={{ maxWidth: 560 }}>
-                  <div className="h3">Produce this post</div>
-                  <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
-                    Pick a format — a reel, image or voiceover. It starts rendering and lines up in the board below, where you can leave and come back to it.
-                  </p>
-                </div>
-                <UiButton variant="ghost" onClick={() => setProducePostId(null)}>All production</UiButton>
-              </div>
-              <div style={{ maxWidth: 560 }}>
-                <PostCard post={producePost} clientId={clientId} engagement={engagement[producePost.id]} media={mediaByPost[producePost.id] || []}
-                  defaultProdOpen
-                  onChange={patch => updatePost(producePost.id, patch)}
-                  onDelete={() => { setProducePostId(null); deletePost(producePost.id); }}
-                  onPublish={(url) => publishPost(producePost.id, url)}
-                  onRefreshInsights={() => refreshInsights(producePost.id)}
-                  onRenderTemplates={() => renderTemplates(producePost.id)}
-                  onStitchReel={() => stitchReel(producePost.id)}
-                  onGenerateMedia={(kind) => generateMedia(producePost.id, kind)}
-                  onMakeReel={() => onMakeReel && onMakeReel(producePost)}
-                  onDeleteMedia={(mediaId) => deleteMedia(mediaId, producePost.id)} />
-              </div>
-              <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', margin: 'var(--s6) 0 0' }} />
+          <div style={{ marginBottom: 'var(--s6)' }}>
+            <div style={{ maxWidth: 620, marginBottom: 'var(--s4)' }}>
+              <div className="h3">Make the assets</div>
+              <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
+                {producePosts.length
+                  ? <>The {producePosts.length} post{producePosts.length === 1 ? '' : 's'} you ticked on <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button>.
+                      Open one and pick a format — a reel, an image, a voiceover, text cards. It starts rendering and
+                      lines up in the board below, where you can leave it and come back.</>
+                  : <>Nothing is ticked. <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button> is
+                      where you choose which posts you are making; anything already rendering is in the board below.</>}
+              </p>
             </div>
-          )}
+            <div className="stack" style={{ gap: 'var(--s4)' }}>
+              {producePosts.map(p => (
+                <div key={p.id} style={{ maxWidth: 620 }}>
+                  <PostCard post={p} clientId={clientId} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
+                    defaultProdOpen={p.id === producePostId}
+                    onChange={patch => updatePost(p.id, patch)}
+                    onDelete={() => { if (p.id === producePostId) setProducePostId(null); deletePost(p.id); }}
+                    onPublish={(url) => publishPost(p.id, url)}
+                    onRefreshInsights={() => refreshInsights(p.id)}
+                    onRenderTemplates={() => renderTemplates(p.id)}
+                    onStitchReel={() => stitchReel(p.id)}
+                    onGenerateMedia={(kind) => generateMedia(p.id, kind)}
+                    onMakeReel={() => onMakeReel && onMakeReel(p)}
+                    onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
+                </div>
+              ))}
+            </div>
+            {producePosts.length > 0 && (
+              <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', margin: 'var(--s6) 0 0' }} />
+            )}
+          </div>
           <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onEditReel={onEditReel} onNext={() => goStep(4)} />
         </div>
       )}
