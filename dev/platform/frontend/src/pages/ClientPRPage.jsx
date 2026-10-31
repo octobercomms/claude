@@ -263,8 +263,9 @@ export default function ClientPRPage() {
     api.get(`/pr/clients/${id}/thank-opportunities`).then((r) => setThanks(r.items || [])).catch(() => {});
     api.get(`/pr/clients/${id}/thank-settings`).then(setThankSettings).catch(() => {});
   }
-  // Thank-yous render on Contacts, beside the journalist table.
-  useEffect(() => { if (tab === 'contacts') loadThanks(); }, [tab, id]);
+  // Thank-yous have their own screen now, so they load when it opens rather
+  // than every time the contact book is read.
+  useEffect(() => { if (tab === 'thanks') loadThanks(); }, [tab, id]);
 
   async function setThankStage(stage) {
     try {
@@ -1038,6 +1039,12 @@ export default function ClientPRPage() {
 
   // The contact book and the thank-yous owed are one record of the same
   // relationships, so they stay together.
+  // The contact book. One job: who you know, how warm, when last featured.
+  //
+  // Thank-yous used to sit under it on the same screen. They are a queue you
+  // work through, not a record you consult, and they belong after the
+  // campaign that earned them — which is where the 31 Oct review put them:
+  // "move thank-yous to a new page after campaigns".
   const renderContacts = () => (
         <div>
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
@@ -1059,7 +1066,12 @@ export default function ClientPRPage() {
               </tbody>
             </table>
           </div>
+        </div>
+  );
 
+  // Thank-yous. A queue, on its own screen, after Campaigns.
+  const renderThanks = () => (
+        <div>
           <div className="card">
             <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 'var(--s3)' }}>
               <div style={{ flex: 1, minWidth: 240 }}>
@@ -1386,6 +1398,7 @@ export default function ClientPRPage() {
       {!loading && tab === 'monitor' && renderMonitor()}
       {!loading && tab === 'journalists' && renderCampaigns()}
       {!loading && tab === 'contacts' && renderContacts()}
+      {!loading && tab === 'thanks' && renderThanks()}
       {!loading && tab === 'find' && renderFind()}
       {!loading && tab === 'match' && renderMatch()}
       {!loading && tab === 'press' && renderReleases()}

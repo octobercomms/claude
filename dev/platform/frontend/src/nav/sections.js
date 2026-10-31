@@ -172,6 +172,12 @@ export const SECTIONS = {
         { tab: 'find',        label: 'Find' },
         { tab: 'press',       label: 'Releases', slug: 'releases' },
         { tab: 'journalists', label: 'Campaigns', slug: 'campaigns' },
+        // "Move thank-yous to a new page after campaigns." They sat under the
+        // contact book on the same screen, which put a queue you work through
+        // beneath a record you consult. And the order matters: a thank-you is
+        // owed because a campaign landed, so it reads after Campaigns rather
+        // than before Find.
+        { tab: 'thanks',      label: 'Thank-yous', slug: 'thank-yous' },
       ] },
       { heading: 'Measure', rows: [
         { tab: 'reports', label: 'Reports' },
