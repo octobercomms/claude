@@ -1,4 +1,16 @@
 const pool = require('../db');
+const { isEcom } = require('./ecomTypes');
+
+// A symbol for a report table. The frontend has its own version of this for
+// the screen; a report is a different surface with a different renderer, and
+// a shared module between them would be one import for three lines.
+const CURRENCY_SYMBOLS = { GBP: '\u00a3', USD: '$', EUR: '\u20ac', AUD: 'A$', CAD: 'C$', NZD: 'NZ$', JPY: '\u00a5', CHF: 'CHF\u00a0', SEK: 'kr\u00a0', NOK: 'kr\u00a0', DKK: 'kr\u00a0' };
+function symbolFor(currency) {
+  if (!currency) return '\u00a3';
+  const code = String(currency).toUpperCase();
+  return CURRENCY_SYMBOLS[code] || `${code}\u00a0`;
+}
+
 const claudeService = require('./claude');
 const pdfService = require('./pdfService');
 const emailService = require('./emailService');
@@ -396,11 +408,18 @@ function extractTopMetrics(rawData, allowedTypes = null) {
     // that look like duplicates.
     const tag = storeLabel ? `${storeLabel} — ` : '';
 
-    if ((type === 'shopify' || type === 'woocommerce') && data.summary) {
+    if (isEcom(type) && data.summary) {
+      // The store's own currency, not a hardcoded pound. Every ecom connector
+      // reports `currency` on its summary and this printed £ regardless, so a
+      // dollar store's revenue read as sterling — wrong by whatever the rate
+      // happens to be, and wrong in a direction nobody checks. It falls back
+      // to £ only when the connector genuinely did not say, which happens
+      // when the window held no orders and there is no figure to mislabel.
+      const sym = symbolFor(data.summary.currency);
       metrics.push(
-        { label: `${tag}Revenue`, value: `£${parseFloat(data.summary.total_revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}` },
+        { label: `${tag}Revenue`, value: `${sym}${parseFloat(data.summary.total_revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}` },
         { label: `${tag}Orders`, value: String(data.summary.total_orders || 0) },
-        { label: `${tag}AOV`, value: `£${parseFloat(data.summary.avg_order_value || 0).toFixed(2)}` }
+        { label: `${tag}AOV`, value: `${sym}${parseFloat(data.summary.avg_order_value || 0).toFixed(2)}` }
       );
     }
     if (type === 'meta_ads' && data.data) {

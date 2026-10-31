@@ -22,7 +22,7 @@ import ClientBrandPage from './ClientBrandPage';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
-  'meta_ads','instagram_insights','shopify','woocommerce',
+  'meta_ads','instagram_insights','shopify','woocommerce','stripe',
   'klaviyo','brevo','shopify_email','amazon_seller',
   'zoho_inventory','cin7','october_forms','linkedin_organic',
 ];
@@ -31,7 +31,7 @@ const CONNECTOR_LABELS = {
   ga4: 'Google Analytics 4', google_search_console: 'Google Search Console',
   google_ads: 'Google Ads', google_merchant_center: 'Google Merchant Center',
   meta_ads: 'Meta Ads', instagram_insights: 'Instagram Insights',
-  shopify: 'Shopify', woocommerce: 'WooCommerce', klaviyo: 'Klaviyo',
+  shopify: 'Shopify', woocommerce: 'WooCommerce', stripe: 'Stripe', klaviyo: 'Klaviyo',
   brevo: 'Brevo', shopify_email: 'Shopify Email',
   amazon_seller: 'Amazon Seller',
   zoho_inventory: 'Zoho Inventory', cin7: 'Cin7',
@@ -43,7 +43,7 @@ const CONNECTOR_GROUPS = [
   { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
   { label: 'LinkedIn', types: ['linkedin_organic'], oauth: 'linkedin' },
-  { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
+  { label: 'E-commerce', types: ['shopify','woocommerce','stripe','amazon_seller'] },
   { label: 'Email Marketing', types: ['shopify_email','klaviyo','brevo'] },
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
   { label: 'Forms', types: ['october_forms'] },
@@ -1346,6 +1346,9 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
           </p>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+          {/* `hint` renders. A field definition carrying guidance the form
+              quietly dropped would be worse than none, because whoever wrote
+              it would believe the user had been told. */}
           {fields.map(f => (
             <Field key={f.key} label={f.label}>
               <input
@@ -1355,6 +1358,9 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
                 onChange={e => onChange(prev => ({ ...prev, [f.key]: e.target.value }))}
                 placeholder={f.placeholder || ''}
               />
+              {f.hint && (
+                <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)', lineHeight: 1.45 }}>{f.hint}</div>
+              )}
             </Field>
           ))}
         </div>
@@ -1585,6 +1591,13 @@ function getCredentialFields(type) {
       { key: 'store_url', label: 'Store URL', placeholder: 'https://mystore.com' },
       { key: 'consumer_key', label: 'Consumer Key' },
       { key: 'consumer_secret', label: 'Consumer Secret', secret: true },
+    ],
+    // One field, and the hint names the two permissions rather than leaving
+    // it to be discovered by a 403. A restricted key is the right key here:
+    // this connector only reads, and a read key cannot move money.
+    stripe: [
+      { key: 'secret_key', label: 'Restricted API key', secret: true, placeholder: 'rk_live_…',
+        hint: 'Stripe dashboard → Developers → API keys → Create restricted key, with read access to Charges and Customers. A full sk_live_ key works too but grants far more than this needs.' },
     ],
     klaviyo: [{ key: 'api_key', label: 'API Key', secret: true }],
     brevo: [{ key: 'api_key', label: 'API Key', secret: true }],

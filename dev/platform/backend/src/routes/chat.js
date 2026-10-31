@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { isEcom } = require('../services/ecomTypes');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const { decrypt } = require('../utils/encryption');
@@ -49,7 +50,7 @@ const TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        connector_type: { type: 'string', description: 'e.g. ga4, google_ads, shopify, meta_ads, google_search_console, woocommerce, klaviyo, brevo' },
+        connector_type: { type: 'string', description: 'e.g. ga4, google_ads, shopify, meta_ads, google_search_console, woocommerce, stripe, klaviyo, brevo' },
         days: { type: 'number', description: 'Number of days back from today to fetch (default 30) — for a recent window.' },
         start_date: { type: 'string', description: 'Start of an explicit period, YYYY-MM-DD. Use start_date and end_date together for historical periods or comparisons (e.g. last year, a specific quarter).' },
         end_date: { type: 'string', description: 'End of an explicit period, YYYY-MM-DD.' },
@@ -127,7 +128,7 @@ const TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        section: { type: 'string', description: 'Section key: "seo" or a connector type (ga4, google_ads, shopify, meta_ads, google_search_console, woocommerce, klaviyo, brevo, etc.)' },
+        section: { type: 'string', description: 'Section key: "seo" or a connector type (ga4, google_ads, shopify, meta_ads, google_search_console, woocommerce, stripe, klaviyo, brevo, etc.)' },
         weekly: { type: 'boolean', description: 'true to include in the weekly report, false to exclude. Omit to leave unchanged.' },
         monthly: { type: 'boolean', description: 'true to include in the monthly report, false to exclude. Omit to leave unchanged.' },
       },
@@ -492,7 +493,7 @@ function summariseConnectorData(type, raw, days) {
         top_campaigns: top,
       };
     }
-    if (type === 'shopify' || type === 'woocommerce') {
+    if (isEcom(type)) {
       const s = raw.summary || {};
       const result = {
         period_days: days,
