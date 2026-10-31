@@ -33,6 +33,14 @@ export default function ClientHomeDashboard() {
   // Reported by /sales-traffic alongside the KPIs; null when no store
   // reported one, which shows the figures unlabelled rather than guessing.
   const [currency, setCurrency] = useState(null);
+  // The caveat that goes WITH the symbol. /sales-traffic returns `notes` when
+  // the stores disagree, or report something other than the client's set
+  // currency, and `currency_unset` when nobody has said at all. Keeping the
+  // currency and dropping these puts a confident symbol on a figure the
+  // backend already knows is not a true figure in it, which is the exact
+  // mistake services/ecomCurrency.js exists to prevent.
+  const [notes, setNotes] = useState([]);
+  const [currencyUnset, setCurrencyUnset] = useState(false);
 
   useEffect(() => {
     api.get('/dashboard/client-home').then(setData).catch(e => setErr(e.message));
@@ -49,6 +57,8 @@ export default function ClientHomeDashboard() {
         const k = (r && r.kpis) || {};
         setKpis(k);
         setCurrency((r && r.currency) || null);
+        setNotes((r && r.notes) || []);
+        setCurrencyUnset(Boolean(r && r.currency_unset));
         setKpiState(k && (k.revenue || k.sessions || k.users || k.orders) ? 'ready' : 'none');
       })
       .catch(() => setKpiState('none'));
@@ -106,7 +116,7 @@ export default function ClientHomeDashboard() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--s4)', marginBottom: 'var(--s6)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--s4)', marginBottom: 'var(--s3)' }}>
           {liveStats.map(s => (
             <div key={s.label} className="card" style={s.primary ? { borderColor: 'var(--accent)' } : undefined}>
               <div className="metric" style={s.primary ? { color: 'var(--text)' } : undefined}>
@@ -116,6 +126,22 @@ export default function ClientHomeDashboard() {
             </div>
           ))}
         </div>
+      )}
+      {/* The caveat sits with the figures, not on another screen. This is the
+          client-facing landing: they cannot cross-check a revenue total
+          against the stores behind it, so an unexplained symbol is taken at
+          face value. No link to Setup here, unlike MeasurePanel — a client
+          login cannot reach it; the agency sees the same note with the fix
+          beside it on the client's own Measure tab. */}
+      {kpiState !== 'none' && (notes.length > 0 || currencyUnset) && (
+        <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)', marginBottom: 'var(--s6)' }}>
+          {currencyUnset
+            ? 'Money is shown without a currency: none is set for this account and no connected store reported one.'
+            : notes.join(' · ')}
+        </p>
+      )}
+      {kpiState !== 'none' && !(notes.length > 0 || currencyUnset) && (
+        <div style={{ marginBottom: 'var(--s6)' }} />
       )}
 
       {/* Secondary signals — slim strip. */}
