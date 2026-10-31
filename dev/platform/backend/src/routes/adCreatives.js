@@ -217,6 +217,32 @@ router.delete('/batches/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Launch's hand-off: the whole batch as a zip — copy.csv plus every rendered
+// asset — so the AM can build it in Ads Manager by hand.
+//
+// `:id` and not `:batchId`, deliberately: router.param('id') above is what
+// checks the caller may see this client, and it keys on that exact name. A
+// route named `:batchId` here would serve any batch to anyone, which is how
+// the resize-batches routes below ended up needing a loader of their own.
+//
+// The counts go in headers as well as the zip, so the UI can say what came
+// back without unzipping it, and so a short download is visible immediately.
+router.get('/batches/:id/export', async (req, res) => {
+  try {
+    const out = await require('../services/adExport').exportBatch(req.params.id);
+    if (!out) return res.status(404).json({ error: 'Batch not found' });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${out.filename}"`);
+    res.setHeader('X-Export-Assets', String(out.counts.assets));
+    res.setHeader('X-Export-Missing', String(out.counts.missing));
+    res.setHeader('Access-Control-Expose-Headers', 'X-Export-Assets, X-Export-Missing');
+    res.send(out.buffer);
+  } catch (err) {
+    console.error('[ad-export] failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Render image variations for a creative. The AM picks which aspect
 // ratios (e.g. 1:1 + 4:5 + 9:16) and the provider; we render each in
 // turn and persist as ad_creative_images. Variations can be appended
