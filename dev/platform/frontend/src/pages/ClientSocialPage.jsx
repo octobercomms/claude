@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -23,6 +23,8 @@ import IgOutreachPanel from '../components/IgOutreachPanel';
 import SwipeFilePanel from '../components/SwipeFilePanel';
 import SubredditResearchPanel from '../components/SubredditResearchPanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
+import { tickedIds, toggleTick, tickSummary } from '../utils/ticks';
+import usePersistedState from '../hooks/usePersistedState';
 import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
 import SideDrawer from '../components/ui/SideDrawer';
@@ -44,6 +46,14 @@ export default function ClientSocialPage() {
   const [batches, setBatches] = useState([]);
   const [posts, setPosts] = useState([]);
   const [activeBatchId, setActiveBatchId] = useState(null);
+  // Which of the batch's posts the steps after Review act on, per batch.
+  // null — a batch with no entry — means all of them; see utils/ticks.js
+  // for why that is not a full set.
+  //
+  // Persisted, because the alternative is quiet: untick three posts, hit
+  // refresh, and the download hands you nine. A batch is worked over more
+  // than one sitting.
+  const [tickStore, setTickStore] = usePersistedState('shared_ticks', {});
   const [competitors, setCompetitors] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [brief, setBrief] = useState('');
@@ -79,10 +89,17 @@ export default function ClientSocialPage() {
   // Same reasoning as Paid's Launch export, which this mirrors.
   async function downloadBatch() {
     if (!activeBatchId) return;
+    // Only the ticked posts. The export route takes ?posts=, so a batch
+    // with everything ticked asks for the whole thing and the zip is
+    // byte-for-byte what it was before ticking existed.
+    const only = tickedIds(ticked, posts);
+    if (!only.size) { toast('Tick at least one post on Review to download.', 'error'); return; }
+    const whole = only.size === posts.length;
+    const qs = whole ? '' : `?posts=${[...only].map(encodeURIComponent).join(',')}`;
     setDownloadingBatch(true);
     try {
       const { blob, filename, posts: n, assets, missing } = await api.download(
-        `/social/clients/${id}/batches/${activeBatchId}/export`);
+        `/social/clients/${id}/batches/${activeBatchId}/export${qs}`);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -168,6 +185,20 @@ export default function ClientSocialPage() {
     }
   }
   useEffect(() => { loadAll(); /* eslint-disable-line */ }, [id, plansRefreshKey]);
+
+  const ticked = useMemo(() => {
+    const held = tickStore && tickStore[activeBatchId];
+    return Array.isArray(held) ? new Set(held) : null;
+  }, [tickStore, activeBatchId]);
+  // null is stored as null, which reads back as "all of them" rather than
+  // as an empty set. Old batches are pruned so the key cannot grow forever.
+  const setTicked = useCallback((next) => {
+    if (!activeBatchId) return;
+    setTickStore(prev => {
+      const kept = Object.entries(prev || {}).slice(-40);
+      return { ...Object.fromEntries(kept), [activeBatchId]: next === null ? null : [...next] };
+    });
+  }, [activeBatchId, setTickStore]);
 
   async function selectBatch(batchId) {
     setActiveBatchId(batchId);
@@ -550,6 +581,9 @@ export default function ClientSocialPage() {
           onReuseBrief={(b) => setBrief(b.brief || '')}
           onBulkSchedule={() => setBulkOpen(true)}
           onDownload={downloadBatch} downloading={downloadingBatch}
+          ticked={ticked}
+          onToggleTick={(postId) => setTicked(toggleTick(ticked, posts, postId))}
+          onTickAll={(on) => setTicked(on ? null : new Set())}
           autopilotPaused={!!client?.social_autopilot_paused}
           onToggleAutopilot={toggleAutopilotPaused}
           onShareForApproval={shareBatchForApproval}
@@ -608,6 +642,7 @@ export default function ClientSocialPage() {
         <BulkScheduleModal
           clientId={id}
           posts={posts.filter(p => ['instagram','facebook','linkedin'].includes(p.platform))}
+          initialSelected={tickedIds(ticked, posts)}
           onClose={() => setBulkOpen(false)}
           onScheduled={() => { setBulkOpen(false); setPlansRefreshKey(k => k + 1); loadPostsAndStatus(); }}
         />
@@ -632,6 +667,7 @@ export default function ClientSocialPage() {
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel, onOpenReels, onEditReel,
   onBulkSchedule, onShareForApproval, onDownload, downloading, generating, shareUrl, onDismissShare,
+  ticked, onToggleTick, onTickAll,
   autopilotPaused, onToggleAutopilot,
   socialTab, onNavTab, briefContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
@@ -658,6 +694,8 @@ function BrainstormTab({
       : 1;
   const [step, setStep] = useState(() => stepForTab(socialTab));
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
+  const tickSet = tickedIds(ticked, posts);
+  const ticks = tickSummary(ticked, posts);
 
   // Keep the stepper in sync when the tab changes from outside — deep links,
   // the Overview map, or buttons elsewhere.
@@ -740,11 +778,22 @@ function BrainstormTab({
       {posts.map((p, i) => {
         const cap = (p.caption || '').trim();
         const media = mediaByPost[p.id] || [];
+        const on = tickSet.has(p.id);
         return (
-          <button key={p.id} type="button" onClick={() => setRefiningId(p.id)}
-            className="card" style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)', minHeight: 140 }}>
+          // A div, not a button. The tile already held a nested "Produce →"
+          // and now holds a checkbox too, and interactive elements inside a
+          // button are invalid and unreliable to click. The batch rows above
+          // use the same pattern: the card takes the click, the controls
+          // inside stop it.
+          <div key={p.id} onClick={() => setRefiningId(p.id)}
+            className="card" style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)', minHeight: 140, opacity: on ? 1 : 0.55, borderColor: on ? 'var(--card-border)' : 'var(--border-neutral)' }}>
             <div className="row between center">
-              <span className="caption">{p.platform} · {p.kind}</span>
+              <label className="row center" style={{ gap: 'var(--s2)', margin: 0, cursor: 'pointer' }}
+                onClick={(e) => e.stopPropagation()}>
+                <input type="checkbox" checked={on} onChange={() => onToggleTick?.(p.id)}
+                  aria-label={`Include post ${i + 1} in the next step`} />
+                <span className="caption">{p.platform} · {p.kind}</span>
+              </label>
               <span className="body-xs text-subtle">#{i + 1}</span>
             </div>
             <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -759,13 +808,13 @@ function BrainstormTab({
               {p.status === 'published' && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)' }}>published</span>}
             </div>
             <div className="row between center" style={{ gap: 'var(--s2)' }}>
-              <span className="body-xs" style={{ color: 'var(--text)' }}>Open to edit →</span>
-              <span role="button" tabIndex={0} title="Produce this post"
+              <button type="button" className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)' }}
+                onClick={(e) => { e.stopPropagation(); setRefiningId(p.id); }}>Open to edit →</button>
+              <button type="button" className="btn-inline-link" title="Produce this post"
                 onClick={(e) => { e.stopPropagation(); startProduce(p); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); startProduce(p); } }}
-                className="body-xs" style={{ color: 'var(--text)', fontWeight: 700, cursor: 'pointer' }}>✦ Produce →</span>
+                style={{ fontSize: 'var(--fs-caption)', fontWeight: 700 }}>✦ Produce →</button>
             </div>
-          </button>
+          </div>
         );
       })}
     </div>
@@ -819,7 +868,8 @@ function BrainstormTab({
             <div style={{ maxWidth: 520 }}>
               <div className="h3">Review your batches</div>
               <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
-                Open a batch to edit its posts or refine with Claude. When you’re happy, send them to Produce or straight to Schedule.
+                Open a batch to edit its posts or refine with Claude. Untick the ones you
+                are not running — Schedule and the batch download only take the ticked posts.
               </p>
             </div>
             <div className="row wrap center" style={{ gap: 'var(--s2)' }}>
@@ -861,7 +911,22 @@ function BrainstormTab({
                       <div style={{ padding: '0 var(--s4) var(--s4)' }}>
                         {!posts.length
                           ? <div className="body-sm text-subtle" style={{ padding: 'var(--s2) 0 var(--s3)' }}>Loading posts…</div>
-                          : postGrid}
+                          : (
+                            <>
+                              <div className="row between center wrap" style={{ gap: 'var(--s2)', padding: 'var(--s2) 0 var(--s3)' }}>
+                                <span className="body-sm">
+                                  {ticks.none
+                                    ? `Nothing ticked — Schedule and the download have no posts to take.`
+                                    : `${ticks.count} of ${ticks.total} posts going forward.`}
+                                </span>
+                                <button type="button" className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)' }}
+                                  onClick={() => onTickAll?.(!ticks.all)}>
+                                  {ticks.all ? 'Untick all' : 'Tick all'}
+                                </button>
+                              </div>
+                              {postGrid}
+                            </>
+                          )}
                       </div>
                     )}
                   </div>
@@ -916,7 +981,8 @@ function BrainstormTab({
               <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
                 Download the batch and post it yourself — one zip with every caption in a
                 spreadsheet and every file beside it. Or lock posts onto the calendar and let
-                the automatic publisher ship them; its queue is at the bottom.
+                the automatic publisher ship them; its queue is at the bottom. Both take the
+                posts ticked on <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button>.
               </p>
             </div>
             <div className="row wrap" style={{ gap: 'var(--s2)' }}>
@@ -929,9 +995,15 @@ function BrainstormTab({
                   It is the primary, because posting by hand is the way this
                   page is actually used and the automatic publisher is the one
                   nobody has run. */}
-              <UiButton variant="primary" disabled={!activeBatchId || downloading}
-                {...roWrite(readOnly, { onClick: onDownload })}>
-                {downloading ? 'Preparing…' : '↓ Download the batch'}
+              {/* `disabled` goes inside roWrite, not beside it: roWrite
+                  returns disabled: false by default and the spread comes
+                  second, so a sibling disabled prop is silently thrown
+                  away. This button was never disabled at all. */}
+              <UiButton variant="primary"
+                {...roWrite(readOnly, { onClick: onDownload, disabled: !activeBatchId || downloading || ticks.none })}>
+                {downloading ? 'Preparing…'
+                  : ticks.all || !ticks.total ? '↓ Download the batch'
+                  : `↓ Download ${ticks.count} of ${ticks.total} posts`}
               </UiButton>
               {/* Pause autopilot lived in the page header, a group away from
                   the queue it halts. A control that stops a client's posting
@@ -1286,12 +1358,13 @@ function parsePostFields(text) {
   return Object.keys(out).length ? out : null;
 }
 
-function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
+function BulkScheduleModal({ clientId, posts, initialSelected, onClose, onScheduled }) {
   const isMobile = useIsMobile();
   const twoCol = isMobile ? '1fr' : '1fr 1fr';
-  // Default-select every autopilot-supported post. The AM untiCKS what
-  // they don't want rather than starting from zero.
-  const [selected, setSelected] = useState(() => new Set(posts.map(p => p.id)));
+  // Seeded from what Review ticked, intersected with the posts the
+  // autopilot can actually publish. You can still change it here.
+  const [selected, setSelected] = useState(
+    () => new Set(posts.filter(p => !initialSelected || initialSelected.has(p.id)).map(p => p.id)));
   const [targetPlatforms, setTargetPlatforms] = useState(['instagram']);
   const [driveFolderUrl, setDriveFolderUrl] = useState('');
   // Default cadence: Mon/Wed/Fri at 10am, starting tomorrow.

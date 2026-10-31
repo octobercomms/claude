@@ -81,8 +81,7 @@ export default function BulkDeleteReports({ onDeleted }) {
       {!confirming ? (
         <button
           className="btn btn-secondary"
-          disabled={!total}
-          {...roWrite(readOnly, { onClick: () => setConfirming(true) })}>
+          {...roWrite(readOnly, { onClick: () => setConfirming(true), disabled: !total })}>
           Delete {total} report{total === 1 ? '' : 's'}…
         </button>
       ) : (
