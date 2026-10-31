@@ -632,7 +632,14 @@ export default function ClientDetailPage() {
                   --s5 above it on both cards, for controls that act on the
                   card as a whole and read perfectly well beside its name. */}
               <div className="report-card-head">
-                <h2 className="h2" style={{ margin: 0 }}>Weekly</h2>
+                <div className="report-card-title">
+                  <h2 className="h2" style={{ margin: 0 }}>Weekly</h2>
+                  {/* Beside the card's name, not in the Template column. It
+                      edits the template, but it is a control on this card like
+                      the three on the right, and sitting in the column made
+                      Template the one heading pushed down by a button. */}
+                  <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm">✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
+                </div>
                 <div className="report-card-actions">
                   <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
                   <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
@@ -661,12 +668,7 @@ export default function ClientDetailPage() {
               </div>
 
               <div>
-              {/* The heading on its own line, so it sits on the same baseline as
-                  Schedule and Recipients across the row. Pairing it with the
-                  button in a space-between flex made it the only column
-                  heading whose height was set by a control. */}
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Template</div>
-              <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s3)' }}>✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
               {(templateSummary.weekly?.sections || []).length ? (
                 <ol className={`report-template-list${(templateSummary.weekly.sections.length > 8 ? ' report-template-list--long' : '')}`} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)' }}>
                   {templateSummary.weekly.sections.map(s => (
@@ -690,7 +692,14 @@ export default function ClientDetailPage() {
             {/* ── Monthly setup ── */}
             <div className="card">
               <div className="report-card-head">
-                <h2 className="h2" style={{ margin: 0 }}>Monthly</h2>
+                <div className="report-card-title">
+                  <h2 className="h2" style={{ margin: 0 }}>Monthly</h2>
+                  {/* Beside the card's name, not in the Template column. It
+                      edits the template, but it is a control on this card like
+                      the three on the right, and sitting in the column made
+                      Template the one heading pushed down by a button. */}
+                  <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm">✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
+                </div>
                 <div className="report-card-actions">
                   {/* "Save changes", not "Save monthly": both cards edit one
                       client record and the PUT sends all of it, so either
@@ -714,12 +723,7 @@ export default function ClientDetailPage() {
               </div>
 
               <div>
-              {/* The heading on its own line, so it sits on the same baseline as
-                  Schedule and Recipients across the row. Pairing it with the
-                  button in a space-between flex made it the only column
-                  heading whose height was set by a control. */}
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Template</div>
-              <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s3)' }}>✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
               {(templateSummary.monthly?.sections || []).length ? (
                 <ol className={`report-template-list${(templateSummary.monthly.sections.length > 8 ? ' report-template-list--long' : '')}`} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)' }}>
                   {templateSummary.monthly.sections.map(s => (
