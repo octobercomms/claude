@@ -26,6 +26,81 @@ async function loadClient(clientId) {
   return rows[0];
 }
 
+// ─── the stored list ────────────────────────────────────────────────────────
+//
+// Claude's suggestions used to be chips that filled a text box and vanished
+// on reload, so seeing them again cost another call. Stored, they are a list
+// you configure: a focus and a window per row, and research runs against the
+// row.
+
+const WINDOWS = ['week', 'month', 'year', 'all'];
+
+// Trim before stripping the prefix as well as after: " r/ " arrives from a
+// paste often enough, and stripping first leaves "r/" looking like a name.
+function normName(input) {
+  return String(input || '').trim().replace(/^\/?r\//i, '').trim();
+}
+
+async function listSubreddits(clientId) {
+  const { rows } = await pool.query(
+    `SELECT id, name, why, focus, time_window, source, researched_at, created_at
+       FROM client_subreddits WHERE client_id = $1 ORDER BY created_at`, [clientId]);
+  return rows;
+}
+
+async function addSubreddit(clientId, { name, why = null, focus = null, time_window = 'month', source = 'manual' } = {}) {
+  const clean = normName(name);
+  if (!clean) { const e = new Error('Name the subreddit.'); e.status = 400; throw e; }
+  const win = WINDOWS.includes(time_window) ? time_window : 'month';
+  // ON CONFLICT rather than a read-then-write: two suggests racing would both
+  // see nothing and both insert.
+  const { rows } = await pool.query(
+    `INSERT INTO client_subreddits (client_id, name, why, focus, time_window, source)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (client_id, lower(name)) DO UPDATE
+       SET why = COALESCE(client_subreddits.why, EXCLUDED.why)
+     RETURNING *`,
+    [clientId, clean, why, focus, win, source]);
+  return rows[0];
+}
+
+async function updateSubreddit(clientId, id, { focus, time_window } = {}) {
+  const sets = [];
+  const vals = [id, clientId];
+  if (focus !== undefined) { sets.push(`focus = $${vals.length + 1}`); vals.push(focus || null); }
+  if (time_window !== undefined) {
+    sets.push(`time_window = $${vals.length + 1}`);
+    vals.push(WINDOWS.includes(time_window) ? time_window : 'month');
+  }
+  if (!sets.length) { const e = new Error('Nothing to change.'); e.status = 400; throw e; }
+  const { rows } = await pool.query(
+    `UPDATE client_subreddits SET ${sets.join(', ')} WHERE id = $1 AND client_id = $2 RETURNING *`, vals);
+  if (!rows[0]) { const e = new Error('Subreddit not found for this client.'); e.status = 404; throw e; }
+  return rows[0];
+}
+
+async function removeSubreddit(clientId, id) {
+  await pool.query('DELETE FROM client_subreddits WHERE id = $1 AND client_id = $2', [id, clientId]);
+}
+
+// Ask Claude, but only when the list is empty.
+//
+// `force` is the explicit "suggest more" press, the one case where paying for
+// a second opinion is what was asked for. Opening the screen, or a setup scan
+// on a client that already has a list, reads the table and spends nothing.
+// Same rule as clientCompetitors.suggest, for the same reason.
+async function suggestAndStore(clientId, { force = false } = {}) {
+  const existing = await listSubreddits(clientId);
+  if (existing.length && !force) return { subreddits: existing, from: 'stored' };
+  const proposed = await suggest(clientId);
+  for (const s of proposed) {
+    // One at a time: one row failing to insert should not lose the rest.
+    try { await addSubreddit(clientId, { ...s, source: 'suggest' }); }
+    catch (err) { console.error('[subreddits] could not store suggestion:', s.name, err.message); }
+  }
+  return { subreddits: await listSubreddits(clientId), from: 'claude' };
+}
+
 // Suggest a few subreddits where this client's buyers gather (no scrape, cheap).
 async function suggest(clientId) {
   const c = await loadClient(clientId);
@@ -113,6 +188,12 @@ Give 5–8 blog_topics and 6–10 reel_hooks. The reel_script.keyword must be a 
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
     [clientId, sub, focus || null, JSON.stringify(result), null]
   );
+  // Stamp the stored row, so the list says which ones have been looked at
+  // rather than leaving the AM to work it out from the history rail. A
+  // one-off typed subreddit matches nothing and stamps nothing.
+  await pool.query(
+    'UPDATE client_subreddits SET researched_at = NOW() WHERE client_id = $1 AND lower(name) = lower($2)',
+    [clientId, sub]);
   return rows[0];
 }
 
@@ -131,4 +212,8 @@ async function remove(clientId, id) {
   await pool.query('DELETE FROM subreddit_research WHERE id = $1 AND client_id = $2', [id, clientId]);
 }
 
-module.exports = { suggest, run, list, get, remove, _parseJson: parseJson };
+module.exports = {
+  suggest, suggestAndStore, run, list, get, remove,
+  listSubreddits, addSubreddit, updateSubreddit, removeSubreddit,
+  WINDOWS, _parseJson: parseJson, _normName: normName,
+};

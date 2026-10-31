@@ -3,8 +3,14 @@
 // posts, finds the #1 pain point with evidence, and turns that into blog topics,
 // reel hooks, a reel script with a comment-keyword CTA (which drops into the DM
 // bot's comment-to-DM), and a lead-magnet outline. Runs are saved.
+//
+// The subreddits come first, because "without knowing the subreddit, it's
+// hard to know where to start" is the actual first problem. They were a row
+// of chips that filled a text box: gone on reload, and another Claude call to
+// see the same list again. Now they are a stored table you configure — a
+// focus and a window per row, and Research runs against the row.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -25,22 +31,79 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
   const [subreddit, setSubreddit] = useState('');
   const [focus, setFocus] = useState('');
   const [time, setTime] = useState('month');
-  const [suggested, setSuggested] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [loadingRows, setLoadingRows] = useState(true);
   const [suggesting, setSuggesting] = useState(false);
   const [running, setRunning] = useState(false);
+  const [runningId, setRunningId] = useState(null);
+  const [adding, setAdding] = useState('');
+  // The focus text at the moment the field was focused, so blur writes only
+  // when something actually changed. Comparing against the row's own state is
+  // useless: onChange already wrote it there.
+  const focusAtFocus = useRef('');
   const [runs, setRuns] = useState([]);
   const [active, setActive] = useState(null); // full run { result }
 
   async function loadRuns() {
     try { const r = await api.get(`/social/clients/${clientId}/subreddit-research`); setRuns(r.runs || []); } catch { /* ignore */ }
   }
-  useEffect(() => { loadRuns(); /* eslint-disable-line */ }, [clientId]);
-
-  async function suggest() {
-    setSuggesting(true);
-    try { const r = await api.post(`/social/clients/${clientId}/subreddit-research/suggest`, {}); setSuggested(r.subreddits || []); }
+  async function loadRows() {
+    setLoadingRows(true);
+    try { const r = await api.get(`/social/clients/${clientId}/subreddits`); setRows(r.subreddits || []); }
     catch (e) { toast(e.message, 'error'); }
+    finally { setLoadingRows(false); }
+  }
+  useEffect(() => { loadRuns(); loadRows(); /* eslint-disable-line */ }, [clientId]);
+
+  // Reading the stored list costs nothing; `force` is the one press that pays
+  // for a second opinion, so it says so and asks first.
+  async function suggest({ force = false } = {}) {
+    if (force && !window.confirm('Ask Claude for more subreddits? This is a new call on top of the ones already stored.')) return;
+    setSuggesting(true);
+    try {
+      const r = await api.post(`/social/clients/${clientId}/subreddits/suggest${force ? '?force=1' : ''}`, {});
+      setRows(r.subreddits || []);
+      if (r.from === 'stored') toast('These are the ones already stored.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
     finally { setSuggesting(false); }
+  }
+
+  async function addRow() {
+    const name = adding.trim();
+    if (!name) return;
+    try {
+      await api.post(`/social/clients/${clientId}/subreddits`, { name });
+      setAdding('');
+      loadRows();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // Saved on change rather than behind a Save button: there is one field and
+  // one select per row, and a row of unsaved edits across eight rows is how
+  // research gets run against the wrong window.
+  async function patchRow(row, patch) {
+    setRows(prev => prev.map(r => r.id === row.id ? { ...r, ...patch } : r));
+    try { await api.patch(`/social/clients/${clientId}/subreddits/${row.id}`, patch); }
+    catch (e) { toast(e.message, 'error'); loadRows(); }
+  }
+
+  async function removeRow(row) {
+    if (!window.confirm(`Remove r/${row.name} from the list?`)) return;
+    setRows(prev => prev.filter(r => r.id !== row.id));
+    try { await api.delete(`/social/clients/${clientId}/subreddits/${row.id}`); }
+    catch (e) { toast(e.message, 'error'); loadRows(); }
+  }
+
+  // Research a stored row, on its own focus and window.
+  async function researchRow(row) {
+    setRunningId(row.id);
+    try {
+      const { run: r } = await api.post(`/social/clients/${clientId}/subreddit-research`,
+        { subreddit: row.name, focus: row.focus || null, time: row.time_window });
+      setActive(r); loadRuns(); loadRows();
+      toast('Research complete.', 'success');
+    } catch (e) { toast(`Research failed: ${e.message}`, 'error'); }
+    finally { setRunningId(null); }
   }
 
   async function run() {
@@ -48,7 +111,7 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
     setRunning(true);
     try {
       const { run: r } = await api.post(`/social/clients/${clientId}/subreddit-research`, { subreddit: subreddit.trim(), focus: focus.trim() || null, time });
-      setActive(r); loadRuns();
+      setActive(r); loadRuns(); loadRows();
       toast('Research complete.', 'success');
     } catch (e) { toast(`Research failed: ${e.message}`, 'error'); }
     finally { setRunning(false); }
@@ -77,36 +140,123 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
         </p>
       </div>
 
-      {/* Run form */}
-      <div className="card stack" style={{ gap: 'var(--s3)' }}>
-        <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: '1 1 200px' }}>
-            <label className="field-label">Subreddit</label>
-            <input className="input" value={subreddit} onChange={e => setSubreddit(e.target.value)} placeholder="Architects" onKeyDown={e => { if (e.key === 'Enter') run(); }} />
-          </div>
-          <div style={{ flex: '2 1 240px' }}>
-            <label className="field-label">Focus <span className="text-subtle">(optional)</span></label>
-            <input className="input" value={focus} onChange={e => setFocus(e.target.value)} placeholder="e.g. getting clients, pricing" onKeyDown={e => { if (e.key === 'Enter') run(); }} />
-          </div>
-          <div style={{ width: 120 }}>
-            <label className="field-label">Window</label>
-            <select className="input" value={time} onChange={e => setTime(e.target.value)}>
-              <option value="week">Past week</option>
-              <option value="month">Past month</option>
-              <option value="year">Past year</option>
-              <option value="all">All time</option>
-            </select>
-          </div>
-          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: running })}>{running ? 'Researching…' : 'Research'}</button>
+      {/* The subreddits, first. Where the buyers are is the thing you need
+          before anything else on this screen does any work. */}
+      <div>
+        <div className="row between center wrap mb-3" style={{ gap: 'var(--s2)' }}>
+          <div className="caption">Where this client&apos;s buyers gather</div>
+          {!!rows.length && (
+            <button className="btn btn-secondary btn-sm"
+              {...roWrite(readOnly, { onClick: () => suggest({ force: true }), disabled: suggesting })}>
+              {suggesting ? 'Thinking…' : 'Suggest more'}
+            </button>
+          )}
         </div>
-        <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: suggest, disabled: suggesting })}>{suggesting ? 'Thinking…' : '✨ Suggest subreddits'}</button>
-          {suggested.map(s => (
-            <button key={s.name} className="chip chip-neutral" title={s.why || ''} style={{ cursor: 'pointer' }} onClick={() => setSubreddit(s.name)}>r/{s.name}</button>
-          ))}
-        </div>
-        {running && <div className="body-xs text-subtle">Scraping Reddit and analysing — this can take a minute or two.</div>}
+
+        {loadingRows ? (
+          <div className="body-sm text-subtle">Loading…</div>
+        ) : !rows.length ? (
+          <div className="card">
+            <p className="body-sm" style={{ maxWidth: 620 }}>
+              Nothing stored yet. Claude can name the subreddits where this client&apos;s
+              <strong> customers</strong> gather rather than its competitors, from the brief
+              and the monthly focus. They are saved, so looking at them again costs nothing.
+            </p>
+            <button className="btn btn-primary mt-3"
+              {...roWrite(readOnly, { onClick: () => suggest(), disabled: suggesting })}>
+              {suggesting ? 'Thinking…' : 'Suggest subreddits'}
+            </button>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0 }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th className="caption">Subreddit</th>
+                  <th className="caption">Focus</th>
+                  <th className="caption" style={{ width: 130 }}>Window</th>
+                  <th className="caption" style={{ width: 200 }}>Research</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
+                    <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)' }}>
+                      <strong>r/{r.name}</strong>
+                      {r.why && <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)', maxWidth: 320 }}>{r.why}</div>}
+                    </td>
+                    <td style={{ padding: 'var(--s2) var(--s3)' }}>
+                      <input className="input" value={r.focus || ''} placeholder="e.g. getting clients, pricing"
+                        disabled={readOnly}
+                        onFocus={() => { focusAtFocus.current = r.focus || ''; }}
+                        onChange={e => setRows(prev => prev.map(x => x.id === r.id ? { ...x, focus: e.target.value } : x))}
+                        onBlur={e => { if ((e.target.value || '') !== focusAtFocus.current) patchRow(r, { focus: e.target.value }); }} />
+                    </td>
+                    <td style={{ padding: 'var(--s2) var(--s3)' }}>
+                      <select className="input" value={r.time_window}
+                        onChange={e => patchRow(r, { time_window: e.target.value })}>
+                        <option value="week">Past week</option>
+                        <option value="month">Past month</option>
+                        <option value="year">Past year</option>
+                        <option value="all">All time</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: 'var(--s2) var(--s3)' }}>
+                      <div className="row center" style={{ gap: 'var(--s2)' }}>
+                        <button className="btn btn-secondary btn-sm"
+                          {...roWrite(readOnly, { onClick: () => researchRow(r), disabled: !!runningId })}>
+                          {runningId === r.id ? 'Researching…' : 'Research'}
+                        </button>
+                        <button className="btn-icon btn-icon-sm danger" title="Remove"
+                          {...roWrite(readOnly, { onClick: () => removeRow(r) })}>✕</button>
+                      </div>
+                      {r.researched_at && (
+                        <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
+                          last run {new Date(r.researched_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="row center wrap" style={{ gap: 'var(--s2)', padding: 'var(--s3)' }}>
+              <input className="input" style={{ maxWidth: 220 }} value={adding} placeholder="Add one yourself"
+                onChange={e => setAdding(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addRow(); }} />
+              <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: addRow, disabled: !adding.trim() })}>Add</button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* A one-off, for a subreddit you do not want on the list. */}
+      <details>
+        <summary className="body-sm" style={{ cursor: 'pointer' }}>Research a subreddit without adding it</summary>
+        <div className="card stack mt-3" style={{ gap: 'var(--s3)' }}>
+          <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 200px' }}>
+              <label className="field-label">Subreddit</label>
+              <input className="input" value={subreddit} onChange={e => setSubreddit(e.target.value)} placeholder="Architects" onKeyDown={e => { if (e.key === 'Enter') run(); }} />
+            </div>
+            <div style={{ flex: '2 1 240px' }}>
+              <label className="field-label">Focus <span className="text-subtle">(optional)</span></label>
+              <input className="input" value={focus} onChange={e => setFocus(e.target.value)} placeholder="e.g. getting clients, pricing" onKeyDown={e => { if (e.key === 'Enter') run(); }} />
+            </div>
+            <div style={{ width: 120 }}>
+              <label className="field-label">Window</label>
+              <select className="input" value={time} onChange={e => setTime(e.target.value)}>
+                <option value="week">Past week</option>
+                <option value="month">Past month</option>
+                <option value="year">Past year</option>
+                <option value="all">All time</option>
+              </select>
+            </div>
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: run, disabled: running })}>{running ? 'Researching…' : 'Research'}</button>
+          </div>
+          {running && <div className="body-xs text-subtle">Scraping Reddit and analysing — this can take a minute or two.</div>}
+        </div>
+      </details>
 
       {/* Result */}
       {res && (
