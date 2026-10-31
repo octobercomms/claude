@@ -1,4 +1,4 @@
-# Node 22 on the box
+# Node 22 on the box (and ffmpeg while you are there)
 
 The platform box runs **Node 20.20.2**. The AWS SDK v3 — which every R2
 operation goes through — prints this on every script run:
@@ -29,6 +29,50 @@ Each of these was checked rather than assumed, on 31 Oct 2026:
 So the risk is not in the application. It is in the upgrade mechanics on the
 box: pm2 holding a reference to the old binary, or `node_modules` built
 against the old one.
+
+## ffmpeg 4.4 is the other old package, and it costs something today
+
+`ffmpeg -version` on the box reports libavformat 58.76, which is ffmpeg 4.4 —
+2021. It is not merely old:
+
+**`-cues_to_front` does not exist before ffmpeg 6.0.** That flag moves a WebM's
+seek index from the tail of the file to the front. `services/recordingRemux.js`
+probes for it and falls back when it is missing, so nothing fails, but three
+recordings in the library currently have their index at the tail:
+
+| | |
+|---|---|
+| Adding Captions to Blog post images | 13464815 |
+| Falcon Asset Bank | 1b82dce3 |
+| Your Architect Tutorial | b7f3d0c4 |
+
+A player has to fetch the end of the file before it can scrub one of those.
+Measured on a 5-minute capture: index at byte 465 with the flag, at byte
+16,329,148 without.
+
+Every WebM recorded or imported from here on has the same limitation until
+ffmpeg is newer, so this is not a backlog of three — it grows.
+
+```bash
+ffmpeg -version | head -1
+ffmpeg -hide_banner -h muxer=webm | grep cues_to_front   # silent on 4.4
+```
+
+Ubuntu 22.04 ships 4.4; 24.04 ships 6.1. If the box is not being upgraded
+wholesale, a static build dropped somewhere on PATH and pointed at by
+`FFMPEG_PATH` in `.env` is enough — every ffmpeg call in the platform resolves
+through that variable.
+
+**After upgrading, redo the three:**
+
+```bash
+cd /opt/october-source/dev/platform/backend
+node scripts/remux-backfill.js --commit --force
+node scripts/media-store-status.js
+```
+
+`--force` is what redoes recordings that already have a playback copy. Without
+it they are skipped as done, which they are, just not as well as they could be.
 
 ## Doing it
 
