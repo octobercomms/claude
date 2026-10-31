@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import StatStrip from './shells/StatStrip';
 
 // A tracked click URL → a short, human label (the host, minus www), so a row
 // reads "clicked: downloadfor.press · octobercomms.com" instead of a run-on of
@@ -265,12 +266,6 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   const t = summary?.totals || {};
   const recipientTotal = summary?.recipient_total ?? t.recipients ?? 0;
   const hasMore = recipients.length < recipientTotal;
-  const Stat = ({ n, label, sub }) => (
-    <div style={{ minWidth: 90 }}>
-      <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>{n ?? '—'}</div>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{label}{sub != null ? ` · ${sub}%` : ''}</div>
-    </div>
-  );
   const Th = ({ k, children, right }) => (
     <th onClick={() => sortBy(k)} style={{ cursor: 'pointer', textAlign: right ? 'right' : 'left', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, whiteSpace: 'nowrap' }}>
       {children}{sort.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
@@ -281,26 +276,30 @@ export default function PressCampaignAnalytics({ clientId, release }) {
 
   return (
     <div className="stack" style={{ marginTop: 'var(--s2)' }}>
-      <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', alignItems: 'baseline', padding: 'var(--s4)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
-        <Stat n={t.recipients} label="recipients" />
-        <Stat n={t.opened} label="opened" sub={t.open_rate} />
-        <Stat n={t.clicked} label="clicked" sub={t.click_rate} />
-        <Stat n={t.replied} label="replied" sub={t.reply_rate} />
-        <div style={{ minWidth: 90 }}>
-          <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1, color: t.warm ? 'var(--warm)' : 'var(--text)' }}>{t.warm ?? 0}</div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>🔥 warm</div>
-        </div>
-        <div style={{ minWidth: 90 }}>
-          <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>{t.unsubscribed ?? 0}</div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
-            unsubscribed{t.unsub_rate != null ? ` · ${t.unsub_rate}%` : ''}
-          </div>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
-          <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
-          <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={exporting}>{exporting ? 'Exporting…' : 'Export CSV'}</button>
-        </div>
+      {/* The engagement row, on the house tile rather than six bespoke stats
+          baseline-aligned inside one grey box. White, 2px border, auto-fitting
+          columns — the same bento as every other stat row in the platform, and
+          with the rates as the tile's own sub line instead of appended to the
+          label after a middot. The two buttons were inside the box, pushed
+          right with margin-left: auto, which made the box both a readout and a
+          toolbar; they sit above it now. */}
+      <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end', marginBottom: 'var(--s1)' }}>
+        <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
+        <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={exporting}>{exporting ? 'Exporting…' : 'Export CSV'}</button>
       </div>
+      <StatStrip items={[
+        { label: 'recipients', value: t.recipients ?? '—' },
+        { label: 'opened', value: t.opened ?? '—', sub: t.open_rate != null ? `${t.open_rate}%` : null },
+        { label: 'clicked', value: t.clicked ?? '—', sub: t.click_rate != null ? `${t.click_rate}%` : null },
+        { label: 'replied', value: t.replied ?? '—', sub: t.reply_rate != null ? `${t.reply_rate}%` : null },
+        // The one tile worth singling out: a warm journalist is the campaign's
+        // actual output, and it had been a coloured number in a row of plain
+        // ones, which the tile does not offer. Featured only when there is one,
+        // because a dark tile reading 0 shouts about nothing.
+        { label: '🔥 warm', value: t.warm ?? 0, feature: !!t.warm },
+        { label: 'unsubscribed', value: t.unsubscribed ?? 0,
+          sub: t.unsub_rate != null ? `${t.unsub_rate}%` : null },
+      ]} />
 
       {/* Delivery health — the send queue, distinct from engagement above.
           Split into the first-email blast (what "sending status" really means)
