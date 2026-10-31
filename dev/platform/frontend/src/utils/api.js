@@ -181,6 +181,10 @@ export const api = {
       filename: m ? m[1] : null,
       assets: num('X-Export-Assets'),
       missing: num('X-Export-Missing'),
+      // Shared's export also says how many posts went in, because "4 assets"
+      // does not tell you whether it took the four you ticked or the whole
+      // batch of nine. Paid does not send it and 0 is the right answer there.
+      posts: num('X-Export-Posts'),
     };
   },
 };

@@ -220,4 +220,8 @@ async function exportBatch(batchId) {
   };
 }
 
-module.exports = { exportBatch, csvCell, toCsv, slug, extFor, diskPathFor, CSV_HEADERS };
+// readAsset is exported because Shared's export needs the identical rule —
+// prefer the copy on this box, fall back to the provider link, and say which
+// failed — and a second implementation of "where did this asset go" would
+// drift from this one the first time either changed.
+module.exports = { exportBatch, csvCell, toCsv, slug, extFor, diskPathFor, readAsset, CSV_HEADERS };

@@ -173,6 +173,49 @@ router.param('id', async (req, res, next, id) => {
 
 // ─── BATCHES + POSTS ──────────────────────────────────────────────────────
 
+// Download a batch to post by hand: one zip holding posts.csv and every
+// piece of media, named so a row in the sheet and a file on disk match
+// without opening either.
+//
+// "Do we just remove all of that, and allow me to download the assets and
+// schedule? like we did for Paid?" This is the download half, built first
+// because it takes nothing away.
+//
+// `posts` is an optional comma-separated list of post ids. The review step
+// lets the account lead untick posts, and exporting all nine when they ticked
+// four would ignore the one decision made on that screen. The ids are
+// filtered against this batch rather than trusted, so a id from somebody
+// else's batch selects nothing instead of reading across clients.
+//
+// The counts go in headers as well as the zip, so the page can say what came
+// back without unzipping and a short download is visible immediately.
+router.get('/clients/:clientId/batches/:id/export', async (req, res) => {
+  try {
+    const socialExport = require('../services/socialExport');
+    const loaded = await socialExport.loadBatch(req.params.id);
+    if (!loaded || loaded.batch.client_id !== req.params.clientId) {
+      return res.status(404).json({ error: 'Batch not found for this client.' });
+    }
+    let only = null;
+    if (req.query.posts) {
+      const asked = new Set(String(req.query.posts).split(',').map(x => x.trim()).filter(Boolean));
+      only = new Set(loaded.posts.filter(p => asked.has(p.id)).map(p => p.id));
+      if (!only.size) return res.status(400).json({ error: 'None of those posts are in this batch.' });
+    }
+    const out = await socialExport.exportBatch(req.params.id, { only });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${out.filename}"`);
+    res.setHeader('X-Export-Posts', String(out.counts.posts));
+    res.setHeader('X-Export-Assets', String(out.counts.assets));
+    res.setHeader('X-Export-Missing', String(out.counts.missing));
+    res.setHeader('Access-Control-Expose-Headers', 'X-Export-Posts, X-Export-Assets, X-Export-Missing');
+    res.send(out.buffer);
+  } catch (err) {
+    console.error('[social-export] failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/clients/:clientId/batches', async (req, res) => {
   try {
     // brief = '__autopilot__' hides the sentinel batch that hosts
