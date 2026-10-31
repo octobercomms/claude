@@ -17,8 +17,26 @@
 const fs = require('fs');
 const path = require('path');
 
-const page = fs.readFileSync(
-  path.join(__dirname, '..', '..', 'frontend', 'src', 'pages', 'SettingsPage.jsx'), 'utf8');
+// Read from the whole frontend tree, not one named file.
+//
+// This used to read SettingsPage.jsx alone. On 31 Oct 2026 the catalogue was
+// lifted out of that page into settings/catalogue.js so the search palette
+// could find a credential by name, and this test went to zero keys — at which
+// point "every field the page offers is one the server will store" passed
+// vacuously, because there were no fields to check. The canary below is the
+// only thing that noticed.
+//
+// So the scan no longer cares which file holds the list. Moving it again
+// breaks nothing here.
+function walk(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) return walk(full);
+    return /\.jsx?$/.test(e.name) ? [full] : [];
+  });
+}
+const frontendSrc = path.join(__dirname, '..', '..', 'frontend', 'src');
+const page = walk(frontendSrc).map(f => fs.readFileSync(f, 'utf8')).join('\n');
 const route = fs.readFileSync(
   path.join(__dirname, '..', 'src', 'routes', 'settings.js'), 'utf8');
 
@@ -41,13 +59,25 @@ const unique = [...new Set(declared)];
 const block = route.match(/const SETTINGS_KEYS = \[([\s\S]*?)\n\];/);
 const allowed = block ? [...block[1].matchAll(/'([A-Z][A-Z0-9_]+)'/g)].map(m => m[1]) : [];
 
-check('the Settings page declares some keys', unique.length > 20, `found ${unique.length}`);
+// The canary. It is the reason the silent half of this test was caught when
+// the catalogue moved, so it stays first and it stays loud.
+check('the frontend declares some settings keys', unique.length > 20, `found ${unique.length}`);
 check('the server has an allowlist', allowed.length > 20, `found ${allowed.length}`);
 
 const missing = unique.filter(k => !allowed.includes(k));
 check('every field the page offers is one the server will store', missing.length === 0,
   missing.length ? `these would save silently and persist nothing: ${missing.join(', ')}\n  `
     + 'Add them to SETTINGS_KEYS in backend/src/routes/settings.js.' : '');
+
+// And the other direction, which this test never checked: a key the server
+// will store that nothing offers. Not a failure — several are set from a
+// panel of their own rather than the credential catalogue — but worth
+// printing, because a key on the allowlist with no field is either a field
+// somebody forgot to add or an allowlist entry nobody needs.
+const orphans = allowed.filter(k => !unique.includes(k));
+if (orphans.length) {
+  console.log(`NOTE  ${orphans.length} allowlisted key(s) have no field in the catalogue: ${orphans.join(', ')}`);
+}
 
 // The two from the incident, named, so a regression says what it broke.
 for (const k of ['PIPELINE_FROM', 'PIPELINE_REPLY_TO']) {
