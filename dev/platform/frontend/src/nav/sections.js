@@ -193,6 +193,12 @@ export const SECTIONS = {
         // Separate rows fix that directly, and they do different jobs.
         { tab: 'swipe',     label: 'Swipe' },
         { tab: 'subreddit', label: 'Reddit', slug: 'reddit' },
+        // Discover joins them, off the 31 Oct review. It had a group of its
+        // own with no heading, which is a row floating between Create and
+        // Measure belonging to neither. It is the third way material comes in:
+        // Swipe is what you saved, Reddit is where you go looking, Discover is
+        // the feed bringing it to you. One group, three sources.
+        { tab: 'discover',  label: 'Discover' },
       ] },
       // Four steps, not five. 'reels' is the avatar-reel overlay, not the
       // Workbench — it resolves to step 1, so the Workbench row opened Ideas.
@@ -204,9 +210,7 @@ export const SECTIONS = {
         { tab: 'produce',    label: 'Workbench', slug: 'workbench', step: 3 },
         { tab: 'plans',      label: 'Schedule', slug: 'schedule',  step: 4 },
       ] },
-      // Engage held the DM bot and the feed, which is two jobs. The bot is a
-      // drawer now, so the group has one job and can take its name.
-      { heading: null, rows: [{ tab: 'discover', label: 'Discover' }] },
+
       { heading: 'Measure', rows: [
         { tab: 'perf_insights', label: 'Review', slug: 'review' },
         { tab: 'performance',   label: 'Learn', slug: 'learn' },
