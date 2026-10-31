@@ -99,7 +99,10 @@ test('a section present but empty does not print its heading', () => {
 test('the tabs that were deleted all land somewhere', () => {
   assert.deepEqual(resolvePaidTab('health'), { tab: 'measure', openPlaybook: false });
   assert.deepEqual(resolvePaidTab('performance'), { tab: 'measure', openPlaybook: false });
-  assert.deepEqual(resolvePaidTab('resize'), { tab: 'library', openPlaybook: false });
+  // Resize is a screen of its own now and the library is gone, so the
+  // redirect runs the other way. 'resize' is covered by the derived
+  // live-tabs test below, which is the point of deriving it.
+  assert.deepEqual(resolvePaidTab('library'), { tab: 'resize', openPlaybook: false });
   assert.deepEqual(resolvePaidTab('pipeline'), { tab: 'brief', openPlaybook: false });
   assert.deepEqual(resolvePaidTab('creative'), { tab: 'brief', openPlaybook: false });
 });
@@ -150,6 +153,11 @@ test('the retired steps land somewhere rather than nowhere', () => {
   // to nothing reads as the feature having been deleted.
   assert.deepEqual(resolvePaidTab('approve'), { tab: 'launch', openPlaybook: false });
   assert.ok(!tabsOf(SECTIONS.paid).includes('approve'), 'and it is genuinely gone from the panel');
+  // The Paid library went the same way. Resize only ever hung off it, so
+  // without a row of its own it would have become unreachable — the exact
+  // failure sections.js warns about three times over.
+  assert.ok(!tabsOf(SECTIONS.paid).includes('library'), 'the Paid library is gone from the panel');
+  assert.ok(tabsOf(SECTIONS.paid).includes('resize'), 'and Resize has a row of its own');
 });
 
 // ── Stat tiles ────────────────────────────────────────────────────────────

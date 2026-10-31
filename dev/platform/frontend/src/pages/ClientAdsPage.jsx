@@ -6,7 +6,6 @@ import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
 import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
 import GoogleAdsPlaybookQuick from '../components/GoogleAdsPlaybookQuick';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
-import PaidLibraryPanel from '../components/paid/PaidLibraryPanel';
 import ApprovalLinkModal from '../components/paid/ApprovalLinkModal';
 import AdAccountSection from '../components/paid/AdAccountSection';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -66,7 +65,7 @@ export default function ClientAdsPage() {
   // Build's non-step tabs. They are not stages of a batch, which is exactly
   // why they are not steps: Audiences is standing client data, Competitors is
   // research, and the library is everything already made.
-  const BUILD_TABS = ['library', 'audiences', 'competitor_ads'];
+  const BUILD_TABS = ['resize', 'audiences', 'competitor_ads'];
   const currentGroup = (isPipelineGroup || BUILD_TABS.includes(tab)) ? 'build' : 'measure';
   // The playbook: reference, in a drawer, one job.
   const [playbookOpen, setPlaybookOpen] = useState(false);
@@ -75,10 +74,6 @@ export default function ClientAdsPage() {
   // from anywhere in Paid, including Measure, which is where you are when a
   // client asks to see the work.
   const [approvalOpen, setApprovalOpen] = useState(false);
-  // A creative sent from the library to Resize, which is where resizing
-  // starts now. It used to be a tab asking you to upload the file you had
-  // already made twenty feet away.
-  const [resizeSeed, setResizeSeed] = useState(null);
 
   // Old links keep working. 'health' and 'performance' were both the numbers,
   // so both land on Measure; 'playbook' opens the drawer over it rather than
@@ -521,19 +516,12 @@ export default function ClientAdsPage() {
         />
       )}
 
-      {tab === 'library' && (
-        <>
-          <PaidLibraryPanel clientId={id} onResize={setResizeSeed} />
-          {/* Resize stopped being a tab. It is what you do to a thing, and a
-              tab made you upload the file you had already made here. The
-              panel opens underneath with that creative in hand. */}
-          {resizeSeed && (
-            <div style={{ marginTop: 'var(--s6)' }}>
-              <div className="oview-grplabel">Resize</div>
-              <AdResizePanel clientId={id} clientName={client?.name || ''} seed={resizeSeed} onClearSeed={() => setResizeSeed(null)} />
-            </div>
-          )}
-        </>
+      {/* Resize is its own screen again. It hung off the Paid library, which
+          Daniel removed, and a tool whose only door is a deleted page is not
+          a tool. It takes an upload: finished creative now lives with the
+          batch that produced it and in the Launch export. */}
+      {tab === 'resize' && (
+        <AdResizePanel clientId={id} clientName={client?.name || ''} />
       )}
 
       {tab === 'audiences' && (

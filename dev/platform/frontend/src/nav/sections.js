@@ -118,7 +118,13 @@ export const SECTIONS = {
       { heading: 'Research', rows: [
         { tab: 'competitor_ads', label: 'Competitors', slug: 'competitors' },
         { tab: 'audiences',      label: 'Audiences' },
-        { tab: 'library',        label: 'Library' },
+      ] },
+      // Resize has a row of its own because the Library it used to hang off
+      // is gone, and a tool reachable only from a deleted screen is not
+      // reachable. It takes an upload now rather than picking from stored
+      // creative: Daniel removed the library knowing that was the trade.
+      { heading: null, rows: [
+        { tab: 'resize', label: 'Resize' },
       ] },
     ],
   },
