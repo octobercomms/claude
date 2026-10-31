@@ -500,7 +500,7 @@ export function frameworkTip(creative) {
   return why || base || null;
 }
 
-export function CreativeCard({ creative, onDelete, onEdit, onRender, onDeleteImage, onFanOut, onUpload, renderMode = 'auto' }) {
+export function CreativeCard({ creative, onDelete, onEdit, onRender, onDeleteImage, onFanOut, onUpload, onToggleShare, renderMode = 'auto', copyMode = 'full' }) {
   const { readOnly } = useAuth();
   const [showRender, setShowRender] = useState(renderMode === 'always-open');
   const [mode, setMode] = useState('image'); // image | video
@@ -565,31 +565,78 @@ export function CreativeCard({ creative, onDelete, onEdit, onRender, onDeleteIma
           <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}
             title="The specific line this concept takes. The framework is the structure; the angle is the argument.">{creative.angle}</span>
         </div>
-        <button onClick={onDelete} className="btn-icon danger" aria-label="Delete">×</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flex: '0 0 auto' }}>
+          {/* Unticking holds this concept back from the approval link.
+              Nothing is deleted: a weak angle this month is still work you
+              may want next month, and until now trimming a batch for a
+              client meant binning it. */}
+          {onToggleShare && (
+            <label className="creative-share" title={creative.show_to_client === false
+              ? 'Hidden from the client. Tick to include it in the approval link.'
+              : 'The client sees this in the approval link. Untick to hold it back.'}>
+              <input type="checkbox" checked={creative.show_to_client !== false}
+                onChange={e => onToggleShare(e.target.checked)} />
+              <span>Show client</span>
+            </label>
+          )}
+          <button onClick={onDelete} className="btn-icon danger" aria-label="Delete">×</button>
+        </div>
       </div>
 
-      <div style={{ marginTop: 'var(--s3)' }}>
-        <div className="field">HEADLINE</div>
-        <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>{creative.headline}</div>
-      </div>
+      {/* Render shows the same copy Draft does, which is why Daniel said the
+          two pages look alike: "shall we collapse the text here - it looks
+          like the draft page". On Render the copy is reference, not the
+          subject, so it is a headline and a disclosure. The visual concept
+          stays visible there because it is the prompt the render is built
+          from, and judging an image against it is the actual job. */}
+      {copyMode === 'compact' ? (
+        <>
+          <div style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-body)', fontWeight: 700, lineHeight: 1.3 }}>
+            {creative.headline}
+          </div>
+          <div style={{ marginTop: 'var(--s2)' }}>
+            <div className="field">VISUAL CONCEPT</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
+          </div>
+          <details className="creative-copy">
+            <summary>Copy</summary>
+            <div style={{ marginTop: 'var(--s2)' }}>
+              <div className="field">BODY</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
+              <div className="field" style={{ marginTop: 'var(--s2)' }}>CTA</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
+              {creative.notes && (
+                <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
+              )}
+            </div>
+          </details>
+        </>
+      ) : (
+        <>
+          <div style={{ marginTop: 'var(--s3)' }}>
+            <div className="field">HEADLINE</div>
+            <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>{creative.headline}</div>
+          </div>
 
-      <div style={{ marginTop: 'var(--s2)' }}>
-        <div className="field">BODY</div>
-        <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
-      </div>
+          <div style={{ marginTop: 'var(--s2)' }}>
+            <div className="field">BODY</div>
+            <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
+          </div>
 
-      <div style={{ marginTop: 'var(--s2)' }}>
-        <div className="field">CTA</div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
-      </div>
+          <div style={{ marginTop: 'var(--s2)' }}>
+            <div className="field">CTA</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
+          </div>
 
-      <div style={{ marginTop: 'var(--s3)' }}>
-        <div className="field">VISUAL CONCEPT</div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
-      </div>
+          <div style={{ marginTop: 'var(--s3)' }}>
+            <div className="field">VISUAL CONCEPT</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
+          </div>
 
-      {creative.notes && (
-        <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
+          {creative.notes && (
+            <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
+          )}
+        </>
       )}
 
       {(creative.images || []).length > 0 && (

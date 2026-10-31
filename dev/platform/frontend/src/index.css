@@ -2915,3 +2915,26 @@ a:hover > .card-stat,
 .brief-card-hint { opacity: 0; transition: opacity 0.12s ease; }
 .brief-card:hover .brief-card-hint,
 .brief-card:focus-visible .brief-card-hint { opacity: 1; }
+
+/* ─── Render: compact copy and the share toggle ──────────────────────── */
+/* Render and Draft rendered the same copy block, so the two steps looked
+   like the same page. Here the copy is reference and the image is the
+   subject, so the body and CTA fold away. */
+.creative-copy { margin-top: var(--s2); }
+.creative-copy > summary {
+  cursor: pointer; list-style: none;
+  font-size: var(--fs-caption); font-weight: 600; color: var(--text-muted);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.creative-copy > summary::-webkit-details-marker { display: none; }
+.creative-copy > summary::before { content: '▸'; font-size: 10px; line-height: 1; }
+.creative-copy[open] > summary::before { content: '▾'; }
+.creative-copy > summary:hover { color: var(--text); }
+
+.creative-share {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-caption); color: var(--text-muted);
+  cursor: pointer; white-space: nowrap;
+}
+.creative-share input { cursor: pointer; accent-color: var(--accent); }
+.creative-share:hover { color: var(--text); }

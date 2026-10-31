@@ -183,7 +183,7 @@ router.post('/clients/:clientId/sample', async (req, res) => {
 });
 
 router.put('/creatives/:id', async (req, res) => {
-  const { headline, body, cta, angle, visual_concept, status, notes } = req.body || {};
+  const { headline, body, cta, angle, visual_concept, status, notes, show_to_client } = req.body || {};
   try {
     const { rows } = await pool.query(
       `UPDATE ad_creatives SET
@@ -193,10 +193,15 @@ router.put('/creatives/:id', async (req, res) => {
         angle = COALESCE($4, angle),
         visual_concept = COALESCE($5, visual_concept),
         status = COALESCE($6, status),
-        notes = COALESCE($7, notes)
+        notes = COALESCE($7, notes),
+        show_to_client = COALESCE($9, show_to_client)
        WHERE id = $8 RETURNING *`,
       [headline ?? null, body ?? null, cta ?? null, angle ?? null,
-       visual_concept ?? null, status ?? null, notes ?? null, req.params.id]
+       visual_concept ?? null, status ?? null, notes ?? null, req.params.id,
+       // Explicitly boolean-or-null: `false ?? null` is false, which is the
+       // whole point — COALESCE must see the false and write it, where a
+       // falsy check would have discarded the only value anyone sets here.
+       typeof show_to_client === 'boolean' ? show_to_client : null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Creative not found' });
     res.json(rows[0]);
