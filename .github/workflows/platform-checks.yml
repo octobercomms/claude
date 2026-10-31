@@ -150,6 +150,8 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the remux structure assertions would not run'; exit 1; }
           node tests/recording-remux.test.js
+      - name: Guard — an MP4 export cannot run away with its own size
+        run: node tests/recording-export.test.js
       - name: Guard — the reel checks do not fail the plan's own example hook
         run: node tests/reel-checks.test.js
       - name: Guard — a tightened edit keeps no sliver too short to watch

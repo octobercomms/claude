@@ -28,6 +28,44 @@ function run(bin, args) {
   });
 }
 
+// A ceiling on the export, not just a quality target.
+//
+// CRF alone is a quality target with no upper bound: x264 spends whatever
+// bitrate the content demands. The recorder is capped at 2.5 Mbps
+// (utils/captureSettings.js), so a busy recording arrives already full of
+// compression artefacts — and CRF 20 then faithfully spends bits reproducing
+// that noise. One real export in the library is 997 MB from a 33 MB source.
+//
+// Measured on a 60 s 1080p30 high-entropy source:
+//
+//   crf 20, no ceiling   313.7 MB   (42 Mbps)   ← what shipped
+//   crf 20, 8 Mbps cap    60.8 MB
+//
+// And on a realistic screen recording — a near-static 5-minute slide with a
+// moving cursor, which is what these actually are — the ceiling is a no-op:
+// 1.78 MB either way, SSIM identical to six decimal places. It never touches
+// a normal export and only engages on the pathological one.
+//
+// 8 Mbps is far above anything screen content needs (the realistic test came
+// out at 0.05 Mbps) and well under the 42 Mbps the uncapped encoder reached.
+const MP4_MAXRATE = '8M';
+const MP4_BUFSIZE = '16M';   // 2x maxrate, the usual VBV window
+
+// Standard, broadly-compatible H.264/AAC MP4 with faststart for streaming.
+// Exported rather than inlined so tests/recording-export.test.js can assert
+// the ceiling is there, the way recordingRemux.argsFor is.
+function mp4Args(inPath, outPath) {
+  return [
+    '-y', '-i', inPath,
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+    '-maxrate', MP4_MAXRATE, '-bufsize', MP4_BUFSIZE,
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '160k',
+    '-movflags', '+faststart',
+    outPath,
+  ];
+}
+
 // Render one recording to `format` ('mp4' | 'gif'), store it, and record the key.
 async function exportRecording(id, format) {
   const fmt = format === 'gif' ? 'gif' : 'mp4';
@@ -49,14 +87,7 @@ async function exportRecording(id, format) {
     const outPath = path.join(work, `out.${fmt}`);
 
     if (fmt === 'mp4') {
-      // Standard, broadly-compatible H.264/AAC MP4 with faststart for streaming.
-      await run(FFMPEG, [
-        '-y', '-i', inPath,
-        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac', '-b:a', '160k',
-        '-movflags', '+faststart',
-        outPath,
-      ]);
+      await run(FFMPEG, mp4Args(inPath, outPath));
     } else {
       // Two-pass palette GIF (palettegen → paletteuse) for good colour at a sane
       // size: 12fps, max 720px wide. No audio.
@@ -94,4 +125,4 @@ function exportInBackground(id, format) {
   exportRecording(id, format).catch(() => {});
 }
 
-module.exports = { exportRecording, exportInBackground };
+module.exports = { exportRecording, exportInBackground, mp4Args, MP4_MAXRATE, MP4_BUFSIZE };

@@ -133,6 +133,22 @@ before then.
 The disk copies are still there. `--prune-verified` frees them when there has
 been enough time to be sure; there is no hurry.
 
+**And one thing the copy made visible.** 997.4 MB of the 1.67 GB was a single
+MP4 export of a 33.3 MB recording. Not corruption and not the key collision —
+a legitimate render, made expensive by a quality target with no ceiling.
+`exportRecording` used `-crf 20` and no `-maxrate`, so on a source that
+arrived bitrate-capped and full of artefacts, x264 spent whatever it took to
+reproduce them. Measured on a 60 s 1080p30 high-entropy source: 313.7 MB
+uncapped, 60.8 MB at 8 Mbps. On a realistic near-static screen recording the
+ceiling is a no-op — 1.78 MB either way, SSIM identical to six decimals.
+`mp4Args` now carries `-maxrate 8M -bufsize 16M`, guarded by
+`tests/recording-export.test.js`.
+
+`scripts/prune-legacy-exports.js` clears the ones already stored under the
+pre-`.export.` scheme, refusing any key the recording is itself served from.
+An export is a render: deleting one costs a minute of ffmpeg next time
+somebody asks for the file.
+
 ### The order to throw the switch in
 
 Setting `MEDIA_STORE=r2` does **not** move anything. The drivers share one
