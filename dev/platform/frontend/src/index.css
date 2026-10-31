@@ -2880,3 +2880,27 @@ a:hover > .card-stat,
   position: fixed; bottom: 16px; left: 0; right: 0; text-align: center;
   color: rgba(255, 255, 255, 0.7); font-size: var(--fs-caption);
 }
+
+/* ─── SOSTAC: how to do each item ────────────────────────────────────── */
+/* Collapsed by default. Forty checklist items with four steps each, all
+   open, is a document rather than a plan — and the plan is what you come
+   here to read. */
+.sostac-how { margin-top: var(--s1); }
+.sostac-how > summary {
+  cursor: pointer; list-style: none;
+  font-size: var(--fs-caption); font-weight: 600; color: var(--text-muted);
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 0;
+}
+.sostac-how > summary::-webkit-details-marker { display: none; }
+.sostac-how > summary::before { content: '▸'; font-size: 10px; line-height: 1; }
+.sostac-how[open] > summary::before { content: '▾'; }
+.sostac-how > summary:hover { color: var(--text); }
+.sostac-how ol {
+  margin: var(--s2) 0 var(--s1);
+  padding-left: var(--s5);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.sostac-how li { margin-bottom: 4px; }
