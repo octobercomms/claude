@@ -36,6 +36,14 @@ const SETTINGS_KEYS = [
   'OMI_FORWARD_SECRET',
   'ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REDIRECT_URI',
   'CLAUDE_API_KEY', 'ANTHROPIC_ADMIN_KEY',
+  // Which API key ids on the Anthropic organisation are OMI's. Normally left
+  // blank: the Costs poller identifies OMI's own key by matching the saved
+  // CLAUDE_API_KEY against each key's partial hint. Set it by hand when that
+  // cannot work — the admin key is not allowed to list keys, or the key was
+  // replaced in the Anthropic console. Without a match, no spend figure is
+  // shown, because the alternative is reporting the whole account's bill as
+  // OMI's.
+  'ANTHROPIC_OMI_KEY_IDS',
   // DeepSeek — selectable per question in the AI Data Analyst (cheap/fast model).
   'DEEPSEEK_API_KEY',
   // OpenAI — used for Whisper speech-to-text (the Swipe-file "reel → ideas"

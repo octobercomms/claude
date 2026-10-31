@@ -27,10 +27,12 @@ const KEY_GROUPS = [
   {
     title: 'AI models',
     category: 'AI',
-    hint: 'Claude powers report narratives, summaries, social, ad creative and the AI Data Analyst. The Anthropic Admin key is optional — if set, the Costs panel pulls monthly spend from the Anthropic usage API. DeepSeek is optional and selectable per question in the Data Analyst (a cheap, fast model) — but it sends data to DeepSeek, so use it for non-sensitive questions only.',
+    hint: 'Claude powers report narratives, summaries, social, ad creative and the AI Data Analyst. The Anthropic Admin key is optional — if set, the Costs panel pulls this month\u2019s spend from the Anthropic usage API, counting only the key OMI uses rather than everything on your Anthropic account. DeepSeek is optional and selectable per question in the Data Analyst (a cheap, fast model) — but it sends data to DeepSeek, so use it for non-sensitive questions only.',
     keys: [
       { key: 'CLAUDE_API_KEY', label: 'Claude API Key', placeholder: 'sk-ant-…', type: 'password' },
       { key: 'ANTHROPIC_ADMIN_KEY', label: 'Anthropic Admin Key (optional — for cost tracking)', placeholder: 'sk-ant-admin-…', type: 'password' },
+      { key: 'ANTHROPIC_OMI_KEY_IDS', label: 'OMI\u2019s Anthropic API key id (optional)', placeholder: 'apikey_… — only needed if the Costs panel says it cannot identify OMI\u2019s key',
+        note: 'The Costs panel reports what OMI itself spends, not what the whole Anthropic account spends. It works that out by matching the Claude key above against the key list on your organisation, so normally this stays empty.\nFill it in if the panel tells you it could not identify the key: find the id in the Anthropic console under Settings \u2192 API keys (it starts with apikey_). Several ids can be separated by commas.' },
       { key: 'DEEPSEEK_API_KEY', label: 'DeepSeek API Key (optional)', placeholder: 'sk-… from platform.deepseek.com — enables DeepSeek in the Data Analyst', type: 'password' },
     ],
   },
