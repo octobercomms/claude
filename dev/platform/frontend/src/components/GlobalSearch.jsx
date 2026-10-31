@@ -31,8 +31,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { allScreens } from '../nav/sections';
-import { matchScreens, screenWhere } from '../nav/screenSearch';
+import { allScreens, SECTIONS } from '../nav/sections';
+import { matchScreens, matchSettings, screenWhere } from '../nav/screenSearch';
+import { settingsEntries } from '../settings/catalogue';
 import { api } from '../utils/api';
 import { OPEN_PARAM } from '../hooks/useOpenRecord';
 
@@ -63,6 +64,12 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
     [readOnly, canVisualise, clientId],
   );
   const screenHits = useMemo(() => matchScreens(q, screens), [q, screens]);
+
+  // Credentials. The catalogue is a constant, so this is as instant as the
+  // screens and needs no round trip. A read-only client login never sees
+  // Settings, so there is nothing to offer it.
+  const settings = useMemo(() => (readOnly ? [] : settingsEntries()), [readOnly]);
+  const settingHits = useMemo(() => matchSettings(q, settings), [q, settings]);
 
   // Client names, so a record says whose it is. One fetch per open session of
   // the palette; the list is small and already cached by the switcher.
@@ -108,6 +115,12 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
     if (screenHits.length) {
       out.push({ key: 'screens', label: 'Screens', items: screenHits.map(s => ({ kind: 'screen', s })) });
     }
+    if (settingHits.length) {
+      out.push({
+        key: 'settings', label: 'Settings',
+        items: settingHits.map(e => ({ kind: 'setting', e })),
+      });
+    }
     const byType = new Map();
     for (const r of records) {
       if (!byType.has(r.type)) byType.set(r.type, { key: r.type, label: r.label || r.type, items: [] });
@@ -115,7 +128,7 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
     }
     out.push(...byType.values());
     return out;
-  }, [screenHits, records]);
+  }, [screenHits, settingHits, records]);
 
   const flat = useMemo(() => groups.flatMap(g => g.items), [groups]);
 
@@ -131,6 +144,10 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
       const { section, slug, scope } = item.s;
       if (scope === 'client' && !clientId) return;
       navigate(`${section.base(clientId)}/${slug}`);
+    } else if (item.kind === 'setting') {
+      // The screen that renders the field, built off the same section table
+      // as everything else rather than a literal '/settings/'.
+      navigate(`${SECTIONS.settings.base()}/${item.e.slug}`);
     } else {
       const { client_id, leaf, screen, opens, id } = item.r;
       // 'screen' means the screen is the record (a client's own dashboard), so
@@ -176,7 +193,7 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search screens, clients, releases, coverage, campaigns, recordings…"
+            placeholder="Search screens, settings, clients, releases, coverage, campaigns, recordings…"
             aria-label="Search"
             autoComplete="off"
             spellCheck="false"
@@ -201,13 +218,20 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
                 return (
                   <button
                     type="button"
-                    key={item.kind === 'screen' ? `s:${item.s.sectionKey}:${item.s.slug}` : `r:${item.r.type}:${item.r.id}`}
+                    key={item.kind === 'screen' ? `s:${item.s.sectionKey}:${item.s.slug}`
+                      : item.kind === 'setting' ? `k:${item.e.key}`
+                      : `r:${item.r.type}:${item.r.id}`}
                     className={`search-row${i === cursor ? ' is-cursor' : ''}`}
                     data-cursor={i === cursor ? 'true' : undefined}
                     onMouseMove={() => setCursor(i)}
                     onClick={() => go(item)}
                   >
-                    {item.kind === 'screen' ? (
+                    {item.kind === 'setting' ? (
+                      <>
+                        <span className="search-row-title">{item.e.title}</span>
+                        <span className="search-row-meta">Settings · {item.e.category}</span>
+                      </>
+                    ) : item.kind === 'screen' ? (
                       <>
                         <span className="search-row-title">{item.s.label}</span>
                         <span className="search-row-meta">{screenWhere(item.s)}</span>

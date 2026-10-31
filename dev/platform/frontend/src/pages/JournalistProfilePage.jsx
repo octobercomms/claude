@@ -1,4 +1,5 @@
 import React from 'react';
+import { SECTIONS, slugForTab } from '../nav/sections';
 import { useParams, useNavigate } from 'react-router-dom';
 import JournalistProfileBody from '../components/JournalistProfileBody';
 
@@ -13,7 +14,7 @@ export default function JournalistProfilePage() {
         id={id}
         mode="page"
         onClose={() => nav(-1)}
-        onDeleted={() => nav('/settings/journalists')}
+        onDeleted={() => nav(`${SECTIONS.database.base()}/${slugForTab(SECTIONS.database, 'contacts')}`)}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { SECTIONS, slugForTab } from '../nav/sections';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -163,7 +164,7 @@ export default function TenderWorkspacePage() {
 
   return (
     <div className="stack stack-lg" style={{ width: '100%' }}>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/settings/tenders')} style={{ alignSelf: 'flex-start' }}>Back to tenders</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => navigate(`${SECTIONS.bizdev.base()}/${slugForTab(SECTIONS.bizdev, 'tenders')}`)} style={{ alignSelf: 'flex-start' }}>Back to tenders</button>
 
       {/* Notice header */}
       <div className="card">

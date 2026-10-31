@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SECTIONS, slugForTab } from '../nav/sections';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -161,7 +162,7 @@ export default function ContactCleanupPage() {
             Trim duplicates, fold orphaned coverage onto real journalists, and let Claude tidy the obvious fixes.
           </p>
         </div>
-        <Link to="/settings/journalists" className="btn btn-secondary">← Back to journalists</Link>
+        <Link to={`${SECTIONS.database.base()}/${slugForTab(SECTIONS.database, 'contacts')}`} className="btn btn-secondary">← Back to journalists</Link>
       </header>
 
       <SuiteTabs tabs={[

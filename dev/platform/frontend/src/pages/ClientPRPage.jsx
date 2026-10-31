@@ -1136,35 +1136,45 @@ export default function ClientPRPage() {
             </div>
           </div>
 
-          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="caption" style={{ marginRight: 'var(--s1)' }}>Status</span>
-            <div className="filter-bar">
-              {[['all', 'All'], ...STATUSES].map(([v, l]) => {
-                const count = v === 'all' ? log.length : log.filter(r => r.status === v).length;
-                return (
-                  <button key={v} type="button" onClick={() => setCoverageFilter(v)}
-                    className={`filter-tab ${coverageFilter === v ? 'active' : ''}`}>
-                    {l}<span className="tab-count">{count}</span>
-                  </button>
-                );
-              })}
+          {/* Two rows, not one that wraps.
+              Status chips, search and sort were a single flex row with
+              flexWrap, so the sort dropped onto a line of its own as soon as
+              the status counts grew — which reads as a layout fault rather
+              than a deliberate break. Filtering above, searching and sorting
+              below, each row keeping its own shape at any width. */}
+          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'grid', gap: 'var(--s3)' }}>
+            <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="caption" style={{ marginRight: 'var(--s1)' }}>Status</span>
+              <div className="filter-bar">
+                {[['all', 'All'], ...STATUSES].map(([v, l]) => {
+                  const count = v === 'all' ? log.length : log.filter(r => r.status === v).length;
+                  return (
+                    <button key={v} type="button" onClick={() => setCoverageFilter(v)}
+                      className={`filter-tab ${coverageFilter === v ? 'active' : ''}`}>
+                      {l}<span className="tab-count">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div style={{ flex: 1 }} />
-            <input
-              className="input"
-              style={{ width: 'auto', minWidth: 200 }}
-              value={coverageQuery}
-              onChange={(e) => setCoverageQuery(e.target.value)}
-              placeholder="Search coverage…"
-              aria-label="Search coverage"
-            />
-            <span className="caption">Sort</span>
-            <select className="input" style={{ width: 'auto' }} value={coverageSort} onChange={(e) => setCoverageSort(e.target.value)}>
-              <option value="date_desc">Newest first</option>
-              <option value="date_asc">Oldest first</option>
-              <option value="outlet">Publication A→Z</option>
-              <option value="journalist">Journalist A→Z</option>
-            </select>
+            <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                className="input"
+                style={{ flex: '1 1 220px', minWidth: 0 }}
+                value={coverageQuery}
+                onChange={(e) => setCoverageQuery(e.target.value)}
+                placeholder="Search coverage…"
+                aria-label="Search coverage"
+              />
+              <span className="caption">Sort</span>
+              <select className="input" style={{ width: 'auto' }} value={coverageSort} onChange={(e) => setCoverageSort(e.target.value)}
+                aria-label="Sort coverage">
+                <option value="date_desc">Newest first</option>
+                <option value="date_asc">Oldest first</option>
+                <option value="outlet">Publication A→Z</option>
+                <option value="journalist">Journalist A→Z</option>
+              </select>
+            </div>
           </div>
 
           {combinedResult && (
