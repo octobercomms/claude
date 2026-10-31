@@ -796,6 +796,42 @@ router.get('/clients/:clientId/subreddit-research', async (req, res) => {
   try { res.json({ runs: await subredditResearch.list(req.params.clientId) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
+// The downloadable social report. POST because it spends: one Claude call for
+// the analysis section, and a live read of the connected Instagram account.
+// The auth middleware blocks every non-GET for the read-only 'client' role,
+// which is the one auditable guarantee a client login cannot spend.
+router.post('/clients/:clientId/report', async (req, res) => {
+  try {
+    const socialReport = require('../services/socialReport');
+    const pdfService = require('../services/pdfService');
+    const days = Math.min(Math.max(parseInt(req.body?.days, 10) || 30, 1), 365);
+    const data = await socialReport.reportData(req.params.clientId, { days });
+
+    // Best-effort analysis: the report is worth sending without it, so a
+    // Claude failure loses the section rather than the document.
+    let summary = null;
+    try { summary = await socialReport.summarise(req.params.clientId, data); }
+    catch (err) { console.error('[social-report] summary failed:', err.message); }
+
+    const html = socialReport.buildHtml({ data, summary });
+    const pdf = await pdfService.generatePDFBuffer(html);
+    const slug = String(data.client.name || 'client').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'client';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="social-${slug}-${String(data.generated_at).slice(0, 10)}.pdf"`);
+    // The page says what the download covers without opening it: a report
+    // that silently left out half an account is the failure mode here.
+    res.setHeader('X-Report-Posts', String(data.totals.posts));
+    res.setHeader('X-Report-Via-Omi', String(data.totals.via_omi));
+    res.setHeader('X-Report-Connected', data.connected ? '1' : '0');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Report-Posts, X-Report-Via-Omi, X-Report-Connected');
+    res.send(pdf);
+  } catch (err) {
+    console.error('[social-report] failed:', err);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // The stored list, which is the first thing the Reddit screen shows now.
 // Suggest reads the table unless ?force=1, so reopening the screen is free.
 router.get('/clients/:clientId/subreddits', async (req, res) => {
