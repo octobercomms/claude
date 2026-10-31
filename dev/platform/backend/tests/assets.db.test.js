@@ -32,10 +32,11 @@ const INDIEWALLS = '22222222-2222-4222-8222-222222222222';
  */
 async function fixture() {
   await pool.query(`
-    INSERT INTO clients (id, name) VALUES ($1,'Falcon'), ($2,'Indiewalls')
+    INSERT INTO clients (id, name, slug) VALUES ($1,'Falcon','falcon-assets-test'), ($2,'Indiewalls','indiewalls-assets-test')
       ON CONFLICT (id) DO NOTHING`, [FALCON, INDIEWALLS]);
   await pool.query(`
-    INSERT INTO users (id, username) VALUES ('33333333-3333-4333-8333-333333333333','daniel')
+    INSERT INTO users (id, username, password_hash)
+      VALUES ('33333333-3333-4333-8333-333333333333','daniel','not-a-real-hash')
       ON CONFLICT (id) DO NOTHING`);
   await pool.query('TRUNCATE client_assets, social_post_media, social_posts, social_batches, '
     + 'ad_creative_images, ad_creatives, ad_creative_batches, recordings, video_projects '
@@ -58,7 +59,10 @@ async function fixture() {
   const b = '44444444-4444-4444-8444-444444444444';
   const pIndie = '55555555-5555-4555-8555-555555555555';
   const pFalcon = '5a5a5a5a-5555-4555-8555-5a5a5a5a5a5a';
-  await pool.query('INSERT INTO social_batches (id) VALUES ($1)', [b]);
+  // social_batches.client_id is NOT NULL. The batch's own client is beside
+  // the point here: the posts carry their own, and what this checks is that a
+  // join respects post_id rather than reaching across clients.
+  await pool.query('INSERT INTO social_batches (id, client_id) VALUES ($1, $2)', [b, FALCON]);
   await pool.query(`INSERT INTO social_posts (id, batch_id, client_id)
     VALUES ($1,$3,$4), ($2,$3,$5)`, [pIndie, pFalcon, b, INDIEWALLS, FALCON]);
   await pool.query(`INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec) VALUES

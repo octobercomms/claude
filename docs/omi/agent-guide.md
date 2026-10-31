@@ -2352,6 +2352,43 @@ TikTok, which has no reachable organic API without the client's own login.
 The general rule this is an instance of: where a number cannot be defended,
 say which account it came from rather than implying a read that is not there.
 
+### The .db tests had rotted, and now there is one command (31 Oct 2026)
+
+`npm run test:db` in `dev/platform/backend`, with a real Postgres:
+
+```
+DB_HOST=/tmp DB_PORT=55434 DB_USER=postgres DB_NAME=omi npm run test:db
+```
+
+These are the tests CI cannot run, because it has no Postgres, so they are
+deliberately out of `platform-checks.yml`. The cost of that is rot, and on 31
+October **three of twelve could not insert their own fixtures**: `clients.slug`,
+`users.password_hash` and `social_batches.client_id` had each become NOT NULL
+since the fixture was written. So `assets.db.test.js`,
+`client-php-audit.db.test.js` and `design-routes.db.test.js` had been failing
+at the first query for an unknown stretch, and the client asset library, the
+PHP audit and the design routes were running unguarded while a passing CI said
+otherwise. All three are fixed.
+
+**Run it after any migration that adds a NOT NULL column**, and before
+claiming that a `.db` test protects anything.
+
+Two still fail, both for reasons beyond a fixture detail, and neither was
+touched rather than faked green:
+
+- `design-routes.db.test.js` requires `supertest`, which is not in
+  `package.json` and never was. Someone wrote the test against a dependency
+  the project does not have. Adding it is a real decision (a dev dependency
+  for one test), not a repair.
+- `social-captions.db.test.js` is not self-contained. It reads
+  `social_posts WHERE id = '5555…'` without creating it, and TRUNCATEs
+  `client_assets` before asserting on a brand kit drawn from them, so it
+  depends on rows another test left behind. Making it pass means writing the
+  fixture, including a palette that yields `accent === '#C8701E'` — and
+  reverse-engineering an input to satisfy an assertion is how you get a test
+  that passes for the wrong reason. It needs whoever knows the intended
+  palette, not a guess.
+
 ## 10. Fast facts / gotchas checklist
 
 - **A slug that equals a different row's tab key is a trap, and one exists.**
