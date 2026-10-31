@@ -6,7 +6,8 @@ import ClientTopBar from './ClientTopBar';
 import GlobalSearch, { SearchIcon } from './GlobalSearch';
 import AnalystPanel from './AnalystPanel';
 import SectionPanel from './SectionPanel';
-import { SECTIONS, sectionForPath } from '../nav/sections';
+import MobileScreenNav from './MobileScreenNav';
+import { SECTIONS, sectionForPath, screenForPath, labelForTab } from '../nav/sections';
 
 
 export default function Layout() {
@@ -162,10 +163,28 @@ export default function Layout() {
     letterSpacing: 0.2,
   });
 
+  // What the phone's top bar says. The section, plus the screen inside it
+  // when the two are different words — "Shared · Swipe" rather than a bare
+  // "Shared", and a bare "Clients" rather than "Clients · Clients".
+  const currentScreenLabel = currentSection
+    ? labelForTab(currentSection, screenForPath(location.pathname))
+    : null;
+  const topbarTitle = currentSection
+    ? [currentSection.title, currentScreenLabel].filter(Boolean)
+        .filter((v, i, a) => a.indexOf(v) === i).join(' · ')
+    : 'Marketing Intelligence';
+
   return (
     <div className="app-shell">
       <header className="app-topbar">
-        <span className="app-topbar-brand">Marketing Intelligence</span>
+        {/* On a phone this said "Marketing Intelligence", which is the one
+            thing you already know: you opened the app. The bar is 56px of
+            the most valuable space on the screen, so it answers the question
+            you actually have — which client, and which part of it — with the
+            product name kept as a subtitle only where there is no client to
+            name. Daniel: "The navigation and titles need to be cleverly
+            thought through for mobile purposes." */}
+        <span className="app-topbar-brand">{topbarTitle}</span>
         <button className="app-hamburger" onClick={() => setNavOpen(o => !o)} aria-label="Menu" aria-expanded={navOpen}>
           {navOpen ? '✕' : '☰'}
         </button>
@@ -196,12 +215,14 @@ export default function Layout() {
                     Then one item per PESO group, each explained inside its own
                     Overview. */}
                 {/* Lit from the path's section, not from a hand-kept list of
-                    tab keys. The brand kit sits on its own route but belongs
+                    tab keys. The brand kit used to sit on its own route; it
+                    is now inside Setup, which is already a Dashboard screen,
+                    so no extra clause is needed for it. It still belongs
                     to the Dashboard as far as the nav is concerned. */}
                 {!readOnly && (
                   <NavLink to={`/clients/${clientId}/dashboard`}
                     style={subLinkStyle(currentSection?.key === 'dashboard'
-                      || location.pathname === `/clients/${clientId}/brand`)}>Dashboard</NavLink>
+                      )}>Dashboard</NavLink>
                 )}
                 {/* Data was the analyst behind a nav item. The analyst is now
                     on every page, so for the agency there is nothing left here.
@@ -268,6 +289,21 @@ export default function Layout() {
               <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
             </li>
           )}
+          {/* Database and Biz dev were groups inside Settings. Neither is
+              configuration — the media database is a working surface edited
+              all day, and Biz dev is the agency's own pipeline — so both are
+              rail items now. Admin-only, like Settings: a client login has no
+              business in either. */}
+          {user?.role === 'admin' && (
+            <li>
+              <NavLink to="/database" style={({ isActive }) => linkStyle(isActive)}>Database</NavLink>
+            </li>
+          )}
+          {user?.role === 'admin' && (
+            <li>
+              <NavLink to="/biz-dev" style={({ isActive }) => linkStyle(isActive)}>Biz dev</NavLink>
+            </li>
+          )}
           <li>
             <NavLink to="/guide" style={({ isActive }) => linkStyle(isActive)}>Guide</NavLink>
           </li>
@@ -293,6 +329,10 @@ export default function Layout() {
           outside a client section, so /clients, /settings and /guide keep the
           single column they have always had. */}
       <SectionPanel ref={panelRef} navCollapsed={navCollapsed} onToggleNav={toggleNav} />
+      {/* The same directory on a phone, as a sheet rather than a column. The
+          panel itself is display:none at that width — a 170px fixed column
+          beside a 260px drawer leaves nothing for the page. */}
+      <MobileScreenNav />
       <main className="app-main" ref={mainRef}>
         {readOnly && (
           <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>

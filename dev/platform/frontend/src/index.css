@@ -1030,6 +1030,31 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 /* A pillar's contribution, on its own page: the account's headline numbers
    filtered to this pillar's channels, each with its share. The share is what
    turns a number into a judgement. */
+/* The contribution line.
+   This was a full card: a heading, a description, three large numbers with
+   their shares, and a stack of channel rows — roughly 250px of height above
+   every PESO screen, for three percentages. It is now one line that sits
+   directly under the page title, with the absolutes and the channel split on
+   hover. The share leads because it is the half that answers "is this pillar
+   pulling its weight"; the card led with it in colour for the same reason. */
+.pillar-contrib {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s3);
+  border-bottom: var(--border-w) solid var(--card-border);
+  font-size: var(--fs-caption);
+}
+.pillar-contrib-label {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-subtle); cursor: help;
+}
+.pillar-contrib-stat { color: var(--text-muted); cursor: help; white-space: nowrap; }
+.pillar-contrib-stat strong { color: var(--text); font-weight: 800; font-size: var(--fs-body); }
+.pillar-contrib-note { color: var(--warning, var(--text-muted)); cursor: help; font-weight: 700; }
+/* The ranges keep their pill styling, just pushed to the end of the line. */
+.pillar-contrib .pillar-measure-ranges { margin-left: auto; }
+
 .pillar-measure { margin-bottom: var(--s6); }
 .pillar-measure-head {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -2424,33 +2449,100 @@ a:hover > .card-stat,
 .sp-row.is-active .sp-step { color: var(--accent); }
 .sp-label { overflow: hidden; text-overflow: ellipsis; }
 
-/* On a phone the nav is already a drawer over the page; a second fixed column
-   beside it would leave nothing for the content. The panel becomes a
-   horizontal scroller under the top bar instead — the one place a strip is
-   the right shape, because there is only ever one group open. */
+/* ─── The section's screens, on a phone (MobileScreenNav) ────────── */
+/* A 170px fixed column beside a 260px drawer leaves nothing for the page, so
+   the panel is gone at this width and the screens move into a sheet. It was a
+   44px horizontal scroller until 31 Oct 2026, which held about four of Owned's
+   29 rows at a time: you swiped a list whose shape you could not see, with no
+   idea how far along you were. The bar below is a button, not a strip. */
 @media (max-width: 768px) {
-  .section-panel {
-    position: fixed; top: 56px; left: 0; right: 0;
-    width: auto; height: auto; max-height: 44px;
-    flex-direction: row; align-items: center; gap: 2px;
-    overflow-x: auto; overflow-y: hidden;
-    border-left: none; border-right: none;
+  .section-panel { display: none; }
+
+  .msn-bar {
+    position: fixed; top: 56px; left: 0; right: 0; z-index: 220;
+    height: 44px; display: flex; align-items: stretch;
+    background: var(--panel-bg);
     border-bottom: 1px solid var(--panel-divider);
-    z-index: 220;
   }
-  .sp-head { display: none; }
-  .sp-list { display: flex; padding: 0; }
-  .sp-group { display: flex; align-items: center; }
-  .sp-group + .sp-group { margin-top: 0; }
-  .sp-heading { width: auto; padding: 0 var(--s2) 0 var(--s3); }
-  .sp-heading-mark { display: none; }
-  .sp-row {
-    width: auto; padding: 10px var(--s3);
-    border-left: none; border-bottom: 2px solid transparent;
+  .msn-trigger {
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: var(--s2);
+    background: none; border: none; cursor: pointer; text-align: left;
+    padding: 0 var(--s4); font-family: inherit; color: #fff;
   }
-  .sp-row.is-active { border-left-color: transparent; border-bottom-color: var(--accent); }
-  /* The panel takes 44px under the 56px top bar, so the page starts lower. */
-  .app-shell:has(.section-panel) .app-main { padding-top: 116px; }
+  .msn-section {
+    flex: 0 0 auto;
+    font-size: var(--fs-caption); font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: rgba(255,255,255,0.55);
+  }
+  .msn-screen {
+    flex: 1 1 auto; min-width: 0;
+    font-size: var(--fs-body); font-weight: 600; letter-spacing: 0.2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .msn-caret { flex: 0 0 auto; color: rgba(255,255,255,0.6); font-size: var(--fs-body); line-height: 1; }
+
+  .msn-scrim { position: fixed; inset: 0; z-index: 240; background: rgba(0,0,0,0.5); }
+  /* Rising from the bottom, because that is the third of the screen a thumb
+     reaches. Capped at 78vh so the page stays visible behind it and the sheet
+     reads as a layer over where you are, not a new page. */
+  .msn-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 241;
+    max-height: 78vh; display: flex; flex-direction: column;
+    background: var(--panel-bg); color: var(--sidebar-fg);
+    border-top-left-radius: var(--r-lg); border-top-right-radius: var(--r-lg);
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.45);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .msn-sheet-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--s4) var(--s4) var(--s3);
+    border-bottom: 1px solid var(--panel-divider);
+  }
+  .msn-sheet-title {
+    font-size: var(--fs-caption); font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; color: rgba(255,255,255,0.9);
+  }
+  .msn-close {
+    width: 44px; height: 44px; margin: -10px -10px -10px 0;
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.7); font-size: var(--fs-title); line-height: 1;
+  }
+  .msn-sheet-body { overflow-y: auto; padding: var(--s2) 0 var(--s4); -webkit-overflow-scrolling: touch; }
+  .msn-group + .msn-group { margin-top: var(--s2); }
+  .msn-heading, .msn-heading-static {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    padding: var(--s3) var(--s4) var(--s1);
+    font-family: inherit; font-size: var(--fs-caption); font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.45);
+  }
+  .msn-heading { background: none; border: none; cursor: pointer; text-align: left; min-height: 40px; }
+  .msn-heading-mark { font-weight: 400; font-size: var(--fs-title); line-height: 1; }
+  /* 48px rows. The desktop panel's are 30px, which is below the 44px touch
+     minimum and reads as a list of links rather than a list of targets. */
+  .msn-row {
+    display: flex; align-items: center; gap: var(--s3); width: 100%;
+    min-height: 48px; padding: var(--s2) var(--s4);
+    background: none; border: none; border-left: 3px solid transparent;
+    cursor: pointer; text-align: left;
+    font-family: inherit; font-size: var(--fs-title); font-weight: 400;
+    letter-spacing: 0.2px; color: rgba(255,255,255,0.82);
+  }
+  .msn-row.is-active {
+    color: #fff; font-weight: 600;
+    border-left-color: var(--accent); background: rgba(255,255,255,0.08);
+  }
+  .msn-row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msn-step {
+    flex: 0 0 auto; width: 16px;
+    font-size: var(--fs-caption); font-weight: 700; color: rgba(255,255,255,0.4);
+  }
+  .msn-row.is-active .msn-step { color: var(--accent); }
+
+  /* The bar takes 44px under the 56px top bar, so the page starts lower.
+     Keyed off the bar, not the panel: the panel is display:none here but
+     still in the DOM, so :has() would match it on every page. */
+  .app-shell:has(.msn-bar) .app-main { padding-top: 116px; }
 }
 
 /* The screen's own name under the section title. Quieter than the display
@@ -2684,4 +2776,16 @@ a:hover > .card-stat,
   /* The scroll is smooth and the mark fades; neither is information, so both
      stop for anyone who asked for less movement. The outline still appears. */
   .is-revealed { animation: none; }
+}
+
+
+/* What a click costs, beside the thing that spends it.
+   Deliberately quiet — a cost hint that competes with the button it
+   annotates stops people reading either. Cursor: help because the figure is
+   a median of real spend and the tooltip says so. */
+.feature-cost {
+  font-size: var(--fs-caption);
+  color: var(--text-subtle);
+  cursor: help;
+  white-space: nowrap;
 }

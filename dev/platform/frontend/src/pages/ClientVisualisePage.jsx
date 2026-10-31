@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useFeatureCost } from '../components/FeatureCost';
 import { useToast } from '../context/ToastContext';
 
 // Visualise — image generation + surgical-refinement studio (docs/omi/visualise-studio.md).
@@ -189,6 +190,16 @@ function Studio({ clientId, projectId, onBack }) {
   const [scenariing, setScenariing] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  // Above the `if (!project) return` below, because hooks must run in the
+  // same order on every render — placed after it, the rules-of-hooks lint
+  // (and eventually a crash) catches it.
+  //
+  // The preset's list price is what the model is advertised at; this is what
+  // the feature has actually cost over the last 30 days, which is the honest
+  // number to put beside a button that spends. Falls back to the list price
+  // when there is no history.
+  const measured = useFeatureCost('image_gen');
+
   useEffect(() => { load(); /* eslint-disable-line */ }, [projectId]);
   async function load() {
     try {
@@ -239,7 +250,7 @@ function Studio({ clientId, projectId, onBack }) {
   const steps = allSteps.filter(s => s.kind === 'generation');
   const activeId = variant?.active_step_id;
   const activeStep = allSteps.find(s => s.id === activeId) || null;
-  const price = preset?.price_per_image ?? 0.1;
+  const price = (measured.known && measured.per_call) || preset?.price_per_image || 0.1;
 
   return (
     <div>
@@ -281,7 +292,11 @@ function Studio({ clientId, projectId, onBack }) {
               </div>
             </Field>
             <div className="body-xs text-subtle" style={{ margin: 'var(--s2) 0 var(--s3)' }}>
-              Est. <strong>${(price * count).toFixed(2)}</strong> for {count} image{count === 1 ? '' : 's'} (${price.toFixed(2)} each).
+              Est. <strong>${(price * count).toFixed(2)}</strong> for {count} image{count === 1 ? '' : 's'} (${price.toFixed(2)} each)
+              {measured.known && measured.per_call ? (
+                <span title={`Median of ${measured.calls} generations in the last 30 days — what this has actually cost, not the list price. $${(measured.cost_usd || 0).toFixed(2)} spent over that window.`}
+                  style={{ cursor: 'help' }}> · measured</span>
+              ) : null}.
             </div>
             <button className="btn btn-primary" style={{ width: '100%' }} onClick={generate} disabled={generating}>
               {generating ? 'Generating…' : `⚡ Generate ${count}`}

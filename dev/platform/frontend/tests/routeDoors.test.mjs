@@ -35,6 +35,7 @@
 //   node --test tests/routeDoors.test.mjs
 
 import test from 'node:test';
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -179,10 +180,22 @@ test('every client-scoped page is linked from somewhere', () => {
   assert.deepEqual(orphans, [], 'these client pages exist and nothing opens them');
 });
 
-test('Brand kit is reachable', () => {
-  // The specific regression: no link anywhere, and the one affordance for it
-  // pointed at a tab that rendered nothing.
-  assert.ok(hasClientDoor('/brand'), 'ClientBrandPage needs a link');
+test('the brand kit has exactly one home, and it is inside Setup', () => {
+  // This used to assert a link to /clients/:id/brand, because the kit was a
+  // standalone route whose only door was a button. Both are gone: the kit
+  // renders inside Setup, and the separate route was a second copy of the
+  // same component reached by a button a few hundred pixels above the real
+  // one. The test now guards the arrangement that replaced it, rather than
+  // the one it was written for.
+  const app = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  assert.ok(!/path="clients\/:id\/brand"/.test(app),
+    'the standalone brand route is back; the kit would have two homes again');
+
+  const detail = fs.readFileSync(new URL('../src/pages/ClientDetailPage.jsx', import.meta.url), 'utf8');
+  assert.ok(/<ClientBrandPage embedded \/>/.test(detail),
+    'the brand kit is not rendered inside Setup, so it has no home at all');
+  assert.ok(!/to=\{`\/clients\/\$\{id\}\/brand`\}/.test(detail),
+    'a link to the removed standalone route is back');
 });
 
 test('CLIENT_URL_ONLY has no stale entries', () => {

@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { FeatureCostProvider } from './components/FeatureCost';
 // Three pages load with the app itself, because they are how someone arrives:
 // the signed-out marketing page, the login form, and the public player behind a
 // share link. Everything else is a separate chunk.
@@ -23,7 +24,6 @@ const ClientConvertPage = lazy(() => import('./pages/ClientConvertPage'));
 const ClientAdsPage = lazy(() => import('./pages/ClientAdsPage'));
 const ClientSalesTrafficPage = lazy(() => import('./pages/ClientSalesTrafficPage'));
 const ClientSocialPage = lazy(() => import('./pages/ClientSocialPage'));
-const ClientBrandPage = lazy(() => import('./pages/ClientBrandPage'));
 const ApprovePage = lazy(() => import('./pages/ApprovePage'));
 const SetPasswordPage = lazy(() => import('./pages/SetPasswordPage'));
 const GuidePage = lazy(() => import('./pages/GuidePage'));
@@ -69,6 +69,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        {/* One fetch of what each AI feature costs, shared by every button
+            that spends. Inside ToastProvider so a failure can be silent. */}
+        <FeatureCostProvider>
       <BrowserRouter>
         {/* One boundary for every lazy page. The fallback is deliberately
             plain: it shows for the length of one chunk fetch, and anything
@@ -115,12 +118,22 @@ export default function App() {
             <Route path="clients/:id/convert/:screen?/:sub?" element={<ClientConvertPage />} />
             <Route path="clients/:id/produce/:screen?" element={<ClientVideoTab />} />
             <Route path="settings/:screen?" element={<SettingsPage />} />
+            {/* Database and Biz dev are their own sections now, not groups
+                inside Settings. Same component: SettingsPage reads which
+                section it is in from the path, so the screens it already
+                rendered keep working at their new addresses. */}
+            <Route path="database/:screen?" element={<SettingsPage />} />
+            <Route path="biz-dev/:screen?" element={<SettingsPage />} />
 
             {/* Client screens outside the panel. `data` is the read-only
-                numbers page a client login lands on; `brand` is the brand kit,
-                reached from the cog. */}
+                numbers page a client login lands on.
+
+                There is no standalone `brand` route any more. The brand kit
+                renders inside Setup (ClientDetailPage, tab 'details'), and the
+                separate route was a second copy of the same component reached
+                by a button sitting a few hundred pixels above the real one.
+                Two doors to one thing read as two different things. */}
             <Route path="clients/:id/data" element={<ClientSalesTrafficPage />} />
-            <Route path="clients/:id/brand" element={<ClientBrandPage />} />
 
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />
             <Route path="media/outlet/:id" element={<OutletProfilePage />} />
@@ -139,6 +152,7 @@ export default function App() {
         </Routes>
         </Suspense>
       </BrowserRouter>
+        </FeatureCostProvider>
       </ToastProvider>
     </AuthProvider>
   );

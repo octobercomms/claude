@@ -386,15 +386,11 @@ export default function ClientDetailPage() {
         <PageActionsSlot className="hero-actions" />
       </header>
 
-      {/* The Brand kit is its own route with no row of its own, so Setup is
-          where it is reached from. It was a link in a header block above the
-          Setup form; tests/routeDoors.test.mjs caught its removal when that
-          block went. */}
-      {tab === 'details' && (
-        <PageActions>
-          <Link to={`/clients/${id}/brand`} className="btn btn-secondary btn-sm">Brand kit →</Link>
-        </PageActions>
-      )}
+      {/* No Brand kit button here. It used to be the only door to the kit, so
+          tests/routeDoors.test.mjs required it — but the kit now renders
+          further down this same page, and a button that scrolls you to
+          something already on screen reads as a second, different thing. The
+          door the test wants is the panel below. */}
 
       {/* The strip is gone. Measure, Reports, Strategist and SOSTAC are rows
           in the section panel, reachable from each other and from anywhere

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ScreenHeading from '../components/ScreenHeading';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useScreen } from '../hooks/useScreen';
+import { sectionForPath } from '../nav/sections';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
@@ -457,7 +458,14 @@ export default function SettingsPage() {
   // never saw, so a panel row did nothing), then ?tab=, now /settings/<slug>.
   // ALL_SUBS stays as the page's own list of keys; nav/sections.js mirrors it
   // and a test compares the two.
-  const [tab, switchTab] = useScreen('settings');
+  // Not the literal 'settings' any more. This component serves three
+  // sections — Settings, Database and Biz dev — which are three paths over
+  // one page, so the section has to come from the path. Hardcoding it sent
+  // /database/journalists to the Settings default and looked like the row
+  // did nothing.
+  const location = useLocation();
+  const sectionKey = sectionForPath(location.pathname)?.key || 'settings';
+  const [tab, switchTab] = useScreen(sectionKey);
 
   // initialValues captures what came back from GET /platform-keys so the
   // save handler can tell "this field was already empty" from "this field

@@ -47,6 +47,10 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
   const [open, setOpen] = useState({}); // id → transcript expanded
   const [openCard, setOpenCard] = useState({}); // id → card expanded
   const [editing, setEditing] = useState(null); // id being renamed
+  // The note field, on a phone. It is optional and used rarely, and on a
+  // phone it is the difference between a one-field form and a three-row one,
+  // so it waits behind a link rather than taking a row of its own.
+  const [showNote, setShowNote] = useState(false);
   const [editVal, setEditVal] = useState('');
   const pollRef = useRef(null);
   // Every reel starts collapsed to a compact title row (on desktop too) so the
@@ -109,25 +113,62 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
 
   return (
     <div>
-      <div className="callout" style={{ marginBottom: 'var(--s5)' }}>
-        <strong>Reel → ideas.</strong> Paste a reel or video URL — OMI downloads it, transcribes it, and turns it into a reusable idea card (hook, why it works, angles to steal). Saved here and emailed back. Works with Instagram, TikTok, YouTube and more.
-      </div>
-
-      <div className="card" style={{ marginBottom: 'var(--s5)' }}>
-        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
-          <input className="input" style={{ flex: '3 1 320px' }} placeholder="Paste a reel / video URL…"
-            value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
-          <input className="input" style={{ flex: '2 1 200px' }} placeholder="Optional note (why you saved it)"
-            value={notes} onChange={e => setNotes(e.target.value)} />
-          <button className="btn btn-primary" onClick={add} disabled={busy}>{busy ? 'Adding…' : 'Save & transcribe'}</button>
+      {/* The explainer is a screenful on a phone, and this is the screen
+          Daniel uses most on one: he has read it. It collapses to a line
+          there and stays open on desktop, where it costs nothing and is
+          still the first thing a new AM needs. */}
+      {isMobile ? (
+        <details className="callout" style={{ marginBottom: 'var(--s4)' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Reel → ideas</summary>
+          <p className="body-sm" style={{ margin: 'var(--s2) 0 0' }}>
+            Paste a reel or video URL — OMI downloads it, transcribes it, and turns it into a reusable idea card (hook, why it works, angles to steal). Saved here and emailed back. Works with Instagram, TikTok, YouTube and more.
+          </p>
+        </details>
+      ) : (
+        <div className="callout" style={{ marginBottom: 'var(--s5)' }}>
+          <strong>Reel → ideas.</strong> Paste a reel or video URL — OMI downloads it, transcribes it, and turns it into a reusable idea card (hook, why it works, angles to steal). Saved here and emailed back. Works with Instagram, TikTok, YouTube and more.
         </div>
+      )}
+
+      {/* Three fields in a row wrap to three rows on a phone, which puts the
+          button below the fold on a small handset. One field, one full-width
+          button, and the note behind a link. */}
+      <div className="card" style={{ marginBottom: isMobile ? 'var(--s4)' : 'var(--s5)' }}>
+        {isMobile ? (
+          <div className="stack stack-sm">
+            <input className="input" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off"
+              placeholder="Paste a reel / video URL…"
+              value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
+            {showNote ? (
+              <input className="input" autoFocus placeholder="Why you saved it"
+                value={notes} onChange={e => setNotes(e.target.value)} />
+            ) : (
+              <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}
+                onClick={() => setShowNote(true)}>+ Add a note</button>
+            )}
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={add} disabled={busy}>
+              {busy ? 'Adding…' : 'Save & transcribe'}
+            </button>
+          </div>
+        ) : (
+          <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
+            <input className="input" style={{ flex: '3 1 320px' }} placeholder="Paste a reel / video URL…"
+              value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
+            <input className="input" style={{ flex: '2 1 200px' }} placeholder="Optional note (why you saved it)"
+              value={notes} onChange={e => setNotes(e.target.value)} />
+            <button className="btn btn-primary" onClick={add} disabled={busy}>{busy ? 'Adding…' : 'Save & transcribe'}</button>
+          </div>
+        )}
       </div>
 
       {!items.length ? (
         <p className="body-sm text-subtle">No saved reels yet — paste a URL above to capture your first idea.</p>
       ) : (
-        <div className="stack stack-sm"
-          style={isMobile ? { maxHeight: '58vh', overflowY: 'auto', paddingRight: 'var(--s1)' } : undefined}>
+        // No capped scroll box on a phone. A 58vh pane inside a page that
+        // also scrolls means a flick either moves the list or moves the page
+        // depending on where your thumb landed, and you cannot tell which
+        // until it has happened. The page is the scroller.
+        <div className="stack stack-sm">
           <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
             {items.length} saved · open a reel to see its idea card
           </div>
@@ -136,7 +177,11 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
             const card = it.idea_card || null;
             const name = displayName(it, card);
             const label = name.length > 90 ? name.slice(0, 89) + '…' : name;
-            const canExpand = !!(card || it.error);
+            // On a phone every row opens, because rename, open-original and
+            // delete now live inside it rather than crowded into the header.
+            // A queued reel has no idea card yet and would otherwise have no
+            // way to be deleted.
+            const canExpand = isMobile || !!(card || it.error);
             const isEditing = editing === it.id;
             return (
               <div key={it.id} className="card" style={{ padding: 'var(--s4)' }}>
@@ -158,10 +203,18 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     ) : (
                       <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'baseline', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700, overflowWrap: 'anywhere' }} title={it.url}>{label}</span>
-                        <button className="btn btn-ghost btn-sm" title="Rename" style={{ padding: '0 var(--s1)', lineHeight: 1 }}
-                          onClick={e => { e.stopPropagation(); startRename(it, name); }}>✎</button>
-                        <a href={it.url} target="_blank" rel="noreferrer" title="Open original reel"
-                          onClick={e => e.stopPropagation()} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)' }}>↗</a>
+                        {/* Two 16px icon targets beside a wrapping title is a
+                            desktop affordance. On a phone they are inside the
+                            card as labelled buttons, which is also where a
+                            mis-tap stops costing you a deletion. */}
+                        {!isMobile && (
+                          <>
+                            <button className="btn btn-ghost btn-sm" title="Rename" style={{ padding: '0 var(--s1)', lineHeight: 1 }}
+                              onClick={e => { e.stopPropagation(); startRename(it, name); }}>✎</button>
+                            <a href={it.url} target="_blank" rel="noreferrer" title="Open original reel"
+                              onClick={e => e.stopPropagation()} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)' }}>↗</a>
+                          </>
+                        )}
                       </div>
                     )}
                     <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)', overflowWrap: 'anywhere' }}>
@@ -170,8 +223,8 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flex: '0 0 auto' }} onClick={e => e.stopPropagation()}>
                     <span className={`chip ${st.cls}`} style={{ fontSize: 'var(--fs-caption)' }}>{st.label}</span>
-                    {it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
-                    <button className="btn btn-ghost btn-sm" onClick={() => remove(it.id)} title="Delete">✕</button>
+                    {!isMobile && it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
+                    {!isMobile && <button className="btn btn-ghost btn-sm" onClick={() => remove(it.id)} title="Delete">✕</button>}
                     {canExpand && (
                       <button className="btn btn-ghost btn-sm" aria-expanded={cardOpen(it.id)}
                         onClick={() => toggleCard(it.id)}
@@ -181,6 +234,19 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     )}
                   </div>
                 </div>
+
+                {/* What you can do with this reel, on a phone: full-size,
+                    labelled, and inside the card you deliberately opened.
+                    Delete sits last and apart from the rest. */}
+                {isMobile && cardOpen(it.id) && !isEditing && (
+                  <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s3)' }}>
+                    <a className="btn btn-secondary btn-sm" href={it.url} target="_blank" rel="noreferrer">Open reel ↗</a>
+                    <button className="btn btn-secondary btn-sm" onClick={() => startRename(it, name)}>Rename</button>
+                    {it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
+                    <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--negative)' }}
+                      onClick={() => remove(it.id)}>Delete</button>
+                  </div>
+                )}
 
                 {cardOpen(it.id) && it.status === 'failed' && it.error && (
                   <div className="callout callout-warning" style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-body)' }}>{it.error}</div>
