@@ -458,7 +458,34 @@ export function BriefModal(props) {
 // (render controls always shown, no toggle — used by the Pipeline → Render
 // step where renders are the whole point) | 'hidden' (no render UI at
 // all — used by Pipeline → Concepts where the AM is reviewing copy only)
-export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut, onUpload, renderMode = 'auto' }) {
+// What the framework chips mean. The generator picks from a fixed enum
+// (services/adCreative.js), so this list is that enum and cannot drift into
+// describing a framework nothing produces.
+//
+// Daniel: "The chips need tooltips as i dont know what things like AIDA
+// mean." Nobody should have to leave the product to read its own labels.
+// Where the concept carries a framework_rationale — which the generator has
+// always written and stored and the frontend has never shown — that is the
+// better tooltip, because it says why THIS ad uses the framework rather than
+// what the framework is.
+const FRAMEWORKS = {
+  'PAS': 'Problem, Agitate, Solve. Name the pain, make it felt, then present the product as the way out.',
+  'AIDA': 'Attention, Interest, Desire, Action. The classic four-beat structure: hook, hold, want, click.',
+  'Before/After': 'Show the state they are in and the state they want, with the product as the bridge.',
+  'Social Proof': 'Let other customers make the argument — numbers, reviews, names.',
+  'FOMO': 'Fear of missing out. Scarcity or a deadline does the persuading.',
+  'Problem/Solution': 'State the problem plainly and answer it. PAS without the agitation.',
+  'UGC': 'User-generated content. Written to read as a customer filmed it, not as an ad.',
+};
+
+export function frameworkTip(creative) {
+  const base = FRAMEWORKS[creative?.framework];
+  const why = creative?.framework_rationale;
+  if (why && base) return `${creative.framework}: ${base}\n\nWhy here: ${why}`;
+  return why || base || null;
+}
+
+export function CreativeCard({ creative, onDelete, onEdit, onRender, onDeleteImage, onFanOut, onUpload, renderMode = 'auto' }) {
   const { readOnly } = useAuth();
   const [showRender, setShowRender] = useState(renderMode === 'always-open');
   const [mode, setMode] = useState('image'); // image | video
@@ -518,8 +545,10 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s2)' }}>
         <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
-          <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{creative.framework}</span>
-          <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}>{creative.angle}</span>
+          <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)', cursor: frameworkTip(creative) ? 'help' : undefined }}
+            title={frameworkTip(creative) || undefined}>{creative.framework}</span>
+          <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}
+            title="The specific line this concept takes. The framework is the structure; the angle is the argument.">{creative.angle}</span>
         </div>
         <button onClick={onDelete} className="btn-icon danger" aria-label="Delete">×</button>
       </div>
@@ -553,6 +582,16 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
           {creative.images.map(img => (
             <ImageThumb key={img.id} img={img} onDelete={() => onDeleteImage(img.id)} onFanOut={onFanOut} />
           ))}
+        </div>
+      )}
+
+      {/* Edit belongs to the copy above it, so it sits in the card rather
+          than under it. It used to be a button the step drew below the whole
+          card, which on a grid of eight made it ambiguous which card it
+          would open. */}
+      {onEdit && (
+        <div style={{ marginTop: 'var(--s3)' }}>
+          <button onClick={onEdit} className="btn btn-secondary btn-sm">Edit</button>
         </div>
       )}
 
