@@ -1985,6 +1985,59 @@ multiplier (0.05x on Opus 5.5 and Sonnet 5.5, 0.025x on Fable 5.1).
 One thing left: the endpoint is now marked legacy in favour of
 `/v1/organizations/analytics/usage`. Migrating is its own piece of work.
 
+### Six dead links, and the scan that now catches them (31 Oct 2026)
+
+The review reported one: Snapshot Studio's "All leads" button went to a blank
+page. `/leads` is not a route — there is a `leads/:id` and the list is at
+`/biz-dev/leads`. The scan written to catch this found five more, four of them
+left behind when Database and Biz dev moved out of Settings (task #54):
+`/settings/journalists`, `/settings/proposals` (three sites) and
+`/settings/tenders`.
+
+`routeTargets.test.mjs` already had a scan for this, and it only looked at
+`/clients/…` paths. That prefix belongs to the router and nothing else, so it
+can match every quoted occurrence. A top-level path has no such marker: the
+first version of the new scan reported `/g` (a regex flag), `/100` (a score),
+`/logo-black` (an image) and sixteen backend routes whose `api.get` sat on the
+line above. **Direction 3 therefore reads only `navigate()`, `to=` and
+`href=`**, and accepts the known gap that a path assigned to a variable first
+is not seen. A scan with twenty-two false positives is one nobody keeps.
+
+Every one of the six is now built from the section table, the way
+`SectionPanel` and `GlobalSearch` do it, so the next move takes the links with
+it instead of leaving another literal to rot.
+
+### Search covers credentials now (31 Oct 2026)
+
+"I typed n8n and it found nothing… So i don't think it's searching enough."
+
+Correct: `routes/search.js` covers eight record tables, and the palette matches
+the 91 screens from `nav/sections.js`. A credential is in neither, so none of
+the 67 keys OMI holds was findable — not n8n, Moz, DataForSEO or Stripe.
+
+The three constants that drove Settings (`KEY_GROUPS`, `CATEGORIES`,
+`SUBTAB_CATS`) were local to `SettingsPage.jsx`, which is why nothing else
+could see them. They are now `src/settings/catalogue.js`, with
+`settingsEntries()` deriving one row per credential: its label, its variable
+name, the group it sits in, and the settings slug that renders it, worked out
+by reversing `SUBTAB_CATS`. `matchSettings` in `screenSearch.js` ranks them.
+
+Two things worth keeping:
+
+- **A row says which provider it belongs to.** Several providers call their
+  key "API token", so the title is "Moz · API token" unless the label already
+  names the provider. Matched on whole words, because a substring test called
+  every Amazon key a Moz key.
+- **An exact-match tier was written and then deleted.** A mutation proved it
+  could be removed without any assertion noticing: an exact match is also a
+  prefix match, so it only ever changed a tie, and ties were already settled
+  alphabetically in the right order. Three tiers, not four.
+
+The ranking test needed labels whose alphabetical order *opposes* tier order.
+The first fixture used names where A-to-Z happened to produce the same
+sequence as the tiers, so deleting either tier changed nothing and the test
+passed on code that no longer ranked at all.
+
 ### Avatar reels and trending sounds, same fault (31 Oct 2026)
 
 Reported the same day as the ad-creative fix, and the same bug:

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SECTIONS, slugForTab } from '../nav/sections';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -74,7 +75,7 @@ export default function ProposalEditorPage() {
   }
   async function remove() {
     if (!confirm('Delete this proposal?')) return;
-    try { await api.delete(`/proposals/${id}`); navigate('/settings/proposals'); }
+    try { await api.delete(`/proposals/${id}`); navigate(`${SECTIONS.bizdev.base()}/${slugForTab(SECTIONS.bizdev, 'proposals')}`); }
     catch (e) { toast(e.message, 'error'); }
   }
 
@@ -102,7 +103,7 @@ export default function ProposalEditorPage() {
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/settings/proposals')} style={{ marginBottom: 'var(--s3)' }}>All proposals</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => navigate(`${SECTIONS.bizdev.base()}/${slugForTab(SECTIONS.bizdev, 'proposals')}`)} style={{ marginBottom: 'var(--s3)' }}>All proposals</button>
       <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <div>
           <div className="kicker"><span className="pip" />Proposal · {STATUS[p.status] || p.status}</div>

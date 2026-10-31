@@ -62,3 +62,40 @@ export function matchScreens(q, screens, limit = 8) {
 }
 
 export default matchScreens;
+
+// ── Credentials ───────────────────────────────────────────────────────────
+//
+// Search covered the record tables and the screens, and a credential is
+// neither: typing "n8n" found nothing, although the field is right there on
+// Settings → Connections → Other. Nor did "Moz", "DataForSEO" or any of the
+// other sixty-odd keys.
+//
+// Scored the same way screens are, against the label, the environment
+// variable name and the group, so a key is findable by what it is called on
+// screen and by what somebody pasting it has in their clipboard.
+export function matchSettings(q, entries, limit = 5) {
+  const term = String(q || '').trim().toLowerCase();
+  if (term.length < 2) return [];
+  const words = term.split(/\s+/).filter(Boolean);
+  const scored = [];
+  for (const e of entries) {
+    const label = String(e.label || '').toLowerCase();
+    const key = String(e.key || '').toLowerCase();
+    // Three tiers, not the four the screen matcher has. An exact tier was
+    // written first and then removed: an exact match is also a prefix match,
+    // so it only ever changed a tie, and ties are already settled
+    // alphabetically in the right order. A mutation test proved the tier
+    // could be deleted without any assertion noticing, which is the
+    // definition of code doing nothing.
+    let score = null;
+    if (label.startsWith(term) || key.startsWith(term)) score = 1;
+    else if (label.includes(term) || key.includes(term)) score = 2;
+    else if (e.terms.includes(term)) score = 3;
+    else if (words.length > 1 && words.every(w => e.terms.includes(w))) score = 4;
+    if (score != null) scored.push({ e, score });
+  }
+  return scored
+    .sort((a, b) => a.score - b.score || a.e.label.localeCompare(b.e.label))
+    .slice(0, limit)
+    .map(x => x.e);
+}

@@ -2670,14 +2670,18 @@ a:hover > .card-stat,
   border: var(--border-w) solid var(--accent);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-lg);
-  width: 680px; max-width: 100%;
-  max-height: 70vh;
+  /* "Can the search box be bigger?" — 680px was narrow enough that a long
+     press-release title or a settings row like "n8n Integration · Webhook
+     Base URL" truncated in the middle of the word you were reading. Wide
+     enough for a title plus where it lives, still a box rather than a page. */
+  width: 860px; max-width: 100%;
+  max-height: 74vh;
   display: flex; flex-direction: column;
   overflow: hidden;
 }
 .search-field {
   display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s4) var(--s5);
+  padding: var(--s5);
   border-bottom: var(--border-w) solid var(--card-border);
   color: var(--text-muted);
   flex: 0 0 auto;
@@ -2685,7 +2689,10 @@ a:hover > .card-stat,
 .search-field input {
   flex: 1; min-width: 0;
   border: none; background: none; outline: none;
-  font: inherit; font-size: var(--fs-title);
+  /* A size up the scale, so what you typed is the biggest thing in the box.
+     --fs-section, not an ad-hoc px value: the five tokens at the top of this
+     file are the whole scale and --fs-h3 does not exist. */
+  font: inherit; font-size: var(--fs-section);
   color: var(--text);
 }
 .search-field input::placeholder { color: var(--text-muted); opacity: 0.8; }

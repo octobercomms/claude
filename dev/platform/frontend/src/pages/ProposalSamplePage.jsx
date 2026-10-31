@@ -1,4 +1,5 @@
 import React from 'react';
+import { SECTIONS, slugForTab } from '../nav/sections';
 import { Link } from 'react-router-dom';
 import ProposalDocument, { PROPOSAL_CSS } from '../components/proposal/ProposalDocument';
 import { SAMPLE_PROPOSAL } from '../components/proposal/sampleProposal';
@@ -26,7 +27,7 @@ export default function ProposalSamplePage() {
         <button className="btn" style={{ padding: '6px 16px', fontSize: 13 }} onClick={() => window.print()}>
           print it
         </button>
-        <Link to="/settings/proposals" style={{ color: '#111', marginLeft: 'auto' }}>
+        <Link to={`${SECTIONS.bizdev.base()}/${slugForTab(SECTIONS.bizdev, 'proposals')}`} style={{ color: '#111', marginLeft: 'auto' }}>
           edit the method →
         </Link>
       </div>

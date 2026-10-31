@@ -341,3 +341,147 @@ test('the navigation scan actually rejects a bad path', () => {
       `the scan rejected a legitimate path: ${source}`);
   }
 });
+
+// ── 3. every hardcoded top-level navigation resolves to a real route ─────────
+//
+// Direction 2 only looks at /clients/… paths, which is how the next one got
+// through: Snapshot Studio's "All leads" button navigated to '/leads'. There
+// is a leads/:id route and no /leads one, so the button put a dead path in the
+// address bar and rendered nothing. The leads list is at /biz-dev/leads.
+//
+// Same failure as the five client links direction 2 was written for, one level
+// up, so the scan belongs one level up too.
+
+// The top-level route shapes App.jsx can render, as first segments. A route
+// with a parameter in it needs the parameter, so `leads/:id` means /leads is
+// not renderable on its own — which is the whole point.
+function topLevelRoutes() {
+  const app = read(path.join(src, 'App.jsx'));
+  const exact = new Set();      // renderable with nothing after them
+  const needsMore = new Set();  // first segment that requires a further one
+  for (const m of app.matchAll(/<Route\s+path="([^"]+)"/g)) {
+    const p = m[1].replace(/^\//, '');
+    if (!p) { exact.add(''); continue; }
+    const segs = p.split('/');
+    const first = segs[0];
+    const rest = segs.slice(1);
+    // An optional :screen? still renders the bare section.
+    if (!rest.length || rest.every(s => s.endsWith('?'))) exact.add(first);
+    else needsMore.add(first);
+  }
+  return { exact, needsMore };
+}
+
+// Global sections address their screens as <leaf>/<slug>, so their slugs are
+// checked the same way client sections' are.
+function globalSlugsByLeaf() {
+  return Object.fromEntries(
+    Object.values(SECTIONS).filter(s => s.scope === 'global')
+      .map(s => [s.leaf, new Set(slugsOf(s))]));
+}
+
+// Anchored on the navigations themselves, unlike direction 2.
+//
+// Direction 2 can match every quoted /clients/… path because that prefix
+// belongs to the router and nothing else. A top-level path has no such
+// marker: the first version of this matched /g (a regex flag), /100 (a
+// score), /logo-black (an image) and sixteen backend routes whose api.get
+// sat on the line above. A scan that reports twenty-two false positives is
+// one nobody keeps, so this reads only navigate(), to= and href=, and
+// accepts the known gap — a path assigned to a variable first is not seen.
+const NAV_SITES = [
+  /\bnavigate\(\s*[`'"]([^`'"]+)/g,
+  /\bto=\{?\s*[`'"]([^`'"]+)/g,
+  /\bhref=\{?\s*[`'"]([^`'"]+)/g,
+  /\bwindow\.location(?:\.href)?\s*=\s*[`'"]([^`'"]+)/g,
+];
+
+function scanTopLevel(body, label, routes, globalSlugs) {
+  const problems = [];
+  const found = [];
+  for (const re of NAV_SITES) for (const m of body.matchAll(re)) found.push(m[1]);
+  for (const raw of found) {
+    // Off-site, in-page and scheme links are not routes.
+    if (!raw.startsWith('/')) continue;
+    if (/^\/api\//.test(raw)) continue;
+    // Direction 2 owns the client paths.
+    if (/^\/clients(\/|$)/.test(raw)) continue;
+    const norm = raw.replace(/\$\{[^}]*\}/g, ':v').split(/[?#]/)[0];
+    const parts = norm.split('/').filter(Boolean);
+    const first = parts[0];
+    // An interpolated first segment is a runtime value; nothing to check.
+    if (!first || first.startsWith(':v')) continue;
+    // An asset served from the public folder is not a route.
+    if (/\.(png|jpg|jpeg|svg|webp|mp4|css|js|json|pdf|ico|txt)$/.test(norm)) continue;
+
+    const where = `${label}: ${raw}`;
+    if (routes.needsMore.has(first) && !routes.exact.has(first)) {
+      if (parts.length < 2) {
+        problems.push(
+          `${where} — /${first} needs a further segment (App.jsx only has `
+          + `${first}/:param), so this renders nothing`);
+      }
+      continue;
+    }
+    if (!routes.exact.has(first)) {
+      problems.push(`${where} — there is no /${first} route in App.jsx`);
+      continue;
+    }
+    // A global section's screen segment has to be one of its slugs.
+    const slugs = globalSlugs[first];
+    const screen = parts[1];
+    if (slugs && screen && !screen.startsWith(':v') && !slugs.has(screen)) {
+      problems.push(
+        `${where} — '${screen}' is not a screen of the ${first} section. `
+        + `useScreen will silently fall back to its default.`);
+    }
+  }
+  return problems;
+}
+
+test('every hardcoded top-level navigation resolves to a real route', () => {
+  const routes = topLevelRoutes();
+  const globalSlugs = globalSlugsByLeaf();
+  const problems = [];
+  for (const f of FILES) {
+    // App.jsx holds the route table itself, and the tests hold deliberate
+    // counter-examples.
+    if (f.endsWith('App.jsx')) continue;
+    problems.push(...scanTopLevel(read(f), path.relative(src, f), routes, globalSlugs));
+  }
+  assert.deepStrictEqual(problems, [], `\n${problems.join('\n')}\n`);
+});
+
+test('the top-level scan would catch a dead path', () => {
+  const routes = topLevelRoutes();
+  const globalSlugs = globalSlugsByLeaf();
+  // A scanner with no positive control passes on everything, which is how
+  // direction 2 was nearly shipped broken.
+  const bad = [
+    [`navigate('/leads')`, 'the bug this test exists for'],
+    [`navigate('/not-a-page')`, 'a route that does not exist'],
+    [`navigate('/biz-dev/not-a-screen')`, 'a screen the section does not have'],
+    [`navigate('/tenders')`, 'a detail route addressed without its id'],
+  ];
+  for (const [source, what] of bad) {
+    assert.ok(scanTopLevel(source, 'control', routes, globalSlugs).length,
+      `the scan passed ${what}: ${source}`);
+  }
+
+  const fine = [
+    `navigate('/biz-dev/leads')`,
+    `navigate('/biz-dev')`,
+    `navigate('/guide')`,
+    `navigate('/settings/ai')`,
+    `navigate(\`/leads/\${id}\`)`,
+    `navigate('/login')`,
+    `navigate('/')`,
+    `api.get('/pr/clients/abc/releases')`,
+    `api.post('/heygen/clients/abc/heygen/reels/keep')`,
+    `<img src="/vite.svg" />`,
+  ];
+  for (const source of fine) {
+    assert.deepStrictEqual(scanTopLevel(source, 'control', routes, globalSlugs), [],
+      `the scan rejected a legitimate path: ${source}`);
+  }
+});

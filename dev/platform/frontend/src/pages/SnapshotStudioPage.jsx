@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { SECTIONS, slugForTab } from '../nav/sections';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -92,7 +93,7 @@ export default function SnapshotStudioPage() {
 
   async function removeLead() {
     if (!confirm('Delete this lead and its snapshot?')) return;
-    try { await api.delete(`/leads/${id}`); navigate('/leads'); }
+    try { await api.delete(`/leads/${id}`); navigate(`${SECTIONS.bizdev.base()}/${slugForTab(SECTIONS.bizdev, 'leads')}`); }
     catch (e) { toast(e.message, 'error'); }
   }
 
@@ -125,7 +126,14 @@ export default function SnapshotStudioPage() {
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/leads')} style={{ marginBottom: 'var(--s3)' }}>All leads</button>
+      {/* /biz-dev/leads, not /leads. There is a leads/:id route but no
+          /leads one, so this button navigated to nothing and the page came
+          back blank. Built off the section table, the way SectionPanel and
+          GlobalSearch do, so moving the screen moves this link with it
+          rather than leaving another literal to rot. */}
+      <button className="btn btn-ghost btn-sm"
+        onClick={() => navigate(`${SECTIONS.bizdev.base()}/${slugForTab(SECTIONS.bizdev, 'leads')}`)}
+        style={{ marginBottom: 'var(--s3)' }}>All leads</button>
       <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <div style={{ minWidth: 0 }}>
           <div className="kicker"><span className="pip" />Snapshot Studio</div>
