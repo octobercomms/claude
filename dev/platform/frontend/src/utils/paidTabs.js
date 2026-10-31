@@ -25,6 +25,12 @@ export function resolvePaidTab(tab) {
     // exists.
     case 'library':
       return { tab: 'resize', openPlaybook: false };
+    // Audiences split into ICP, Segments and Customers. The page still calls
+    // the segments screen 'audiences' internally, but its slug is 'segments'
+    // now, so the old URL is a dead slug and has to be pointed at the screen
+    // that inherited the work.
+    case 'audiences':
+      return { tab: 'audiences', openPlaybook: false };
     // The page it named is gone; the content opens over the landing tab.
     case 'playbook':
       return { tab: 'measure', openPlaybook: true };

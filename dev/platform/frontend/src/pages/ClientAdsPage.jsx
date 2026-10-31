@@ -65,7 +65,7 @@ export default function ClientAdsPage() {
   // Build's non-step tabs. They are not stages of a batch, which is exactly
   // why they are not steps: Audiences is standing client data, Competitors is
   // research, and the library is everything already made.
-  const BUILD_TABS = ['resize', 'audiences', 'competitor_ads'];
+  const BUILD_TABS = ['resize', 'icp', 'audiences', 'customers', 'competitor_ads'];
   const currentGroup = (isPipelineGroup || BUILD_TABS.includes(tab)) ? 'build' : 'measure';
   // The playbook: reference, in a drawer, one job.
   const [playbookOpen, setPlaybookOpen] = useState(false);
@@ -524,12 +524,13 @@ export default function ClientAdsPage() {
         <AdResizePanel clientId={id} clientName={client?.name || ''} />
       )}
 
-      {tab === 'audiences' && (
-        <div className="stack stack-lg">
-          <ICPIntelligencePanel clientId={id} />
-          <AudiencesPanel clientId={id} />
-        </div>
-      )}
+      {/* Three screens over the audience work, where there was one page
+          stacking ICP on top of segments on top of a postcode table. Each
+          answers a different question and only one of them produces
+          something you paste into Ads Manager. */}
+      {tab === 'icp' && <ICPIntelligencePanel clientId={id} />}
+      {tab === 'audiences' && <AudiencesPanel clientId={id} view="segments" />}
+      {tab === 'customers' && <AudiencesPanel clientId={id} view="customers" />}
 
       {tab === 'competitor_ads' && (
         <CompetitorAdsPanel

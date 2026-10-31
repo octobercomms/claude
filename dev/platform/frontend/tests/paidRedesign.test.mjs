@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { showCombined } from '../src/utils/adsTotals.js';
 import { briefSeedFor } from '../src/utils/competitorBrief.js';
 import { resolvePaidTab } from '../src/utils/paidTabs.js';
-import { SECTIONS, tabsOf } from '../src/nav/sections.js';
+import { SECTIONS, tabsOf, slugsOf } from '../src/nav/sections.js';
 
 // ── Combined · Google + Meta ──────────────────────────────────────────────
 // The bug as it shipped: Falcon has a Meta ad account connected which spent
@@ -114,13 +114,16 @@ test('a playbook link opens the playbook, not just the page under it', () => {
 });
 
 test('a tab that still exists is never redirected', () => {
-  // Derived from the panel rather than listed here. This was a hardcoded
-  // array and it went stale the moment Approve stopped being a step: the
-  // test went on asserting that 'approve' must not redirect, which is the
-  // opposite of what the change needed. A list that cannot drift from
-  // sections.js cannot make that mistake again.
-  for (const t of tabsOf(SECTIONS.paid)) {
-    assert.equal(resolvePaidTab(t), null, `${t} should stay put`);
+  // Slugs, not tab keys. resolvePaidTab is fed the raw URL segment, and the
+  // two vocabularies only looked interchangeable while every row's slug
+  // happened to equal its key. The moment Audiences became 'segments' in the
+  // URL, feeding keys in here asserted that the live slug 'audiences' must
+  // not redirect — when redirecting it is exactly what the split needs.
+  //
+  // Derived rather than listed, for the same reason: a hardcoded array went
+  // stale the moment Approve stopped being a step.
+  for (const slug of slugsOf(SECTIONS.paid)) {
+    assert.equal(resolvePaidTab(slug), null, `${slug} should stay put`);
   }
 });
 
@@ -158,6 +161,13 @@ test('the retired steps land somewhere rather than nowhere', () => {
   // failure sections.js warns about three times over.
   assert.ok(!tabsOf(SECTIONS.paid).includes('library'), 'the Paid library is gone from the panel');
   assert.ok(tabsOf(SECTIONS.paid).includes('resize'), 'and Resize has a row of its own');
+  // Audiences became three screens, so its old slug is dead and has to land
+  // on the one that inherited the segment work.
+  assert.deepEqual(resolvePaidTab('audiences'), { tab: 'audiences', openPlaybook: false });
+  assert.ok(!slugsOf(SECTIONS.paid).includes('audiences'), 'the audiences slug is genuinely gone');
+  for (const s of ['icp', 'segments', 'customers']) {
+    assert.ok(slugsOf(SECTIONS.paid).includes(s), `${s} has a row`);
+  }
 });
 
 // ── Stat tiles ────────────────────────────────────────────────────────────
