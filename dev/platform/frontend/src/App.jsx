@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { FeatureCostProvider } from './components/FeatureCost';
 // Three pages load with the app itself, because they are how someone arrives:
 // the signed-out marketing page, the login form, and the public player behind a
 // share link. Everything else is a separate chunk.
@@ -68,6 +69,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        {/* One fetch of what each AI feature costs, shared by every button
+            that spends. Inside ToastProvider so a failure can be silent. */}
+        <FeatureCostProvider>
       <BrowserRouter>
         {/* One boundary for every lazy page. The fallback is deliberately
             plain: it shows for the length of one chunk fetch, and anything
@@ -148,6 +152,7 @@ export default function App() {
         </Routes>
         </Suspense>
       </BrowserRouter>
+        </FeatureCostProvider>
       </ToastProvider>
     </AuthProvider>
   );

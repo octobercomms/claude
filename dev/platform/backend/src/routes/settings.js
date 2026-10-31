@@ -532,6 +532,54 @@ router.get('/usage/history', async (req, res) => {
 });
 
 // Per-call API cost log — surfaces where credits are actually going.
+// Fold the per-(feature, provider) rows into one entry per feature.
+//
+// A single click can bill two providers — Claude tokens plus a Serper search
+// fee, say — and the person about to click spends both, so they are summed
+// rather than reported separately. Exported because money arithmetic should
+// not only be checked by reading it.
+function foldFeatureCosts(rows) {
+  const out = {};
+  for (const r of rows || []) {
+    const e = out[r.feature] || (out[r.feature] = { calls: 0, cost_usd: 0, per_call: 0 });
+    // calls is the max across providers, not the sum: two providers billed by
+    // one click is still one click, and summing them would halve the apparent
+    // cost per call for exactly the features that cost the most.
+    e.calls = Math.max(e.calls, Number(r.calls) || 0);
+    e.cost_usd += Number(r.cost_usd) || 0;
+    e.per_call += Number(r.per_call) || 0;
+  }
+  return out;
+}
+
+// What each AI feature has actually cost, small enough to put on a button.
+//
+// /usage/cost-log answers "where did the bill go" for a human reading the
+// Costs screen. This answers a different question, asked at a different
+// moment: "what is this click about to cost me?" So it is one small object
+// keyed by feature, cheap to fetch once and keep.
+//
+// The estimate is a MEDIAN, not a mean. One 4K upscale or a runaway agent
+// loop drags a mean far above what the next click will cost, and a number
+// that overstates by 10x gets ignored, which is worse than no number.
+router.get('/usage/feature-costs', async (req, res) => {
+  const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+  try {
+    const q = await db.query(
+      `SELECT feature,
+              provider,
+              COUNT(*)::int                                            AS calls,
+              SUM(cost_usd)::float                                     AS cost_usd,
+              percentile_cont(0.5) WITHIN GROUP (ORDER BY cost_usd)::float AS per_call
+         FROM api_cost_events
+        WHERE ts >= NOW() - ($1::int || ' days')::interval
+        GROUP BY feature, provider`, [days]);
+    const rows = q.rows;
+
+    res.json({ window_days: days, features: foldFeatureCosts(rows) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Returns daily totals (for the dashboard burn-rate banner) plus a
 // feature-level breakdown for the settings panel.
 router.get('/usage/cost-log', async (req, res) => {
@@ -849,4 +897,5 @@ router.post('/inboxes/test', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.foldFeatureCosts = foldFeatureCosts;
 module.exports.buildTransporter = buildTransporter;

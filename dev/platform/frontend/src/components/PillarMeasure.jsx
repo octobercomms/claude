@@ -36,10 +36,13 @@ function fmtNum(n) {
 // A share is only meaningful once there is an account to be a share of. Null
 // means no sessions at all in the period, where 0% would be a claim the data
 // does not support.
+// Bare percentage. On one line, "25% of the account orders" reads as a
+// mangled sentence; the line says "25% orders" and the tooltip spells out
+// what it is a share of.
 function fmtShare(pct) {
   if (pct == null || !Number.isFinite(pct)) return null;
-  if (pct > 0 && pct < 1) return '<1% of the account';
-  return `${Math.round(pct)}% of the account`;
+  if (pct > 0 && pct < 1) return '<1%';
+  return `${Math.round(pct)}%`;
 }
 
 export default function PillarMeasure({ clientId, pillar }) {
@@ -64,83 +67,57 @@ export default function PillarMeasure({ clientId, pillar }) {
   const p = data && data.pillars && data.pillars[pillar];
   const label = LABEL[pillar] || pillar;
 
-  return (
-    <div className="card pillar-measure">
-      <div className="pillar-measure-head">
-        <div>
-          <div className="caption" style={{ color: 'var(--text-subtle)' }}>{label} · contribution</div>
-          <div className="body-xs text-subtle" style={{ marginTop: 2 }}>
-            What {label.toLowerCase()} channels drove, and their share of the whole account.
-          </div>
-        </div>
-        <div className="pillar-measure-ranges">
-          {RANGES.map(r => (
-            <button key={r.key} type="button"
-              className={`pillar-measure-range${range === r.key ? ' active' : ''}`}
-              onClick={() => setRange(r.key)}>{r.label}</button>
-          ))}
-        </div>
-      </div>
+  // The channel split, as a tooltip. It used to be a stack of rows under the
+  // numbers and it is still the finding most of the time — "Paid" is three or
+  // four different things — so it moves to hover rather than disappearing.
+  const channelTip = p && p.channels.length
+    ? p.channels.map(c => `${c.channel}: ${fmtNum(c.sessions)} sessions, ${formatMoney(c.revenue, data.currency)}`).join('\n')
+    : `No ${label.toLowerCase()} traffic in this period.`;
 
-      {!data && !err && <div className="body-sm text-subtle" style={{ padding: 'var(--s4) 0' }}>Loading…</div>}
+  const caveat = !data ? null
+    : data.currency_unset
+      ? 'Money is shown without a currency: none is set for this client and no connected store reported one.'
+      : (data.notes && data.notes.length ? data.notes.join(' · ') : null);
+
+  return (
+    <div className="pillar-contrib">
+      <span className="pillar-contrib-label" title={`What ${label.toLowerCase()} channels drove, and their share of the whole account.`}>
+        {label} · contribution
+      </span>
+
+      {!data && !err && <span className="body-xs text-subtle">Loading…</span>}
 
       {data && !data.pillars && (
-        <div className="body-sm text-subtle" style={{ padding: 'var(--s4) 0' }}>
-          No GA4 connector, so there is no channel data to split. Connect GA4 to see what {label.toLowerCase()} is contributing.
-        </div>
+        <span className="body-xs text-subtle">
+          No GA4 connector, so there is no {label.toLowerCase()} split.
+        </span>
       )}
 
-      {p && (
-        <>
-          <div className="pillar-measure-stats">
-            {[
-              { label: 'Revenue', value: formatMoney(p.revenue, data.currency), share: p.share.revenue },
-              { label: 'Orders', value: fmtNum(p.orders), share: p.share.orders },
-              { label: 'Sessions', value: fmtNum(p.sessions), share: p.share.sessions },
-            ].map(s => (
-              <div key={s.label}>
-                <div className="caption" style={{ color: 'var(--text-subtle)' }}>{s.label}</div>
-                <div className="pillar-measure-value">{s.value}</div>
-                <div className="pillar-measure-share">{fmtShare(s.share) || 'no account data'}</div>
-              </div>
-            ))}
-          </div>
+      {p && [
+        { label: 'revenue',  value: formatMoney(p.revenue, data.currency), share: p.share.revenue },
+        { label: 'orders',   value: fmtNum(p.orders),                      share: p.share.orders },
+        { label: 'sessions', value: fmtNum(p.sessions),                    share: p.share.sessions },
+      ].map(s => (
+        // The share leads and the absolute sits in the tooltip: the share is
+        // the bit that answers "is this pillar pulling its weight", and it is
+        // what the full-height card led with in colour anyway.
+        <span key={s.label} className="pillar-contrib-stat"
+          title={`${s.value} ${s.label} — ${fmtShare(s.share) || 'share unknown'} of the whole account\n\n${channelTip}`}>
+          <strong>{fmtShare(s.share) || '—'}</strong> {s.label}
+        </span>
+      ))}
 
-          {/* Which channels make up the pillar, because "Paid" is three or four
-              different things and the split is usually the finding. */}
-          {p.channels.length > 0 && (
-            <div className="pillar-measure-channels">
-              {p.channels.map(c => (
-                <div key={c.channel} className="pillar-measure-channel">
-                  <span>{c.channel}</span>
-                  <span className="text-subtle">
-                    {fmtNum(c.sessions)} sessions · {formatMoney(c.revenue, data.currency)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!p.channels.length && (
-            <div className="body-sm text-subtle" style={{ marginTop: 'var(--s3)' }}>
-              No {label.toLowerCase()} traffic in this period.
-            </div>
-          )}
-
-          {/* Same caveat as the Measure panel, because this prints money from
-              the same response. A pillar's revenue is a slice of the mixed
-              sum, so if the whole is not a true figure in its currency,
-              neither is the slice — and this panel is read on its own, with
-              Measure nowhere in sight. */}
-          {data.currency_unset ? (
-            <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>
-              Money is shown without a currency: none is set for this client and no connected store reported one.
-            </p>
-          ) : data.notes && data.notes.length > 0 ? (
-            <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>{data.notes.join(' · ')}</p>
-          ) : null}
-        </>
+      {caveat && (
+        <span className="pillar-contrib-note" title={caveat}>⚠ currency</span>
       )}
+
+      <span className="pillar-measure-ranges">
+        {RANGES.map(r => (
+          <button key={r.key} type="button"
+            className={`pillar-measure-range${range === r.key ? ' active' : ''}`}
+            onClick={() => setRange(r.key)}>{r.label}</button>
+        ))}
+      </span>
     </div>
   );
 }

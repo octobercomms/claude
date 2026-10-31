@@ -1030,6 +1030,31 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 /* A pillar's contribution, on its own page: the account's headline numbers
    filtered to this pillar's channels, each with its share. The share is what
    turns a number into a judgement. */
+/* The contribution line.
+   This was a full card: a heading, a description, three large numbers with
+   their shares, and a stack of channel rows — roughly 250px of height above
+   every PESO screen, for three percentages. It is now one line that sits
+   directly under the page title, with the absolutes and the channel split on
+   hover. The share leads because it is the half that answers "is this pillar
+   pulling its weight"; the card led with it in colour for the same reason. */
+.pillar-contrib {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s3);
+  border-bottom: var(--border-w) solid var(--card-border);
+  font-size: var(--fs-caption);
+}
+.pillar-contrib-label {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-subtle); cursor: help;
+}
+.pillar-contrib-stat { color: var(--text-muted); cursor: help; white-space: nowrap; }
+.pillar-contrib-stat strong { color: var(--text); font-weight: 800; font-size: var(--fs-body); }
+.pillar-contrib-note { color: var(--warning, var(--text-muted)); cursor: help; font-weight: 700; }
+/* The ranges keep their pill styling, just pushed to the end of the line. */
+.pillar-contrib .pillar-measure-ranges { margin-left: auto; }
+
 .pillar-measure { margin-bottom: var(--s6); }
 .pillar-measure-head {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -2684,4 +2709,16 @@ a:hover > .card-stat,
   /* The scroll is smooth and the mark fades; neither is information, so both
      stop for anyone who asked for less movement. The outline still appears. */
   .is-revealed { animation: none; }
+}
+
+
+/* What a click costs, beside the thing that spends it.
+   Deliberately quiet — a cost hint that competes with the button it
+   annotates stops people reading either. Cursor: help because the figure is
+   a median of real spend and the tooltip says so. */
+.feature-cost {
+  font-size: var(--fs-caption);
+  color: var(--text-subtle);
+  cursor: help;
+  white-space: nowrap;
 }
