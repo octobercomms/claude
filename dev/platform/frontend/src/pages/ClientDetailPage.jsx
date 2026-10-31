@@ -634,9 +634,9 @@ export default function ClientDetailPage() {
               <div className="report-card-head">
                 <h2 className="h2" style={{ margin: 0 }}>Weekly</h2>
                 <div className="report-card-actions">
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                   <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
                   <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                 </div>
               </div>
 
@@ -661,10 +661,12 @@ export default function ClientDetailPage() {
               </div>
 
               <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
-                <div className="caption" style={{ margin: 0 }}>Template</div>
-                <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm">✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
-              </div>
+              {/* The heading on its own line, so it sits on the same baseline as
+                  Schedule and Recipients across the row. Pairing it with the
+                  button in a space-between flex made it the only column
+                  heading whose height was set by a control. */}
+              <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Template</div>
+              <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s3)' }}>✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
               {(templateSummary.weekly?.sections || []).length ? (
                 <ol className={`report-template-list${(templateSummary.weekly.sections.length > 8 ? ' report-template-list--long' : '')}`} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)' }}>
                   {templateSummary.weekly.sections.map(s => (
@@ -694,9 +696,9 @@ export default function ClientDetailPage() {
                       client record and the PUT sends all of it, so either
                       button saves whatever is unsaved on this screen. Naming
                       it per-section would be a lie. */}
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                   <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
                   <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('monthly') })} className="btn btn-secondary btn-sm">Generate now</button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
                 </div>
               </div>
 
@@ -712,10 +714,12 @@ export default function ClientDetailPage() {
               </div>
 
               <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
-                <div className="caption" style={{ margin: 0 }}>Template</div>
-                <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm">✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
-              </div>
+              {/* The heading on its own line, so it sits on the same baseline as
+                  Schedule and Recipients across the row. Pairing it with the
+                  button in a space-between flex made it the only column
+                  heading whose height was set by a control. */}
+              <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Template</div>
+              <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s3)' }}>✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
               {(templateSummary.monthly?.sections || []).length ? (
                 <ol className={`report-template-list${(templateSummary.monthly.sections.length > 8 ? ' report-template-list--long' : '')}`} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 'var(--s5)' }}>
                   {templateSummary.monthly.sections.map(s => (
@@ -739,15 +743,21 @@ export default function ClientDetailPage() {
                   you pick, and the only field on this screen with no weekly
                   counterpart. */}
               <div style={{ marginTop: 'var(--s5)' }}>
-                <div className="caption" style={{ marginBottom: 'var(--s1)' }}>This month's focus</div>
+                {/* The button on the heading's line rather than below the box:
+                    it drafts what goes IN the box, so it belongs with the
+                    field's name, and under the textarea it read as the next
+                    thing after the focus rather than a way to write one. */}
+                <div className="report-focus-head">
+                  <div className="caption" style={{ margin: 0 }}>This month's focus</div>
+                  <button type="button" {...roWrite(readOnly, { onClick: handleSuggestFocus, disabled: loadingFocus })} className="btn btn-secondary btn-sm">
+                    {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
+                  </button>
+                </div>
                 <p className="body-xs text-muted" style={{ marginBottom: 'var(--s2)' }}>Sets the priority for the next report — drives Claude's executive summary and recommendations.</p>
                 <textarea className="input" style={{ minHeight: 70, resize: 'vertical', width: '100%' }}
                   value={client.monthly_focus || ''}
                   onChange={e => setClient(p => ({ ...p, monthly_focus: e.target.value }))}
                   placeholder="e.g. Investigate the US Shopify refund spike; quantify the impact of the new B2B trade pricing on EU revenue." />
-                <button type="button" {...roWrite(readOnly, { onClick: handleSuggestFocus, disabled: loadingFocus })} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>
-                  {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
-                </button>
               </div>
 
             </div>
