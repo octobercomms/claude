@@ -2343,9 +2343,26 @@ Four things to know before touching any of it:
   renders to nothing is the page lying about its output, which is the whole
   complaint this work answers.
 
-Still open, in the order they are worth doing: **2.3 filmstrip** and **2.4
-waveform** (one session each, server-side extraction on upload, need nothing
-from anybody), then **2.2 the frame-accurate preview**, which waits on the
+**The filmstrip is in, and it runs in the browser, not on the server.** The
+spec said ffmpeg-on-upload; that cannot work, because a clip on the Edit page
+is a local `File` with a `blob:` URL until Render is pressed, so the strip
+would be blank for exactly as long as the timeline is in use. `utils/
+filmstrip.js` seeks a `<video>` and draws to a canvas instead. Two traps in
+that hook, both of which took a browser to find and neither of which throws:
+its effect must be keyed on the clip **ids**, never on the clips array, because
+the page replaces that array whenever a duration lands from the metadata probe;
+and there must be no mutex across effect runs, because a teardown plus a held
+mutex deadlocks the loop and every block then says "reading frames" forever.
+It is one pump for the life of the component that takes another pass when the
+clip list changes. The placement arithmetic is in `utils/filmstripPlace.js`,
+import-free so it can be unit-tested, and its interval is half-open so a split
+does not draw the boundary frame on both sides.
+
+Still open, in the order they are worth doing: **2.4 waveform** (one session;
+decide server-vs-browser at the start of it rather than assuming, because
+decoding a whole audio track is a different order of cost from twelve seeks,
+and `silenceCut.js` already computes something adjacent server-side), then
+**2.2 the frame-accurate preview**, which waits on the
 capability probe at https://claude.ai/artifact/6NujtFbjeRAkpurKH619mU coming
 back from Daniel's real devices. If a plain seek already lands inside a frame
 on his footage, the preview is cheaper than scoped; if Safari has no
