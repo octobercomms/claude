@@ -44,6 +44,23 @@ router.get('/:id/readiness', async (req, res) => {
 // before it is pressed. POST makes the missing ones. Both are scoped by the
 // router.param('id') guard above, like every other per-client route here.
 const workedExamples = require('../services/workedExamples');
+const setupScans = require('../services/setupScans');
+
+// The nine setup scans. GET says what each one produces, whether it has
+// already run and what it is waiting on; POST runs the ticked ones. POST
+// because every one of them spends, and the auth middleware blocks every
+// non-GET for the read-only 'client' role — the one auditable guarantee that
+// a client login cannot spend the account's budget.
+router.get('/:id/setup-scans', async (req, res) => {
+  try { res.json(await setupScans.catalogue(req.params.id)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.post('/:id/setup-scans', async (req, res) => {
+  try {
+    const { scans, service, city } = req.body || {};
+    res.json(await setupScans.run(req.params.id, { scans, service, city }));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
 
 router.get('/:id/worked-examples', async (req, res) => {
   try { res.json(await workedExamples.status(req.params.id)); }
