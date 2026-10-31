@@ -220,6 +220,13 @@ export const SECTIONS = {
       { heading: 'Measure', rows: [
         { tab: 'perf_insights', label: 'Review', slug: 'review' },
         { tab: 'performance',   label: 'Learn', slug: 'learn' },
+        // "Hook vault — i've never understood this." It was a button on Learn
+        // opening a modal of sentences with no explanation of what a hook is
+        // or why you would reuse one. It is a page now, and it says so. It
+        // sits after Learn because that is where it is built from — the reach
+        // figures come from posts that have run — even though you reach for it
+        // while writing.
+        { tab: 'hooks',         label: 'Hook vault', slug: 'hook-vault' },
         { tab: 'competitors',   label: 'Compare', slug: 'compare' },
         { tab: 'audit',         label: 'Improve', slug: 'improve' },
       ] },
