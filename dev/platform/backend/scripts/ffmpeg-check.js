@@ -27,7 +27,12 @@ const { spawn } = require('child_process');
 // a pass that means nothing. Env already in the environment wins, which is what
 // makes the `FFMPEG_PATH=... node scripts/ffmpeg-check.js` form in the runbook
 // work before .env is touched.
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+// `parsed` is what the FILE carries, which is not the same question as what
+// `process.env` ends up holding: dotenv does not override an existing variable,
+// so a one-off `FFMPEG_PATH=... node scripts/ffmpeg-check.js` and a box already
+// switched over look identical from process.env alone. Telling those apart is
+// what the closing advice needs.
+const ENV_FILE = require('dotenv').config({ path: path.join(__dirname, '..', '.env') }).parsed || {};
 
 const { FFMPEG, FFPROBE } = require('../src/services/ffmpegBin');
 const { argsFor, probeCuesToFront } = require('../src/services/recordingRemux');
@@ -291,22 +296,77 @@ async function main() {
 
   console.log();
   if (failed) {
-    console.log(`${failed} check(s) failed. Do not point the platform at this build.`);
-    console.log('Nothing has changed: this script only reads and writes temporary files.');
+    console.log(`${failed} check(s) failed.`);
+    console.log(closingAdvice({ passed: false }).join('\n'));
     process.exit(1);
   }
-  console.log(`All checks passed${warned ? ` (${warned} warning(s) above)` : ''}.`);
-  if (!process.env.FFMPEG_PATH) {
-    console.log('\nThis was the binary on PATH. To test a candidate build:');
-    console.log('  FFMPEG_PATH=/opt/ffmpeg/ffmpeg FFPROBE_PATH=/opt/ffmpeg/ffprobe \\');
-    console.log('    node scripts/ffmpeg-check.js');
-  } else {
-    console.log('\nTo make the platform use it, put those two lines in');
-    console.log('backend/.env and `pm2 reload october-platform --update-env`.');
-    console.log('Unset them and reload to go back; nothing else changes.');
-  }
+  console.log(closingAdvice({
+    passed: true, warned, envFile: ENV_FILE, env: process.env,
+  }).join('\n'));
 }
 
-module.exports = { ebmlOffset, mp4Boxes, checks };
+// What to say after a passing run. Which of the three states the box is in is
+// the whole content of the advice, and getting it wrong is not cosmetic: the
+// R2 preflight used to print "now run the migration" to someone already live
+// on R2 and sent them back round the loop. This script shipped with the same
+// bug — it told you to write the lines into .env while reading them out of it.
+// Pure and exported so each state is tested.
+function closingAdvice({ passed, warned = 0, envFile = {}, env = {} } = {}) {
+  if (!passed) {
+    return [
+      'Do not point the platform at this build.',
+      'Nothing has changed: this script only reads and writes temporary files.',
+    ];
+  }
+  const head = `All checks passed${warned ? ` (${warned} warning(s) above)` : ''}.`;
+  if (envFile.FFMPEG_PATH && !envFile.FFPROBE_PATH) {
+    // Half switched, which is the one state worth interrupting for: ffmpeg from
+    // /opt and ffprobe from PATH is two builds inside one pipeline, and every
+    // check above passed because the probe ran against whichever ffprobe this
+    // command happened to resolve.
+    return [
+      head,
+      '',
+      `.env carries FFMPEG_PATH=${envFile.FFMPEG_PATH} but NOT FFPROBE_PATH, so the`,
+      'platform runs this ffmpeg and the system ffprobe: two builds in one pipeline.',
+      'Add the matching ffprobe:',
+      `  echo 'FFPROBE_PATH=${(envFile.FFMPEG_PATH || '').replace(/ffmpeg$/, 'ffprobe')}' >> .env`,
+      '  pm2 reload october-platform --update-env',
+    ];
+  }
+  if (envFile.FFMPEG_PATH) {
+    // Already switched over. Say so, and give the way back rather than the way in.
+    return [
+      head,
+      '',
+      `The platform is already using this build: .env carries FFMPEG_PATH=${envFile.FFMPEG_PATH}.`,
+      '',
+      'Nothing to do. To go back to the system ffmpeg:',
+      "  sed -i '/^FFMPEG_PATH=/d;/^FFPROBE_PATH=/d' .env",
+      '  pm2 reload october-platform --update-env',
+    ];
+  }
+  if (env.FFMPEG_PATH) {
+    // Set for this command only: the candidate is proven, the switch is not made.
+    return [
+      head,
+      '',
+      'This build is proven but not in use: FFMPEG_PATH is set for this command',
+      'only, and .env does not carry it. To switch the platform over:',
+      `  printf 'FFMPEG_PATH=${env.FFMPEG_PATH}\\nFFPROBE_PATH=${env.FFPROBE_PATH || '<the matching ffprobe>'}\\n' >> .env`,
+      '  pm2 reload october-platform --update-env',
+      'Then run this again with no env to confirm the running config.',
+    ];
+  }
+  return [
+    head,
+    '',
+    'This was the binary on PATH, and .env names no other. To test a candidate:',
+    '  FFMPEG_PATH=/opt/ffmpeg/ffmpeg FFPROBE_PATH=/opt/ffmpeg/ffprobe \\',
+    '    node scripts/ffmpeg-check.js',
+  ];
+}
+
+module.exports = { ebmlOffset, mp4Boxes, checks, closingAdvice };
 
 if (require.main === module) main().catch(err => { console.error(err); process.exit(1); });
