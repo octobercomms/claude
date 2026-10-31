@@ -268,7 +268,7 @@ export default function ClientStrategyPanel({ clientId }) {
     catch (e) { toast(e.message, 'error'); }
   }
   async function tailor() {
-    if (!window.confirm('Tailor this strategy to the client with Claude? It rewrites the checklist and (re)generates the exec summary, personas, SWOT, competitor map and objectives. Your ticks are kept where wording is unchanged.')) return;
+    if (!window.confirm('Tailor this strategy to the client with Claude? It rewrites the checklist, writes step-by-step guidance under each item, and (re)generates the exec summary, personas, SWOT, competitor map and objectives. Your ticks and notes are kept where wording is unchanged.')) return;
     setBusy(true);
     try { const r = await api.post(`/strategy/clients/${clientId}/strategy/tailor`, {}); setStrat(r.strategy); toast('Tailored to the client.', 'success'); }
     catch (e) { toast(e.message, 'error'); }
@@ -327,6 +327,17 @@ export default function ClientStrategyPanel({ clientId }) {
 
           {/* SOSTAC phases — each a colour-coded chapter with the working checklist */}
           <div className="caption" style={{ marginBottom: 'var(--s3)' }}>The SOSTAC plan</div>
+          {/* The stock template has no guidance under its items — the steps
+              are written per client at tailor time, because "audit the
+              funnel" means something different for a tour operator and a
+              furniture brand. Said once, here, rather than leaving every
+              item silently bare. */}
+          {!(strat.phases || []).some(p => (p.items || []).some(i => (i.how || []).length)) && (
+            <p className="body-sm text-muted" style={{ marginTop: 'calc(-1 * var(--s2))', marginBottom: 'var(--s4)', maxWidth: 620, lineHeight: 1.5 }}>
+              These are the stock actions for this playbook. Tailor the strategy to rewrite them
+              for {' '}this client and add step-by-step guidance under each one.
+            </p>
+          )}
           <div className="stack stack-lg">
             {(strat.phases || []).map((ph, pi) => {
               const s = SOSTAC[ph.title] || { n: pi + 1, color: 'var(--text)', tint: 'var(--accent-soft)' };
@@ -342,6 +353,23 @@ export default function ClientStrategyPanel({ clientId }) {
                         <input type="checkbox" checked={!!it.done} onChange={e => toggle(it.id, e.target.checked)} style={{ marginTop: 'var(--s1)', accentColor: s.color }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="body-sm" style={{ textDecoration: it.done ? 'line-through' : 'none', color: it.done ? 'var(--text-subtle)' : 'var(--text)' }}>{it.text}</div>
+
+                          {/* How to actually do it. Daniel: "each note needs
+                              more explanation. a step by step guide what to
+                              do." The item said what; the empty note field
+                              under it implied you already knew how.
+                              Collapsed, so the plan still scans as a plan —
+                              forty items with four steps each showing at
+                              once is a document, not a checklist. */}
+                          {!!(it.how || []).length && (
+                            <details className="sostac-how">
+                              <summary>How to do this</summary>
+                              <ol>
+                                {it.how.map((step, i) => <li key={i}>{step}</li>)}
+                              </ol>
+                            </details>
+                          )}
+
                           <input
                             className="input"
                             style={{ marginTop: 'var(--s1)', fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)' }}

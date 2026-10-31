@@ -15,7 +15,18 @@ import Chip from './ui/Chip';
 import EmptyState from './ui/EmptyState';
 import StatStrip from './shells/StatStrip';
 
-export default function AudiencesPanel({ clientId }) {
+// Segments and Customers are two screens over one set of data.
+//
+// They were one page, which Daniel found he could not place: "we then
+// somehow have to make this a really useful page - im not sure what to do
+// with it." Split, each one has a question it answers. Segments: who do we
+// target next. Customers: where are the ones we have.
+//
+// One component rather than two files, because both need the same two
+// fetches and the same segment editor — the postcode table is what you
+// build a segment from. Two copies of that state would be two things to
+// keep in step for no gain the user can see.
+export default function AudiencesPanel({ clientId, view = 'segments' }) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [distribution, setDistribution] = useState(null);
@@ -119,18 +130,24 @@ export default function AudiencesPanel({ clientId }) {
     : 'your store';
   const hasPostcodeData = top10.length > 0;
 
+  const showSegments = view === 'segments';
+  const showCustomers = view === 'customers';
+
   return (
     <>
       <p className="body mt-4 mb-6">
-        Build targetable audiences from first-party data — a customer list (email / phone) you upload yourself, plus postcode distribution pulled from your Shopify or WooCommerce orders. Save named segments and export them as Meta Custom Audiences. Demographic overlay ships next.
+        {showSegments
+          ? 'Named audiences you can act on: build one from your customers\u2019 postcodes or upload a buyer list, then export it as a Meta Custom Audience. This is the screen that produces something you can paste into Ads Manager.'
+          : 'Where the customers you already have actually are, walked from the last 12 months of orders on your connected store. Use it to decide where to target, then build the audience on Segments.'}
       </p>
 
-      <MethodologyCard />
+      {showSegments && <MethodologyCard />}
 
       {/* Segments come first: a customer-list lookalike is the highest-leverage
           audience (see methodology) and it works with no store connected — so
           a WooCommerce/list-only client sees their real data up top, not an
           empty Shopify map. */}
+      {showSegments && (
       <Section
         caption="Saved audiences"
         title="Segments"
@@ -174,12 +191,13 @@ export default function AudiencesPanel({ clientId }) {
           </div>
         )}
       </Section>
+      )}
 
       {/* Postcode distribution — only meaningful with a connected store. When
           one is connected we show the map/metrics (or a "no orders yet" prompt);
           when none is, we show a compact connect card instead of an empty grid
           of zeros, so a list-only client isn't led by a section that can't fill. */}
-      {distLoading ? (
+      {showCustomers && (distLoading ? (
         <Section caption="First-party data" title="Where your customers are">
           <Card><div className="body-sm text-subtle">Mapping your customers by postcode — walking the last 12 months of orders…</div></Card>
         </Section>
@@ -265,7 +283,7 @@ export default function AudiencesPanel({ clientId }) {
             </div>
           </Card>
         </Section>
-      )}
+      ))}
 
       {editing && (
         <SegmentEditor initial={editing} postcodes={postcodes} currency={currency} onClose={() => setEditing(null)} onSave={saveSegment} />
@@ -277,7 +295,7 @@ export default function AudiencesPanel({ clientId }) {
 
       {/* First-run: no first-party data and no saved segments. Dim the empty
           panel behind a modal that names the single best first action. */}
-      {!segLoading && !distLoading && !top10.length && !segments.length && !showUpload && !editing && !gsDismissed && (
+      {showSegments && !segLoading && !distLoading && !top10.length && !segments.length && !showUpload && !editing && !gsDismissed && (
         <GetStartedModal
           hasStore={sourceConnected}
           onUpload={() => setShowUpload(true)}

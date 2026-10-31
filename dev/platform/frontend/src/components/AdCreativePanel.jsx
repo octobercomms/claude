@@ -365,12 +365,16 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
               <option value="linkedin">LinkedIn</option>
             </select>
           </div>
+          {/* "One batch" and "Variant matrix" named the mechanism. Daniel:
+              "I dont know what one batch or variant matrix means tbh."
+              They are a small set and a large one, so the options say how
+              many, which is the only thing you are actually choosing. */}
           {onSubmitMatrix && (
-            <div style={{ width: 190 }}>
-              <label style={modalStyles.label}>Output</label>
+            <div style={{ width: 210 }}>
+              <label style={modalStyles.label}>How many</label>
               <select value={mode} onChange={e => setMode(e.target.value)} className="select" style={modalStyles.input}>
-                <option value="batch">One batch</option>
-                <option value="matrix">Variant matrix</option>
+                <option value="batch">A handful (4–16)</option>
+                <option value="matrix">A lot (25–100)</option>
               </select>
             </div>
           )}
@@ -389,11 +393,14 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
           </div>
         </div>
 
-        {matrix && (
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 'var(--s3)', background: 'var(--accent-soft)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
-            One brief, up to <strong>100</strong> deliberately different on-brand ads, spread across funnel stage, framework and format. Built in rounds so each variant is distinct rather than a reworded copy. Render and resize the ones you like exactly as a normal batch.
-          </div>
-        )}
+        {/* Shown either way. It used to appear only once you had already
+            chosen the thing it explains, which is the wrong order: the
+            explanation is how you decide. */}
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 'var(--s3)', background: matrix ? 'var(--accent-soft)' : 'var(--surface-sunken)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
+          {matrix
+            ? <>One brief, up to <strong>100</strong> deliberately different on-brand ads, spread across funnel stage, framework and format. Built in rounds so each variant is distinct rather than a reworded copy. Takes a few minutes and costs proportionally more. Render and resize the ones you like exactly as a normal batch.</>
+            : <>A single pass over one brief. Good for a campaign with a clear angle. Pick the larger option when you want to test widely and do not yet know which angle wins.</>}
+        </div>
 
         <label style={modalStyles.label}>Brand assets to include as reference</label>
         {!assets.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No brand assets uploaded yet.</div>}
@@ -418,15 +425,21 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
             {sample.body && <div className="body-sm" style={{ marginTop: 'var(--s1)', lineHeight: 1.5 }}>{sample.body}</div>}
             {sample.cta && <div style={{ marginTop: 'var(--s2)' }}><span className="chip" style={{ background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700 }}>{sample.cta}</span></div>}
             {sample.visual_concept && <div className="body-xs text-muted" style={{ marginTop: 'var(--s2)', lineHeight: 1.5 }}><strong>Visual:</strong> {sample.visual_concept}</div>}
-            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>This is a throwaway preview. Hit {matrix ? `Build matrix for ${matrixCount} distinct variants` : `Generate for the full batch of ${count} concepts`}.</div>
+            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>Not saved. If the tone is right, hit {matrix ? `Write ${matrixCount} variants` : `Write ${count} concepts`}.</div>
           </div>
         )}
 
         <div style={modalStyles.footer}>
           {!inline && <button className="btn btn-secondary" onClick={onClose}>Cancel</button>}
+          {/* Named for what it produces and what it costs. "Preview a sample"
+              against "Generate" read as two sizes of the same thing; the
+              difference is one throwaway concept versus a saved batch, and
+              the labels say so before you click rather than in the caption
+              afterwards. */}
           {clientId && (
-            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: previewSample, disabled: sampling || submitting })}>
-              {sampling ? 'Drafting…' : '✨ Preview a sample'}
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: previewSample, disabled: sampling || submitting })}
+              title="Writes one concept so you can check the tone. Nothing is saved.">
+              {sampling ? 'Drafting…' : '✨ Try one first'}
             </button>
           )}
           <button className="btn btn-primary" {...roWrite(readOnly, {
@@ -435,7 +448,9 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
               : onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) }),
             disabled: submitting,
           })}>
-            {submitting ? (matrix ? 'Building matrix…' : 'Generating…') : (matrix ? `Build ${matrixCount} variants` : 'Generate')}
+            {submitting
+              ? (matrix ? `Writing ${matrixCount} variants…` : `Writing ${count} concepts…`)
+              : (matrix ? `Write ${matrixCount} variants` : `Write ${count} concepts`)}
           </button>
         </div>
     </>
@@ -485,7 +500,7 @@ export function frameworkTip(creative) {
   return why || base || null;
 }
 
-export function CreativeCard({ creative, onDelete, onEdit, onRender, onDeleteImage, onFanOut, onUpload, renderMode = 'auto' }) {
+export function CreativeCard({ creative, onDelete, onEdit, onRender, onDeleteImage, onFanOut, onUpload, onToggleShare, renderMode = 'auto', copyMode = 'full' }) {
   const { readOnly } = useAuth();
   const [showRender, setShowRender] = useState(renderMode === 'always-open');
   const [mode, setMode] = useState('image'); // image | video
@@ -550,31 +565,78 @@ export function CreativeCard({ creative, onDelete, onEdit, onRender, onDeleteIma
           <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}
             title="The specific line this concept takes. The framework is the structure; the angle is the argument.">{creative.angle}</span>
         </div>
-        <button onClick={onDelete} className="btn-icon danger" aria-label="Delete">×</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flex: '0 0 auto' }}>
+          {/* Unticking holds this concept back from the approval link.
+              Nothing is deleted: a weak angle this month is still work you
+              may want next month, and until now trimming a batch for a
+              client meant binning it. */}
+          {onToggleShare && (
+            <label className="creative-share" title={creative.show_to_client === false
+              ? 'Hidden from the client. Tick to include it in the approval link.'
+              : 'The client sees this in the approval link. Untick to hold it back.'}>
+              <input type="checkbox" checked={creative.show_to_client !== false}
+                onChange={e => onToggleShare(e.target.checked)} />
+              <span>Show client</span>
+            </label>
+          )}
+          <button onClick={onDelete} className="btn-icon danger" aria-label="Delete">×</button>
+        </div>
       </div>
 
-      <div style={{ marginTop: 'var(--s3)' }}>
-        <div className="field">HEADLINE</div>
-        <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>{creative.headline}</div>
-      </div>
+      {/* Render shows the same copy Draft does, which is why Daniel said the
+          two pages look alike: "shall we collapse the text here - it looks
+          like the draft page". On Render the copy is reference, not the
+          subject, so it is a headline and a disclosure. The visual concept
+          stays visible there because it is the prompt the render is built
+          from, and judging an image against it is the actual job. */}
+      {copyMode === 'compact' ? (
+        <>
+          <div style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-body)', fontWeight: 700, lineHeight: 1.3 }}>
+            {creative.headline}
+          </div>
+          <div style={{ marginTop: 'var(--s2)' }}>
+            <div className="field">VISUAL CONCEPT</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
+          </div>
+          <details className="creative-copy">
+            <summary>Copy</summary>
+            <div style={{ marginTop: 'var(--s2)' }}>
+              <div className="field">BODY</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
+              <div className="field" style={{ marginTop: 'var(--s2)' }}>CTA</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
+              {creative.notes && (
+                <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
+              )}
+            </div>
+          </details>
+        </>
+      ) : (
+        <>
+          <div style={{ marginTop: 'var(--s3)' }}>
+            <div className="field">HEADLINE</div>
+            <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>{creative.headline}</div>
+          </div>
 
-      <div style={{ marginTop: 'var(--s2)' }}>
-        <div className="field">BODY</div>
-        <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
-      </div>
+          <div style={{ marginTop: 'var(--s2)' }}>
+            <div className="field">BODY</div>
+            <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
+          </div>
 
-      <div style={{ marginTop: 'var(--s2)' }}>
-        <div className="field">CTA</div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
-      </div>
+          <div style={{ marginTop: 'var(--s2)' }}>
+            <div className="field">CTA</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
+          </div>
 
-      <div style={{ marginTop: 'var(--s3)' }}>
-        <div className="field">VISUAL CONCEPT</div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
-      </div>
+          <div style={{ marginTop: 'var(--s3)' }}>
+            <div className="field">VISUAL CONCEPT</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
+          </div>
 
-      {creative.notes && (
-        <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
+          {creative.notes && (
+            <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
+          )}
+        </>
       )}
 
       {(creative.images || []).length > 0 && (

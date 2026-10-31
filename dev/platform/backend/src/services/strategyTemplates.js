@@ -410,6 +410,30 @@ function parseJson(raw) {
   catch { throw new Error('Tailoring returned malformed JSON.'); }
 }
 
+// One checklist item, however the model chose to express it.
+//
+// The schema asks for {text, how}. It has asked for a bare string for a year,
+// so a model that answers with one is not wrong, it is out of date, and a
+// plan that fails to save because of a single item's shape would be a far
+// worse outcome than an item without its steps.
+//
+// `how` is capped at six steps of 240 characters: a "how" that runs to a
+// paragraph is a different document, and the point of this field is that it
+// fits under a checkbox.
+function normaliseItem(raw) {
+  if (typeof raw === 'string') {
+    const text = raw.trim();
+    return text ? { text, how: [] } : null;
+  }
+  if (!raw || typeof raw !== 'object') return null;
+  const text = String(raw.text || '').trim();
+  if (!text) return null;
+  const how = Array.isArray(raw.how)
+    ? raw.how.map(x => String(x).trim()).filter(Boolean).map(x => x.slice(0, 240)).slice(0, 6)
+    : [];
+  return { text, how };
+}
+
 // Adapt the client's checklist to their specifics. Preserves checked state for
 // items whose text is unchanged; new/edited items start unchecked.
 // Sanitise the AI profile to a known shape (defensive — the model can drift).
@@ -493,10 +517,19 @@ async function tailorWithClaude(clientId) {
     "SELECT DISTINCT connector_type FROM connectors WHERE client_id = $1 AND status = 'active'", [clientId]
   );
   const channels = conn.map(r => r.connector_type).join(', ') || '(none connected yet)';
-  const skeleton = (cur.phases || []).map(p => ({ title: p.title, items: (p.items || []).map(i => i.text) }));
+  const skeleton = (cur.phases || []).map(p => ({
+    title: p.title,
+    items: (p.items || []).map(i => (i.how?.length ? { text: i.text, how: i.how } : i.text)),
+  }));
 
   const raw = await claudeService.callClaude({
-    max_tokens: 5000,
+    // 8000, up from 5000. Every checklist item now carries three or four
+    // steps saying how to do it, which across six phases is a couple of
+    // thousand tokens of extra output. At 5000 the reply was truncated and
+    // parseJson threw, which reads to the AM as "tailoring is broken".
+    // Tailoring runs once per client, so this is a few pence a client, not a
+    // recurring cost.
+    max_tokens: 8000,
     system: 'You are a senior marketing strategist at October, a UK agency, writing a client strategy in the style of the firm\'s hand-crafted SOSTAC plans. Adapt the checklist to the specific client AND produce a structured strategic profile: a confident narrative exec summary, a positioning statement + key messages, concrete primary/secondary personas (age, budget, location, values), a real SWOT, a competitor map (functional/emotional/situational) AND a benchmarked competitor table (real named companies + their domains), tactics mapped to the demand funnel (attract/convert/close/retain), quantified SMART objectives, and PR target media + awards. Specific to THIS client — no generic filler, no copy-paste between clients. For the competitor table give each competitor\'s real website domain (you don\'t need to know their DA — leave it null, we fill it from live data). British English. JSON only — no prose, no fences.' + playbooks.systemSuffix(['trust-brokering']),
     user: `Client: ${c.name}${c.domain ? ` (${c.domain})` : ''}
 About: ${c.briefing_field || '(no brief)'}
@@ -507,8 +540,10 @@ Connected data channels: ${channels}
 Current SOSTAC checklist:
 ${JSON.stringify(skeleton)}
 
-Tailor the checklist and write the profile. For objectives, give a metric, a baseline (use "TBC from <channel>" if you can't know it), a target, and a timeframe. Return ONLY:
-{"summary":"1–2 sentence tailored strategy summary","phases":[{"title":"keep the phase titles","items":["specific, client-tailored actions"]}],"profile":{"exec_summary":"a confident 3–5 sentence narrative","positioning":"one positioning statement","key_messages":["3–5 key messages"],"personas":[{"label":"Primary","who":"…","age":"…","budget":"…","location":"…","values":["…"]}],"swot":{"strengths":["…"],"weaknesses":["…"],"opportunities":["…"],"threats":["…"]},"competitors":{"functional":["…"],"emotional":["…"],"situational":["…"]},"competitor_table":[{"name":"Real competitor","domain":"example.com","domain_authority":null,"note":"how they compete"}],"funnel":{"attract":["tactics that build awareness"],"convert":["tactics that turn interest into leads"],"close":["tactics that close the sale"],"retain":["tactics that retain & grow"]},"objectives":[{"metric":"…","baseline":"…","target":"…","timeframe":"…"}],"target_media":[{"outlet":"publication","topic":"angle","tier":"1|2|3"}],"target_awards":[{"award":"award name","note":"category/why"}]}}`,
+Tailor the checklist and write the profile. For objectives, give a metric, a baseline (use "TBC from <channel>" if you can't know it), a target, and a timeframe.
+
+Every checklist item needs a "how": three or four steps saying how to actually do it for THIS client. Name the tool, the page or the person where you can — "export the last 12 months of orders from Shopify", not "gather data". An account manager who has not done this task before should be able to follow it. Where the item already has a "how" that is still right, keep it. Return ONLY:
+{"summary":"1–2 sentence tailored strategy summary","phases":[{"title":"keep the phase titles","items":[{"text":"specific, client-tailored action","how":["first step","second step","third step"]}]}],"profile":{"exec_summary":"a confident 3–5 sentence narrative","positioning":"one positioning statement","key_messages":["3–5 key messages"],"personas":[{"label":"Primary","who":"…","age":"…","budget":"…","location":"…","values":["…"]}],"swot":{"strengths":["…"],"weaknesses":["…"],"opportunities":["…"],"threats":["…"]},"competitors":{"functional":["…"],"emotional":["…"],"situational":["…"]},"competitor_table":[{"name":"Real competitor","domain":"example.com","domain_authority":null,"note":"how they compete"}],"funnel":{"attract":["tactics that build awareness"],"convert":["tactics that turn interest into leads"],"close":["tactics that close the sale"],"retain":["tactics that retain & grow"]},"objectives":[{"metric":"…","baseline":"…","target":"…","timeframe":"…"}],"target_media":[{"outlet":"publication","topic":"angle","tier":"1|2|3"}],"target_awards":[{"award":"award name","note":"category/why"}]}}`,
     feature: 'client_strategy_tailor',
     clientId,
   });
@@ -520,10 +555,24 @@ Tailor the checklist and write the profile. For objectives, give a metric, a bas
   for (const p of cur.phases || []) for (const it of p.items || []) prevByText.set(it.text.trim().toLowerCase(), it);
   const phases = out.phases.map(p => ({
     title: p.title,
-    items: (p.items || []).map(text => {
-      const prev = prevByText.get(String(text).trim().toLowerCase());
-      return { id: crypto.randomBytes(6).toString('hex'), text: String(text), done: prev?.done || false, note: prev?.note || '' };
-    }),
+    items: (p.items || []).map(raw => {
+      // An item is {text, how} now, but a bare string is still accepted. The
+      // schema changed under a model that has been answering with strings for
+      // a year, and a tailor that threw because of the shape of one item
+      // would lose the whole plan.
+      const item = normaliseItem(raw);
+      if (!item) return null;
+      const prev = prevByText.get(item.text.trim().toLowerCase());
+      return {
+        id: crypto.randomBytes(6).toString('hex'),
+        text: item.text,
+        // The old how survives a re-tailor that forgot to write one, so
+        // running Tailor twice never leaves an item worse than it was.
+        how: item.how.length ? item.how : (prev?.how || []),
+        done: prev?.done || false,
+        note: prev?.note || '',
+      };
+    }).filter(Boolean),
   }));
   let profile = cleanProfile(out.profile);
   if (profile) profile = await enrichCompetitorDA(profile);
@@ -536,4 +585,5 @@ module.exports = {
   BUSINESS_TYPES, LIFECYCLE_STAGES,
   listTemplates, matchTemplate, getTemplate, createTemplate, updateTemplate, deleteTemplate,
   assignToClient, getClientStrategy, setItem, tailorWithClaude, overview,
+  normaliseItem,
 };

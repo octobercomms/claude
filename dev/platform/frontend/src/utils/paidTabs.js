@@ -18,9 +18,19 @@ export function resolvePaidTab(tab) {
     case 'pipeline':
     case 'creative':
       return { tab: 'brief', openPlaybook: false };
-    // Resizing starts from the thing being resized.
-    case 'resize':
-      return { tab: 'library', openPlaybook: false };
+    // The Paid library is gone — everything rendered is reachable from the
+    // batch that made it, and from the Launch export. Resize was only ever
+    // reachable from the library, so it has a row of its own and old
+    // /ads/library links land there, which is the nearest thing that still
+    // exists.
+    case 'library':
+      return { tab: 'resize', openPlaybook: false };
+    // Audiences split into ICP, Segments and Customers. The page still calls
+    // the segments screen 'audiences' internally, but its slug is 'segments'
+    // now, so the old URL is a dead slug and has to be pointed at the screen
+    // that inherited the work.
+    case 'audiences':
+      return { tab: 'audiences', openPlaybook: false };
     // The page it named is gone; the content opens over the landing tab.
     case 'playbook':
       return { tab: 'measure', openPlaybook: true };

@@ -74,7 +74,8 @@ router.get('/public/:token', async (req, res) => {
            COALESCE(json_agg(i.*) FILTER (WHERE i.id IS NOT NULL), '[]') AS images
          FROM ad_creatives c
          LEFT JOIN ad_creative_images i ON i.creative_id = c.id
-         WHERE c.batch_id = $1 GROUP BY c.id ORDER BY c.position ASC`,
+         WHERE c.batch_id = $1 AND c.show_to_client
+         GROUP BY c.id ORDER BY c.position ASC`,
         [link.scope_id]
       );
       creatives = cs;

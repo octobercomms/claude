@@ -90,31 +90,6 @@ router.get('/clients/:clientId/creatives', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// The creative library — every rendered ad for a client, newest first,
-// across every batch. The pipeline could already reach an image through the
-// batch that made it, and nowhere else: a finished ad was only findable by
-// remembering which brief produced it. Resize, Approve and Launch all want
-// "the creative this client has", which is this.
-router.get('/clients/:clientId/library', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 120, 500);
-    const { rows } = await pool.query(
-      `SELECT i.id, i.url, i.provider, i.aspect_ratio, i.media_type,
-              i.duration_seconds, i.created_at,
-              c.id AS creative_id, c.headline, c.angle,
-              b.id AS batch_id, b.platform, b.is_example,
-              b.created_at AS batch_created_at
-         FROM ad_creative_images i
-         JOIN ad_creatives c ON c.id = i.creative_id
-         LEFT JOIN ad_creative_batches b ON b.id = c.batch_id
-        WHERE c.client_id = $1
-        ORDER BY i.created_at DESC
-        LIMIT $2`,
-      [req.params.clientId, limit]
-    );
-    res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
 
 router.post('/clients/:clientId/generate', async (req, res) => {
   const { brief, platform, count, asset_ids, campaign_context } = req.body || {};
@@ -183,7 +158,7 @@ router.post('/clients/:clientId/sample', async (req, res) => {
 });
 
 router.put('/creatives/:id', async (req, res) => {
-  const { headline, body, cta, angle, visual_concept, status, notes } = req.body || {};
+  const { headline, body, cta, angle, visual_concept, status, notes, show_to_client } = req.body || {};
   try {
     const { rows } = await pool.query(
       `UPDATE ad_creatives SET
@@ -193,10 +168,15 @@ router.put('/creatives/:id', async (req, res) => {
         angle = COALESCE($4, angle),
         visual_concept = COALESCE($5, visual_concept),
         status = COALESCE($6, status),
-        notes = COALESCE($7, notes)
+        notes = COALESCE($7, notes),
+        show_to_client = COALESCE($9, show_to_client)
        WHERE id = $8 RETURNING *`,
       [headline ?? null, body ?? null, cta ?? null, angle ?? null,
-       visual_concept ?? null, status ?? null, notes ?? null, req.params.id]
+       visual_concept ?? null, status ?? null, notes ?? null, req.params.id,
+       // Explicitly boolean-or-null: `false ?? null` is false, which is the
+       // whole point — COALESCE must see the false and write it, where a
+       // falsy check would have discarded the only value anyone sets here.
+       typeof show_to_client === 'boolean' ? show_to_client : null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Creative not found' });
     res.json(rows[0]);

@@ -109,7 +109,7 @@ async function readAsset(url) {
 
 const CSV_HEADERS = [
   'Ref', 'Framework', 'Angle', 'Headline', 'Body', 'CTA',
-  'Visual concept', 'Notes', 'Aspect ratio', 'Media', 'Provider', 'File',
+  'Visual concept', 'Notes', 'Shown to client', 'Aspect ratio', 'Media', 'Provider', 'File',
 ];
 
 // Load the batch, its concepts and their assets. Ordered so the CSV reads in
@@ -164,7 +164,8 @@ async function exportBatch(batchId) {
     // of the sheet would quietly lose work.
     if (!assets.length) {
       csvRows.push([ref, c.framework, c.angle, c.headline, c.body, c.cta,
-        c.visual_concept, c.notes, '', '', '', '(nothing rendered)']);
+        c.visual_concept, c.notes, c.show_to_client === false ? 'no' : 'yes',
+        '', '', '', '(nothing rendered)']);
       continue;
     }
 
@@ -189,8 +190,8 @@ async function exportBatch(batchId) {
       }
 
       csvRows.push([ref, c.framework, c.angle, c.headline, c.body, c.cta,
-        c.visual_concept, c.notes, a.aspect_ratio, a.media_type || 'image',
-        a.provider, stored]);
+        c.visual_concept, c.notes, c.show_to_client === false ? 'no' : 'yes',
+        a.aspect_ratio, a.media_type || 'image', a.provider, stored]);
     }
   }
 

@@ -25,7 +25,7 @@ export default function PaidBriefStep({ pipeline, clientId, clientName, briefSee
   return (
     <PipelineStep
       num={1} title="Brief"
-      tagline="Tell Claude what you want — the offer, the audience, anything to avoid. Each brief produces a batch of concepts grounded in the brand assets you've uploaded."
+      tagline="Describe the campaign and Claude writes the ad copy: a headline, body, CTA and a visual direction for each concept, grounded in the brand assets you've uploaded. Text only at this stage — images are rendered on step 3, so nothing here costs image spend."
     >
       {!assets.length && (
         <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 'var(--s4)' }}>
@@ -60,7 +60,17 @@ export default function PaidBriefStep({ pipeline, clientId, clientName, briefSee
         </p>
       )}
 
-      <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Past briefs</div>
+      {/* Daniel: "The past briefs doesnt seem to do anything." It does —
+          clicking a card selects that batch, and every later step then runs
+          against it. Nothing said so, and only the already-selected card
+          carried a chip, so the one state you could see was the one you did
+          not need to be told about. */}
+      <div className="row between center" style={{ marginBottom: 'var(--s3)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+        <div className="caption">Past briefs</div>
+        {batches.length > 1 && (
+          <div className="body-xs text-subtle">Click one to work on it — Draft, Render and Launch all follow the selected brief.</div>
+        )}
+      </div>
 
       {loaded && ensuringExample && !exampleBatch ? (
         <div className="card" style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
@@ -88,12 +98,15 @@ export default function PaidBriefStep({ pipeline, clientId, clientName, briefSee
             const isExample = b.is_example;
             const isActive = b.id === activeBatchId;
             return (
-              <div key={b.id} className="card"
+              <div key={b.id} className={`card brief-card${isActive ? ' is-active' : ''}`}
+                role="button" tabIndex={0}
+                title={isActive ? 'This is the brief the other steps are working on.' : 'Work on this brief'}
                 style={{
-                  padding: 'var(--s4)', cursor: 'pointer',
+                  padding: 'var(--s4)',
                   background: isActive ? 'var(--accent-soft)' : 'var(--surface)',
                   borderColor: isActive || isExample ? 'var(--accent)' : 'var(--card-border)',
                 }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBatch(b.id); } }}
                 onClick={() => selectBatch(b.id)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
                   <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
@@ -111,11 +124,13 @@ export default function PaidBriefStep({ pipeline, clientId, clientName, briefSee
                     the step rail above is the navigation, and a second way to
                     do what it already does is a second thing to read. What a
                     card still needs is a way to pick it and a way to bin it. */}
-                {isActive && (
+                {isActive ? (
                   <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                    <span className="chip chip-accent">Selected</span>
+                    <span className="chip chip-accent">Working on this</span>
                     <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                   </div>
+                ) : (
+                  <span className="body-xs text-subtle brief-card-hint">Click to work on this brief</span>
                 )}
               </div>
             );

@@ -115,10 +115,23 @@ export const SECTIONS = {
         { tab: 'render',   label: 'Render',   step: 3 },
         { tab: 'launch',   label: 'Launch',   step: 4 },
       ] },
+      // Audiences was one page doing three jobs badly. Daniel: "Shall we
+      // break this page out into multiple pages? Perhaps ICP as one page?
+      // Segments as another? Customers as another?" Each now answers one
+      // question: who we are for, who to target next, where the ones we
+      // have are.
       { heading: 'Research', rows: [
         { tab: 'competitor_ads', label: 'Competitors', slug: 'competitors' },
-        { tab: 'audiences',      label: 'Audiences' },
-        { tab: 'library',        label: 'Library' },
+        { tab: 'icp',            label: 'ICP' },
+        { tab: 'audiences',      label: 'Segments', slug: 'segments' },
+        { tab: 'customers',      label: 'Customers' },
+      ] },
+      // Resize has a row of its own because the Library it used to hang off
+      // is gone, and a tool reachable only from a deleted screen is not
+      // reachable. It takes an upload now rather than picking from stored
+      // creative: Daniel removed the library knowing that was the trade.
+      { heading: null, rows: [
+        { tab: 'resize', label: 'Resize' },
       ] },
     ],
   },
