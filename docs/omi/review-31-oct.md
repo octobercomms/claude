@@ -276,6 +276,16 @@ about data rather than design:
    connected to, whoever published them, so that part is reachable. TikTok and
    Instagram organic are harder and in places impossible without the client's
    own login.
+
+   **Answered, and one half of it was wrong.** Instagram is reachable and is
+   built: the report reads the connected account's own feed and marks each
+   post as ours or not. LinkedIn is not, and not for want of code. OMI
+   connects as a *member*, and reading an organisation's posts needs
+   `r_organization_social`, which requires an admin role on the client's page
+   plus LinkedIn's approval of the scope; there is no list-my-posts endpoint
+   for a member token at all. So LinkedIn and TikTok figures are named in the
+   report as OMI's own record, which is the honest thing to print. Closing the
+   LinkedIn gap is an access exercise with a small code tail, not a build.
 2. **Whether it is a download, a scheduled email, or both.** The existing
    report machinery already renders and sends, so reusing it is cheaper than a
    new path.

@@ -2326,6 +2326,32 @@ preview (an HTML `<video>` seeks to keyframes, not frames) and translating an
 edit decision list into one ffmpeg filter graph across clips that differ in
 resolution, frame rate and rotation.
 
+### Why the social report names LinkedIn as OMI's own record (31 Oct 2026)
+
+Not an oversight, and not a task to pick up. The report reads the connected
+Instagram account's own feed, so a reasonable next step looks like doing the
+same for LinkedIn. It is blocked outside the code, and the block is worth
+knowing before somebody spends a session discovering it.
+
+OMI connects to LinkedIn **as a member**, not as an organisation:
+`connectors/linkedin.js` resolves a `memberUrn` from `/v2/userinfo` and posts
+through `ugcPosts` as that member. Reading an organisation's posts needs
+`r_organization_social`, which requires two things no commit provides: the
+connected person holding an admin, content-admin or direct-sponsored-content
+role on the client's LinkedIn page, and LinkedIn's own approval of the scope.
+There is no "list my own posts" endpoint for a member token at all. Reach and
+impressions need organisation-level scopes on top of that, which the
+connector's own comment at `fetchPostEngagement` already recorded.
+
+So closing this gap is an access exercise first (re-scope the OAuth, connect
+as an organisation, get LinkedIn's approval) with a small code tail, not a
+build. Until then "LinkedIn figures are OMI's own record of what it
+published" is the accurate thing to print, and the report prints it. Same for
+TikTok, which has no reachable organic API without the client's own login.
+
+The general rule this is an instance of: where a number cannot be defended,
+say which account it came from rather than implying a read that is not there.
+
 ## 10. Fast facts / gotchas checklist
 
 - **A slug that equals a different row's tab key is a trap, and one exists.**
