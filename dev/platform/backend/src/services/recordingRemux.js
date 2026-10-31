@@ -27,7 +27,7 @@ const path = require('path');
 const pool = require('../db');
 const mediaStore = require('./mediaStore');
 
-const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
+const { FFMPEG } = require('./ffmpegBin');
 
 // Spawn ffmpeg and resolve on exit 0, else reject with the tail of stderr —
 // same shape as recordingExport.run and editProcessor.run.

@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const { FFMPEG } = require('./ffmpegBin');
 
 const SHARED = path.join(__dirname, '..', '..', '..', 'shared', 'captions');
 const SCENES_PATH = path.join(SHARED, 'scenes.json');
@@ -136,7 +137,7 @@ async function render({ templateId, images, outPath, width = 1080, height = 1920
   const inputs = [];
   for (const p of list) inputs.push('-loop', '1', '-t', String(t.slot_seconds), '-i', p);
 
-  await run('ffmpeg', ['-y', '-loglevel', 'error', ...inputs,
+  await run(FFMPEG, ['-y', '-loglevel', 'error', ...inputs,
     '-filter_complex', graph, '-map', out,
     '-t', seconds.toFixed(2), '-r', String(fps),
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',

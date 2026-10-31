@@ -20,8 +20,7 @@ const { getSetting } = require('../utils/settings');
 // module for whisperWords, and requiring it at the top leaves a half-built
 // module object whose functions are all undefined.
 
-const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
-const FFPROBE = process.env.FFPROBE_PATH || 'ffprobe';
+const { FFMPEG, FFPROBE } = require('./ffmpegBin');
 const WHISPER_USD_PER_MIN = 0.006;
 let _running = false;
 

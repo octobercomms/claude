@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const { FFMPEG, FFPROBE } = require('./ffmpegBin');
 
 /**
  * More than this and the filter graph gets long enough to be worth refusing
@@ -31,7 +32,7 @@ function run(bin, args) {
 }
 
 async function probe(file) {
-  const out = await run('ffprobe', ['-v', 'error', '-select_streams', 'v:0',
+  const out = await run(FFPROBE, ['-v', 'error', '-select_streams', 'v:0',
     '-show_entries', 'stream=width,height', '-show_entries', 'format=duration',
     '-of', 'default=nw=1:nk=1', file]);
   const [w, h, d] = out.trim().split('\n');
@@ -99,7 +100,7 @@ async function overlay({ source, placements, outPath }) {
   }
   if (!used.length) throw new Error('None of the chosen clips are long enough to use.');
 
-  await run('ffmpeg', ['-y', '-loglevel', 'error', ...inputs,
+  await run(FFMPEG, ['-y', '-loglevel', 'error', ...inputs,
     '-filter_complex', filters.join(';'),
     '-map', chain, '-map', '0:a?',
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',

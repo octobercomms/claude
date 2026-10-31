@@ -27,6 +27,7 @@ const { pathToFileURL } = require('url');
 
 const captions = require('./captions');
 const brollRender = require('./brollRender');
+const { FFMPEG } = require('./ffmpegBin');
 
 const SHARED = path.join(__dirname, '..', '..', '..', 'shared');
 const CACHE_DIR = path.join(__dirname, '..', '..', 'video-samples', 'cache');
@@ -159,7 +160,7 @@ async function build({ templateId = TEMPLATE, source: sourceIn = null,
       const punch = path.join(work, 'punch.mp4');
       const W = probe.width || 1080;
       const H = probe.height || 1920;
-      await run('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(span.from), '-i', current,
+      await run(FFMPEG, ['-y', '-loglevel', 'error', '-ss', String(span.from), '-i', current,
         '-t', String(Math.max(0.8, span.to - span.from)),
         '-vf', `scale=${Math.round(W * 1.35 / 2) * 2}:${Math.round(H * 1.35 / 2) * 2},`
           + `crop=${W}:${H},setsar=1`,
