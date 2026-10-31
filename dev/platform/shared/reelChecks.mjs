@@ -116,6 +116,22 @@ function has(text, phrases) {
  * `timings` is Whisper's word array: [{ word, start, end }]. `edit` is what the
  * operator has chosen so far: { duration_s, caption_template, brand }.
  */
+
+// Key → label, exported because a recorded judgement is {key, pass} and
+// whatever shows one needs the words. checkReel reads the same map, so a
+// summary of a stored result and the live panel cannot disagree about what a
+// check is called.
+export const LABELS = {
+  hook_timing: 'The hook lands inside one second',
+  hook_is_a_fact: 'The hook states a fact, not a claim',
+  stated_flatly: 'Stated flatly, not hyped',
+  captions: 'Captions are burned in',
+  not_about_us: 'Not the account talking about itself',
+  one_idea: 'One fact, carried to a payoff',
+  says_a_term_we_rank_for: 'Says something people search for',
+  length: 'Thirty to forty-five seconds',
+};
+
 export function checkReel(input) {
   // A default parameter only fires on undefined, so `{ edit: null }` sails past
   // it and the first property read throws. This panel runs on every keystroke
@@ -151,7 +167,7 @@ export function checkReel(input) {
   const checks = [
     {
       key: 'hook_timing',
-      label: 'The hook lands inside one second',
+      label: LABELS.hook_timing,
       // Null, not false, with no transcript. An edit whose words have not been
       // timed yet is unjudged, and an amber dot against a reel that opens
       // perfectly well teaches an operator to ignore the panel just as fast as
@@ -163,7 +179,7 @@ export function checkReel(input) {
     },
     {
       key: 'hook_is_a_fact',
-      label: 'The hook states a fact, not a claim',
+      label: LABELS.hook_is_a_fact,
       pass: hook ? FACT.test(hook) : null,
       detail: hook ? `Opens: "${hook.slice(0, 70)}${hook.length > 70 ? '…' : ''}"`
         : 'No hook to read yet.',
@@ -171,7 +187,7 @@ export function checkReel(input) {
     },
     {
       key: 'stated_flatly',
-      label: 'Stated flatly, not hyped',
+      label: LABELS.stated_flatly,
       // Null rather than true when there is nothing to read. A green tick on an
       // empty reel is how an operator learns to stop looking at the panel.
       pass: hook ? hypeFound.length === 0 : null,
@@ -180,14 +196,14 @@ export function checkReel(input) {
     },
     {
       key: 'captions',
-      label: 'Captions are burned in',
+      label: LABELS.captions,
       pass: !!ed.caption_template,
       detail: ed.caption_template ? `Template: ${ed.caption_template}` : 'No template chosen.',
       rule: 'Most viewing is silent.',
     },
     {
       key: 'not_about_us',
-      label: 'Not the account talking about itself',
+      label: LABELS.not_about_us,
       // Naming the brand once is attribution. Three times is an advert, and the
       // event and press vocabulary is the pattern the plan found at the bottom
       // of every performance list.
@@ -200,7 +216,7 @@ export function checkReel(input) {
     },
     {
       key: 'one_idea',
-      label: 'One fact, carried to a payoff',
+      label: LABELS.one_idea,
       // A reel that races is a list. The plan's own format is one error put on
       // screen and then traced, which is slow by construction.
       pass: duration > 0 && list.length
@@ -214,7 +230,7 @@ export function checkReel(input) {
     },
     {
       key: 'says_a_term_we_rank_for',
-      label: 'Says something people search for',
+      label: LABELS.says_a_term_we_rank_for,
       // Null when the client tracks no keywords: a reel cannot fail a test
       // that has nothing to test it against, and an amber dot on every reel
       // for every client without an SEO setup is how a panel gets ignored.
@@ -230,7 +246,7 @@ export function checkReel(input) {
     },
     {
       key: 'length',
-      label: 'Thirty to forty-five seconds',
+      label: LABELS.length,
       pass: duration > 0
         ? (duration >= THRESHOLDS.duration_min_s && duration <= THRESHOLDS.duration_max_s)
         : null,

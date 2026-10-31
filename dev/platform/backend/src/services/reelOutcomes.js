@@ -151,4 +151,31 @@ async function learn(clientId, { days = 365, measure = 'reach_multiple' } = {}) 
   };
 }
 
-module.exports = { record, learn, keywordsFor };
+/**
+ * The recorded judgements for a client's posts, keyed by post.
+ *
+ * Read rather than recomputed. The judgement that counts was taken at render
+ * time, when the words, the template and the duration were all in hand; the
+ * browser has none of those for a finished reel, and re-judging there would
+ * produce a second, worse answer that disagrees with the one the learning
+ * curve is built on.
+ *
+ * Newest per post, because a second template on the same video writes another
+ * row and the latest is the reel that exists.
+ */
+async function forClient(clientId, { limit = 200 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (post_id)
+            post_id, checks, passed, unknown, total, template, duration_s, created_at
+       FROM reel_check_results
+      WHERE client_id = $1 AND post_id IS NOT NULL
+      ORDER BY post_id, created_at DESC
+      LIMIT $2`,
+    [clientId, limit]
+  );
+  const out = {};
+  for (const r of rows) out[r.post_id] = r;
+  return out;
+}
+
+module.exports = { record, learn, keywordsFor, forClient };

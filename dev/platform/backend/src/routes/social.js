@@ -796,6 +796,15 @@ router.get('/clients/:clientId/subreddit-research', async (req, res) => {
   try { res.json({ runs: await subredditResearch.list(req.params.clientId) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
+// What the checks said about each of this client's reels, keyed by post.
+// A read of judgements already taken, so it is a GET and costs nothing.
+router.get('/clients/:clientId/reel-checks', async (req, res) => {
+  try {
+    const reelOutcomes = require('../services/reelOutcomes');
+    res.json({ byPost: await reelOutcomes.forClient(req.params.clientId) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // The downloadable social report. POST because it spends: one Claude call for
 // the analysis section, and a live read of the connected Instagram account.
 // The auth middleware blocks every non-GET for the read-only 'client' role,
