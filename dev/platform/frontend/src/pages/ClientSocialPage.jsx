@@ -67,6 +67,39 @@ export default function ClientSocialPage() {
   const [plannerOpen, setPlannerOpen] = useState(null); // { planId } | null
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [downloadingBatch, setDownloadingBatch] = useState(false);
+
+  // Download the batch and post it by hand. Fetched rather than linked: a
+  // plain <a download> would authenticate fine, since the session is an
+  // httpOnly cookie on the same origin, but it cannot read the response
+  // headers, and those carry how many posts and files made it into the zip.
+  // Same reasoning as Paid's Launch export, which this mirrors.
+  async function downloadBatch() {
+    if (!activeBatchId) return;
+    setDownloadingBatch(true);
+    try {
+      const { blob, filename, posts: n, assets, missing } = await api.download(
+        `/social/clients/${id}/batches/${activeBatchId}/export`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'social.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      // Said out loud rather than left in the zip. A short download is a
+      // batch that will get scheduled with a gap nobody noticed.
+      if (missing > 0) {
+        toast(`${n} post${n === 1 ? '' : 's'} and ${assets} file${assets === 1 ? '' : 's'}, `
+            + `${missing} missing — see MISSING.txt in the zip.`, 'warning');
+      } else {
+        toast(`Downloaded ${n} post${n === 1 ? '' : 's'} and ${assets} file${assets === 1 ? '' : 's'}.`, 'success');
+      }
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally { setDownloadingBatch(false); }
+  }
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
   // Top-level: overview / performance / pipeline / dm_bot (mirrors Organic).
   // Performance sub-tabs absorbed the old Insights group (winners +
@@ -508,6 +541,7 @@ export default function ClientSocialPage() {
           onEditReel={openReelEditor}
           onReuseBrief={(b) => setBrief(b.brief || '')}
           onBulkSchedule={() => setBulkOpen(true)}
+          onDownload={downloadBatch} downloading={downloadingBatch}
           autopilotPaused={!!client?.social_autopilot_paused}
           onToggleAutopilot={toggleAutopilotPaused}
           onShareForApproval={shareBatchForApproval}
@@ -596,7 +630,7 @@ export default function ClientSocialPage() {
 // approval) in the section head.
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel, onOpenReels, onEditReel,
-  onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
+  onBulkSchedule, onShareForApproval, onDownload, downloading, generating, shareUrl, onDismissShare,
   autopilotPaused, onToggleAutopilot,
   socialTab, onNavTab, briefContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
@@ -877,12 +911,27 @@ function BrainstormTab({
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 'var(--s4)', marginBottom: 'var(--s4)' }}>
             <div style={{ maxWidth: 520 }}>
-              <div className="h3">Schedule &amp; autopilot</div>
+              <div className="h3">Schedule</div>
               <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
-                Lock the posts you like onto the calendar — Mon / Wed / Fri at 10am suits most brands — or bulk-schedule the batch. Autopilot then ships each channel automatically; the live queue is below.
+                Download the batch and post it yourself — one zip with every caption in a
+                spreadsheet and every file beside it. Or lock posts onto the calendar and let
+                the automatic publisher ship them; its queue is at the bottom.
               </p>
             </div>
             <div className="row wrap" style={{ gap: 'var(--s2)' }}>
+              {/* Download the batch and post it yourself, which is the ask off
+                  the 31 Oct review: "allow me to download the assets and
+                  schedule? like we did for Paid?" Same shape as Paid's Launch
+                  export — one zip with posts.csv and every file, named so a row
+                  and a file match without opening either.
+
+                  It is the primary, because posting by hand is the way this
+                  page is actually used and the automatic publisher is the one
+                  nobody has run. */}
+              <UiButton variant="primary" disabled={!activeBatchId || downloading}
+                {...roWrite(readOnly, { onClick: onDownload })}>
+                {downloading ? 'Preparing…' : '↓ Download the batch'}
+              </UiButton>
               {/* Pause autopilot lived in the page header, a group away from
                   the queue it halts. A control that stops a client's posting
                   belongs beside the posting it stops, where you can see what
@@ -890,7 +939,7 @@ function BrainstormTab({
               <UiButton variant="secondary" {...roWrite(readOnly, { onClick: onToggleAutopilot })}>
                 {autopilotPaused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
               </UiButton>
-              <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>Bulk schedule</UiButton>
+              <UiButton variant="secondary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>Bulk schedule</UiButton>
             </div>
           </div>
           {!hasAutopilotSupported && (

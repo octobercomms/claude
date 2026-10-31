@@ -150,6 +150,8 @@ jobs:
         run: node tests/pdf-buffer.test.js
       - name: Guard — a library clip the editor can open is not refused
         run: node tests/clip-source.test.js
+      - name: Guard — a downloaded batch never comes up short in silence
+        run: node tests/social-export.test.js
       # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
       # the runner is given ffmpeg rather than trusted to have it, and each
