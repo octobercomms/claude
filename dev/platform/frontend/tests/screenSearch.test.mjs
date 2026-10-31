@@ -130,7 +130,10 @@ test('the reported query finds the field', () => {
   const hits = matchSettings('n8n', settingsEntries());
   assert.ok(hits.length, 'n8n found nothing');
   assert.equal(hits[0].key, 'N8N_WEBHOOK_BASE_URL');
-  assert.equal(hits[0].slug, 'other');
+  // 'other' until the 31 Oct restructure dissolved that screen; n8n is on
+  // Integrations now. The assertion is unchanged in substance: the row has to
+  // point at the screen that actually renders the field.
+  assert.equal(hits[0].slug, 'integrations');
 });
 
 test('a credential is findable by its label, its variable name and its group', () => {

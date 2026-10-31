@@ -34,7 +34,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'HeyGen (AI avatar reels)',
-    category: 'AI',
+    category: 'Generation',
     test: 'heygen',
     hint: 'AI avatar / Digital Twin reels from a script — the video suite. Pay-as-you-go (~$1/min of 720–1080p video, no subscription). Create your Digital Twin in the HeyGen app first, then it appears in the picker. Get a key at heygen.com → Settings → API.',
     keys: [
@@ -43,7 +43,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'Replicate (Flux 1.1 Pro)',
-    category: 'AI',
+    category: 'Generation',
     hint: 'Used by the Social tab to generate post images. Pay-per-call, around $0.04 per image. Get a token at replicate.com/account/api-tokens.',
     keys: [
       { key: 'REPLICATE_API_TOKEN', label: 'Replicate API Token', placeholder: 'r8_…', type: 'password' },
@@ -52,7 +52,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'Ideogram',
-    category: 'AI',
+    category: 'Generation',
     hint: 'Alternative image generator used by the Social tab — best when the post needs clean legible on-image text. Around $0.08 per image. Get a key at ideogram.ai/manage-api.',
     keys: [
       { key: 'IDEOGRAM_API_KEY', label: 'Ideogram API Key', placeholder: '…', type: 'password' },
@@ -61,7 +61,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'fal.ai (Visualise)',
-    category: 'AI',
+    category: 'Generation',
     hint: 'Single-key media aggregator behind the Visualise studio — generation, circle-and-fix inpainting, and faithful 4K upscales, pay-per-call. Also the consolidation target for the standalone image accounts. Get a key at fal.ai → Settings → API keys.',
     keys: [
       { key: 'FAL_KEY', label: 'fal.ai API Key', placeholder: 'fal-… (fal.ai → Settings → API keys)', type: 'password' },
@@ -69,7 +69,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'ElevenLabs (voiceover)',
-    category: 'AI',
+    category: 'Generation',
     hint: 'Text-to-speech voiceovers for storyboards. Pay-per-character (~$0.30/min at creator tier).',
     keys: [
       { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key', placeholder: '…', type: 'password' },
@@ -77,7 +77,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'Apify (TikTok trending sounds)',
-    category: 'AI',
+    category: 'Scraping',
     hint: 'Powers the "Refresh trending sounds" action on the Social tab. ~$0.25 per scrape; cached for 7 days so weekly refreshes are plenty.',
     keys: [
       { key: 'APIFY_API_TOKEN', label: 'Apify API Token', placeholder: 'apify_api_…', type: 'password' },
@@ -294,7 +294,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'n8n Integration',
-    category: 'Other',
+    category: 'Integrations',
     hint: 'Set your n8n instance URL to enable webhook-triggered data pulls.',
     keys: [
       { key: 'N8N_WEBHOOK_BASE_URL', label: 'Webhook Base URL', placeholder: 'https://your-n8n.example.com', type: 'text' },
@@ -302,7 +302,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'Stealth Scraping (FlareSolverr)',
-    category: 'Other',
+    category: 'Scraping',
     hint: 'Optional. A FlareSolverr instance that solves Cloudflare/WAF challenges so the Site Audit and Competitor Tracker can read pages that block plain requests. Run it on the box (docker run -d --restart unless-stopped -p 127.0.0.1:8191:8191 ghcr.io/flaresolverr/flaresolverr), then put its URL here. Leave blank to keep scrapers on the direct-fetch path.',
     test: 'flaresolverr',
     keys: [
@@ -311,7 +311,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'Alerts',
-    category: 'Other',
+    category: 'Alerts',
     hint: 'Email address for platform alerts — connector failures, token expiry, and daily health check summaries.',
     keys: [
       { key: 'ALERT_EMAIL', label: 'Alert Email', placeholder: 'you@octobercomms.com', type: 'text' },
@@ -319,7 +319,7 @@ export const KEY_GROUPS = [
   },
   {
     title: 'Report Footer',
-    category: 'Other',
+    category: 'Reports',
     hint: 'Three lines printed at the bottom of every report PDF, beneath the "Page X of Y" line. Edit any time. Leave blank to use the built-in October defaults. Header is locked.',
     keys: [
       { key: 'REPORT_FOOTER_LINE_1', label: 'Footer line 1', placeholder: 'Private & Confidential · October Communications Ltd.', type: 'text' },
@@ -332,24 +332,38 @@ export const KEY_GROUPS = [
 
 // Top-level categories displayed as collapsible cards in a responsive grid.
 export const CATEGORIES = [
-  { title: 'AI', description: 'Claude & DeepSeek models, plus image / video / voice generation.' },
+  { title: 'AI', description: 'The models OMI sends text to — Claude, DeepSeek, and OpenAI for transcription.' },
+  { title: 'Generation', description: 'The services that make something: images, video, avatar reels and voiceover.' },
   { title: 'Email', description: 'Email transport for reports and outreach — Gmail or Amazon SES.', hasTestEmail: true },
   { title: 'Ad Platforms', description: 'Google Ads, Meta Ads and Instagram Insights.' },
   { title: 'Ecommerce & Inventory', description: 'Shopify, Amazon Seller and Zoho Inventory.' },
   { title: 'SEO', description: 'Keyword rank tracking, backlinks and search volume.' },
   { title: 'Outreach', description: 'Contact-finding, AI-drafted emails and reply tracking for cold outreach.' },
-  { title: 'Other', description: 'Webhooks, stealth scraping and platform alerts.' },
+  { title: 'Scraping', description: 'Reading pages and feeds that do not want to be read — Cloudflare challenges and TikTok.' },
+  { title: 'Integrations', description: 'Handing data to something else on this stack.' },
+  { title: 'Reports', description: 'What every report PDF prints at the bottom of the page.' },
+  { title: 'Alerts', description: 'Who the platform tells when a connector fails or a token expires.' },
 ];
 
 // Sub-tab → which CATEGORIES of provider-key groups it shows.
+//
+// "Other" is gone. It held n8n, FlareSolverr, an alert email and a report
+// footer, which is four unrelated things in a drawer named after the fact that
+// nobody had placed them. Each sits with what it belongs to now, and two of
+// them join a tab that already existed for its own component (Integrations and
+// Reports render their page AND these keys).
 export const SUBTAB_CATS = {
   ai: ['AI'],
+  gen: ['Generation'],
   email: ['Email'],
   ads: ['Ad Platforms'],
   commerce: ['Ecommerce & Inventory'],
   seo: ['SEO'],
   outreach: ['Outreach'],
-  other: ['Other'],
+  scraping: ['Scraping'],
+  integrations: ['Integrations'],
+  reports: ['Reports'],
+  alerts: ['Alerts'],
 };
 
 // Does this label already say which provider it belongs to?

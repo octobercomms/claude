@@ -34,68 +34,61 @@ import CheckerBenchPage from './CheckerBenchPage';
 import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
 import RecordTools, { ToolRow } from '../components/database/RecordTools';
 
+// The page's own list of settings screen keys, per section.
+//
+// Keys only. These rows used to carry a `label` as well, and nothing rendered
+// it: the section panel is built from nav/sections.js, and the drift test
+// below compares keys. Two label tables, one of them invisible, is a trap —
+// renaming a screen here looks like it worked and changes nothing on screen.
+// nav/sections.js holds the labels; this holds the keys it must agree with.
 const SECTIONS = [
-  { key: 'connections', label: 'Connections', subs: [
-    { k: 'costs', label: 'Costs & usage' },
-    { k: 'ai', label: 'AI' },
-    { k: 'email', label: 'Email' },
-    { k: 'ads', label: 'Ad platforms' },
-    { k: 'commerce', label: 'E-commerce' },
-    { k: 'seo', label: 'SEO' },
-    { k: 'outreach', label: 'Outreach finders' },
-    { k: 'integrations', label: 'Integrations' },
-    { k: 'other', label: 'Other' },
+  // Costs is its own section above Connections, and the row is Usage: what the
+  // month has cost is not a connection. AI is split into the models OMI sends
+  // text to and the services that generate something. "Other" is gone, its
+  // four unrelated groups re-filed. See nav/sections.js for the reasoning.
+  { key: 'costs', subs: [
+    { k: 'costs' },
   ] },
-  { key: 'database', label: 'Database', subs: [
-    { k: 'health', label: 'Health' },
-    { k: 'contacts', label: 'Journalists' },
-    { k: 'publications', label: 'Publications' },
-    { k: 'tags', label: 'Tags' },
-    { k: 'tasks', label: 'Tasks' },
-    { k: 'assistant', label: 'Assistant' },
+  { key: 'connections', subs: [
+    { k: 'ai' },
+    { k: 'gen' },
+    { k: 'email' },
+    { k: 'ads' },
+    { k: 'commerce' },
+    { k: 'seo' },
+    { k: 'outreach' },
+    { k: 'scraping' },
+    { k: 'integrations' },
   ] },
-  { key: 'tools', label: 'Tools', subs: [
-    { k: 'reports', label: 'Reports' },
-    { k: 'strategy', label: 'Strategy templates' },
-    { k: 'praddon', label: 'PR Gmail add-on' },
-    { k: 'checker', label: 'Checker bench' },
+  { key: 'database', subs: [
+    { k: 'health' },
+    { k: 'contacts' },
+    { k: 'publications' },
+    { k: 'tags' },
+    { k: 'tasks' },
+    { k: 'assistant' },
   ] },
-  { key: 'bizdev', label: 'Biz dev', subs: [
-    { k: 'leads', label: 'Leads' },
-    { k: 'proposals', label: 'Proposals' },
-    { k: 'proof', label: 'Proof library' },
-    { k: 'booking', label: 'Booking' },
-    { k: 'tenders', label: 'Tenders' },
+  { key: 'tools', subs: [
+    { k: 'reports' },
+    { k: 'strategy' },
+    { k: 'praddon' },
+    { k: 'checker' },
   ] },
-  { key: 'account', label: 'Account', subs: [
-    { k: 'users', label: 'Users & access' },
-    { k: 'security', label: 'Security' },
+  { key: 'bizdev', subs: [
+    { k: 'leads' },
+    { k: 'proposals' },
+    { k: 'proof' },
+    { k: 'booking' },
+    { k: 'tenders' },
+  ] },
+  { key: 'account', subs: [
+    { k: 'users' },
+    { k: 'security' },
+    // The alert email: who the platform tells when a connector fails. It was
+    // in "Other", filed next to a report footer.
+    { k: 'alerts' },
   ] },
 ];
-// Sub-tabs clustered into labelled bentos per section, so long flat strips
-// read as a few scannable groups. Keyed by section; a section without an entry
-// keeps the flat sub-tab strip.
-const SECTION_GROUPS = {
-  connections: [
-    { label: 'Spend',          subs: ['costs'] },
-    { label: 'Marketing data', subs: ['ads', 'commerce', 'seo'] },
-    { label: 'AI & outreach',  subs: ['ai', 'email', 'outreach'] },
-    { label: 'Platform',       subs: ['integrations', 'other'] },
-  ],
-  database: [
-    { label: 'Library', subs: ['health', 'contacts', 'publications', 'tags'] },
-    { label: 'Work',    subs: ['tasks', 'assistant'] },
-  ],
-  account: [
-    { label: 'Access', subs: ['users', 'security'] },
-  ],
-  tools: [
-    { label: 'Reporting', subs: ['reports'] },
-    { label: 'Authoring', subs: ['strategy', 'praddon'] },
-    { label: 'Temporary', subs: ['checker'] },
-  ],
-};
-
 const ALL_SUBS = SECTIONS.flatMap(s => s.subs.map(x => x.k));
 
 export default function SettingsPage() {

@@ -189,7 +189,14 @@ test('the three SettingsPage sections together name exactly its screens', () => 
   // own, so the page's table is now the union of all three — and the union is
   // what has to match, or a screen is either unreachable or orphaned.
   const src = page('SettingsPage.jsx');
-  const table = src.slice(src.indexOf('const SECTIONS = ['), src.indexOf('const SECTION_GROUPS'));
+  // Sliced to ALL_SUBS, not the old SECTION_GROUPS: that const was dead code
+  // and is deleted, and indexOf on a missing marker returns -1, which slice
+  // reads as "one from the end" — the table would have quietly grown to the
+  // whole rest of the file and this test would have gone on passing while
+  // reading keys that are not in it.
+  const marker = src.indexOf('const ALL_SUBS');
+  assert.ok(marker > 0, 'the marker this test slices the table at has moved');
+  const table = src.slice(src.indexOf('const SECTIONS = ['), marker);
   const pageKeys = [...table.matchAll(/\{ k: '([a-z_]+)'/g)].map(m => m[1]).sort();
   assert.ok(pageKeys.length >= 20, `only read ${pageKeys.length} keys out of SettingsPage — the table moved`);
 

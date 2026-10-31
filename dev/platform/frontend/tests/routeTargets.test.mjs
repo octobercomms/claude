@@ -462,6 +462,10 @@ test('the top-level scan would catch a dead path', () => {
     [`navigate('/not-a-page')`, 'a route that does not exist'],
     [`navigate('/biz-dev/not-a-screen')`, 'a screen the section does not have'],
     [`navigate('/tenders')`, 'a detail route addressed without its id'],
+    // The slug this very restructure retired. A rename that leaves links
+    // behind is the exact fault direction 3 exists to catch, and it has now
+    // happened once, so it gets a control of its own.
+    [`navigate('/settings/other')`, 'a settings screen that was renamed away'],
   ];
   for (const [source, what] of bad) {
     assert.ok(scanTopLevel(source, 'control', routes, globalSlugs).length,
@@ -472,7 +476,12 @@ test('the top-level scan would catch a dead path', () => {
     `navigate('/biz-dev/leads')`,
     `navigate('/biz-dev')`,
     `navigate('/guide')`,
-    `navigate('/settings/ai')`,
+    // Was '/settings/ai'. The 31 Oct restructure split that screen into
+    // Models and Generation, so 'ai' is now a slug the section does not have
+    // and the control was asserting that a dead path is fine. Picked a slug
+    // that is stable rather than one that reads well: 'security' is a screen
+    // nobody is proposing to rename.
+    `navigate('/settings/security')`,
     `navigate(\`/leads/\${id}\`)`,
     `navigate('/login')`,
     `navigate('/')`,

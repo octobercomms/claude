@@ -310,17 +310,38 @@ export const SECTIONS = {
     scope: 'global',
     base: () => '/settings',
     defaultTab: 'costs',
+    // Four asks off the 31 Oct review, and one principle behind all of them:
+    // "I always believe that if you can't name something, it shouldn't exist."
+    //
+    // COSTS is its own heading above Connections, and the row is Usage. What
+    // the month has cost is not a connection, and it was the first row of a
+    // list of credentials as though it were one.
+    //
+    // AI is split. It held eight groups doing two jobs: the models you send
+    // text to, and the services that make images, video and voice. The second
+    // half is called Generation rather than AI, because naming one half of a
+    // pair of AI screens "AI" is the same failure as "Other" — if the label
+    // does not tell you which one you want, it is not a label.
+    //
+    // OTHER is gone, dissolved rather than renamed. It held n8n, FlareSolverr,
+    // an alert email and a report footer: four unrelated things in a drawer
+    // named after the fact that nobody had placed them. Each now sits where it
+    // belongs, and Scraping is a real name for FlareSolverr plus Apify (which
+    // was filed under AI, though scraping TikTok is not generation).
     groups: [
+      { heading: 'Costs', rows: [
+        { tab: 'costs', label: 'Usage' },
+      ] },
       { heading: 'Connections', rows: [
-        { tab: 'costs',        label: 'Costs & usage' },
-        { tab: 'ai',           label: 'AI' },
+        { tab: 'ai',           label: 'Models', slug: 'models' },
+        { tab: 'gen',          label: 'Generation' },
         { tab: 'email',        label: 'Email' },
         { tab: 'ads',          label: 'Ad platforms', slug: 'ad-platforms' },
         { tab: 'commerce',     label: 'E-commerce' },
         { tab: 'seo',          label: 'SEO' },
         { tab: 'outreach',     label: 'Outreach finders' },
+        { tab: 'scraping',     label: 'Scraping' },
         { tab: 'integrations', label: 'Integrations' },
-        { tab: 'other',        label: 'Other' },
       ] },
       { heading: 'Tools', rows: [
         { tab: 'reports',  label: 'Reports' },
@@ -331,6 +352,7 @@ export const SECTIONS = {
       { heading: 'Account', rows: [
         { tab: 'users',    label: 'Users & access' },
         { tab: 'security', label: 'Security' },
+        { tab: 'alerts',   label: 'Alerts' },
       ] },
     ],
   },
