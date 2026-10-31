@@ -155,11 +155,42 @@ router.post('/clients/:clientId/edit/from-asset', requireClientAccess({ paramNam
       }
       if (asset.kind !== 'video') return res.status(400).json({ error: 'That asset is not a video.' });
 
-      const disk = socialCaptionRender.localPath(req.params.clientId, asset);
-      // An asset on a provider's CDN resolves to a url rather than a path, and
-      // the editor cannot trim something it cannot open.
-      if (!disk || !fs.existsSync(disk)) {
-        return res.status(409).json({ error: 'That clip is not on this server any more.' });
+      // localPath hands an external URL straight back, on purpose: ffmpeg
+      // reads https directly and a download step would be waste. The test
+      // below used to be fs.existsSync on that result, which a URL always
+      // fails, so Edit refused every CDN-hosted clip in the library —
+      // including the ones whose link still worked. That is the "not on this
+      // server any more" the 31 Oct review reported.
+      const resolved = socialCaptionRender.localPath(req.params.clientId, asset);
+      const onDisk = resolved && !/^https?:\/\//i.test(resolved) && fs.existsSync(resolved);
+      let disk = onDisk ? resolved : null;
+
+      if (!disk) {
+        // Not here. If there is a link, keep the bytes rather than stream from
+        // the provider every time: the second click then costs nothing, and
+        // the clip stops depending on a URL nobody controls. Same fix as ad
+        // creative and the avatar reels, through the same service.
+        const assetsSvc = require('../services/assets');
+        const generatedMedia = require('../services/generatedMedia');
+        const link = /^https?:\/\//i.test(String(resolved || '')) ? resolved
+          : (asset.source_url || asset.url);
+        if (!/^https?:\/\//i.test(String(link || ''))) {
+          // The honest version of the old message: there is no file and no
+          // link, so this row describes something that no longer exists.
+          return res.status(409).json({
+            error: 'That clip has no file on this server and no link to fetch it from. '
+                 + 'The library row is stale — archive it and re-upload the footage.' });
+        }
+        try {
+          const kept = await assetsSvc.keepRemote({ ...asset, source_url: asset.source_url || link });
+          disk = generatedMedia.localPathFor(kept.url);
+        } catch (err) {
+          return res.status(409).json({
+            error: `That clip is not on this server, and its original link did not work either (${err.message}).` });
+        }
+        if (!disk || !fs.existsSync(disk)) {
+          return res.status(409).json({ error: 'That clip was fetched but could not be read back.' });
+        }
       }
 
       const url = editJobs.adoptFile(req.params.clientId, disk, path.extname(disk) || '.mp4');
