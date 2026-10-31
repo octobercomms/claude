@@ -866,11 +866,15 @@ export default function ClientPRPage() {
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
             <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
-            <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--s2)' }}>
-              <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
+            {/* One button under both fields, because either one feeds the
+                same call and whichever you fill the action is the same. It sat
+                beside the URL, which read as "search this URL" and left the
+                brief below it looking like a second, unservable form. */}
+            <label className="field" style={{ marginBottom: 'var(--s2)' }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
+            <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
+            <div style={{ marginTop: 'var(--s3)' }}>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
             </div>
-            <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
             {pitchResult && (
               <div style={{ marginTop: 'var(--s3)' }}>
                 {pitchResult.angle && <p style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}><strong>Angle:</strong> {pitchResult.angle}</p>}
@@ -1255,9 +1259,16 @@ export default function ClientPRPage() {
                 <strong>Google News is off.</strong> No Serper API key is set, so News searches return nothing — add one in <strong>Settings → October Outreach</strong>. Google Alerts RSS searches still work without it.
               </div>
             )}
-            <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--s3)' }}>
-              <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Google News query</span><input className="input" value={newSearch.query} onChange={(e) => setNewSearch((s) => ({ ...s, query: e.target.value }))} placeholder='e.g. "Northgate Studio" architecture' /></label>
-              <label className="field" style={{ minWidth: 220 }}><span className="field-label">Google Alerts RSS (optional)</span><input className="input" value={newSearch.alerts_rss} onChange={(e) => setNewSearch((s) => ({ ...s, alerts_rss: e.target.value }))} placeholder="https://www.google.com/alerts/feeds/…" /></label>
+            {/* A grid, not a flex row. The two fields had the wrong priorities:
+                the query grew and the RSS field, which holds a ~90-character
+                Google Alerts URL, was the fixed one, so the URL was always the
+                truncated field. And flex-wrap dropped "Add search" onto a line
+                of its own at mid widths with three fields still on the row
+                above it. Columns now give the URL twice the query's share and
+                keep the button on the fields' baseline. */}
+            <div className="monitor-add">
+              <label className="field"><span className="field-label">Google News query</span><input className="input" value={newSearch.query} onChange={(e) => setNewSearch((s) => ({ ...s, query: e.target.value }))} placeholder='e.g. "Northgate Studio" architecture' /></label>
+              <label className="field"><span className="field-label">Google Alerts RSS (optional)</span><input className="input" value={newSearch.alerts_rss} onChange={(e) => setNewSearch((s) => ({ ...s, alerts_rss: e.target.value }))} placeholder="https://www.google.com/alerts/feeds/…" /></label>
               <label className="field"><span className="field-label">Frequency</span><select className="input" value={newSearch.cadence} onChange={(e) => setNewSearch((s) => ({ ...s, cadence: e.target.value }))}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
               <button className="btn btn-primary" onClick={addSearch}>Add search</button>
             </div>

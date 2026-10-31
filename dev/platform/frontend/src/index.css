@@ -2370,6 +2370,34 @@ a:hover > .card-stat,
   .ds-workbench, .ds-chatcanvas { grid-template-columns: 1fr; }
 }
 
+/* Earned → Monitor's add-a-search row. A grid rather than a flex row, because
+   the two text fields hold different lengths: a short query and a Google
+   Alerts URL of about ninety characters. Flex gave the growth to the query and
+   left the URL fixed, so the URL was always the field that truncated.
+
+   Four columns down to two down to one, each step chosen where a field starts
+   losing its placeholder rather than at a round number. The button is a grid
+   item on the fields' own baseline, so it cannot wrap away from them. */
+.monitor-add {
+  display: grid; gap: var(--s2); margin-bottom: var(--s3);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto auto;
+  align-items: end;
+}
+/* .field carries a 16px bottom margin for stacked forms. In a grid track that
+   margin lifts the field 16px off the track floor while the button, which has
+   none, sits on it, so the button landed a clear step below three inputs that
+   were level with each other. The grid's own gap does this row's spacing. */
+.monitor-add .field { margin-bottom: 0; }
+@container appmain (max-width: 920px) {
+  .monitor-add { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  /* The button keeps the frequency select company rather than sitting alone
+     on a third line. */
+  .monitor-add > :last-child { justify-self: start; }
+}
+@container appmain (max-width: 520px) {
+  .monitor-add { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* The design system's own layout primitives. These sat inside the 768px
    mobile block, which meant a .grid-2 kept two columns in a 500px content box
    whenever the window happened to be wide — the exact failure this file's

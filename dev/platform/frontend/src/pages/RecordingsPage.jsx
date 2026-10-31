@@ -4,6 +4,8 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { CAPTURE, displayConstraints, compositeSize, recorderOptions } from '../utils/captureSettings';
 import { useRevealRow } from '../hooks/useOpenRecord';
+import usePersistedState from '../hooks/usePersistedState';
+import SideDrawer from '../components/ui/SideDrawer';
 
 // In-OMI screen recorder (internal Loom replacement). Record a screen
 // walkthrough with your voice, save it, and share the /watch/:token link.
@@ -56,16 +58,22 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   // remove it again.
   const pendingRowRef = useRef(null);
   const [supported] = useState(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined');
-  const [withMic, setWithMic] = useState(true);
-  const [withCam, setWithCam] = useState(false);
+  // Every recorder setting is remembered, which is the "remember last
+  // settings" ask off the 31 Oct review. Before this, anyone who records with
+  // the camera on in the top-right set it again on every single take, because
+  // only "keep a copy" was persisted. These are per-person conveniences in one
+  // browser, so localStorage is the right place and the defaults still stand
+  // where storage is unavailable.
+  const [withMic, setWithMic] = usePersistedState('recorder.mic', true);
+  const [withCam, setWithCam] = usePersistedState('recorder.cam', false);
   // Camera bubble appearance — adjustable before AND during a recording (the
   // draw loop reads camSettingsRef every frame). Defaults match the old
   // behaviour (bottom-left, medium, mirrored circle) so nothing changes for
   // anyone who ignores these controls.
-  const [camPos, setCamPos] = useState('bottom-left');
-  const [camSize, setCamSize] = useState('md');
-  const [camShape, setCamShape] = useState('circle');
-  const [camMirror, setCamMirror] = useState(true);
+  const [camPos, setCamPos] = usePersistedState('recorder.camPos', 'bottom-left');
+  const [camSize, setCamSize] = usePersistedState('recorder.camSize', 'md');
+  const [camShape, setCamShape] = usePersistedState('recorder.camShape', 'circle');
+  const [camMirror, setCamMirror] = usePersistedState('recorder.camMirror', true);
   const [phase, setPhase] = useState('idle'); // idle | recording | preview | saving
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -92,14 +100,11 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   // only copy in existence was in that tab's memory. A file on disk cannot be
   // taken away by a server limit, a cache, or a page reset, so this defaults
   // on. Per-browser preference, so it is localStorage rather than a setting.
-  const [keepLocalCopy, setKeepLocalCopy] = useState(() => {
-    try { return localStorage.getItem('omi.recorder.keepLocal') !== '0'; }
-    catch { return true; }  // private window, blocked storage: fail safe, not off
-  });
-  useEffect(() => {
-    try { localStorage.setItem('omi.recorder.keepLocal', keepLocalCopy ? '1' : '0'); }
-    catch { /* nothing to do; the default is on either way */ }
-  }, [keepLocalCopy]);
+  // Defaults on, and a browser that refuses storage still gets it on, which is
+  // the safe direction. (The key moved from omi.recorder.keepLocal to the
+  // hook's omi:recorder.keepLocal, so anyone who had turned it off gets it
+  // back on once. That is the right way round for this one setting.)
+  const [keepLocalCopy, setKeepLocalCopy] = usePersistedState('recorder.keepLocal', true);
   // Set once a copy has actually been written, so the UI can say so.
   const [localCopyName, setLocalCopyName] = useState(null);
 
@@ -769,13 +774,22 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
         </div>
       ))}
 
+      {/* The Loom import is a migration tool: used in bursts while the back
+          catalogue comes across, then never again. It held a permanent card on
+          the page between the recorder and the library, so the two things you
+          are here to do had a one-off in the middle of them. It opens from the
+          library header now.
+
+          Where this brushes against SideDrawer's own rule — anything longer
+          than a minute is a page — is the upload half, four fields and a file
+          picker per video. Both halves are paste-and-press rather than
+          sustained work, and the whole tool has a finite life, so a drawer is
+          the proportionate home. If the upload half turns out to be where the
+          time goes, it earns a page. */}
       {canEdit && (
-      <div className="card" style={{ marginTop: 'var(--s4)' }}>
-        <button onClick={() => setImportOpen(o => !o)} className="btn-link">
-          {importOpen ? '−' : '+'} Import from Loom
-        </button>
-        {importOpen && (
-          <div style={{ marginTop: 'var(--s3)' }}>
+      <SideDrawer open={importOpen} onClose={() => setImportOpen(false)}
+        kicker="Video" title="Import from Loom" width={720}>
+          <div>
             <p className="body-sm text-subtle" style={{ margin: '0 0 var(--s2)' }}>
               Paste Loom share links, one per line. Optionally add prior view count and original date, comma-separated:
               <br /><code>https://www.loom.com/share/abc123, 42, 2025-03-14</code>
@@ -826,12 +840,16 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
               {fileUploading && <UploadBar pct={uploadPct} />}
             </div>
           </div>
-        )}
-      </div>
+      </SideDrawer>
       )}
 
       <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: embedded ? 16 : 28, marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <h2 className="h5" style={{ margin: 0 }}>{clientId ? 'Videos' : 'My recordings'}</h2>
+        {canEdit && !selected.size && (
+          <button onClick={() => setImportOpen(true)} className="btn btn-secondary btn-sm">
+            Import from Loom
+          </button>
+        )}
         {canEdit && selected.size > 0 && (
           <button onClick={bulkDelete} className="btn btn-danger">
             Delete selected ({selected.size})
@@ -866,7 +884,13 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                 </div>
                 {canEdit && (
                 <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {(r.client_ids || []).map(cid => (
+                  {/* The page only ever renders inside a client (Produce →
+                      Record; there is no global recordings screen any more),
+                      so the chip naming that client appeared on every single
+                      row and said the one thing the page already says. A video
+                      attached to a second client still shows that one, because
+                      that is the case where the chip is news. */}
+                  {(r.client_ids || []).filter(cid => cid !== clientId).map(cid => (
                     <span key={cid} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', background: 'var(--accent-tint, rgba(0,0,0,0.06))', border: 'var(--border-w) solid var(--card-border)' }}>{clientName(cid)}</span>
                   ))}
                   <button onClick={() => openClientEditor(r)} className="btn btn-secondary btn-sm">
@@ -894,12 +918,20 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                 )}
               </div>
               <div className="row" style={{ gap: 'var(--s2)' }}>
+                {/* A pencil, not a word. Every row carried Rename, Open, Copy
+                    link, MP4 and GIF as five same-sized buttons, so nothing
+                    said which one you came for. `.btn-icon` is the house glyph
+                    button, already used for ✎ elsewhere. */}
                 {canEdit && (
                   <button onClick={() => rename(r)} title="Rename this video"
-                    className="btn btn-secondary btn-sm">Rename</button>
+                    aria-label={`Rename ${r.title}`} className="btn-icon">✎</button>
                 )}
+                {/* Open is the row's one primary, which in this palette is the
+                    accent. It was a hand-rolled pill repeating .btn's
+                    properties with no variant, so it looked like a secondary
+                    and drifted from every real button beside it. */}
                 <a href={r.share_path} target="_blank" rel="noopener noreferrer"
-                  style={{ padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
+                  className="btn btn-primary btn-sm">Open</a>
                 <button onClick={() => copyLink(r)} className="btn btn-secondary btn-sm">Copy link</button>
                 {canEdit && r.status === 'ready' && ['mp4', 'gif'].map(fmt => {
                   const has = fmt === 'gif' ? r.has_gif : r.has_mp4;
