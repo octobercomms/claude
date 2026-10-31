@@ -365,12 +365,16 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
               <option value="linkedin">LinkedIn</option>
             </select>
           </div>
+          {/* "One batch" and "Variant matrix" named the mechanism. Daniel:
+              "I dont know what one batch or variant matrix means tbh."
+              They are a small set and a large one, so the options say how
+              many, which is the only thing you are actually choosing. */}
           {onSubmitMatrix && (
-            <div style={{ width: 190 }}>
-              <label style={modalStyles.label}>Output</label>
+            <div style={{ width: 210 }}>
+              <label style={modalStyles.label}>How many</label>
               <select value={mode} onChange={e => setMode(e.target.value)} className="select" style={modalStyles.input}>
-                <option value="batch">One batch</option>
-                <option value="matrix">Variant matrix</option>
+                <option value="batch">A handful (4–16)</option>
+                <option value="matrix">A lot (25–100)</option>
               </select>
             </div>
           )}
@@ -389,11 +393,14 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
           </div>
         </div>
 
-        {matrix && (
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 'var(--s3)', background: 'var(--accent-soft)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
-            One brief, up to <strong>100</strong> deliberately different on-brand ads, spread across funnel stage, framework and format. Built in rounds so each variant is distinct rather than a reworded copy. Render and resize the ones you like exactly as a normal batch.
-          </div>
-        )}
+        {/* Shown either way. It used to appear only once you had already
+            chosen the thing it explains, which is the wrong order: the
+            explanation is how you decide. */}
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 'var(--s3)', background: matrix ? 'var(--accent-soft)' : 'var(--surface-sunken)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
+          {matrix
+            ? <>One brief, up to <strong>100</strong> deliberately different on-brand ads, spread across funnel stage, framework and format. Built in rounds so each variant is distinct rather than a reworded copy. Takes a few minutes and costs proportionally more. Render and resize the ones you like exactly as a normal batch.</>
+            : <>A single pass over one brief. Good for a campaign with a clear angle. Pick the larger option when you want to test widely and do not yet know which angle wins.</>}
+        </div>
 
         <label style={modalStyles.label}>Brand assets to include as reference</label>
         {!assets.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No brand assets uploaded yet.</div>}
@@ -418,15 +425,21 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
             {sample.body && <div className="body-sm" style={{ marginTop: 'var(--s1)', lineHeight: 1.5 }}>{sample.body}</div>}
             {sample.cta && <div style={{ marginTop: 'var(--s2)' }}><span className="chip" style={{ background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700 }}>{sample.cta}</span></div>}
             {sample.visual_concept && <div className="body-xs text-muted" style={{ marginTop: 'var(--s2)', lineHeight: 1.5 }}><strong>Visual:</strong> {sample.visual_concept}</div>}
-            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>This is a throwaway preview. Hit {matrix ? `Build matrix for ${matrixCount} distinct variants` : `Generate for the full batch of ${count} concepts`}.</div>
+            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>Not saved. If the tone is right, hit {matrix ? `Write ${matrixCount} variants` : `Write ${count} concepts`}.</div>
           </div>
         )}
 
         <div style={modalStyles.footer}>
           {!inline && <button className="btn btn-secondary" onClick={onClose}>Cancel</button>}
+          {/* Named for what it produces and what it costs. "Preview a sample"
+              against "Generate" read as two sizes of the same thing; the
+              difference is one throwaway concept versus a saved batch, and
+              the labels say so before you click rather than in the caption
+              afterwards. */}
           {clientId && (
-            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: previewSample, disabled: sampling || submitting })}>
-              {sampling ? 'Drafting…' : '✨ Preview a sample'}
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: previewSample, disabled: sampling || submitting })}
+              title="Writes one concept so you can check the tone. Nothing is saved.">
+              {sampling ? 'Drafting…' : '✨ Try one first'}
             </button>
           )}
           <button className="btn btn-primary" {...roWrite(readOnly, {
@@ -435,7 +448,9 @@ export function BriefForm({ assets, submitting, onClose, onSubmit, onSubmitMatri
               : onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) }),
             disabled: submitting,
           })}>
-            {submitting ? (matrix ? 'Building matrix…' : 'Generating…') : (matrix ? `Build ${matrixCount} variants` : 'Generate')}
+            {submitting
+              ? (matrix ? `Writing ${matrixCount} variants…` : `Writing ${count} concepts…`)
+              : (matrix ? `Write ${matrixCount} variants` : `Write ${count} concepts`)}
           </button>
         </div>
     </>
