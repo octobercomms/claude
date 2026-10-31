@@ -103,7 +103,6 @@ export default function ClientSocialPage() {
       toast(e.message, 'error');
     } finally { setDownloadingBatch(false); }
   }
-  const [hookVaultOpen, setHookVaultOpen] = useState(false);
   // Top-level: overview / performance / pipeline / dm_bot (mirrors Organic).
   // Performance sub-tabs absorbed the old Insights group (winners +
   // competitors). Pipeline has 4 numbered steps. DM bot is its own
@@ -439,10 +438,10 @@ export default function ClientSocialPage() {
   const renderReviewOverview = () => (
     <SocialSuiteOverview
       clientId={id} client={client} batches={batches} posts={posts} plans={plans}
-      competitors={competitors} winners={winners} competitorPosts={competitorPosts} sparkline={sparkline}
-      onAddCompetitor={() => setSocialTab('competitors')} onGenerate={() => setSocialTab('brainstorm')}
+      winners={winners} sparkline={sparkline}
+      onGenerate={() => setSocialTab('brainstorm')}
       onBulkSchedule={() => setBulkOpen(true)} onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
-      onOpenHookVault={() => setHookVaultOpen(true)} />
+      onOpenHookVault={() => setSocialTab('hooks')} />
   );
   const renderLearn = () => (
     <div className="stack-lg">
@@ -603,13 +602,6 @@ export default function ClientSocialPage() {
           seedHook={plannerOpen.seedHook}
           onClose={() => setPlannerOpen(null)}
           onSaved={() => setPlansRefreshKey(k => k + 1)}
-        />
-      )}
-      {hookVaultOpen && (
-        <HookVaultModal
-          clientId={id}
-          onClose={() => setHookVaultOpen(false)}
-          onUse={(hook) => { setHookVaultOpen(false); setPlannerOpen({ planId: null, seedHook: hook }); }}
         />
       )}
       {bulkOpen && (
@@ -1424,28 +1416,6 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             {submitting ? 'Scheduling…' : `Schedule ${selected.size} post${selected.size !== 1 ? 's' : ''}`}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// Searchable library of every hook this client has used. Sorted by
-// best engagement per hook, framework-filterable, with a "use this →"
-// that opens the planner chat with the hook pre-seeded as the brief.
-// Search runs server-side via ILIKE so a vault with thousands of hooks
-// stays snappy.
-function HookVaultModal({ clientId, onClose, onUse }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 760, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 'var(--s5)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 'var(--fs-title)' }}>Hook Vault</h2>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>Every hook this client has used, sorted by best reach.</div>
-          </div>
-          <button type="button" onClick={onClose} className="btn-icon" aria-label="Close">×</button>
-        </div>
-        <HookVaultList clientId={clientId} onUse={onUse} />
       </div>
     </div>
   );

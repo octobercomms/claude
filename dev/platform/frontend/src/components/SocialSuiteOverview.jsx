@@ -8,8 +8,11 @@ import Card from './ui/Card';
 import Button from './ui/Button';
 import StatStrip from './shells/StatStrip';
 
+// The loop as this screen tells it. Competitors are not on it: adding
+// handles is setup for the brainstorm, it happens on Compare, and a
+// measurement screen that opens with "add 3-10 competitors" is not
+// reporting anything. Compare is now the only place competitors appear.
 const STEPS = [
-  { key: 'competitors', label: 'Competitors',  short: 'Brainstorms get smarter when Claude can see who you\'re benchmarking against.' },
   { key: 'brainstorm',  label: 'Ideas',        short: '9 posts at a time, grounded in your brand + trends + competitor hooks.' },
   { key: 'schedule',    label: 'Schedule',     short: 'Bulk-schedule the ones you like, or open one for a deep-dive plan.' },
   { key: 'media',       label: 'Media',        short: 'Finished reels / images go in the Drive folder. Captions are auto-generated.' },
@@ -18,18 +21,16 @@ const STEPS = [
 ];
 
 export default function SocialSuiteOverview({
-  clientId, client, batches, posts, plans, competitors, winners,
-  competitorPosts, sparkline,
-  onAddCompetitor, onGenerate, onBulkSchedule, onOpenHookVault,
+  clientId, client, batches, posts, plans, winners, sparkline,
+  onGenerate, onBulkSchedule, onOpenHookVault,
 }) {
-  const hasCompetitors = (competitors?.length || 0) > 0;
   const hasBrainstorm = (batches?.length || 0) > 0 && (posts?.length || 0) > 0;
   const scheduledPlans = (plans || []).filter(p => p.scheduled_at);
   const hasScheduled = scheduledPlans.length > 0;
   const hasDriveFolder = scheduledPlans.some(p => p.target_platforms?.length);
   const hasPosted = (plans || []).some(p => Array.isArray(p.publications) && p.publications.some(x => x.status === 'posted'));
   const hasWinners = (winners?.length || 0) > 0;
-  const status = { competitors: hasCompetitors, brainstorm: hasBrainstorm, schedule: hasScheduled, media: hasDriveFolder, publish: hasPosted, learn: hasWinners };
+  const status = { brainstorm: hasBrainstorm, schedule: hasScheduled, media: hasDriveFolder, publish: hasPosted, learn: hasWinners };
   const currentKey = STEPS.find(s => !status[s.key])?.key || 'humming';
 
   const totalReach30 = (sparkline || []).reduce((n, p) => n + (Number(p.reach) || 0), 0);
@@ -41,7 +42,7 @@ export default function SocialSuiteOverview({
   const heaterCount = (winners || []).filter(w => w.is_heater).length;
 
   const next = nextAction({
-    currentKey, onAddCompetitor, onGenerate, onBulkSchedule, onOpenHookVault,
+    currentKey, onGenerate, onBulkSchedule, onOpenHookVault,
     batchesCount: batches?.length || 0, scheduledCount: scheduledPlans.length,
   });
 
@@ -59,8 +60,6 @@ export default function SocialSuiteOverview({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)', marginBottom: 'var(--s6)' }}>
         <StatusPill label="Autopilot" value={client?.social_autopilot_paused ? 'Paused' : 'Live'}
           tone={client?.social_autopilot_paused ? 'warning' : 'positive'} />
-        <StatusPill label="Competitors" value={hasCompetitors ? `${competitors.length} tracked` : 'None yet'}
-          tone={hasCompetitors ? 'positive' : 'warning'} />
         {publishedCount > 0 && <StatusPill label="Published" value={publishedCount} tone="positive" />}
       </div>
 
@@ -87,14 +86,8 @@ export default function SocialSuiteOverview({
   );
 }
 
-function nextAction({ currentKey, onAddCompetitor, onGenerate, onBulkSchedule, onOpenHookVault, batchesCount, scheduledCount }) {
+function nextAction({ currentKey, onGenerate, onBulkSchedule, onOpenHookVault, batchesCount, scheduledCount }) {
   switch (currentKey) {
-    case 'competitors':
-      return {
-        title: 'Add 3-10 competitors to start',
-        body: 'Brainstorms get sharper when Claude can see whose hooks to model against.',
-        action: { label: 'Add competitors →', onClick: () => onAddCompetitor?.() },
-      };
     case 'brainstorm':
       return {
         title: 'Generate your first batch',
@@ -123,7 +116,7 @@ function nextAction({ currentKey, onAddCompetitor, onGenerate, onBulkSchedule, o
       return {
         title: 'Posts are live — engagement rolls in over 24-48h',
         body: 'Once data comes back, the Winners panel below shows your top performers. Heaters (2× the 30-day median) feed the next batch.',
-        action: { label: 'Open Hook Vault →', onClick: () => onOpenHookVault?.() },
+        action: { label: 'Open the hook vault →', onClick: () => onOpenHookVault?.() },
       };
     default:
       return {
