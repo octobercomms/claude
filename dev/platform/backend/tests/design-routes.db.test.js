@@ -79,8 +79,11 @@ const MIGRATIONS = ['208_design_studio.sql', '209_design_page_sizes.sql'];
   for (const file of MIGRATIONS) {
     await pool.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', file), 'utf8'));
   }
-  // clients.slug is NOT NULL, so a fixture that omits it cannot insert.
-  const { rows: cl } = await pool.query("INSERT INTO clients (name, slug) VALUES ('Scratch', 'scratch-design-test') RETURNING id");
+  // No slug here on purpose. This suite builds its own minimal schema (see
+  // SCHEMA above), where clients is two columns. Adding one to match the
+  // product's NOT NULL slug breaks it against the scratch database it is
+  // meant to run on, which is how it got "fixed" once already.
+  const { rows: cl } = await pool.query("INSERT INTO clients (name) VALUES ('Scratch') RETURNING id");
   const clientId = cl[0].id;
 
   const made = await request(app).post(`/api/design/clients/${clientId}/projects`).send({ name: 'Tours' });
@@ -146,7 +149,7 @@ const MIGRATIONS = ['208_design_studio.sql', '209_design_page_sizes.sql'];
     .send({ name: 'Other', width: 1080, height: 1350 });
   const wrongSize = await request(app).post(`/api/design/clients/${clientId}/projects`)
     .send({ name: 'Story', width: 1080, height: 1920 });
-  const otherClient = await pool.query("INSERT INTO clients (name, slug) VALUES ('Elsewhere', 'elsewhere-design-test') RETURNING id");
+  const otherClient = await pool.query("INSERT INTO clients (name) VALUES ('Elsewhere') RETURNING id");
   const elsewhere = await request(app).post(`/api/design/clients/${otherClient.rows[0].id}/projects`)
     .send({ name: 'Theirs', width: 1080, height: 1350 });
 

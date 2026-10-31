@@ -2358,36 +2358,45 @@ say which account it came from rather than implying a read that is not there.
 
 ```
 DB_HOST=/tmp DB_PORT=55434 DB_USER=postgres DB_NAME=omi npm run test:db
+→ 11 passed, 1 failed
 ```
 
 These are the tests CI cannot run, because it has no Postgres, so they are
 deliberately out of `platform-checks.yml`. The cost of that is rot, and on 31
-October **three of twelve could not insert their own fixtures**: `clients.slug`,
-`users.password_hash` and `social_batches.client_id` had each become NOT NULL
-since the fixture was written. So `assets.db.test.js`,
-`client-php-audit.db.test.js` and `design-routes.db.test.js` had been failing
-at the first query for an unknown stretch, and the client asset library, the
-PHP audit and the design routes were running unguarded while a passing CI said
-otherwise. All three are fixed.
+October **three of twelve could not run at all**:
 
-**Run it after any migration that adds a NOT NULL column**, and before
+- `assets.db.test.js` and `client-php-audit.db.test.js` could not insert their
+  fixtures. `clients.slug`, `users.password_hash` and
+  `social_batches.client_id` had each become NOT NULL since the fixture was
+  written. Both fixed.
+- `design-routes.db.test.js` required `supertest`, which was not in
+  `package.json` and never had been. It is now a dev dependency, and the suite
+  passes with 40 assertions.
+
+So the client asset library, the PHP audit and the design routes were all
+running unguarded while a green CI said otherwise.
+
+**Two traps in this area, both of which cost something already.**
+
+**`design-routes` needs a scratch database, not the shared one.** It stands up
+its own minimal schema, where `clients` is two columns. Run it against `omi`
+and it fails on a trigger that already exists; "fix" its fixture to supply the
+product's NOT NULL `slug` and it then breaks on the empty database it is
+actually for. That repair was made and reverted within the hour. The runner
+script creates and drops a scratch database for it, and the list of tests
+needing one is at the top of `tests/run-db-tests.sh`.
+
+**`social-captions.db.test.js` is not self-contained and is still red.** It
+reads `social_posts WHERE id = '5555…'` without creating it, and TRUNCATEs
+`client_assets` before asserting on a brand kit drawn from them, so it has only
+ever passed on rows another test left behind. Making it green means writing a
+fixture whose palette yields `accent === '#C8701E'`, and reverse-engineering an
+input to satisfy an assertion is how you get a test that passes for the wrong
+reason. It needs whoever knows the intended palette. Daniel was asked on 31
+October and had not answered.
+
+Run the script after any migration that adds a NOT NULL column, and before
 claiming that a `.db` test protects anything.
-
-Two still fail, both for reasons beyond a fixture detail, and neither was
-touched rather than faked green:
-
-- `design-routes.db.test.js` requires `supertest`, which is not in
-  `package.json` and never was. Someone wrote the test against a dependency
-  the project does not have. Adding it is a real decision (a dev dependency
-  for one test), not a repair.
-- `social-captions.db.test.js` is not self-contained. It reads
-  `social_posts WHERE id = '5555…'` without creating it, and TRUNCATEs
-  `client_assets` before asserting on a brand kit drawn from them, so it
-  depends on rows another test left behind. Making it pass means writing the
-  fixture, including a palette that yields `accent === '#C8701E'` — and
-  reverse-engineering an input to satisfy an assertion is how you get a test
-  that passes for the wrong reason. It needs whoever knows the intended
-  palette, not a guess.
 
 ## 10. Fast facts / gotchas checklist
 

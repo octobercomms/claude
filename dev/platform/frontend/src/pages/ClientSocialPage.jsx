@@ -25,6 +25,7 @@ import SubredditResearchPanel from '../components/SubredditResearchPanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import { tickedIds, toggleTick, tickSummary } from '../utils/ticks';
 import FeatureCost from '../components/FeatureCost';
+import ReelCheckSummary from '../components/social/ReelCheckSummary';
 import usePersistedState from '../hooks/usePersistedState';
 import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
@@ -73,6 +74,9 @@ export default function ClientSocialPage() {
   const [competitorChanges, setCompetitorChanges] = useState([]);
   const [refreshingPages, setRefreshingPages] = useState(false);
   const [engagement, setEngagement] = useState({});
+  // What the seven reel checks said about each post's reel, keyed by post.
+  // Recorded at render time, not recomputed here; see ReelCheckSummary.
+  const [reelChecks, setReelChecks] = useState({});
   const [mediaByPost, setMediaByPost] = useState({});
   const [shareUrl, setShareUrl] = useState(null);
   const [frameworkBreakdown, setFrameworkBreakdown] = useState([]);
@@ -169,7 +173,7 @@ export default function ClientSocialPage() {
   // (Ideas → Brief → Workbench → Plan → Publish). Schedule is no longer a
   // separate section — Plan + Publish are the factory's last two steps — so its
   // the old 'plans' leaf tab resolves into that single experience too.
-  const inCreate = ['brainstorm', 'review', 'reels', 'video', 'produce', 'plans'].includes(socialTab);
+  const inCreate = ['brainstorm', 'refine', 'reels', 'video', 'produce', 'plans'].includes(socialTab);
   useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
   // Redirect legacy deep links to their new homes. Client (read-only) logins
@@ -183,7 +187,7 @@ export default function ClientSocialPage() {
   const [plans, setPlans] = useState([]);
 
   async function loadAll() {
-    const [c, bs, comp, ws, eng, fb, ts, sp, cp, pl, cpages, cchanges] = await Promise.all([
+    const [c, bs, comp, ws, eng, fb, ts, sp, cp, pl, cpages, cchanges, rc] = await Promise.all([
       api.get(`/clients/${id}`),
       api.get(`/social/clients/${id}/batches`),
       api.get(`/social/clients/${id}/competitors`),
@@ -196,8 +200,10 @@ export default function ClientSocialPage() {
       api.get(`/social/clients/${id}/plans`).catch(() => []),
       api.get(`/social/clients/${id}/competitor-pages`).catch(() => []),
       api.get(`/social/clients/${id}/competitor-page-changes`).catch(() => []),
+      api.get(`/social/clients/${id}/reel-checks`).catch(() => ({ byPost: {} })),
     ]);
     setPlans(pl || []);
+    setReelChecks(rc?.byPost || {});
     setCompetitorPages(cpages || []);
     setCompetitorChanges(cchanges || []);
     setClient(c);
@@ -673,6 +679,7 @@ export default function ClientSocialPage() {
             <SocialPublishContent plans={plans} client={client} onOpenPlan={(pid) => setPlannerOpen({ planId: pid })} />
           )}
           engagement={engagement}
+          reelChecks={reelChecks}
           mediaByPost={mediaByPost}
           updatePost={updatePost}
           deletePost={deletePost}
@@ -736,7 +743,7 @@ function BrainstormTab({
   ticked, onToggleTick, onTickAll,
   autopilotPaused, onToggleAutopilot,
   socialTab, onNavTab, briefContent, plansContent, publishContent,
-  engagement, mediaByPost, updatePost, deletePost, publishPost,
+  engagement, reelChecks = {}, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
 }) {
   const { readOnly } = useAuth();
@@ -763,11 +770,11 @@ function BrainstormTab({
   }
   // Each pipeline stage owns its own tab so a refresh lands you back on the
   // exact step (no more Create → Review auto-jump just because a batch exists):
-  //   1 Create   → 'brainstorm'    2 Review → 'review'
+  //   1 Create   → 'brainstorm'    2 Refine → 'refine'
   //   3 Produce  → 'produce'       4 Schedule → 'plans'
-  const STEP_TAB = { 1: 'brainstorm', 2: 'review', 3: 'produce', 4: 'plans' };
+  const STEP_TAB = { 1: 'brainstorm', 2: 'refine', 3: 'produce', 4: 'plans' };
   const stepForTab = (tab) =>
-    tab === 'review' ? 2
+    tab === 'refine' ? 2
       : tab === 'produce' ? 3
       : tab === 'plans' ? 4
       : 1;
@@ -779,7 +786,7 @@ function BrainstormTab({
   // Keep the stepper in sync when the tab changes from outside — deep links,
   // the Overview map, or buttons elsewhere.
   useEffect(() => {
-    if (socialTab === 'review') setStep(2);
+    if (socialTab === 'refine') setStep(2);
     else if (socialTab === 'produce') setStep(3);
     else if (socialTab === 'plans') setStep(4);
     else if (socialTab === 'brainstorm') setStep(1);
@@ -798,7 +805,7 @@ function BrainstormTab({
 
   const steps = [
     { title: 'Create', sub: 'Brief & generate' },
-    { title: 'Review', sub: 'Refine your posts' },
+    { title: 'Refine', sub: 'Edit, tick and send for approval' },
     { title: 'Produce', sub: 'Make the assets' },
     { title: 'Schedule', sub: 'Calendar & autopilot' },
   ];
@@ -822,6 +829,7 @@ function BrainstormTab({
       {refineErr && <div className="callout callout-danger mb-3">{refineErr}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px', gap: 'var(--s4)' }}>
         <PostCard post={refining} clientId={clientId} engagement={engagement[refining.id]} media={mediaByPost[refining.id] || []}
+          reelCheck={reelChecks[refining.id]}
           onChange={patch => updatePost(refining.id, patch)}
           onDelete={() => { setRefiningId(null); deletePost(refining.id); }}
           onPublish={(url) => publishPost(refining.id, url)}
@@ -925,7 +933,7 @@ function BrainstormTab({
             {briefContent}
             {batches.length > 0 && (
               <p className="body-xs text-subtle" style={{ marginTop: 'var(--s4)' }}>
-                Your {batches.length} past {batches.length === 1 ? 'batch lives' : 'batches live'} in <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button> — open one to edit or reuse its brief.
+                Your {batches.length} past {batches.length === 1 ? 'batch lives' : 'batches live'} in <button className="btn-inline-link" onClick={() => goStep(2)}>Refine</button> — open one to edit or reuse its brief.
               </p>
             )}
             {batches.length === 0 && (
@@ -945,10 +953,11 @@ function BrainstormTab({
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 'var(--s4)', marginBottom: 'var(--s4)' }}>
             <div style={{ maxWidth: 520 }}>
-              <div className="h3">Review your batches</div>
+              <div className="h3">Refine your batches</div>
               <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
                 Open a batch to edit its posts or refine with Claude. Untick the ones you
                 are not running — Schedule and the batch download only take the ticked posts.
+                This step is Refine; the Review screen under Measure is the monthly read-out.
               </p>
             </div>
             <div className="row wrap center" style={{ gap: 'var(--s2)' }}>
@@ -1035,10 +1044,10 @@ function BrainstormTab({
               <div className="h3">Make the assets</div>
               <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
                 {producePosts.length
-                  ? <>The {producePosts.length} post{producePosts.length === 1 ? '' : 's'} you ticked on <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button>.
+                  ? <>The {producePosts.length} post{producePosts.length === 1 ? '' : 's'} you ticked on <button className="btn-inline-link" onClick={() => goStep(2)}>Refine</button>.
                       Open one and pick a format — a reel, an image, a voiceover, text cards. It starts rendering and
                       lines up in the board below, where you can leave it and come back.</>
-                  : <>Nothing is ticked. <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button> is
+                  : <>Nothing is ticked. <button className="btn-inline-link" onClick={() => goStep(2)}>Refine</button> is
                       where you choose which posts you are making; anything already rendering is in the board below.</>}
               </p>
             </div>
@@ -1046,6 +1055,7 @@ function BrainstormTab({
               {producePosts.map(p => (
                 <div key={p.id} style={{ maxWidth: 620 }}>
                   <PostCard post={p} clientId={clientId} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
+                    reelCheck={reelChecks[p.id]}
                     defaultProdOpen={p.id === producePostId}
                     onChange={patch => updatePost(p.id, patch)}
                     onDelete={() => { if (p.id === producePostId) setProducePostId(null); deletePost(p.id); }}
@@ -1077,7 +1087,7 @@ function BrainstormTab({
                 Download the batch and post it yourself — one zip with every caption in a
                 spreadsheet and every file beside it. Or lock posts onto the calendar and let
                 the automatic publisher ship them; its queue is at the bottom. Both take the
-                posts ticked on <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button>.
+                posts ticked on <button className="btn-inline-link" onClick={() => goStep(2)}>Refine</button>.
                 {autopilotPaused
                   ? ' The automatic publisher is off for this client, which is the default — nothing posts until you turn it on.'
                   : ' The automatic publisher is on for this client: scheduled plans go out on their own.'}
@@ -2354,7 +2364,7 @@ function ShareLinkBanner({ url, onDismiss }) {
   );
 }
 
-function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel, defaultProdOpen }) {
+function PostCard({ post, clientId, engagement, media, reelCheck, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel, defaultProdOpen }) {
   const { readOnly } = useAuth();
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
@@ -2464,6 +2474,13 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
           ))}
         </div>
       )}
+
+      {/* What the checks made of this post's reel, on the post. They were
+          only ever on Produce → Video and Produce → Edit, beside the render
+          button, so having produced a reel from here you never saw the
+          verdict. Above the production options because it is what informs
+          the next render. */}
+      <ReelCheckSummary result={reelCheck} />
 
       <div style={{ marginTop: 'var(--s3)' }}>
         <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">Produce {showProd ? '▴' : '▾'}</button>

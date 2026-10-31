@@ -212,11 +212,24 @@ export const SECTIONS = {
       // Workbench — it resolves to step 1, so the Workbench row opened Ideas.
       // And 'publish' maps to the same step as 'plans', so Plan and Publish
       // were two rows onto one screen. Both now point where they say they do.
+      // Every row is named after the step it opens, which it was not: Ideas
+      // opened "1 Create", Brief opened "2 Review", Workbench opened
+      // "3 Produce". Only Schedule agreed, and "Brief" named a row while also
+      // being half of a different row's subtitle, which is why the review
+      // asked "is this first step Generate?" — it is, step 1 is
+      // "Brief & generate".
+      //
+      // Step 2 is Refine rather than Review, because Measure already owns a
+      // screen called Review at slug `review`, and the tab key moved with the
+      // label: naming only the label and the slug would have left slug
+      // 'review' still equal to this row's tab key, which is the collision
+      // sectionPanel.test.mjs used to have to allowlist. Daniel's call,
+      // 31 October.
       { heading: 'Create', rows: [
-        { tab: 'brainstorm', label: 'Ideas', slug: 'ideas',     step: 1 },
-        { tab: 'review',     label: 'Brief', slug: 'brief',     step: 2 },
-        { tab: 'produce',    label: 'Workbench', slug: 'workbench', step: 3 },
-        { tab: 'plans',      label: 'Schedule', slug: 'schedule',  step: 4 },
+        { tab: 'brainstorm', label: 'Create', slug: 'create',     step: 1 },
+        { tab: 'refine',     label: 'Refine', slug: 'refine',     step: 2 },
+        { tab: 'produce',    label: 'Produce', slug: 'produce',   step: 3 },
+        { tab: 'plans',      label: 'Schedule', slug: 'schedule', step: 4 },
       ] },
 
       { heading: 'Measure', rows: [

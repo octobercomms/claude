@@ -225,20 +225,20 @@ test('the three SettingsPage sections together name exactly its screens', () => 
 // something, and that is in the browser drive where it can be proven.
 
 test('no slug names a different row in the same section', () => {
-  // Shared has `tab: 'review'` at slug 'brief' (step 2, refine the posts) and
-  // `tab: 'perf_insights'` at slug 'review' (Measure). So the word "review" is
-  // a tab key for one screen and a slug for another, in the same section.
+  // There are none, and there was one. Shared had `tab: 'review'` at slug
+  // 'brief' (step 2) while `tab: 'perf_insights'` sat at slug 'review'
+  // (Measure), so the word "review" was a tab key for one screen and a slug
+  // for another in the same section. Nothing was broken: the round trip
+  // tab → slug → tab held. The trap was one line away — pass a slug where a
+  // tab is expected and you land on the other screen with no error, and both
+  // screens render, so it reads as a working page showing the wrong thing.
+  // Six dead links got into this app that way.
   //
-  // Nothing is broken today: the round trip tab → slug → tab holds. The trap is
-  // one line away. Any code that passes a slug where a tab is expected, or the
-  // reverse, lands on the other screen with no error — and both screens render,
-  // so it looks like a working page showing the wrong thing. Six dead links got
-  // into this app the same way, by a path and a key being almost the same word.
-  //
-  // This does not forbid the collision. It records every one that exists, so
-  // adding another is a decision somebody makes on purpose rather than a thing
-  // that happens.
-  const KNOWN = ['shared:review'];
+  // Renaming step 2 to Refine (31 October, Daniel's call) closed it: the row
+  // is now tab 'refine' at slug 'refine', and 'review' belongs to one screen
+  // only. The empty allowlist is the point. Adding to it is a decision
+  // somebody makes on purpose rather than a thing that happens.
+  const KNOWN = [];
   const found = [];
   for (const key of Object.keys(SECTIONS)) {
     const section = SECTIONS[key];
