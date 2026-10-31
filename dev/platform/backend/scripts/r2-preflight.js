@@ -207,10 +207,18 @@ function closingAdvice(driverName, failed) {
     if (live) {
       // Live on R2 and a check failed: playback is affected right now, so the
       // reassuring "nothing is broken" line would be a lie.
+      // Deliberately not "fall back to the disk copies": once
+      // `media-to-r2.js --commit --prune-verified` has run there are none, and
+      // an outage is the worst moment to follow an instruction that silently
+      // does nothing. Check first, then decide.
       return [
         `${failed} check(s) failed and the active driver is r2, so playback is`,
-        'affected now. Set MEDIA_STORE=disk and `pm2 reload october-platform` to',
-        'fall back to the disk copies while you fix the bucket or token.',
+        'affected now. Check whether a fallback still exists:',
+        '  node scripts/media-store-status.js',
+        'If the disk store still holds the objects, MEDIA_STORE=disk and',
+        '`pm2 reload october-platform --update-env` buys time while you fix the',
+        'bucket or token. If they were pruned, R2 is the only copy and the fix',
+        'is the bucket or the token, not the driver.',
       ];
     }
     return [

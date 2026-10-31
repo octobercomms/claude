@@ -305,6 +305,16 @@ await check('a failure on a live store does not read as harmless', async () => {
   assert.ok(/3 check\(s\) failed/.test(liveBad), 'the count must survive');
   assert.ok(!/nothing is broken/.test(liveBad), 'a live failure was called harmless');
   assert.ok(/MEDIA_STORE=disk/.test(liveBad) && /reload/.test(liveBad), 'a live failure must name the fallback');
+  // But never as a promise. `media-to-r2.js --commit --prune-verified` deletes
+  // the disk copies, after which switching the driver back is a no-op that
+  // looks like a fix. An outage is the worst moment to follow an instruction
+  // that silently does nothing, so the advice has to send the reader to check.
+  assert.ok(/media-store-status/.test(liveBad),
+    'the fallback is offered without telling the reader to check it still exists');
+  assert.ok(/pruned/.test(liveBad),
+    'nothing says what to do when the disk copies are gone');
+  assert.ok(!/fall back to the disk copies while/.test(liveBad),
+    'the unconditional "fall back to the disk copies" promise is back');
 
   const diskBad = closingAdvice('disk', 1).join('\n');
   assert.ok(/1 check\(s\) failed/.test(diskBad), 'the count must survive');
