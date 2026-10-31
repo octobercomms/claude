@@ -52,14 +52,15 @@ export default function SocialSuiteOverview({
           launchpad black hero that used to live above this row was
           removed; the Overview tab already does the suite pitch, so
           repeating it on Performance was duplicate surface. */}
-      {client?.social_autopilot_paused && (
-        <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', color: 'var(--warning)', marginBottom: 'var(--s5)' }}>
-          Autopilot is paused — toggle from the top bar to resume scheduled publishing.
-        </div>
-      )}
+      {/* Off is the normal state, not a fault. The autopilot is the one
+          thing in OMI that posts without anybody clicking go, so a client is
+          only on it deliberately — which means a warning-coloured callout
+          saying "paused" was shouting about the default. It says what posting
+          by hand looks like instead, and only where it is actually on does it
+          say so. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)', marginBottom: 'var(--s6)' }}>
-        <StatusPill label="Autopilot" value={client?.social_autopilot_paused ? 'Paused' : 'Live'}
-          tone={client?.social_autopilot_paused ? 'warning' : 'positive'} />
+        <StatusPill label="Autopilot" value={client?.social_autopilot_paused ? 'Off' : 'Posting'}
+          tone={client?.social_autopilot_paused ? 'default' : 'warning'} />
         {publishedCount > 0 && <StatusPill label="Published" value={publishedCount} tone="positive" />}
       </div>
 

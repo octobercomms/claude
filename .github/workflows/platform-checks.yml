@@ -85,6 +85,8 @@ jobs:
         run: node src/services/proposalMethods.test.js
       - name: Guard — a refused calendar call says why
         run: node src/services/googleCalendar.test.js
+      - name: Guard — the autopilot is off unless somebody turned it on
+        run: node tests/autopilot-off.test.js
       - name: Guard — every settings field is one the server will store
         run: node tests/settings-keys.test.js
       - name: Guard — a hand-added journalist is a journalist, added once
