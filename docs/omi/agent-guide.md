@@ -2123,6 +2123,51 @@ Rows written before this change are backfilled from Launch, per client, and
 only the links still alive can be saved. The button disappears when there is
 nothing left to keep.
 
+### The design sweep, batch 2 (31 Oct 2026)
+
+Nine small items off the 31 October review, in `ClientPRPage`,
+`PressReleaseEditor`, the two `components/organic/` Fix panels,
+`RecordingsPage`, `SettingsPage` and `ClientSocialPage`. Four things in here
+will bite the next person.
+
+**`.field` has a 16px bottom margin.** Put a `.field` in a grid row beside a
+button and the two will not line up: the margin lifts the field off the track
+floor while the button with no margin sits on it, so with `align-items: end`
+the button lands a clear step below inputs that are level with each other. The
+monitor row zeroes it (`.monitor-add .field { margin-bottom: 0 }`) and lets the
+grid's own `gap` do the spacing. Any new field-plus-button grid needs the same.
+
+**`.h3` is 14px.** Same size as `.body`. It reads as a heading class and is
+not one: a record's title wearing `.h3` is the quietest line on its screen,
+which is what the Releases editor did. For the name of the thing you are
+editing use `.h1` or `.h2`, both 24px, on an `h2` element where the page
+already has an `h1` for the section. `.display` (40px) belongs to the page
+masthead. The five `--fs-*` tokens are the whole scale.
+
+**`usePersistedState` is the one way to remember a per-person setting.**
+`hooks/usePersistedState.js`, keys prefixed `omi:`. It replaced the eighth
+hand-rolled copy of read-localStorage-in-an-initialiser,
+write-it-in-an-effect, and **two of those eight had no `try/catch`**
+(`ClientChatPage`'s model picker, `ApprovePage`'s reviewer name). An unguarded
+read throws where site data is blocked, and it throws during render, so the
+page went blank instead of falling back to a default. `ApprovePage` is the page
+a client opens from an email, the likeliest of all of them to be opened in a
+private window, and a client who cannot load it cannot approve anything. Do
+not write another one by hand.
+
+**`.btn-ghost` is a deprecated alias of `.btn-secondary`.** About 110 call
+sites keep it rendering; prefer `.btn-secondary` in new code. And a row action
+carrying `style={{ padding: '0 var(--s2)' }}` is not a styled button, it is a
+button with its vertical padding removed — it reads as coloured text. The two
+Fix panels had four of those.
+
+**A table of rows does not get a primary button per row.** Twenty rows with a
+primary in each is twenty primaries. Row actions are all `.btn-secondary` and
+the labels carry the difference; the one exception is a row whose single job is
+to open the record (`Open` on the Record list), which is the yellow.
+
+---
+
 ## 8. Working conventions
 
 - **Keep this guide true. Do it as part of every change, before you open the
@@ -2186,6 +2231,16 @@ progress is obvious on `platform.octobercomms.com`.
 
 ## 10. Fast facts / gotchas checklist
 
+- **A section's URL base is not its name.** `nav/sections.js` keeps the
+  pillar's old leaf: Paid is `/clients/:id/ads`, Earned `/clients/:id/pr`,
+  Shared `/clients/:id/social`, Owned `/clients/:id/seo`. Guessing
+  `/clients/c1/earned/monitor` in a browser drive costs a whole run. Read
+  `base` and `slugOf` (which is `row.slug || row.tab.replace(/_/g, '-')`)
+  rather than the label.
+- **`RecordingsPage` only ever renders embedded inside a client**, from
+  `ClientVideoTab` at Produce → Record. There is no global recordings screen,
+  so `clientId` is always set and anything keyed on "am I scoped to a client"
+  has exactly one answer.
 - **An asset URL you send to an external API has to be bytes, not a path.**
   Generated creative is stored on this box (`generatedMedia.js`), so
   `/api/brand/file/...` is authenticated and relative: the Photoshop fan-out,

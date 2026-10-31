@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { analyse, MOVES, stripHtml, flatten, locateSegment } from '@shared/humanity.mjs';
 import { highlightLayers, unmark } from '../utils/releaseHighlight';
+import SideDrawer from './ui/SideDrawer';
 
 /**
  * The release writing surface.
@@ -525,6 +526,7 @@ export default function PressReleaseEditor({
   const [showRaw, setShowRaw] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showStyle, setShowStyle] = useState(false);
+  const [standardOpen, setStandardOpen] = useState(false);
   const [layerOn, setLayerOn] = useState(
     () => Object.fromEntries(LAYERS.map((l) => [l.key, l.on])),
   );
@@ -765,15 +767,106 @@ export default function PressReleaseEditor({
           .oc-release-rail { position: sticky; top: var(--s4); align-self: start; }
         }
       `}</style>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
-        <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
-        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-          <a className="btn btn-secondary btn-sm" href="/api/pr/editorial-standard.pdf" target="_blank" rel="noreferrer">
-            ↓ The writing standard
-          </a>
-          <button className="btn btn-secondary btn-sm" onClick={onCancel}>All releases</button>
-        </div>
+      {/* The way out sits above the title, top-left, where a back arrow goes.
+          It was a button in a cluster on the right, reading as a third action
+          of equal weight to the download beside it, when it is the only thing
+          on the row that leaves the page. */}
+      <button type="button" className="btn-link" onClick={onCancel}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
+        ← All releases
+      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s4)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
+        {/* .h3 is 14px — the same size as the body text under it — so the
+            title of the thing you are editing was the quietest line on the
+            screen. .h1 is the 24px step, which is what every other page uses
+            for the record it is showing.
+
+            An h2 wearing the .h1 class, not an h1: the Earned page already
+            has one, for the section, at 40px. Two h1s on a page is a broken
+            outline, and the release does sit under the section. */}
+        <h2 className="h1" style={{ margin: 0 }}>{pr.title || 'New press release'}</h2>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStandardOpen(true)}>
+          The writing standard
+        </button>
       </div>
+
+      {/* The standard was a PDF download and nothing else, which teaches
+          nobody anything: you do not read a 13-section document to remember
+          why the page refuses to draft your prose. The rule and the division
+          of labour are here, on screen, and the PDF is at the bottom for the
+          whole thing. */}
+      <SideDrawer open={standardOpen} onClose={() => setStandardOpen(false)}
+        kicker="Earned" title="The October Human Writing Standard" width={620}>
+        <div style={{ display: 'grid', gap: 'var(--s4)' }}>
+          <div>
+            <div className="h3" style={{ marginBottom: 'var(--s2)' }}>The rule</div>
+            <p className="body-sm text-muted" style={{ margin: 0, lineHeight: 1.6 }}>
+              Claude does everything except the prose. Research, angles, interview questions,
+              fact chasing, structure, headline options, pitch variants, media lists and
+              follow-ups are automated. The sentences of the release are written by a person,
+              from a completed fact sheet.
+            </p>
+            <p className="body-sm text-muted" style={{ marginTop: 'var(--s2)', lineHeight: 1.6 }}>
+              This is not a rule about detectors. The reason AI-written releases fail is the
+              same reason they get flagged: nobody gathered the facts.
+            </p>
+          </div>
+
+          <div>
+            <div className="h3" style={{ marginBottom: 'var(--s2)' }}>Who does what</div>
+            <table className="table">
+              <thead><tr><th>Stage</th><th>Claude</th><th>You</th></tr></thead>
+              <tbody>
+                {[
+                  ['Angle options', 'proposes', 'decides'],
+                  ['Interview questions', 'writes', 'asks'],
+                  ['Fact sheet', 'structures, flags gaps', 'fills'],
+                  ['Prose', 'does not write', 'writes or dictates'],
+                  ['Gap analysis', 'scores and highlights', 'acts on'],
+                  ['Headlines', 'proposes 10', 'picks and rewrites'],
+                  ['Pitch emails', 'drafts variants', 'personalises'],
+                  ['Media list', 'builds and dedupes', 'approves'],
+                ].map(([stage, claude, you]) => (
+                  <tr key={stage}>
+                    <td style={{ fontWeight: stage === 'Prose' ? 700 : 400 }}>{stage}</td>
+                    <td className="text-muted">{claude}</td>
+                    <td className="text-muted">{you}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <div className="h3" style={{ marginBottom: 'var(--s2)' }}>The six moves a release makes</div>
+            <p className="body-sm text-muted" style={{ margin: '0 0 var(--s2)', lineHeight: 1.6 }}>
+              Reverse-engineered from the Hollaway F51 release. Five of the six are facts,
+              which is why no model can fill them.
+            </p>
+            <ol className="body-sm text-muted" style={{ margin: 0, paddingLeft: 'var(--s5)', lineHeight: 1.7 }}>
+              <li>A hook phrase, lifted from a person</li>
+              <li>Scope, with a superlative or a hard number</li>
+              <li>Material, method and siting</li>
+              <li>The impact on the place or the user</li>
+              <li>The wider programme it belongs to</li>
+              <li>Third-party proof</li>
+            </ol>
+          </div>
+
+          <div>
+            <div className="h3" style={{ marginBottom: 'var(--s2)' }}>Writing it</div>
+            <p className="body-sm text-muted" style={{ margin: 0, lineHeight: 1.6 }}>
+              Dictate it. Talk through the completed fact sheet into a voice note, then tidy
+              the transcript. Speech produces uneven sentence length, abandoned clauses and
+              afterthoughts with no effort, and it is faster than typing.
+            </p>
+          </div>
+
+          <a className="btn btn-secondary" href="/api/pr/editorial-standard.pdf" target="_blank" rel="noreferrer">
+            ↓ The full standard (PDF)
+          </a>
+        </div>
+      </SideDrawer>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
         <Field label="Headline / working title" value={pr.title} ro={readOnly}

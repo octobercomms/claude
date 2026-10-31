@@ -53,6 +53,9 @@ const store = read('src', 'services', 'mediaStore.js');
 const pageRaw = fs.readFileSync(
   path.join(__dirname, '..', '..', 'frontend', 'src', 'pages', 'RecordingsPage.jsx'), 'utf8');
 const page = codeOnly(pageRaw);
+// The recorder's preferences moved out of this page and into a shared hook on
+// 31 Oct 2026, so the fail-safe these tests care about now lives there.
+const persisted = read('..', 'frontend', 'src', 'hooks', 'usePersistedState.js');
 
 let pass = 0;
 let fail = 0;
@@ -176,9 +179,30 @@ check('progress is cleared when an upload ends',
   (page.match(/setUploadPct\(null\)/g) || []).length >= 3,
   'a stale percentage left on screen is worse than none');
 
+// Each row's rename control, whatever it is drawn as. It was the word
+// "Rename" and is now a ✎ icon button, so matching on the visible text asserted
+// the drawing rather than the behaviour and went red on a styling change while
+// the rename still worked. What has to hold is that every row can start a
+// rename and that the control says what it does to someone who cannot see it.
+const renameControl = (() => {
+  const at = pageRaw.indexOf('rename(r)');
+  if (at < 0) return null;
+  const open = pageRaw.lastIndexOf('<button', at);
+  const close = pageRaw.indexOf('</button>', at);
+  return open < 0 || close < 0 ? null : pageRaw.slice(open, close + 9);
+})();
 check('a finished video can be renamed from the list',
-  /function rename\(/.test(page) && />Rename</.test(pageRaw),
+  /function rename\(/.test(page) && !!renameControl,
   'a title was only settable at save time, so a hurried or failed save kept the wrong name for good');
+check('and the control says so, however it is drawn',
+  // An aria-label or visible text, not a title. A mutation that stripped the
+  // aria-label survived an earlier version of this check because the title
+  // attribute beside it also contains the word: a tooltip is a hint, it does
+  // not survive touch, and it is not the control's name.
+  !!renameControl
+    && (/aria-label=\{?[`'"][^`'"]*Rename/.test(renameControl)
+        || />\s*Rename\s*</.test(renameControl)),
+  'an unlabelled glyph is a button nobody can find, by eye or by screen reader');
 check('the rename endpoint exists and is ownership-checked',
   /router\.patch\('\/:id'/.test(route) && /created_by IS NOT DISTINCT FROM/.test(route));
 check('it refuses an empty title',
@@ -208,10 +232,25 @@ check('the save function was found', !!saveBody);
 check('the disk copy does not depend on the upload succeeding',
   !!saveBody && !/saveBlobToDisk/.test(saveBody) && /postFormProgress/.test(saveBody),
   'a disk write reached only after a successful upload would not have helped on 21 Oct');
-check('that preference defaults to on, including when storage is unreadable',
-  /localStorage\.getItem\('omi\.recorder\.keepLocal'\) !== '0'/.test(page)
-    && /catch \{ return true;/.test(page),
+// The property is unchanged — a private window must not silently turn the
+// disk copy off — but the read moved into usePersistedState, so asserting this
+// page's own localStorage call asserted where the code lived rather than what
+// it does. Both halves are checked where each now sits: the page asks for the
+// preference with `true` as its default, and the hook honours that default
+// when storage throws instead of letting the throw escape during render.
+check('the page asks for that preference with on as its default',
+  /usePersistedState\(\s*'recorder\.keepLocal'\s*,\s*true\s*\)/.test(page)
+    || /localStorage[\s\S]{0,120}keepLocal[\s\S]{0,120}catch \{ return true;/.test(page),
+  'a default of off means one blocked browser loses the only copy of a recording');
+check('and it defaults to on when storage is unreadable',
+  /catch \{\s*return initial;\s*\}/.test(persisted),
   'a private window or blocked storage must fail safe, not silently off');
+check('a read that throws cannot take the page down with it',
+  /try \{[\s\S]{0,400}getItem[\s\S]{0,200}\} catch/.test(persisted),
+  'this read runs in a useState initialiser, so an unguarded throw happens during render');
+check('and neither can a write',
+  /try \{[\s\S]{0,200}setItem[\s\S]{0,200}\}\s*\n?\s*catch/.test(persisted),
+  'eight settings share this hook now, one of them on the client-facing approval page');
 check('the operator is told a copy exists, and where',
   /Saved to your Downloads as/.test(pageRaw));
 

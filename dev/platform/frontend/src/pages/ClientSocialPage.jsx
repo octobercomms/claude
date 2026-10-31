@@ -1788,19 +1788,30 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
   }
   return (
     <div className="card" style={{ width: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 'var(--s6)', alignItems: 'start' }}>
-        {/* LEFT — the brief, given room to write */}
+      {/* The brief takes the full width and the options go under it, which is
+          the 31 Oct review's ask and the better shape for what is here. The
+          brief is prose, so it wants a comfortable measure; the options are
+          rows of pills, which lay out across a width rather than down a
+          column. Side by side, the textarea was squeezed to 1.4 of 2.4 while
+          the pills wrapped two and three to a line in the narrow column
+          beside it. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--s6)', alignItems: 'start' }}>
+        {/* The brief, with the room to write in */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <label style={modalStyles.label}>Brief</label>
           <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 var(--s3)', lineHeight: 1.5 }}>
             Optional — the more specific you are, the more useful the output. Examples: "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy." Leave empty for a balanced batch.
           </p>
+          {/* Shorter than it was, because it is no longer the tall half of a
+              two-column row that had to reach the bottom of the options
+              beside it. 180px is about six lines, which is more than the
+              examples above it ask for, and it drags taller. */}
           <textarea value={brief} onChange={e => setBrief(e.target.value)}
-            className="textarea" style={{ minHeight: isMobile ? 140 : 320, flex: 1, resize: 'vertical' }}
+            className="textarea" style={{ minHeight: isMobile ? 140 : 180, resize: 'vertical' }}
             placeholder="What's the angle? Any constraints?" />
         </div>
 
-        {/* RIGHT — the options */}
+        {/* The options, under the brief */}
         <div>
           <label style={{ ...modalStyles.label, marginTop: 0 }}>How many posts</label>
           <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>

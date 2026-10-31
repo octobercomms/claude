@@ -109,17 +109,27 @@ export default function QuickWinsPanel({ clientId, onRefresh }) {
                     {w.target_url ? <a href={w.target_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{w.target_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : <em style={{ color: 'var(--text-subtle)' }}>none mapped</em>}
                   </td>
                   <td style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>
+                  {/* House button styles. These were `.btn-ghost` with an
+                      inline colour and `padding: 0 var(--s2)`, which strips
+                      the padding every other button in the platform has, so
+                      three row actions read as coloured text rather than
+                      controls. `.btn-ghost` is itself a deprecated alias of
+                      `.btn-secondary`. No row action is primary: a table of
+                      twenty rows with a primary button in each is twenty
+                      primaries, and the labels carry the difference. */}
+                  <div style={{ display: 'inline-flex', gap: 'var(--s2)', justifyContent: 'flex-end' }}>
                     {!w.dismissed_at ? (
                       <>
                         {onRefresh && w.target_url && (
-                          <button onClick={() => onRefresh(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 var(--s2)' }}>Refresh</button>
+                          <button onClick={() => onRefresh(w)} className="btn btn-secondary btn-sm">Refresh</button>
                         )}
-                        <button onClick={() => dismiss(w, 'actioned')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 var(--s2)' }}>Done</button>
-                        <button onClick={() => dismiss(w, 'not_relevant')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 var(--s2)' }}>Skip</button>
+                        <button onClick={() => dismiss(w, 'actioned')} className="btn btn-secondary btn-sm">Done</button>
+                        <button onClick={() => dismiss(w, 'not_relevant')} className="btn btn-secondary btn-sm">Skip</button>
                       </>
                     ) : (
-                      <button onClick={() => restore(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 var(--s2)' }}>Restore</button>
+                      <button onClick={() => restore(w)} className="btn btn-secondary btn-sm">Restore</button>
                     )}
+                  </div>
                   </td>
                 </tr>
               ))}

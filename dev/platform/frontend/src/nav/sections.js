@@ -159,12 +159,19 @@ export const SECTIONS = {
       // Ordered the way the work runs, which Daniel described as: build the
       // list, write the release, work on it, and only then pitch it. Campaigns
       // first was alphabetical-by-accident and put the last step at the top.
+      //
+      // Match sits above Find on the 31 Oct review, and the order is better
+      // for it. Match reads the contacts you already have; Find goes looking
+      // for new ones. With a story in hand you ask your own book first, so
+      // Find is the fallback when the answer comes back thin, not the opening
+      // move. The earlier reading had Match last because it is the pitch
+      // step, which confused "last in the campaign" with "last to open".
       { heading: 'Build', rows: [
         { tab: 'contacts',    label: 'Contacts' },
+        { tab: 'match',       label: 'Match' },
         { tab: 'find',        label: 'Find' },
         { tab: 'press',       label: 'Releases', slug: 'releases' },
         { tab: 'journalists', label: 'Campaigns', slug: 'campaigns' },
-        { tab: 'match',       label: 'Match' },
       ] },
       { heading: 'Measure', rows: [
         { tab: 'reports', label: 'Reports' },
