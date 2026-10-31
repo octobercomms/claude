@@ -1012,6 +1012,9 @@ function BrainstormTab({
                 spreadsheet and every file beside it. Or lock posts onto the calendar and let
                 the automatic publisher ship them; its queue is at the bottom. Both take the
                 posts ticked on <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button>.
+                {autopilotPaused
+                  ? ' The automatic publisher is off for this client, which is the default — nothing posts until you turn it on.'
+                  : ' The automatic publisher is on for this client: scheduled plans go out on their own.'}
               </p>
             </div>
             <div className="row wrap" style={{ gap: 'var(--s2)' }}>
@@ -1034,12 +1037,16 @@ function BrainstormTab({
                   : ticks.all || !ticks.total ? '↓ Download the batch'
                   : `↓ Download ${ticks.count} of ${ticks.total} posts`}
               </UiButton>
-              {/* Pause autopilot lived in the page header, a group away from
-                  the queue it halts. A control that stops a client's posting
-                  belongs beside the posting it stops, where you can see what
-                  you are about to freeze. */}
+              {/* This control lived in the page header, a group away from the
+                  queue it governs. A switch that starts or stops a client's
+                  posting belongs beside the posting, where you can see what
+                  you are about to turn loose.
+
+                  Off is the default for every client (migration 227). Turning
+                  it on is a deliberate choice for that one client, so the
+                  label says what it will do rather than "resume". */}
               <UiButton variant="secondary" {...roWrite(readOnly, { onClick: onToggleAutopilot })}>
-                {autopilotPaused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+                {autopilotPaused ? 'Let it post automatically' : '⏸ Stop it posting'}
               </UiButton>
               <UiButton variant="secondary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>Bulk schedule</UiButton>
             </div>

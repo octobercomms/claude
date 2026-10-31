@@ -179,9 +179,11 @@ export const SECTIONS = {
         // than before Find.
         { tab: 'thanks',      label: 'Thank-yous', slug: 'thank-yous' },
       ] },
-      { heading: 'Measure', rows: [
-        { tab: 'reports', label: 'Reports' },
-      ] },
+      // No Measure group. It held one row, Reports, which held one
+      // per-campaign backlink table. The Campaigns reshape put per-campaign
+      // attribution on each campaign's Results, leaving the screen existing
+      // only for the cross-campaign total — which is now three tiles at the
+      // top of Coverage, where Earned actually opens.
     ],
   },
 

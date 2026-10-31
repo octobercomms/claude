@@ -12,7 +12,7 @@ import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import ProfileModal from '../components/ProfileModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
 import PressCampaignDetail from '../components/PressCampaignDetail';
-import PrBacklinkRoi from '../components/PrBacklinkRoi';
+import PrBacklinkTotal from '../components/PrBacklinkTotal';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
@@ -1124,6 +1124,12 @@ export default function ClientPRPage() {
   // used to be one tab.
   const renderCoverage = () => (
         <div>
+          {/* What press has earned in links, across every campaign. This was
+              Earned → Measure → Reports, a screen holding a per-campaign
+              table; per-campaign attribution now lives on each campaign's own
+              Results, so all the screen had left was the total, and a screen
+              for one total is a screen nobody opens. */}
+          <PrBacklinkTotal clientId={id} />
           {/* A search result whose row is not here. The list loads the most
               recent 500, so an old entry can be addressed and not present —
               and saying nothing would read as the link being broken. */}
@@ -1402,7 +1408,6 @@ export default function ClientPRPage() {
       {!loading && tab === 'find' && renderFind()}
       {!loading && tab === 'match' && renderMatch()}
       {!loading && tab === 'press' && renderReleases()}
-      {!loading && tab === 'reports' && <PrBacklinkRoi clientId={id} />}
 
       {/* Share — the client digest and the live coverage report. */}
       <SideDrawer

@@ -2278,6 +2278,34 @@ and the L5 two-pane screens. When you ship invisible consolidation, say so
 plainly, and prefer to fold at least one visible improvement into each PR so
 progress is obvious on `platform.octobercomms.com`.
 
+### Two decisions that changed when the explanation arrived (31 Oct 2026)
+
+Worth recording as a working practice rather than as two facts.
+
+The 31 Oct review's deletion answers were "Earned Measure: delete" and
+"Shared autopilot: delete". Both were given before anyone had written down
+what either thing actually did. Rather than act on them, the previous session
+built the replacement for the autopilot first (the batch download, PR #1881),
+wrote the explanation into `docs/omi/review-31-oct.md`, and left both
+deletions. Put back with the explanation attached, **both answers changed**:
+the autopilot is kept but off for every client unless deliberately turned on,
+and Earned's cross-campaign total was folded into Coverage rather than lost.
+
+Two things generalise. A deletion decided without the explanation is not a
+decision yet, and the cheap move is to build the replacement first so the
+answer is not forced. And sitting on it is not the other option: carrying the
+question across sessions is how a decision goes stale. Ask once, with the
+explanation and with the original answer as the default option.
+
+What came out of it in code: migration 227 flips
+`clients.social_autopilot_paused` to default `true` and pauses every existing
+client, because the old default `false` meant live and every client created
+since migration 046 was on a cron that posts to Instagram, Facebook and
+LinkedIn with nobody clicking go. `tests/autopilot-off.test.js` is in CI and
+holds the default, the publisher's filter and the screen's wording. Earned's
+Measure group, its Reports row and `PrBacklinkRoi` are gone;
+`PrBacklinkTotal` puts three tiles at the top of Coverage.
+
 ## 10. Fast facts / gotchas checklist
 
 - **A slug that equals a different row's tab key is a trap, and one exists.**
@@ -2295,6 +2323,25 @@ progress is obvious on `platform.octobercomms.com`.
 - **Settings slugs moved on 31 Oct**: `ai` → `models`, and `gen`, `scraping`
   and `alerts` are new. `other` is gone, its four groups re-filed. Anything
   linking to `/settings/ai` or `/settings/other` is dead.
+- **The Shared autopilot is off for every client and must stay that way by
+  default.** `clients.social_autopilot_paused` defaults to `true` since
+  migration 227. It is the one thing in OMI that acts without a human
+  clicking go, and it was kept rather than deleted on exactly that condition.
+  `tests/autopilot-off.test.js` guards it.
+- **`roWrite()` returns `disabled: false`, and a JSX spread beats the props
+  written before it.** So `disabled={…} {...roWrite(…)}` throws the disabled
+  away. Shared's batch download and the bulk report delete were both built
+  that way and neither was ever disabled. Pass `disabled` *inside* `roWrite`;
+  `tests/readOnlyDisabled.test.mjs` scans all 171 of them.
+- **`PostCard` is an editor, so a post's hook and caption are input values,
+  not text.** `innerText` misses them, and a browser assertion looking for a
+  hook on Shared's Produce or Review will pass vacuously. Read the card by the
+  value of the input it holds.
+- **A tick state that something downstream consumes has to be persisted.**
+  Shared's Review ticks live under `omi:shared_ticks`, keyed by batch, because
+  untick three, refresh, and an unpersisted set hands the download nine.
+  `null` means every post, which is not the same as a set of every current id:
+  a batch loads its posts after its id.
 - **Auto-merge fires within ~3 minutes of CI going green**, so a commit pushed
   while a PR is open joins it and a commit pushed after the merge needs a new
   PR. Open the PR in the same breath as the push, not after writing it up.

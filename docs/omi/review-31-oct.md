@@ -42,7 +42,7 @@ Asked as four questions, answered by the account lead:
 | Nine setup scans | **Show the nine with their prices and run the ticked ones.** Setup stays cheap by default and says what each scan costs, the way the Paid Brief step now does. |
 | The social report | **Downloadable first, covering OMI and connected accounts.** Meta and LinkedIn insights for connected accounts whoever published the posts, plus Claude's read on what worked. Scheduling follows once the content is right. |
 | The video editor | **Scope the timeline properly before any build.** A spec saying what it does, what it costs in sessions, and what it replaces. No code until that is read. |
-| Deletions | **Earned Measure: delete.** **Shared autopilot: delete.** **Hook vault: keep, on its own page, with a clear explanation and example content** — the problem is that it was never explained, not that it should not exist. |
+| Deletions | **Earned Measure: delete.** **Shared autopilot: delete.** **Hook vault: keep, on its own page, with a clear explanation and example content** — the problem is that it was never explained, not that it should not exist. *(Both deletions were revisited later the same day, once the explanations existed, and both answers changed. See "Decisions resolved" at the end.)* |
 
 The hook vault answer is worth noting for the next agent: "I have never
 understood it" was read here as a case for deletion, and the account lead's
@@ -181,7 +181,7 @@ Shared → Create is called Ideas in the nav and Create in the step rail. One
 vocabulary, as `sections.js` already enforces for slugs. The review also asks
 whether the first step is "Generate", which it effectively is.
 
-### 3.4 Earned → Measure, deleted (M)
+### 3.4 Earned → Measure (M) — superseded; see "Decisions resolved" 
 
 The review says: "I don't think we need this, it can be added to each campaign
 results page."
@@ -400,52 +400,53 @@ Group 7.2 is weeks and I would not start it on this evidence.
 
 ---
 
-## Decisions still open (as of 31 Oct, end of the build session)
+## Decisions resolved, 31 October (end of the build session)
 
-Three items are blocked on Daniel, and none should be acted on without his
-answer. Recorded here rather than only in a PR body, because a PR body is read
-once and this list is what the next session needs.
+Three items were put back to the account lead with the explanations they had
+been decided without. Two are now answered and built; the third is still open.
 
-### 1 · The Shared autopilot
+### 1 · The Shared autopilot — **kept, off by default**
 
-**What it is.** A cron finds `social_post_plans` whose `scheduled_at` has
-passed, reads the client's Drive folder for media, generates captions fresh
-(about three Claude calls per plan, so the last edit is always reflected),
-fetches the client's Meta and LinkedIn credentials, and posts to Instagram,
-Facebook and LinkedIn. Each platform's outcome lands in
-`social_post_publications`; failures defer and eventually give up. Media
-reaches Meta through a signed URL on OMI's own domain with a 24-hour TTL.
+The 31 October table recorded "delete", but that answer was given before the
+answer to "how does it work?" existed. With the explanation in front of him —
+a cron every five minutes, ~3 Claude calls per plan at publish time, the
+client's Meta and LinkedIn credentials, media reaching Meta through a signed
+URL on OMI's own domain on a 24-hour TTL, ~1,030 lines across
+`socialPublisher.js`, `socialPlanner.js` and `socialDrive.js` plus two tables
+— the call changed: **keep it, and let no client be on it unless that is a
+deliberate choice for that client.**
 
-**Size.** ~1,030 lines across `socialPublisher.js` (521),
-`socialPlanner.js` (362) and `socialDrive.js` (148), one cron, the
-`social_post_plans` and `social_post_publications` tables, plus
-`clients.social_autopilot_paused`.
+Built. `clients.social_autopilot_paused` defaulted to `false`, which is to say
+live, so every client created since migration 046 was on a cron that posts to
+Instagram, Facebook and LinkedIn without anybody clicking go. Migration 227
+flips the default to `true` and pauses every existing client. Nothing that was
+deliberately live was switched off: the autopilot has never been run. The
+screen stopped treating off as a fault — a warning callout on every client by
+default trains people to ignore callouts — and the toggle now says what it
+will do ("Let it post automatically") rather than "resume".
+`tests/autopilot-off.test.js` is in CI and holds the default, the publisher's
+filter, and the screen's wording.
 
-**The recommendation: delete it.** Not because it is unused — because OMI's
-standing rule is that it never hits go on anything without a human clicking
-go, and this is the one feature that breaks that by design. Keeping it also
-keeps two sets of platform credentials live, a signed public media URL, and
-~3 Claude calls per plan at publish time, all for a path nobody walks.
+The batch download (PR #1881) remains the way Shared is actually worked, and
+the Schedule step says so.
 
-**Why it has not been done.** Daniel asked "how does it work?" and decided to
-delete it before that answer existed. The replacement was built first (the
-batch download, PR #1881) precisely so the decision is not forced: Shared can
-be worked by hand either way.
+### 2 · Earned → Measure — **the total folded into Coverage, the screen gone**
 
-### 2 · Earned → Measure
+The 31 October table recorded "delete", which would have lost the one number
+only that screen held: backlink value **across** campaigns. The call was to
+fold it in rather than lose it.
 
-Renders `PrBacklinkRoi` — the backlink ROI total **across** campaigns. The
-Campaigns reshape (#1877) put per-campaign attribution on each campaign's
-Results, which covers most of what "it can be added to each campaign results
-page" meant. The cross-campaign aggregate exists only on this screen.
+Built. `PrBacklinkTotal` puts three tiles at the top of Coverage, where Earned
+opens: outlets that linked back, outlets approached, hit rate, with one line
+saying what counts and that per-campaign detail is on each campaign's Results.
+The Measure group, its Reports row and `PrBacklinkRoi` are deleted. The figure
+is `pitched_rds` — a domain matching an outlet the campaign emailed, first
+backlink within 21 days — and the drive asserts the whole-site domain count
+(the old headline, which once read 939 for one release) is not on the tiles.
 
-Delete it and that total goes. Keeping it and renaming it is the safer move.
-Not a call to make on inference.
+### 3 · The Shared Create row names — **still open**
 
-### 3 · The Shared Create row names
-
-Worse than the "Ideas vs Create nav mismatch" as reported. Every row in the
-Create group is named differently from the step it opens:
+Every row in the Create group is named differently from the step it opens:
 
 | Nav row | Opens |
 |---|---|
@@ -461,4 +462,4 @@ Generate?" — it is; step 1 is "Brief & generate".
 Naming the rows after their steps fixes it, **except** step 2 is called Review
 and Measure already has a row called Review at slug `review`. Two screens in
 one section both legitimately called Review is the real problem, and choosing
-the replacement names is a product decision.
+the replacement names is a product decision. Not one to make on inference.
