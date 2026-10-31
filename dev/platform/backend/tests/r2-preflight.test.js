@@ -17,7 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { CHECKS, runChecks, missingVars, fingerprint, REQUIRED } = require('../scripts/r2-preflight');
+const { CHECKS, runChecks, missingVars, fingerprint, REQUIRED, closingAdvice } = require('../scripts/r2-preflight');
 
 let failed = 0;
 async function check(name, fn) {
@@ -276,6 +276,43 @@ await check('the secret is never printed', async () => {
   assert.strictEqual(fingerprint(undefined), '(empty)');
   // Four characters is enough to tell two keys apart and not enough to use.
   assert.ok(out.includes('SUPE') && !out.includes('SUPER'), `expected a 4-character prefix, got ${out}`);
+});
+
+await check('the closing advice reads the driver it just printed', async () => {
+  // The first version always printed "still on MEDIA_STORE=disk, now run the
+  // migration". Read by someone already live on R2 with the migration done,
+  // that says they have not started, and it sent them back round the loop.
+  const liveOk = closingAdvice('r2', 0).join('\n');
+  assert.ok(/already r2/.test(liveOk), 'a passing run on r2 must say the switch is done');
+  assert.ok(!/still on MEDIA_STORE=disk/.test(liveOk), 'the pre-migration sequence was printed to a live store');
+  assert.ok(!/--commit\s*$/m.test(liveOk), 'a plain --commit copy was suggested to a store already migrated');
+
+  const diskOk = closingAdvice('disk', 0).join('\n');
+  assert.ok(/still on MEDIA_STORE=disk/.test(diskOk), 'a passing run on disk must give the migration sequence');
+  assert.ok(/media-to-r2\.js --commit/.test(diskOk), 'the copy step is the point of a passing disk run');
+  assert.ok(!/already r2/.test(diskOk), 'a disk run was told the switch was done');
+
+  // Both passing branches still lead with the verdict.
+  for (const d of ['r2', 'disk']) {
+    assert.ok(/^All checks passed\./.test(closingAdvice(d, 0)[0]), `${d} lost its verdict line`);
+  }
+});
+
+await check('a failure on a live store does not read as harmless', async () => {
+  // On disk, a failure means the switch waits. On r2, it means playback is
+  // broken right now, and "nothing is broken" would be a lie.
+  const liveBad = closingAdvice('r2', 3).join('\n');
+  assert.ok(/3 check\(s\) failed/.test(liveBad), 'the count must survive');
+  assert.ok(!/nothing is broken/.test(liveBad), 'a live failure was called harmless');
+  assert.ok(/MEDIA_STORE=disk/.test(liveBad) && /reload/.test(liveBad), 'a live failure must name the fallback');
+
+  const diskBad = closingAdvice('disk', 1).join('\n');
+  assert.ok(/1 check\(s\) failed/.test(diskBad), 'the count must survive');
+  assert.ok(/nothing is broken/.test(diskBad), 'a disk failure is harmless and should say so');
+  assert.ok(!/All checks passed/.test(diskBad), 'a failing run printed the pass verdict');
+
+  // An unset MEDIA_STORE resolves to the disk driver, so it takes the disk text.
+  assert.deepStrictEqual(closingAdvice('disk', 1), closingAdvice(undefined, 1));
 });
 
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }

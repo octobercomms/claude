@@ -190,21 +190,60 @@ async function main() {
 
   const failed = results.filter(r => !r.ok).length;
   console.log();
+  console.log(closingAdvice(mediaStore.driverName, failed).join('\n'));
   if (failed) {
-    console.log(`${failed} check(s) failed. Leave MEDIA_STORE=disk — nothing is broken,`);
-    console.log('and the platform keeps serving from disk until this passes.');
     console.log(`\nThe probe object was ${results.find(r => r.name === 'delete it again')?.ok ? 'cleaned up' : `left at ${key} — delete it by hand if it is there`}.`);
     process.exit(1);
   }
-  console.log('All checks passed. The bucket and token do everything playback needs.');
-  console.log('\nNext, still on MEDIA_STORE=disk:');
-  console.log('  node scripts/media-to-r2.js             # dry run, writes nothing');
-  console.log('  node scripts/media-to-r2.js --commit    # copy, verifying each object');
-  console.log('  node scripts/media-store-status.js      # confirm nothing is missing');
-  console.log('Only then set MEDIA_STORE=r2 and reload. Keep the disk copies for a few');
-  console.log('days; --prune-verified frees them when you are ready.');
 }
 
-module.exports = { CHECKS, runChecks, missingVars, fingerprint, REQUIRED };
+// What to print after the checks. It depends on where the platform is actually
+// reading from: printing the pre-migration sequence to someone already live on
+// R2 reads as "you have not started yet", and sent one person back round the
+// whole loop. Pure and exported so the branches are tested, not eyeballed.
+function closingAdvice(driverName, failed) {
+  const live = driverName === 'r2';
+  if (failed) {
+    if (live) {
+      // Live on R2 and a check failed: playback is affected right now, so the
+      // reassuring "nothing is broken" line would be a lie.
+      return [
+        `${failed} check(s) failed and the active driver is r2, so playback is`,
+        'affected now. Set MEDIA_STORE=disk and `pm2 reload october-platform` to',
+        'fall back to the disk copies while you fix the bucket or token.',
+      ];
+    }
+    return [
+      `${failed} check(s) failed. Leave MEDIA_STORE=disk — nothing is broken,`,
+      'and the platform keeps serving from disk until this passes.',
+    ];
+  }
+  const head = 'All checks passed. The bucket and token do everything playback needs.';
+  if (live) {
+    return [
+      head,
+      '',
+      'The active driver is already r2, so the switch is done. Nothing to run',
+      'here. To check the objects themselves:',
+      '  node scripts/media-store-status.js      # every recording has a playback copy',
+      'If that reports everything present and you no longer want the duplicate',
+      'disk copies:',
+      '  node scripts/media-to-r2.js --commit --prune-verified',
+    ];
+  }
+  return [
+    head,
+    '',
+    'Next, still on MEDIA_STORE=disk:',
+    '  node scripts/media-to-r2.js             # dry run, writes nothing',
+    '  node scripts/media-to-r2.js --commit    # copy, verifying each object',
+    '  node scripts/media-store-status.js      # confirm nothing is missing',
+    'Only then set MEDIA_STORE=r2 and reload. Keep the disk copies for a few',
+    'days; --prune-verified frees them when you are ready.',
+  ];
+}
+
+module.exports = { CHECKS, runChecks, missingVars, fingerprint, REQUIRED, closingAdvice };
+
 
 if (require.main === module) main().catch(err => { console.error(err); process.exit(1); });
