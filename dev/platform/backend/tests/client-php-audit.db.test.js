@@ -92,7 +92,9 @@ function sameStatement(a, b) {
   check('all four of them', cols.length === 4, cols.map(c => c.column_name).join(', '));
 
   const mk = async (name, status = 'active') => {
-    const { rows: c } = await pool.query('INSERT INTO clients (name) VALUES ($1) RETURNING id', [name]);
+    // clients.slug is NOT NULL, so a fixture that omits it cannot insert.
+    const slug = `php-audit-${String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).slice(2, 8)}`;
+    const { rows: c } = await pool.query('INSERT INTO clients (name, slug) VALUES ($1, $2) RETURNING id', [name, slug]);
     const { rows: n } = await pool.query(
       `INSERT INTO connectors (client_id, connector_type, status) VALUES ($1, 'wordpress_plugin', $2) RETURNING id`,
       [c[0].id, status]);

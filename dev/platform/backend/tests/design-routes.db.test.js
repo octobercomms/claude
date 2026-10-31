@@ -79,7 +79,8 @@ const MIGRATIONS = ['208_design_studio.sql', '209_design_page_sizes.sql'];
   for (const file of MIGRATIONS) {
     await pool.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', file), 'utf8'));
   }
-  const { rows: cl } = await pool.query("INSERT INTO clients (name) VALUES ('Scratch') RETURNING id");
+  // clients.slug is NOT NULL, so a fixture that omits it cannot insert.
+  const { rows: cl } = await pool.query("INSERT INTO clients (name, slug) VALUES ('Scratch', 'scratch-design-test') RETURNING id");
   const clientId = cl[0].id;
 
   const made = await request(app).post(`/api/design/clients/${clientId}/projects`).send({ name: 'Tours' });
@@ -145,7 +146,7 @@ const MIGRATIONS = ['208_design_studio.sql', '209_design_page_sizes.sql'];
     .send({ name: 'Other', width: 1080, height: 1350 });
   const wrongSize = await request(app).post(`/api/design/clients/${clientId}/projects`)
     .send({ name: 'Story', width: 1080, height: 1920 });
-  const otherClient = await pool.query("INSERT INTO clients (name) VALUES ('Elsewhere') RETURNING id");
+  const otherClient = await pool.query("INSERT INTO clients (name, slug) VALUES ('Elsewhere', 'elsewhere-design-test') RETURNING id");
   const elsewhere = await request(app).post(`/api/design/clients/${otherClient.rows[0].id}/projects`)
     .send({ name: 'Theirs', width: 1080, height: 1350 });
 
