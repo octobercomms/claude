@@ -626,10 +626,22 @@ export default function ClientDetailPage() {
 
             {/* ── Weekly setup ── */}
             <div className="card">
-              <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Weekly</h2>
+              {/* Actions on the title line, not in a row across the foot.
+                  Daniel: *"moving the button at the top reduces the vertical
+                  height needed"*. The footer row cost its own height plus the
+                  --s5 above it on both cards, for controls that act on the
+                  card as a whole and read perfectly well beside its name. */}
+              <div className="report-card-head">
+                <h2 className="h2" style={{ margin: 0 }}>Weekly</h2>
+                <div className="report-card-actions">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+                  <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
+                  <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
+                </div>
+              </div>
 
               {/* Schedule · Template · Recipients, across the card. */}
-              <div className="report-setup">
+              <div className="report-setup report-setup--weekly">
               <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
                 <Field label="Day">
@@ -671,24 +683,25 @@ export default function ClientDetailPage() {
               </div>
               </div>
 
-              {/* Across the foot of the card, below both columns.
-                  "Save changes", not "Save weekly": both cards edit one client
-                  record and the PUT sends all of it, so either button saves
-                  whatever is unsaved on this screen. Naming it per-section
-                  would be a lie. */}
-              <div style={{ display: 'flex', gap: 'var(--s2)', paddingTop: 'var(--s5)' }}>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
-                <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
-                <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
-              </div>
             </div>
 
             {/* ── Monthly setup ── */}
             <div className="card">
-              <h2 className="h2" style={{ marginBottom: 'var(--s5)' }}>Monthly</h2>
+              <div className="report-card-head">
+                <h2 className="h2" style={{ margin: 0 }}>Monthly</h2>
+                <div className="report-card-actions">
+                  {/* "Save changes", not "Save monthly": both cards edit one
+                      client record and the PUT sends all of it, so either
+                      button saves whatever is unsaved on this screen. Naming
+                      it per-section would be a lie. */}
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+                  <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
+                  <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('monthly') })} className="btn btn-secondary btn-sm">Generate now</button>
+                </div>
+              </div>
 
               {/* Schedule · Template · Recipients, across the card. */}
-              <div className="report-setup">
+              <div className="report-setup report-setup--monthly">
               <div>
               <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Schedule</div>
               <Field label="Day of month">
@@ -737,12 +750,6 @@ export default function ClientDetailPage() {
                 </button>
               </div>
 
-              {/* Across the foot of the card. */}
-              <div style={{ display: 'flex', gap: 'var(--s2)', paddingTop: 'var(--s5)' }}>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
-                <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
-                <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('monthly') })} className="btn btn-secondary btn-sm">Generate now</button>
-              </div>
             </div>
 
           </div>

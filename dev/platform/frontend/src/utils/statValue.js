@@ -20,3 +20,22 @@ export function valueSizeClass(value) {
   if (n <= 12) return 'ds-stat__value--sm';
   return 'ds-stat__value--xs';
 }
+
+// One size for a whole row, chosen by its longest value.
+//
+// Sizing each tile on its own length stops the clipping and breaks the row:
+// Measure shows £70,271 at 30px beside 332, 30,791 and 1.08% at 40px, and six
+// numbers at three sizes read as a rendering fault rather than as a design.
+// Daniel: *"can you make the font size the same across them all?"*
+//
+// The longest value is what the row has to fit, so it is what the row is
+// sized to. Every tile then matches, and nothing clips — the property the
+// per-tile version existed for is kept, since the widest string still gets a
+// bucket wide enough for it.
+export function rowSizeClass(values = []) {
+  const longest = values.reduce((a, v) => {
+    const s = String(v ?? '');
+    return s.length > a.length ? s : a;
+  }, '');
+  return valueSizeClass(longest);
+}

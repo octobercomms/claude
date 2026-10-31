@@ -1,6 +1,6 @@
 import React from 'react';
 import Sparkline from '../Sparkline';
-import { valueSizeClass } from '../../utils/statValue';
+import { rowSizeClass } from '../../utils/statValue';
 
 // StatStrip (L3/L2) — the ONE metric row. Supersedes ui/MetricCard, the local
 // ClientAdsPage MetricCard, the .metric-card / .stat-strip classes and ad-hoc
@@ -12,12 +12,16 @@ import { valueSizeClass } from '../../utils/statValue';
 //     sparkReverse — flip the sparkline's green/red (lower-is-better metrics)
 //     feature      — one highlighted tile (dark fill, white ink) for the headline
 // Layout only — auto-fits as many columns as fit, wraps on narrow screens.
+// Every value in a row renders at one size, set by the longest of them.
 export default function StatStrip({ items = [] }) {
+  // One size for the row, from its longest value, so six numbers do not read
+  // at three sizes. See rowSizeClass.
+  const size = rowSizeClass(items.map(s => s.value));
   return (
     <div className="ds-stats">
       {items.map((s, i) => (
         <div className={`ds-stat ${s.feature ? 'ds-stat--feature' : ''}`} key={s.key || s.label || i}>
-          <div className={`ds-stat__value ${valueSizeClass(s.value)}`}>{s.value ?? '—'}</div>
+          <div className={`ds-stat__value ${size}`}>{s.value ?? '—'}</div>
           <div className="ds-stat__label">{s.label}</div>
           {s.sub != null && <div className="ds-stat__sub">{s.sub}</div>}
           {s.delta != null && (

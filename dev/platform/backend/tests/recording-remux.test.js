@@ -25,14 +25,27 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync, spawnSync } = require('child_process');
-const { argsFor, containerFor } = require('../src/services/recordingRemux');
+const { argsFor, containerFor, probeCuesToFront } = require('../src/services/recordingRemux');
 
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 
 let failed = 0;
+// Checks that return a promise are waited for. Without this they resolve after
+// the summary has printed, an assertion failure inside one becomes an
+// unhandled rejection, and the suite reports all passed — which is worse than
+// having no check at all.
+const pending = [];
 function check(name, fn) {
-  try { fn(); console.log(`  ok   ${name}`); }
-  catch (e) { failed++; console.log(`  FAIL ${name}\n       ${e.message}`); }
+  let r;
+  try { r = fn(); }
+  catch (e) { failed++; console.log(`  FAIL ${name}\n       ${e.message}`); return; }
+  if (r && typeof r.then === 'function') {
+    pending.push(r.then(
+      () => console.log(`  ok   ${name}`),
+      (e) => { failed++; console.log(`  FAIL ${name}\n       ${e.message}`); }));
+    return;
+  }
+  console.log(`  ok   ${name}`);
 }
 
 function ff(args) {
@@ -101,6 +114,64 @@ check('each container gets the flag that moves its index to the front', () => {
   const webm = argsFor('webm', 'in', 'out');
   assert.ok(webm.includes('-cues_to_front') && webm[webm.indexOf('-cues_to_front') + 1] === '1',
     'webm needs -cues_to_front 1, or the file has no seek index a player can reach');
+});
+
+check('the WebM flag is asked for, not assumed', () => {
+  // -cues_to_front arrived in ffmpeg 6.0. The platform box runs 4.4, where it
+  // is not ignored: ffmpeg refuses the whole command with "Unrecognized option
+  // 'cues_to_front'" before opening the input. Three of eight recordings in
+  // the first backfill failed exactly that way, and they were the WebM ones.
+  //
+  // So the service probes the muxer and passes the answer in. Both answers are
+  // exercised here; the probe itself is checked against a fake ffmpeg below.
+  const withFlag = argsFor('webm', 'in', 'out', true);
+  assert.ok(withFlag.includes('-cues_to_front'), 'the flag is dropped even where it is supported');
+  const without = argsFor('webm', 'in', 'out', false);
+  assert.ok(!without.includes('-cues_to_front'),
+    'the flag survives the fallback, so an old ffmpeg still refuses the command');
+  assert.ok(without.includes('-c') && without[without.indexOf('-c') + 1] === 'copy',
+    'the fallback must still be a stream copy');
+  assert.ok(without.includes('-f') && without[without.indexOf('-f') + 1] === 'webm',
+    'the fallback must still write WebM');
+});
+
+check('the fallback command is one ffmpeg will actually run', () => {
+  // The point of the fallback is that it works where the flag does not. A
+  // fallback nobody has run is a second way to fail.
+  const src = path.join(work, 'fb-src.webm');
+  const out = path.join(work, 'fb-out.webm');
+  execFileSync(FFMPEG, ['-v', 'error', '-y', '-f', 'lavfi', '-i',
+    'testsrc2=s=320x240:r=10:d=2', '-c:v', 'libvpx', '-b:v', '200k', src]);
+  ff(argsFor('webm', src, out, false));
+  assert.ok(fs.statSync(out).size > 0, 'the fallback produced nothing');
+});
+
+check('the probe answers no for an ffmpeg without the option', () => {
+  // A stub printing what 4.4 prints for `-h muxer=webm`: reserve_index_space
+  // is there, cues_to_front is not. If the probe matched loosely it would say
+  // yes here and the box would keep failing.
+  const stub = path.join(work, 'ffmpeg-old');
+  fs.writeFileSync(stub, [
+    '#!/bin/sh',
+    "echo 'Muxer webm [WebM]:'",
+    "echo '  -reserve_index_space <int>  E.......... Reserve a given amount of space (in bytes) at the beginning of the file for the index (cues).'",
+    "echo '  -dash <boolean>             E.......... create a WebM file conforming to WebM DASH specification'",
+  ].join('\n') + '\n');
+  fs.chmodSync(stub, 0o755);
+  return probeCuesToFront(stub).then(v => {
+    assert.strictEqual(v, false, 'the probe said yes to an ffmpeg that has no such option');
+  });
+});
+
+check('the probe answers yes for this ffmpeg, which has it', () => {
+  // The positive control. Without it the probe could return false always and
+  // every assertion above would still pass.
+  return probeCuesToFront(FFMPEG).then(v => {
+    assert.strictEqual(v, true,
+      `${FFMPEG} reports no -cues_to_front. If that is genuinely true of the ffmpeg `
+      + 'running this suite, the structural WebM assertions below are not testing '
+      + 'what ships on a box that does support it.');
+  });
 });
 
 check('a fragmented MP4 comes out progressive', () => {
@@ -193,7 +264,9 @@ check('the two flag sets are genuinely not interchangeable', () => {
   assert.ok(threw, 'an MP4 pushed through the webm flags succeeded; containerFor would be pointless');
 });
 
-try { fs.rmSync(work, { recursive: true, force: true }); } catch { /* ignore */ }
-
-if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
-console.log('\nall passed');
+// The summary waits for the async checks, so a failure inside one counts.
+Promise.all(pending).then(() => {
+  try { fs.rmSync(work, { recursive: true, force: true }); } catch { /* ignore */ }
+  if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
+  console.log('\nall passed');
+});
