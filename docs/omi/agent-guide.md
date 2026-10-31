@@ -1902,6 +1902,14 @@ progress is obvious on `platform.octobercomms.com`.
   rows, so count `DISTINCT domain` or a re-run reads as extra coverage.
 - **`.grid-2` and `.grid-3` are modifiers for `.grid`.** On their own they set
   columns on a block element and nothing happens. `className="grid grid-2"`.
+- **`src/services/mimeText.test.js` fails 4 assertions in a cloud session and
+  is not broken.** That container's Node 22.22.0 decodes windows-1252 as if it
+  were ISO-8859-1: `new TextDecoder('windows-1252').decode(Buffer.from([0x92]))`
+  returns U+0092, a C1 control, rather than a curly apostrophe. The box
+  (22.23.4) and CI both get it right, checked on 31 Oct 2026, so journalist
+  replies are read correctly in production. Confirm before spending time on it:
+  `node -e "console.log(JSON.stringify(new TextDecoder('windows-1252').decode(Buffer.from([0x92]))))"`
+  — `"’"` means the environment is fine and the failure is local.
 - **`SideDrawer` renders its children while shut** (it slides rather than
   unmounts), so a browser check that grabs `.first()` of anything may be
   holding a closed drawer's field. Target by placeholder or within a scope.
