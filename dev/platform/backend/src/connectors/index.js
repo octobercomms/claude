@@ -2,6 +2,7 @@ const google = require('./google');
 const meta = require('./meta');
 const shopify = require('./shopify');
 const woocommerce = require('./woocommerce');
+const stripe = require('./stripe');
 const klaviyo = require('./klaviyo');
 const brevo = require('./brevo');
 const amazonSeller = require('./amazon');
@@ -23,6 +24,7 @@ const connectors = {
   shopify: shopify,
   shopify_email: shopify,
   woocommerce: woocommerce,
+  stripe: stripe,
   klaviyo: klaviyo,
   brevo: brevo,
   amazon_seller: amazonSeller,

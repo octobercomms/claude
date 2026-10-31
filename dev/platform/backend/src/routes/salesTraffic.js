@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { isEcom } = require('../services/ecomTypes');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const { decrypt } = require('../utils/encryption');
@@ -53,7 +54,7 @@ router.get('/:clientId', async (req, res) => {
     // in GA4 reading through as ~35 on the dashboard. Sum across all
     // active connectors of each type.
     const ga4Connectors = connectors.filter(c => c.connector_type === 'ga4');
-    const ecomConnectors = connectors.filter(c => c.connector_type === 'shopify' || c.connector_type === 'woocommerce');
+    const ecomConnectors = connectors.filter(c => isEcom(c.connector_type));
 
     if (ga4Connectors.length) {
       const dailyMap = {};

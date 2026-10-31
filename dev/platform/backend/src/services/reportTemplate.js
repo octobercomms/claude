@@ -25,6 +25,7 @@
 // The renderer (templateRenderer.js) walks the sections in order and emits
 // one section block per entry. Pages break automatically inside puppeteer.
 
+const { ECOM_TYPES } = require('./ecomTypes');
 const dataCollector = require('./dataCollector');
 
 // ─── METRIC CATALOG ─────────────────────────────────────────────────────────
@@ -651,8 +652,11 @@ function defaultTemplate(reportType, availableTypes = []) {
     sections.push({ id: 'ga4_metrics', title: 'Traffic Overview', type: 'metrics_grid', sources: [{ type: 'ga4' }], aggregate: 'sum', metrics: ['sessions', 'users', 'conversions', 'revenue'] });
     sections.push({ id: 'ga4_channels', title: 'Traffic Sources', type: 'bar_chart', sources: [{ type: 'ga4' }], dimension: 'channel', metric: 'sessions' });
   }
-  if (has('shopify') || has('woocommerce')) {
-    const ecomType = has('shopify') ? 'shopify' : 'woocommerce';
+  // Whichever shop this client has. Previously an if/else over two names,
+  // which meant a client on a third one got no e-commerce section at all and
+  // nothing said so.
+  const ecomType = ECOM_TYPES.find(t => has(t));
+  if (ecomType) {
     sections.push({ id: 'ecom_summary', title: 'E-commerce Summary', type: 'metrics_grid', sources: [{ type: ecomType }], aggregate: 'sum', metrics: ['revenue', 'orders', 'aov'] });
     sections.push({ id: 'ecom_stores', title: 'By Store', type: 'metrics_grid', sources: [{ type: ecomType }], aggregate: 'list', metrics: ['revenue', 'orders', 'aov'] });
   }
