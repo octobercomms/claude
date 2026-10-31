@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AdPlatformPreview from '../components/AdPlatformPreview';
+import SocialPlatformPreview from '../components/SocialPlatformPreview';
 import usePersistedState from '../hooks/usePersistedState';
 
 export default function ApprovePage() {
@@ -79,9 +80,15 @@ export default function ApprovePage() {
           placeholder="Your name" className="input" style={{ width: 240 }} />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', marginTop: 'var(--s5)' }}>
+      {/* Posts carry a feed preview now, same as the ads below, so they need
+          the same 440px minimum: a 360px column cannot hold a 320px frame
+          and the card padding around it. */}
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))', marginTop: 'var(--s5)' }}>
         {(data.posts || []).map(p => (
-          <PostReviewCard key={p.id} post={p} responses={responsesByPost[p.id] || []} onRespond={(decision, comment) => respond({ post_id: p.id, decision, comment })} />
+          <PostReviewCard key={p.id} post={p} brandName={data.client?.name}
+            responses={responsesByPost[p.id] || []}
+            onEnlarge={setLightbox}
+            onRespond={(decision, comment) => respond({ post_id: p.id, decision, comment })} />
         ))}
       </div>
 
@@ -146,31 +153,57 @@ function DecisionForm({ onRespond }) {
   );
 }
 
-function PostReviewCard({ post, responses, onRespond }) {
+function PostReviewCard({ post, responses, onRespond, brandName, onEnlarge }) {
+  const videos = (post.media || []).filter(m => m.kind === 'video' || m.kind === 'motion');
+  const audios = (post.media || []).filter(m => m.kind === 'audio');
+  const stills = [
+    ...(post.image_urls || []).map((u, i) => ({ id: `u${i}`, url: u, media_type: 'image' })),
+    ...(post.media || []).filter(m => m.kind === 'image').map(m => ({ ...m, media_type: 'image' })),
+  ];
   return (
     <div className="card">
       <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
         <span className="chip chip-accent">{post.platform}</span>
         <span className="chip chip-accent">{post.kind}</span>
       </div>
-      {(post.image_urls || []).length > 0 && (
-        <div className="grid" style={{ marginBottom: 'var(--s3)', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 'var(--s2)' }}>
-          {post.image_urls.map((u, i) => <img key={i} src={u} alt="" style={{ width: '100%', borderRadius: 'var(--r-sm)' }} />)}
+
+      {/* The post in situ, with chips for the surfaces it could run on. This
+          was a row of 120px thumbnails above the full caption, which tells a
+          client nothing about what shows before "more" — the only part of a
+          caption most people read. */}
+      <SocialPlatformPreview post={post} brandName={brandName} onEnlarge={onEnlarge} />
+
+      {/* Every rendered still underneath, because the preview shows one at a
+          time and the client is signing off all of them. */}
+      {stills.length > 1 && (
+        <div className="row wrap" style={{ marginTop: 'var(--s3)', gap: 'var(--s2)' }}>
+          {stills.map(img => (
+            <button key={img.id} type="button" className="approve-thumb" onClick={() => onEnlarge?.(img)}>
+              <img src={img.url} alt="" />
+            </button>
+          ))}
         </div>
       )}
-      {(post.media || []).filter(m => m.kind === 'video').map(v => (
-        <video key={v.id} src={v.url} controls style={{ width: '100%', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', background: '#000' }} />
+      {videos.map(v => (
+        <video key={v.id} src={v.url} controls style={{ width: '100%', borderRadius: 'var(--r-sm)', marginTop: 'var(--s2)', background: '#000' }} />
       ))}
-      {(post.media || []).filter(m => m.kind === 'audio').map(a => (
-        <audio key={a.id} src={a.url} controls style={{ width: '100%', marginBottom: 'var(--s2)' }} />
+      {audios.map(a => (
+        <audio key={a.id} src={a.url} controls style={{ width: '100%', marginTop: 'var(--s2)' }} />
       ))}
-      <div className="h3 mb-2">{post.hook}</div>
-      <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{post.caption}</div>
-      {(post.hashtags || []).length > 0 && (
-        <div className="mt-2">
-          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 'var(--fs-caption)', marginRight: 'var(--s2)' }}>#{h.replace(/^#/, '')}</span>)}
-        </div>
-      )}
+
+      {/* The caption in full, below the preview. The preview answers "what
+          will they see"; this answers "is the whole thing right", and a
+          client signing off asks both. */}
+      <details className="mt-3">
+        <summary className="body-sm" style={{ cursor: 'pointer' }}>The full caption</summary>
+        <div className="body-sm mt-2" style={{ whiteSpace: 'pre-wrap' }}>{post.caption}</div>
+        {(post.hashtags || []).length > 0 && (
+          <div className="mt-2">
+            {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 'var(--fs-caption)', marginRight: 'var(--s2)' }}>#{h.replace(/^#/, '')}</span>)}
+          </div>
+        )}
+      </details>
+
       <DecisionForm onRespond={onRespond} />
       <ResponsesList responses={responses} />
     </div>

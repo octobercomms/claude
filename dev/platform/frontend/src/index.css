@@ -2878,8 +2878,17 @@ a:hover > .card-stat,
   border-radius: var(--r-sm); padding: 6px 12px;
 }
 /* A story has no caption and no card around it: the image is the screen, and
-   the only readable things are the headline and the button. */
-.adprev-frame--instagram_story .adprev-bar { position: relative; z-index: 1; }
+   the only readable things are the headline and the button. A reel and a
+   TikTok are the same shape, with the caption over the video. */
+.adprev-frame--instagram_story .adprev-bar,
+.adprev-frame--instagram_reel .adprev-bar,
+.adprev-frame--tiktok .adprev-bar { position: relative; z-index: 1; }
+/* An ad's story headline is a headline. An organic caption over a reel is a
+   caption, so it is body-sized rather than 18px bold. */
+.adprev-frame--instagram_reel .adprev-storyhead,
+.adprev-frame--tiktok .adprev-storyhead {
+  font-size: var(--fs-body); font-weight: 600; line-height: 1.35; white-space: pre-wrap;
+}
 .adprev-storyfoot { padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .adprev-storyhead { font-size: var(--fs-title); font-weight: 800; line-height: 1.2; }
 
