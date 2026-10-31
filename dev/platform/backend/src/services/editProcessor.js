@@ -20,8 +20,20 @@ const { getSetting } = require('../utils/settings');
 // module for whisperWords, and requiring it at the top leaves a half-built
 // module object whose functions are all undefined.
 
+const { pathToFileURL } = require('url');
+
 const { FFMPEG, FFPROBE } = require('./ffmpegBin');
 const WHISPER_USD_PER_MIN = 0.006;
+
+// The edit decision list, shared with the timeline surface so the model is
+// defined once. ESM from CommonJS, so it loads on first use like the other
+// shared modules.
+const SHARED = path.join(__dirname, '..', '..', '..', 'shared');
+let _edl = null;
+async function edlMod() {
+  if (!_edl) _edl = await import(pathToFileURL(path.join(SHARED, 'edl.mjs')).href);
+  return _edl;
+}
 let _running = false;
 
 function run(bin, args, opts = {}) {
@@ -183,6 +195,67 @@ async function cutSegments(srcPath, segments, work) {
   const out = path.join(work, 'cutjoined.mp4');
   await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', out]);
   return out;
+}
+
+/**
+ * Render an edit decision list: each entry a range of one clip, cut and
+ * normalised, then concatenated in order.
+ *
+ * This is `cutSegments` generalised from one source to many, which is the one
+ * real capability gap on the Edit page: until now a multi-cut only worked when
+ * there was exactly one clip (`segs && segs.length && paths.length === 1`).
+ *
+ * The spec expected this part to need a single ffmpeg filter graph, and for
+ * transitions it will. Plain cuts do not: normalise each cut to common
+ * parameters and the existing stream-copy concat joins them, which is the path
+ * `combineClips` already proves against real client footage. The hard part the
+ * spec named, inputs that differ in resolution, frame rate, pixel format or
+ * rotation, is handled by that same normalisation rather than avoided.
+ *
+ * `clipPaths` is indexed to match the job's `clips`, with null where a source
+ * is missing from disk, so an EDL's clip indices stay meaningful.
+ */
+async function cutEdl(clipPaths, segments, work) {
+  const firstPath = clipPaths.find((p) => p);
+  if (!firstPath) throw new Error('None of the clips in this edit are on disk.');
+  const first = await probe(firstPath);
+  const W = first.width || 1080, H = first.height || 1920;
+  const outs = [];
+  for (const seg of segments) {
+    const src = clipPaths[seg.clip];
+    if (!src) continue;                       // source gone; the cut goes with it
+    const start = Math.max(0, Number(seg.start) || 0);
+    const end = seg.end == null ? null : Number(seg.end);
+    if (end != null && !(end > start)) continue;
+    const audio = await hasAudioStream(src);
+    const gain = Number(seg.gain);
+    const dst = path.join(work, `edl${outs.length}.mp4`);
+    const a = ['-y'];
+    if (start > 0) a.push('-ss', String(start));
+    a.push('-i', src);
+    if (end != null) a.push('-t', String(Math.max(0.05, end - start)));
+    if (!audio) a.push('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-shortest',
+      '-map', '0:v:0', '-map', '1:a:0');
+    a.push('-vf', `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30`);
+    // Per-block volume. The model carries gain whether or not it is applied,
+    // so applying it here is what stops the surface promising something the
+    // render ignores.
+    if (Number.isFinite(gain) && gain >= 0 && Math.abs(gain - 1) > 0.001) {
+      a.push('-af', `volume=${gain.toFixed(3)}`);
+    }
+    a.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-ar', '48000', '-b:a', '160k', '-video_track_timescale', '30000', dst);
+    await run(FFMPEG, a);
+    outs.push(dst);
+  }
+  if (!outs.length) throw new Error('This edit has no cuts long enough to render.');
+  if (outs.length === 1) return outs[0];
+  const list = path.join(work, 'edl.txt');
+  fs.writeFileSync(list, outs.map(f => `file '${f.replace(/'/g, "'\\''")}'`).join('\n'));
+  const joined = path.join(work, 'edljoined.mp4');
+  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy',
+    '-movflags', '+faststart', joined]);
+  return joined;
 }
 
 // Download a remote clip (fal CDN) to disk.
@@ -378,11 +451,14 @@ async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}) {
 
 async function processOne(job) {
   const clips = (Array.isArray(job.clips) && job.clips.length) ? job.clips : [{ url: job.source_url }];
-  const paths = [];
-  for (const c of clips) {
+  // Indexed to match `clips`, with null where a source has gone from disk. An
+  // EDL's entries name clips by index, so compacting this array would shift
+  // every cut after a missing clip onto the wrong footage.
+  const clipPaths = clips.map((c) => {
     const p = c.url && editJobs.diskPathForUrl(c.url);
-    if (p && fs.existsSync(p)) paths.push(p);
-  }
+    return (p && fs.existsSync(p)) ? p : null;
+  });
+  const paths = clipPaths.filter(Boolean);
   if (!paths.length) { await editJobs.fail(job.id, 'Source video is missing on disk.'); return; }
   const work = fs.mkdtempSync(path.join(os.tmpdir(), `edit-${job.id}-`));
   try {
@@ -405,13 +481,30 @@ async function processOne(job) {
     }
 
     const apiKey = (await getSetting('OPENAI_API_KEY')) || process.env.OPENAI_API_KEY;
-    // Combine several clips first; else, on a single clip, apply multi-cut.
-    let srcPath = paths.length > 1 ? await combineClips(paths, work) : paths[0];
     let renderOps = job.ops || {};
-    const segs = Array.isArray(renderOps.segments) ? renderOps.segments : null;
-    if (segs && segs.length && paths.length === 1) {
-      srcPath = await cutSegments(srcPath, segs, work);
-      renderOps = { ...renderOps, trim: null };   // cuts already applied
+    let srcPath;
+
+    // An edit decision list, if the timeline wrote one. It supersedes both of
+    // the paths below, because it is the model they are each a special case of.
+    const E = await edlMod();
+    const storedEdl = renderOps.edl && Array.isArray(renderOps.edl.items)
+      ? E.normalise(renderOps.edl, clips) : null;
+
+    if (storedEdl && storedEdl.items.length && !E.isWholeClipsInOrder(storedEdl, clips)) {
+      // A real edit: cuts, a reorder, a gain change, or any mix. Rendered as a
+      // cut list across clips, which is the capability the page never had.
+      srcPath = await cutEdl(clipPaths, E.compile(storedEdl, clips), work);
+      renderOps = { ...renderOps, trim: null, segments: null };
+    } else {
+      // No EDL, or an EDL that says "every clip, whole, in order". Both take
+      // the proven paths: stream-copy combine for several clips, and the
+      // single-clip multi-cut for a stored `ops.segments` from an older job.
+      srcPath = paths.length > 1 ? await combineClips(paths, work) : paths[0];
+      const segs = Array.isArray(renderOps.segments) ? renderOps.segments : null;
+      if (segs && segs.length && paths.length === 1) {
+        srcPath = await cutSegments(srcPath, segs, work);
+        renderOps = { ...renderOps, trim: null };   // cuts already applied
+      }
     }
     const { outputPath, srtPath, durationS } = await render(
       srcPath, renderOps, work, apiKey, job.client_id);

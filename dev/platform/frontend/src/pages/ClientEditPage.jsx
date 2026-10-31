@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as EDL from '@shared/edl.mjs';
+import Timeline, { stamp } from '../components/video/Timeline';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -58,8 +60,12 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
   const [dragOver, setDragOver] = useState(false);
   const [previewH, setPreviewH] = useState(0);
 
-  const [doTrim, setDoTrim] = useState(false);
-  const [segments, setSegments] = useState([]);   // [{ id, start, end }] — keep-ranges, joined in order
+  // The edit itself. One EDL replaces `doTrim` + `segments` + the clip order:
+  // a trim, a reorder and a multi-cut are the same operation on this object,
+  // and it is the only thing sent to the renderer. See shared/edl.mjs.
+  const [edl, setEdl] = useState(EDL.emptyEdl());
+  const [selectedId, setSelectedId] = useState(null);
+  const [playhead, setPlayhead] = useState(0);
   const [cleanAudio, setCleanAudio] = useState(true);
   const [captions, setCaptions] = useState(true);
   const [capSize, setCapSize] = useState('medium');
@@ -145,8 +151,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     });
     setClips(prev => {
       const merged = [...prev, ...next].slice(0, 20);
-      if (prev.length === 0 && merged.length === 1) setSegments([]);   // re-seeded when duration loads
-      return merged;
+      return merged;   // the EDL effect appends the new clips
     });
   }
   function clearClips() { setClips(prev => { prev.forEach(c => !c.remote && URL.revokeObjectURL(c.url)); return []; }); }
@@ -159,24 +164,56 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     });
   }
 
-  // When the single clip's duration lands, seed one keep-range spanning the clip.
-  useEffect(() => { if (single && clips[0].duration && segments.length === 0) setSegments([{ id: ++_uid, start: 0, end: clips[0].duration }]); }, [clips]); // eslint-disable-line
+  // Keep the edit in step with the clip list. Adding a clip appends it whole;
+  // removing one drops the blocks that pointed at it. Anything already trimmed
+  // is left alone, so adding a fourth clip does not undo three trims.
+  useEffect(() => {
+    setEdl((prev) => {
+      const kept = EDL.normalise(prev, clips);
+      const used = new Set(kept.items.map((it) => it.clip));
+      let next = kept;
+      for (let i = 0; i < clips.length; i++) {
+        if (!used.has(i)) next = EDL.append(next, i, clips);
+      }
+      // A duration arriving late (the browser probing an upload) turns an
+      // unknown-length block into a real one, so re-normalise on that too.
+      return next;
+    });
+  }, [clips]);
 
-  function updateSeg(id, patch) { setSegments(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s)); }
-  function addSeg() { setSegments(prev => { const last = prev[prev.length - 1]; const start = Math.min(duration - 0.1, last ? last.end : 0); return [...prev, { id: ++_uid, start: Math.max(0, start), end: duration }]; }); }
-  function removeSeg(id) { setSegments(prev => prev.length > 1 ? prev.filter(s => s.id !== id) : prev); }
+  const edlRows = useMemo(() => EDL.laidOut(edl), [edl]);
+  const keptDuration = useMemo(() => EDL.duration(edl) || totalDuration, [edl, totalDuration]);
+  // A real edit is anything the plain stream-copy combine would not produce.
+  const effectiveTrim = clips.length > 0 && edl.items.length > 0
+    && !EDL.isWholeClipsInOrder(edl, clips);
 
-  const validSegs = segments.filter(s => s.end > s.start);
-  const effectiveTrim = single && doTrim && validSegs.length > 0 &&
-    (validSegs.length > 1 || validSegs[0].start > 0 || (duration && validSegs[0].end < duration - 0.01));
-  const keptDuration = effectiveTrim ? validSegs.reduce((s, x) => s + (x.end - x.start), 0) : totalDuration;
+  // Which clip the playhead is over, and where inside it. The preview shows
+  // that clip and seeks to that point. It does not play across a cut: that is
+  // the frame-accurate preview, which is its own piece of work, and a preview
+  // that pretended to play the edit would be showing frames the render will
+  // not contain.
+  const atPlayhead = useMemo(() => {
+    const row = EDL.itemAt(edl, playhead);
+    if (!row) return { clipIndex: 0, sourceTime: 0, item: null };
+    return {
+      clipIndex: row.item.clip,
+      sourceTime: (row.item.in || 0) + (playhead - row.start),
+      item: row.item,
+    };
+  }, [edl, playhead]);
+
+  const previewClip = clips[atPlayhead.clipIndex] || clips[0] || null;
   const capCost = captions && keptDuration ? (keptDuration / 60) * WHISPER_PER_MIN : 0;
   const nothingChosen = !(combining || aspect !== 'original' || effectiveTrim || cleanAudio || captions);
 
   function opsPayload() {
     return {
       aspect,
-      segments: effectiveTrim ? validSegs.map(s => ({ start: Math.max(0, s.start), end: s.end })) : null,
+      // The edit, as the timeline holds it. `segments` stays null: it was the
+      // single-clip-only model this replaces, and sending both would cut the
+      // already-cut output a second time.
+      edl: effectiveTrim ? { version: EDL.EDL_VERSION, items: edl.items } : null,
+      segments: null,
       clean_audio: cleanAudio,
       captions,
       caption_style: { size: capSize, pos: capPos },
@@ -202,7 +239,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
         await api.postForm(`/edit/clients/${clientId}/edit`, fd);
       }
       toast(draft ? 'Saved as draft.' : combining ? 'Combining & rendering…' : 'Edit queued — rendering…', 'success');
-      clearClips(); setReopenJobId(null); setDoTrim(false); setSegments([]);
+      clearClips(); setReopenJobId(null); setEdl(EDL.emptyEdl()); setSelectedId(null); setPlayhead(0);
       loadJobs(); if (!draft && !pollRef.current) startPoll();
     } catch (err) {
       toast(err.message || 'Could not save the edit.', 'error');
@@ -234,9 +271,27 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     setClips(src.map(c => ({ id: ++_uid, file: null, url: c.url, name: c.name || 'clip', duration: null, remote: true })));
     setReopenJobId(job.id);
     const o = job.ops || {};
-    const segs = Array.isArray(o.segments) ? o.segments : (o.trim ? [o.trim] : []);
-    setDoTrim(segs.length > 0);
-    setSegments(segs.map(s => ({ id: ++_uid, start: s.start || 0, end: s.end || 0 })));
+    // Restore the edit. A job saved by the timeline carries an EDL; an older
+    // one carries `ops.segments` or `ops.trim`, which were ranges of a single
+    // clip, so they read as blocks over clip 0. Reopening an old job has to
+    // bring its cuts back or the operator loses them without being told.
+    const legacy = Array.isArray(o.segments) ? o.segments : (o.trim ? [o.trim] : []);
+    if (o.edl && Array.isArray(o.edl.items) && o.edl.items.length) {
+      setEdl({ version: EDL.EDL_VERSION, items: o.edl.items });
+    } else if (legacy.length) {
+      setEdl({
+        version: EDL.EDL_VERSION,
+        items: legacy.map((x, i) => ({
+          id: `legacy${i}`, clip: 0,
+          in: Math.max(0, Number(x.start) || 0),
+          out: Number(x.end) > 0 ? Number(x.end) : null,
+          gain: 1,
+        })),
+      });
+    } else {
+      setEdl(EDL.emptyEdl());
+    }
+    setSelectedId(null); setPlayhead(0);
     setCleanAudio(o.clean_audio !== false); setCaptions(!!o.captions);
     setCapSize(o.caption_style?.size || 'medium'); setCapPos(o.caption_style?.pos || 0);
     setCapTemplate(o.caption_template || null); setCapTemplateName(null);
@@ -313,14 +368,25 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
 
           {/* LEFT */}
           <div>
-            {single ? (
+            {previewClip ? (
               <>
                 <div style={{ display: 'flex', justifyContent: 'center', background: '#000', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
                   <div ref={frameRef} style={frameAR
                     ? { position: 'relative', aspectRatio: `${frameAR[0]} / ${frameAR[1]}`, height: '62vh', maxWidth: '100%', background: '#000' }
                     : { position: 'relative', lineHeight: 0, maxWidth: '100%' }}>
-                    <video ref={videoRef} src={clips[0].url} controls
-                      onLoadedMetadata={e => { measurePreview(); if (clips[0].remote && !clips[0].duration) { const d = e.target.duration; setClips(prev => prev.map((x, i) => i === 0 ? { ...x, duration: d } : x)); if (segments.length === 0) setSegments([{ id: ++_uid, start: 0, end: d }]); } }}
+                    <video ref={videoRef} src={previewClip.url} controls
+                      onTimeUpdate={e => {
+                        // Report the source time back as a timeline position,
+                        // so the playhead tracks playback inside the block it
+                        // is over. Across a cut it stops, which is honest:
+                        // playing the assembled edit is the frame-accurate
+                        // preview, and that is not built yet.
+                        const row = edlRows.find(r => r.item.clip === atPlayhead.clipIndex);
+                        if (!row) return;
+                        const t = e.target.currentTime - (row.item.in || 0);
+                        if (t >= 0 && t <= row.length + 0.001) setPlayhead(row.start + t);
+                      }}
+                      onLoadedMetadata={e => { measurePreview(); if (previewClip.remote && !previewClip.duration) { const d = e.target.duration; setClips(prev => prev.map((x) => x.id === previewClip.id ? { ...x, duration: d } : x)); } }}
                       style={frameAR
                         ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }
                         : { maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
@@ -341,58 +407,56 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                   </div>
                 </div>
                 <div className="card" style={{ marginTop: 'var(--s3)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }}>
-                    <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim / cut
-                    <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>— keep one or more sections; they join in order</span>
-                  </label>
-                  {doTrim && duration > 0 && segments.map((s, i) => (
-                    <div key={s.id} style={{ marginTop: 'var(--s3)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s1)' }}>
-                        <span style={{ fontWeight: 700 }}>Cut {i + 1}</span>
-                        {segments.length > 1 && <button onClick={() => removeSeg(s.id)} className="btn-link">remove</button>}
-                      </div>
-                      <div className="trim-slider">
-                        <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 'var(--r-sm)', background: 'var(--card-border)' }} />
-                        <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 'var(--r-sm)', background: 'var(--text)', left: `${(s.start / duration) * 100}%`, right: `${100 - (s.end / duration) * 100}%` }} />
-                        <input type="range" min="0" max={duration} step="0.05" value={s.start} onChange={e => { const v = Math.min(Number(e.target.value), s.end - 0.1); updateSeg(s.id, { start: Math.max(0, v) }); seek(v); }} />
-                        <input type="range" min="0" max={duration} step="0.05" value={s.end} onChange={e => { const v = Math.max(Number(e.target.value), s.start + 0.1); updateSeg(s.id, { end: Math.min(duration, v) }); seek(v); }} />
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>
-                        <span>Start {fmt(s.start)}</span>
-                        <span style={{ color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, s.end - s.start))}</span>
-                        <span>End {fmt(s.end)}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {doTrim && duration > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
-                      <button className="btn btn-secondary btn-sm" onClick={addSeg}>+ Add cut</button>
-                      {segments.length > 1 && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Final length ~{fmt(keptDuration)}</span>}
-                    </div>
-                  )}
+                  <Timeline
+                    clips={clips}
+                    edl={edl}
+                    onChange={setEdl}
+                    playhead={playhead}
+                    onSeek={(t) => {
+                      setPlayhead(t);
+                      const row = EDL.itemAt(edl, t);
+                      if (row && videoRef.current && row.item.clip === atPlayhead.clipIndex) {
+                        seek((row.item.in || 0) + (t - row.start));
+                      }
+                    }}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                  />
                 </div>
               </>
-            ) : (
-              <div className="card">
-                <div className="caption mb-3">Clips — stitched in this order</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-                  {clips.map((c, i) => (
-                    <div key={c.id} style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s2)' }}>
-                      <span style={{ fontWeight: 800, color: 'var(--text-subtle)', width: 18, textAlign: 'center' }}>{i + 1}</span>
-                      <video src={c.url} muted style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--r-sm)', background: '#000', flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.duration ? fmt(c.duration) : '…'}</div>
+            ) : null}
+
+            <div className="card" style={{ marginTop: 'var(--s3)' }}>
+              <div className="caption mb-3">Sources</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                {clips.map((c, i) => (
+                  <div key={c.id} style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s2)' }}>
+                    <span style={{ fontWeight: 800, color: 'var(--text-subtle)', width: 18, textAlign: 'center' }}>{i + 1}</span>
+                    <video src={c.url} muted style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--r-sm)', background: '#000', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                        {c.duration ? fmt(c.duration) : '…'}
+                        {(() => {
+                          const n = edl.items.filter(it => it.clip === i).length;
+                          return n === 0 ? ' · not on the timeline'
+                            : n > 1 ? ` · ${n} blocks` : '';
+                        })()}
                       </div>
-                      <button className="btn btn-secondary btn-sm" disabled={i === 0} onClick={() => move(c.id, -1)} title="Move up"></button>
-                      <button className="btn btn-secondary btn-sm" disabled={i === clips.length - 1} onClick={() => move(c.id, 1)} title="Move down"></button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => removeClip(c.id)} style={{ color: 'var(--negative)' }} title="Remove">×</button>
                     </div>
-                  ))}
-                </div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s3)' }}>Combined into one video (matched to clip 1's shape). Trim the result afterwards with “Edit again”.</div>
+                    <button className="btn btn-secondary btn-sm"
+                      onClick={() => { setEdl(prev => EDL.append(prev, i, clips)); }}
+                      title="Add another block from this clip to the end of the timeline">+ Block</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => removeClip(c.id)} style={{ color: 'var(--negative)' }} title="Remove this source and its blocks">×</button>
+                  </div>
+                ))}
               </div>
-            )}
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s3)' }}>
+                Blocks are cut and joined in timeline order, each matched to the first
+                clip&rsquo;s shape. Reordering happens on the timeline, not here.
+              </div>
+            </div>
+
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s3)' }} onClick={() => fileRef.current?.click()}>+ Add clip{clips.length ? ' to combine' : ''}</button>
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s3)', marginLeft: 'var(--s2)' }} onClick={() => { clearClips(); setReopenJobId(null); }}>Clear</button>
           </div>
@@ -519,8 +583,33 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
             )}
 
             <div style={{ marginTop: 'var(--s1)' }}>
+              {/* What the render will produce, before it runs. "It generated the
+                  exact same video" was this line missing: nothing on the page
+                  said whether the output would differ from the input. */}
+              {clips.length > 0 && (
+                <div className="body-xs" style={{ marginBottom: 'var(--s2)', lineHeight: 1.5 }}>
+                  {nothingChosen ? (
+                    <span style={{ color: 'var(--warning)' }}>
+                      Nothing is set to change. Trim a block, reorder, reframe, or leave
+                      captions on, or the render returns the clip you put in.
+                    </span>
+                  ) : (
+                    <span className="text-muted">
+                      Will produce one {aspect === 'original' ? '' : `${aspect} `}video,
+                      {' '}{stamp(keptDuration)}, from {edl.items.length}
+                      {' '}{edl.items.length === 1 ? 'block' : 'blocks'}
+                      {effectiveTrim ? ' as cut on the timeline' : ''}
+                      {captions ? ', with burned captions' : ''}
+                      {cleanAudio ? ', audio cleaned' : ''}.
+                    </span>
+                  )}
+                </div>
+              )}
               <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || nothingChosen} onClick={() => submit(false)}>
-                {busy ? 'Starting…' : combining ? `Combine ${clips.length} & render` : 'Render edit'}
+                {busy ? 'Starting…'
+                  : effectiveTrim ? `Render edit · ${stamp(keptDuration)}`
+                    : combining ? `Combine ${clips.length} · ${stamp(keptDuration)}`
+                      : 'Render edit'}
               </button>
               {clips.some(c => c.file) && (
                 <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--s2)' }} disabled={busy} onClick={() => submit(true)}>Save as draft</button>

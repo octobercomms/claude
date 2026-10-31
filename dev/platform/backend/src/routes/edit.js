@@ -57,6 +57,37 @@ router.use((req, res, next) => {
 router.use(loadVisibleClientIds);
 
 // Create an edit job from one or several uploaded clips + chosen operations.
+// An edit decision list arrives from the browser, so it is checked here before
+// it is stored: each block becomes its own ffmpeg process at render time, and
+// an edit claiming ten thousand blocks would occupy the box for an afternoon.
+// The arithmetic itself is re-checked in the processor against the real clip
+// durations (shared/edl.mjs `normalise`), which is the only place that knows
+// them; this is the resource limit, not the correctness check.
+const MAX_EDL_BLOCKS = 200;
+
+function edlProblem(edl, clipCount) {
+  if (edl == null) return null;
+  if (typeof edl !== 'object' || !Array.isArray(edl.items)) return 'The edit is malformed.';
+  if (edl.items.length > MAX_EDL_BLOCKS) {
+    return `An edit can hold up to ${MAX_EDL_BLOCKS} blocks; this one has ${edl.items.length}.`;
+  }
+  for (const it of edl.items) {
+    // `Number(null)` is 0 and `Number.isInteger(0)` is true, so null would
+    // pass as "clip 0" and quietly render the wrong footage. Absent is absent.
+    const clip = it?.clip == null ? NaN : Number(it.clip);
+    if (!Number.isInteger(clip) || clip < 0 || (clipCount != null && clip >= clipCount)) {
+      return 'The edit refers to a clip that is not part of this job.';
+    }
+    const a = Number(it?.in);
+    if (!Number.isFinite(a) || a < 0) return 'A block has an invalid start point.';
+    if (it?.out != null) {
+      const b = Number(it.out);
+      if (!Number.isFinite(b) || !(b > a)) return 'A block ends before it begins.';
+    }
+  }
+  return null;
+}
+
 // Several clips → combined into one video (in upload order) before editing.
 router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clientId'] }),
   uploadDisk.fields([{ name: 'files', maxCount: 20 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
@@ -68,8 +99,15 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     ops = ops || {};
     const isDraft = String(req.body?.draft) === 'true';
     const combining = files.length > 1;
-    const hasCuts = Array.isArray(ops.segments) ? ops.segments.length > 0 : (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0));
+    // An EDL is itself an edit: a trim or a reorder on one clip changes the
+    // output, and without this a timeline-only edit is refused as "nothing
+    // chosen" even though the timeline plainly shows the change.
+    const hasEdl = !!(ops.edl && Array.isArray(ops.edl.items) && ops.edl.items.length);
+    const hasCuts = hasEdl
+      || (Array.isArray(ops.segments) ? ops.segments.length > 0 : (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)));
     const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original') || hasCuts || ops.clean_audio || ops.captions;
+    const edlErr = edlProblem(ops.edl, files.length);
+    if (edlErr) return res.status(400).json({ error: edlErr });
     // Refuse an unknown caption template here rather than at render time. The
     // renderer refuses it too, but by then the operator has waited for a job
     // to reach the front of the queue to be told a name was wrong.
@@ -248,6 +286,11 @@ router.post('/clients/:clientId/stills-reel', requireClientAccess({ paramNames: 
 router.post('/clients/:clientId/edit/:id/reopen', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
   try {
     let ops = req.body?.ops || {};
+    // The clip count is not known here without reading the job, and reopen
+    // reads it anyway; the processor drops a block pointing past the clips it
+    // has. This still catches a malformed or oversized edit before it queues.
+    const edlErr = edlProblem(ops.edl, null);
+    if (edlErr) return res.status(400).json({ error: edlErr });
     const job = await editJobs.reopen(req.params.clientId, req.params.id, { ops, name: req.body?.name || null, createdBy: req.user.id });
     editProcessor.kick();
     res.status(201).json(job);
