@@ -52,7 +52,8 @@ export function clip(text, limit) {
   return { text: s.slice(0, limit).trimEnd(), clipped: true };
 }
 
-function Media({ image, ratio }) {
+// Exported so the social preview beside this one shows media the same way.
+export function Media({ image, ratio }) {
   if (!image) {
     return (
       <div className="adprev-media adprev-media--empty" style={{ aspectRatio: ratio }}>
