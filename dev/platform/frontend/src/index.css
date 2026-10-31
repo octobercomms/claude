@@ -2479,19 +2479,45 @@ a:hover > .card-stat,
 
    Schedule first because it is the smallest and the most often changed;
    recipients last because it is the one you scroll. */
-/* The actions sit on the title line. A row across the foot cost its own
-   height plus the --s5 above it, on both cards, for controls that act on the
-   whole card and read fine beside its name. Wraps under the heading at narrow
-   widths rather than squeezing the title. */
+/* One set of column tracks per card, used by BOTH rows.
+   That is the whole trick: the head and the setup grid below it declare the
+   same tracks, so Edit with Claude lands on Preview's line AND over the word
+   TEMPLATE. Putting it in a row of its own got it over TEMPLATE and cost a
+   row; putting it beside the card's name got it on Preview's line and lost
+   the column. The two rows sharing tracks is what gives both at once.
+
+   Daniel: *"the edit with claude button need to align with preview. and then
+   the next row is schedule, template, receipients."*
+
+   Fractions, not a fixed slab for the schedule: that column was 15rem on both
+   cards, which fitted weekly's day-and-time pair and left monthly's single
+   day-of-month number in mostly empty space. Each card divides its own width
+   by what it holds — monthly gives the schedule less and the list more. */
+.report-card--weekly  { --report-cols: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.3fr); }
+.report-card--monthly { --report-cols: minmax(0, 0.7fr) minmax(0, 2.2fr) minmax(0, 1.3fr); }
+
 .report-card-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--s3); flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: var(--report-cols);
+  column-gap: var(--s6);
+  align-items: center;
   margin-bottom: var(--s5);
 }
-.report-card-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.report-card-head > * { min-width: 0; }
+.report-card-head .report-template-edit { justify-self: start; }
+/* The actions keep one line and overflow their track to the left rather than
+   wrapping inside it. The track is 1.3fr, sized for the Recipients box below;
+   three buttons need about 340px and the track gives about 328, so Save
+   changes dropped to a second line and the head became two rows deep.
+   Their right edge is the card's, which is what the eye reads; the few pixels
+   they borrow come out of the empty middle of the head. */
+.report-card-actions {
+  display: flex; gap: var(--s2); flex-wrap: nowrap; white-space: nowrap;
+  justify-self: end;
+  min-width: max-content;
+}
 
-/* "This month's focus" and the button that drafts one, on a line. Same shape
-   as the card head: space-between, wrapping rather than squeezing. */
+/* "This month's focus" and the button that drafts one, on a line. */
 .report-focus-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--s3); flex-wrap: wrap;
@@ -2500,36 +2526,12 @@ a:hover > .card-stat,
 
 .report-setup {
   display: grid;
-  /* Two rows: the template control, then the three columns. The control is
-     the only thing in the first row, so that row is zero-height on a card
-     that has no template yet and the headings sit where they always did. */
-  grid-template-rows: auto auto;
+  grid-template-columns: var(--report-cols);
   column-gap: var(--s6);
-  row-gap: var(--s3);
+  row-gap: var(--s6);
   align-items: start;
 }
 .report-setup > * { min-width: 0; }
-.report-setup > div { grid-row: 2; }
-
-/* Above the word TEMPLATE, because the template is what it edits.
-   In its own row rather than inside the column: in the column it pushed
-   TEMPLATE down and out of step with SCHEDULE and RECIPIENTS, which is the
-   alignment that was asked for in the same breath. */
-.report-template-edit { grid-column: 2; grid-row: 1; justify-self: start; }
-
-/* Fractions, not a fixed slab for the schedule.
-   Daniel: *"make the columns flex to fill the space, don't need to match
-   columns on weekly and monthly"*. The schedule column was 15rem on both,
-   which fitted weekly's day-and-time pair and left monthly's single
-   day-of-month number sitting in mostly empty space. Each card now divides
-   its own width by what it holds:
-
-     weekly   two selects, a long template list, a recipients box
-     monthly  one small number, the same long list, the same box
-
-   so monthly gives the schedule less and the list more. */
-.report-setup--weekly  { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.3fr); }
-.report-setup--monthly { grid-template-columns: minmax(0, 0.7fr) minmax(0, 2.2fr) minmax(0, 1.3fr); }
 
 /* The template list. columns, not a grid: the items are a numbered sequence
    and column flow keeps 1..10 above 11..20 rather than interleaving them.
@@ -2541,21 +2543,19 @@ a:hover > .card-stat,
 
 /* Two columns, then one, as the content area narrows. Recipients drops under
    the schedule first because they are the two short ones. */
-/* Narrower than three columns, the control spans the whole first row and the
-   columns go back to flowing.
-   Pinning them to row 2 is what keeps the headings level in the three-column
-   layout, and it is exactly wrong once there are two: three items that cannot
-   leave one row push a phantom third column, which measured 26px wide. */
+/* Below three columns there is no Template column to sit over, so the head
+   stops being a grid and becomes a row that wraps: name, control, actions.
+   One variable moves and both grids follow it. */
 @container appmain (max-width: 1100px) {
-  .report-setup--weekly,
-  .report-setup--monthly { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
-  .report-setup > div { grid-row: auto; }
-  .report-template-edit { grid-column: 1 / -1; }
+  .report-card--weekly,
+  .report-card--monthly { --report-cols: minmax(0, 1fr) minmax(0, 1.6fr); }
+  .report-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); }
+  .report-card-actions { margin-left: auto; }
   .report-template-list--long { columns: 1; }
 }
 @container appmain (max-width: 760px) {
-  .report-setup--weekly,
-  .report-setup--monthly { grid-template-columns: minmax(0, 1fr); }
+  .report-card--weekly,
+  .report-card--monthly { --report-cols: minmax(0, 1fr); }
 }
 
 /* ─── Global search ──────────────────────────────────────────────── */
