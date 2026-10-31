@@ -1985,6 +1985,46 @@ multiplier (0.05x on Opus 5.5 and Sonnet 5.5, 0.025x on Fable 5.1).
 One thing left: the endpoint is now marked legacy in favour of
 `/v1/organizations/analytics/usage`. Migrating is its own piece of work.
 
+### Avatar reels and trending sounds, same fault (31 Oct 2026)
+
+Reported the same day as the ad-creative fix, and the same bug:
+`heygen.js` stored HeyGen's own presigned `video_url`, so an older reel played
+as blank video and "open in new tab" answered access denied. Trending sounds
+stored `music.playUrl`, TikTok's signed audio CDN link, which 403s when
+clicked.
+
+Both now go through `generatedMedia`. Reels are fetched when `refreshOne`
+sees `status: completed`; a failed download keeps HeyGen's link rather than
+losing a render that has been paid for, and `keepExisting(clientId)` backfills
+the rows whose links are still alive, offered from the reels panel.
+
+Two things in the reel path would have broken silently, and are the reason to
+look for consumers before storing anything locally:
+
+- **The Drive copy.** `scheduleAsPlan` uploads the reel to Drive by file path
+  via `downloadToTemp`, which fetched a URL. With a stored reel that argument
+  is a relative path, which is not a URL. It now copies off disk instead, and
+  copies rather than hands over the file, because the caller unlinks what it
+  is given and the stored reel is the only copy.
+- **The publisher.** It does *not* use `video_url`: it serves the Drive copy
+  to Meta through a signed media proxy on OMI's own domain
+  (`routes/social.js`). That was already right, and the comment at
+  `heygen.js:281` shows someone had met the expiry problem before and worked
+  around it with Drive rather than fixing the storage.
+
+**The sounds link is the music page now, never `playUrl`.** `playUrl` is kept
+as `audio_url` because it is the only thing that could ever play inline, and
+`search_term` carries title plus artist, which is what you type into TikTok
+or Instagram to find a sound and use it. There was also no cron at all: the
+snapshot was written only when somebody pressed refresh and the reader ignores
+anything older than seven days, so the list silently emptied a week later.
+One global snapshot now refreshes on Mondays.
+
+`frontend/src/utils/storedMedia.js` holds the one rule for "is this kept
+here", used by both panels that offer to keep older media. It is stricter
+than the inline `startsWith('/api/')` it replaced, which would have counted
+`/api/ad-creatives/…` as stored media.
+
 ### Generated creative is kept here now (31 Oct 2026)
 
 Every image generator returns a URL on its own CDN, and those URLs expire —

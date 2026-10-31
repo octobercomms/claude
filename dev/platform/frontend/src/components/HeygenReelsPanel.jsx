@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { unstoredItems } from '../utils/storedMedia';
 import { useAuth } from '../context/AuthContext';
 import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 
@@ -41,6 +42,16 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
   const [scriptLen, setScriptLen] = useState(60);      // target seconds
   const [writingScript, setWritingScript] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [keeping, setKeeping] = useState(false);
+  const [kept, setKept] = useState(null);
+
+  // Reels still pointing at HeyGen rather than at a copy here. HeyGen's URLs
+  // are presigned and expire within days, which is why older reels played as
+  // blank video: the row outlived the file. Anything rendered from 31 Oct
+  // 2026 is stored on the platform at the moment it finishes.
+  //
+  // Only finished reels: one still rendering has nothing to keep yet.
+  const unkept = unstoredItems(reels.filter(r => r.status === 'completed'), r => r.video_url);
   const scriptRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -51,6 +62,28 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
     { id: '1:1',  label: 'Square post',  dim: '1080×1080' },
     { id: '16:9', label: 'Landscape',    dim: '1920×1080' },
   ];
+
+  async function keepReels() {
+    setKeeping(true);
+    try {
+      const out = await api.post(`/heygen/clients/${clientId}/heygen/reels/keep`, {});
+      setKept(out);
+      if (out.stored > 0) {
+        toast(`Kept ${out.stored} reel${out.stored === 1 ? '' : 's'} here.`, 'success');
+        // The rows changed underneath, and the count of what is left is the
+        // part that would otherwise be stale.
+        loadReels();
+      } else {
+        toast(out.expired
+          ? (out.expired === 1
+            ? 'That reel\u2019s HeyGen link has expired, so there was nothing to keep.'
+            : `None could be kept \u2014 all ${out.expired} HeyGen links have expired.`)
+          : 'Nothing left to keep.', out.expired ? 'warning' : 'info');
+      }
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally { setKeeping(false); }
+  }
 
   async function loadReels() {
     try { const r = await api.get(`/heygen/clients/${clientId}/heygen/reels`); setReels(r.reels || []); }
@@ -326,6 +359,28 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
               {readOnly && <span className="body-xs text-subtle" style={{ marginLeft: 'var(--s3)' }}>{READ_ONLY_MSG}</span>}
             </div>
           </div>
+        </div>
+      )}
+
+      {unkept.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <div className="caption mb-2">Keep a copy of older reels</div>
+          <p className="body-sm" style={{ lineHeight: 1.6, marginBottom: 'var(--s3)', maxWidth: 620 }}>
+            {unkept.length} reel{unkept.length === 1 ? '' : 's'} still
+            {unkept.length === 1 ? ' points' : ' point'} at HeyGen rather than at a copy here. HeyGen&rsquo;s
+            links expire after a few days, which is why an older reel plays as a blank
+            video. This keeps the ones that still work; the rest are gone and nothing
+            brings them back. Reels made from now on are kept automatically.
+          </p>
+          <button className="btn" onClick={keepReels} disabled={keeping || readOnly}>
+            {keeping ? 'Keeping…' : `Keep ${unkept.length} reel${unkept.length === 1 ? '' : 's'}`}
+          </button>
+          {kept && (
+            <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+              {kept.stored} kept{kept.expired ? `, ${kept.expired} already expired` : ''}
+              {kept.more ? ' — run it again for the rest' : ''}.
+            </p>
+          )}
         </div>
       )}
 

@@ -19,9 +19,25 @@ const path = require('path');
 const pool = require('../db');
 const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('./costLog');
+const generatedMedia = require('./generatedMedia');
 
 // Stream a remote video (a HeyGen reel URL) to a local temp file.
+// A temp copy of a reel, from wherever the reel is.
+//
+// Since reels are stored on this box, `url` is normally a local
+// /api/brand/file path and there is nothing to download: the Drive upload
+// wants a file path, and one already exists. Only a row that still points at
+// HeyGen takes the network path.
 async function downloadToTemp(url, filename) {
+  const local = generatedMedia.localPathFor(url);
+  if (local) {
+    if (!fs.existsSync(local)) throw new Error('the stored reel is no longer on disk');
+    // Copied rather than handed over, because the caller unlinks what it is
+    // given and the stored reel is the only copy.
+    const copy = path.join(os.tmpdir(), filename);
+    fs.copyFileSync(local, copy);
+    return copy;
+  }
   const dest = path.join(os.tmpdir(), filename);
   const res = await axios.get(url, { responseType: 'stream', timeout: 120000, maxContentLength: Infinity, maxBodyLength: Infinity });
   await new Promise((resolve, reject) => {
@@ -305,6 +321,62 @@ async function scheduleAsPlan(clientId, id, userId) {
   return { ...created, drive_warning };
 }
 
+// Keep whatever is still keepable.
+//
+// Every reel finished before 31 Oct 2026 points at HeyGen's presigned URL.
+// The recent ones are still fetchable; the older ones are gone and nothing
+// recovers them. One pass per client, newest first so a run that hits the
+// limit has spent it on the reels that can actually be saved.
+async function keepExisting(clientId, { limit = 100 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT id, title, video_url, source_url
+       FROM heygen_reels
+      WHERE client_id = $1 AND status = 'completed' AND stored_bytes IS NULL
+      ORDER BY created_at DESC
+      LIMIT $2`,
+    [clientId, Math.min(Math.max(parseInt(limit) || 100, 1), 500)]
+  );
+
+  let stored = 0, expired = 0, bytes = 0;
+  const failures = [];
+  for (const r of rows) {
+    // Already local and simply never measured: record the size so the row
+    // stops coming back.
+    const local = generatedMedia.localPathFor(r.video_url);
+    if (local) {
+      let size = null;
+      try { size = fs.statSync(local).size; } catch { /* gone */ }
+      if (size) {
+        await pool.query('UPDATE heygen_reels SET stored_bytes = $2 WHERE id = $1', [r.id, size]);
+        stored++; bytes += size;
+      } else {
+        expired++;
+        failures.push({ id: r.id, title: r.title, reason: 'the stored file is missing' });
+      }
+      continue;
+    }
+
+    const kept = await generatedMedia.storeOrKeep({
+      clientId, url: r.source_url || r.video_url,
+      stem: `reel-${(r.title || 'avatar').slice(0, 24)}`,
+    });
+    if (kept.stored) {
+      await pool.query(
+        `UPDATE heygen_reels
+            SET video_url = $2, source_url = COALESCE(source_url, $3), stored_bytes = $4
+          WHERE id = $1`,
+        [r.id, kept.url, r.source_url || r.video_url, kept.bytes]
+      );
+      stored++; bytes += kept.bytes;
+    } else {
+      expired++;
+      failures.push({ id: r.id, title: r.title, reason: kept.reason });
+    }
+  }
+
+  return { examined: rows.length, stored, expired, bytes, failures: failures.slice(0, 25), more: rows.length === limit };
+}
+
 async function retry(clientId, id, userId) {
   const { rows } = await pool.query('SELECT * FROM heygen_reels WHERE client_id = $1 AND id = $2', [clientId, id]);
   const r = rows[0];
@@ -328,10 +400,26 @@ async function refreshOne(reel) {
     const dur = (d.duration != null && Number.isFinite(Number(d.duration)))
       ? Number(d.duration)
       : estimateDurationFromScript(reel.script);
+    // Keep the file, not the link. HeyGen's video_url is presigned and
+    // expires within days, so storing it produced a row that outlived its
+    // video: the reel played blank and opening it answered "access denied".
+    // A download that fails still records the HeyGen link, because a reel
+    // that has been paid for must not be lost to a slow CDN.
+    const kept = await generatedMedia.storeOrKeep({
+      clientId: reel.client_id,
+      url: d.video_url || null,
+      stem: `reel-${(reel.title || 'avatar').slice(0, 24)}`,
+    });
     await pool.query(
-      `UPDATE heygen_reels SET status = 'completed', video_url = $2, duration_s = $3, error = NULL WHERE id = $1`,
-      [reel.id, d.video_url || null, dur]
+      `UPDATE heygen_reels
+          SET status = 'completed', video_url = $2, duration_s = $3, error = NULL,
+              source_url = $4, stored_bytes = $5
+        WHERE id = $1`,
+      [reel.id, kept.url || null, dur, kept.source_url || d.video_url || null, kept.bytes ?? null]
     );
+    if (!kept.stored && d.video_url) {
+      console.warn(`[heygen] reel ${reel.id} kept HeyGen's link — could not store: ${kept.reason}`);
+    }
     if (dur) recordApiCost({ provider: 'heygen', feature: 'heygen_reel', costUsd: (dur / 60) * HEYGEN_USD_PER_MIN, clientId: reel.client_id, meta: { duration_s: Math.round(dur), engine: reel.engine || 'avatar_iv' } });
   } else if (status === 'failed') {
     const msg = d.failure_message || d.error?.message || (typeof d.error === 'string' ? d.error : 'HeyGen failed to render this video');
@@ -397,4 +485,12 @@ async function testConnection() {
   }
 }
 
-module.exports = { listAvatars, listVoices, getOptions, remainingQuota, list, generate, scheduleAsPlan, retry, refresh, remove, pollPending, testConnection };
+module.exports = {
+  listAvatars, listVoices, getOptions, remainingQuota, list, generate,
+  scheduleAsPlan, retry, refresh, remove, pollPending, testConnection,
+  keepExisting,
+  // Exported for the tests: it decides between copying a stored reel and
+  // fetching one from HeyGen, and getting that wrong means the Drive upload
+  // tries to download a relative path.
+  downloadToTemp,
+};
