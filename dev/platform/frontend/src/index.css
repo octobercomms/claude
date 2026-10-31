@@ -2490,6 +2490,14 @@ a:hover > .card-stat,
 }
 .report-card-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
+/* "This month's focus" and the button that drafts one, on a line. Same shape
+   as the card head: space-between, wrapping rather than squeezing. */
+.report-focus-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  margin-bottom: var(--s1);
+}
+
 .report-setup {
   display: grid;
   gap: var(--s6);
