@@ -11,6 +11,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
+const { FFMPEG, FFPROBE } = require('./ffmpegBin');
 
 const SHARED = path.join(__dirname, '..', '..', '..', 'shared', 'captions');
 const FONTS_DIR = path.join(SHARED, 'fonts');
@@ -170,7 +171,7 @@ async function previewFrame({ words, templateId, kit, formatId = 'vertical', sou
     : ['-f', 'lavfi', '-i', `color=c=0x101010:s=${format.width}x${format.height}:d=${seek + 1}:r=25`,
       '-ss', String(seek)];
   try {
-    await run('ffmpeg', ['-y', '-loglevel', 'error', ...input,
+    await run(FFMPEG, ['-y', '-loglevel', 'error', ...input,
       '-vf', `subtitles=${assPath}:fontsdir=${FONTS_DIR}`,
       '-frames:v', '1', outPath]);
   } finally { fs.existsSync(assPath) && fs.unlinkSync(assPath); }
@@ -184,7 +185,7 @@ async function burn({ words, templateId, kit, formatId = 'vertical', source, out
   const assPath = `${outPath}.ass`;
   fs.writeFileSync(assPath, ass);
   try {
-    await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', source,
+    await run(FFMPEG, ['-y', '-loglevel', 'error', '-i', source,
       '-vf', `subtitles=${assPath}:fontsdir=${FONTS_DIR}`,
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
       '-pix_fmt', 'yuv420p', '-c:a', 'copy', outPath]);
@@ -290,7 +291,7 @@ async function sampleClip({ templateId, kit = null, formatId = 'vertical' }) {
     // Captions are burned at full size and the result scaled down, rather than
     // burned onto a small frame: libass would otherwise hint the type at 540
     // wide and the example would show a weight the real render never produces.
-    await run('ffmpeg', ['-y', '-loglevel', 'error', '-t', '4', '-i', source,
+    await run(FFMPEG, ['-y', '-loglevel', 'error', '-t', '4', '-i', source,
       '-vf', `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,`
         + `crop=${format.width}:${format.height},setsar=1,`
         + `subtitles=${assPath}:fontsdir=${FONTS_DIR},scale=540:${height}`,
@@ -314,7 +315,7 @@ async function sampleClip({ templateId, kit = null, formatId = 'vertical' }) {
 async function setHouseClip(srcPath) {
   fs.mkdirSync(SAMPLES_DIR, { recursive: true });
   const tmp = `${HOUSE_CLIP}.incoming.mp4`;
-  await run('ffmpeg', ['-y', '-loglevel', 'error', '-t', '4', '-i', srcPath,
+  await run(FFMPEG, ['-y', '-loglevel', 'error', '-t', '4', '-i', srcPath,
     '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
     '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart', tmp]);
@@ -344,10 +345,10 @@ async function transcribeHouseClip(fromPath = null) {
   const src = fromPath || HOUSE_CLIP;
   const audio = `${HOUSE_CLIP}.mp3`;
   try {
-    await run('ffprobe', ['-v', 'error', '-select_streams', 'a:0',
+    await run(FFPROBE, ['-v', 'error', '-select_streams', 'a:0',
       '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', src])
       .then((out) => { if (!out.trim()) throw new Error('that clip has no audio track to transcribe'); });
-    await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-t', '4',
+    await run(FFMPEG, ['-y', '-loglevel', 'error', '-i', src, '-t', '4',
       '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio]);
     const words = await whisperWords(audio, key);
     fs.writeFileSync(HOUSE_WORDS, JSON.stringify(words));

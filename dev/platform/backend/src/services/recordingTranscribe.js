@@ -13,6 +13,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const pool = require('../db');
 const mediaStore = require('./mediaStore');
+const { FFMPEG } = require('./ffmpegBin');
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const WHISPER_MODEL = process.env.WHISPER_MODEL || 'whisper-1';
@@ -31,7 +32,7 @@ async function extractAudio(inPath) {
   const outPath = path.join(os.tmpdir(), `rec-${crypto.randomBytes(8).toString('hex')}.mp3`);
   try {
     await new Promise((resolve, reject) => {
-      const ff = spawn('ffmpeg', ['-y', '-i', inPath, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', outPath], { stdio: 'ignore' });
+      const ff = spawn(FFMPEG, ['-y', '-i', inPath, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', outPath], { stdio: 'ignore' });
       ff.on('error', reject);            // ENOENT when ffmpeg isn't installed
       ff.on('close', code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
     });

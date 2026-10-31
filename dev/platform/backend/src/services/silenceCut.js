@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { pathToFileURL } = require('url');
 const { getSetting } = require('../utils/settings');
+const { FFMPEG, FFPROBE } = require('./ffmpegBin');
 
 const SHARED = path.join(__dirname, '..', '..', '..', 'shared', 'silenceCut.mjs');
 
@@ -31,7 +32,7 @@ function run(bin, args) {
 }
 
 async function durationOf(file) {
-  const out = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration',
+  const out = await run(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration',
     '-of', 'csv=p=0', file]);
   return Number(out.trim()) || 0;
 }
@@ -43,7 +44,7 @@ async function wordsFor(source, supplied = null) {
   if (!key) throw new Error('No OpenAI key, so this clip cannot be transcribed. Add one under Settings → AI.');
   const audio = path.join(path.dirname(source), `cut-${crypto.randomBytes(4).toString('hex')}.mp3`);
   try {
-    await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', source,
+    await run(FFMPEG, ['-y', '-loglevel', 'error', '-i', source,
       '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio]);
     const { whisperWords } = require('./editProcessor');
     return await whisperWords(audio, key);
@@ -93,7 +94,7 @@ async function apply({ source, keep, outPath }) {
   //
   // setpts/asetpts renumber what survives, or the output carries the original
   // timestamps and every player shows a clip full of frozen gaps.
-  await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', source,
+  await run(FFMPEG, ['-y', '-loglevel', 'error', '-i', source,
     '-vf', `select='${expr}',setpts=N/FRAME_RATE/TB`,
     '-af', `aselect='${expr}',asetpts=N/SR/TB`,
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',

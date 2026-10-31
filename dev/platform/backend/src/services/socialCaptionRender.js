@@ -20,6 +20,7 @@ const pool = require('../db');
 const captions = require('./captions');
 const assets = require('./assets');
 const { getSetting } = require('../utils/settings');
+const { FFMPEG, FFPROBE } = require('./ffmpegBin');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
 
@@ -100,7 +101,7 @@ async function captionForPost({ post, source, templateId, formatId = 'vertical',
     if (!key) throw new Error('No OpenAI key, so this video cannot be transcribed. Add one under Settings → AI.');
     const audio = `${outPath}.mp3`;
     try {
-      await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', input,
+      await run(FFMPEG, ['-y', '-loglevel', 'error', '-i', input,
         '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio]);
       const { whisperWords } = require('./editProcessor');
       timed = await whisperWords(audio, key);
@@ -110,7 +111,7 @@ async function captionForPost({ post, source, templateId, formatId = 'vertical',
   const kit = applyKit ? await kitFor(clientId) : null;
   await captions.burn({ words: timed, templateId, kit, formatId, source: input, outPath });
 
-  const probe = await run('ffprobe', ['-v', 'error', '-select_streams', 'v:0',
+  const probe = await run(FFPROBE, ['-v', 'error', '-select_streams', 'v:0',
     '-show_entries', 'stream=width,height', '-show_entries', 'format=duration',
     '-of', 'default=nw=1:nk=1', outPath]);
   const [w, h, dur] = probe.trim().split('\n');

@@ -16,7 +16,7 @@ const { recordApiCost } = require('./costLog');
 const { getSetting } = require('../utils/settings');
 
 const YTDLP = process.env.YTDLP_PATH || 'yt-dlp';
-const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
+const { FFMPEG, ffmpegLocationArgs } = require('./ffmpegBin');
 const WHISPER_USD_PER_MIN = 0.006; // OpenAI whisper-1 pricing
 let _running = false;
 
@@ -64,7 +64,10 @@ async function fetchMeta(url, extra = []) {
 // default best stream + extract if that specific postprocessing error hits.
 async function downloadAudio(url, cookies, dir) {
   const audioPath = path.join(dir, 'audio.mp3');
-  const common = [...cookies, '-q', '--no-playlist', '--no-warnings', '-o', path.join(dir, 'audio.%(ext)s'), '-x', '--audio-format', 'mp3'];
+  // `-x --audio-format mp3` makes yt-dlp run ffmpeg itself, and it finds one on
+  // PATH. Without this it would use the system binary while the rest of the
+  // backend uses FFMPEG_PATH — two versions inside one swipe import.
+  const common = [...cookies, ...ffmpegLocationArgs(), '-q', '--no-playlist', '--no-warnings', '-o', path.join(dir, 'audio.%(ext)s'), '-x', '--audio-format', 'mp3'];
   try {
     await run(YTDLP, [...common, '-f', 'bestaudio/best', url]);
     if (fs.existsSync(audioPath)) return audioPath;

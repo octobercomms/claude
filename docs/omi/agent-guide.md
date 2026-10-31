@@ -76,13 +76,30 @@ What this changes for you:
 `docs/omi/loom-replacement-plan.md` has the whole switch, including what it
 looked like on the day and the two things that bit.
 
-The box is also on **Node 20.20.2 and ffmpeg 4.4**, both of which cost
-something: the AWS SDK drops Node under 22 after early January 2027, and
-ffmpeg before 6.0 has no `-cues_to_front`, so every WebM recording gets its
-seek index written at the tail of the file instead of the front. Neither
-breaks anything today and both want doing in one sitting —
-`docs/omi/node-22-upgrade.md` is the runbook, including the three recordings
-to rebuild with `remux-backfill.js --commit --force` afterwards.
+**Node is 22.23.4 as of 31 Oct 2026** (was 20.20.2, which the AWS SDK drops
+after early January 2027). `docs/omi/node-22-upgrade.md` is the runbook, and
+read its restart section before any `pm2 kill`: doing that upgrade took
+omi.octobercomms.com down, because the daemon runs two apps and the runbook
+named one.
+
+**ffmpeg on the box is still 4.4**, which has no `-cues_to_front`, so a
+remuxed WebM keeps its seek index at the tail: on a 5-minute capture, byte
+16,329,148 instead of byte 465. `services/recordingRemux.js` probes the binary
+and drops the flag where it is unsupported, so nothing fails; three recordings
+(`13464815`, `1b82dce3`, `b7f3d0c4`) are still indexed at the tail and want
+`remux-backfill.js --commit --force` after the upgrade.
+`docs/omi/ffmpeg-upgrade.md` is the runbook: a pinned 7.x static build in
+`/opt`, proven with `scripts/ffmpeg-check.js`, switched on with two lines in
+`.env` and a reload, and rolled back by deleting them. The system package is
+never touched.
+
+**One ffmpeg for the whole backend.** Every service takes its binary from
+`services/ffmpegBin.js` (`FFMPEG`, `FFPROBE`, resolved from `FFMPEG_PATH` /
+`FFPROBE_PATH`). Never spawn the string `'ffmpeg'` in a new service:
+`tests/ffmpeg-bin.test.js` scans for it and fails, because the version before
+this had four services honouring the variable and seven ignoring it, which
+meant two ffmpeg versions inside one request and a bug that reproduced only in
+the half you were not looking at.
 
 ## 3. How OMI is deployed (READ THIS — it is the #1 source of mistakes)
 

@@ -139,6 +139,8 @@ jobs:
         run: node tests/media-to-r2.test.js
       - name: Guard — the R2 preflight catches a bucket that only looks healthy
         run: node tests/r2-preflight.test.js
+      - name: Guard — one ffmpeg for the whole backend
+        run: node tests/ffmpeg-bin.test.js
       # The caption and scene guards render real frames, and both SKIP when
       # ffmpeg is absent. A guard that skips is a guard that is not running, so
       # the runner is given ffmpeg rather than trusted to have it, and each
@@ -152,6 +154,13 @@ jobs:
           node tests/recording-remux.test.js
       - name: Guard — an MP4 export cannot run away with its own size
         run: node tests/recording-export.test.js
+      # The one step that drives ffmpeg the way the box does: a real remux with
+      # the service's own arguments, a libass burn with the platform fonts, the
+      # filter inventory the scene and reel graphs need, and an mp3 extract.
+      # It is also the script someone runs on the box before switching to a new
+      # build, so running it here keeps it honest.
+      - name: Guard — ffmpeg does everything the pipeline needs
+        run: node scripts/ffmpeg-check.js
       - name: Guard — the reel checks do not fail the plan's own example hook
         run: node tests/reel-checks.test.js
       - name: Guard — a tightened edit keeps no sliver too short to watch
