@@ -9,6 +9,7 @@ import { lazyChunk } from './utils/lazyChunk';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { PromptProvider } from './context/PromptContext';
 import { FeatureCostProvider } from './components/FeatureCost';
 // Three pages load with the app itself, because they are how someone arrives:
 // the signed-out marketing page, the login form, and the public player behind a
@@ -78,6 +79,7 @@ export default function App() {
       <ToastProvider>
         {/* One fetch of what each AI feature costs, shared by every button
             that spends. Inside ToastProvider so a failure can be silent. */}
+        <PromptProvider>
         <FeatureCostProvider>
       <BrowserRouter>
         {/* One boundary for every lazy page. The fallback is deliberately
@@ -160,6 +162,7 @@ export default function App() {
         </Suspense>
       </BrowserRouter>
         </FeatureCostProvider>
+        </PromptProvider>
       </ToastProvider>
     </AuthProvider>
   );

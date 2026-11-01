@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { usePrompt } from '../context/PromptContext';
 
 const CHANNEL_LABEL = {
   linkedin_visit:   'Visit profile',
@@ -48,6 +49,7 @@ function ExampleTasks() {
 
 export default function OutreachTasksPanel() {
   const toast = useToast();
+  const ask = usePrompt();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,7 +73,7 @@ export default function OutreachTasksPanel() {
     catch (e) { toast(e.message, 'error'); }
   }
   async function skip(t) {
-    const reason = prompt('Why skip?');
+    const reason = await ask({ title: 'Skip this task', label: 'Why skip?', confirmLabel: 'Skip' });
     if (reason == null) return;
     try { await api.post(`/outreach/tasks/${t.id}/skip`, { reason }); refresh(); }
     catch (e) { toast(e.message, 'error'); }

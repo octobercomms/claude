@@ -35,11 +35,18 @@ const clientCompetitors = require('./clientCompetitors');
 const subredditResearch = require('./subredditResearch');
 const aiSeo = require('./aiSeo');
 const localSeo = require('./localSeo');
+const { domainExists } = require('../utils/domainExists');
 
 // What a scan can be waiting on. Each is checked against the client record,
 // not assumed.
 const NEEDS = {
   domain: 'a website on the client record',
+  // A domain that is set but does not resolve is not the same problem as no
+  // domain, and used to be reported as four separate scan failures in four
+  // different vocabularies. On 1 November that was morrowcomms.com, a domain
+  // picked for the client automatically, so nobody had typed it and nobody
+  // had reason to doubt it. Naming the cause once is the whole fix.
+  domain_dead: 'a website that resolves — the one on the record has no DNS record at all',
   competitors: 'at least one competitor (tick Competitors too and it runs first)',
   service_city: 'a service and a city',
 };
@@ -182,10 +189,13 @@ async function competitorUrls(clientId) {
 
 // What a scan is missing, given what is on hand. `service` and `city` come
 // from the form rather than the record, so they are passed in.
-function missingFor(scan, { client, competitors, service, city }) {
+function missingFor(scan, { client, competitors, service, city, domainDead }) {
   const out = [];
   for (const need of scan.needs) {
     if (need === 'domain' && !String(client.domain || '').trim()) out.push(need);
+    // Only when the domain is set: "not set" and "set but dead" are different
+    // sentences and the picker should not print both.
+    else if (need === 'domain' && domainDead) out.push('domain_dead');
     if (need === 'competitors' && !competitors) out.push(need);
     if (need === 'service_city' && (!String(service || '').trim() || !String(city || '').trim())) out.push(need);
   }
@@ -198,12 +208,20 @@ function missingFor(scan, { client, competitors, service, city }) {
 async function catalogue(clientId) {
   const client = await loadClient(clientId);
   const urls = await competitorUrls(clientId);
+  // Asked once, before the picker is drawn, rather than discovered four times
+  // over by four scans that each fetch the same unreachable site. `known` is
+  // false when the resolver itself could not be trusted, and an unknown
+  // answer must never block a client whose site is fine.
+  const dns = String(client.domain || '').trim()
+    ? await domainExists(client.domain).catch(() => ({ exists: true, known: false, reason: 'check failed' }))
+    : { exists: false, known: true, reason: 'no domain set' };
+  const domainDead = dns.known && !dns.exists;
   const scans = [];
   for (const scan of SCANS) {
     const existing = await scan.find(clientId).catch(() => null);
     // service and city are unknown here — the form has them — so a scan that
     // needs them reports that need rather than a missing value.
-    const missing = missingFor(scan, { client, competitors: urls.length > 0 });
+    const missing = missingFor(scan, { client, competitors: urls.length > 0, domainDead });
     scans.push({
       key: scan.key,
       label: scan.label,
@@ -216,7 +234,13 @@ async function catalogue(clientId) {
       wants_service_city: scan.needs.includes('service_city'),
     });
   }
-  return { scans, client: { id: client.id, name: client.name, domain: client.domain || null } };
+  return {
+    scans,
+    client: { id: client.id, name: client.name, domain: client.domain || null },
+    // The picker shows this above the list, so the four blocked scans have one
+    // explanation between them instead of four failures after the fact.
+    domain_check: { ok: !domainDead, checked: dns.known, reason: dns.reason },
+  };
 }
 
 // Run the ticked ones, in catalogue order, one at a time.

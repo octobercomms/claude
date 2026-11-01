@@ -119,7 +119,28 @@ router.get('/notices', async (req, res) => {
     keep.sort((a, b) => (vrank[verdictOf(a)] - vrank[verdictOf(b)])
       || ((a.closing_at ? new Date(a.closing_at) : Infinity) - (b.closing_at ? new Date(b.closing_at) : Infinity)));
 
-    res.json({ notices: keep.slice(0, limit), counts, vcounts });
+    // What the SQL filter already removed, before relevance or verdict saw it.
+    //
+    // counts.total is computed over `rows`, which is already past the WHERE
+    // clause: upcoming=1 drops every closed notice and dismissed=false drops
+    // every dismissed one. So a table holding 200 closed notices answered
+    // counts.total = 0, and the screen said "Nothing ingested yet. Hit Run
+    // scan now" — sending you to re-scan feeds you had already scanned, for
+    // notices that were sitting in the database with their deadlines passed.
+    //
+    // These three numbers are unconditional, so the empty state can name the
+    // actual reason rather than guessing the most alarming one.
+    const { rows: tot } = await pool.query(
+      `SELECT COUNT(*)::int AS stored,
+              COUNT(*) FILTER (WHERE closing_at IS NOT NULL AND closing_at < NOW())::int AS closed,
+              COUNT(*) FILTER (WHERE dismissed = true)::int AS dismissed
+         FROM tender_notices n
+         ${market ? 'LEFT JOIN tender_sources s ON s.id = n.source_id WHERE s.market = $1' : ''}`,
+      market ? [market] : []
+    );
+    const totals = tot[0] || { stored: 0, closed: 0, dismissed: 0 };
+
+    res.json({ notices: keep.slice(0, limit), counts, vcounts, totals });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -34,6 +34,7 @@ import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
 import RecordTools, { ToolRow } from '../components/database/RecordTools';
 import StatStrip from '../components/shells/StatStrip';
 import DangerConfirm from '../components/ui/DangerConfirm';
+import { usePrompt } from '../context/PromptContext';
 
 // The page's own list of settings screen keys, per section.
 //
@@ -1201,6 +1202,10 @@ function PromptCachePanel() {
 }
 
 function PrAddonPanel() {
+  // What the copy button did, said out loud. A refused clipboard write used
+  // to fall through to window.prompt, which is inert in an embedded view, so
+  // the key vanished with no message.
+  const [copyNote, setCopyNote] = useState('');
   const { readOnly } = useAuth();
   const [key, setKey] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -1216,7 +1221,12 @@ function PrAddonPanel() {
     catch (e) { alert(e.message); }
     finally { setBusy(false); }
   }
-  const copy = (v) => { try { navigator.clipboard.writeText(v); } catch { window.prompt('Copy:', v); } };
+  // No window.prompt fallback: in an embedded view it shows nothing and
+  // returns null, so a refused clipboard write lost the value silently.
+  const copy = async (v) => {
+    try { await navigator.clipboard.writeText(v); setCopyNote('Copied.'); }
+    catch { setCopyNote(`Copy failed. Select this and copy it yourself: ${v}`); }
+  };
   const masked = key ? '•'.repeat(Math.min(40, key.length)) : '';
 
   return (
@@ -1228,6 +1238,9 @@ function PrAddonPanel() {
         </div>
         <button {...roWrite(readOnly, { onClick: regenerate, disabled: busy })} className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)' }}>{busy ? 'Generating…' : (key ? 'Regenerate' : 'Generate key')}</button>
       </div>
+      {copyNote && (
+        <div className="callout" style={{ marginBottom: 'var(--s3)', wordBreak: 'break-all' }}>{copyNote}</div>
+      )}
       <div className="field" style={{ marginBottom: 'var(--s3)' }}>
         <label className="field-label">API base URL</label>
         <div style={{ display: 'flex', gap: 'var(--s2)' }}>
@@ -2957,6 +2970,7 @@ function ContactsLibrary() {
 // up the long tail of imported-but-unwanted tags. Operations are scoped
 // to the caller's visibility on the backend.
 function TagsManager() {
+  const ask = usePrompt();
   const { readOnly } = useAuth();
   const [tags, setTags] = useState(null);
   const [search, setSearch] = useState('');
@@ -2978,7 +2992,9 @@ function TagsManager() {
   useEffect(() => { reload(); }, []);
 
   async function renameTag(tag) {
-    const next = prompt(`Rename "${tag}" everywhere it's used to:`, tag);
+    const next = await ask({ title: `Rename "${tag}"`,
+      detail: 'This changes the tag on every journalist it is used on.',
+      label: 'New name', defaultValue: tag, required: true, confirmLabel: 'Rename everywhere' });
     if (!next || next.trim().toLowerCase() === tag) return;
     setBusy(true); setErr(null);
     try {

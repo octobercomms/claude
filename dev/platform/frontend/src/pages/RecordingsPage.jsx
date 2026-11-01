@@ -6,6 +6,7 @@ import { CAPTURE, displayConstraints, compositeSize, recorderOptions } from '../
 import { useRevealRow } from '../hooks/useOpenRecord';
 import usePersistedState from '../hooks/usePersistedState';
 import SideDrawer from '../components/ui/SideDrawer';
+import { usePrompt } from '../context/PromptContext';
 
 // In-OMI screen recorder (internal Loom replacement). Record a screen
 // walkthrough with your voice, save it, and share the /watch/:token link.
@@ -44,6 +45,7 @@ const extFor = (m) => (baseMime(m) === 'video/mp4' ? 'mp4' : 'webm');
 
 export default function RecordingsPage({ embedded = false, clientId = null, onSendToEdit } = {}) {
   const toast = useToast();
+  const ask = usePrompt();
   const { readOnly } = useAuth();
   // When scoped to a client, the library shows that client's videos and new
   // recordings are auto-attached to them. Read-only client logins get a
@@ -546,7 +548,8 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   }
 
   async function rename(rec) {
-    const next = window.prompt('Rename this video', rec.title || '');
+    const next = await ask({ title: 'Rename this video', label: 'Title',
+      defaultValue: rec.title || '', confirmLabel: 'Rename' });
     if (next === null) return;                 // cancelled
     const title = next.trim();
     if (!title || title === rec.title) return; // unchanged or emptied

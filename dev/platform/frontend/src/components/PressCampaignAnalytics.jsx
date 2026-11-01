@@ -345,7 +345,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         );
         const fmtDT = (d) => { try { return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return ''; } };
         return (
-          <div style={{ padding: 'var(--s3) var(--s4)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
+          <div style={{ padding: 'var(--s3) var(--s4)', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
             {/* Campaign timeline — authoritative created / launched / first-send
                 dates, so "when did this actually start?" is unambiguous. */}
             {(d.launched_at || d.created_at || d.first_sent_at) && (
@@ -363,7 +363,24 @@ export default function PressCampaignAnalytics({ clientId, release }) {
               </span>
               <span style={{ color: 'var(--positive, #15803d)' }}>✓ {num(first.sent)} of {num(firstTotal)} emailed</span>
               {going > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(going)} still going out{active ? ' (~2,000/hr)' : ''}</span>}
-              {first.failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(first.failed)} failed</span>}
+              {/* "✕ 23 failed" and "Retry 203 failed" sat within a hundred
+                  pixels of each other on 1 November, both labelled failed,
+                  neither saying what it counted. Both were right: 23 is the
+                  first email, 203 is the first email plus every follow-up.
+                  The gap between them — 180 follow-up sends that never left —
+                  appeared nowhere on the page except inside a button. */}
+              {first.failed > 0 && (
+                <span style={{ color: 'var(--negative)' }}
+                  title="Failures on the first email only. The Retry button covers follow-ups too.">
+                  ✕ {num(first.failed)} failed on the first email
+                </span>
+              )}
+              {totalFailed > first.failed && (
+                <span style={{ color: 'var(--negative)' }}
+                  title="Follow-up sends that failed. Each step's own count is on its row below.">
+                  ✕ {num(totalFailed - first.failed)} on follow-ups
+                </span>
+              )}
               {first.cancelled > 0 && <span style={{ color: 'var(--text-subtle)' }}>{num(first.cancelled)} skipped (bounced/unsub)</span>}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
                 {(fuPending > 0 || fu.sent > 0 || d.followups_paused) && (
@@ -398,16 +415,20 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 const done = s.sent;
                 const stotal = s.total || (s.sent + s.sending + s.scheduled + s.failed + s.cancelled);
                 const spct = stotal ? Math.round((done / stotal) * 100) : 0;
-                const label = s.is_first
+                // A step's own failures belong on its own row. Without this
+                // the only place a follow-up failure appeared was the total
+                // inside the Retry button, so 180 of them read as 23.
+                const base = s.is_first
                   ? `${num(done)} sent`
                   : (s.sent > 0 ? `${num(done)} sent · ${num(s.scheduled + s.sending)} scheduled` : `${num(s.scheduled + s.sending)} scheduled`);
+                const label = s.failed > 0 ? `${base} · ${num(s.failed)} failed` : base;
                 const tinfo = timing(s);
                 return (
                   <div key={s.step_number}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
                       <span style={{ width: 92, flexShrink: 0, color: 'var(--text-muted)' }}>{stepName(s)}</span>
                       <Bar done={done} total={stotal} color={s.is_first ? 'var(--positive, #15803d)' : 'var(--accent, #6366f1)'} />
-                      <span style={{ minWidth: 150, textAlign: 'right', color: 'var(--text-subtle)' }}>{label}</span>
+                      <span style={{ minWidth: 150, textAlign: 'right', color: s.failed > 0 ? 'var(--negative)' : 'var(--text-subtle)' }}>{label}</span>
                       <span style={{ width: 34, textAlign: 'right', color: 'var(--text-subtle)' }}>{spct}%</span>
                     </div>
                     {tinfo && (
@@ -461,7 +482,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
             {pasteOpen ? '✕ close' : '＋ Unsubscribe people by email'}
           </button>
           {pasteOpen && (
-            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+            <div style={{ padding: 'var(--s3)', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
               <div style={{ marginBottom: 'var(--s2)' }}>
                 Paste the addresses of anyone who asked to come off, however they asked. Names, angle brackets,
                 commas and line breaks are all fine — paste straight from Gmail. They are unsubscribed for this
@@ -522,7 +543,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
             {' '}The rule is shared by every release for this client.
           </div>
           {effect && (
-            <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+            <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2)', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
               Applying this would take <strong>{effect.warm_now.toLocaleString()}</strong> warm to{' '}
               <strong>{effect.warm_after.toLocaleString()}</strong>
               {effect.newly_warm ? ` · ${effect.newly_warm.toLocaleString()} added` : ''}
@@ -552,7 +573,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
       </div>
 
       {/* Per-recipient table */}
-      <div style={{ overflowX: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+      <div style={{ overflowX: 'auto', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
           <thead><tr style={{ borderBottom: 'var(--border-w) solid var(--card-border)' }}>
             <Th k="name">Journalist</Th>

@@ -3462,3 +3462,70 @@ Reproducing it took one Playwright page with `p.on('load', …)` counting, a
 route handler fulfilling `**/api/**` with a 401, and three seconds of waiting.
 That probe belongs in the scratchpad of any session that touches auth, the api
 layer, or a provider above the router.
+
+## 13. Three things from 1 November afternoon
+
+### A follow-through that stopped at one call site
+
+I removed `window.prompt()` from the Journalists delete and wrote the reason
+in the commit message: in some embedded views it shows nothing and returns
+null, so the code after it never runs and the button reads as broken. Then I
+left the other fourteen alone. The argument was on record and the behaviour
+was still live, which is worse than never having made the argument.
+
+They now go through `context/PromptContext.jsx`: a modal, a promise, null on
+cancel. `tests/no-window-prompt.test.js` fails if one comes back, and it
+caught a fifteenth within a minute of being written.
+
+**When you establish a rule, grep for every instance of it in the same
+session.** The reasoning is the expensive part; applying it to thirteen more
+lines is not.
+
+### A check that was about to accuse every client
+
+Four Setup scans failed for one client because its domain has no DNS record.
+Fixing that means a DNS lookup, and a DNS lookup has a trap: `ENOTFOUND`
+means "that name is not there" and it also means "this machine has no
+resolver", and nothing in the error distinguishes them.
+
+Writing the check in this sandbox proved it instantly — `google.com` read as
+"no DNS record". Shipped, that would have told clients with working websites
+that their domain does not exist.
+
+`utils/domainExists.js` believes a negative only when a control name that
+certainly exists resolves from the same host at the same moment, and returns
+`{ exists: true, known: false }` otherwise. **Every caller must read
+`known && !exists`, never `!exists`.**
+
+### The drives are in the repo now
+
+`dev/platform/drives/` holds the stub and 25 named drives; see
+`docs/omi/browser-drives.md`. They used to live in a session scratchpad and
+die with the container, so every session rewrote them or skipped the step.
+Import Playwright from `./pw.mjs`, never an absolute path.
+
+### The browser harness is a second copy of App.jsx's provider stack
+
+Adding `PromptProvider` to `App.jsx` and not to `tests/browser/entry.jsx`
+turned the frontend job red on a PR whose lint, units and build were all
+clean: the harness mounts `ClientDesignPage` standalone, so `usePrompt` threw
+at render.
+
+That is the browser suite doing its job. What it caught was me pushing
+without running it, which my own loop requires precisely because lint and the
+build cannot see a render-time throw.
+
+**Run `PW_CHROMIUM=/opt/pw-browsers/chromium npm run test:browser` before
+every push that touches a component.** It is about ninety seconds.
+
+`tests/harness-providers.test.js` now fails when `App.jsx` grows a provider
+the harness does not have, so the next one is caught in a second rather than
+a CI cycle. It also found `FeatureCostProvider` missing from the harness all
+along — invisible because its hook has a default rather than a throw.
+
+One more thing that suite taught: `smoke.mjs` drove the set rename through
+`page.once('dialog', …)`, which is a native `window.prompt`. With the prompt
+gone, that waited for a dialog that never came AND left the replacement modal
+open across every later check, so one change produced two unrelated-looking
+failures. A harness that drives native dialogs is coupled to the thing you
+are most likely to remove.

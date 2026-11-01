@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext';
 import StillsReelPanel from '../components/edit/StillsReelPanel';
 import ReelChecks from '../components/ReelChecks';
 import CaptionTemplates from '../components/CaptionTemplates';
+import { usePrompt } from '../context/PromptContext';
 
 // Edit — a guided video editor. Upload one clip (trim / clean audio / captions)
 // or several (combined into one video first), rendered server-side with ffmpeg +
@@ -49,6 +50,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
   const { id: routeClientId } = useParams();
   const clientId = clientIdProp || routeClientId;
   const toast = useToast();
+  const ask = usePrompt();
   const fileRef = useRef(null);
   const frameRef = useRef(null);
   const pollRef = useRef(null);
@@ -273,7 +275,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     catch (err) { toast(err.message, 'error'); }
   }
   async function renameJob(job) {
-    const name = window.prompt('Name this edit', job.name || job.source_name || '');
+    const name = await ask({ title: 'Name this edit', label: 'Name',
+      defaultValue: job.name || job.source_name || '', confirmLabel: 'Save name' });
     if (name == null) return;
     try { const updated = await api.patch(`/edit/clients/${clientId}/edit/${job.id}`, { name }); setJobs(prev => prev.map(j => j.id === job.id ? updated : j)); }
     catch (err) { toast(err.message, 'error'); }

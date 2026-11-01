@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
+import { usePrompt } from '../context/PromptContext';
 // 5-step Campaign Wizard. The component manages step state locally and
 // persists each step's data to the backend on Next so the user can resume
 // a draft campaign mid-flow if they leave.
@@ -495,6 +496,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 // ─── Step 4 ─────────────────────────────────────────────────────────────────
 function StepEmails({ campaign, onBack, onNext }) {
   const toast = useToast();
+  const ask = usePrompt();
   const { readOnly } = useAuth();
   const [steps, setSteps] = useState(null);
   const [generating, setGenerating] = useState(false);
@@ -521,7 +523,8 @@ function StepEmails({ campaign, onBack, onNext }) {
   }
 
   async function sendTest(stp) {
-    const to = window.prompt(`Send a test of step ${stp.step_number} to which email?`);
+    const to = await ask({ title: `Send a test of step ${stp.step_number}`,
+      label: 'To which email?', type: 'email', required: true, confirmLabel: 'Send test' });
     if (!to) return;
     setTestingStep(stp.id);
     try {

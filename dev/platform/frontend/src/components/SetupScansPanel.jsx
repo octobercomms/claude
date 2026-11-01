@@ -82,6 +82,22 @@ export default function SetupScansPanel({ clientId }) {
         </div>
       </div>
 
+      {/* One sentence instead of four failures.
+          Four of these scans fetch the client's website. When the domain on
+          the record does not resolve, all four fail, each in its own
+          vocabulary, and none of them says the cause. On 1 November that was
+          a domain chosen for the client automatically, so it had never been
+          typed and there was no reason to doubt it. The check runs before the
+          list is drawn, and stays quiet when the resolver could not be
+          trusted — an unknown answer must not accuse a working website. */}
+      {data?.domain_check && !data.domain_check.ok && (
+        <div className="callout callout-warning" style={{ margin: 'var(--s3) 0' }}>
+          <strong>{data.client?.domain}</strong> has no DNS record, so it is not a website anything
+          can read. The scans that need the site cannot run until the domain on this client is
+          corrected, or the record is retired.
+        </div>
+      )}
+
       <p className="body-sm text-muted" style={{ lineHeight: 1.6, margin: 'var(--s3) 0', maxWidth: 680 }}>
         Nine pieces of research this client could start with. Each one is a paid
         API call or a Claude run, so none of them is ticked and none runs on its

@@ -333,11 +333,38 @@ try {
     `top-left pixel rgb(${await corner()}); the colour was never put on the undo stack`);
 
   // --- renaming a set ------------------------------------------------------
-  page.once('dialog', d => d.accept('Tours renamed'));
+  // This used to be page.once('dialog', …) against window.prompt. The prompt
+  // is gone: in an embedded view it showed nothing and returned null, so a
+  // rename silently did nothing. It is a modal now, which this drives the way
+  // a person would. Worth noting that the native-dialog version left the
+  // replacement modal open and blocked every check after it, which is how
+  // this suite reported the change at all.
   await page.getByRole('button', { name: 'Rename this set' }).click();
+  await page.waitForTimeout(300);
+  const nameField = page.locator('.modal input.input');
+  check('renaming opens a dialog on the page, not a browser one',
+    await nameField.isVisible().catch(() => false));
+  check('prefilled with the name it has now',
+    (await nameField.inputValue().catch(() => '')) === 'Tours Social Posts',
+    JSON.stringify(await nameField.inputValue().catch(() => null)));
+  await nameField.fill('Tours renamed');
+  await page.locator('.modal').getByRole('button', { name: 'Rename' }).click();
   await page.waitForTimeout(400);
   check('a set can be renamed', renamed && renamed.name === 'Tours renamed',
     JSON.stringify(renamed));
+  check('and the dialog closes behind it',
+    (await page.locator('.modal-backdrop').count()) === 0);
+
+  // Cancel must leave the record alone. The whole reason window.prompt had to
+  // go is that "cancelled" and "did nothing silently" looked identical.
+  const beforeCancel = JSON.stringify(renamed);
+  await page.getByRole('button', { name: 'Rename this set' }).click();
+  await page.waitForTimeout(300);
+  await page.locator('.modal input.input').fill('should not be saved');
+  await page.locator('.modal').getByRole('button', { name: 'Cancel' }).click();
+  await page.waitForTimeout(400);
+  check("cancelling a rename sends nothing", JSON.stringify(renamed) === beforeCancel,
+    `was ${beforeCancel}, now ${JSON.stringify(renamed)}`);
 
   // --- the page strip: reorder by dragging, and move to another set -------
   const thumbs = page.locator('[title^="Page "]');

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ProposalDocument, { PROPOSAL_CSS } from '../components/proposal/ProposalDocument';
+import { usePrompt } from '../context/PromptContext';
 
 // One-glance approval. Left: the proposal exactly as the prospect will see it.
 // Right: the checks that matter before it goes (who it's to, which proof was
@@ -23,6 +24,7 @@ const SECTION_LABEL = {
 };
 
 export default function ProposalEditorPage() {
+  const ask = usePrompt();
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -113,7 +115,7 @@ export default function ProposalEditorPage() {
         <div className="row wrap" style={{ gap: 'var(--s2)' }}>
           {!isDraft && <a className="btn btn-secondary" href={`${p.link}?preview=1`} target="_blank" rel="noreferrer">View live page</a>}
           {!isDraft && !['replied', 'accepted', 'lost'].includes(p.status) && <button className="btn btn-secondary" onClick={() => patch({ status: 'replied' })}>Mark replied</button>}
-          {!isDraft && !['accepted', 'lost'].includes(p.status) && <button className="btn btn-ghost" onClick={() => { const r = prompt('Reason lost (optional)'); if (r !== null) patch({ status: 'lost', lost_reason: r }); }}>Mark lost</button>}
+          {!isDraft && !['accepted', 'lost'].includes(p.status) && <button className="btn btn-ghost" onClick={async () => { const r = await ask({ title: 'Mark this proposal lost', label: 'Reason (optional)', detail: 'Cancel leaves the status as it is.', confirmLabel: 'Mark lost' }); if (r !== null) patch({ status: 'lost', lost_reason: r }); }}>Mark lost</button>}
           {isDraft && <button className="btn btn-primary" onClick={send} disabled={busy === 'send' || !p.recipient_email}>{busy === 'send' ? 'Sending…' : 'Approve and send'}</button>}
         </div>
       </div>

@@ -12,6 +12,7 @@ import { PRESETS, cleanSize, nextZoom } from '../utils/designSizes';
 import {
   renderPage, renderPsd, zipBlob, saveBlob, dataUrlBytes, pageFilename,
 } from '../utils/designExport';
+import { usePrompt } from '../context/PromptContext';
 
 // Design — layered social posts, made here instead of in Canva or Express.
 //
@@ -290,6 +291,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   const { id: routeId } = useParams();
   const clientId = clientIdProp || routeId;
   const toast = useToast();
+  const ask = usePrompt();
   const { readOnly } = useAuth();
   const [params, setParams] = useSearchParams();
   const openId = params.get('design') || null;
@@ -1136,7 +1138,8 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
   }
 
   async function renameProject(p) {
-    const name = window.prompt('Rename this set', p.name);
+    const name = await ask({ title: 'Rename this set', label: 'Set name',
+      defaultValue: p.name, confirmLabel: 'Rename' });
     if (name === null || !name.trim() || name.trim() === p.name) return;
     try {
       await api.patch(`/design/projects/${p.id}`, { name: name.trim() });
@@ -1558,12 +1561,13 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
               the bottom of the list. */}
           <select className="input" value={`${pw}x${ph}`} title="Resize this page"
             aria-label="Resize this page" style={{ width: 'auto', fontSize: 'var(--fs-caption)' }}
-            onChange={e => {
+            onChange={async e => {
               let value = e.target.value;
               const whole = value.startsWith('all:');
               if (whole) value = value.slice(4);
               if (value === 'custom') {
-                const typed = window.prompt('Size in pixels, as width x height', `${pw}x${ph}`);
+                const typed = await ask({ title: 'Custom size', label: 'Width x height, in pixels',
+                  detail: 'Between 50 and 8000 on both sides.', defaultValue: `${pw}x${ph}`, confirmLabel: 'Resize' });
                 if (typed === null) return;
                 const asked = cleanSize(...String(typed).toLowerCase().split('x'));
                 if (!asked) { toast('A size between 50 and 8000 pixels, both sides.', 'error'); return; }
