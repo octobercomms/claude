@@ -49,12 +49,11 @@ async function omiPosts(clientId, days) {
   const { rows } = await pool.query(
     `SELECT p.id, p.platform, p.kind, p.hook, p.caption, p.framework,
             p.published_at, p.published_url,
-            e.reach, e.impressions, e.likes, e.comments, e.shares, e.saves,
-            e.engagement_rate
+            e.reach, e.impressions, e.likes, e.comments, e.shares, e.saves
        FROM social_posts p
        LEFT JOIN LATERAL (
          SELECT * FROM social_post_engagement
-          WHERE post_id = p.id ORDER BY captured_at DESC LIMIT 1
+          WHERE post_id = p.id ORDER BY fetched_at DESC LIMIT 1
        ) e ON TRUE
       WHERE p.client_id = $1
         AND p.published_at IS NOT NULL

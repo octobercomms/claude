@@ -55,9 +55,10 @@ async function main() {
   const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [POST]);
   const post = rows[0];
 
-  console.log("A client's brand kit comes from the assets they already have");
-  const kit = await scr.kitFor(CLIENT);
-  ok(kit.accent === '#C8701E', 'the accent is the most saturated colour in their palette');
+  // The accent the kit derives from a client's palette is asserted in
+  // tests/captions.test.js, against a palette that test owns. Pinning the hex
+  // here as well tied this file to whatever the seed data happens to hold, so
+  // the kit is exercised below through `applyKit: true` instead.
 
   console.log('\nCaptioning a post goes through the same pipeline as Produce');
   const out = await scr.captionForPost({
