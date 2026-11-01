@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 // What a button is about to spend, next to the button.
 //
@@ -17,7 +18,16 @@ const Ctx = createContext({ features: {}, ready: false });
 
 export function FeatureCostProvider({ children }) {
   const [state, setState] = useState({ features: {}, ready: false });
+  // This provider wraps the router, so it mounts on the login screen, on a
+  // client's share link and on every other page reachable without a session.
+  // The endpoint behind it is admin-only. Asking anyway answered 401, and the
+  // api layer's 401 branch sent the browser to /login — which remounted this
+  // provider, which asked again: the login screen reloaded about sixteen
+  // times a second and read as a flicker. So it does not ask until there is
+  // somebody to ask for.
+  const { isAuthenticated, loading } = useAuth();
   useEffect(() => {
+    if (loading || !isAuthenticated) return undefined;
     let live = true;
     api.get('/settings/usage/feature-costs')
       .then(d => { if (live) setState({ features: d.features || {}, ready: true }); })
@@ -25,7 +35,7 @@ export function FeatureCostProvider({ children }) {
       // it annotates, and this is an admin convenience, not a dependency.
       .catch(() => { if (live) setState({ features: {}, ready: true }); });
     return () => { live = false; };
-  }, []);
+  }, [isAuthenticated, loading]);
   return <Ctx.Provider value={state}>{children}</Ctx.Provider>;
 }
 

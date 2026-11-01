@@ -3425,3 +3425,40 @@ looks for `chrome-headless-shell` at a path that does not exist here and
 prints "Please run npx playwright install", which is wrong advice — installing
 again gets a second browser the test still will not find. Run it as
 `PW_CHROMIUM=/opt/pw-browsers/chromium npm run test:browser`.
+
+## 12. A provider above the router must not ask an authenticated question
+
+On 1 November, within the hour of a deploy, Daniel reported "the login screen
+is flickering for OMI". It was not a flicker. Driving the built app in
+Chromium with no session counted **94 full page loads in six seconds**.
+
+The chain, which no diff makes visible:
+
+1. `FeatureCostProvider` wraps `BrowserRouter` in `App.jsx`, so it mounts on
+   every page, including every page reachable without a session: the login
+   form, a client's share link, a proposal, an approval, a password reset.
+2. It fetched `/settings/usage/feature-costs`, which sits behind
+   `router.use(authenticate)` in `routes/settings.js`. Signed out, 401.
+3. `utils/api.js` answered a 401 with `window.location.href = '/login'`.
+4. That reloaded the app, which remounted the provider, which asked again.
+
+Three lessons, in descending order of how much they will cost the next agent:
+
+- **A 401 redirect to a page you are already on is a loop, not a recovery.**
+  All three transports in `api.js` (fetch, the XHR upload, `download`) now go
+  through `utils/bounceToLogin.js`, which refuses the trip on `/login` and on
+  every public token route. Add a public route to `App.jsx` and add its prefix
+  there; `tests/login-flicker.test.js` cross-checks the two lists and fails if
+  they drift.
+- **Anything mounted above `BrowserRouter` runs on the signed-out pages.**
+  Gate it on `isAuthenticated` from `useAuth`, with the flag in the effect's
+  dependency array so it still fires once the session arrives.
+- **The blast radius was not the login screen.** Every public share link,
+  proposal and approval page was in the same loop, which is the client-facing
+  half of OMI. A report about one screen is worth checking against the whole
+  class of screens it belongs to.
+
+Reproducing it took one Playwright page with `p.on('load', …)` counting, a
+route handler fulfilling `**/api/**` with a 401, and three seconds of waiting.
+That probe belongs in the scratchpad of any session that touches auth, the api
+layer, or a provider above the router.
