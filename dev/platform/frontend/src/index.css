@@ -1353,8 +1353,10 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
    border, so the unpicked ones read as labels rather than as the other
    things you could click. */
 .opt-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
-@media (max-width: 760px) {
-  /* Seven number buttons at phone width would be 40px each. */
+/* @container, not @media: the nav panel takes 170px of the viewport, so a
+   viewport query makes this row collapse while the content box is still
+   wide. Seven number buttons at phone width would be 40px each. */
+@container appmain (max-width: 760px) {
   .opt-row { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
 }
 .opt-row .tab { justify-content: center; text-align: center; }
@@ -1373,11 +1375,30 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
    way when not. Stacks below 1100px, where 25% of the width is too narrow
    to read a paragraph in. */
 .hookvault { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-comp); align-items: start; }
-@media (min-width: 1100px) {
+/* @container, not @media, for the same reason: this sits inside .app-main,
+   whose width is the viewport minus the nav panel. */
+@container appmain (min-width: 1000px) {
   .hookvault { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); }
   .hookvault__rail { position: sticky; top: var(--s4); }
 }
 .hookvault__main { min-width: 0; }
+
+/* A search box with a filter beside it: three quarters to the typing, one
+   quarter to the dropdown.
+   This was a flex row with `flex: 1` on the input, which loses every time:
+   .select carries width: 100%, so in a flex container it claims the whole
+   row and the input, whose flex-basis is 0, collapses to its padding. On the
+   hook vault that left a 40px white square next to a full-width "All
+   frameworks", and the search box was the control you actually wanted.
+
+   Named filter-row, not search-row: .search-row is the global palette's
+   result row, 1,400 lines further down this file, and it sets display:flex.
+   The collision cost nothing only because the drive measured the columns
+   instead of trusting the class. */
+.filter-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: var(--s2); align-items: center; }
+@container appmain (max-width: 560px) {
+  .filter-row { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* Binary switch — two labels flank a track; the active one inks up and the knob
    slides to it. For true 2-way toggles only (sort A/B, filter all/starred). Any

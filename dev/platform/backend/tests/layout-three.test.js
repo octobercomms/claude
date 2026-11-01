@@ -36,8 +36,13 @@ ok('an unpicked option looks like a button you could press', () => {
 });
 
 ok('and the row collapses rather than making seven 40px buttons', () => {
-  assert.ok(/@media \(max-width: 760px\) \{\s*\n\s*\/\*[^*]*\*\/\s*\n\s*\.opt-row \{ grid-auto-flow: row/.test(css)
-    || /\.opt-row \{ grid-auto-flow: row; grid-template-columns: repeat\(auto-fit, minmax\(84px, 1fr\)\)/.test(css));
+  assert.ok(/\.opt-row \{ grid-auto-flow: row; grid-template-columns: repeat\(auto-fit, minmax\(84px, 1fr\)\)/.test(css));
+  // @container, not @media. The nav panel takes 170px of the viewport, so a
+  // viewport query collapses this row while the content box is still wide —
+  // which is the rule containerQueries.test.mjs exists to hold, and which
+  // both of these queries broke on the first pass.
+  const i = css.indexOf('.opt-row { grid-auto-flow: row');
+  assert.ok(/@container appmain \(max-width: 760px\)/.test(css.slice(Math.max(0, i - 300), i)));
 });
 
 // ── Earned → Releases: the way out is above the box ─────────────────────────
@@ -85,10 +90,31 @@ ok('the explanation moved into the rail rather than being deleted', () => {
 
 ok('it stacks before the rail gets too narrow to read', () => {
   const block = css.slice(css.indexOf('.hookvault { display: grid'), css.indexOf('.hookvault__main { min-width: 0; }'));
-  assert.ok(/@media \(min-width: 1100px\)/.test(block),
-    'one column below 1100px, where 25% is too narrow for a paragraph');
+  assert.ok(/@container appmain \(min-width: 1000px\)/.test(block),
+    'one column until the CONTENT box is wide enough, not the viewport: the nav takes 170px of it');
   assert.ok(/grid-template-columns: minmax\(0, 1fr\)/.test(block), 'and one column is the default');
   assert.ok(/\.hookvault__main \{ min-width: 0; \}/.test(css), 'so the list can shrink instead of pushing the page wide');
+});
+
+ok('the vault search box takes three quarters of its row', () => {
+  const list = read('src/components/social/HookVaultList.jsx');
+  assert.ok(/className="filter-row"/.test(list));
+  assert.ok(!/className="input" style=\{\{ flex: 1 \}\}/.test(list),
+    'flex: 1 loses to .select width:100%, which is how the box became a 40px square');
+  assert.ok(/\.filter-row \{ display: grid; grid-template-columns: minmax\(0, 3fr\) minmax\(0, 1fr\)/.test(css));
+});
+
+ok('and it is not called search-row, which is already taken', () => {
+  // .search-row is the global palette's result row, 1,400 lines down this
+  // file, and it sets display:flex. The collision cost nothing only because
+  // the drive measured the columns instead of trusting the class name.
+  const palette = css.indexOf('.search-row {');
+  assert.ok(palette > 0, 'the palette rule is still there');
+  assert.ok(/\.search-row \{[^}]*display: flex/.test(css.slice(palette, palette + 200))
+    || /\.search-row \{\s*\n[^}]*flex/.test(css.slice(palette, palette + 300)),
+    'and it is still a flex row, which is why the name could not be shared');
+  const list = read('src/components/social/HookVaultList.jsx');
+  assert.ok(!/className="search-row"/.test(list));
 });
 
 console.log(`layout-three    ✓ ${passed} assertions passed`);

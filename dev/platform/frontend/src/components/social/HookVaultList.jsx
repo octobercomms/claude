@@ -41,10 +41,15 @@ export function HookVaultList({ clientId, onUse, onEmpty }) {
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
+      {/* 75/25, the search box taking the three quarters.
+          It was a flex row with flex: 1 on the input, which loses: .select
+          carries width: 100%, so it claimed the row and the input collapsed
+          to a 40px square beside a full-width "All frameworks". The control
+          you came to use was the one that disappeared. */}
+      <div className="filter-row" style={{ marginBottom: 'var(--s3)' }}>
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search hooks…"
-          className="input" style={{ flex: 1 }} />
+          className="input" />
         <select value={framework} onChange={e => setFramework(e.target.value)} className="select">
           <option value="">All frameworks</option>
           {/* From hookExamples' FRAMEWORKS, so the filter and the worked
