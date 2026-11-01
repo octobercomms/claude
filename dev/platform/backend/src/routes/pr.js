@@ -964,6 +964,59 @@ router.get('/outlets', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Add a publication by hand.
+//
+// Until now a publication could only arrive by being mentioned in coverage or
+// by a CSV import, so "the one I want to pitch isn't in here yet" had no
+// answer short of inventing a piece of coverage. One POST, from the
+// Publications list.
+//
+// The duplicate check is the point of the route, not a nicety. Every dedup
+// tool on the Database tools page exists because near-identical publications
+// got in; a create form with no check would feed it. A clashing name comes
+// back as 409 with the existing row, so the UI can offer to open that one
+// instead of quietly making a second Dezeen.
+router.post('/outlets', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const name = String(b.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'A name is required.' });
+    if (name.length > 300) return res.status(400).json({ error: 'That name is too long.' });
+
+    let url = String(b.url || '').trim();
+    if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+    // Derive the domain from the URL when one was given and no domain was
+    // typed, because the domain is what the dedup scan and the feed finder
+    // both match on, and nobody types it twice.
+    let domain = String(b.domain || '').trim().toLowerCase()
+      .replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    if (!domain && url) {
+      try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch { /* leave blank */ }
+    }
+
+    const clash = await db.query(
+      `SELECT id, name, domain FROM pr_outlets
+        WHERE merged_into IS NULL
+          AND (lower(name) = lower($1) OR lower(canonical_name) = lower($1)
+               OR ($2 <> '' AND lower(domain) = $2))
+        LIMIT 1`,
+      [name, domain]
+    );
+    if (clash.rowCount) {
+      return res.status(409).json({ error: 'That publication is already in the database.', existing: clash.rows[0] });
+    }
+
+    const tier = ['', 'T1', 'T2', 'T3'].includes(b.tier) ? b.tier : '';
+    const { rows } = await db.query(
+      `INSERT INTO pr_outlets (name, canonical_name, domain, url, tier, region, notes)
+       VALUES ($1, $1, $2, NULLIF($3, ''), $4, $5, $6)
+       RETURNING id, name, tier, domain, region, url, rss_url, rss_status`,
+      [name, domain, url, tier, String(b.region || '').trim(), String(b.notes || '').trim()]
+    );
+    res.status(201).json({ ...rows[0], coverage: 0, contacts: 0 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // ── Publication feeds (RSS) ──────────────────────────────────────────────────
 // (Manual url / rss_url edits go through the existing PATCH /outlets/:outletId.)
 

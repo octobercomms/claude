@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
 import OooReviewPanel from '../components/OooReviewPanel';
 import ReplyCatchupPanel from '../components/ReplyCatchupPanel';
+import MaintenanceTools from '../components/database/MaintenanceTools';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
@@ -164,7 +165,8 @@ export default function DatabaseToolsPage() {
         <div>
           <h1 className="display">Database tools</h1>
           <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 'var(--s2) 0 0' }}>
-            Trim duplicates, fold orphaned coverage onto real journalists, and let Claude tidy the obvious fixes.
+            Trim duplicates, fold orphaned coverage onto real journalists, and run every job that acts on
+            the whole media database rather than on one record.
           </p>
         </div>
         <Link to={`${SECTIONS.database.base()}/${slugForTab(SECTIONS.database, 'contacts')}`} className="btn btn-secondary">← Back to journalists</Link>
@@ -179,7 +181,11 @@ export default function DatabaseToolsPage() {
         { key: 'replies', label: 'Reply catch-up', active: tab === 'replies', onClick: () => setTab('replies') },
         { groupLabel: 'Publications' },
         { key: 'pubdupes', label: 'Duplicates', active: tab === 'pubdupes', onClick: () => setTab('pubdupes') },
+        { groupLabel: 'Whole database' },
+        { key: 'maintenance', label: 'Maintenance', active: tab === 'maintenance', onClick: () => setTab('maintenance') },
       ]} />
+
+      {tab === 'maintenance' && <MaintenanceTools />}
 
       {tab === 'ooo' && <OooReviewPanel />}
 
