@@ -32,17 +32,20 @@ const say = (ok, what, extra = '') => {
   say(/To cut one yourself on a timeline, use Edit/i.test(txt), 'and points at Edit');
 
   const six = p.getByRole('button', { name: /six styles/i }).first();
-  const up = p.getByRole('button', { name: /upload a clip/i }).first();
+  // PR 4 replaced the single-file "Upload a clip" button with the multi-clip
+  // drop target. What this measures is unchanged — six-styles sits below the
+  // way footage gets in — so the locator moves and the assertion does not.
+  const up = p.getByRole('button', { name: /add footage/i }).first();
   if (await six.count() && await up.count()) {
     const a = await six.boundingBox();
     const c = await up.boundingBox();
-    say(a.y > c.y, 'six-styles sits below the upload',
-      `six y=${Math.round(a.y)}, upload y=${Math.round(c.y)}`);
+    say(a.y > c.y, 'six-styles sits below the way footage gets in',
+      `six y=${Math.round(a.y)}, drop target y=${Math.round(c.y)}`);
     say(await six.isDisabled(), 'and is disabled with no footage');
     say(/Add a clip first/i.test(txt), 'and says what unlocks it');
   } else {
-    say(false, 'six-styles and upload are both on the page',
-      `six=${await six.count()}, upload=${await up.count()}`);
+    say(false, 'six-styles and the drop target are both on the page',
+      `six=${await six.count()}, drop=${await up.count()}`);
   }
   await p.close();
 }

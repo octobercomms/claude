@@ -897,6 +897,26 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     return () => window.removeEventListener('keydown', onKey);
   }, [projectId, duplicateLayer, markDirty, syncLayers, stepHistory]);
 
+  // File a rendered page in the client's asset library.
+  //
+  // Export was entirely client-side, so nothing in OMI knew a design had ever
+  // been finished: the library — the one thing that can answer "what have we
+  // made for this client" — could not see the design studio at all.
+  //
+  // It never throws and never blocks. The operator has the file from the
+  // download regardless, and an export that failed because the library was
+  // briefly unreachable would be a far worse bug than a missing row.
+  async function fileRender(pageId, dataUrl, { index, width, height, title } = {}) {
+    if (!pageId || !dataUrl) return null;
+    try {
+      const r = await api.post(`/design/pages/${pageId}/render`,
+        { data_url: dataUrl, index, width, height, title });
+      return r?.asset || null;
+    } catch {
+      return null;
+    }
+  }
+
   // The page on screen, in the same three formats the whole set exports in.
   // It reads from the live canvas rather than the saved scene, so what comes
   // out is what is in front of you including an edit made a second ago.
@@ -919,6 +939,12 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         });
         saveBlob(new Blob([dataUrlBytes(url)], { type: `image/${format}` }),
           `${base}.${format === 'jpeg' ? 'jpg' : 'png'}`);
+        // PSD is not filed: it is a working file for a designer, not the
+        // image that goes out, and the library indexes what was made.
+        await fileRender(pageId, url, {
+          index: project.pages.findIndex(p2 => p2.id === pageId),
+          width: pw, height: ph,
+        });
       }
     } catch (e) {
       toast(`Export failed: ${e.message}`, 'error');
@@ -1101,6 +1127,7 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
     if (!list.length) return;
     const files = {};
     let done = 0;
+    let filed = 0;
     try {
       for (const p2 of list) {
         setExporting(`${p2.name} (${done + 1} of ${list.length})…`);
@@ -1122,6 +1149,11 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
             const url = await renderPage(scene, size, { ensureFont, format, scale });
             files[pageFilename(p2.name, i, pages.length, format === 'jpeg' ? 'jpg' : 'png')] =
               dataUrlBytes(url);
+            // Every page of every set in the batch, filed as it is rendered.
+            // Awaited rather than fired off, so a twelve-page set does not
+            // open twelve uploads at once while it is still rasterising.
+            filed += (await fileRender(pages[i].id, url,
+              { index: i, width: size.width, height: size.height })) ? 1 : 0;
           }
         }
         done += 1;
@@ -1131,7 +1163,9 @@ export default function ClientDesignPage({ embedded = false, clientId: clientIdP
         ? `${list[0].name} ${stamp}.zip`
         : `designs ${stamp}.zip`;
       saveBlob(zipBlob(files), name.replace(/[^\w .()-]+/g, '-'));
-      toast(`Exported ${Object.keys(files).length} file${Object.keys(files).length === 1 ? '' : 's'}`);
+      const n = Object.keys(files).length;
+      toast(`Exported ${n} file${n === 1 ? '' : 's'}`
+        + (filed ? `, and filed ${filed} in the library` : ''));
     } catch (e) {
       toast(`Export failed: ${e.message}`, 'error');
     } finally { setExporting(''); }

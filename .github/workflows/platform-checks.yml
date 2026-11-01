@@ -257,6 +257,12 @@ jobs:
         run: node tests/pr3-database-tools.test.js
       - name: Guard — a publication can be added by hand, and only once
         run: node tests/outlet-create.test.js
+      - name: Guard — PR 4 of the review plan, footage in and designs findable
+        run: node tests/pr4-produce-media.test.js
+      - name: Guard — footage can be dropped in, several at a time
+        run: node tests/library-upload.test.js
+      - name: Guard — a finished design is filed, and knows its set
+        run: node tests/design-render-filed.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist

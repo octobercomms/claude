@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import AssetLibrary from '../components/AssetLibrary';
 import CaptionTemplates from '../components/CaptionTemplates';
@@ -6,6 +6,7 @@ import ReelChecks from '../components/ReelChecks';
 import TightenEdit from '../components/TightenEdit';
 import BrollPlan from '../components/BrollPlan';
 import ExampleReel from '../components/ExampleReel';
+import ClipDrop from '../components/ClipDrop';
 
 /**
  * One route through the tools, in the order a reel is actually made.
@@ -67,6 +68,9 @@ function Rail({ at, onJump, reached }) {
 
 export default function MakeAReel({ clientId, clientName = '' }) {
   const [at, setAt] = useState('footage');
+  // Bumped when the drop target files something, so the grid below it shows
+  // what was just added rather than what existed when the page loaded.
+  const [libKey, setLibKey] = useState(0);
   const [reached, setReached] = useState(['footage']);
   const [clip, setClip] = useState(null);        // the asset being worked on
   const [words, setWords] = useState(null);      // paid for once, shared below
@@ -82,7 +86,6 @@ export default function MakeAReel({ clientId, clientName = '' }) {
   const [job, setJob] = useState(null);
   const [draftId, setDraftId] = useState(null);
   const [busy, setBusy] = useState(null);
-  const fileRef = useRef(null);
 
   const go = (key) => {
     setAt(key);
@@ -181,14 +184,13 @@ export default function MakeAReel({ clientId, clientName = '' }) {
             step reads the words, so a clip with no speech only gets as far as the edit.
           </div>
 
-          <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary btn-sm" disabled={!!busy}
-              onClick={() => fileRef.current?.click()}>
-              {busy === 'upload' ? 'Uploading…' : 'Upload a clip'}
-            </button>
-            <input ref={fileRef} type="file" accept="video/*" style={{ display: 'none' }}
-              onChange={(e) => e.target.files?.[0] && startFromUpload(e.target.files[0])} />
-            <span style={CAP}>or pick something already made for {clientName || 'this client'}:</span>
+          {/* One target rather than a button and a grid that take different
+              numbers of files. Dropping five clips used to keep one and
+              discard four, because the library took no uploads at all. */}
+          <div style={{ marginTop: 'var(--s4)' }}>
+            <ClipDrop clientId={clientId} clientName={clientName} disabled={!!busy}
+              onOne={startFromUpload}
+              onFiled={() => setLibKey((k) => k + 1)} />
           </div>
 
           {/* Below the upload, not above it. It sat first on the page, which
@@ -201,6 +203,7 @@ export default function MakeAReel({ clientId, clientName = '' }) {
 
           <div style={{ marginTop: 'var(--s3)' }}>
             <AssetLibrary clientId={clientId} kind="video" compact
+              refreshKey={libKey}
               title="This client's footage"
               onPick={(a) => startFromAsset(a)} />
           </div>

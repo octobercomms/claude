@@ -3529,3 +3529,42 @@ gone, that waited for a dialog that never came AND left the replacement modal
 open across every later check, so one change produced two unrelated-looking
 failures. A harness that drives native dialogs is coupled to the thing you
 are most likely to remove.
+
+## 14. Guards that pin the wrong thing (1 November, PRs 2, 3 and 4)
+
+Three guards written earlier the same day failed on a later PR in the same
+run. None of them caught a bug; each had pinned an incidental detail instead
+of the thing it meant to protect.
+
+| guard | pinned | broke when | now pins |
+|---|---|---|---|
+| `pr2-nav-session` | `exactly 2` links to `/database-tools` | PR 3 added four more | each list's drawer by name and tab |
+| `pr1-review-fixes` | the string `"Upload a clip"` | PR 4 replaced the button | `<ClipDrop clientId=`, the thing footage comes in through |
+| `pr3-database-tools` | one match of a `new Error(…)` shape | a second throw site already had it | the count of both throw sites |
+
+The pattern is the same each time: the assertion was easy to write from the
+diff in front of me, and described the code rather than the decision. Relaxing
+a count to "at least" is not the fix — it makes the guard weaker without
+making it right. Name the thing.
+
+### Two traps found writing those guards
+
+**`stripComments` eats from a `/*` inside a string.** The helper every guard
+copies strips `/* … */`, and `accept="video/*,image/*"` opens a comment that
+closes at the next real `*/` — taking the file with it. An "is this gone"
+check then passes because the code it was looking at was deleted by the
+reader. Strip only for absence checks, and read the file raw for presence
+checks. `ClientDesignPage.jsx` and `ClipDrop.jsx` both trip it.
+
+**`indexOf('<Thing')` matches `<ThingX`.** A rename slips past it. Pin the
+attribute.
+
+### Mutation-testing is what found all of this
+
+Thirty-four mutations on PR 4, two survivors, both of them a test that could
+not tell the state it was asserting from a different route to the same status
+code. One was reaching an unreachable branch (`base64,` fails the data-URL
+pattern before the zero-length check runs; `base64,=` is the input that
+reaches it). The other answered 400 either way, from a validation message in
+one case and a thrown `path.join(root, null)` in the other — so the assertion
+now reads the message, not just the code.

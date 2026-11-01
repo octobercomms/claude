@@ -36,10 +36,16 @@ const videoTabCode = stripComments(videoTab);
 
 // ── 1. The six-styles control ────────────────────────────────────────────
 ok('it sits after the upload, not before it', () => {
-  const up = makeAReel.indexOf("Upload a clip");
+  // Anchored on the drop target rather than on the words "Upload a clip".
+  // PR 4 replaced that single-file button with ClipDrop, which is still the
+  // thing footage comes in through — so what this guard cares about did not
+  // change, but the string it was pinning did.
+  // '<ClipDrop' alone also matches '<ClipDropX', which is how a rename slips
+  // past an indexOf. The attribute pins the real element.
+  const up = makeAReel.indexOf('<ClipDrop clientId=');
   const ex = makeAReel.indexOf('<ExampleReel />');
   assert.ok(up > -1 && ex > -1, 'both are on the page');
-  assert.ok(ex > up, 'the example comes after the upload in the source order');
+  assert.ok(ex > up, 'the example comes after the way footage gets in');
 });
 
 ok('and it is a disabled control with a reason, not replaced by prose', () => {
