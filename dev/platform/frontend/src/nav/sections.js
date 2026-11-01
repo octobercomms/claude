@@ -422,11 +422,19 @@ export const SECTIONS = {
         // "the models is the section selecting which model to use, and this
         // lives under COSTS... this page is doing two different things."
         // Choosing a model is a cost decision, and it belongs beside what
-        // each feature has actually spent. Connections keeps AI for the
-        // credentials.
-        { tab: 'ai', label: 'Models', slug: 'models' },
+        // each feature has actually spent.
+        //
+        // The move happened and the split did not: the screen still rendered
+        // the routing list AND the AI provider credentials under it, which is
+        // the two-jobs-one-page complaint the move was meant to settle. The
+        // key is `models` now, so the screen cannot pick up the AI credential
+        // category, which is keyed `ai` and belongs to the row below.
+        { tab: 'models', label: 'Models' },
       ] },
       { heading: 'Connections', rows: [
+        // The AI providers' keys. Credentials only — what each feature spends
+        // and which model it runs are on Models, under Costs.
+        { tab: 'ai',           label: 'AI' },
         { tab: 'gen',          label: 'Generation' },
         { tab: 'email',        label: 'Email' },
         { tab: 'ads',          label: 'Ad platforms', slug: 'ad-platforms' },
