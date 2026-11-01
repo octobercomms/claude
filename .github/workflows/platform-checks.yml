@@ -213,6 +213,8 @@ jobs:
         run: node tests/edit-edl-render.test.js
       - name: Guard — the edit route refuses a malformed or oversized edit
         run: node tests/edit-route-edl.test.js
+      - name: Guard — render progress, Stop, and queue concurrency
+        run: node tests/edit-queue.test.js
       - name: Syntax check every service and route
         run: |
           set -e

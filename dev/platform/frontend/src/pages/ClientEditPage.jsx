@@ -250,6 +250,18 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     catch (err) { toast(err.message, 'error'); }
   }
 
+  async function cancelJob(jobId) {
+    try {
+      const r = await api.post(`/edit/clients/${clientId}/edit/${jobId}/cancel`);
+      // "Stopped" and "it had already finished" lead somewhere different, so
+      // the toast says which.
+      toast(r?.killed ? 'Render stopped.' : 'Taken out of the queue.', 'success');
+      loadJobs();
+    } catch (err) {
+      toast(err.message || 'Could not stop that render.', 'error');
+      loadJobs();
+    }
+  }
   async function retry(jobId) {
     try { await api.post(`/edit/clients/${clientId}/edit/${jobId}/retry`); loadJobs(); if (!pollRef.current) startPoll(); }
     catch (err) { toast(err.message, 'error'); }
@@ -319,6 +331,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     processing: { label: 'Rendering…', cls: 'chip-info' },
     done: { label: 'Ready', cls: 'chip-success' },
     failed: { label: 'Failed', cls: 'chip-warning' },
+    cancelled: { label: 'Stopped', cls: 'chip-neutral' },
   };
 
   return (
@@ -653,8 +666,41 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                   <div style={{ width: 200, flexShrink: 0 }}>
                     {j.status === 'done' && j.output_url
                       ? <video src={j.output_url} controls style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000' }} />
-                      : <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 'var(--r-sm)', background: '#00000010', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {(j.status === 'processing' || j.status === 'queued') && <div className="spinner" />}
+                      : <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 'var(--r-sm)', background: '#00000010', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 'var(--s2)', padding: 'var(--s2)' }}>
+                          {/* A spinner cannot tell a render that is most of
+                              the way through from one that has hung, which on
+                              a timeline render of several minutes is the only
+                              question worth answering. The stage is what makes
+                              the number checkable: "cutting block 3 of 7" can
+                              be read against the timeline, and "41%" cannot. */}
+                          {j.status === 'processing' && Number(j.progress) > 0 ? (
+                            <>
+                              <div style={{
+                                width: '100%', height: 6, borderRadius: 'var(--r-pill)',
+                                background: 'var(--card-border)', overflow: 'hidden',
+                              }}>
+                                <div style={{
+                                  width: `${Math.max(2, Math.min(100, Number(j.progress)))}%`,
+                                  height: '100%', background: 'var(--accent)',
+                                  transition: 'width 400ms linear',
+                                }} />
+                              </div>
+                              <div className="body-xs text-subtle" style={{ textAlign: 'center', lineHeight: 1.3 }}>
+                                {j.stage || 'Rendering'}
+                                <br />
+                                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                  {Math.round(Number(j.progress))}%
+                                </span>
+                              </div>
+                            </>
+                          ) : (j.status === 'processing' || j.status === 'queued') ? (
+                            <>
+                              <div className="spinner" />
+                              <span className="body-xs text-subtle">
+                                {j.status === 'queued' ? 'Waiting for a slot' : 'Starting'}
+                              </span>
+                            </>
+                          ) : null}
                         </div>}
                   </div>
                   <div style={{ flex: 1, minWidth: 220 }}>
@@ -671,6 +717,17 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                       {j.status === 'done' && j.srt_url && <a className="btn btn-secondary btn-sm" href={j.srt_url} download={`${stem}.srt`}>Download .srt</a>}
                       {(j.status === 'done' || j.status === 'failed') && !j.ops?.stills_reel && <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Edit again</button>}
                       {j.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(j.id)}>Retry</button>}
+                      {(j.status === 'processing' || j.status === 'queued') && (
+                        <button className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}
+                          onClick={() => cancelJob(j.id)}>Stop</button>
+                      )}
+                      {j.status === 'cancelled' && (
+                        <button className="btn btn-secondary btn-sm"
+                          onClick={() => retry(j.id)}>Run again</button>
+                      )}
+                      {j.status === 'cancelled' && !j.ops?.stills_reel && (
+                        <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Edit again</button>
+                      )}
                       <button className="btn btn-secondary btn-sm" onClick={() => renameJob(j)}>Rename</button>
                       <button className="btn btn-secondary btn-sm" onClick={() => remove(j.id)} style={{ color: 'var(--negative)' }}>Delete</button>
                     </div>

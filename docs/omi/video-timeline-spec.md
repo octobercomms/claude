@@ -446,6 +446,72 @@ for cutting on speech rather than for finding clicks. Catching it would need a
 clip built around a 20ms tick and would guard a property this feature does not
 need.
 
+### Session 4 · the render queue
+
+Built: **2.6 (render queue changes)** — progress, cancellation, and a queue
+that no longer blocks.
+
+| What | Where |
+|---|---|
+| Progress, cancellation, concurrency | `backend/src/services/editProcessor.js` |
+| The writes, scoped so they cannot revive a stopped job | `backend/src/services/editJobs.js` |
+| `POST …/edit/:id/cancel` | `backend/src/routes/edit.js` |
+| Columns | `backend/migrations/228_edit_job_progress.sql` |
+| The bar and the Stop button | `frontend/src/pages/ClientEditPage.jsx` |
+| Guards | `backend/tests/edit-queue.test.js` (20, in CI), plus a 20-assertion browser drive |
+
+**Progress carries a stage, and that is the point.** A bare percentage on a
+multi-pass render is a number nobody can check. "Cutting block 3 of 7" can be
+read against the timeline on screen; "41%" cannot. The percentage exists to
+move, the stage exists to be believed. Phases are weighted assemble 0–55,
+render 55–90, captions 90–100, tested to tile with no gap and no overlap,
+because a gap makes the bar jump forward between passes and an overlap makes
+it jump back, which reads as a render that has restarted. Assembling gets the
+largest share because every block is re-encoded there, which is where the
+minutes go on a timeline render.
+
+ffmpeg's own `-progress pipe:1` supplies the position. Two notes for whoever
+touches it: `out_time_ms` is a misnomer and has been microseconds for years,
+so both key names are read and both divided by a million; and a chunk can
+split a line, so the remainder is carried over, or a progress line arriving in
+two reads is dropped and the bar stalls then jumps.
+
+**Stop had to work in two places at once.** Killing the current ffmpeg is not
+enough, because the assembly loop starts the next cut a millisecond later, so
+the job also carries a flag checked between passes. The order matters: the
+database row changes first, then the processor is asked to kill, so a job
+caught between invocations still stops at its next check rather than running
+to completion and appearing in the client's asset library after the operator
+asked for it not to. SIGKILL, not SIGTERM: ffmpeg handles SIGTERM by
+finalising the output, which makes Stop appear to do nothing for several
+seconds on a long render, and the output is discarded either way.
+
+**Two ways a cancellation could have been reported as a failure.** ffmpeg
+exits non-zero when killed, so a killed process is classified as a
+cancellation rather than an error; and `fail()` and `setProgress()` are scoped
+to `status = 'processing'`, so a write already in flight from an ffmpeg
+callback cannot overwrite the cancellation or revive the row. Being told your
+edit broke when you pressed Stop is the kind of thing that stops people
+pressing Stop.
+
+**The queue runs two renders at once** (`EDIT_WORKERS`, bounded 1 to 4).
+One worker meant a twenty-second trim waited behind a five-minute timeline
+render with nothing on screen to explain it. Two is deliberately modest:
+ffmpeg at `-preset veryfast` already uses several cores, so a third mostly
+takes time from the other two, and the box also serves the app. Each worker
+claims its own row with `FOR UPDATE SKIP LOCKED`, which already existed.
+
+**A cancelled edit can be run again.** Without that, Stop strands the edit and
+becomes a button nobody presses.
+
+### What the testing caught
+
+The stills-reel path returns early and completed without checking for a
+cancellation, so it was the one route where Stop could be pressed and ignored,
+and the reel would still be indexed. Found by asserting that *every* path
+reaching `complete()` has a check close before it, rather than checking the
+one path I had in mind.
+
 ### Next session
 
 **2.2, the frame-accurate preview, on WebCodecs** — but not before the

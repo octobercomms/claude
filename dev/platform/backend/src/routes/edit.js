@@ -297,6 +297,32 @@ router.post('/clients/:clientId/edit/:id/reopen', requireClientAccess({ paramNam
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+/**
+ * Stop a render, whether it is queued or already running.
+ *
+ * The database row changes first, then the processor is asked to kill ffmpeg.
+ * That order matters: the processor checks the cancel flag between passes, so
+ * a job that slips past the kill (because it was between invocations) still
+ * stops at the next check rather than running to completion and appearing in
+ * the library after the operator asked for it not to.
+ */
+router.post('/clients/:clientId/edit/:id/cancel', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+  try {
+    const out = await editJobs.cancel(req.params.clientId, req.params.id);
+    if (!out) {
+      // Already finished, failed, or a draft that was never queued. Said
+      // plainly rather than reported as a successful cancel, because "it
+      // stopped" and "it had already finished" lead somewhere different.
+      return res.status(409).json({ error: 'That edit is not running, so there is nothing to stop.' });
+    }
+    const killed = out.was === 'processing' ? editProcessor.cancel(req.params.id) : false;
+    res.json({ ok: true, was: out.was, killed });
+  } catch (err) {
+    console.error('[edit] cancel failed:', err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // Render a saved draft (in place).
 router.post('/clients/:clientId/edit/:id/render', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
   try { const job = await editJobs.queueDraft(req.params.clientId, req.params.id); editProcessor.kick(); res.json(job); }
