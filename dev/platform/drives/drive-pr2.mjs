@@ -99,6 +99,24 @@ for (const [slug, want] of [
   await p.close();
 }
 {
+  // One door per screen. The page used to draw a step rail over the same five
+  // screens under a second set of names — Find, Write, Send, Chase, Selective
+  // against the rows' Prospects, Campaigns, Sending, Tasks, Find leads — with
+  // both visible at once. Daniel's call on 1 November was to delete it.
+  for (const slug of ['campaigns', 'prospects', 'tasks', 'sending', 'find-leads']) {
+    const p = await open(`/clients/c1/convert/${slug}`);
+    const t = await text(p);
+    const rail = /\bFind · next\b|\bWrite\b[\s\S]{0,40}The email sequence|AI-SOURCED|AI finds them, you approve each/i.test(t);
+    say(!rail, `${slug}: no second rail over the same five screens`);
+    // And the screen itself still arrives, which is what a careless deletion
+    // of the surrounding ternary would break.
+    const main = await p.locator('.suite-convert').first().innerText().catch(() => '');
+    say(main.replace(/\s+/g, '').length > 60, `${slug}: and the screen still renders`,
+      `${main.replace(/\s+/g, '').length} chars`);
+    await p.close();
+  }
+}
+{
   // No seventh item in the rail. The whole correction.
   const p = await open('/clients/c1/convert/optimise');
   const railHrefs = await p.locator('a[href^="/clients/c1/"]').evaluateAll(
@@ -151,32 +169,37 @@ for (const [slug, want] of [
   await p.close();
 }
 
-// ── 6. Database tools, and the kebab in the page header ──────────────────
+// ── 6. Database's tools are rows, and the kebab is gone ──────────────────
+//
+// This section asserted the opposite until 1 November: that /database-tools
+// existed, that each list carried a kebab, and that the kebab sat inside the
+// page header. All three were true when written and all three were made false
+// a few hours later by the Cleanup work, which moved those seven screens into
+// the Database panel and removed the kebab outright. Nothing caught the drift,
+// because a drive is not in CI and I did not re-run this one after that
+// change. Re-running every drive a change could touch is the only thing that
+// would have.
 {
-  const p = await open('/database-tools');
+  const p = await open('/database/journalists');
   const t = await text(p);
-  say(/Database tools/i.test(t), 'the page is called Database tools');
-  say(!/Cleanup Centre/i.test(t), 'and no longer Cleanup Centre');
+  say(/CLEANUP/i.test(t), 'Database carries a Cleanup group in its panel');
+  say(!/Cleanup Centre/i.test(t), 'and nothing is called Cleanup Centre');
+  // The old page is not a route any more. Its screens are rows, so a link to
+  // it would be the dead-link class this file exists to catch.
+  const links = await p.locator('a[href*="database-tools"]').count();
+  say(links === 0, 'and nothing links to the old Database tools page', `${links} links`);
   await p.close();
 }
-for (const [slug, label] of [['journalists', 'journalist'], ['publications', 'publication']]) {
+for (const [slug, label, primary] of [
+  ['journalists', 'journalist', '+ Add journalist'],
+  ['publications', 'publication', '+ Add publication'],
+]) {
   const p = await open(`/database/${slug}`);
-  const kebab = p.getByRole('button', { name: new RegExp(`More ${label} tools`, 'i') }).first();
-  const head = p.locator('header.hero').first();
-  if (await kebab.count() && await head.count()) {
-    const k = await kebab.boundingBox();
-    const h = await head.boundingBox();
-    say(k.y >= h.y && k.y <= h.y + h.height,
-      `${slug}: the tools kebab is inside the page header`,
-      `kebab y=${Math.round(k.y)}, header ${Math.round(h.y)}..${Math.round(h.y + h.height)}`);
-    await kebab.click();
-    await p.waitForTimeout(500);
-    const t = await text(p);
-    say(/Database tools/i.test(t), `${slug}: the drawer still links to Database tools`);
-  } else {
-    say(false, `${slug}: kebab and header both present`,
-      `kebab=${await kebab.count()}, header=${await head.count()}`);
-  }
+  const kebab = p.getByRole('button', { name: new RegExp(`More ${label} tools`, 'i') });
+  say(await kebab.count() === 0, `${slug}: no kebab on the list`);
+  const t = await text(p);
+  say(t.includes(primary), `${slug}: its primary action is still there`);
+  say(/Export CSV/i.test(t), `${slug}: and Export CSV is a button beside it`);
   await p.close();
 }
 

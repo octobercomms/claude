@@ -1,5 +1,11 @@
 import pw from './pw.mjs';
 
+// Paths updated 1 November: the Maintenance screen was a tab on the
+// /database-tools page and is a row in the Database panel now, at
+// /database/maintenance. The move invalidated this drive and nothing caught
+// it, because drives are not in CI — re-running every drive a change could
+// touch is the only thing that does.
+
 // PR 3, driven.
 //
 // Everything here is a move: a job that was on one screen is now on another.
@@ -34,7 +40,7 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
 
 // ── 1. The maintenance tab exists and carries all five jobs ──────────────
 {
-  const p = await open('/database-tools?tab=maintenance', [
+  const p = await open('/database/maintenance', [
     ['**/api/outreach/tags', ['architecture', 'design', 'Architecture', 'furniture']],
   ]);
   const t = await text(p);
@@ -64,7 +70,7 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
 // This is the cost of the move: mining used to sit above the review queue it
 // filled. It now has to say what it queued and where that queue is.
 {
-  const p = await open('/database-tools?tab=maintenance', [
+  const p = await open('/database/maintenance', [
     ['**/api/outreach/tags', []],
     ['**/api/pr/feeds/mine', { queued: 7, outlets: 3, flagged: 2 }],
   ]);
