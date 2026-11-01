@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useScreen } from '../hooks/useScreen';
 import { useOpenOnce, useOpenState, useViewParam } from '../hooks/useOpenRecord';
 import PressReleaseEditor from '../components/PressReleaseEditor';
+import WritingStandardDrawer from '../components/WritingStandardDrawer';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
 import PageShell from '../components/shells/PageShell';
@@ -114,6 +115,9 @@ export default function ClientPRPage() {
   // Owned's) so clicking an open header collapses it — the tab-derived open
   // state used before could never close the one open section.
   const [shareOpen, setShareOpen] = useState(false);
+  // The writing standard opens from the page header, not from inside a
+  // release, so the page holds the state.
+  const [standardOpen, setStandardOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [log, setLog] = useState([]);
   // Journalist / publication card opened in place from a table cell (no nav).
@@ -1401,10 +1405,23 @@ export default function ClientPRPage() {
         tabActions={(
           /* Share stopped being a section you scroll past on the way to the
              coverage log. It is something you do when a report is due, so it
-             opens over the page and closes again. */
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShareOpen(true)}>
-            Share
-          </button>
+             opens over the page and closes again.
+
+             The writing standard joins it on the Releases screen. It was a
+             button under the release title, which put a rule about how all
+             releases are written inside one record, below the fold of the
+             card it governs. Up here it reads as what it is, and it is
+             reachable from the list as well as from a release. */
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
+            {tab === 'press' && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStandardOpen(true)}>
+                The writing standard
+              </button>
+            )}
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShareOpen(true)}>
+              Share
+            </button>
+          </div>
         )}
       >
       {/* What this pillar actually drove, and its share of the account. The
@@ -1439,6 +1456,8 @@ export default function ClientPRPage() {
       >
         {renderShare()}
       </SideDrawer>
+
+      <WritingStandardDrawer open={standardOpen} onClose={() => setStandardOpen(false)} />
 
       {editing && (
         <div className="modal-backdrop" onClick={() => !saving && setEditing(null)}>

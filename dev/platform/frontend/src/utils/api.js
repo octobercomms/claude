@@ -1,4 +1,5 @@
 import { READ_ONLY_MSG } from './readOnly';
+import { bounceToLogin } from './bounceToLogin';
 
 const BASE = '/api';
 
@@ -60,8 +61,11 @@ async function request(path, options = {}) {
 
   if (res.status === 401) {
     // Cookie missing/expired — bounce to login. Nothing to clear client-side
-    // (the token is httpOnly and owned by the server).
-    window.location.href = '/login';
+    // (the token is httpOnly and owned by the server). On a page that has no
+    // session by design, bounceToLogin stays put and the error is thrown for
+    // the caller to handle: navigating to a page you are already on is how
+    // the login screen spent an afternoon reloading itself.
+    bounceToLogin();
     throw new Error('Session expired');
   }
 
@@ -134,7 +138,7 @@ export const api = {
           return reject(new Error('That file is too large to upload. Try a smaller file or split it into shorter clips.'));
         }
         if (xhr.status === 401) {
-          window.location.href = '/login';
+          bounceToLogin();
           return reject(new Error('Session expired'));
         }
         let body = null;
@@ -174,7 +178,7 @@ export const api = {
       credentials: 'include',
       ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
     });
-    if (res.status === 401) { window.location.href = '/login'; throw new Error('Session expired'); }
+    if (res.status === 401) { bounceToLogin(); throw new Error('Session expired'); }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error(err.error || `HTTP ${res.status}`);
