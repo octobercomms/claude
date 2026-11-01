@@ -2382,6 +2382,24 @@ into an ArrayBuffer takes the tab down. Three traps:
   width, and after a trim derive the expectation from the in/out the block
   itself reports.
 
+**The render queue has progress and a Stop button.** Four things to know:
+
+- **Every path that completes a job must check for a cancellation first.** The
+  stills reel returns early and was missed on the first pass, which made it
+  the one route where Stop was ignored and the output still indexed. The
+  guard in `tests/edit-queue.test.js` now walks every `editJobs.complete`
+  call rather than the one path somebody had in mind.
+- **`fail()` and `setProgress()` are scoped to `status = 'processing'`** so a
+  write already in flight from an ffmpeg callback cannot overwrite a
+  cancellation. Without that scope, pressing Stop tells you your edit broke.
+- **SIGKILL, never SIGTERM.** ffmpeg answers SIGTERM by finalising the output,
+  so Stop appears to do nothing for several seconds.
+- **`out_time_ms` from `-progress` is microseconds**, and has been for years.
+  Both key names are read and both divided by a million. Also carry the
+  partial line between stdout chunks, or the bar stalls and jumps.
+
+The queue now runs `EDIT_WORKERS` renders at once, default 2, bounded 1 to 4.
+
 Still open: **2.2 the frame-accurate preview**, which waits on the
 capability probe at https://claude.ai/artifact/6NujtFbjeRAkpurKH619mU coming
 back from Daniel's real devices. If a plain seek already lands inside a frame

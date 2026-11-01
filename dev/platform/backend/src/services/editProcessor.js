@@ -34,20 +34,179 @@ async function edlMod() {
   if (!_edl) _edl = await import(pathToFileURL(path.join(SHARED, 'edl.mjs')).href);
   return _edl;
 }
-let _running = false;
+let _workers = 0;
 
+/**
+ * How many edits render at once.
+ *
+ * One was the old answer, and it meant a twenty-second trim sat behind a
+ * five-minute timeline render with nothing on screen to explain the wait. Two
+ * is deliberately modest: ffmpeg at `-preset veryfast` already uses several
+ * cores, so a third concurrent render mostly takes time from the other two
+ * rather than adding throughput, and the box also serves the app.
+ */
+const MAX_WORKERS = Math.max(1, Math.min(4, Number(process.env.EDIT_WORKERS) || 2));
+
+/**
+ * The processes each job currently owns, so a cancel can end them.
+ *
+ * A render is several ffmpeg invocations in sequence, and a cancel has to stop
+ * whichever one is running now. Killing by pid from outside would race with the
+ * next one starting, so the processor keeps the registry itself and the cancel
+ * route asks it. A job also carries a `cancelled` flag, checked between passes:
+ * killing the current ffmpeg is not enough on its own, because the loop would
+ * otherwise start the next cut a millisecond later.
+ */
+const _live = new Map();        // jobId -> Set<ChildProcess>
+const _cancelled = new Set();   // jobIds asked to stop
+
+function register(jobId, child) {
+  if (!jobId) return;
+  if (!_live.has(jobId)) _live.set(jobId, new Set());
+  _live.get(jobId).add(child);
+}
+
+function unregister(jobId, child) {
+  const set = _live.get(jobId);
+  if (!set) return;
+  set.delete(child);
+  if (!set.size) _live.delete(jobId);
+}
+
+/**
+ * Stop a render now. Returns whether anything was actually running.
+ *
+ * SIGKILL rather than SIGTERM: ffmpeg handles SIGTERM by trying to finalise
+ * the output file, which on a long render means the cancel appears to do
+ * nothing for several seconds. The output is being thrown away either way.
+ */
+function cancel(jobId) {
+  _cancelled.add(jobId);
+  const set = _live.get(jobId);
+  if (!set || !set.size) return false;
+  for (const child of set) {
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  }
+  return true;
+}
+
+function isCancelled(jobId) { return _cancelled.has(jobId); }
+
+// Called when a job leaves processing, so the flag cannot outlive the job and
+// stop a later retry of the same row before it starts.
+function clearCancel(jobId) { _cancelled.delete(jobId); _live.delete(jobId); }
+
+class Cancelled extends Error {
+  constructor() { super('Cancelled'); this.name = 'Cancelled'; }
+}
+
+/**
+ * Run a binary.
+ *
+ * `jobId` registers the process so a cancel can kill it. `onProgress` turns on
+ * ffmpeg's own machine-readable progress stream and calls back with the output
+ * position in seconds; it is only meaningful for ffmpeg, so callers pass it
+ * only there.
+ */
 function run(bin, args, opts = {}) {
+  const { jobId = null, onProgress = null, ...spawnOpts } = opts;
+  const argv = onProgress
+    // `-progress pipe:1` writes key=value lines to stdout; `-nostats` stops the
+    // same information being written to stderr in a form meant for a terminal.
+    // Both go before the rest so they apply to the whole invocation.
+    ? ['-progress', 'pipe:1', '-nostats', ...args]
+    : args;
   return new Promise((resolve, reject) => {
     let p;
-    try { p = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'], ...opts }); }
+    try { p = spawn(bin, argv, { stdio: ['ignore', 'pipe', 'pipe'], ...spawnOpts }); }
     catch (e) { return reject(e); }
-    let out = '', err = '';
-    p.stdout.on('data', d => { out += d; });
+    register(jobId, p);
+    let out = '', err = '', tail = '';
+    p.stdout.on('data', (d) => {
+      const s = String(d);
+      out += s;
+      if (!onProgress) return;
+      // A chunk can split a line, so the remainder is carried over. Without
+      // this, a progress line arriving in two reads is dropped, which on a
+      // long render shows up as a bar that stalls and then jumps.
+      tail += s;
+      const lines = tail.split('\n');
+      tail = lines.pop() || '';
+      for (const line of lines) {
+        const m = /^out_time_us=(\d+)/.exec(line) || /^out_time_ms=(\d+)/.exec(line);
+        // ffmpeg's `out_time_ms` is a misnomer: it is microseconds, and has
+        // been for years. Both keys are read, both divided by a million, which
+        // is right for the real units whichever name this build uses.
+        if (m) onProgress(Number(m[1]) / 1e6);
+      }
+    });
     p.stderr.on('data', d => { err += d; });
-    p.on('error', reject);
-    p.on('close', code => code === 0 ? resolve(out) : reject(new Error(`${path.basename(bin)} exited ${code}: ${(err || out).trim().slice(-400)}`)));
+    p.on('error', (e) => { unregister(jobId, p); reject(e); });
+    p.on('close', (code, signal) => {
+      unregister(jobId, p);
+      if (code === 0) return resolve(out);
+      // A process we killed is a cancellation, not a failure. Without this the
+      // job would be marked failed with an ffmpeg signal in the error field,
+      // and the operator who pressed Cancel would be told their edit broke.
+      if (signal === 'SIGKILL' && isCancelled(jobId)) return reject(new Cancelled());
+      reject(new Error(`${path.basename(bin)} exited ${code}: ${(err || out).trim().slice(-400)}`));
+    });
   });
 }
+
+/**
+ * Render progress, as something an operator can check.
+ *
+ * A bare percentage on a multi-pass render is a number nobody can verify, so
+ * every update carries a stage: "cutting block 3 of 7" can be checked against
+ * the timeline on screen, and "41%" cannot. The percentage exists to move, the
+ * stage exists to be believed.
+ *
+ * The weights below are estimates and are labelled as such. Assembling is the
+ * expensive part of a timeline render because every block is re-encoded;
+ * captions are a network call with no progress of their own, so they get a
+ * slice at the end rather than a bar that sits at 99%.
+ *
+ * Writes are throttled: a render emitting progress every frame would be a few
+ * hundred UPDATEs a second against a row nobody is reading that fast.
+ */
+const PHASES = { assemble: [0, 55], render: [55, 90], captions: [90, 100] };
+const WRITE_EVERY_MS = 1200;
+
+/**
+ * A phase and a fraction within it, as one percentage. Pure and exported so
+ * the weights are testable: the whole point of the number is that it only ever
+ * goes forward, and a phase boundary off by a few points makes a bar that
+ * jumps backwards between passes.
+ */
+function phasePercent(phase, fraction) {
+  const [from, to] = PHASES[phase] || [0, 100];
+  const f = Number.isFinite(Number(fraction)) ? Math.max(0, Math.min(1, Number(fraction))) : 0;
+  return Math.max(0, Math.min(100, Math.round(from + (to - from) * f)));
+}
+
+function makeProgress(jobId) {
+  let last = 0;
+  let lastPct = -1;
+  const write = (pct, stage) => {
+    const now = Date.now();
+    const rounded = Math.max(0, Math.min(100, Math.round(pct)));
+    // Always let 100 through, and always the first update, so the bar starts
+    // and finishes even on a render short enough to fit inside one window.
+    if (rounded === lastPct) return;
+    if (rounded < 100 && lastPct >= 0 && now - last < WRITE_EVERY_MS) return;
+    last = now;
+    lastPct = rounded;
+    editJobs.setProgress(jobId, rounded, stage).catch(() => {});
+  };
+  return {
+    /** `fraction` is 0 to 1 within the phase. */
+    at(phase, fraction, stage) { write(phasePercent(phase, fraction), stage); },
+    stage(phase, stage) { this.at(phase, 0, stage); },
+  };
+}
+
+const NO_PROGRESS = { at() {}, stage() {} };
 
 // Probe duration (s) + dimensions. Best-effort — returns nulls on failure.
 async function probe(file) {
@@ -142,7 +301,8 @@ async function hasAudioStream(file) {
 // clip's dimensions (scaled to fit + letterboxed) with a uniform codec/fps/audio,
 // then the segments are concatenated (stream copy). Clips with no audio get a
 // silent track so the concat stays in sync.
-async function combineClips(clipPaths, work) {
+async function combineClips(clipPaths, work, ctx = {}) {
+  const { jobId = null, prog = NO_PROGRESS } = ctx;
   const first = await probe(clipPaths[0]);
   const W = first.width || 1080, H = first.height || 1920;
   const segs = [];
@@ -156,19 +316,29 @@ async function combineClips(clipPaths, work) {
     if (!audio) args.push('-shortest');
     args.push('-vf', vf, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-ar', '48000', '-b:a', '160k', '-video_track_timescale', '30000', seg);
-    await run(FFMPEG, args);
+    if (isCancelled(jobId)) throw new Cancelled();
+    const clipLen = (await probe(clipPaths[i])).duration || null;
+    await run(FFMPEG, args, {
+      jobId,
+      onProgress: (sec) => prog.at('assemble',
+        (i + (clipLen ? Math.min(1, sec / clipLen) : 0)) / clipPaths.length,
+        `Matching clip ${i + 1} of ${clipPaths.length}`),
+    });
     segs.push(seg);
   }
   const list = path.join(work, 'concat.txt');
   fs.writeFileSync(list, segs.map(s => `file '${s.replace(/'/g, "'\\''")}'`).join('\n'));
   const combined = path.join(work, 'combined.mp4');
-  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', combined]);
+  prog.stage('assemble', 'Joining the clips');
+  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy',
+    '-movflags', '+faststart', combined], { jobId });
   return combined;
 }
 
 // Keep several ranges of one clip and join them in order (multi-cut). Each range
 // is re-encoded to uniform params, then concatenated (stream copy).
-async function cutSegments(srcPath, segments, work) {
+async function cutSegments(srcPath, segments, work, ctx = {}) {
+  const { jobId = null, prog = NO_PROGRESS } = ctx;
   const meta = await probe(srcPath);
   const W = meta.width || 1080, H = meta.height || 1920;
   const audio = await hasAudioStream(srcPath);
@@ -185,7 +355,15 @@ async function cutSegments(srcPath, segments, work) {
     a.push('-vf', `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30`,
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-ar', '48000', '-b:a', '160k', '-video_track_timescale', '30000', seg);
-    await run(FFMPEG, a);
+    if (isCancelled(jobId)) throw new Cancelled();
+    const want = end - start;
+    const done = segs.length;
+    await run(FFMPEG, a, {
+      jobId,
+      onProgress: (sec) => prog.at('assemble',
+        (done + (want > 0 ? Math.min(1, sec / want) : 0)) / segments.length,
+        `Cutting ${done + 1} of ${segments.length}`),
+    });
     segs.push(seg);
   }
   if (!segs.length) return srcPath;
@@ -193,7 +371,9 @@ async function cutSegments(srcPath, segments, work) {
   const list = path.join(work, 'cuts.txt');
   fs.writeFileSync(list, segs.map(s => `file '${s.replace(/'/g, "'\\''")}'`).join('\n'));
   const out = path.join(work, 'cutjoined.mp4');
-  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', out]);
+  prog.stage('assemble', 'Joining the cuts');
+  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy',
+    '-movflags', '+faststart', out], { jobId });
   return out;
 }
 
@@ -215,7 +395,8 @@ async function cutSegments(srcPath, segments, work) {
  * `clipPaths` is indexed to match the job's `clips`, with null where a source
  * is missing from disk, so an EDL's clip indices stay meaningful.
  */
-async function cutEdl(clipPaths, segments, work) {
+async function cutEdl(clipPaths, segments, work, ctx = {}) {
+  const { jobId = null, prog = NO_PROGRESS } = ctx;
   const firstPath = clipPaths.find((p) => p);
   if (!firstPath) throw new Error('None of the clips in this edit are on disk.');
   const first = await probe(firstPath);
@@ -245,7 +426,15 @@ async function cutEdl(clipPaths, segments, work) {
     }
     a.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-ar', '48000', '-b:a', '160k', '-video_track_timescale', '30000', dst);
-    await run(FFMPEG, a);
+    if (isCancelled(jobId)) throw new Cancelled();
+    const want = end == null ? null : end - start;
+    const done = outs.length;
+    await run(FFMPEG, a, {
+      jobId,
+      onProgress: (sec) => prog.at('assemble',
+        (done + (want ? Math.min(1, sec / want) : 0)) / segments.length,
+        `Cutting block ${done + 1} of ${segments.length}`),
+    });
     outs.push(dst);
   }
   if (!outs.length) throw new Error('This edit has no cuts long enough to render.');
@@ -253,8 +442,9 @@ async function cutEdl(clipPaths, segments, work) {
   const list = path.join(work, 'edl.txt');
   fs.writeFileSync(list, outs.map(f => `file '${f.replace(/'/g, "'\\''")}'`).join('\n'));
   const joined = path.join(work, 'edljoined.mp4');
+  prog.stage('assemble', `Joining ${outs.length} blocks`);
   await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy',
-    '-movflags', '+faststart', joined]);
+    '-movflags', '+faststart', joined], { jobId });
   return joined;
 }
 
@@ -365,7 +555,8 @@ async function brandRowsFor(clientId) {
  * mean the template path could only ever be tested by paying for it, which in
  * practice means not testing it.
  */
-async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}) {
+async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}, ctx = {}) {
+  const { jobId = null, prog = NO_PROGRESS } = ctx;
   const transcribeWords = deps.whisperWords || whisperWords;
   const transcribeSrt = deps.whisperSrt || whisperSrt;
   const brandRows = deps.brandRowsFor || brandRowsFor;
@@ -396,7 +587,14 @@ async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}) {
   }
   a1.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', base);
-  await run(FFMPEG, a1);
+  if (isCancelled(jobId)) throw new Cancelled();
+  const srcLen = (await probe(srcPath)).duration || null;
+  prog.stage('render', 'Rendering the video');
+  await run(FFMPEG, a1, {
+    jobId,
+    onProgress: (sec) => prog.at('render', srcLen ? Math.min(1, sec / srcLen) * 0.9 : 0,
+      'Rendering the video'),
+  });
 
   const meta = await probe(base);
   const durationS = meta.duration || 0;
@@ -406,7 +604,11 @@ async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}) {
   // Pass 2 — captions. Extract audio → Whisper → burn onto the video.
   if (!apiKey) throw new Error('Auto-captions need an OpenAI key — set OPENAI_API_KEY in Settings → AI.');
   const audio = path.join(work, 'audio.mp3');
-  await run(FFMPEG, ['-y', '-i', base, '-vn', '-ac', '1', '-ar', '16000', '-f', 'mp3', audio]);
+  if (isCancelled(jobId)) throw new Cancelled();
+  prog.stage('captions', 'Pulling the audio out');
+  await run(FFMPEG, ['-y', '-i', base, '-vn', '-ac', '1', '-ar', '16000', '-f', 'mp3', audio],
+    { jobId });
+  prog.stage('captions', 'Transcribing');
 
   // A chosen template takes the word-timed path: the same single Whisper call,
   // asked for per word rather than per segment, compiled to ASS by the shared
@@ -427,6 +629,8 @@ async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}) {
     const kit = captions.kitFromAssets(kitRows);
     const formatId = captionFormatFor(meta.width, meta.height);
     const final = path.join(work, 'captioned.mp4');
+    if (isCancelled(jobId)) throw new Cancelled();
+    prog.at('captions', 0.6, 'Burning the captions on');
     await captions.burn({ words: timed, templateId: ops.caption_template, kit,
       formatId, source: base, outPath: final });
 
@@ -442,6 +646,8 @@ async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}) {
   // filter can reference it by bare name (avoids filter-path escaping headaches).
   fs.writeFileSync(path.join(work, 'subs.srt'), srt);
   const final = path.join(work, 'captioned.mp4');
+  if (isCancelled(jobId)) throw new Cancelled();
+  prog.at('captions', 0.6, 'Burning the captions on');
   await run(FFMPEG, ['-y', '-i', base,
     '-vf', `subtitles=subs.srt:force_style='${captionStyle(ops.caption_style)}'`,
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
@@ -461,17 +667,30 @@ async function processOne(job) {
   const paths = clipPaths.filter(Boolean);
   if (!paths.length) { await editJobs.fail(job.id, 'Source video is missing on disk.'); return; }
   const work = fs.mkdtempSync(path.join(os.tmpdir(), `edit-${job.id}-`));
+  const prog = makeProgress(job.id);
+  const ctx = { jobId: job.id, prog };
+  prog.stage('assemble', 'Starting');
   try {
     // Stills → Reel jobs carry still images (not video) in clips and an
     // ops.stills_reel spec. Animate + stitch them, then finish — the normal
     // trim/clean/caption path doesn't apply.
     if (job.ops?.stills_reel) {
+      prog.stage('assemble', 'Animating the stills');
       const { reel, cost, clipCount } = await buildStillsReel(job, work);
       // Measured before the file is adopted: adoptFile moves it, and probing
       // the served URL afterwards would mean reading it back off disk by path
       // a second time.
       const reelMeta = await probe(reel);
       const reelBytes = fs.statSync(reel).size;
+      if (isCancelled(job.id)) {
+        // Same rule as the main path: a reel that finished a moment after Stop
+        // was pressed is discarded rather than indexed. This branch returns
+        // early, so without its own check it was the one path where Stop could
+        // be ignored.
+        await editJobs.markCancelled(job.id);
+        console.log(`[edit] ⊘ stills reel ${job.id} cancelled after its last pass`);
+        return;
+      }
       const outputUrl = editJobs.adoptFile(job.client_id, reel, '.mp4');
       await editJobs.complete(job.id, { outputUrl, srtUrl: null, costUsd: cost,
         durationS: reelMeta.duration, width: reelMeta.width, height: reelMeta.height,
@@ -493,21 +712,21 @@ async function processOne(job) {
     if (storedEdl && storedEdl.items.length && !E.isWholeClipsInOrder(storedEdl, clips)) {
       // A real edit: cuts, a reorder, a gain change, or any mix. Rendered as a
       // cut list across clips, which is the capability the page never had.
-      srcPath = await cutEdl(clipPaths, E.compile(storedEdl, clips), work);
+      srcPath = await cutEdl(clipPaths, E.compile(storedEdl, clips), work, ctx);
       renderOps = { ...renderOps, trim: null, segments: null };
     } else {
       // No EDL, or an EDL that says "every clip, whole, in order". Both take
       // the proven paths: stream-copy combine for several clips, and the
       // single-clip multi-cut for a stored `ops.segments` from an older job.
-      srcPath = paths.length > 1 ? await combineClips(paths, work) : paths[0];
+      srcPath = paths.length > 1 ? await combineClips(paths, work, ctx) : paths[0];
       const segs = Array.isArray(renderOps.segments) ? renderOps.segments : null;
       if (segs && segs.length && paths.length === 1) {
-        srcPath = await cutSegments(srcPath, segs, work);
+        srcPath = await cutSegments(srcPath, segs, work, ctx);
         renderOps = { ...renderOps, trim: null };   // cuts already applied
       }
     }
     const { outputPath, srtPath, durationS } = await render(
-      srcPath, renderOps, work, apiKey, job.client_id);
+      srcPath, renderOps, work, apiKey, job.client_id, {}, ctx);
 
     const outMeta = await probe(outputPath);
     const outBytes = fs.statSync(outputPath).size;
@@ -519,6 +738,16 @@ async function processOne(job) {
       costUsd = +((durationS / 60) * WHISPER_USD_PER_MIN).toFixed(4);
       recordApiCost({ provider: 'openai', feature: 'edit_captions', costUsd, clientId: job.client_id, meta: { model: 'whisper-1', duration_s: Math.round(durationS) } });
     }
+    if (isCancelled(job.id)) {
+      // Finished a moment after Cancel was pressed. The output is discarded
+      // rather than indexed: the operator asked for this edit not to exist,
+      // and an edit that appears in the library anyway is the page doing
+      // something nobody asked for.
+      await editJobs.markCancelled(job.id);
+      console.log(`[edit] ⊘ job ${job.id} cancelled after its last pass`);
+      return;
+    }
+    prog.at('captions', 1, 'Finishing');
     await editJobs.complete(job.id, { outputUrl, srtUrl, costUsd,
       // The duration after the edit, not the source's: a trimmed clip that
       // reported its original length would make the library lie about the one
@@ -527,9 +756,15 @@ async function processOne(job) {
       width: outMeta.width, height: outMeta.height, bytes: outBytes });
     console.log(`[edit] ✓ job ${job.id} done (${Math.round(durationS)}s)`);
   } catch (err) {
-    console.error(`[edit] ✗ job ${job.id}: ${err.message}`);
-    await editJobs.fail(job.id, friendlyError(err.message)).catch(() => {});
+    if (err instanceof Cancelled || isCancelled(job.id)) {
+      await editJobs.markCancelled(job.id).catch(() => {});
+      console.log(`[edit] ⊘ job ${job.id} cancelled`);
+    } else {
+      console.error(`[edit] ✗ job ${job.id}: ${err.message}`);
+      await editJobs.fail(job.id, friendlyError(err.message)).catch(() => {});
+    }
   } finally {
+    clearCancel(job.id);
     fs.rmSync(work, { recursive: true, force: true });
   }
 }
@@ -546,9 +781,28 @@ function friendlyError(raw) {
   return 'Couldn’t process this video. ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 160);
 }
 
+/**
+ * Drain the queue.
+ *
+ * Up to MAX_WORKERS renders run at once, which is the point: with one worker a
+ * twenty-second trim waited behind a five-minute timeline render, and the
+ * operator had nothing on screen to explain the wait. Each worker claims its
+ * own job with `FOR UPDATE SKIP LOCKED`, so two workers never take the same
+ * row even across processes.
+ *
+ * The ten-job ceiling per worker is kept: it bounds how long one call to this
+ * occupies the process, and `kick()` is called again whenever work arrives.
+ */
 async function processQueue() {
-  if (_running) return;
-  _running = true;
+  if (_workers >= MAX_WORKERS) return;
+  const slots = MAX_WORKERS - _workers;
+  const runners = [];
+  for (let w = 0; w < slots; w++) runners.push(worker());
+  await Promise.all(runners);
+}
+
+async function worker() {
+  _workers += 1;
   try {
     for (let i = 0; i < 10; i++) {
       const job = await editJobs.claimNext('platform-inline');
@@ -558,12 +812,13 @@ async function processQueue() {
   } catch (e) {
     console.error('[edit] queue error:', e.message);
   } finally {
-    _running = false;
+    _workers -= 1;
   }
 }
 
 function kick() { processQueue().catch(() => {}); }
 
-module.exports = { processQueue, kick, probe, whisperWords,
+module.exports = { processQueue, kick, probe, whisperWords, cancel, isCancelled, MAX_WORKERS,
+  phasePercent, PHASES,
   // exported for the tests
   render, captionFormatFor, srtFromWords };

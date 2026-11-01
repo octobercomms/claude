@@ -16,7 +16,11 @@ const SRC = path.join(__dirname, '..', 'src', 'services', 'editProcessor.js');
 const src = fs.readFileSync(SRC, 'utf8');
 
 test('the processor has a cut renderer that spans clips', () => {
-  assert.match(src, /async function cutEdl\(clipPaths, segments, work\)/,
+  // Matched on the name and its first parameters, not the whole signature: a
+  // test that breaks when a parameter is added is testing the signature
+  // rather than the behaviour, and this one broke the first time the renderer
+  // gained a progress context.
+  assert.match(src, /async function cutEdl\(clipPaths, segments, work/,
     'the multi-clip cut list is the one capability the Edit page lacked');
   const body = src.slice(src.indexOf('async function cutEdl'));
   assert.match(body.slice(0, 2600), /clipPaths\[seg\.clip\]/,
@@ -55,8 +59,8 @@ test('the EDL path clears the older trim fields so a cut is not applied twice', 
 
 test('jobs with no EDL keep the paths that already work', () => {
   const fallback = src.slice(src.indexOf('} else {', src.indexOf('const storedEdl')));
-  assert.match(fallback, /combineClips\(paths, work\)/, 'several clips still stream-copy combine');
-  assert.match(fallback, /cutSegments\(srcPath, segs, work\)/,
+  assert.match(fallback, /combineClips\(paths, work/, 'several clips still stream-copy combine');
+  assert.match(fallback, /cutSegments\(srcPath, segs, work/,
     'a reopened older job with ops.segments must still render as it did');
 });
 

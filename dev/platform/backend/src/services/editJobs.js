@@ -139,14 +139,25 @@ async function remove(clientId, id) {
   }
 }
 
+/**
+ * Queue a failed or cancelled edit again.
+ *
+ * Cancelled counts: you stop a render because you spotted something, fix the
+ * timeline, and run it again. Without this a cancel strands the edit with no
+ * way back, which makes Cancel a button nobody presses.
+ */
 async function retry(clientId, id) {
   const { rows } = await pool.query(
     `UPDATE edit_jobs SET status = 'queued', error = NULL, output_url = NULL, srt_url = NULL,
-            claimed_by = NULL, claimed_at = NULL
-       WHERE client_id = $1 AND id = $2 AND status = 'failed' RETURNING *`,
+            claimed_by = NULL, claimed_at = NULL, progress = 0, stage = NULL
+       WHERE client_id = $1 AND id = $2 AND status IN ('failed', 'cancelled') RETURNING *`,
     [clientId, id]
   );
-  if (!rows[0]) { const e = new Error('Only failed edits can be retried.'); e.status = 400; throw e; }
+  if (!rows[0]) {
+    const e = new Error('Only failed or cancelled edits can be run again.');
+    e.status = 400;
+    throw e;
+  }
   return rows[0];
 }
 
@@ -218,14 +229,82 @@ async function complete(id, { outputUrl, srtUrl = null, costUsd = 0, durationS =
   }
 }
 
+/**
+ * Mark a job failed.
+ *
+ * Scoped to `status = 'processing'` so it cannot overwrite a cancellation. A
+ * cancel kills ffmpeg, ffmpeg exits non-zero, and without this scope the
+ * operator who pressed Cancel is then told their edit broke.
+ */
 async function fail(id, error) {
-  await pool.query(`UPDATE edit_jobs SET status = 'failed', error = $2 WHERE id = $1`,
+  await pool.query(
+    `UPDATE edit_jobs SET status = 'failed', error = $2, progress = 0, stage = NULL
+      WHERE id = $1 AND status = 'processing'`,
     [id, String(error || 'Processing failed').slice(0, 1900)]);
+}
+
+/**
+ * Render progress, 0 to 100, with the stage that produced it.
+ *
+ * Scoped to `processing` for the same reason as `fail`: a progress write
+ * arriving after a cancel, from an ffmpeg callback already in flight, must not
+ * revive the row or leave a stale stage on a job that has stopped.
+ */
+async function setProgress(id, progress, stage = null) {
+  const pct = Math.max(0, Math.min(100, Math.round(Number(progress) || 0)));
+  await pool.query(
+    `UPDATE edit_jobs SET progress = $2, stage = $3 WHERE id = $1 AND status = 'processing'`,
+    [id, pct, stage ? String(stage).slice(0, 120) : null]);
+}
+
+async function markCancelled(id) {
+  await pool.query(
+    `UPDATE edit_jobs SET status = 'cancelled', progress = 0, stage = NULL, error = NULL
+      WHERE id = $1 AND status IN ('processing', 'queued')`,
+    [id]);
+}
+
+/**
+ * Stop an edit, whether it is waiting or already rendering.
+ *
+ * A queued job is cancelled here and never claimed, because the queue index
+ * only covers `status = 'queued'`. A job already rendering needs its ffmpeg
+ * killed as well, which is the processor's business, so this reports which
+ * case it was and the route asks the processor for the second one. Returns
+ * null when there is nothing to cancel, so the route can say so rather than
+ * reporting success for a job that had already finished.
+ */
+async function cancel(clientId, id) {
+  // Two statements in one transaction rather than a subquery in RETURNING,
+  // which would depend on exactly when a subquery sees its snapshot. What the
+  // caller needs is plain: was this one already rendering?
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const before = await client.query(
+      `SELECT status FROM edit_jobs WHERE client_id = $1 AND id = $2 FOR UPDATE`,
+      [clientId, id]);
+    const was = before.rows[0]?.status || null;
+    if (was !== 'queued' && was !== 'processing') {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    await client.query(
+      `UPDATE edit_jobs SET status = 'cancelled', progress = 0, stage = NULL, error = NULL
+        WHERE id = $1`, [id]);
+    await client.query('COMMIT');
+    return { id, was };
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = {
   create, list, get, getById, remove, retry, reopen, rename, queueDraft,
-  claimNext, complete, fail,
+  claimNext, complete, fail, setProgress, markCancelled, cancel,
   saveBuffer, adoptFile, servedUrl, serveFilePath, diskPathForUrl, clientDir,
   UPLOAD_ROOT,
 };
