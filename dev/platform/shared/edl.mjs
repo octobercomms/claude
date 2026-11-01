@@ -125,7 +125,20 @@ export function normalise(edl, clips) {
       if (dur != null && b > dur + EPS) continue;
     }
     const gain = Math.min(4, Math.max(0, num(raw?.gain, 1)));
-    out.push({ id: String(raw?.id || nextId()), clip, in: secs(a), out: b == null ? null : secs(b), gain });
+    // The transition rides through, or every stored fade is lost the moment an
+    // edit is normalised — which is on every reopen AND every time a clip is
+    // added, because the page re-normalises against the new clip list. The
+    // first block's is dropped rather than carried: it has nothing to its left
+    // to fade from, so keeping the data would leave a fade in the row that
+    // nothing honours and that `isWholeClipsInOrder` would then refuse.
+    const item = {
+      id: String(raw?.id || nextId()), clip, in: secs(a), out: b == null ? null : secs(b), gain,
+    };
+    if (out.length > 0) {
+      const t = transitionOf(raw);
+      if (t.type !== 'cut') item.trans = { type: t.type, dur: t.dur };
+    }
+    out.push(item);
   }
   return { version: EDL_VERSION, items: out };
 }

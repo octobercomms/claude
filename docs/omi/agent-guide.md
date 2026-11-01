@@ -2459,6 +2459,17 @@ helper with an epsilon, export it, and use it in the tests as well as the
 module**, or the test will fail against correct code and you will "fix" the
 code.
 
+### A third rule: a new EDL field must be carried through `normalise`
+
+`normalise` runs far more often than it looks. It runs on every reopen, and
+also **every time the clip list changes**, because the page re-normalises the
+edit against the new clips. A field it forgets to copy is therefore lost
+silently in ordinary use: transitions were dropped the moment a second clip
+was uploaded, with the overlap still drawn a second earlier. Found by driving
+a reopen, which was the one path in six sessions that had been wired without
+being driven. If you add a field to an EDL item, carry it in `normalise` and
+assert it survives both a reopen and an upload.
+
 ### A second rule: anything the stream-copy combine cannot do belongs in `isWholeClipsInOrder`
 
 Also three instances: gain (session one), cross-fades (session five), and text
