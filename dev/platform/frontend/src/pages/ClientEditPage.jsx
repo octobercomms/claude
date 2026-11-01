@@ -348,7 +348,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
       </>)}
       <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', maxWidth: 660, marginTop: -8 }}>
         {mode === 'video'
-          ? 'Trim a clip, clean up the audio, add auto-captions — or drop in several clips to combine them into one video. Rendered on our own servers; nothing uploaded to a third party.'
+          ? 'Cut a video yourself on a timeline: trim, clean up the audio, add auto-captions, or drop in several clips to combine them. To have a reel assembled for you instead, use Video. Rendered on our own servers; nothing uploaded to a third party.'
           : 'Turn a set of still images into a moving reel — each still is animated into a short cinematic clip, then stitched together into one vertical video.'}
       </p>
 

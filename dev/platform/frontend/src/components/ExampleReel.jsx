@@ -43,15 +43,44 @@ export default function ExampleReel() {
     }
   }
 
-  if (state === 'loading' || state === 'error') return null;
+  // Loading renders nothing, because it resolves in a moment and a flash of
+  // disabled control is worse than a beat of nothing.
+  if (state === 'loading') return null;
 
+  // An error used to render nothing too, which means a failed status check
+  // made the whole feature disappear with no trace — the same "a tool nobody
+  // can see is a tool nobody has" fault the Library tools had. The control
+  // stays, disabled, saying what happened.
+  if (state === 'error') {
+    return (
+      <div>
+        <button type="button" className="btn btn-secondary btn-sm" disabled>
+          See the same reel in six styles
+        </button>
+        <div style={{ ...CAP, lineHeight: 1.5, marginTop: 'var(--s2)' }}>
+          Could not check for worked examples just now. Reload to try again.
+        </div>
+      </div>
+    );
+  }
+
+  // No examples yet: the control still shows, disabled, with the reason under
+  // it. It used to be replaced by prose, which hides the feature from anyone
+  // who has not seen it working — the same way the Library's tools went unused
+  // because nothing on screen said they were there. A disabled button with no
+  // reason is the other failure, so it carries one.
   if (state === 'none') {
     return (
-      <div style={{ ...CAP, lineHeight: 1.5 }}>
-        There are no worked examples yet. Upload a sample clip under Produce and they are
-        built from it: one reel, tightened and with a cutaway laid in, captioned six ways, so
-        the output is visible before you commit your own footage. Twenty seconds or more of
-        someone talking, transcribed, shows every step.
+      <div>
+        <button type="button" className="btn btn-secondary btn-sm" disabled
+          title="Upload a clip and the worked examples are built from it">
+          See the same reel in six styles
+        </button>
+        <div style={{ ...CAP, lineHeight: 1.5, marginTop: 'var(--s2)' }}>
+          Add a clip first and the examples are built from it: one reel, tightened and with a
+          cutaway laid in, captioned six ways, so the output is visible before you commit your
+          own footage. Twenty seconds or more of someone talking, transcribed, shows every step.
+        </div>
       </div>
     );
   }

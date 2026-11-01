@@ -44,13 +44,76 @@ function SiteChip({ label }) {
   return <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{flag ? `${flag} ` : ''}{label}</span>;
 }
 
+// What the All-sites view says instead of a count.
+//
+// It used to read `Across ${reports.length} sites.` — a placeholder shaped
+// like a summary, on the default view, so a multi-site client opened Optimise
+// and saw a sentence that told them nothing. "Funnel health doesn't seem to
+// say much on Falcon as it has too many sites" was exactly right.
+//
+// Two things, both derived from findings already in memory, so this costs
+// nothing per view on a screen that gets opened constantly.
+//
+// Not a third. "The issue type recurring across sites" would need matching
+// free prose from one report against another, and a guess dressed as a
+// finding is what this card is being fixed for.
+const WEIGHT = { critical: 3, high: 2, medium: 1 };
+
+function CrossSiteRead({ findings }) {
+  const bySite = new Map();
+  for (const f of findings) {
+    const k = f.site || 'Unlabelled';
+    const e = bySite.get(k) || { site: k, open: 0, done: 0, weight: 0, critical: 0 };
+    if (f.done) e.done += 1;
+    else {
+      e.open += 1;
+      e.weight += WEIGHT[f.priority] || 0;
+      if (f.priority === 'critical') e.critical += 1;
+    }
+    bySite.set(k, e);
+  }
+  const sites = [...bySite.values()].sort((a, b) => b.weight - a.weight || b.open - a.open);
+  if (!sites.length) return <p className="body" style={{ margin: 0 }}>Nothing outstanding on any site.</p>;
+
+  const worst = sites[0];
+  const withCriticals = sites.filter(x => x.critical > 0).length;
+  const totalOpen = sites.reduce((n, x) => n + x.open, 0);
+
+  return (
+    <div style={{ display: 'grid', gap: 'var(--s3)' }}>
+      <p className="body" style={{ margin: 0 }}>
+        {totalOpen === 0
+          ? <>Every finding across {sites.length} site{sites.length === 1 ? '' : 's'} is marked fixed.</>
+          : <>
+              <strong>{worst.site}</strong> needs it most: {worst.open} open
+              {worst.critical > 0 && <> including {worst.critical} critical</>}.
+              {withCriticals > 1 && <> {withCriticals} of {sites.length} sites have something critical.</>}
+            </>}
+      </p>
+      {/* Worst first, so the order is the answer to "where do I start". */}
+      <div style={{ display: 'grid', gap: 'var(--s1)' }}>
+        {sites.map(x => (
+          <div key={x.site} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+            <SiteChip label={x.site} />
+            <span className="body-sm text-subtle" style={{ marginLeft: 'auto' }}>
+              {x.open} open{x.critical > 0 && <> · {x.critical} critical</>}{x.done > 0 && <> · {x.done} fixed</>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Overview({ summary, findings }) {
   const { counts, total, done, pct, sevData } = statsOf(findings);
   return (
     <div className="grid grid-2" style={{ marginTop: 'var(--s4)', alignItems: 'stretch' }}>
       <div className="card">
         <div className="caption caption-muted" style={{ marginBottom: 'var(--s2)' }}>Funnel health</div>
-        <p className="body" style={{ margin: 0 }}>{summary || '—'}</p>
+        {typeof summary === 'string' || summary == null
+          ? <p className="body" style={{ margin: 0 }}>{summary || '—'}</p>
+          : summary}
       </div>
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s5)', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', width: 132, height: 132, flex: '0 0 auto' }}>
@@ -242,7 +305,11 @@ export default function ClarityCroPanel({ clientId }) {
         </p>
       ) : (
         <>
-          <Overview summary={selected === 'all' ? `Across ${reports.length} site${reports.length === 1 ? '' : 's'}.` : (selectedReport?.summary)} findings={viewFindings} />
+          <Overview
+            summary={selected === 'all'
+              ? <CrossSiteRead findings={viewFindings} />
+              : (selectedReport?.summary)}
+            findings={viewFindings} />
 
           <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
             <div className="caption">Action points</div>

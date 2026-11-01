@@ -1,0 +1,1124 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Review Audit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #F4F1EA;
+    --surface: #FFFFFF;
+    --surface-2: #FBF9F4;
+    --ink: #14120E;
+    --ink-2: #4A463C;
+    --ink-3: #7A7466;
+    --line: #14120E;
+    --line-soft: #DCD6C8;
+    --accent: #E8A33D;
+    --accent-ink: #14120E;
+    --done: #1F6F43;
+    --done-bg: #E4F0E8;
+    --partly: #8A5A00;
+    --partly-bg: #FAEFD8;
+    --answered: #2B4E86;
+    --answered-bg: #E3EAF6;
+    --open: #6B3F8F;
+    --open-bg: #EDE4F5;
+    --todo: #A32B20;
+    --todo-bg: #FBE4E1;
+    --check: #5A5A5A;
+    --check-bg: #ECEAE4;
+    --r: 14px;
+    --bw: 2px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15140F;
+      --surface: #1E1C16;
+      --surface-2: #26241C;
+      --ink: #F6F3EA;
+      --ink-2: #C9C3B4;
+      --ink-3: #8F8878;
+      --line: #4A4639;
+      --line-soft: #35322A;
+      --accent: #F0B25A;
+      --accent-ink: #15140F;
+      --done: #7FD6A2;  --done-bg: #1B3326;
+      --partly: #F0C068; --partly-bg: #332A17;
+      --answered: #9CBDF0; --answered-bg: #1B2740;
+      --open: #C9A6EA; --open-bg: #2A2037;
+      --todo: #F0998D; --todo-bg: #3A1F1B;
+      --check: #B5B0A4; --check-bg: #2B2922;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15140F;
+    --surface: #1E1C16;
+    --surface-2: #26241C;
+    --ink: #F6F3EA;
+    --ink-2: #C9C3B4;
+    --ink-3: #8F8878;
+    --line: #4A4639;
+    --line-soft: #35322A;
+    --accent: #F0B25A;
+    --accent-ink: #15140F;
+    --done: #7FD6A2;  --done-bg: #1B3326;
+    --partly: #F0C068; --partly-bg: #332A17;
+    --answered: #9CBDF0; --answered-bg: #1B2740;
+    --open: #C9A6EA; --open-bg: #2A2037;
+    --todo: #F0998D; --todo-bg: #3A1F1B;
+    --check: #B5B0A4; --check-bg: #2B2922;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 40px 72px;
+  }
+  h1, h2, h3 { font-family: "Space Grotesk", Inter, sans-serif; text-wrap: balance; margin: 0 }
+  h1 { font-size: clamp(30px, 6vw, 44px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.08 }
+  h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em }
+  h3 { font-size: 15px; font-weight: 700 }
+  p { margin: 0 }
+  a { color: var(--ink); text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 2px }
+
+  .kicker {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  header .lede { color: var(--ink-2); max-width: 62ch; margin-top: 14px; font-size: 16px }
+  .rule { height: var(--bw); background: var(--line); margin: 28px 0 }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 20px }
+  .meta div { min-width: 0 }
+  .meta dt { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); font-weight: 600 }
+  .meta dd { margin: 2px 0 0; font-family: "Space Grotesk", sans-serif; font-weight: 500 }
+
+  /* tally */
+  .tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; margin: 0 }
+  .tile {
+    background: var(--surface); border: var(--bw) solid var(--line); border-radius: var(--r);
+    padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 2px;
+    cursor: pointer; text-align: left; font: inherit; color: inherit;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 0 -2px var(--line-soft) }
+  .tile[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink) }
+  .tile .n { font-family: "Space Grotesk", sans-serif; font-size: 30px; font-weight: 700; line-height: 1 }
+  .tile .l { font-size: 12px; font-weight: 600; color: var(--ink-2) }
+  .tile[aria-pressed="true"] .l { color: var(--accent-ink) }
+
+  .hint { font-size: 13px; color: var(--ink-3); margin-top: 10px }
+
+  /* sections */
+  section.group { margin-top: 36px }
+  .ghead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px }
+  .ghead .count { font-size: 12px; color: var(--ink-3); font-weight: 600 }
+
+  .page { margin-top: 18px }
+  .pname {
+    font-family: "Space Grotesk", sans-serif; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+    background: var(--surface-2); border: var(--bw) solid var(--line);
+    border-radius: 999px; padding: 4px 12px; display: inline-block;
+  }
+
+  .items { display: flex; flex-direction: column; gap: 10px; margin-top: 10px }
+  .item {
+    background: var(--surface); border: var(--bw) solid var(--line); border-radius: var(--r);
+    padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 6px 16px;
+  }
+  .item .said { grid-column: 1; min-width: 0 }
+  .item .chip { grid-column: 2; grid-row: 1; align-self: start }
+  .item .detail { grid-column: 1 / -1; min-width: 0 }
+  .said q { font-style: normal; color: var(--ink); font-weight: 500 }
+  .said q::before { content: "\201C" }
+  .said q::after { content: "\201D" }
+  .detail { font-size: 14px; color: var(--ink-2); margin-top: 4px }
+  .detail .ev { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 5px }
+  .detail code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 4px; padding: 0 4px }
+
+  .chip {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent;
+  }
+  .chip.done { background: var(--done-bg); color: var(--done); border-color: var(--done) }
+  .chip.partly { background: var(--partly-bg); color: var(--partly); border-color: var(--partly) }
+  .chip.answered { background: var(--answered-bg); color: var(--answered); border-color: var(--answered) }
+  .chip.open { background: var(--open-bg); color: var(--open); border-color: var(--open) }
+  .chip.todo { background: var(--todo-bg); color: var(--todo); border-color: var(--todo) }
+  .chip.check { background: var(--check-bg); color: var(--check); border-color: var(--check) }
+
+  /* Your own verdict, kept apart from mine: my chip sits top-right, yours
+     sits under the detail behind a label, so the two are never confused. */
+  .yours {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line-soft);
+  }
+  .yours .lbl {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); margin-right: 2px;
+  }
+  .mark, .notebtn {
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--line-soft); background: var(--surface-2); color: var(--ink-2);
+  }
+  .mark:hover, .notebtn:hover { border-color: var(--line); color: var(--ink) }
+  .mark[aria-pressed="true"] { background: var(--accent); border-color: var(--line); color: var(--accent-ink) }
+  .mark[data-mark="wont"][aria-pressed="true"] { background: var(--check-bg); color: var(--ink); border-color: var(--ink-3) }
+  .notebtn[aria-expanded="true"] { border-color: var(--line); color: var(--ink) }
+  .saved { font-size: 11.5px; color: var(--ink-3) }
+  /* A done item is out of the way, not gone: a quarter opacity reads as
+     "dealt with" at a glance, and hovering or focusing it brings it back to
+     full so it stays readable when you want to check one. */
+  .item.resolved { opacity: 0.25; transition: opacity .12s ease }
+  .item.resolved:hover, .item.resolved:focus-within { opacity: 1 }
+  .page.allresolved > .pname { opacity: 0.35 }
+  .page.allresolved:hover > .pname { opacity: 1 }
+
+  .noteWrap { grid-column: 1 / -1; margin-top: 8px }
+  .noteActions { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap }
+  .noteActions .primary {
+    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    padding: 5px 14px; border-radius: 999px;
+    border: var(--bw) solid var(--line); background: var(--accent); color: var(--accent-ink);
+  }
+  .noteActions .primary:disabled { opacity: 0.45; cursor: default }
+  .noteActions .ghost {
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--line-soft); background: transparent; color: var(--ink-2);
+  }
+  .noteActions .hint2 { font-size: 11.5px; color: var(--ink-3) }
+  .noteWrap textarea {
+    width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 14px;
+    padding: 9px 11px; border-radius: 10px; color: var(--ink);
+    border: var(--bw) solid var(--line-soft); background: var(--surface-2);
+  }
+  .noteWrap textarea:focus { outline: none; border-color: var(--accent) }
+  .notetext {
+    grid-column: 1 / -1; margin-top: 8px; font-size: 14px; color: var(--ink);
+    background: var(--surface-2); border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: 8px 12px; white-space: pre-wrap;
+  }
+  .notetext .who { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; margin-bottom: 2px }
+
+  .replytext {
+    grid-column: 1 / -1; margin-top: 8px; font-size: 14px; color: var(--ink);
+    background: var(--answered-bg); border-left: 4px solid var(--answered);
+    border-radius: 0 8px 8px 0; padding: 8px 12px; white-space: pre-wrap;
+  }
+  .replytext .who { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--answered); font-weight: 700; margin-bottom: 2px }
+
+  /* The exchange. Yours sits left with the accent rule, mine is indented and
+     blue, so a long back-and-forth reads as two voices rather than a wall. */
+  .thread { grid-column: 1 / -1; margin-top: 8px; display: flex; flex-direction: column; gap: 6px }
+  .msg {
+    font-size: 14px; color: var(--ink); white-space: pre-wrap;
+    border-radius: 0 8px 8px 0; padding: 8px 12px;
+  }
+  .msg .who { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 2px }
+  .msg.you { background: var(--surface-2); border-left: 4px solid var(--accent) }
+  .msg.you .who { color: var(--ink-3) }
+  .msg.claude { background: var(--answered-bg); border-left: 4px solid var(--answered); margin-left: 18px }
+  .msg.claude .who { color: var(--answered) }
+  @media (max-width: 520px) { .msg.claude { margin-left: 0 } }
+
+  /* Who the ball is with, on the row itself, because the thread may be
+     collapsed under a done item or far down a long page. */
+  .waiting {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    background: var(--answered-bg); color: var(--answered); border: 1px solid var(--answered);
+  }
+  .waiting.onme { background: var(--partly-bg); color: var(--partly); border-color: var(--partly) }
+
+  .progress {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 14px; padding: 12px 14px;
+    background: var(--surface); border: var(--bw) solid var(--line); border-radius: var(--r);
+  }
+  .progress .bar { flex: 1; min-width: 140px; height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line-soft); overflow: hidden }
+  .progress .bar i { display: block; height: 100%; background: var(--accent); width: 0 }
+  .progress .txt { font-size: 13px; color: var(--ink-2); font-weight: 600 }
+  .mine { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center }
+  .mine .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3) }
+  .mine button {
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 11px;
+    border-radius: 999px; border: 1px solid var(--line-soft); background: var(--surface); color: var(--ink-2);
+  }
+  .mine button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+
+  .callout {
+    background: var(--surface-2); border: var(--bw) solid var(--line); border-left-width: 8px;
+    border-left-color: var(--accent); border-radius: var(--r); padding: 16px 18px; margin-top: 22px;
+  }
+  .callout h3 { margin-bottom: 6px }
+  .callout p { color: var(--ink-2); font-size: 14px }
+  .callout p + p { margin-top: 8px }
+
+  ul.plain { margin: 8px 0 0; padding-left: 20px; color: var(--ink-2); font-size: 14px }
+  ul.plain li { margin-bottom: 5px }
+
+  footer { margin-top: 48px; padding-top: 18px; border-top: var(--bw) solid var(--line); font-size: 13px; color: var(--ink-3) }
+
+  @media (max-width: 520px) {
+    .item { grid-template-columns: 1fr }
+    .item .chip { grid-column: 1; grid-row: auto; justify-self: start }
+    .item .said { order: 1 } .item .chip { order: 2 } .item .detail { order: 3 }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">October Marketing Intelligence</p>
+    <h1>Every note, and what happened to it</h1>
+    <p class="lede">Your two page-by-page reviews, item by item, against what is actually in the code on <code>main</code> today. Nothing here is taken on trust from a task list: each line says where the evidence is, and anything I could not confirm says so rather than claiming a tick.</p>
+    <dl class="meta">
+      <div><dt>Reviews covered</dt><dd>30 Oct (Paid) · 31 Oct (61 items) · 1 Nov</dd></div>
+      <div><dt>Audited against</dt><dd>main at 6c95dad, deployed</dd></div>
+      <div><dt>Triage record</dt><dd>docs/omi/review-31-oct.md</dd></div>
+      <div><dt>Date</dt><dd>1 November 2026, updated 13:20</dd></div>
+    </dl>
+  </header>
+
+  <div class="rule"></div>
+
+  <div class="tally" id="tally"></div>
+  <p class="hint">Tap a figure to show only those. Tap it again to show everything.</p>
+
+  <div class="progress" id="progress" hidden>
+    <span class="txt" id="progressTxt">Loading your marks…</span>
+    <span class="bar"><i id="progressBar"></i></span>
+    <button type="button" class="ghost" id="toggleDone" style="white-space:nowrap">Show done</button>
+  </div>
+  <div class="mine" id="mineRow" hidden>
+    <span class="lbl">Your call</span>
+    <button type="button" data-mine="unmarked" aria-pressed="false">Not yet reviewed</button>
+    <button type="button" data-mine="done" aria-pressed="false">Agreed done</button>
+    <button type="button" data-mine="open" aria-pressed="false">Still open</button>
+    <button type="button" data-mine="wont" aria-pressed="false">Won't do</button>
+    <button type="button" data-mine="noted" aria-pressed="false">Has a comment</button>
+    <button type="button" data-mine="answered" aria-pressed="false">Answered, check again</button>
+    <button type="button" data-mine="onme" aria-pressed="false">Waiting on me</button>
+  </div>
+  <p class="hint" id="signedOut" hidden>Sign in to claude.ai on this page to tick items off and leave comments. Without it the audit still reads, it just cannot remember anything.</p>
+
+  <div class="callout">
+    <h3>Read this first</h3>
+    <p><strong>Updated 1 November, after eleven commits merged and deployed.</strong> Nine items on this page moved; the new group at the bottom covers what shipped that was never on your list. The one to read first is the GoTo bug: Owned has been reporting “not in the top 50” for pages ranking at number four since the end of August, and nothing on the screen said so.</p>
+    <p><strong>One thing you reported was broken and is now fixed.</strong> The social report download failed with <code>column "captured_at" does not exist</code>. The query asked for a timestamp by the wrong name and for a column that has never existed. Fixed, with a guard that now reads the schema out of the migrations and checks every social query against it, so this class of fault cannot ship silently again.</p>
+    <p><strong>Three of your decisions were revisited and reversed, by you, once the explanations existed.</strong> The Shared autopilot and Earned Measure were both first marked "delete"; with the mechanics in front of you the calls changed to keep-it-off-by-default and fold-the-total-into-Coverage. Those are recorded as delivered against the revised decision, not the first one.</p>
+    <p><strong>The items marked "Not done" are not oversights I am hiding.</strong> They are mostly the tail the sweeps did not reach and the three questions that needed a product call. They are listed plainly so you can decide what is next.</p>
+  </div>
+
+  <div id="body"></div>
+
+  <footer>
+    Statuses: <strong>Delivered</strong> is in the code and verified. <strong>Partly</strong> means the reported fault is fixed but part of the ask is not built. <strong>Answered</strong> means the item was a question, answered in the triage document, with nothing to build. <strong>Decided, not built</strong> means we agreed what happens and it is still queued. <strong>Not done</strong> is exactly that. <strong>Check on screen</strong> means the code does not tell me either way and a look at the page will.
+  </footer>
+</div>
+
+<script>
+const LABELS = {
+  done: 'Delivered',
+  partly: 'Partly',
+  answered: 'Answered',
+  open: 'Decided, not built',
+  todo: 'Not done',
+  check: 'Check on screen',
+};
+const ORDER = ['done','partly','answered','open','todo','check'];
+
+const DATA = [
+ { group: 'The 31 October review', note: 'Sixty-one items across nine sections.', pages: [
+
+  { page: 'Earned › Track', items: [
+    { said: 'Coverage — the sort is wrapping on the next line. Maybe move the search and sort to the line below?', s: 'done',
+      d: 'Search and sort moved to their own row.', ev: 'Commit “Fix six dead links, the wrapping coverage sort, and make search find settings”.' },
+    { said: 'When I click on publications and journalists, can the modal be 80% wide? It’s too narrow.', s: 'done',
+      d: 'Both profile modals widened in the design sweep.', ev: 'Commit “Design sweep: profile modals, the Database lists, the search box, templates”.' },
+  ]},
+
+  { page: 'Earned › Build — Monitor', items: [
+    { said: 'Can you remove Forgeworks from the placeholder, that’s exposing one of my clients to others.', s: 'done',
+      d: 'Three placeholders named real clients, not one. The third, in <code>IgOutreachPanel</code>, named Atlanta Design Festival and your review had not caught it. All three now use invented names.', ev: 'Commit “Stop placeholders naming real clients, and triage the 31 Oct review”.' },
+    { said: 'Can the rss field be wider and the query smaller? The Add search button needs to be aligned with the row.', s: 'done',
+      d: 'Field widths swapped and the button pulled onto the track floor. The alignment had a cause worth knowing: <code>.field</code> carries a 16px bottom margin, which lifts an input off the grid floor while a button with no margin sits on it.', ev: 'Commit “Design sweep: Earned forms, Releases header, Fix buttons, the Record list”.' },
+  ]},
+
+  { page: 'Earned › Build — Contacts', items: [
+    { said: 'Can we move thank-yous to a new page after campaigns?', s: 'done',
+      d: 'Its own row, placed after Campaigns rather than before Find, because a thank-you is owed once a campaign lands.', ev: 'Commit “Earned: thank-yous get their own screen, after Campaigns”; <code>nav/sections.js</code> Build group.' },
+    { said: 'Can the list of contacts also have all the same functions as the database allowing me to find, sort, edit etc?', s: 'todo',
+      d: 'Still not built <em>here</em>. The Database → Journalists list did get it on 1 November: sort on every column worth sorting, on the server, because the library holds 21,000 contacts and the list draws 200, so sorting in the browser orders the page and calls it the library. This client-scoped table is a different component and has none of it. The job now is to mount the same one in both places.', ev: 'Database side: PR #1913. Earned → Contacts: unchanged.' },
+  ]},
+
+  { page: 'Earned › Build — Find', items: [
+    { said: 'It’s not clear to me if this adds to the main database or just the client?', s: 'done',
+      d: 'The screen says it now, which was the actual complaint. All three buttons read <strong>Add to DB + client</strong>, because approving writes the journalist into the shared media database (reusing the row if that email is already there) and attaches them to this client. An AM adding forty names is entitled to know they are adding them to everyone’s database too. The guard checks the label against the route, so it cannot outlive the behaviour.', ev: '1 Nov, PR #1913; <code>tests/review-batch-small.test.js</code>.' },
+  ]},
+
+  { page: 'Earned › Build — Releases', items: [
+    { said: 'Can the writing standard doc be in the drawer?', s: 'done', d: 'Moved into the drawer.', ev: 'Commit “Design sweep: Earned forms, Releases header, …”.' },
+    { said: 'The All releases button should probably sit top left outside of the box with a back arrow?', s: 'done',
+      d: 'Top-left with a back arrow since the sweep, but it was still <em>inside</em> the card until 1 November, which is not what you asked for: a way out drawn inside the thing it leaves reads as part of the record. The page draws it now, above the card, and the editor’s own copy is gone so there is one way out rather than two.', ev: '1 Nov, PR #1913.' },
+    { said: 'The title of the release should be larger font size?', s: 'done',
+      d: 'It was wearing <code>.h3</code>, which is 14px, the same size as body text, so the name of the thing you were editing was the quietest line on the screen. Now 24px.', ev: 'Same commit; the <code>.h3</code> trap is recorded in the agent guide.' },
+  ]},
+
+  { page: 'Earned › Build — Campaigns', items: [
+    { said: 'Can this have a Build button and Results button?', s: 'done', d: 'Both, side by side with “Back to campaigns”.', ev: 'Commit “Campaigns: four columns, two ways in, results on the house tile”.' },
+    { said: 'Inside a specific campaign, this is a really messy design.', s: 'done', d: 'Reshaped to four columns with two clear ways in.', ev: 'Same commit.' },
+    { said: 'Backlink attribution could be in a row like the new earned contribution line?', s: 'done', d: 'Per-campaign attribution now reads as a row on Results.', ev: 'Same commit.' },
+    { said: '“Set up & send” button should read “Build”.', s: 'done', d: 'Renamed, and placed beside “Back to campaigns” with “Results” next to it.', ev: 'Same commit.' },
+    { said: 'On results, I think we need white backgrounds on the boxes? And perhaps bentos for results like paid pages?', s: 'done', d: 'Results now sit on the house tile, same as the Paid bentos.', ev: 'Same commit.' },
+  ]},
+
+  { page: 'Earned › Build — Match', items: [
+    { said: 'Shall we move this above Find?', s: 'done',
+      d: 'Done, and the order reads better for it: Match asks the book you already have, Find goes looking for new names, so Find is the fallback rather than the opening move.', ev: '<code>nav/sections.js</code> lines 171–172.' },
+    { said: 'Find journalists button should be below both fields?', s: 'done', d: 'Moved beneath both fields.', ev: 'Commit “Design sweep: Earned forms, …”.' },
+  ]},
+
+  { page: 'Earned › Measure', items: [
+    { said: 'I don’t think we need this — it can be added to each campaign results page?', s: 'done',
+      d: 'Your first call was delete. That would have lost the one figure only this screen held: backlink value <em>across</em> campaigns. The revised call was to fold it in. Three tiles now sit at the top of Coverage, where Earned opens: outlets that linked back, outlets approached, hit rate. The Measure group, its Reports row and <code>PrBacklinkRoi</code> are deleted.', ev: 'Commit “Autopilot off by default, and Earned’s total moves to Coverage”; <code>PrBacklinkTotal</code>.' },
+  ]},
+
+  { page: 'Shared › Capture — Reddit', items: [
+    { said: 'It feels like suggest subreddits is the main call to action… can this be in the one click setup?', s: 'done', d: 'Suggest subreddits is the first action and runs from setup.', ev: 'Commit “Shared: the subreddits come first, and they are stored”.' },
+    { said: 'Could this be a table below that I can add the focus and window and research?', s: 'done', d: 'Chips became a stored table with focus, window and research per row. Chips were the wrong shape for something you then configure.', ev: 'Same commit.' },
+  ]},
+
+  { page: 'Shared › Create — Ideas', items: [
+    { said: 'This is labelled Ideas in the nav, but the step is Create. Can you make the nav and steps the same?', s: 'done',
+      d: 'Every row is now named after the step it opens. Step 2 became <strong>Refine</strong>, not Review, because Measure already owns a screen called Review at slug <code>review</code>; that was your call. “Workbench” opened step 1 because <code>reels</code> resolved to the avatar overlay, and Plan and Publish were two rows onto one screen. Both fixed.', ev: '<code>nav/sections.js</code> Create group.' },
+    { said: 'Is this first step "Generate"?', s: 'answered', d: 'It is. Step 1 is “Brief &amp; generate”.', ev: 'docs/omi/review-31-oct.md, 3.3.' },
+    { said: 'Can the brief text field be 100% wide, and then the options below that?', s: 'done',
+      d: 'Both halves, and driven rather than grepped this time. The brief takes the full width with the three option rows under it, and each row now fills the card in equal columns: “Short / Medium / Long” was sitting in the left third while the four platforms wrapped unevenly. An option you had not picked also looked like no option at all, because <code>.tab</code>’s resting state is transparent with a transparent border, so the unpicked ones read as labels. They are grey with a border now.', ev: '1 Nov, PR #1913; <code>tests/layout-three.test.js</code>, 24 browser assertions.' },
+  ]},
+
+  { page: 'Shared › Create — Review', items: [
+    { said: 'Can I edit text as well as refine with Claude?', s: 'done',
+      d: 'Yes. And it taught us something: two things editing one field needs the “I changed this” test to compare against the value <em>at focus</em>, not the draft, or the warning fires on every keystroke. <code>utils/fieldEdit.js</code> holds that rule.', ev: 'Commit “Shared: a post field you can just type in”.' },
+    { said: 'Approval link — can this mockup look like the platform and toggle between platforms?', s: 'done', d: 'Reuses <code>AdPlatformPreview</code>, which Paid had already paid for.', ev: 'Commit “Shared: the approval page shows posts the way the platform will”.' },
+    { said: 'Can I uncheck posts I don’t want a client to see, and also this filters the list that should appear on the next step?', s: 'done', d: 'Both halves.', ev: 'Commit “Shared: ticking posts on Review decides what the next step takes”.' },
+    { said: 'Should the approval link be next to DM bot?', s: 'check', d: 'Button placement. Not named in any commit; check where it sits now.', ev: '—' },
+  ]},
+
+  { page: 'Shared › Create — Produce', items: [
+    { said: 'How can I take a post idea and produce it from that page? If I can see the checked posts from the step before with the produce options?', s: 'done', d: 'Produce opens with the posts you ticked, production options on them.', ev: 'Commit “Shared: Produce opens with the posts you ticked”.' },
+    { said: 'And remove the produce options from the step before?', s: 'done', d: 'Off Review, onto Produce.', ev: 'Same commit.' },
+    { said: 'The old avatar reels I made aren’t showing anymore, they are blank videos and open in new tab says access denied.', s: 'done',
+      d: 'Root cause, not a patch: HeyGen’s presigned <code>video_url</code> was stored on the row, so the record survived and the file did not. OMI now fetches the bytes and keeps the provider link in <code>source_url</code>. The same fault appeared three times in one day (ad creative, avatar reels, library clips) and is now a written rule: if a provider returns a URL, OMI stores the file.', ev: 'Migrations 223–225; commit “Keep avatar reels and fix trending sounds”.' },
+    { said: 'New avatar reel is just part of the produce options?', s: 'done', d: 'One option among several rather than its own button.', ev: 'Commit “Shared: Produce opens with the posts you ticked”.' },
+  ]},
+
+  { page: 'Shared › Create — Schedule', items: [
+    { said: 'The autopilot is something I’ve never used. How does it work?', s: 'answered',
+      d: 'A cron every five minutes picks up any plan whose time has passed and publishes it; at 08:00 it emails yesterday’s digest. Idempotent, so a failure retries and a published row is skipped. Roughly 1,030 lines across three services and two tables.', ev: 'docs/omi/review-31-oct.md, 4.4.' },
+    { said: 'Do we just remove all of that?', s: 'done',
+      d: 'You said delete, then changed it once you knew what it was: keep it, with no client on it unless that is deliberate. Worth knowing why that mattered — <code>social_autopilot_paused</code> defaulted to <em>false</em>, so every client created since migration 046 was on a cron that posts to Instagram, Facebook and LinkedIn without anyone clicking go. Migration 227 flips the default and pauses every existing client. Nothing deliberately live was switched off; it had never run.', ev: 'Migration 227; <code>tests/autopilot-off.test.js</code> in CI.' },
+    { said: 'Allow me to download the assets and schedule? Like we did for Paid?', s: 'done', d: 'The batch download is how Shared is worked, and the Schedule step says so.', ev: 'Commit “Shared: download the batch and post it yourself”.' },
+  ]},
+
+  { page: 'Shared › Discover', items: [
+    { said: 'This is a loose page, shall we move to Capture?', s: 'done',
+      d: 'Into Capture. It had a group of its own with no heading, which is a row floating between Create and Measure belonging to neither. Three ways material comes in: Swipe is what you saved, Reddit is where you go looking, Discover is the feed bringing it to you.', ev: 'Commit “Shared: Discover joins Capture, and a guard on a slug that names another row”.' },
+  ]},
+
+  { page: 'Shared › Measure — Review', items: [
+    { said: 'This would be amazing if it could pull in data. How can we do that?', s: 'done',
+      d: 'Instagram is reachable and is built: the report reads the connected account’s own feed and marks each post as ours or not. LinkedIn is not, and not for want of code — OMI connects as a <em>member</em>, and reading an organisation’s posts needs <code>r_organization_social</code>, which needs an admin role on the client’s page plus LinkedIn’s approval. There is no list-my-posts endpoint for a member token at all. So LinkedIn and TikTok figures are named in the report as OMI’s own record, which is the honest thing to print.', ev: 'Commit “Shared: the downloadable social report, over the account and not just us”; commit “Record why the report names LinkedIn as OMI’s own record”.' },
+    { said: 'I’d love to build a social media report I can download and send to clients.', s: 'done',
+      d: 'Built, and it is the thing that failed for you today. The lateral picking each post’s latest engagement snapshot ordered by <code>captured_at</code>; the column is <code>fetched_at</code>. Fixed, with a guard reading the schema out of the migrations.', ev: 'PR #1905.' },
+    { said: 'Or schedule and send to clients?', s: 'open',
+      d: 'Decided as downloadable first, scheduling once the content is right. Not built. The report machinery already renders and sends, so it is a small tail rather than a build.', ev: 'docs/omi/review-31-oct.md, Group 5, decision 2.' },
+    { said: 'Do we move competitors to a new page?', s: 'done', d: 'Competitors left Review for Compare.', ev: 'Commit “Shared: competitors leave Review for Compare”.' },
+  ]},
+
+  { page: 'Shared › Measure — Learn', items: [
+    { said: 'Claude analyses all posts that month, what data it can pull, what worked, what didn’t, what to do more of.', s: 'partly',
+      d: 'The report carries Claude’s read on what worked and what did not. What is not done is the consolidation: your own conclusion was that Measure, Learn and Improve are one live report, not three pages, and all three screens still exist.', ev: 'Report built; <code>nav/sections.js</code> Measure group still lists Review, Learn, Hook vault, Compare, Improve.' },
+    { said: 'Perhaps it can monitor social network news RSS so it can suggest things based on new features or changes?', s: 'todo', d: 'Not built.', ev: 'No RSS ingest for platform news exists.' },
+    { said: 'Hook vault — I’ve never understood this.', s: 'done',
+      d: 'My recommendation was to delete it. Your call was the opposite, and it was the right one: it was a button on Learn opening a modal of sentences with no explanation of what a hook is or why you would reuse one. It is now a page that explains itself, with example content. The lesson, written down: a feature nobody understands may be unexplained rather than unwanted.', ev: 'Commit “Shared: the hook vault becomes a page that explains itself”.' },
+  ]},
+
+  { page: 'Shared › Measure — Compare', items: [
+    { said: 'Competitors could be added with one click setup?', s: 'done', d: 'In setup, among the priced scans.', ev: 'Commit “Setup: the nine scans, with their prices, and you run the ticked ones”.' },
+    { said: 'Also trending sounds refreshed weekly?', s: 'done', d: 'Weekly, cached, with the refresh count on the bar.', ev: '<code>TrendingSoundsBar</code>, “refreshed weekly”.' },
+    { said: 'Clicking the sound opened a page access denied.', s: 'done', d: 'Same expiring-link fault. A sound now opens its TikTok page.', ev: 'Commit “Keep avatar reels and fix trending sounds”.' },
+    { said: 'I need to know what to search on TikTok or Instagram to find that sound.', s: 'done', d: 'The bar now says: search its name and artist in TikTok or Instagram.', ev: '<code>TrendingSoundsBar</code>, closing line.' },
+    { said: 'Perhaps it can be a table with a play button and play the sound inline?', s: 'todo', d: 'Not built. Still chips, and no inline audio.', ev: '<code>TrendingSoundsBar</code> renders pill links, no <code>&lt;audio&gt;</code>.' },
+  ]},
+
+  { page: 'Shared › Measure — Improve', items: [
+    { said: 'This is all the same report really — just wrapped into something that is learning from live posts.', s: 'todo',
+      d: 'Agreed in triage and not done. Improve is still its own screen. This and the Learn consolidation are one job.', ev: '<code>nav/sections.js</code> Measure group.' },
+  ]},
+
+  { page: 'Owned › Watch — Authority', items: [
+    { said: 'Does this fetch each month on the last day, ready for the report on the 1st? Can it.', s: 'done',
+      d: 'Your “I think it worked” was right and my first answer was wrong: the fetch existed. What neither of us had spotted was the collision — it ran at the same hour as the monthly reports, so the report could render before the figure landed. It now runs at 22:00 on the last evening of the month, whichever date that is, read in the platform timezone so BST does not shift it.', ev: '<code>utils/monthEnd.js</code>; <code>tests/month-end.test.js</code>, 7 guards.' },
+  ]},
+
+  { page: 'Owned › Fix', items: [
+    { said: 'Quick wins — the done and skip buttons need to be from the existing design styles.', s: 'done',
+      d: 'Both onto the house styles. Four of the buttons in these two panels were not styled buttons at all: a row action with its vertical padding removed reads as coloured text.', ev: 'Commit “Design sweep: Earned forms, Releases header, Fix buttons, the Record list”.' },
+    { said: 'CTR boost — the rewrite button also needs to match design styles.', s: 'done', d: 'Same pass.', ev: 'Same commit.' },
+    { said: 'AI SEO — could this be in the one click setup?', s: 'done', d: 'In the nine priced scans.', ev: 'Commit “Setup: the nine scans, with their prices, and you run the ticked ones”.' },
+  ]},
+
+  { page: 'Owned › Local — all seven scans', items: [
+    { said: 'Gap, Schema, Buyer-Intent Keyword Sniper, Business vs Competitor X-Ray, GBP Ranking Playbook, Ranking Outliers, Google Business Profile Posts — could these be in the one click setup / scan the site on click setup?', s: 'done',
+      d: 'Seven of your items, one decision, and it was a cost decision rather than a design one. Setup used to seed four worked examples for a few pence; nine scans on the first click is real money with no way to tell which you wanted. Setup now shows the nine with their prices and runs the ticked ones, the same way the Paid Brief step names what each button costs.', ev: 'Commit “Setup: the nine scans, with their prices, and you run the ticked ones”.' },
+  ]},
+
+  { page: 'Convert › CRO', items: [
+    { said: 'Shall we rename this page Optimise?', s: 'done',
+      d: 'Renamed, slug and all. The rename had a tail: two in-app links and one the backend readiness check generates all had to move, which is the dead-link class we now guard for.', ev: '<code>nav/sections.js</code>: <code>{ tab: \'cro\', label: \'Optimise\', slug: \'optimise\' }</code>.' },
+    { said: 'Funnel health doesn’t seem to say much on Falcon as it has too many sites.', s: 'todo',
+      d: 'Not done, and this is the real item of the two. The page needs a site selector before it needed a new name. The rename shipped; the selector did not.', ev: 'No site selector on the Optimise screen.' },
+  ]},
+
+  { page: 'Convert › Email', items: [
+    { said: 'I think this needs some clearer description of what this does and what it’s for. I’m not sure where to start and what I’m achieving here.', s: 'todo',
+      d: 'Not done. The triage named this as the real finding and said what it needs: the line the Paid Brief step got, saying what comes out of the page.', ev: 'No change to the Email screen’s copy.' },
+    { said: 'Do we make EMAIL a section, and then all the steps are listed in the nav? And find leads is its own page?', s: 'todo',
+      d: 'Not done. Email is still a single row in Convert alongside Optimise and Forms.', ev: '<code>nav/sections.js</code> convert group.' },
+  ]},
+
+  { page: 'Produce › Video', items: [
+    { said: 'Make a reel should just be "Video".', s: 'done', d: 'Renamed.', ev: 'Commit “Rename: Make a reel becomes Video, CRO becomes Optimise”.' },
+    { said: 'The "See the same reel in six styles" button feels like it’s in the wrong place — doesn’t it need some content first?', s: 'done',
+      d: 'Right, and it is now a step inside the flow rather than a button with nothing to act on. The page runs Footage → Edit → Tighten → B-roll → Finish, any step skippable.', ev: '<code>pages/MakeAReel.jsx</code> <code>STEPS</code>.' },
+    { said: 'So maybe instead of a button we have a drag/drop or click to upload field to bring in all footage. And we can upload loads of clips.', s: 'partly',
+      d: 'The page now opens on a Footage step mounting the asset library, so footage comes first. A dedicated multi-clip drag-and-drop on this page is not there.', ev: '<code>MakeAReel.jsx</code> mounts <code>AssetLibrary</code>; no drop target of its own.' },
+    { said: 'When I clicked on an old clip it said "That clip is not on this server any more."', s: 'done',
+      d: 'Third instance of the expiring-link fault, and the honest half of it: the editor refused a source it could not open rather than failing later. Library clips are now stored, and Edit stopped refusing the ones that work.', ev: 'Migration 225; commit “Keep the library’s clips, and stop Edit refusing the ones that work”.' },
+  ]},
+
+  { page: 'Produce › Record', items: [
+    { said: 'Can the settings remember last used settings?', s: 'done',
+      d: 'Yes, per browser. It also replaced the eighth hand-rolled copy of read-localStorage-then-write-it, two of which had no <code>try/catch</code> — including <code>ApprovePage</code>, the page a client opens from an email and the likeliest to be opened in a private window, where an unguarded read throws during render and the page goes blank.', ev: '<code>hooks/usePersistedState.js</code>; <code>RecordingsPage.jsx</code>.' },
+    { said: 'Import from Loom could be in the drawer?', s: 'done', d: 'In the drawer.', ev: 'Commit “Design sweep: Earned forms, Releases header, Fix buttons, the Record list”.' },
+    { said: 'The videos list doesn’t need a chip saying the client name, it’s only showing within a client.', s: 'done', d: 'Chip gone.', ev: 'Same commit.' },
+    { said: 'Rename could be a pencil icon next to the name, not a button.', s: 'done', d: 'A pencil.', ev: 'Same commit.' },
+    { said: 'Open needs to be the yellow button on each row?', s: 'done',
+      d: 'Yes, and it is the one exception to the rule the sweep set: twenty rows with a primary in each is twenty primaries, so row actions are secondary and the labels carry the difference. A row whose single job is to open the record earns the yellow.', ev: 'Same commit; rule in the agent guide.' },
+  ]},
+
+  { page: 'Produce › Edit', items: [
+    { said: 'When I brought a recording to edit, it’s not clear what I do? There is only a render button… it just generated the exact same video.', s: 'done',
+      d: 'This was the accurate diagnosis and it drove the whole build. The edit is now an object you can see: a timeline with blocks you drag and trim, a filmstrip of stills along each block, a waveform in decibels under it, cross-fades between clips, positioned text with in and out times, and a render queue with progress, a stage and a Stop. Six of the spec’s seven parts, in six sessions against a 14-to-20 estimate.', ev: 'Seven PRs, #1898–#1904.' },
+    { said: 'Is it possible for this page to work like CapCut does?', s: 'partly',
+      d: 'Scoped first, as you asked, then built. <code>docs/omi/video-timeline-spec.md</code> put it at seven parts and 14 to 20 sessions against 3 to 3.5 for the cheap fix, and you chose the build. What is left is the frame-accurate preview, which you have asked for on WebCodecs. Two to three sessions.', ev: 'docs/omi/video-timeline-spec.md; part 2.2 outstanding.' },
+    { said: 'Are there any GitHub repos available to import an entire video editing suite? [four links]', s: 'answered',
+      d: 'All four checked, none usable. WeftCut is an Electron desktop app, not a browser component. free247editor is an agent skill with no timeline UI. Kiwi-Edit is a Python research model needing GPUs and has no interface. storytold/filmcraft was not discoverable. Two of the four are not editors at all in the sense you meant.', ev: 'docs/omi/review-31-oct.md, 7.2.' },
+    { said: 'Is this best combined with the first page? It feels like it’s doing the same thing.', s: 'todo',
+      d: 'Not merged. Arguably the right answer changed once the timeline existed: Video is where footage comes in and gets a reel made from it, Edit is where you cut. Worth your call now rather than mine.', ev: 'Both pages still exist.' },
+  ]},
+
+  { page: 'Produce › Library', items: [
+    { said: 'This seems to be missing things from Design.', s: 'todo', d: 'Not done.', ev: 'No commit addresses the gap.' },
+    { said: 'When I click on something it gives me options to cut pauses or plan B-roll — I think that’s in the wrong place, but it’s good to know it exists.', s: 'done',
+      d: 'Both are now steps in the Video flow (Tighten, B-roll) rather than hidden behind a Library thumbnail. Your own note is the reason: a tool nobody finds is a tool nobody has.', ev: '<code>MakeAReel.jsx</code> <code>STEPS</code>.' },
+    { said: 'Can Stable Video Diffusion / freeapihub / hairline be used for graphics carousels?', s: 'answered',
+      d: 'Stable Video Diffusion already runs here through Replicate on the Paid video path, with cost logging and a known provider. A third-party aggregator fronting the same model adds a dependency and a bill nobody can audit, for a capability already present. hairline could not be verified. Carousels are worth building and the Resize engine is the natural base.', ev: 'docs/omi/review-31-oct.md, 7.3.' },
+  ]},
+
+  { page: 'Settings › Connections', items: [
+    { said: 'Can we split this page into two pages? Models and AI, with the AI being the connections.', s: 'done', d: 'Split.', ev: 'Commit “Settings: Costs its own section, AI split, and Other dissolved”.' },
+    { said: 'Shall we make COSTS a section above CONNECTIONS, and move costs and usage, and models to it? And rename Costs & usage to Usage?', s: 'done', d: 'All three.', ev: 'Same commit.' },
+    { said: '"Other" — terrible name. If you can’t name something, it shouldn’t exist.', s: 'done',
+      d: 'Dissolved into individual pages. Your rule applied as stated, and the argument for it is simply that space is not scarce in a left-hand nav.', ev: 'Same commit.' },
+    { said: 'AI, Email, etc — do these need to be within a box? They don’t need to be collapsed anymore.', s: 'done',
+      d: 'Accordions off, and each connection in its own box. A sub-tab already shows one category, usually the only one, so the accordion had one thing to hide and hid it behind a click on arrival. The category is now a heading over a stack of boxes, one per connection, replacing a hairline rule between groups inside a single card where the boundary between Hunter and Serper was something you had to look for.', ev: '1 Nov, PR #1913; driven on three Settings screens.' },
+  ]},
+
+  { page: 'Settings › Tools and Account', items: [
+    { said: 'Strategy templates — can this be full width? Or 50% and edit opens on the other 50%?', s: 'done', d: 'Done in the sweep.', ev: 'Commit “Design sweep: profile modals, the Database lists, the search box, templates”.' },
+    { said: 'Security — can this be full width?', s: 'check', d: 'On the sweep list and not named in either sweep commit. One look at the page settles it.', ev: 'Not named in the sweep records.' },
+  ]},
+
+  { page: 'Database', items: [
+    { said: 'Journalists — Cleanup Centre — should this be in the drawer?', s: 'done', d: 'In the drawer.', ev: 'Commit “Design sweep: profile modals, the Database lists, the search box, templates”.' },
+    { said: 'Publications — can this layout be the same as journalists?', s: 'done',
+      d: 'Properly the same now. It was still a 300px picker rail with the profile squeezed into the remaining third — the shape for a short list you scan, not for 2,000 publications with six facts each, which were the thing you could not see. Full-width table with a column per fact, and the record opens in a modal, matching Journalists. The breadcrumb also stopped saying “Settings”.', ev: '1 Nov, PR #1913; 26 browser assertions.' },
+    { said: 'How does find websites and feeds button work? I think I have to select publications or not? Does this live in cleanup centre?', s: 'todo',
+      d: 'Not answered in the UI, which was the fix the triage named: a button whose behaviour has to be guessed is a button that does not say what it does.', ev: 'No wording change on the Publications screen.' },
+  ]},
+
+  { page: 'Biz dev › Leads', items: [
+    { said: 'There is a broken button that says All leads, but takes you to a blank page.', s: 'done',
+      d: 'Fixed, along with five others of the same class: a link generator that no longer matched the route table.', ev: 'Commit “Fix six dead links, the wrapping coverage sort, and make search find settings”.' },
+    { said: 'Can I archive leads and delete?', s: 'done',
+      d: 'Both, and they behave differently on purpose. Archive is a status change, so it is reversible: Restore on the row, and a “Show archived (N)” toggle, because archived leads sitting in the list meant the list was not the pipeline. Delete is permanent and takes the snapshot, the uploaded images, the call notes and the email history, so it asks you to type the company’s name. “1” is not a confirmation anybody has to read.', ev: '1 Nov, PR #1913; 21 browser assertions.' },
+  ]},
+
+  { page: 'Biz dev › Tenders', items: [
+    { said: 'How much does this cost?', s: 'answered',
+      d: 'Every tender run logs to <code>api_cost_events</code> under features starting <code>tender_</code>. The real figure is on the Costs page filtered by feature, which I would rather you read than I estimate. Free API feeds ingest daily at 06:30; the one paid source, web search, runs Mondays at 06:35.', ev: 'docs/omi/review-31-oct.md, 1.5.' },
+    { said: 'What happens to old tenders?', s: 'answered', d: 'Notices already past their closing date are skipped at ingest, so nothing accumulates.', ev: 'Same.' },
+    { said: 'The list seems to be empty.', s: 'open',
+      d: 'Not diagnosed. It is either no matches against the CPV codes in <code>tender/config.js</code> or an ingest failing quietly, and I cannot tell which without the production logs and a count on the table. One session to diagnose and report, before any work on it.', ev: 'Same.' },
+  ]},
+
+  { page: 'Search', items: [
+    { said: 'Can the search box be bigger?', s: 'done', d: 'Bigger.', ev: 'Commit “Design sweep: profile modals, the Database lists, the search box, templates”.' },
+    { said: 'I typed n8n and it found nothing. But that is in the settings connections. So I don’t think it’s searching enough.', s: 'done',
+      d: 'Correct, and the reason was structural: search covered eight record tables plus the 91 screens from <code>nav/sections.js</code>. A credential label like n8n is neither — it lives in a constant. The settings catalogue is now indexed by scanning the whole frontend for settings keys rather than one named file, so every credential and connector is findable by name and lands on its screen.', ev: 'Commits “Fix six dead links…” and “Scan the whole frontend for settings keys, not one named file”.' },
+  ]},
+
+ ]},
+
+ { group: 'The 30 October review', note: 'Strategist, SOSTAC, Connectors and the Paid pages.', pages: [
+
+  { page: 'Strategist and SOSTAC', items: [
+    { said: 'When empty, should it show an example? Or explain what the strategist helps with?', s: 'done', d: 'Empty states on every step with no brief, plus four worked examples seeded at client setup.', ev: 'Tasks 22 and 23.' },
+    { said: 'This is very useful but I think each note needs more explanation. A step by step guide what to do.', s: 'done', d: 'A how-to on every item.', ev: 'Task 63.' },
+  ]},
+
+  { page: 'Connectors', items: [
+    { said: 'Can we add Stripe? Architecture Tours and Atlanta Design Festival use a custom cart using Stripe.', s: 'done', d: 'Connector built, with the brief for the cart agent written up.', ev: 'Task 62; docs/omi/stripe-connector.md.' },
+  ]},
+
+  { page: 'Paid › Build — Brief', items: [
+    { said: 'I think the goal of this page needs more work. What am I briefing it to do?', s: 'done', d: 'The page says what it produces, and the form became the page rather than a form on it.', ev: 'Tasks 20 and 64.' },
+    { said: 'I don’t know what one batch or variant matrix means. What is the difference between preview a sample and generate?', s: 'done', d: 'Each button now names what it does and what it costs.', ev: 'Task 56.' },
+    { said: 'The past briefs doesn’t seem to do anything.', s: 'done',
+      d: 'It did nothing visible: clicking a card selected the batch and left you on the same screen. It opens the batch now. Worth recording that my first attempt at this added copy explaining the behaviour instead of changing it, which is why you reported it twice.', ev: 'PR #1912; <code>tests/paid-past-briefs.test.js</code>, 5 guards.' },
+  ]},
+
+  { page: 'Paid › Build — Draft', items: [
+    { said: 'Instead of Refine with Claude, should it be Edit? And edit should be a modal, not a new page? And allow me to edit the text myself.', s: 'done', d: 'A modal, and you type into it directly.', ev: 'Task 58; <code>ConceptEditModal</code>.' },
+    { said: 'The chips need tooltips as I don’t know what things like AIDA mean.', s: 'check', d: 'Not separately named. Hover one and see.', ev: '—' },
+  ]},
+
+  { page: 'Paid › Build — Render, Approve, Launch', items: [
+    { said: 'Shall we collapse the text here? On this page I’d like to be able to uncheck any ads I don’t want the client to see.', s: 'done', d: 'Both.', ev: 'Task 65.' },
+    { said: 'Do we just remove this step and add a button to copy client approval link? Can the images be larger, click to enlarge, and look like the platform with chips to toggle?', s: 'done', d: 'Approve became a button beside the playbook, and the client page got the platform previews.', ev: 'Task 61.' },
+    { said: 'Perhaps this is a way to download all ad creative and a spreadsheet of copy, so it can be built manually?', s: 'done', d: 'Launch exports the batch.', ev: 'Task 59.' },
+  ]},
+
+  { page: 'Paid › Research', items: [
+    { said: 'Suggest competitors should be part of the setup one click. Look up is confusing language. Should this list be a table? The table should remain when I click away and come back.', s: 'done', d: 'One source of suggestions, a table, and it persists.', ev: 'Task 60.' },
+    { said: 'Can it pull in the entire ads to view? Image and video ads only link out.', s: 'partly', d: 'The modal shows their ads; full inline video is not there.', ev: 'Task 60 scope.' },
+    { said: 'Shall we break Audiences out? ICP as one page, Segments as another, Customers as another.', s: 'done', d: 'Three pages, and both Competitors and Audiences now feed the brief.', ev: 'Tasks 67 and 14.' },
+    { said: 'Library — I believe we’ve removed this, correct?', s: 'done', d: 'Removed, Resize rehomed.', ev: 'Task 66.' },
+  ]},
+
+ ]},
+
+ { group: 'Since you last looked', note: 'Shipped on 1 November and not from either review: two bugs that were quietly wrong in production, and one correction of mine.', pages: [
+
+  { page: 'Owned › rankings — the GoTo bug', items: [
+    { said: 'Not your note. From the DataForSEO email you forwarded.', s: 'done',
+      d: 'Owned has been reporting “not in the top 50” for pages ranking at number four, since the end of August. Google stopped putting destination URLs in its results and started putting <code>google.com/goto</code> passthrough links there; DataForSEO follows them, but on 30 October Google began throttling, and on the Live endpoint — the only one OMI uses — about half now come back unresolved. The damage is one line: <code>rankHost(\'https://google.com/goto?url=CAES…\')</code> returns <code>google.com</code>, so the client’s own result never matches their host. It also made “who’s ranking above you” read google.com and made AI Overview citation checks miss clients who were cited. Every SERP reader now resolves before it reads a url, through DataForSEO’s free converter.', ev: 'PR #1913; <code>tests/goto-urls.test.js</code>, 13 guards, 11 of 11 mutations caught.' },
+  ]},
+
+  { page: 'The blank error screen after a deploy', items: [
+    { said: 'Not your note. All six entries in your error digest for 31 October.', s: 'done',
+      d: 'Six different pages, six different <code>index-*.js</code> hashes in the stacks, so six separate deploys. You have OMI open, we deploy, the chunk filenames change, you click through to a page you have not visited this session and the old filename 404s into “Something went wrong here”. Nothing was wrong with the app and nothing you did caused it. Every lazy route now retries once and then reloads itself to pick up the new filenames; it cannot loop, because a chunk still missing after one reload surfaces the real error instead.', ev: 'PR #1913; <code>tests/lazy-chunk.test.js</code>, driven against a chunk made to 404 mid-session.' },
+  ]},
+
+  { page: 'press@ — Google sign-in', items: [
+    { said: 'Not your note. From “re press@ — i cant make a new app password”.', s: 'open',
+      d: 'Built and merged, and it needs two things from you before it will work. Google has withdrawn app passwords from the Workspace accounts October uses, which is why press@ failed on 25 October and why typing a new one was never going to fix it: 3,605 journalists’ replies went unread for a week, and their opt-outs with them. A mailbox can now authenticate with its own Google account over XOAUTH2 instead. <strong>In Google Cloud:</strong> add <code>https://mail.google.com/</code> to the OAuth consent screen’s scope list, and confirm the client is Internal to the octobercomms.com Workspace (Internal needs no review; External needs a security assessment).', ev: 'PR #1913; <code>tests/mailbox-oauth.test.js</code>, 19 guards, 24 browser assertions.' },
+  ]},
+
+  { page: 'The red buttons', items: [
+    { said: 'Your note was a confirm on Publications. It turned out to be three buttons, one of them dangerous.', s: 'done',
+      d: '“Delete all 2000 matching” on Publications sat behind a <code>window.confirm()</code> one Return away, and it lied: the list drew 500, so a click deleted 1,500 publications nobody had looked at, detaching every journalist and coverage entry on them. Journalists had the same button, guarded by a <code>prompt()</code> asking for the word DELETE — muscle memory within a week, and <code>prompt()</code> returns null in some embedded views, so the delete silently did nothing. All three now need the count typed, and the number you type is the number sent to the server.', ev: 'PR #1913; <code>tests/publications-panel.test.js</code>, 52 browser assertions across the two screens.' },
+  ]},
+
+  { page: 'Prompt caching — a correction', items: [
+    { said: 'Not your note. From the Anthropic email saying caching could save 52%.', s: 'open',
+      d: 'I told you 22 of 23 Claude call sites send a system prompt and only 2 cache it. <strong>That was wrong.</strong> <code>callClaude</code> has wrapped every system prompt in <code>cache_control</code> for a while, and 17 of 41 calls go through it; the seven genuinely uncached ones are short strings under the 1,024-token minimum, so caching them buys nothing. What <em>is</em> uncached is the user turn, where the bulk lives — metrics, SERP payloads, transcripts, playbooks. So rather than change forty call sites on a guess, Settings → Usage now measures it per feature. The state a total cannot show: a feature writing to cache and never reading it back pays a 25% premium nobody collects, which is worse than not caching. Give it a few days of calls, then the red rows say where to work.', ev: 'PR #1913; <code>tests/cache-report.test.js</code>.' },
+  ]},
+
+  { page: 'Three I found by driving, not by reading the diff', items: [
+    { said: 'Worth knowing, because the first two would have shipped looking right.', s: 'done',
+      d: 'Earned → Results still showed <em>two</em> emphasised tiles once a warm journalist existed, so moving the emphasis off the black slab had fixed nothing visible. The untailored SOSTAC screen crashed to “Something went wrong here” on a missing progress counter, one line below a guarded read of the same object. And the hook vault’s new class name collided with the global search palette’s own <code>.search-row</code>, 1,400 lines down the stylesheet, so it silently rendered as a flex row again. The diff looked right in all three.', ev: 'All three caught by browser drives in PR #1913.' },
+  ]},
+
+ ]},
+];
+
+const body = document.getElementById('body');
+const counts = Object.fromEntries(ORDER.map(k => [k, 0]));
+
+// A stable key per item, because the marks live outside the page and a key
+// that shifts when the list is edited would reattach somebody's comment to a
+// different line. Page titles are unique in this document, so the slug of the
+// page plus the item's place in that page is stable under every edit except
+// reordering inside one page.
+const slug = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const KEYS = [];
+
+for (const g of DATA) {
+  const sec = document.createElement('section');
+  sec.className = 'group';
+  const h = document.createElement('div');
+  h.className = 'ghead';
+  const h2 = document.createElement('h2');
+  h2.textContent = g.group;
+  const c = document.createElement('span');
+  c.className = 'count';
+  c.textContent = g.note;
+  h.append(h2, c);
+  sec.append(h);
+
+  for (const p of g.pages) {
+    const pd = document.createElement('div');
+    pd.className = 'page';
+    const nm = document.createElement('span');
+    nm.className = 'pname';
+    nm.textContent = p.page;
+    const list = document.createElement('div');
+    list.className = 'items';
+    p.items.forEach((it, idx) => {
+      counts[it.s] = (counts[it.s] || 0) + 1;
+      const key = `${slug(p.page)}-${idx}`;
+      KEYS.push(key);
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.dataset.status = it.s;
+      row.dataset.key = key;
+
+      const said = document.createElement('div');
+      said.className = 'said';
+      const q = document.createElement('q');
+      q.textContent = it.said;
+      said.append(q);
+
+      const chip = document.createElement('span');
+      chip.className = 'chip ' + it.s;
+      chip.textContent = LABELS[it.s];
+
+      const det = document.createElement('div');
+      det.className = 'detail';
+      det.innerHTML = it.d;
+      if (it.ev && it.ev !== '—') {
+        const ev = document.createElement('span');
+        ev.className = 'ev';
+        ev.innerHTML = it.ev;
+        det.append(ev);
+      }
+      row.append(said, chip, det);
+
+      // Your verdict on my verdict. Rendered for everyone; wired up only
+      // when a signed-in viewer can write, so the page reads the same when
+      // it cannot remember anything.
+      const yours = document.createElement('div');
+      yours.className = 'yours';
+      yours.innerHTML = `<span class="lbl">Your call</span>`
+        + `<button type="button" class="mark" data-mark="done" aria-pressed="false">Done</button>`
+        + `<button type="button" class="mark" data-mark="open" aria-pressed="false">Still open</button>`
+        + `<button type="button" class="mark" data-mark="wont" aria-pressed="false">Won't do</button>`
+        + `<button type="button" class="notebtn" aria-expanded="false">Comment</button>`
+        + `<span class="waiting" hidden></span>`
+        + `<span class="saved"></span>`;
+      // The whole exchange, oldest first, rather than one comment and one
+      // answer. A second comment used to overwrite the first, so the thing
+      // you wrote before my reply was gone the moment you wrote again.
+      const thread = document.createElement('div');
+      thread.className = 'thread';
+      thread.hidden = true;
+      const noteWrap = document.createElement('div');
+      noteWrap.className = 'noteWrap';
+      noteWrap.hidden = true;
+      noteWrap.innerHTML = `<textarea placeholder="What you want done with this one."></textarea>`
+        + `<div class="noteActions">`
+        + `<button type="button" class="primary" data-act="save">Send</button>`
+        + `<button type="button" class="ghost" data-act="cancel">Cancel</button>`
+        + `<span class="hint2">Ctrl or Cmd + Enter sends</span>`
+        + `</div>`;
+      row.append(yours, thread, noteWrap);
+
+      list.append(row);
+    });
+    pd.append(nm, list);
+    sec.append(pd);
+  }
+  body.append(sec);
+}
+
+// ---- filtering ----------------------------------------------------------
+// Two independent filters: my status chip, and your own mark. Both narrow the
+// same list, so "not done, and you have not looked at it yet" is one view.
+const tally = document.getElementById('tally');
+const mineRow = document.getElementById('mineRow');
+let active = null;    // my status
+let mine = null;      // your mark
+let hideDone = true;  // the list is what is left, so done drops out of it
+
+function apply() {
+  for (const row of document.querySelectorAll('.item')) {
+    const byStatus = !active || row.dataset.status === active;
+    const mark = MARKS[row.dataset.key];
+    // Done is out of the list, not merely faded: the list is the work that is
+    // left. The toggle brings them back, and asking for them explicitly
+    // (a status filter, or "Agreed done") overrides the hiding.
+    // An answered item stays in the list whatever its mark: the whole point
+    // of a reply is that it is waiting to be looked at again.
+    const on = waitingOn(mark);
+    const waiting = on === 'you';
+    if (hideDone && !waiting && mark && mark.state === 'done' && mine !== 'done') { row.hidden = true; continue; }
+    let byMine = true;
+    if (mine === 'unmarked') byMine = !mark || (!mark.state && !(mark.thread || []).length);
+    else if (mine === 'noted') byMine = !!(mark && (mark.thread || []).length);
+    else if (mine === 'answered') byMine = on === 'you';
+    else if (mine === 'onme') byMine = on === 'claude';
+    else if (mine) byMine = !!mark && mark.state === mine;
+    row.hidden = !(byStatus && byMine);
+  }
+  for (const pd of document.querySelectorAll('.page')) {
+    pd.hidden = ![...pd.querySelectorAll('.item')].some(r => !r.hidden);
+  }
+  for (const sec of document.querySelectorAll('section.group')) {
+    sec.hidden = ![...sec.querySelectorAll('.page')].some(x => !x.hidden);
+  }
+}
+
+for (const k of ORDER) {
+  const b = document.createElement('button');
+  b.className = 'tile';
+  b.type = 'button';
+  b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = `<span class="n">${counts[k] || 0}</span><span class="l">${LABELS[k]}</span>`;
+  b.addEventListener('click', () => {
+    active = active === k ? null : k;
+    for (const t of tally.children) t.setAttribute('aria-pressed', String(t === b && active === k));
+    apply();
+  });
+  tally.append(b);
+}
+
+document.getElementById('toggleDone').addEventListener('click', () => {
+  hideDone = !hideDone;
+  tally2();
+  apply();
+});
+
+for (const btn of mineRow.querySelectorAll('button')) {
+  btn.addEventListener('click', () => {
+    const k = btn.dataset.mine;
+    mine = mine === k ? null : k;
+    for (const o of mineRow.querySelectorAll('button')) {
+      o.setAttribute('aria-pressed', String(o === btn && mine === k));
+    }
+    apply();
+  });
+}
+
+// ---- your marks, kept outside the page ----------------------------------
+//
+// Server-side rather than in the browser, for two reasons: this has to read
+// the same on your laptop and your phone, and the whole point of leaving a
+// comment here is that I can read it back in a later session and act on it.
+// Browser storage would do neither.
+
+const MARKS = Object.create(null);
+const STATES = ['done', 'open', 'wont'];
+
+// Every exchange is a list, oldest first. Docs written before 1 November hold
+// a single `note` and a single `reply` instead, so they are read as the first
+// two entries of a thread rather than migrated: a migration would have to
+// rewrite docs I did not write, and reading both shapes costs four lines and
+// cannot lose anything.
+function threadOf(v) {
+  if (Array.isArray(v.thread) && v.thread.length) {
+    return v.thread
+      .filter(m => m && typeof m.text === 'string' && m.text.trim())
+      .map(m => ({ who: m.who === 'claude' ? 'claude' : 'you', text: m.text, at: m.at || '' }));
+  }
+  const out = [];
+  if (v.note) out.push({ who: 'you', text: v.note, at: v.at || '' });
+  if (v.reply) out.push({ who: 'claude', text: v.reply, at: v.at || '' });
+  return out;
+}
+
+// Who the ball is with. The last word decides it: if you spoke last it is
+// mine to answer, if I did it is yours to read. Nothing means nothing.
+function waitingOn(mark) {
+  const t = (mark && mark.thread) || [];
+  if (!t.length) return null;
+  return t[t.length - 1].who === 'you' ? 'claude' : 'you';
+}
+const progress = document.getElementById('progress');
+const progressTxt = document.getElementById('progressTxt');
+const progressBar = document.getElementById('progressBar');
+const signedOut = document.getElementById('signedOut');
+
+function paint(key) {
+  const row = document.querySelector(`.item[data-key="${key}"]`);
+  if (!row) return;
+  const mark = MARKS[key] || {};
+  for (const b of row.querySelectorAll('.mark')) {
+    b.setAttribute('aria-pressed', String(mark.state === b.dataset.mark));
+  }
+  row.classList.toggle('resolved', mark.state === 'done');
+
+  const thread = row.querySelector('.thread');
+  const msgs = mark.thread || [];
+  thread.textContent = '';
+  for (const m of msgs) {
+    const el = document.createElement('div');
+    el.className = m.who === 'claude' ? 'msg claude' : 'msg you';
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = m.who === 'claude' ? 'Claude' : 'You';
+    el.append(who, document.createTextNode(m.text));
+    thread.append(el);
+  }
+  thread.hidden = msgs.length === 0;
+
+  // The reply box is for a NEW message, so it opens empty. Prefilling it with
+  // the last thing you wrote is what made a second comment overwrite a first.
+  const btn = row.querySelector('.notebtn');
+  if (btn) btn.textContent = msgs.length ? 'Reply' : 'Comment';
+
+  const w = row.querySelector('.waiting');
+  if (w) {
+    const on = waitingOn(mark);
+    w.hidden = !on || mark.state === 'done';
+    w.className = 'waiting' + (on === 'claude' ? ' onme' : '');
+    w.textContent = on === 'claude' ? 'Waiting on me' : on === 'you' ? 'Waiting on you' : '';
+  }
+  dirtyCheck(row);
+}
+
+// Nothing is written until you press Save, so the page has to say plainly
+// whether what is in the box has been written or not.
+function dirtyCheck(row) {
+  const key = row.dataset.key;
+  const ta = row.querySelector('.noteWrap textarea');
+  const btn = row.querySelector('[data-act="save"]');
+  const said = row.querySelector('.saved');
+  if (!ta || !btn) return;
+  // Against empty: the box is a new message every time, so anything typed
+  // in it is unsent.
+  const dirty = ta.value.trim() !== '';
+  btn.disabled = !dirty;
+  if (said && said.dataset.transient !== '1') said.textContent = dirty ? 'Not saved yet' : '';
+}
+
+// Done items sink: within a page, then whole pages once every item in them
+// is done, then whole sections. Keeping the page labels means a sunk item
+// still says which screen it belongs to, which a single flat pile at the
+// bottom of the document would lose.
+function isDone(row) { return (MARKS[row.dataset.key] || {}).state === 'done'; }
+
+function reflow() {
+  for (const list of document.querySelectorAll('.items')) {
+    const rows = [...list.children];
+    rows.sort((a, b) => Number(isDone(a)) - Number(isDone(b)));   // stable: ties keep their order
+    for (const r of rows) list.append(r);
+  }
+  for (const sec of document.querySelectorAll('section.group')) {
+    const pages = [...sec.querySelectorAll('.page')];
+    for (const pd of pages) {
+      const items = [...pd.querySelectorAll('.item')];
+      pd.classList.toggle('allresolved', items.length > 0 && items.every(isDone));
+    }
+    pages.sort((a, b) => Number(a.classList.contains('allresolved')) - Number(b.classList.contains('allresolved')));
+    for (const pd of pages) sec.append(pd);
+  }
+  const body = document.getElementById('body');
+  const secs = [...body.querySelectorAll('section.group')];
+  const allDone = (sec) => [...sec.querySelectorAll('.item')].every(isDone);
+  secs.sort((a, b) => Number(allDone(a)) - Number(allDone(b)));
+  for (const sec of secs) body.append(sec);
+}
+
+function tally2() {
+  const marked = KEYS.filter(k => MARKS[k] && (MARKS[k].state || (MARKS[k].thread || []).length)).length;
+  const done = KEYS.filter(k => MARKS[k] && MARKS[k].state === 'done').length;
+  const pct = KEYS.length ? Math.round((marked / KEYS.length) * 100) : 0;
+  progressTxt.textContent = marked
+    ? `${KEYS.length - done} left of ${KEYS.length}. ${done} done${hideDone ? ', hidden' : ''}.`
+    : `None of the ${KEYS.length} marked yet. Tick one off, or leave a comment on it.`;
+  progressBar.style.width = `${pct}%`;
+  const forYou = KEYS.filter(k => waitingOn(MARKS[k]) === 'you' && (MARKS[k] || {}).state !== 'done').length;
+  const forMe = KEYS.filter(k => waitingOn(MARKS[k]) === 'claude' && (MARKS[k] || {}).state !== 'done').length;
+  if (forYou) progressTxt.textContent += ` ${forYou} answered, waiting on you.`;
+  if (forMe) progressTxt.textContent += ` ${forMe} waiting on me.`;
+  const t = document.getElementById('toggleDone');
+  if (t) { t.textContent = hideDone ? `Show the ${done} done` : `Hide the ${done} done`; t.hidden = !done; }
+}
+
+(async function wire() {
+  const db = window.claude && typeof window.claude.use === 'function'
+    ? await window.claude.use('db') : null;
+  if (!db) { signedOut.hidden = false; return; }
+
+  progress.hidden = false;
+  mineRow.hidden = false;
+
+  // A page that never stops saying "loading" is worse than one that admits it
+  // does not know, so the wait is bounded and failure is said out loud.
+  let settled = false;
+  const giveUp = setTimeout(() => {
+    if (!settled) progressTxt.textContent = 'Could not reach your marks. Anything you write now may not be kept.';
+  }, 10000);
+
+  db.collection('review').onSnapshot((snap) => {
+    // The callback is handed a QuerySnapshot, whose documents are on
+    // `.docs`. Treating the snapshot itself as the list is what wiped every
+    // mark on load: the old code emptied MARKS, then iterated something that
+    // is not iterable, and threw before it could paint anything back. A
+    // snapshot is also frozen, so nothing here mutates what it delivers.
+    const docs = Array.isArray(snap?.docs) ? snap.docs : (Array.isArray(snap) ? snap : []);
+
+    // Built to one side and swapped in, so a fault halfway through leaves
+    // the marks that were already on screen rather than half of them.
+    const next = Object.create(null);
+    for (const d of docs) {
+      if (!d || d.exists === false) continue;
+      const v = (typeof d.data === 'function' ? d.data() : d) || {};
+      const id = d.id || v.id;
+      if (!id) continue;
+      next[id] = { state: v.state || null, thread: threadOf(v) };
+    }
+    for (const k of Object.keys(MARKS)) delete MARKS[k];
+    Object.assign(MARKS, next);
+
+    // A cached view can arrive before the store answers in full. It is worth
+    // painting — it is almost always right — but it does not end the wait.
+    if (!snap?.metadata?.fromCache) { settled = true; clearTimeout(giveUp); }
+
+    for (const k of KEYS) paint(k);
+    tally2();
+    reflow();
+    apply();
+  }, () => {
+    settled = true;
+    clearTimeout(giveUp);
+    progressTxt.textContent = 'Could not reach your marks. Anything you write now may not be kept.';
+  });
+
+  // `patch` may carry { state } or { append: 'text' }. An append never
+  // touches what is already in the thread, which is the whole fix.
+  async function save(key, patch, saidEl) {
+    const cur = MARKS[key] || { state: null, thread: [] };
+    const thread = (cur.thread || []).slice();
+    if (patch.append) thread.push({ who: 'you', text: patch.append, at: new Date().toISOString() });
+    const next = { state: 'state' in patch ? patch.state : (cur.state ?? null), thread };
+    MARKS[key] = next;
+    paint(key);
+    tally2();
+    reflow();
+    if (saidEl) { saidEl.dataset.transient = '1'; saidEl.textContent = 'Saving…'; }
+    try {
+      // `note` and `reply` are written alongside the thread for one reason:
+      // a tab still running the old page reads those two fields and would
+      // otherwise show an empty item. They are the last word from each side,
+      // never the source of truth.
+      const lastYou = [...next.thread].reverse().find(m => m.who === 'you');
+      const lastMe = [...next.thread].reverse().find(m => m.who === 'claude');
+      await db.doc(`review/${key}`).set({
+        state: next.state,
+        thread: next.thread,
+        note: lastYou ? lastYou.text : '',
+        reply: lastMe ? lastMe.text : '',
+        at: new Date().toISOString(),
+      });
+      if (saidEl) {
+        saidEl.textContent = 'Saved';
+        setTimeout(() => {
+          saidEl.dataset.transient = '0';
+          const row = saidEl.closest('.item');
+          if (row) dirtyCheck(row);
+        }, 1600);
+      }
+    } catch (err) {
+      if (saidEl) { saidEl.dataset.transient = '0'; saidEl.textContent = 'Not saved'; }
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest('.item');
+    if (!row) return;
+    const key = row.dataset.key;
+    const said = row.querySelector('.saved');
+
+    const mark = e.target.closest('.mark');
+    if (mark) {
+      // Pressing the mark you already hold clears it, so a mis-tap is one tap
+      // to undo rather than a state you cannot get out of.
+      const now = (MARKS[key] || {}).state;
+      save(key, { state: now === mark.dataset.mark ? null : mark.dataset.mark }, said);
+      apply();
+      return;
+    }
+
+    const note = e.target.closest('.notebtn');
+    if (note) {
+      const wrap = row.querySelector('.noteWrap');
+      wrap.hidden = !wrap.hidden;
+      note.setAttribute('aria-expanded', String(!wrap.hidden));
+      paint(key);
+      if (!wrap.hidden) wrap.querySelector('textarea').focus();
+      return;
+    }
+
+    const act = e.target.closest('[data-act]');
+    if (!act) return;
+    const wrap = row.querySelector('.noteWrap');
+    const ta = wrap.querySelector('textarea');
+    if (act.dataset.act === 'save') {
+      const text = ta.value.trim();
+      if (!text) return;
+      ta.value = '';
+      save(key, { append: text }, said);
+      wrap.hidden = true;
+      row.querySelector('.notebtn').setAttribute('aria-expanded', 'false');
+      paint(key);
+    } else if (act.dataset.act === 'cancel') {
+      // Empty, because the box holds an unsent message rather than an edit
+      // of a saved one. Nothing already in the thread can be lost this way.
+      ta.value = '';
+      wrap.hidden = true;
+      row.querySelector('.notebtn').setAttribute('aria-expanded', 'false');
+      paint(key);
+    }
+  });
+
+  // Typing never writes. It only updates whether there is anything to save,
+  // so the button and the "not saved yet" line stay true.
+  document.addEventListener('input', (e) => {
+    const ta = e.target.closest('.noteWrap textarea');
+    if (ta) dirtyCheck(ta.closest('.item'));
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const ta = e.target.closest('.noteWrap textarea');
+    if (!ta || !(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
+    e.preventDefault();
+    const row = ta.closest('.item');
+    row.querySelector('[data-act="save"]').click();
+  });
+
+  tally2();
+}());
+
+</script>
+
+</body></html>

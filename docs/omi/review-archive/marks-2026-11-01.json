@@ -1,0 +1,927 @@
+{
+  "biz-dev-leads-0": {
+    "at": "2026-11-01T10:52:07.927Z",
+    "note": "",
+    "state": "done"
+  },
+  "biz-dev-leads-1": {
+    "at": "2026-11-01T13:37:34.105Z",
+    "note": "can we add archive and delete buttons to the all leads table?",
+    "reply": "Archive exists as a status but there is no delete, and no buttons on the table. Queued: both buttons on the all-leads table. Delete will ask before it goes, since a lead is a record you cannot get back.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:52:34.207Z",
+        "text": "can we add archive and delete buttons to the all leads table?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:52:34.207Z",
+        "text": "Archive exists as a status but there is no delete, and no buttons on the table. Queued: both buttons on the all-leads table. Delete will ask before it goes, since a lead is a record you cannot get back.",
+        "who": "claude"
+      }
+    ]
+  },
+  "biz-dev-tenders-0": {
+    "at": "2026-11-01T10:52:49.449Z",
+    "note": "",
+    "state": "done"
+  },
+  "biz-dev-tenders-1": {
+    "at": "2026-11-01T10:52:59.349Z",
+    "note": "",
+    "state": "done"
+  },
+  "biz-dev-tenders-2": {
+    "at": "2026-11-01T10:53:07.840Z",
+    "note": "",
+    "state": "done"
+  },
+  "connectors-0": {
+    "at": "2026-11-01T10:55:02.784Z",
+    "note": "",
+    "state": "done"
+  },
+  "convert-cro-0": {
+    "at": "2026-11-01T10:25:08.725Z",
+    "note": "",
+    "state": "done"
+  },
+  "convert-cro-1": {
+    "at": "2026-11-01T14:03:51.173Z",
+    "note": "why not done?",
+    "reply": "",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T14:03:51.170Z",
+        "text": "why not done?",
+        "who": "you"
+      }
+    ]
+  },
+  "convert-email-0": {
+    "at": "2026-11-01T14:03:35.680Z",
+    "note": "why not done?",
+    "reply": "Not done. Tied to the item below because both change the Email section, and doing them separately means moving the same nav rows twice. That grouping is my call and it has cost you visibility. The nav session is next after the current batch lands.",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T10:26:26.738Z",
+        "text": "why not a better description of what can be done?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:03:35.676Z",
+        "text": "why not done?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:45:00.000Z",
+        "text": "Not done. Four items are waiting on one session because they all move nav slugs and the route table: this one, Email as its own section, the MAKE rename on Shared, and the Settings Models/Connections split. Splitting them means breaking links four times instead of once. Four is too many to be holding, so that session is next after the current batch lands.",
+        "who": "claude"
+      }
+    ]
+  },
+  "convert-email-1": {
+    "at": "2026-11-01T14:04:03.089Z",
+    "note": "why not done?",
+    "reply": "Not done. One of four items waiting on a single nav session, because they all move slugs and the route table. That session is next.",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T10:26:13.343Z",
+        "text": "why not move to its own section?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:04:03.085Z",
+        "text": "why not done?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:45:00.000Z",
+        "text": "Not done. One of the four items waiting on a single nav session, for the reason given on the item above. That session is next.",
+        "who": "claude"
+      }
+    ]
+  },
+  "database-0": {
+    "at": "2026-11-01T10:50:52.686Z",
+    "note": "",
+    "state": "done"
+  },
+  "database-1": {
+    "at": "2026-11-01T13:37:21.144Z",
+    "note": "it isn the same layout.  it is split screen.  i want full width and modal.  like journalists.",
+    "reply": "Understood, and I had this wrong in the audit: I marked it delivered on the strength of a commit that touched the Database lists, without looking at the screen. Full width with a modal, like Journalists. Queued.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:51:31.309Z",
+        "text": "it isn the same layout.  it is split screen.  i want full width and modal.  like journalists.",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:51:31.309Z",
+        "text": "Understood, and I had this wrong in the audit: I marked it delivered on the strength of a commit that touched the Database lists, without looking at the screen. Full width with a modal, like Journalists. Queued.",
+        "who": "claude"
+      }
+    ]
+  },
+  "database-2": {
+    "at": "2026-11-01T14:06:19.650Z",
+    "note": "why not done?",
+    "reply": "",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T14:06:19.646Z",
+        "text": "why not done?",
+        "who": "you"
+      }
+    ]
+  },
+  "earned-build-campaigns-0": {
+    "at": "2026-11-01T10:04:12.301Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-campaigns-1": {
+    "at": "2026-11-01T10:04:17.266Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-campaigns-2": {
+    "at": "2026-11-01T10:04:19.081Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-campaigns-3": {
+    "at": "2026-11-01T10:04:20.206Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-campaigns-4": {
+    "at": "2026-11-01T14:14:31.564Z",
+    "note": "the entire bento for results and journalists is what needs a white background",
+    "reply": "Fixed. The bento and the journalist table are drawn with a border and no background at all, so the page's warm canvas showed through. Four boxes on that screen were like that, not two, and all four now carry an explicit white surface.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:04:31.695Z",
+        "text": "the boxes still dont have white backgrounds",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:04:31.695Z",
+        "text": "Not fixed yet, you're right to flag it twice.",
+        "who": "claude"
+      },
+      {
+        "at": "2026-11-01T14:02:16.741Z",
+        "text": "this still isn't done, see the image I upload to the chat",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:13:56.591Z",
+        "text": "i have uploaded to claude chat",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:14:31.561Z",
+        "text": "the entire bento for results and journalists is what needs a white background",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:45:00.000Z",
+        "text": "That is the answer I needed, thank you. Fixed. Both are drawn with a border and no background at all, so the page's warm canvas showed through; the tiles above them were given a surface in the earlier fix and these were not. Four boxes on that screen are like that, not two, and all four now carry an explicit white surface. Also on that screenshot: \"23 failed\" sat beside a button reading \"Retry 203 failed\". Both right. 23 is the first email, 203 includes follow-ups, so 180 failed follow-up sends existed nowhere on the page except inside a button label. Each count now names what it counts and each follow-up row shows its own.",
+        "who": "claude"
+      }
+    ]
+  },
+  "earned-build-contacts-0": {
+    "at": "2026-11-01T10:02:22.141Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-contacts-1": {
+    "at": "2026-11-01T13:47:23.562Z",
+    "note": "can you do this?",
+    "reply": "Fair, and sort plus search is the cheap half of it. Queued in the small-fixes batch.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:02:32.787Z",
+        "text": "can we at least add sort and search?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:02:32.787Z",
+        "text": "Fair, and sort plus search is the cheap half of it. Queued in the small-fixes batch.",
+        "who": "claude"
+      },
+      {
+        "at": "2026-11-01T13:47:23.559Z",
+        "text": "can you do this?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:15:00.000Z",
+        "text": "Done and deployed (PR 1913, 13:12). Sort is on the server, so it sorts the whole table rather than the page you can see, and there is a search box. The Earned > Contacts side still needs the full database functions; that is the open half.",
+        "who": "claude"
+      }
+    ]
+  },
+  "earned-build-find-0": {
+    "at": "2026-11-01T13:29:16.296Z",
+    "note": "maybe the button could say \"Add to DB + Client\"",
+    "reply": "Taking your wording: the button says 'Add to DB + Client'. That answers the question the screen was making you ask. Queued in the small-fixes batch.",
+    "state": "done"
+  },
+  "earned-build-match-0": {
+    "at": "2026-11-01T10:04:39.077Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-match-1": {
+    "at": "2026-11-01T10:04:42.931Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-monitor-0": {
+    "at": "2026-11-01T10:01:58.078Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-monitor-1": {
+    "at": "2026-11-01T10:02:05.129Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-build-releases-0": {
+    "at": "2026-11-01T13:48:28.255Z",
+    "note": "the writing standard.  its currently under the release title, but I think it should live up by \"Share\" button in the top right.",
+    "reply": "Done and deployed, 14:02 today (PR 1914). It is in the Earned page header beside Share, on the Releases screen, whether or not a release is open. The drawer became its own component so the button and its contents can sit apart. Driven in Chromium: same row as Share, to its left, all four sections and the PDF intact.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:03:49.276Z",
+        "text": "can the writing standard button be next to share drawer button?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:03:49.276Z",
+        "text": "Queued, small-fixes batch.",
+        "who": "claude"
+      },
+      {
+        "at": "2026-11-01T13:48:28.252Z",
+        "text": "the writing standard.  its currently under the release title, but I think it should live up by \"Share\" button in the top right.",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:15:00.000Z",
+        "text": "Done and deployed at 14:02 (PR 1914). Your screenshot is what placed it: it had been on the list for days as unplaceable. It now sits in the page header beside Share, on the Releases screen, open record or not.",
+        "who": "claude"
+      }
+    ]
+  },
+  "earned-build-releases-1": {
+    "at": "2026-11-01T13:29:44.521Z",
+    "note": "this should sit above the box, not inside it.",
+    "reply": "Queued, small-fixes batch. Above the box with the back arrow, not inside it.",
+    "state": "done"
+  },
+  "earned-build-releases-2": {
+    "at": "2026-11-01T10:04:04.504Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-measure-0": {
+    "at": "2026-11-01T10:04:45.837Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-track-0": {
+    "at": "2026-11-01T10:01:41.970Z",
+    "note": "",
+    "state": "done"
+  },
+  "earned-track-1": {
+    "at": "2026-11-01T10:01:47.290Z",
+    "note": "",
+    "state": "done"
+  },
+  "owned-fix-0": {
+    "at": "2026-11-01T10:21:18.827Z",
+    "note": "",
+    "state": "done"
+  },
+  "owned-fix-1": {
+    "at": "2026-11-01T10:21:23.475Z",
+    "note": "",
+    "state": "done"
+  },
+  "owned-fix-2": {
+    "at": "2026-11-01T10:24:47.020Z",
+    "note": "",
+    "state": "done"
+  },
+  "owned-local-all-seven-scans-0": {
+    "at": "2026-11-01T10:24:58.165Z",
+    "note": "",
+    "state": "done"
+  },
+  "owned-rankings-the-goto-bug-0": {
+    "at": "2026-11-01T13:40:16.585Z",
+    "note": "",
+    "reply": "",
+    "state": "done",
+    "thread": []
+  },
+  "owned-watch-authority-0": {
+    "at": "2026-11-01T13:35:30.059Z",
+    "note": "i think it worked",
+    "reply": "You were right and I was wrong, and there was a third thing neither of us had looked at. A monthly fill does exist, at 07:00 on the 1st, so \"i think it worked\" is correct and my \"not done\" was not. But the monthly reports go out at 08:00 the same morning, so the whole thing rested on an hour of margin between two crons that know nothing about each other. A slow Moz call or a failure at 07:00 would send every client's report carrying last month's domain authority with nothing to say so. Moved to 22:00 on the last evening of the month, which is what you asked for. PR 1911.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:21:05.440Z",
+        "text": "i think it worked",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:21:05.440Z",
+        "text": "You were right and I was wrong, and there was a third thing neither of us had looked at. A monthly fill does exist, at 07:00 on the 1st, so \"i think it worked\" is correct and my \"not done\" was not. But the monthly reports go out at 08:00 the same morning, so the whole thing rested on an hour of margin between two crons that know nothing about each other. A slow Moz call or a failure at 07:00 would send every client's report carrying last month's domain authority with nothing to say so. Moved to 22:00 on the last evening of the month, which is what you asked for. PR 1911.",
+        "who": "claude"
+      }
+    ]
+  },
+  "paid-build-brief-0": {
+    "at": "2026-11-01T10:55:20.681Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-build-brief-1": {
+    "at": "2026-11-01T10:55:38.921Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-build-brief-2": {
+    "at": "2026-11-01T13:39:24.879Z",
+    "note": "i click it and nothing happens.  perhaps the past briefs needs to move to the top of Draft?",
+    "reply": "Fixed, PR 1912. You were right both times, and the second wording is the useful one. The click did select the batch, but selecting only changed Draft, Render and Launch, all screens you are not looking at when you click; on Brief itself nothing moved but a border colour. My first fix added a sentence explaining that, which explains a problem rather than removing it, and is why it came back. A click now opens Draft with that brief loaded. I did not move the list to the top of Draft as you suggested, because taking you there on click does the same job without the list living in two places, but say if you would rather have it there.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:56:28.524Z",
+        "text": "i click it and nothing happens.  perhaps the past briefs needs to move to the top of Draft?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:56:28.524Z",
+        "text": "Fixed, PR 1912. You were right both times, and the second wording is the useful one. The click did select the batch, but selecting only changed Draft, Render and Launch, all screens you are not looking at when you click; on Brief itself nothing moved but a border colour. My first fix added a sentence explaining that, which explains a problem rather than removing it, and is why it came back. A click now opens Draft with that brief loaded. I did not move the list to the top of Draft as you suggested, because taking you there on click does the same job without the list living in two places, but say if you would rather have it there.",
+        "who": "claude"
+      }
+    ]
+  },
+  "paid-build-draft-0": {
+    "at": "2026-11-01T13:39:36.973Z",
+    "note": "perfect, but can the modal be 80% wide?",
+    "reply": "Queued, small-fixes batch. 80% wide, same as the profile modals.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:57:06.743Z",
+        "text": "perfect, but can the modal be 80% wide?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:57:06.743Z",
+        "text": "Queued, small-fixes batch. 80% wide, same as the profile modals.",
+        "who": "claude"
+      }
+    ]
+  },
+  "paid-build-draft-1": {
+    "at": "2026-11-01T10:57:20.830Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-build-render-approve-launch-0": {
+    "at": "2026-11-01T10:57:40.492Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-build-render-approve-launch-1": {
+    "at": "2026-11-01T10:57:52.449Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-build-render-approve-launch-2": {
+    "at": "2026-11-01T10:57:57.896Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-research-0": {
+    "at": "2026-11-01T10:58:24.642Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-research-1": {
+    "at": "2026-11-01T10:58:45.417Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-research-2": {
+    "at": "2026-11-01T10:59:07.542Z",
+    "note": "",
+    "state": "done"
+  },
+  "paid-research-3": {
+    "at": "2026-11-01T10:59:15.654Z",
+    "note": "",
+    "state": "done"
+  },
+  "press-google-sign-in-0": {
+    "at": "2026-11-01T14:06:28.593Z",
+    "note": "",
+    "reply": "",
+    "state": "done",
+    "thread": []
+  },
+  "produce-edit-0": {
+    "at": "2026-11-01T10:29:24.497Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-edit-1": {
+    "at": "2026-11-01T10:29:38.601Z",
+    "note": "",
+    "state": "open"
+  },
+  "produce-edit-2": {
+    "at": "2026-11-01T10:46:12.502Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-edit-3": {
+    "at": "2026-11-01T10:46:34.713Z",
+    "note": "",
+    "state": "open"
+  },
+  "produce-library-0": {
+    "at": "2026-11-01T14:05:54.313Z",
+    "note": "see images i upload to claude chat.  library missing things from design.  why not done?",
+    "reply": "",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T14:05:54.309Z",
+        "text": "see images i upload to claude chat.  library missing things from design.  why not done?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:15:00.000Z",
+        "text": "Not done, and your screenshots make it concrete: five Design sets for Atlanta Design Festival, and Library says \"Nothing here yet. Anything made in Produce, or produced against a social post, lands here on its own.\" Design is made in Produce, so the sentence is a promise the page breaks. This is next after the batch I am committing now.",
+        "who": "claude"
+      }
+    ]
+  },
+  "produce-library-1": {
+    "at": "2026-11-01T10:47:19.987Z",
+    "note": "",
+    "state": "open"
+  },
+  "produce-library-2": {
+    "at": "2026-11-01T10:47:34.835Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-record-0": {
+    "at": "2026-11-01T10:28:43.563Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-record-1": {
+    "at": "2026-11-01T10:28:58.982Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-record-2": {
+    "at": "2026-11-01T10:29:03.304Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-record-3": {
+    "at": "2026-11-01T10:29:06.152Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-record-4": {
+    "at": "2026-11-01T10:29:08.929Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-video-0": {
+    "at": "2026-11-01T10:26:35.002Z",
+    "note": "",
+    "state": "done"
+  },
+  "produce-video-1": {
+    "at": "2026-11-01T14:04:11.228Z",
+    "note": "why not done?",
+    "reply": "Your suggestion is better than mine, so taking it as stated: below the upload, greyed until there is content. Queued with the drag-and-drop below.",
+    "state": null,
+    "thread": [
+      {
+        "at": "2026-11-01T10:27:33.369Z",
+        "text": "it still seems to be in the same place.  where should it be?  below the upload a clip and greyed until there is content?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:27:33.369Z",
+        "text": "Your suggestion is better than mine, so taking it as stated: below the upload, greyed until there is content. Queued with the drag-and-drop below.",
+        "who": "claude"
+      },
+      {
+        "at": "2026-11-01T14:04:11.224Z",
+        "text": "why not done?",
+        "who": "you"
+      }
+    ]
+  },
+  "produce-video-2": {
+    "at": "2026-11-01T14:04:19.301Z",
+    "note": "why not done?",
+    "reply": "Agreed, and you said it sits above the Footage step rather than replacing it. Queued. The step rail stays, the drop target opens the page.",
+    "state": null,
+    "thread": [
+      {
+        "at": "2026-11-01T10:28:10.492Z",
+        "text": "but a drag and drop field feels like the correct starting point.  to drag all clips into here?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:28:10.492Z",
+        "text": "Agreed, and you said it sits above the Footage step rather than replacing it. Queued. The step rail stays, the drop target opens the page.",
+        "who": "claude"
+      },
+      {
+        "at": "2026-11-01T14:04:19.296Z",
+        "text": "why not done?",
+        "who": "you"
+      }
+    ]
+  },
+  "produce-video-3": {
+    "at": "2026-11-01T10:28:21.977Z",
+    "note": "",
+    "state": "done"
+  },
+  "prompt-caching-a-correction-0": {
+    "at": "2026-11-01T13:45:45.021Z",
+    "note": "so, i see this, but what does it mean?  should we be caching it all?",
+    "reply": "Less than the email implies, and I had it wrong when I first raised it. I said 22 of 23 call sites send a system prompt and only 2 cache it. Wrong: callClaude wraps every system prompt in cache_control and 17 of 41 call sites go through it. The 7 uncached are short strings under the 1,024-token minimum, so they cannot be cached at all. The 52% is a generic estimate from your account's overall hit rate, not a measurement of OMI. So no, do not cache everything. I shipped per-feature measurement (cacheReport) instead: quiet, uncached, wasting, working. Check it in a week. Only 'wasting' is worth acting on, because that is paying the 25% write premium with no reads earning it back.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T13:45:45.017Z",
+        "text": "so, i see this, but what does it mean?  should we be caching it all?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:45:00.000Z",
+        "text": "Less than the email implies, and I had it wrong when I first raised it. I said 22 of 23 call sites send a system prompt and only 2 cache it. Wrong: callClaude wraps every system prompt in cache_control, and 17 of 41 call sites go through it. The 7 uncached are short strings under the 1,024-token minimum, so they cannot be cached at all. The 52% is a generic estimate from your account's overall hit rate, not a measurement of OMI. So no, do not cache everything. I shipped per-feature measurement instead (cacheReport), which returns quiet, uncached, wasting or working. Look at it in a week with real traffic. Only 'wasting' is worth acting on: that is paying the 25% cache-write premium with no reads earning it back.",
+        "who": "claude"
+      }
+    ]
+  },
+  "search-0": {
+    "at": "2026-11-01T10:53:25.002Z",
+    "note": "",
+    "state": "done"
+  },
+  "search-1": {
+    "at": "2026-11-01T10:53:26.633Z",
+    "note": "",
+    "state": "done"
+  },
+  "settings-connections-0": {
+    "at": "2026-11-01T14:06:11.548Z",
+    "note": "why not done?",
+    "reply": "Not done. The fourth item in the same nav session. Next after the current batch.",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T10:48:48.849Z",
+        "text": "i meant that the models is the sections selecting which model to use, and this lives under COSTS.  and then we keep AI under connections with the lower part for the AI credentials.  this page is doing two different things.",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:06:11.544Z",
+        "text": "why not done?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:45:00.000Z",
+        "text": "Not done, and it is the fourth item in that one nav session. Next after the current batch lands.",
+        "who": "claude"
+      }
+    ]
+  },
+  "settings-connections-1": {
+    "at": "2026-11-01T10:49:03.793Z",
+    "note": "",
+    "state": "done"
+  },
+  "settings-connections-2": {
+    "at": "2026-11-01T10:49:23.015Z",
+    "note": "",
+    "state": "done"
+  },
+  "settings-connections-3": {
+    "at": "2026-11-01T13:37:10.033Z",
+    "note": "all of these pages are still within an accordian.  remove the accordian and just have the content on the page.  with each connection in its own box for better clarity.",
+    "reply": "Queued. Accordions off, content on the page, each connection in its own box.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:50:30.603Z",
+        "text": "all of these pages are still within an accordian.  remove the accordian and just have the content on the page.  with each connection in its own box for better clarity.",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:50:30.603Z",
+        "text": "Queued. Accordions off, content on the page, each connection in its own box.",
+        "who": "claude"
+      }
+    ]
+  },
+  "settings-tools-and-account-0": {
+    "at": "2026-11-01T10:50:42.442Z",
+    "note": "",
+    "state": "done"
+  },
+  "settings-tools-and-account-1": {
+    "at": "2026-11-01T10:49:41.464Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-capture-reddit-0": {
+    "at": "2026-11-01T10:05:05.413Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-capture-reddit-1": {
+    "at": "2026-11-01T10:05:14.610Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-ideas-0": {
+    "at": "2026-11-01T14:02:33.744Z",
+    "note": "this still isnt done",
+    "reply": "Not done. Same nav session as the two Email items and the Settings split. Next after the current batch.",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T10:06:45.868Z",
+        "text": "maybe the section changes to BUILD?  otherwise we have 2 creates.",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:02:33.740Z",
+        "text": "this still isnt done",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:45:00.000Z",
+        "text": "Correct, not done. Same nav session as the two Email items and the Settings split: all four move slugs and the route table. Next after the current batch lands.",
+        "who": "claude"
+      }
+    ]
+  },
+  "shared-create-ideas-1": {
+    "at": "2026-11-01T10:06:55.892Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-ideas-2": {
+    "at": "2026-11-01T13:32:08.000Z",
+    "note": "can the options below is be redesigned to full width in a row with a space between each section?  and can the inactive options have a light grey background?",
+    "reply": "Queued, small-fixes batch: options full width in a row with space between each section, inactive ones on a light grey.",
+    "state": "done"
+  },
+  "shared-create-produce-0": {
+    "at": "2026-11-01T10:10:25.820Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-produce-1": {
+    "at": "2026-11-01T10:10:34.084Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-produce-2": {
+    "at": "2026-11-01T10:10:46.054Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-produce-3": {
+    "at": "2026-11-01T10:10:51.891Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-review-0": {
+    "at": "2026-11-01T10:08:23.102Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-review-1": {
+    "at": "2026-11-01T10:08:43.293Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-review-2": {
+    "at": "2026-11-01T13:32:51.685Z",
+    "note": "this didnt seem to removal from the client approval link.",
+    "reply": "Fixed and merged (PR 1908). The tick was kept in your browser's local storage, which is why it worked for you and could never reach the client: their approval page is a different page in a different browser. It's a column on the post now, so one tick filters both the next step and the approval link. I also closed a hole while in there: a post you'd withheld was still approvable by id.",
+    "state": "done"
+  },
+  "shared-create-review-3": {
+    "at": "2026-11-01T10:09:41.828Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-schedule-0": {
+    "at": "2026-11-01T10:11:35.931Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-schedule-1": {
+    "at": "2026-11-01T10:11:57.278Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-create-schedule-2": {
+    "at": "2026-11-01T10:12:03.020Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-discover-0": {
+    "at": "2026-11-01T10:12:10.656Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-measure-compare-0": {
+    "at": "2026-11-01T10:16:02.051Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-measure-compare-1": {
+    "at": "2026-11-01T10:16:04.464Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-measure-compare-2": {
+    "at": "2026-11-01T13:34:44.050Z",
+    "note": "one of them opened.  the others are all access denied.",
+    "reply": "Fixed and merged (PR 1909). The ingest had been corrected to store the right link, which fixed sounds fetched afterwards and nothing fetched before, because a snapshot is written once and never revisited. The link is now worked out from the id and title every row already holds, so every snapshot you have taken reads correctly with nothing to run. Worth a re-check once the deploy lands.",
+    "state": "done"
+  },
+  "shared-measure-compare-3": {
+    "at": "2026-11-01T13:34:48.112Z",
+    "note": "its truncated, so i dont know.  can each chip have Title: and Artist: and Used: on separate lines so I can easily see.",
+    "reply": "Done and merged in the same change (PR 1909). The pills put title, artist and use count on one line and ellipsised all three, cutting exactly the part you need to type into search. They are labelled lines in a grid now: Title, Artist, Used.",
+    "state": "done"
+  },
+  "shared-measure-compare-4": {
+    "at": "2026-11-01T10:16:42.928Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-measure-improve-0": {
+    "at": "2026-11-01T14:03:48.492Z",
+    "note": "why not done?",
+    "reply": "",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T14:03:48.486Z",
+        "text": "why not done?",
+        "who": "you"
+      }
+    ]
+  },
+  "shared-measure-learn-0": {
+    "at": "2026-11-01T10:13:53.690Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-measure-learn-1": {
+    "at": "2026-11-01T14:14:55.950Z",
+    "note": "go",
+    "reply": "Because it is waiting on you, not on me. A scheduled task runs on its own every week without anyone asking, which is exactly the kind of thing your standing rule says I do not switch on by myself. Say go and it exists in five minutes: weekly, socialmediatoday and searchenginejournal, a short list to read, nothing built.",
+    "state": "open",
+    "thread": [
+      {
+        "at": "2026-11-01T10:15:13.262Z",
+        "text": "maybe monitor https://www.socialmediatoday.com/ and analyse it?  not sure if there is a way to decide what to build and build a list to implement?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:15:13.262Z",
+        "text": "Agreed, and your framing beats my objection: not 'tell me what to build' but 'tell me what's new so I can decide'. Cheapest version is a weekly Claude scheduled task reading socialmediatoday and searchenginejournal and writing you a short list. Nothing to build, could run this week. I won't create it without you saying go.",
+        "who": "claude"
+      },
+      {
+        "at": "2026-11-01T14:03:41.843Z",
+        "text": "why not done?",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T14:15:00.000Z",
+        "text": "Because it is waiting on you, not on me. A scheduled task runs on its own every week without anyone asking, which is exactly the kind of thing your standing rule says I do not switch on by myself. Say go and it exists in five minutes: weekly, socialmediatoday and searchenginejournal, a short list to read, nothing built.",
+        "who": "claude"
+      },
+      {
+        "at": "2026-11-01T14:14:55.946Z",
+        "text": "go",
+        "who": "you"
+      }
+    ]
+  },
+  "shared-measure-learn-2": {
+    "at": "2026-11-01T13:34:10.838Z",
+    "note": "the text field on the hook vault needs to be 75% wide, and the dropdown 25% wide",
+    "reply": "Queued, small-fixes batch. Hook vault field 75%, dropdown 25%.",
+    "state": "done"
+  },
+  "shared-measure-review-0": {
+    "at": "2026-11-01T13:33:37.188Z",
+    "note": "i connected my account but it seems to be reporting for a different account connected to that login.  and not the one selected in connectors.",
+    "reply": "Fixed and merged (PR 1907). You were right. A Meta login can administer several Pages, each with its own Instagram account, and the report was the one caller that didn't pass your saved selection, so it read whichever Page Meta listed first. It now reads the account chosen on Connectors, and names it in the report so a reach figure can be traced to an account.",
+    "state": "done"
+  },
+  "shared-measure-review-1": {
+    "at": "2026-11-01T13:33:45.848Z",
+    "note": "i connected my account but it seems to be reporting for a different account connected to that login.  and not the one selected in connectors.",
+    "reply": "Same fix as the item above, merged in PR 1907. The report now reads the Instagram account you picked on Connectors and prints which one it used.",
+    "state": "done"
+  },
+  "shared-measure-review-2": {
+    "at": "2026-11-01T10:13:20.843Z",
+    "note": "",
+    "state": "done"
+  },
+  "shared-measure-review-3": {
+    "at": "2026-11-01T10:13:31.699Z",
+    "note": "",
+    "state": "done"
+  },
+  "strategist-and-sostac-0": {
+    "at": "2026-11-01T10:53:51.834Z",
+    "note": "",
+    "state": "done"
+  },
+  "strategist-and-sostac-1": {
+    "at": "2026-11-01T13:39:08.127Z",
+    "note": "i dont see this",
+    "reply": "Taking this as 'the how-to is not on the SOSTAC items', which contradicts what I recorded as delivered. I will look at the live screen rather than the commit, which is the mistake I made on the Database item too. Will report what I find.",
+    "state": "done",
+    "thread": [
+      {
+        "at": "2026-11-01T10:54:08.495Z",
+        "text": "i dont see this",
+        "who": "you"
+      },
+      {
+        "at": "2026-11-01T10:54:08.495Z",
+        "text": "Taking this as 'the how-to is not on the SOSTAC items', which contradicts what I recorded as delivered. I will look at the live screen rather than the commit, which is the mistake I made on the Database item too. Will report what I find.",
+        "who": "claude"
+      }
+    ]
+  },
+  "the-blank-error-screen-after-a-deploy-0": {
+    "at": "2026-11-01T13:40:36.346Z",
+    "note": "",
+    "reply": "",
+    "state": "done",
+    "thread": []
+  },
+  "the-red-buttons-0": {
+    "at": "2026-11-01T13:42:14.749Z",
+    "note": "",
+    "reply": "",
+    "state": "done",
+    "thread": []
+  },
+  "three-i-found-by-driving-not-by-reading-the-diff-0": {
+    "at": "2026-11-01T13:46:52.460Z",
+    "note": "",
+    "reply": "",
+    "state": "done",
+    "thread": []
+  }
+}
