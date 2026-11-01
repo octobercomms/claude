@@ -11,6 +11,9 @@ import { rowSizeClass } from '../../utils/statValue';
 //     spark        — an array of numbers → an inline trend sparkline
 //     sparkReverse — flip the sparkline's green/red (lower-is-better metrics)
 //     feature      — one highlighted tile (dark fill, white ink) for the headline
+//     accent       — the same emphasis without inverting: accent border and
+//                    wash, black ink. For a screen showing two stat rows at
+//                    once, where two dark slabs cancel each other out.
 // Layout only — auto-fits as many columns as fit, wraps on narrow screens.
 // Every value in a row renders at one size, set by the longest of them.
 export default function StatStrip({ items = [] }) {
@@ -20,7 +23,10 @@ export default function StatStrip({ items = [] }) {
   return (
     <div className="ds-stats">
       {items.map((s, i) => (
-        <div className={`ds-stat ${s.feature ? 'ds-stat--feature' : ''}`} key={s.key || s.label || i}>
+        <div
+          className={`ds-stat ${s.feature ? 'ds-stat--feature' : ''} ${s.accent && !s.feature ? 'ds-stat--accent' : ''}`}
+          key={s.key || s.label || i}
+        >
           <div className={`ds-stat__value ${size}`}>{s.value ?? '—'}</div>
           <div className="ds-stat__label">{s.label}</div>
           {s.sub != null && <div className="ds-stat__sub">{s.sub}</div>}

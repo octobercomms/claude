@@ -8,7 +8,6 @@ import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
 import AddContactModal from '../components/AddContactModal';
 import EditContactModal from '../components/EditContactModal';
-import ListDetail from '../components/shells/ListDetail';
 import ManageUsersPage from './ManageUsersPage';
 import LeadsPage from './LeadsPage';
 import ProposalsPage from './ProposalsPage';
@@ -33,6 +32,7 @@ import ReportsPage from './ReportsPage';
 import CheckerBenchPage from './CheckerBenchPage';
 import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
 import RecordTools, { ToolRow } from '../components/database/RecordTools';
+import DangerConfirm from '../components/ui/DangerConfirm';
 
 // The page's own list of settings screen keys, per section.
 //
@@ -284,13 +284,21 @@ export default function SettingsPage() {
     }
   }
 
+  // The title is the section's, not the literal word "Settings". This one
+  // component serves three sections over three paths, so every Database and
+  // Biz dev screen said "Settings" above its own name: Publications read
+  // "Settings / Publications" a year after Publications stopped being a
+  // setting. ScreenHeading already derives the screen from the path; the
+  // heading above it was the only line still hardcoded.
+  const sectionTitle = sectionForPath(location.pathname)?.title || 'Settings';
+
   return (
     <div>
       <div className="kicker"><span className="pip" />Admin</div>
       <header className="hero">
         <div>
-          <h1 className="display">Settings</h1>
-          <ScreenHeading title="Settings" />
+          <h1 className="display">{sectionTitle}</h1>
+          <ScreenHeading title={sectionTitle} />
         </div>
       </header>
 
@@ -619,6 +627,10 @@ function PublicationsPanel() {
   const [selected, setSelected] = useState(() => new Set());
   const [openOutlet, setOpenOutlet] = useState(null);
   const [rssBusy, setRssBusy] = useState(null); // outlet id being resolved, or 'sweep'
+  // A pending bulk delete: { ids, noun, detail }. Held in state rather than
+  // run from a confirm() so the count has to be typed before anything goes.
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Auto-discover one publication's RSS feed.
   async function findRss(o) {
@@ -710,32 +722,46 @@ function PublicationsPanel() {
     });
   }
 
-  async function deleteSelected() {
-    if (!selected.size) return;
-    const total = Array.from(selected).reduce((acc, id) => {
-      const o = (outlets || []).find((x) => x.id === id);
-      return { coverage: acc.coverage + (o?.coverage || 0), contacts: acc.contacts + (o?.contacts || 0) };
-    }, { coverage: 0, contacts: 0 });
-    if (!confirm(`Delete ${selected.size} publication${selected.size === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} journalists will be detached (kept; their Publication becomes blank).\n\nCannot be undone.`)) return;
-    try {
-      await api.post('/pr/outlets/bulk-delete', { ids: Array.from(selected) });
-      setOutlets((list) => list.filter((x) => !selected.has(x.id)));
-      setSelected(new Set());
-    } catch (e) { setErr(e.message); }
-  }
-  async function deleteAllMatching() {
-    if (!visibleOutlets.length) return;
-    const total = visibleOutlets.reduce((acc, o) => ({
-      coverage: acc.coverage + (o.coverage || 0),
-      contacts: acc.contacts + (o.contacts || 0),
+  // What a set of publications takes with it, in the operator's own terms.
+  function attachmentNote(rows) {
+    const t = rows.reduce((acc, o) => ({
+      coverage: acc.coverage + (o?.coverage || 0),
+      contacts: acc.contacts + (o?.contacts || 0),
     }), { coverage: 0, contacts: 0 });
-    if (!confirm(`Delete ALL ${visibleOutlets.length} matching publication${visibleOutlets.length === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} journalists will be detached.\n\nCannot be undone.`)) return;
+    return `${t.coverage.toLocaleString()} coverage ${t.coverage === 1 ? 'entry' : 'entries'} and ${t.contacts.toLocaleString()} journalist${t.contacts === 1 ? '' : 's'} are detached, not deleted: they are kept, and their Publication field becomes blank.`;
+  }
+
+  function askDeleteSelected() {
+    if (!selected.size) return;
+    const rows = Array.from(selected).map((id) => (outlets || []).find((x) => x.id === id)).filter(Boolean);
+    setPendingDelete({ ids: Array.from(selected), noun: 'publication', detail: attachmentNote(rows) });
+  }
+
+  function askDeleteAllMatching() {
+    if (!visibleOutlets.length) return;
+    // Only the rows the list actually drew. The old button read "Delete all
+    // 2000 matching" while the list showed 500, so one click deleted 1,500
+    // publications nobody had looked at.
+    const rows = visibleOutlets.slice(0, 500);
+    setPendingDelete({
+      ids: rows.map((o) => o.id),
+      noun: 'publication',
+      detail: `${attachmentNote(rows)}${visibleOutlets.length > rows.length ? ` This deletes the ${rows.length} shown; ${(visibleOutlets.length - rows.length).toLocaleString()} more match and are left alone. Narrow the search to reach them.` : ''}`,
+    });
+  }
+
+  async function runPendingDelete() {
+    if (!pendingDelete) return;
+    const ids = pendingDelete.ids;
+    setDeleting(true);
     try {
-      const ids = visibleOutlets.map((o) => o.id);
       await api.post('/pr/outlets/bulk-delete', { ids });
-      setOutlets((list) => list.filter((x) => !ids.includes(x.id)));
+      const gone = new Set(ids);
+      setOutlets((list) => list.filter((x) => !gone.has(x.id)));
       setSelected(new Set());
+      setPendingDelete(null);
     } catch (e) { setErr(e.message); }
+    finally { setDeleting(false); }
   }
 
   function exportOutletsCsv() {
@@ -791,78 +817,118 @@ function PublicationsPanel() {
           <span>{selected.size} selected · Showing {shownCount.toLocaleString()} of {totalCount.toLocaleString()} matching</span>
           <div style={{ flex: 1 }} />
           {selected.size > 0 && (
-            <button onClick={deleteSelected} className="btn btn-sm btn-danger">
+            <button onClick={askDeleteSelected} className="btn btn-sm btn-danger">
               Delete selected ({selected.size})
             </button>
           )}
           {visibleOutlets.length > 0 && (
-            <button onClick={deleteAllMatching} className="btn btn-sm btn-danger">
-              Delete all {visibleOutlets.length} matching
+            <button onClick={askDeleteAllMatching} className="btn btn-sm btn-danger">
+              Delete all {shownCount.toLocaleString()} shown
             </button>
           )}
         </div>
       )}
 
+      {/* A full-width table, and the record in a modal.
+          It was a 300px picker rail with the profile squeezed into the
+          remaining third, which is the shape for a short list you scan. This
+          is 2,000 publications with six facts each, and the facts were the
+          thing you could not see: tier, coverage, journalists, region and
+          whether a feed had been found all competed for one narrow line.
+          Journalists, the sibling screen, is already a table that opens a
+          modal. */}
       {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
-        <ListDetail
-          sidebar
-          list={
-            <div className="card" style={{ padding: 0, maxHeight: 600, overflowY: 'auto' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
-                <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible" />
-                Select all · {visibleOutlets.length}
-              </label>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ width: 32 }}>
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible" />
+                </th>
+                <th>Publication</th>
+                <th>Tier</th>
+                <th className="num">Coverage</th>
+                <th className="num">Journalists</th>
+                <th>Region</th>
+                <th>Feed</th>
+                <th style={{ width: 40 }}></th>
+              </tr>
+            </thead>
+            <tbody>
               {!visibleOutlets.length && (
-                <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-caption)' }}>No publications{outletSearch ? ' match that search' : ' yet'}.</div>
+                <tr><td colSpan={8} style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>
+                  No publications{outletSearch ? ' match that search' : ' yet'}.
+                </td></tr>
               )}
-              {visibleOutlets.slice(0, 500).map((o) => {
-                const active = openOutlet?.id === o.id;
-                const tierLabel = (TIERS.find(([v]) => v === (o.tier || '')) || ['', '—'])[1];
-                return (
-                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: '1px solid var(--card-border)', background: active ? 'var(--surface-raised)' : 'transparent' }}>
+              {visibleOutlets.slice(0, 500).map((o) => (
+                <tr key={o.id}>
+                  <td>
                     <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleRow(o.id)} aria-label={`Select ${o.name}`} />
-                    <button type="button" onClick={() => setOpenOutlet(o)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>
-                      <div style={{ fontSize: 'var(--fs-body)', fontWeight: active ? 700 : 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</div>
-                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {tierLabel !== '—' ? `${tierLabel} · ` : ''}{o.coverage} coverage · {o.contacts || 0} journ{(o.contacts || 0) === 1 ? '' : 's'}
-                      </div>
+                  </td>
+                  <td className="strong">
+                    <button
+                      type="button"
+                      onClick={() => setOpenOutlet(o)}
+                      className="btn-link"
+                      style={{ font: 'inherit', textAlign: 'left' }}
+                    >
+                      {o.name}
                     </button>
-                    {rssBusy === o.id ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>…</span>
+                    {o.domain && <div className="body-xs text-subtle">{o.domain}</div>}
+                  </td>
+                  <td>
+                    <select className="input" value={o.tier || ''} onChange={(e) => setTier(o.id, e.target.value)} style={{ padding: '2px 6px', fontSize: 'var(--fs-caption)' }}>
+                      {TIERS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                    </select>
+                  </td>
+                  <td className="num">{(o.coverage || 0).toLocaleString()}</td>
+                  <td className="num">{(o.contacts || 0).toLocaleString()}</td>
+                  <td className="body-xs text-subtle">{o.region || '—'}</td>
+                  <td>
+                    {rssBusy === o.id ? <span className="body-xs text-subtle">…</span>
                       : o.rss_status === 'found' && o.rss_url
                         ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>feed</a>
                         : o.rss_status === 'none'
                           ? <button onClick={() => findRss(o)} title="No feed found — click to try again" className="btn-icon btn-icon-sm">—</button>
                           : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" className="btn-icon btn-icon-sm">＋</button>}
+                  </td>
+                  <td>
                     <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete" className="btn-icon danger">×</button>
-                  </div>
-                );
-              })}
-            </div>
-          }
-          detail={
-            openOutlet ? (
-              <OutletEditModal
-                key={openOutlet.id}
-                embedded
-                outletId={openOutlet.id}
-                onClose={() => setOpenOutlet(null)}
-                onSaved={(patched) => {
-                  setOutlets((list) => list.map((x) => (x.id === patched.id ? { ...x, ...patched } : x)));
-                }}
-                onDeleted={(id) => {
-                  setOutlets((list) => list.filter((x) => x.id !== id));
-                  setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
-                  setOpenOutlet(null);
-                }}
-              />
-            ) : (
-              <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
-                Select a publication on the left to view and edit its profile, journalists and coverage.
-              </div>
-            )
-          }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {openOutlet && (
+        <OutletEditModal
+          key={openOutlet.id}
+          outletId={openOutlet.id}
+          onClose={() => setOpenOutlet(null)}
+          onSaved={(patched) => {
+            setOutlets((list) => list.map((x) => (x.id === patched.id ? { ...x, ...patched } : x)));
+          }}
+          onDeleted={(id) => {
+            setOutlets((list) => list.filter((x) => x.id !== id));
+            setSelected((sel) => { const n = new Set(sel); n.delete(id); return n; });
+            setOpenOutlet(null);
+          }}
         />
       )}
+
+      {pendingDelete && (
+        <DangerConfirm
+          count={pendingDelete.ids.length}
+          noun={pendingDelete.noun}
+          detail={pendingDelete.detail}
+          busy={deleting}
+          onConfirm={runPendingDelete}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
+
       {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)' }}>{err}</div>}
     </Card>
     </>

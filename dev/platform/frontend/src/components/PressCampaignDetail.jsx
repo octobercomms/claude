@@ -900,12 +900,17 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 since launch. Links take days to weeks to appear, so early numbers stay low.
               </p>
               <StatStrip items={[
-                { label: 'new referring domains', value: attribution.new_rds ?? '—', feature: true,
+                { label: 'new referring domains', value: attribution.new_rds ?? '—',
                   sub: 'first-ever link inside the window' },
                 { label: 'dofollow', value: attribution.dofollow_rds ?? '—',
                   sub: 'pass ranking value' },
+                // The emphasised tile on this screen, and the only one. It was
+                // on new referring domains while the line beneath called this
+                // one the defensible number, so the screen shouted about the
+                // figure it then told you to discount. Accent rather than the
+                // black slab because Results shows two stat rows at once.
                 { label: 'from outlets you pitched', value: attribution.pitched_rds ?? '—',
-                  sub: 'the defensible number' },
+                  accent: true, sub: 'the defensible number' },
                 { label: 'emailed so far', value: attribution.recipients ?? '—',
                   sub: 'climbs as the paced send finishes' },
               ]} />

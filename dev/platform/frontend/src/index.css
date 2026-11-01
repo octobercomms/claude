@@ -2352,6 +2352,16 @@ a:hover > .card-stat,
 .ds-stat--feature .ds-stat__label,
 .ds-stat--feature .ds-stat__sub { color: #fff; }
 
+/* Accent tile — the same job as the feature tile without inverting the
+   surface, for a screen that already carries one dark slab or shows two stat
+   rows at once. Earned's Results was both: a black tile in the attribution
+   row and another in the engagement row, so the emphasis cancelled out and
+   the screen read as a page of black blocks.
+   The ink stays black on purpose. The accent is #E7CD41, which measures about
+   1.7:1 on white: fine as a border or a wash, unreadable as a number, even at
+   display size where 3:1 is the floor. */
+.ds-stat--accent { border-color: var(--accent); background: var(--accent-soft); }
+
 /* L4 · StepRail — the one step indicator (merges Stepper + ProcessRail);
    it renders on the shared .stepper* classes above. */
 
