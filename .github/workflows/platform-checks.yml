@@ -225,6 +225,10 @@ jobs:
         run: node tests/review-batch-small.test.js
       - name: Guard — the contact library sorts on the server, and its red button asks for the count
         run: node tests/contacts-sort.test.js
+      - name: Guard — Google GoTo URLs are resolved before anything reads them
+        run: node tests/goto-urls.test.js
+      - name: Guard — a deploy under an open tab reloads instead of erroring
+        run: node tests/lazy-chunk.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist

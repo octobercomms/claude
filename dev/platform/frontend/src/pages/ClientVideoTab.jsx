@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
+import { lazyChunk } from '../utils/lazyChunk';
 import ScreenHeading from '../components/ScreenHeading';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
@@ -12,7 +13,9 @@ import TightenEdit from '../components/TightenEdit';
 import BrollPlan from '../components/BrollPlan';
 // Lazily loaded: the design editor pulls in Fabric.js, which is a large
 // dependency that nobody who never opens this tab should be made to download.
-const ClientDesignPage = lazy(() => import('./ClientDesignPage'));
+// Reloads rather than showing a blank error when a deploy lands
+// mid-session; see utils/lazyChunk.
+const ClientDesignPage = lazyChunk('ClientDesignPage', () => import('./ClientDesignPage'));
 import { useScreen } from '../hooks/useScreen';
 import { useAuth } from '../context/AuthContext';
 

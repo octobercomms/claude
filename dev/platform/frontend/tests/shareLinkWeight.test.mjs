@@ -55,8 +55,11 @@ test('only the three arrival pages are statically imported by App.jsx', () => {
 test('the admin pages are lazy, and Layout with them', () => {
   // Layout matters as much as the pages: it pulls in the section panel, the
   // nav table and the chart primitives, none of which a player page touches.
+  // lazyChunk, not React.lazy directly: same split, plus a reload when the
+  // chunk has gone because a deploy landed under an open tab. Still a chunk,
+  // which is what this test is about.
   for (const name of ['Layout', 'SettingsPage', 'ClientSEOPage', 'ClientPRPage', 'ClientSocialPage']) {
-    assert.ok(new RegExp(`const ${name} = lazy\\(\\(\\) => import\\(`).test(appSrc),
+    assert.ok(new RegExp(`const ${name} = lazyChunk\\('${name}', \\(\\) => import\\(`).test(appSrc),
       `${name} must be a lazy chunk; it is dead weight on every public page`);
   }
 });
