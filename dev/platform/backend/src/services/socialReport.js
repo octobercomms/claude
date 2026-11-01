@@ -30,17 +30,43 @@ const { decrypt } = require('../utils/encryption');
 
 const WINDOW_DEFAULT = 30;
 
+/**
+ * The Meta login to read, and the Instagram account chosen on Connectors.
+ *
+ * Both, together, because they are not the same row and the report used to
+ * take only the first. A Meta login commonly administers several Pages, each
+ * with its own Instagram account; without the saved selection
+ * `pickPublishingTargets` falls back to "the first Page with Instagram
+ * attached", which is whichever Meta happens to return first. The report then
+ * printed a different client's numbers under this client's name — the fault
+ * Daniel reported as "it seems to be reporting for a different account
+ * connected to that login, and not the one selected in connectors".
+ *
+ * The selection lives in `connectors.config.value` on the
+ * `instagram_insights` row, which is where Publish and the connector health
+ * check already read it from. This is the fourth reader of that value and the
+ * last one that was guessing.
+ */
 async function metaCreds(clientId) {
   const { rows } = await pool.query(
-    `SELECT credentials FROM connectors
+    `SELECT connector_type, credentials, config FROM connectors
       WHERE client_id = $1
         AND connector_type IN ('meta_ads', 'instagram_insights')
         AND credentials IS NOT NULL AND credentials != '{}'
-      ORDER BY connector_type LIMIT 1`,
+      ORDER BY connector_type`,
     [clientId]
   );
   if (!rows.length) return null;
-  try { return decrypt(rows[0].credentials); } catch { return null; }
+  let credentials = null;
+  for (const row of rows) {
+    try { credentials = decrypt(row.credentials); break; } catch { /* try the next */ }
+  }
+  if (!credentials) return null;
+  // The chosen account is recorded against instagram_insights specifically,
+  // so it is read from that row rather than from whichever row carried the
+  // usable credentials.
+  const igRow = rows.find(r => r.connector_type === 'instagram_insights');
+  return { credentials, preferredIgId: igRow?.config?.value || null };
 }
 
 // The posts OMI published in the window, with the permalink it recorded. The
@@ -172,10 +198,14 @@ function totals(posts) {
 
 // What the report covers, said plainly, because a client reading a number
 // deserves to know which account it came from.
-function coverageNotes({ connected, feedCount, platforms }) {
+function coverageNotes({ connected, feedCount, platforms, accountLabel }) {
   const notes = [];
   if (connected) {
-    notes.push(`Instagram is connected, so this covers every post on the account in the window (${feedCount}), whoever published it.`);
+    // Which account, by name. A Meta login can administer several, and a
+    // report that does not say whose numbers these are cannot be checked.
+    notes.push(accountLabel
+      ? `Instagram is connected as ${accountLabel}, so this covers every post on that account in the window (${feedCount}), whoever published it.`
+      : `Instagram is connected, so this covers every post on the account in the window (${feedCount}), whoever published it.`);
   } else {
     notes.push('No Instagram account is connected to OMI, so this covers only the posts published through OMI. Connect Instagram to include the rest of the account.');
   }
@@ -202,14 +232,20 @@ async function reportData(clientId, { days = WINDOW_DEFAULT } = {}) {
   let feed = [];
   let connected = false;
   let connectorError = null;
-  const creds = await metaCreds(clientId);
-  if (creds) {
+  const conn = await metaCreds(clientId);
+  let accountLabel = null;
+  if (conn) {
     try {
-      const targets = await meta.pickPublishingTargets(creds);
+      const targets = await meta.pickPublishingTargets(conn.credentials, conn.preferredIgId);
       if (targets.igBusinessId) {
         const since = new Date(Date.now() - days * 86400000);
-        feed = await meta.fetchInstagramMedia(creds, { igId: targets.igBusinessId, since, until: new Date() });
+        feed = await meta.fetchInstagramMedia(conn.credentials,
+          { igId: targets.igBusinessId, since, until: new Date() });
         connected = true;
+        // Named in the report, so which account the numbers came from is on
+        // the page rather than inferred. A client reading a reach figure
+        // deserves to see whose reach it is.
+        accountLabel = `${targets.pageName} / Instagram ${targets.igBusinessId}`;
       } else {
         connectorError = 'The Meta connection has no Instagram business account attached.';
       }
@@ -242,7 +278,8 @@ async function reportData(clientId, { days = WINDOW_DEFAULT } = {}) {
     best: rated.slice(0, 5),
     worst: rated.slice(-3).reverse().filter(p => !rated.slice(0, 5).includes(p)),
     frameworks: overview?.frameworks || [],
-    coverage: coverageNotes({ connected, feedCount: feed.length, platforms }),
+    account: accountLabel,
+    coverage: coverageNotes({ connected, feedCount: feed.length, platforms, accountLabel }),
   };
 }
 
