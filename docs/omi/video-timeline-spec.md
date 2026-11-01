@@ -512,6 +512,94 @@ and the reel would still be indexed. Found by asserting that *every* path
 reaching `complete()` has a check close before it, rather than checking the
 one path I had in mind.
 
+### Session 5 · transitions
+
+Built: **Transitions** (the spec's last line before the totals), and with it the
+ffmpeg filter graph both it and 2.7 needed.
+
+| What | Where |
+|---|---|
+| The model, the offsets, the graph | `shared/edl.mjs` |
+| The faded render | `backend/src/services/editProcessor.js` → `cutEdl` |
+| The picker and the drawn overlap | `frontend/src/components/video/Timeline.jsx` |
+| Guards | `tests/edl.test.js` (50), `edit-edl-render.test.js` (11), `edit-transitions.test.js` (6, renders real video), plus the browser drive at 59 |
+
+Five types: cut, fade, via black, wipe, dissolve. Each is bounded between 0.1s
+and 2s, and clamped to half the shorter of the two blocks it joins, because a
+fade longer than either block makes `xfade` produce an output shorter than its
+own offset and ffmpeg does not report it, it drops frames.
+
+**A transition is stored on the block it fades INTO**, not in a list between
+blocks. It belongs to the join on its left, and keeping it on the right-hand
+block means a reorder, a split or a delete carries it or drops it with the
+block it describes. A between-blocks list would need re-indexing on every one
+of those, which is exactly the bookkeeping that silently puts a fade in the
+wrong place.
+
+**The hard part was not where the spec put it.** The scope said transitions
+needed "an ffmpeg `xfade` with its own timing arithmetic against the EDL", and
+the arithmetic is indeed where this goes wrong, but the input compatibility
+problem was already solved: `xfade` requires its inputs to agree on
+resolution, frame rate, pixel format and audio parameters, which is precisely
+what `cutEdl`'s normalisation pass already guarantees. The work that made an
+arbitrary concat safe made the filter graph safe too.
+
+### The arithmetic, and why it is the whole risk
+
+`xfade` takes an `offset`: the time **in its first input** at which the
+transition begins. Chaining it is where this breaks, because each xfade's
+first input is the *output* of the one before, already shorter than the blocks
+that went into it by every fade so far. An offset computed from the blocks'
+own start times puts every fade after the first late by the sum of the fades
+before it, and ffmpeg renders it without complaint.
+
+So the offsets are a running total of the chained output, they live in
+`shared/edl.mjs` beside the arithmetic the surface draws from, and
+`laidOut()` returns the same numbers. That equality is the property worth
+having: a fade cannot land anywhere the timeline did not show it.
+
+Audio uses `acrossfade`, which needs no offset at all: it always joins at the
+end of its first input and shortens the result by the same `d`, so it stays in
+step with the video chain without being told where to be.
+
+A hard cut between two faded joins still goes through the chain, as a
+one-frame fade, because a single pass cannot mix concatenation with xfade.
+Stated rather than hidden, and the render test checks that one frame is
+invisible: the colour either side of such a join is the block's own.
+
+### Verified against ffmpeg, not reasoned about
+
+`edit-transitions.test.js` renders real video and measures it. Three
+solid-colour blocks, then the colour sampled out of the render at the instants
+the model says each block occupies. A fade in the wrong place shows up as the
+wrong colour at a known time. It checks:
+
+- the rendered duration matches the model to within a frame (13.5s predicted,
+  13.52s rendered, the difference being container and AAC padding)
+- every block is where `laidOut` drew it
+- the middle of a fade is a genuine blend of both blocks, not a hard cut at
+  the right time
+- a hard cut inside a faded edit is still a cut
+- every type the picker offers actually renders
+- a wipe is a wipe: mid-transition the two edges of the frame differ, where a
+  fade's whole frame is one blend
+
+That last one caught a mutation mapping every transition type to `fade`, which
+nothing else could see: every xfade type produces the same output length.
+
+### Two bugs found by driving it
+
+1. **A fade alone was dropped before it reached the renderer.**
+   `isWholeClipsInOrder` decides whether an edit needs the EDL at all, and an
+   edit whose only change was a cross-fade read as "untouched", so the EDL was
+   never sent and the render came back with hard cuts where the timeline drew
+   fades. The same trap as gain in session one, and worse, because the page
+   showed the fade.
+2. **My own sampler smeared a wipe into a fade.** Scaling a 240-pixel frame
+   down to two columns averages the whole width into both samples, so a real
+   wipe read as a uniform blend and the assertion failed against correct code.
+   Four columns, comparing the outer two.
+
 ### Next session
 
 **2.2, the frame-accurate preview, on WebCodecs** — but not before the

@@ -78,3 +78,50 @@ test('stills reels are untouched by any of this', () => {
   assert.ok(src.indexOf('job.ops?.stills_reel') < src.indexOf('const storedEdl'),
     'the stills path returns before the EDL routing, as it did before');
 });
+
+// ---- transitions -------------------------------------------------------
+
+test('a faded edit takes the filter graph, not the concat', () => {
+  // A concat joins clips end to end by definition, so it cannot express a
+  // cross-fade at all. The two paths must be distinguished before the render,
+  // not after.
+  const body = src.slice(src.indexOf('async function cutEdl'));
+  const graphBranch = body.slice(0, 4200);
+  assert.match(graphBranch, /const graph = ctx\.graph/);
+  assert.match(graphBranch, /'-filter_complex', graph\.filter/);
+  assert.match(graphBranch, /'-map', graph\.videoOut/);
+  assert.match(graphBranch, /'-map', graph\.audioOut/,
+    'the audio chain must be mapped too, or the render takes input 0 audio only');
+  // Searched over the whole function, not a slice: a slice that cuts off
+  // before the concat makes indexOf return -1, and a comparison against -1
+  // passes for the wrong reason. This assertion failed that way first time.
+  const graphAt = body.indexOf('graph.filter');
+  const concatAt = body.indexOf("'-f', 'concat'");
+  assert.ok(graphAt > 0, 'the graph branch is in cutEdl');
+  assert.ok(concatAt > 0, 'and so is the concat fallback');
+  assert.ok(graphAt < concatAt, 'the graph branch comes first');
+});
+
+test('the graph is built from the same arithmetic the surface drew from', () => {
+  // If the processor computed its own offsets, a fade could land somewhere the
+  // timeline never showed it, and nothing downstream would notice.
+  assert.match(src, /E\.xfadeGraph\(cutList\)/,
+    'the offsets must come from shared/edl.mjs, not from the processor');
+  assert.doesNotMatch(src, /xfade=transition=\$\{/,
+    'the processor must not assemble xfade strings of its own');
+});
+
+test('a faded render only runs when every block was cut', () => {
+  // The graph names its inputs by index. If a block were dropped (a source
+  // missing from disk), the indices would shift and every fade after the gap
+  // would join the wrong pair.
+  const body = src.slice(src.indexOf('async function cutEdl'));
+  assert.match(body.slice(0, 4200), /outs\.length === segments\.length/,
+    'a dropped block shifts the input indices, so the graph must not be used');
+});
+
+test('the concat path is still there for an edit with no fades', () => {
+  const body = src.slice(src.indexOf('async function cutEdl'));
+  assert.match(body, /'-f', 'concat', '-safe', '0'/,
+    'an edit with no fades keeps the proven stream-copy path');
+});

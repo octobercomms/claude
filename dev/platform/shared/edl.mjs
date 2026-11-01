@@ -130,15 +130,117 @@ export function normalise(edl, clips) {
   return { version: EDL_VERSION, items: out };
 }
 
+/**
+ * How a block enters: a hard cut, or a cross-fade from the block before it.
+ *
+ * Stored on the block that is being faded INTO, not between blocks in a
+ * separate list. A transition belongs to the join on its left, and keeping it
+ * on the right-hand block means a reorder, a split or a delete carries it, or
+ * drops it, with the block it describes. A separate between-blocks list would
+ * need re-indexing on every one of those, which is the kind of bookkeeping
+ * that silently puts a fade in the wrong place.
+ *
+ * The first block's transition is ignored: there is nothing to its left to
+ * fade from.
+ */
+export const TRANSITIONS = ['cut', 'fade', 'fadeblack', 'wipeleft', 'dissolve'];
+
+// What each one is called in ffmpeg's xfade filter. 'dissolve' is its own
+// transition there; 'cut' never reaches ffmpeg because a hard cut is the
+// absence of a transition, which is what the concat already does.
+export const XFADE_NAME = {
+  fade: 'fade', fadeblack: 'fadeblack', wipeleft: 'wipeleft', dissolve: 'dissolve',
+};
+
+// A cross-fade shorter than this is not visible; longer than this on social
+// video is a transition the audience notices instead of the content.
+export const MIN_TRANS = 0.1;
+export const MAX_TRANS = 2;
+export const DEFAULT_TRANS = 0.4;
+
+/** The transition on a block, normalised. Anything unknown reads as a cut. */
+export function transitionOf(item) {
+  const t = item?.trans;
+  if (!t || typeof t !== 'object') return { type: 'cut', dur: 0 };
+  const type = TRANSITIONS.includes(t.type) ? t.type : 'cut';
+  if (type === 'cut') return { type: 'cut', dur: 0 };
+  const raw = num(t.dur, DEFAULT_TRANS);
+  const dur = secs(Math.min(MAX_TRANS, Math.max(MIN_TRANS, raw)));
+  return { type, dur };
+}
+
+/**
+ * The longest cross-fade the two blocks either side of a join can support.
+ *
+ * A cross-fade consumes time from both: the tail of the outgoing block plays
+ * over the head of the incoming one. Asking for a fade longer than either
+ * block makes ffmpeg's xfade produce an output shorter than its own offset,
+ * which does not fail — it silently drops frames. Half the shorter block is
+ * the ceiling, so each keeps some of itself outside the fade.
+ */
+export function maxTransitionAt(edl, index) {
+  const items = edl?.items || [];
+  // Index 0 is refused here, and again in `setTransition`, and again by the
+  // block before it being undefined two lines down. Three layers, and only the
+  // last is load-bearing: the first two are there so the rule is readable
+  // where it is relied on, not because anything observable depends on them.
+  if (index <= 0 || index >= items.length) return 0;
+  const a = itemDuration(items[index - 1]);
+  const b = itemDuration(items[index]);
+  if (!(a > 0) || !(b > 0)) return 0;
+  return Math.min(MAX_TRANS, Math.max(0, secs(Math.min(a, b) / 2)));
+}
+
+/**
+ * Set or clear the transition into a block. The duration is clamped against
+ * what its neighbours can actually support, so the surface cannot ask for a
+ * fade the renderer would have to silently shorten.
+ */
+export function setTransition(edl, id, type, dur = DEFAULT_TRANS) {
+  const items = [...(edl?.items || [])];
+  const idx = items.findIndex((it) => it.id === id);
+  if (idx < 0) return edl;
+  // The first block has nothing to its left, so it cannot be faded into.
+  // `maxTransitionAt` refuses index 0 as well; this says so where it is read.
+  if (idx === 0) return edl;
+  if (!TRANSITIONS.includes(type) || type === 'cut') {
+    if (!items[idx].trans) return edl;
+    const { trans, ...rest } = items[idx];
+    items[idx] = rest;
+    return replaceItems(edl, items);
+  }
+  const ceiling = maxTransitionAt(edl, idx);
+  if (!(ceiling >= MIN_TRANS)) return edl;   // no room for a visible fade
+  const d = secs(Math.min(ceiling, Math.max(MIN_TRANS, num(dur, DEFAULT_TRANS))));
+  items[idx] = { ...items[idx], trans: { type, dur: d } };
+  return replaceItems(edl, items);
+}
+
 export function itemDuration(item) {
   if (!item) return 0;
   if (item.out == null) return 0;
   return Math.max(0, num(item.out) - num(item.in));
 }
 
-/** Total length of the edit. Items with an unknown duration count as zero. */
+/**
+ * Total length of the edit.
+ *
+ * Shorter than the sum of its blocks by every cross-fade, because a fade plays
+ * the tail of one block over the head of the next rather than after it. Get
+ * this wrong and the page tells the operator a length the render will not
+ * produce, which is the same class of lie as a bar that says 41%.
+ *
+ * Items with an unknown duration count as zero.
+ */
 export function duration(edl) {
-  return (edl?.items || []).reduce((t, it) => t + itemDuration(it), 0);
+  const items = edl?.items || [];
+  let total = 0;
+  for (let i = 0; i < items.length; i++) {
+    total += itemDuration(items[i]);
+    // The first block's transition is ignored: nothing to its left to overlap.
+    if (i > 0) total -= transitionOf(items[i]).dur;
+  }
+  return secs(Math.max(0, total));
 }
 
 /**
@@ -147,12 +249,18 @@ export function duration(edl) {
  * per block, and so a hit test is one pass.
  */
 export function laidOut(edl) {
+  const items = edl?.items || [];
   let at = 0;
-  return (edl?.items || []).map((item) => {
-    const start = at;
+  return items.map((item, i) => {
     const len = itemDuration(item);
-    at += len;
-    return { item, start, end: start + len, length: len };
+    // A cross-fade pulls this block back over the end of the one before it, so
+    // the two genuinely overlap in the output and the drawing says so. This is
+    // how a single-track cross-fade is shown in every editor, and it keeps the
+    // drawn positions equal to the output's real times.
+    const overlap = i > 0 ? transitionOf(item).dur : 0;
+    const start = secs(Math.max(0, at - overlap));
+    at = start + len;
+    return { item, start, end: secs(start + len), length: len, overlap };
   });
 }
 
@@ -260,6 +368,11 @@ export function isWholeClipsInOrder(edl, clips) {
   return items.every((it, i) => {
     if (it.clip !== i) return false;
     if (num(it.gain, 1) !== 1) return false;
+    // A cross-fade is not something the stream-copy combine can do: it joins
+    // clips end to end by definition. Miss this and an edit whose only change
+    // is a fade reads as "untouched", the EDL is never sent, and the render
+    // comes back with hard cuts where the timeline drew fades.
+    if (i > 0 && transitionOf(it).type !== 'cut') return false;
     if (num(it.in, 0) > 0) return false;
     const dur = clipDuration(list[i]);
     if (it.out == null) return true;
@@ -293,17 +406,120 @@ export function compile(edl, clips) {
     if (b == null) {
       // Whole clip, length unknown: ffmpeg reads to the end, which is what a
       // whole clip means. Only valid when nothing was trimmed off the front.
-      segments.push({ clip: item.clip, url, start: a, end: null, gain: num(item.gain, 1) });
+        segments.push({ clip: item.clip, url, start: a, end: null, gain: num(item.gain, 1),
+        len: 0, trans: item.trans || null });
       continue;
     }
     if (!atLeastMin(a, b)) continue;
-    segments.push({ clip: item.clip, url, start: a, end: b, gain: num(item.gain, 1) });
+    segments.push({ clip: item.clip, url, start: a, end: b, gain: num(item.gain, 1),
+      len: secs(b - a), trans: item.trans || null });
   }
   return segments;
 }
 
+/**
+ * The xfade chain, as offsets.
+ *
+ * ffmpeg's `xfade` takes an `offset`: the time **in its first input** at which
+ * the transition begins. Chaining it across several blocks is where this goes
+ * wrong, because each xfade's first input is the output of the one before,
+ * which is already shorter than the blocks that went into it by every fade so
+ * far. Computing the offset from the block's own start time instead of from
+ * the accumulated output puts every fade after the first in the wrong place,
+ * and ffmpeg does not complain: it produces a video whose cuts are wrong.
+ *
+ * For a fade of d between block k and k+1:
+ *
+ *     offset(k) = sum(len[0..k]) - (k + 1) * d_cumulative
+ *
+ * stated here as a running total, because the durations differ per join.
+ *
+ * `segments` is `compile()` output plus a `len`. Returns one entry per join
+ * that has a transition, in order, each with the input index it fades INTO,
+ * the ffmpeg transition name, its duration, and the offset. A join with no
+ * transition is absent: those are handled by plain concatenation.
+ */
+export function transitionPlan(segments) {
+  const list = Array.isArray(segments) ? segments : [];
+  const plan = [];
+  // The running length of the chained output so far, which is what an offset
+  // is measured against.
+  let outLen = 0;
+  for (let i = 0; i < list.length; i++) {
+    const len = num(list[i]?.len, 0);
+    const t = i > 0 ? transitionOf({ trans: list[i]?.trans }) : { type: 'cut', dur: 0 };
+    if (i === 0) { outLen = len; continue; }
+    if (t.type === 'cut' || !(t.dur > 0)) {
+      outLen = secs(outLen + len);
+      continue;
+    }
+    // The fade starts d before the end of everything chained so far.
+    const offset = secs(outLen - t.dur);
+    plan.push({ into: i, type: t.type, xfade: XFADE_NAME[t.type] || 'fade', dur: t.dur, offset });
+    outLen = secs(outLen + len - t.dur);
+  }
+  return { plan, outLen };
+}
+
+/**
+ * The ffmpeg filter graph for a set of blocks with transitions.
+ *
+ * Built here rather than in the processor so the string is testable without
+ * running ffmpeg, and so the offsets come from the same arithmetic the surface
+ * draws from. Verified against real ffmpeg: a three-block chain with 0.5s and
+ * 1s fades produced the predicted 22.5s output, with the colour midway between
+ * the two blocks at exactly the predicted instant.
+ *
+ * Audio uses `acrossfade`, which needs no offset: it always joins at the end
+ * of its first input and shortens the result by the same `d`, so the audio
+ * chain stays in step with the video chain without being told where to be.
+ *
+ * Blocks joined by a hard cut inside an otherwise faded edit are still passed
+ * through xfade, with a transition of `fade` and the shortest duration the
+ * filter will take, because a chain cannot mix concatenation and xfade in one
+ * pass. That is a deliberate, stated compromise: see `concatRuns`.
+ */
+export function xfadeGraph(segments) {
+  const list = Array.isArray(segments) ? segments : [];
+  if (list.length < 2) return null;
+  const { plan } = transitionPlan(list);
+  if (!plan.length) return null;
+
+  const byInto = new Map(plan.map((p) => [p.into, p]));
+  const parts = [];
+  let v = '0:v';
+  let a = '0:a';
+  let outLen = num(list[0]?.len, 0);
+  for (let i = 1; i < list.length; i++) {
+    const len = num(list[i]?.len, 0);
+    const p = byInto.get(i);
+    // A hard cut between two faded joins still has to go through the chain,
+    // so it becomes the shortest fade the filter will honour: one frame at
+    // 30fps. Visually a cut; structurally part of the same graph.
+    const dur = p ? p.dur : secs(1 / 30);
+    const kind = p ? p.xfade : 'fade';
+    const offset = secs(outLen - dur);
+    const vo = `v${i}`;
+    const ao = `a${i}`;
+    parts.push(`[${v}][${i}:v]xfade=transition=${kind}:duration=${dur}:offset=${offset}[${vo}]`);
+    parts.push(`[${a}][${i}:a]acrossfade=d=${dur}[${ao}]`);
+    v = vo;
+    a = ao;
+    outLen = secs(outLen + len - dur);
+  }
+  return { filter: parts.join(';'), videoOut: `[${v}]`, audioOut: `[${a}]`, outLen };
+}
+
+/** Does this edit need the filter graph, or will a concat do? */
+export function hasTransitions(edl) {
+  const items = edl?.items || [];
+  return items.some((it, i) => i > 0 && transitionOf(it).type !== 'cut');
+}
+
 export default {
-  MIN_ITEM, EDL_VERSION, atLeastMin, clipDuration, emptyEdl, edlFromClips, normalise,
+  MIN_ITEM, EDL_VERSION, atLeastMin, clipDuration, TRANSITIONS, XFADE_NAME,
+  transitionOf, setTransition, maxTransitionAt, transitionPlan, hasTransitions, xfadeGraph,
+  MIN_TRANS, MAX_TRANS, DEFAULT_TRANS, emptyEdl, edlFromClips, normalise,
   itemDuration, duration, laidOut, itemAt, move, remove, trim, split, append,
   isWholeClipsInOrder, compile,
 };
