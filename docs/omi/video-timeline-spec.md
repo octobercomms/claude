@@ -369,6 +369,83 @@ rather than assuming either way.
 
 Neither would have been caught by reading the code, and neither throws.
 
+### Session 3 · the waveform
+
+Built: **2.4 (audio waveform)**.
+
+| What | Where |
+|---|---|
+| Decoding, in the browser | `frontend/src/utils/waveform.js` |
+| Peaks, slicing and the drawn path, pure and tested | `frontend/src/utils/waveformPeaks.js` |
+| Drawn under each block | `Timeline.jsx` |
+| Guards | `frontend/tests/waveformPeaks.test.mjs` (20), plus a 45-assertion browser drive |
+
+**The server-vs-browser decision, as promised, with the numbers.** ffmpeg does
+this far more cheaply: `-ac 1 -ar 8000 -f f32le` is 32KB a second, so a
+twenty-minute recording streams 38MB and buckets down to a few kilobytes, and
+`silenceCut.js` already does something adjacent. If the clips were on the
+server, the server would win outright.
+
+They are not, which is the same wall 2.3 hit, and a waveform that appears only
+after you have finished cutting is a waveform for a job you have already done.
+So: the browser, with the cost stated rather than buried.
+`decodeAudioData` into an `OfflineAudioContext` at 8kHz mono resamples on the
+way in, bringing twenty minutes down to about 38MB of transient float data
+instead of nearly half a gigabyte. The file read cannot be made cheap, so there
+is a **300MB ceiling**: a 1080p phone clip runs 10 to 20 Mbps, so that covers
+every reel and short clip and excludes the long screen recordings where reading
+a two-gigabyte file into an ArrayBuffer would take the tab down. Above it the
+block says "clip too large to read audio", because an absence that explains
+itself is worth more than a blank strip.
+
+### Three things the build changed
+
+**Audio is drawn in decibels, not linearly, and that is not a detail.** A sine
+tone through AAC measures about -18 dBFS, which is 0.13 of full scale: drawn
+linearly that is a one-pixel bar in a sixteen-pixel strip, and real speech is
+quieter. The first version was linear and the drive caught it as a flat line.
+Linear peaks stay as the data, because that is what was measured; the curve
+belongs to the drawing, with a -60 dBFS floor so a quiet room still reads
+differently from true silence.
+
+**A clip with no audio and a codec the browser cannot read throw the identical
+error.** `decodeAudioData` on an mp4 with no audio track raises
+`EncodingError: Unable to decode audio data`, exactly as an unreadable codec
+does. Reporting "audio could not be read" for a screen recording made with no
+microphone sends you looking for a fault that is not there, so the track is
+probed first with `captureStream().getAudioTracks()`, which answers it: zero
+tracks for a silent file, one for a file with sound. Chromium and Firefox have
+it, Safari does not, which is what the third wording is for: there it says "no
+audio, or a format this browser cannot read" rather than picking a cause.
+Probing first also avoids reading a whole file to decode audio that is absent.
+
+**Peaks, not averages.** An average over a few thousand samples of speech
+trends towards silence and draws a flat line through the middle of a sentence.
+
+### On testing a drawing
+
+The assertion that matters is not that a waveform appears, it is that a loud
+moment is drawn where it happens: an offset waveform moves a cut confidently to
+the wrong place, which is worse than no waveform. So the drive uses a clip that
+is ten seconds of silence apart from one second of tone at 6s, verified with
+ffmpeg's own `volumedetect` (-91 dB either side, -17.9 dB inside), and checks
+the loud columns land at 60 to 70 per cent of the block, with the right width.
+After a trim it derives the expected position from the in and out points the
+block itself reports, rather than from a number pasted into the test: a fixed
+expectation would be either too loose to catch an offset or too brittle to
+survive a good run.
+
+That mattered. Three mutations of the slicing arithmetic passed the first
+version of those assertions, and one of them drew the burst at 11 per cent of
+the block instead of 22, which is a cut landing half a second early.
+
+One mutation is left surviving and said so here: making each column sample a
+single peak instead of the range it covers. It undersamples, so a very short
+transient could be missed, but it does not move anything, and the waveform is
+for cutting on speech rather than for finding clicks. Catching it would need a
+clip built around a 20ms tick and would guard a property this feature does not
+need.
+
 ### Next session
 
 **2.2, the frame-accurate preview, on WebCodecs** — but not before the

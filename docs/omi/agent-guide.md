@@ -2358,11 +2358,31 @@ clip list changes. The placement arithmetic is in `utils/filmstripPlace.js`,
 import-free so it can be unit-tested, and its interval is half-open so a split
 does not draw the boundary frame on both sides.
 
-Still open, in the order they are worth doing: **2.4 waveform** (one session;
-decide server-vs-browser at the start of it rather than assuming, because
-decoding a whole audio track is a different order of cost from twelve seeks,
-and `silenceCut.js` already computes something adjacent server-side), then
-**2.2 the frame-accurate preview**, which waits on the
+**The waveform is in, also in the browser, and also not where the spec said.**
+Same reason as the filmstrip: clips are local until Render. `utils/waveform.js`
+decodes into an `OfflineAudioContext` at 8kHz mono, which resamples on the way
+in, and refuses above a 300MB ceiling because reading a two-gigabyte upload
+into an ArrayBuffer takes the tab down. Three traps:
+
+- **Audio is drawn in decibels, never linearly.** A tone through AAC is about
+  -18 dBFS, which is 0.13 of full scale and one pixel of a sixteen-pixel
+  strip, so a linear scale draws real speech as a flat line. `heightOf()` owns
+  the curve; the stored peaks stay linear because that is what was measured.
+- **`decodeAudioData` cannot tell "no audio track" from "codec I cannot
+  read".** Both throw `EncodingError: Unable to decode audio data`. The track
+  is probed first with `captureStream().getAudioTracks()` (absent in Safari,
+  hence a third, hedged wording). Never report a decode failure as "no audio"
+  without that probe: a screen recording with no microphone is ordinary, and
+  calling it a fault sends someone hunting for one.
+- **Test a waveform by where the loud moment lands, not by whether one
+  appears.** `scratchpad/edl/clips/burst.mp4` is silence with one second of
+  tone at 6s for this. Three mutations of the slicing arithmetic passed a
+  first set of assertions that only checked where the loud region started;
+  one drew the burst at 11% of the block instead of 22%. Check position AND
+  width, and after a trim derive the expectation from the in/out the block
+  itself reports.
+
+Still open: **2.2 the frame-accurate preview**, which waits on the
 capability probe at https://claude.ai/artifact/6NujtFbjeRAkpurKH619mU coming
 back from Daniel's real devices. If a plain seek already lands inside a frame
 on his footage, the preview is cheaper than scoped; if Safari has no

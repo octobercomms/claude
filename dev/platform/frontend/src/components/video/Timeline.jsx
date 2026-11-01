@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as EDL from '@shared/edl.mjs';
 import { roWrite } from '../../utils/readOnly';
 import { useFilmstrips, thumbsForBlock, THUMB_HEIGHT } from '../../utils/filmstrip';
+import { useWaveforms } from '../../utils/waveform';
+import { peaksForBlock, peaksPath } from '../../utils/waveformPeaks';
 
 /**
  * The timeline surface: the edit, drawn, and editable by dragging it.
@@ -34,6 +36,7 @@ const BLOCK_H = 64;
 const RULER_H = 22;
 const HANDLE_W = 10;        // the grab zone on each edge of a block
 const NOMINAL_LEN = 5;      // seconds a block is drawn at before its clip is probed
+const WAVE_H = 16;          // the audio strip along the bottom of a block
 
 // mm:ss.cs — centiseconds, not frames. The frame rate of an arbitrary upload is
 // not known in the browser, and a readout that says "frame 12" when it is
@@ -95,6 +98,10 @@ export default function Timeline({
   // scrubbing to find out where it landed. Extracted in the browser; see
   // utils/filmstrip.js for why not on the server.
   const strips = useFilmstrips(clips);
+
+  // Audio peaks under each block. You cut on speech, so without this a trim
+  // lands in the middle of a word and you find out on playback.
+  const waves = useWaveforms(clips);
 
   const rows = useMemo(() => drawRows(edl), [edl]);
   const drawnTotal = useMemo(
@@ -436,6 +443,56 @@ export default function Timeline({
                     }}
                   />
                 ))}
+
+                {/* The waveform, along the bottom of the block and over the
+                    stills, because the two answer different questions about
+                    the same moment and you read them together: the frames say
+                    what is on screen, the peaks say whether anyone is talking. */}
+                {(() => {
+                  const wave = waves[clips[row.item.clip]?.id];
+                  if (!wave) return null;
+                  const px = Math.max(8, Math.round(w));
+                  if (wave.state === 'working' || wave.state === 'done') {
+                    const cols = peaksForBlock(wave, row.item.in, row.item.out,
+                      Math.max(8, Math.min(240, Math.round(px / 3))));
+                    const d = peaksPath(cols, px, WAVE_H);
+                    if (!d) return null;
+                    return (
+                      <svg aria-hidden="true" width={px} height={WAVE_H}
+                        viewBox={`0 0 ${px} ${WAVE_H}`} preserveAspectRatio="none"
+                        style={{
+                          position: 'absolute', left: 0, bottom: 0, width: '100%',
+                          height: WAVE_H, pointerEvents: 'none',
+                          background: 'color-mix(in srgb, var(--surface) 72%, transparent)',
+                        }}>
+                        <path d={d} fill={isSel ? 'var(--accent)' : 'var(--text-muted)'} />
+                      </svg>
+                    );
+                  }
+                  // Silent, too big to read, or undecodable. Each says which,
+                  // because an empty strip could be any of the three and the
+                  // difference changes what you do about it.
+                  const said = {
+                    silent: 'no audio',
+                    'too-big': 'clip too large to read audio',
+                    unsupported: 'audio not readable here',
+                    failed: 'audio could not be read',
+                    // The browser would not say whether there is an audio
+                    // track, and the decode failed, so both causes are still
+                    // open. Naming one of them would be a guess the operator
+                    // would act on.
+                    unknown: 'no audio, or a format this browser cannot read',
+                  }[wave.state];
+                  if (!said || w < 90) return null;
+                  return (
+                    <div className="body-xs text-subtle" style={{
+                      position: 'absolute', left: 4, bottom: 1, right: 4,
+                      fontSize: 9, lineHeight: `${WAVE_H}px`, pointerEvents: 'none',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      background: 'color-mix(in srgb, var(--surface) 72%, transparent)',
+                    }}>{said}</div>
+                  );
+                })()}
 
                 {/* Where the next block would land during a reorder drag. */}
                 {drag?.mode === 'move' && drag.dropIndex === i && drag.index !== i && (
