@@ -573,6 +573,13 @@ export default function ClientSocialPage() {
       )}
       <div><div className="caption caption-muted mb-3">✦ Hook Vault — winning hooks, ready to reuse</div>
         <HookVaultList clientId={id} onUse={(hook) => setPlannerOpen({ planId: null, seedHook: hook })} /></div>
+
+      {/* What to change next. This was its own screen called Improve, which
+          made one report into two pages: Learn said what worked, Improve said
+          what to do about it. Same reading, same month, same data. */}
+      <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s5)' }}>
+        <SocialAuditPanel clientId={id} />
+      </div>
     </div>
   );
   const renderCompare = () => (
@@ -632,7 +639,8 @@ export default function ClientSocialPage() {
           onUse={(hook) => setPlannerOpen({ planId: null, seedHook: hook })} />
       )}
       {socialTab === 'competitors' && renderCompare()}
-      {socialTab === 'audit' && <SocialAuditPanel clientId={id} />}
+      {/* Improve is not a screen any more. "This is all the same report
+          really" — it is the second half of Learn, and it renders there. */}
 
       {/* The DM bot, section-wide. */}
       <SideDrawer

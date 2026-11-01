@@ -31,7 +31,7 @@ import { useAuth } from '../context/AuthContext';
 import ReportsPage from './ReportsPage';
 import CheckerBenchPage from './CheckerBenchPage';
 import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
-import RecordTools, { ToolRow } from '../components/database/RecordTools';
+import RecordTools, { ToolRow, DatabaseToolsSlot, DatabaseToolsTrigger } from '../components/database/RecordTools';
 import StatStrip from '../components/shells/StatStrip';
 import DangerConfirm from '../components/ui/DangerConfirm';
 import { usePrompt } from '../context/PromptContext';
@@ -290,12 +290,21 @@ export default function SettingsPage() {
   const sectionTitle = sectionForPath(location.pathname)?.title || 'Settings';
 
   return (
+    <DatabaseToolsSlot>
+      {(tools) => (
     <div>
       <div className="kicker"><span className="pip" />Admin</div>
       <header className="hero">
-        <div>
-          <h1 className="display">{sectionTitle}</h1>
-          <ScreenHeading title={sectionTitle} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          gap: 'var(--s3)', flexWrap: 'wrap' }}>
+          <div>
+            <h1 className="display">{sectionTitle}</h1>
+            <ScreenHeading title={sectionTitle} />
+          </div>
+          {/* The list's tools, in the page header. They used to sit inside
+              the first card on the screen, which is where a control that
+              acts on one record goes, not one that acts on the lot. */}
+          <DatabaseToolsTrigger tools={tools} />
         </div>
       </header>
 
@@ -570,6 +579,8 @@ export default function SettingsPage() {
       </form>
       </>)}
     </div>
+      )}
+    </DatabaseToolsSlot>
   );
 }
 
@@ -782,8 +793,8 @@ function PublicationsPanel() {
             {rssBusy === 'resolve' ? 'Finding feeds…' : '🔎 Find websites + feeds'}
           </button>
         }>
-          <ToolRow note="Find duplicate publications, merge them and dismiss false positives. The same Cleanup Centre as Journalists, on its publications tab.">
-            <Link to="/contacts/cleanup?tab=pubdupes" className="btn btn-secondary">🧹 Cleanup Centre</Link>
+          <ToolRow note="Find duplicate publications, merge them and dismiss false positives. The same page as Journalists uses, on its publications tab.">
+            <Link to="/database-tools?tab=pubdupes" className="btn btn-secondary">🧹 Database tools</Link>
           </ToolRow>
           <ToolRow note={outlets?.length ? `${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}, as a spreadsheet.` : 'Nothing to export yet.'}>
             <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary">↓ Export CSV</button>
@@ -2694,7 +2705,7 @@ function ContactsLibrary() {
             </button>
           }>
             <ToolRow note="Find and merge duplicates, fold orphaned coverage onto the right person, fix capitalisation, emails and companies, and strip leftover Notion-URL fragments. It is a workspace of its own, so it opens as a page.">
-              <Link to="/contacts/cleanup" className="btn btn-secondary">🧹 Cleanup Centre</Link>
+              <Link to="/database-tools" className="btn btn-secondary">🧹 Database tools</Link>
             </ToolRow>
             <ToolRow note={total ? `${total.toLocaleString()} journalist${total === 1 ? '' : 's'} match the filters above, and those are what the file holds.` : 'Nothing matches the filters above, so there is nothing to export.'}>
               <button onClick={exportCsv} disabled={!total} className="btn btn-secondary">↓ Export CSV</button>

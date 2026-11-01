@@ -42,8 +42,18 @@ test('a prefix beats a word that merely contains it', () => {
   // flattening the prefix tier into the contains tier, both still passed.
   //
   //   're'  Measure contains it (first row in the product), Reports starts with it
-  //   'ta'  SOSTAC contains it (fourth row), Tags starts with it (eighty-fourth)
-  for (const [term, want] of [['re', 'Reports'], ['ta', 'Tags']]) {
+  //   'boo' Facebook contains it, Booking starts with it
+  //
+  // 'ta' -> Tags was the second pair until 1 November, when the new Email
+  // section gained a Tasks row. Tasks and Tags both START with 'ta', so the
+  // case became prefix-versus-prefix decided by declaration order, which is
+  // not the property this test exists for. Replaced rather than deleted: the
+  // test needs two pairs where the contains-match is declared first, or
+  // dropping the sort entirely still passes.
+  //
+  // The Tasks/Tags collision itself is a naming question, flagged for Daniel
+  // rather than settled here.
+  for (const [term, want] of [['re', 'Reports'], ['boo', 'Booking']]) {
     const hits = matchScreens(term, ALL);
     assert.ok(hits.length, `"${term}" matched nothing`);
     assert.equal(hits[0].label, want,

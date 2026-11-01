@@ -129,7 +129,7 @@ function CampaignSequence({ campaign, onCampaignChange }) {
   );
 }
 
-export default function ClientOutreachPage({ embedded = false, clientId: clientIdProp } = {}) {
+export default function ClientOutreachPage({ embedded = false, clientId: clientIdProp, screen, onScreen } = {}) {
   const { id: routeId } = useParams();
   const id = clientIdProp || routeId;
   const toast = useToast();
@@ -141,13 +141,19 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   // (/convert/email/campaigns) rather than a second query param. Standalone
   // it keeps ?tab=, which is the only place that param survives.
   const OUTREACH_TABS = ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting'];
-  const { sub } = useParams();
   const navigate = useNavigate();
   const [qTab, setQTab] = useTabParam('campaigns', OUTREACH_TABS);
-  const tab = embedded ? (OUTREACH_TABS.includes(sub) ? sub : 'campaigns') : qTab;
-  const setTab = embedded
-    ? (next) => navigate(`/clients/${id}/convert/email/${next}`, { replace: true })
-    : setQTab;
+  // Embedded, the screen comes from the parent, which read it off the path
+  // through useScreen. It used to read the third path segment itself
+  // (/convert/email/campaigns); Email is a section now, so the segment it was
+  // reading no longer exists and the parent owns the mapping.
+  const tab = embedded ? (OUTREACH_TABS.includes(screen) ? screen : 'campaigns') : qTab;
+  // Embedded, the parent navigates. It owns the section and already has
+  // useScreen's setter, which maps a key to its slug from nav/sections.js —
+  // so the slug table lives in one place and routeTargets can still see that
+  // every link resolves. Building the path here meant a template the guard
+  // could not read.
+  const setTab = embedded ? (onScreen || (() => {})) : setQTab;
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -523,7 +529,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       ) : (
         <SuiteTabs tabs={[
           { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined, active: tab === 'campaigns', onClick: () => setTab('campaigns') },
-          { key: 'contacts',  label: 'Leads',  badge: contacts.length || undefined,  active: tab === 'contacts',  onClick: () => setTab('contacts') },
+          { key: 'contacts',  label: 'Prospects', badge: contacts.length || undefined, active: tab === 'contacts', onClick: () => setTab('contacts') },
           { key: 'tasks',     label: 'Tasks',                                           active: tab === 'tasks',     onClick: () => setTab('tasks') },
           { key: 'sending',   label: 'Sending',                                         active: tab === 'sending',   onClick: () => setTab('sending') },
           { key: 'prospecting', label: 'Selective outreach',                            active: tab === 'prospecting', onClick: () => setTab('prospecting') },

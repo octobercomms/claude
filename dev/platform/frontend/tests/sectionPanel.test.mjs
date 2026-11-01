@@ -38,6 +38,9 @@ const PAGES = {
   settings:  { file: 'SettingsPage.jsx',     v: 'tab' },
   database:  { file: 'SettingsPage.jsx',     v: 'tab' },
   bizdev:    { file: 'SettingsPage.jsx',     v: 'tab' },
+  // Email left Convert on 1 November: five screens behind one row is a
+  // section wearing a row. Same component, now reached as its own section.
+  email:     { file: 'ClientEmailPage.jsx',   v: 'tab' },
 };
 
 // The sections that live at the top level rather than under /clients/:id.
@@ -48,8 +51,12 @@ test('every section is covered by this file, so nothing is silently skipped', ()
 });
 
 test('the sections are not empty, so the checks below cannot pass vacuously', () => {
+  // Two, not three. Convert is Optimise and Forms since Email became its own
+  // section, and two rows still exercise every check below. Worth saying out
+  // loud rather than burying in a threshold: a section with two rows is a
+  // question about whether it is a section, and that one is Daniel's.
   for (const [key, section] of Object.entries(SECTIONS)) {
-    assert.ok(tabsOf(section).length >= 3, `${key} has almost no rows`);
+    assert.ok(tabsOf(section).length >= 2, `${key} has almost no rows`);
   }
 });
 

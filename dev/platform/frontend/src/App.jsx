@@ -29,6 +29,7 @@ const ClientDetailPage = lazyChunk('ClientDetailPage', () => import('./pages/Cli
 const RankingsPage = lazyChunk('RankingsPage', () => import('./pages/RankingsPage'));
 const ClientSEOPage = lazyChunk('ClientSEOPage', () => import('./pages/ClientSEOPage'));
 const ClientConvertPage = lazyChunk('ClientConvertPage', () => import('./pages/ClientConvertPage'));
+const ClientEmailPage = lazyChunk('ClientEmailPage', () => import('./pages/ClientEmailPage'));
 const ClientAdsPage = lazyChunk('ClientAdsPage', () => import('./pages/ClientAdsPage'));
 const ClientSalesTrafficPage = lazyChunk('ClientSalesTrafficPage', () => import('./pages/ClientSalesTrafficPage'));
 const ClientSocialPage = lazyChunk('ClientSocialPage', () => import('./pages/ClientSocialPage'));
@@ -42,7 +43,7 @@ const SettingsPage = lazyChunk('SettingsPage', () => import('./pages/SettingsPag
 const ClientPRPage = lazyChunk('ClientPRPage', () => import('./pages/ClientPRPage'));
 const JournalistProfilePage = lazyChunk('JournalistProfilePage', () => import('./pages/JournalistProfilePage'));
 const OutletProfilePage = lazyChunk('OutletProfilePage', () => import('./pages/OutletProfilePage'));
-const ContactCleanupPage = lazyChunk('ContactCleanupPage', () => import('./pages/ContactCleanupPage'));
+const DatabaseToolsPage = lazyChunk('DatabaseToolsPage', () => import('./pages/ContactCleanupPage'));
 const PublicCoveragePage = lazyChunk('PublicCoveragePage', () => import('./pages/PublicCoveragePage'));
 const PressReviewPage = lazyChunk('PressReviewPage', () => import('./pages/PressReviewPage'));
 const ProposalPublicPage = lazyChunk('ProposalPublicPage', () => import('./pages/ProposalPublicPage'));
@@ -121,10 +122,12 @@ export default function App() {
             <Route path="clients/:id/pr/:screen?" element={<ClientPRPage />} />
             <Route path="clients/:id/social/:screen?" element={<ClientSocialPage />} />
             <Route path="clients/:id/seo/:screen?" element={<ClientSEOPage />} />
-            {/* Convert takes a third segment: its Email screen embeds the whole
-                Outreach suite, so /convert/email/campaigns names a real
-                screen rather than hiding it behind a second query param. */}
-            <Route path="clients/:id/convert/:screen?/:sub?" element={<ClientConvertPage />} />
+            {/* Convert is back to one segment. It took a third because its
+                Email screen embedded five more; Email is its own section now,
+                so the five are rows and the third segment has nothing left
+                to name. */}
+            <Route path="clients/:id/convert/:screen?" element={<ClientConvertPage />} />
+            <Route path="clients/:id/email/:screen?" element={<ClientEmailPage />} />
             <Route path="clients/:id/produce/:screen?" element={<ClientVideoTab />} />
             <Route path="settings/:screen?" element={<SettingsPage />} />
             {/* Database and Biz dev are their own sections now, not groups
@@ -156,7 +159,12 @@ export default function App() {
             <Route path="proposals/:id" element={<ProposalEditorPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="design" element={<DesignSystemPage />} />
-            <Route path="contacts/cleanup" element={<ContactCleanupPage />} />
+            {/* Cleanup Centre became Database tools on 1 November. Every
+                maintenance tool moves into it, and half of those are not
+                cleanup — "email me this week's digest" is not tidying — so a
+                page called Cleanup Centre holding them would have the problem
+                that killed the "Other" settings group. */}
+            <Route path="database-tools" element={<DatabaseToolsPage />} />
           </Route>
         </Routes>
         </Suspense>
