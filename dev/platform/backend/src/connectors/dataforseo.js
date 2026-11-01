@@ -85,10 +85,110 @@ async function fetchTopSerpResults(keyword, { locationCode = 2826, limit = 10 } 
     se_domain: 'google.co.uk',
   }]);
   const items = data.tasks?.[0]?.result?.[0]?.items || [];
+  // Before the filter, not after: a GoTo URL passes `i.url` and then becomes
+  // a google.com/goto string in the brief outline.
+  await resolveGotoInItems(items, client);
   return items
     .filter(i => i.type === 'organic' && i.url)
     .slice(0, limit)
     .map(i => ({ url: i.url, title: i.title || '', description: i.description || '' }));
+}
+
+// ── Google GoTo URLs ─────────────────────────────────────────────────────────
+//
+// At the end of August 2026 Google stopped putting destination URLs in its
+// search results and started putting google.com/goto passthrough links there
+// instead. They cannot be decoded, only followed. DataForSEO follows them,
+// but on 30 October Google began throttling how many can be followed from one
+// SERP page: the 7th takes a second, the 15th can take forty, and the limit is
+// per page, so no amount of waiting or changing IP resets it. Every SERP call
+// in this file uses the Live endpoint, where DataForSEO now resolves only
+// about half of them.
+//
+// Half a SERP of google.com/goto?url=… is not a cosmetic problem here. It is
+// a wrong answer that looks like a right one:
+//
+//   rankHost('https://google.com/goto?url=CAES…')  ->  'google.com'
+//
+// so the client's own result never matches their host, checkRank returns
+// position: null, and Owned reports "not in the top 50" for a page sitting at
+// number 4. The same string makes "who is ranking above you" read google.com,
+// and makes AI Overview citation checks miss a client who was cited.
+//
+// DataForSEO's converter endpoint turns them back, 100 at a time, free. It is
+// slow (40–60s for a whole page in the worst case) and that is the price of a
+// correct number.
+function isGotoUrl(u) {
+  if (typeof u !== 'string') return false;
+  return /^https?:\/\/(www\.)?google\.[a-z.]+\/goto\?/i.test(u.trim());
+}
+
+/**
+ * Turn GoTo URLs back into destinations. Returns a Map; anything it could not
+ * resolve is simply absent from it.
+ *
+ * Never throws. A SERP with unresolved links is worse than one with resolved
+ * links and better than no SERP at all, so a converter failure leaves the
+ * originals in place and lets the caller carry on.
+ */
+async function resolveGotoUrls(urls, client = null) {
+  const unique = [...new Set((urls || []).filter(isGotoUrl))];
+  const out = new Map();
+  if (!unique.length) return out;
+  const api = client || await getClient();
+
+  // 100 per request is the documented cap.
+  for (let i = 0; i < unique.length; i += 100) {
+    const batch = unique.slice(i, i + 100);
+    try {
+      const { data } = await api.post('/appendix/goto_url_converter', [{ goto_urls: batch }]);
+      const items = data?.tasks?.[0]?.result || [];
+      for (const it of items) {
+        // The field names have moved once already, so read either shape
+        // rather than silently resolving nothing.
+        const from = it?.goto_url || it?.url;
+        const to = it?.destination_url || it?.resolved_url || it?.direct_url;
+        if (from && to && !isGotoUrl(to)) out.set(from, to);
+      }
+    } catch (err) {
+      console.warn('[DataForSEO] GoTo resolution failed:', err.message);
+    }
+  }
+  return out;
+}
+
+/**
+ * Rewrite every GoTo URL in a SERP item list, in place.
+ *
+ * Called before anything reads a url: matching a host, listing competitors,
+ * or checking a citation. Doing it afterwards is the bug.
+ */
+async function resolveGotoInItems(items, client = null) {
+  if (!Array.isArray(items) || !items.length) return items;
+  const found = [];
+  const walk = (v, d) => {
+    if (!v || d > 6) return;
+    if (Array.isArray(v)) return v.forEach((x) => walk(x, d + 1));
+    if (typeof v === 'object') {
+      if (isGotoUrl(v.url)) found.push(v.url);
+      Object.values(v).forEach((x) => walk(x, d + 1));
+    }
+  };
+  walk(items, 0);
+  if (!found.length) return items;
+
+  const map = await resolveGotoUrls(found, client);
+  if (!map.size) return items;
+  const rewrite = (v, d) => {
+    if (!v || d > 6) return;
+    if (Array.isArray(v)) return v.forEach((x) => rewrite(x, d + 1));
+    if (typeof v === 'object') {
+      if (isGotoUrl(v.url) && map.has(v.url)) v.url = map.get(v.url);
+      Object.values(v).forEach((x) => rewrite(x, d + 1));
+    }
+  };
+  rewrite(items, 0);
+  return items;
 }
 
 // Bare hostname for rank matching — strips scheme, path and a leading www.
@@ -130,6 +230,10 @@ async function checkRank(keyword, matchDomain) {
   }
 
   const results = data.tasks[0].result?.[0]?.items || [];
+
+  // Before any host matching below. rankHost() on a GoTo URL returns
+  // google.com, so an unresolved SERP reports the client as not ranking.
+  await resolveGotoInItems(results, client);
 
   // Pull every non-organic SERP feature observed for this keyword so the UI
   // can show what surfaces alongside the blue links — image pack, snippet,
@@ -216,6 +320,9 @@ async function checkAIOverview(keyword, targetDomain) {
     load_async_ai_overview: true,   // wait for the AI Overview element to load
   }]);
   const r = data.tasks?.[0]?.result?.[0];
+  // The AI Overview's citations are GoTo URLs too, and the citation check
+  // below is a substring match on the client's domain.
+  if (r) await resolveGotoInItems([r], client);
   const aio = r ? aiOverviewFromResult(r) : { present: false, text: '', urls: [] };
   if (!aio.present) return { present: false, brand_cited: false, snippet: null };
   const dom = (targetDomain || '').replace(/^https?:\/\//, '').replace(/^www\./, '').toLowerCase();
@@ -520,6 +627,7 @@ async function fetchLLMVisibility(domain, keywords = []) {
   for (const task of data.tasks) {
     const r = task.result?.[0];
     if (!r) continue;
+    await resolveGotoInItems([r], client);
     const aio = aiOverviewFromResult(r);
     if (!aio.present) continue;
     const dl = domain.toLowerCase();
@@ -691,4 +799,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchPageBacklinks, fetchDomainRanks, fetchReferringDomains, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchLlmResponse, fetchLlmModels, fetchData, testCredentials, resolveCreds };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchPageBacklinks, fetchDomainRanks, fetchReferringDomains, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchLlmResponse, fetchLlmModels, fetchData, testCredentials, resolveCreds, isGotoUrl, resolveGotoUrls, resolveGotoInItems, rankHost };

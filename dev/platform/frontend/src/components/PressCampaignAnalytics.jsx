@@ -292,11 +292,14 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         { label: 'opened', value: t.opened ?? '—', sub: t.open_rate != null ? `${t.open_rate}%` : null },
         { label: 'clicked', value: t.clicked ?? '—', sub: t.click_rate != null ? `${t.click_rate}%` : null },
         { label: 'replied', value: t.replied ?? '—', sub: t.reply_rate != null ? `${t.reply_rate}%` : null },
-        // The one tile worth singling out: a warm journalist is the campaign's
-        // actual output, and it had been a coloured number in a row of plain
-        // ones, which the tile does not offer. Featured only when there is one,
-        // because a dark tile reading 0 shouts about nothing.
-        { label: '🔥 warm', value: t.warm ?? 0, feature: !!t.warm },
+        // Plain, and the emphasis is gone on purpose. A warm journalist is the
+        // campaign's actual output, so this tile carried a black fill, then an
+        // accent one. Both were wrong for the same reason: this row renders
+        // directly under the attribution row, so Results showed two
+        // emphasised tiles and emphasised nothing. The screen's one emphasis
+        // belongs to "from outlets you pitched", which is the figure the copy
+        // itself calls defensible. The 🔥 in the label is what marks this one.
+        { label: '🔥 warm', value: t.warm ?? 0 },
         { label: 'unsubscribed', value: t.unsubscribed ?? 0,
           sub: t.unsub_rate != null ? `${t.unsub_rate}%` : null },
       ]} />

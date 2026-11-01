@@ -29,22 +29,16 @@ export default function HookVaultPanel({ clientId, clientName, onUse }) {
 
   return (
     <div>
-      <div className="mb-5">
+      {/* 75/25: the vault on the left, the explanation beside it.
+          All four paragraphs sat above the list, so the thing the page is
+          for started below the fold and the explanation was read once and
+          scrolled past for ever after. As a column beside it, it is there
+          when you want it and out of the way when you do not. */}
+      <div className="hookvault">
+      <div className="hookvault__main">
         <div className="caption">Hook vault</div>
         <h2 className="h2 mt-2">Every opening line you have written, and how it did</h2>
-        <p className="body-sm text-muted mt-2" style={{ maxWidth: 720, lineHeight: 1.6 }}>
-          A hook is the first line of a post — the one that decides whether the rest gets
-          read. This is every hook written for {clientName || 'this client'}, deduplicated,
-          with the best reach any post using it achieved and how many times you have used it.
-        </p>
-        <p className="body-sm text-muted mt-2" style={{ maxWidth: 720, lineHeight: 1.6 }}>
-          Those two numbers are different claims. A hook that reached 40k once might have been
-          the subject rather than the opening; one that worked three times is the opening.
-          Reusing a hook is not reusing the post — it is reusing the shape of an opening that
-          earned attention, on a subject that has not had it yet. &quot;Use this&quot; drops it
-          into the planner so you can write the rest against it.
-        </p>
-      </div>
+
 
       <HookVaultList
         clientId={clientId}
@@ -107,6 +101,29 @@ export default function HookVaultPanel({ clientId, clientName, onUse }) {
           </div>
         )}
       />
+      </div>
+
+      <aside className="hookvault__rail">
+        <div className="card">
+          <div className="caption mb-2">What this is</div>
+          <p className="body-sm text-muted" style={{ lineHeight: 1.6 }}>
+            A hook is the first line of a post, the one that decides whether the rest gets
+            read. This is every hook written for {clientName || 'this client'}, deduplicated,
+            with the best reach any post using it achieved and how many times you have used it.
+          </p>
+          <p className="body-sm text-muted mt-3" style={{ lineHeight: 1.6 }}>
+            Those two numbers are different claims. A hook that reached 40k once might have
+            been the subject rather than the opening; one that worked three times is the
+            opening.
+          </p>
+          <p className="body-sm text-muted mt-3" style={{ lineHeight: 1.6 }}>
+            Reusing a hook is not reusing the post. It is reusing the shape of an opening that
+            earned attention, on a subject that has not had it yet. &quot;Use this&quot; drops
+            it into the planner so you can write the rest against it.
+          </p>
+        </div>
+      </aside>
+      </div>
     </div>
   );
 }

@@ -8,7 +8,6 @@ import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
 import AddContactModal from '../components/AddContactModal';
 import EditContactModal from '../components/EditContactModal';
-import ListDetail from '../components/shells/ListDetail';
 import ManageUsersPage from './ManageUsersPage';
 import LeadsPage from './LeadsPage';
 import ProposalsPage from './ProposalsPage';
@@ -33,6 +32,8 @@ import ReportsPage from './ReportsPage';
 import CheckerBenchPage from './CheckerBenchPage';
 import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
 import RecordTools, { ToolRow } from '../components/database/RecordTools';
+import StatStrip from '../components/shells/StatStrip';
+import DangerConfirm from '../components/ui/DangerConfirm';
 
 // The page's own list of settings screen keys, per section.
 //
@@ -111,7 +112,6 @@ export default function SettingsPage() {
   const [hgTestMsg, setHgTestMsg] = useState(null);
   const [testingPsi, setTestingPsi] = useState(false);
   const [psiTestMsg, setPsiTestMsg] = useState(null);
-  const [openCategories, setOpenCategories] = useState({});
   // The screen is the path. This page has now been through three ways of
   // holding it: component state plus history.replaceState (which React Router
   // never saw, so a panel row did nothing), then ?tab=, now /settings/<slug>.
@@ -149,10 +149,6 @@ export default function SettingsPage() {
 
   function handleChange(key, val) {
     setValues(prev => ({ ...prev, [key]: val }));
-  }
-
-  function toggleCategory(title) {
-    setOpenCategories(prev => ({ ...prev, [title]: !prev[title] }));
   }
 
   async function handleSaveSection(group) {
@@ -284,13 +280,21 @@ export default function SettingsPage() {
     }
   }
 
+  // The title is the section's, not the literal word "Settings". This one
+  // component serves three sections over three paths, so every Database and
+  // Biz dev screen said "Settings" above its own name: Publications read
+  // "Settings / Publications" a year after Publications stopped being a
+  // setting. ScreenHeading already derives the screen from the path; the
+  // heading above it was the only line still hardcoded.
+  const sectionTitle = sectionForPath(location.pathname)?.title || 'Settings';
+
   return (
     <div>
       <div className="kicker"><span className="pip" />Admin</div>
       <header className="hero">
         <div>
-          <h1 className="display">Settings</h1>
-          <ScreenHeading title="Settings" />
+          <h1 className="display">{sectionTitle}</h1>
+          <ScreenHeading title={sectionTitle} />
         </div>
       </header>
 
@@ -320,6 +324,7 @@ export default function SettingsPage() {
       <SpendControlsPanel />
       <TaskBudgetsPanel />
       <KeywordSpendPanel />
+      <PromptCachePanel />
       <CostLogPanel />
       </>)}
       {tab === 'praddon' && <PrAddonPanel />}
@@ -341,28 +346,25 @@ export default function SettingsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--s4)', alignItems: 'start' }}>
           {CATEGORIES.filter(cat => SUBTAB_CATS[tab].includes(cat.title)).map(cat => {
             const groupsInCat = KEY_GROUPS.filter(g => g.category === cat.title);
-            const open = openCategories[cat.title] !== false;
             const configuredCount = groupsInCat.filter(g => g.keys.some(k => values[k.key] === '••••••••')).length;
 
+            // No accordion, and no card around the category. A sub-tab
+            // already shows one category, usually one, so the accordion only
+            // ever had one thing to hide and hid it behind a click on
+            // arrival. Accordions off, each connection in its own box: the
+            // category is now a heading over a stack of boxes, one per
+            // connection, which is the thing you came to find.
             return (
-              <Card key={cat.title}>
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(cat.title)}
-                  className="row between center accordion-trigger"
-                >
+              <div key={cat.title}>
+                <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
                   <div>
                     <div className="h3">{cat.title}</div>
                     {cat.description && <div className="body-sm text-muted">{cat.description}</div>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
-                    <span className={`chip ${configuredCount === groupsInCat.length ? 'chip-success' : 'chip-accent'}`}>{configuredCount} / {groupsInCat.length}</span>
-                    <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
-                  </div>
-                </button>
+                  <span className={`chip ${configuredCount === groupsInCat.length ? 'chip-success' : 'chip-accent'}`}>{configuredCount} / {groupsInCat.length}</span>
+                </div>
 
-                {open && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s5)', marginTop: 'var(--s4)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
                     {groupsInCat.map(group => {
                       // "Set" = every required key (those without "optional" in the
                       // label) is stored. Turns the section green, like a connected
@@ -370,20 +372,14 @@ export default function SettingsPage() {
                       const reqKeys = group.keys.filter(k => !/optional/i.test(k.label));
                       const groupSet = reqKeys.length > 0 && reqKeys.every(k => values[k.key] === '••••••••');
                       return (
-                      /* No box. Settings used to be one long page of
-                         collapsed categories, where a filled panel with a
-                         4px left rule told you where one provider's fields
-                         ended and the next began. Now that it is split into
-                         sub-tabs, every category on a tab is open, so each
-                         provider sat in a tinted box inside an open category
-                         inside a card, with its set fields tinted again:
-                         four levels of chrome around a list of text inputs.
-
-                         A rule between groups does the separating. The green
-                         is not information lost — the ✓ Set chip beside the
-                         title says the same thing in words, and the field
-                         itself shows ●●●●●●●● once stored. */
-                      <div key={group.title} style={{ paddingTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                      /* One box per connection.
+                         This was a rule between groups inside one card for
+                         the category, which read as a single long form: the
+                         boundary between "Hunter" and "Serper" was a hairline
+                         you had to look for. The category card is gone, so
+                         this is one level of chrome, not four, and the thing
+                         in the box is the thing you came for. */
+                      <div key={group.title} className="card">
                         <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
                           <div className="h3" style={{ margin: 0 }}>{group.title}</div>
                           {groupSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ Set</span>}
@@ -565,9 +561,8 @@ export default function SettingsPage() {
                         per-mailbox switches. Lives here because it is the
                         Outreach plumbing an operator comes to this page for. */}
                     {cat.title === 'Outreach' && <InboxesPanel />}
-                  </div>
-                )}
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -619,6 +614,10 @@ function PublicationsPanel() {
   const [selected, setSelected] = useState(() => new Set());
   const [openOutlet, setOpenOutlet] = useState(null);
   const [rssBusy, setRssBusy] = useState(null); // outlet id being resolved, or 'sweep'
+  // A pending bulk delete: { ids, noun, detail }. Held in state rather than
+  // run from a confirm() so the count has to be typed before anything goes.
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Auto-discover one publication's RSS feed.
   async function findRss(o) {
@@ -710,32 +709,46 @@ function PublicationsPanel() {
     });
   }
 
-  async function deleteSelected() {
-    if (!selected.size) return;
-    const total = Array.from(selected).reduce((acc, id) => {
-      const o = (outlets || []).find((x) => x.id === id);
-      return { coverage: acc.coverage + (o?.coverage || 0), contacts: acc.contacts + (o?.contacts || 0) };
-    }, { coverage: 0, contacts: 0 });
-    if (!confirm(`Delete ${selected.size} publication${selected.size === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} journalists will be detached (kept; their Publication becomes blank).\n\nCannot be undone.`)) return;
-    try {
-      await api.post('/pr/outlets/bulk-delete', { ids: Array.from(selected) });
-      setOutlets((list) => list.filter((x) => !selected.has(x.id)));
-      setSelected(new Set());
-    } catch (e) { setErr(e.message); }
-  }
-  async function deleteAllMatching() {
-    if (!visibleOutlets.length) return;
-    const total = visibleOutlets.reduce((acc, o) => ({
-      coverage: acc.coverage + (o.coverage || 0),
-      contacts: acc.contacts + (o.contacts || 0),
+  // What a set of publications takes with it, in the operator's own terms.
+  function attachmentNote(rows) {
+    const t = rows.reduce((acc, o) => ({
+      coverage: acc.coverage + (o?.coverage || 0),
+      contacts: acc.contacts + (o?.contacts || 0),
     }), { coverage: 0, contacts: 0 });
-    if (!confirm(`Delete ALL ${visibleOutlets.length} matching publication${visibleOutlets.length === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} journalists will be detached.\n\nCannot be undone.`)) return;
+    return `${t.coverage.toLocaleString()} coverage ${t.coverage === 1 ? 'entry' : 'entries'} and ${t.contacts.toLocaleString()} journalist${t.contacts === 1 ? '' : 's'} are detached, not deleted: they are kept, and their Publication field becomes blank.`;
+  }
+
+  function askDeleteSelected() {
+    if (!selected.size) return;
+    const rows = Array.from(selected).map((id) => (outlets || []).find((x) => x.id === id)).filter(Boolean);
+    setPendingDelete({ ids: Array.from(selected), noun: 'publication', detail: attachmentNote(rows) });
+  }
+
+  function askDeleteAllMatching() {
+    if (!visibleOutlets.length) return;
+    // Only the rows the list actually drew. The old button read "Delete all
+    // 2000 matching" while the list showed 500, so one click deleted 1,500
+    // publications nobody had looked at.
+    const rows = visibleOutlets.slice(0, 500);
+    setPendingDelete({
+      ids: rows.map((o) => o.id),
+      noun: 'publication',
+      detail: `${attachmentNote(rows)}${visibleOutlets.length > rows.length ? ` This deletes the ${rows.length} shown; ${(visibleOutlets.length - rows.length).toLocaleString()} more match and are left alone. Narrow the search to reach them.` : ''}`,
+    });
+  }
+
+  async function runPendingDelete() {
+    if (!pendingDelete) return;
+    const ids = pendingDelete.ids;
+    setDeleting(true);
     try {
-      const ids = visibleOutlets.map((o) => o.id);
       await api.post('/pr/outlets/bulk-delete', { ids });
-      setOutlets((list) => list.filter((x) => !ids.includes(x.id)));
+      const gone = new Set(ids);
+      setOutlets((list) => list.filter((x) => !gone.has(x.id)));
       setSelected(new Set());
+      setPendingDelete(null);
     } catch (e) { setErr(e.message); }
+    finally { setDeleting(false); }
   }
 
   function exportOutletsCsv() {
@@ -791,78 +804,118 @@ function PublicationsPanel() {
           <span>{selected.size} selected · Showing {shownCount.toLocaleString()} of {totalCount.toLocaleString()} matching</span>
           <div style={{ flex: 1 }} />
           {selected.size > 0 && (
-            <button onClick={deleteSelected} className="btn btn-sm btn-danger">
+            <button onClick={askDeleteSelected} className="btn btn-sm btn-danger">
               Delete selected ({selected.size})
             </button>
           )}
           {visibleOutlets.length > 0 && (
-            <button onClick={deleteAllMatching} className="btn btn-sm btn-danger">
-              Delete all {visibleOutlets.length} matching
+            <button onClick={askDeleteAllMatching} className="btn btn-sm btn-danger">
+              Delete all {shownCount.toLocaleString()} shown
             </button>
           )}
         </div>
       )}
 
+      {/* A full-width table, and the record in a modal.
+          It was a 300px picker rail with the profile squeezed into the
+          remaining third, which is the shape for a short list you scan. This
+          is 2,000 publications with six facts each, and the facts were the
+          thing you could not see: tier, coverage, journalists, region and
+          whether a feed had been found all competed for one narrow line.
+          Journalists, the sibling screen, is already a table that opens a
+          modal. */}
       {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
-        <ListDetail
-          sidebar
-          list={
-            <div className="card" style={{ padding: 0, maxHeight: 600, overflowY: 'auto' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
-                <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible" />
-                Select all · {visibleOutlets.length}
-              </label>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ width: 32 }}>
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible" />
+                </th>
+                <th>Publication</th>
+                <th>Tier</th>
+                <th className="num">Coverage</th>
+                <th className="num">Journalists</th>
+                <th>Region</th>
+                <th>Feed</th>
+                <th style={{ width: 40 }}></th>
+              </tr>
+            </thead>
+            <tbody>
               {!visibleOutlets.length && (
-                <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-caption)' }}>No publications{outletSearch ? ' match that search' : ' yet'}.</div>
+                <tr><td colSpan={8} style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>
+                  No publications{outletSearch ? ' match that search' : ' yet'}.
+                </td></tr>
               )}
-              {visibleOutlets.slice(0, 500).map((o) => {
-                const active = openOutlet?.id === o.id;
-                const tierLabel = (TIERS.find(([v]) => v === (o.tier || '')) || ['', '—'])[1];
-                return (
-                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: '1px solid var(--card-border)', background: active ? 'var(--surface-raised)' : 'transparent' }}>
+              {visibleOutlets.slice(0, 500).map((o) => (
+                <tr key={o.id}>
+                  <td>
                     <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleRow(o.id)} aria-label={`Select ${o.name}`} />
-                    <button type="button" onClick={() => setOpenOutlet(o)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>
-                      <div style={{ fontSize: 'var(--fs-body)', fontWeight: active ? 700 : 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</div>
-                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {tierLabel !== '—' ? `${tierLabel} · ` : ''}{o.coverage} coverage · {o.contacts || 0} journ{(o.contacts || 0) === 1 ? '' : 's'}
-                      </div>
+                  </td>
+                  <td className="strong">
+                    <button
+                      type="button"
+                      onClick={() => setOpenOutlet(o)}
+                      className="btn-link"
+                      style={{ font: 'inherit', textAlign: 'left' }}
+                    >
+                      {o.name}
                     </button>
-                    {rssBusy === o.id ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>…</span>
+                    {o.domain && <div className="body-xs text-subtle">{o.domain}</div>}
+                  </td>
+                  <td>
+                    <select className="input" value={o.tier || ''} onChange={(e) => setTier(o.id, e.target.value)} style={{ padding: '2px 6px', fontSize: 'var(--fs-caption)' }}>
+                      {TIERS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                    </select>
+                  </td>
+                  <td className="num">{(o.coverage || 0).toLocaleString()}</td>
+                  <td className="num">{(o.contacts || 0).toLocaleString()}</td>
+                  <td className="body-xs text-subtle">{o.region || '—'}</td>
+                  <td>
+                    {rssBusy === o.id ? <span className="body-xs text-subtle">…</span>
                       : o.rss_status === 'found' && o.rss_url
                         ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>feed</a>
                         : o.rss_status === 'none'
                           ? <button onClick={() => findRss(o)} title="No feed found — click to try again" className="btn-icon btn-icon-sm">—</button>
                           : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" className="btn-icon btn-icon-sm">＋</button>}
+                  </td>
+                  <td>
                     <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete" className="btn-icon danger">×</button>
-                  </div>
-                );
-              })}
-            </div>
-          }
-          detail={
-            openOutlet ? (
-              <OutletEditModal
-                key={openOutlet.id}
-                embedded
-                outletId={openOutlet.id}
-                onClose={() => setOpenOutlet(null)}
-                onSaved={(patched) => {
-                  setOutlets((list) => list.map((x) => (x.id === patched.id ? { ...x, ...patched } : x)));
-                }}
-                onDeleted={(id) => {
-                  setOutlets((list) => list.filter((x) => x.id !== id));
-                  setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
-                  setOpenOutlet(null);
-                }}
-              />
-            ) : (
-              <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
-                Select a publication on the left to view and edit its profile, journalists and coverage.
-              </div>
-            )
-          }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {openOutlet && (
+        <OutletEditModal
+          key={openOutlet.id}
+          outletId={openOutlet.id}
+          onClose={() => setOpenOutlet(null)}
+          onSaved={(patched) => {
+            setOutlets((list) => list.map((x) => (x.id === patched.id ? { ...x, ...patched } : x)));
+          }}
+          onDeleted={(id) => {
+            setOutlets((list) => list.filter((x) => x.id !== id));
+            setSelected((sel) => { const n = new Set(sel); n.delete(id); return n; });
+            setOpenOutlet(null);
+          }}
         />
       )}
+
+      {pendingDelete && (
+        <DangerConfirm
+          count={pendingDelete.ids.length}
+          noun={pendingDelete.noun}
+          detail={pendingDelete.detail}
+          busy={deleting}
+          onConfirm={runPendingDelete}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
+
       {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)' }}>{err}</div>}
     </Card>
     </>
@@ -1042,6 +1095,111 @@ function MField({ label, children, full }) { return <label className="field" sty
 
 // PR Gmail add-on — surfaces the API base URL + shared key to paste into the
 // Google Apps Script add-on's config, with a Regenerate (rotate) button.
+// What prompt caching is doing, per feature.
+//
+// Anthropic's console estimates a saving; this says where it is, from OMI's
+// own cost log, which already stores every call's usage payload including the
+// cache fields. Three states, because each needs the opposite fix:
+//
+//   working   writing and reading back. Leave it.
+//   wasting   writing and never reading it. WORSE than not caching: a 25%
+//             premium on every call that nobody collects. Usually a prompt
+//             that varies per call, or calls spaced wider than the 5-minute
+//             window.
+//   uncached  no caching at all. The opportunity, if the prefix is stable
+//             and over the 1,024-token minimum.
+function PromptCachePanel() {
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    setData(null); setErr(null);
+    api.get(`/settings/usage/cache?days=${days}`).then(setData).catch(e => setErr(e.message));
+  }, [days]);
+
+  const tok = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}m` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n || 0));
+  const usd = (n) => `${n < 0 ? '-' : ''}$${Math.abs(n).toFixed(2)}`;
+  const TONE = {
+    working: { label: 'Working', cls: 'chip-success' },
+    wasting: { label: 'Wasting', style: { background: 'var(--negative-soft)', color: 'var(--negative)' } },
+    uncached: { label: 'Not cached', style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+    quiet: { label: 'Too quiet to say', style: { background: '#eee', color: 'var(--text-subtle)' } },
+  };
+
+  return (
+    <Card style={{ marginBottom: 'var(--s4)' }}>
+      <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
+        <div>
+          <CardTitle>Prompt caching</CardTitle>
+          <p className="body-sm text-muted" style={{ maxWidth: 680, lineHeight: 1.5 }}>
+            Repeated input can be cached and re-sent at a tenth of the price. Writing to the
+            cache costs a quarter more than not caching, so a feature that writes and never
+            reads is paying a premium nobody collects. Measured from OMI&apos;s own cost log.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+          {[7, 30, 90].map(d => (
+            <button key={d} type="button" onClick={() => setDays(d)}
+              className={`tab ${days === d ? 'active' : ''}`}>{d}d</button>
+          ))}
+        </div>
+      </div>
+
+      {err && <div className="body-sm" style={{ color: 'var(--negative)' }}>{err}</div>}
+      {!data && !err && <p className="body-sm text-muted">Loading…</p>}
+
+      {data && (data.totals.calls === 0 ? (
+        <p className="body-sm text-subtle" style={{ marginTop: 'var(--s3)' }}>
+          No Claude calls logged in the last {data.window_days} days.
+        </p>
+      ) : (<>
+        <div style={{ marginTop: 'var(--s4)' }}>
+          <StatStrip items={[
+            { label: 'of input served from cache', value: `${data.totals.hit_rate}%`,
+              accent: true, sub: `${tok(data.totals.read_tokens)} tokens` },
+            { label: 'net saved by caching', value: usd(data.totals.saved_usd),
+              sub: data.totals.saved_usd < 0 ? 'the writes cost more than the reads saved' : 'reads, less the write premium' },
+            { label: 'spent on Claude', value: usd(data.totals.spent_usd), sub: `${data.totals.calls.toLocaleString()} calls` },
+            { label: 'sent uncached', value: tok(data.totals.plain_tokens), sub: 'input tokens with no caching at all' },
+          ]} />
+        </div>
+
+        <div style={{ overflowX: 'auto', marginTop: 'var(--s4)' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Feature</th><th></th><th className="num">Calls</th>
+                <th className="num">From cache</th><th className="num">Written</th>
+                <th className="num">Uncached</th><th className="num">Hit</th>
+                <th className="num">Saved</th><th className="num">Spent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.features.map(f => {
+                const t = TONE[f.state] || TONE.quiet;
+                return (
+                  <tr key={f.feature}>
+                    <td className="strong">{f.feature}</td>
+                    <td><span className={`chip ${t.cls || ''}`} style={t.style}>{t.label}</span></td>
+                    <td className="num">{f.calls.toLocaleString()}</td>
+                    <td className="num">{tok(f.read_tokens)}</td>
+                    <td className="num">{tok(f.write_tokens)}</td>
+                    <td className="num">{tok(f.plain_tokens)}</td>
+                    <td className="num">{f.hit_rate}%</td>
+                    <td className="num" style={{ color: f.saved_usd < 0 ? 'var(--negative)' : undefined }}>{usd(f.saved_usd)}</td>
+                    <td className="num">{usd(f.spent_usd)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>))}
+    </Card>
+  );
+}
+
 function PrAddonPanel() {
   const { readOnly } = useAuth();
   const [key, setKey] = useState(null);
@@ -2203,6 +2361,12 @@ function ContactsLibrary() {
   const [tagSearch, setTagSearch] = useState('');
   const [tagsExpanded, setTagsExpanded] = useState(false);
   const [bulkTagsToAdd, setBulkTagsToAdd] = useState(() => new Set());
+  // Sort, on the server for the same reason search is: the library holds
+  // 21,000 contacts and the list draws a 200-row page, so sorting in the
+  // browser orders the page you are looking at and calls it the library.
+  const [sort, setSort] = useState({ key: 'created_at', dir: 'desc' });
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deletingContacts, setDeletingContacts] = useState(false);
 
   // Filter state lives in the URL params we send to the server — with
   // 21k+ contacts in the library the old client-side filter was lying
@@ -2223,8 +2387,36 @@ function ContactsLibrary() {
     // per-client in Owned → Email, never in this workspace-wide view.
     p.set('kind', 'media');
     if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
+    p.set('sort', sort.key);
+    p.set('dir', sort.dir);
     return p;
   }
+
+  // Click a column: first click sorts it, clicking the same one again flips
+  // it. Name, publication, country and beat start ascending because A-first
+  // is what you mean by "sort by name"; the counts and the date start
+  // descending, because most and newest are what you are looking for.
+  const ASC_FIRST = new Set(['name', 'email', 'outlet', 'country', 'beat']);
+  function sortBy(key) {
+    setSort((s) => (s.key === key
+      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: ASC_FIRST.has(key) ? 'asc' : 'desc' }));
+  }
+  const SortTh = ({ col, children, align = 'left' }) => (
+    <th style={{ textAlign: align }}>
+      <button
+        type="button"
+        className="th-sort"
+        onClick={() => sortBy(col)}
+        aria-label={`Sort by ${String(children)}`}
+      >
+        {children}
+        <span className="th-sort__pip" aria-hidden="true">
+          {sort.key === col ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+        </span>
+      </button>
+    </th>
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   async function loadMore() {
     setLoadingMore(true);
@@ -2269,7 +2461,7 @@ function ContactsLibrary() {
     }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, activeTags]);
+  }, [search, activeTags, sort]);
 
   async function reload() {
     try {
@@ -2302,24 +2494,52 @@ function ContactsLibrary() {
     } catch (e) { setErr(e.message); }
   }
 
-  async function destroyAllMatching() {
+  // Both library deletes go through the typed dialog, for the same reason
+  // Publications does. This one had a confirm() and then, above 100 rows, a
+  // prompt() asking for the word DELETE. Two problems with that: a fixed word
+  // becomes muscle memory within a week, and prompt() is blocked outright in
+  // some embedded views, where it returns null and the delete silently does
+  // nothing. The count is typed instead, and it is the count the server is
+  // told to expect.
+  function askDeleteAllMatching() {
     if (!total) return;
     const filterDesc = (search.trim() ? `matching "${search.trim()}"` : '') +
       (activeTags.size ? ` tagged ${Array.from(activeTags).join(' + ')}` : '') ||
       'in the entire library';
-    if (!confirm(`Delete all ${total.toLocaleString()} journalists ${filterDesc.trim()} from the library? This removes them from every client they were attached to and CANNOT be undone.`)) return;
-    if (total > 100) {
-      const typed = prompt(`This will delete ${total.toLocaleString()} journalists. Type DELETE to confirm.`);
-      if (typed !== 'DELETE') return;
-    }
+    setPendingDelete({
+      mode: 'filter',
+      count: total,
+      detail: `Every journalist ${filterDesc.trim()}, not only the ${filtered.length.toLocaleString()} on screen. They are removed from every client they were attached to, and their send history goes with them.`,
+    });
+  }
+
+  function askDeleteSelectedContacts() {
+    if (!selected.size) return;
+    setPendingDelete({
+      mode: 'ids',
+      count: selected.size,
+      ids: Array.from(selected),
+      detail: 'They are removed from the library and from every client they were attached to, and their send history goes with them.',
+    });
+  }
+
+  async function runPendingDelete() {
+    if (!pendingDelete) return;
+    setDeletingContacts(true);
     try {
-      const res = await api.post('/outreach/contacts/library/delete-by-filter', {
-        ...filterBody(),
-        expected_count: total,
-      });
-      setInfo(`Deleted ${res.deleted.toLocaleString()} journalist${res.deleted === 1 ? '' : 's'}.`);
+      if (pendingDelete.mode === 'filter') {
+        const res = await api.post('/outreach/contacts/library/delete-by-filter', {
+          ...filterBody(),
+          expected_count: pendingDelete.count,
+        });
+        setInfo(`Deleted ${res.deleted.toLocaleString()} journalist${res.deleted === 1 ? '' : 's'}.`);
+      } else {
+        await api.post('/outreach/contacts/bulk-delete', { ids: pendingDelete.ids });
+      }
+      setPendingDelete(null);
       await reload();
     } catch (e) { setErr(e.message); }
+    finally { setDeletingContacts(false); }
   }
 
   function toggleTag(t) {
@@ -2355,16 +2575,7 @@ function ContactsLibrary() {
     }
   }
 
-  async function destroyContacts() {
-    if (!selected.size) return;
-    if (!confirm(`Delete ${selected.size} journalist${selected.size === 1 ? '' : 's'} from the library entirely? This also removes them from every client they were attached to.`)) return;
-    try {
-      await api.post('/outreach/contacts/bulk-delete', { ids: Array.from(selected) });
-      await reload();
-    } catch (e) {
-      setErr(e.message);
-    }
-  }
+
 
   async function destroyOne(contactId) {
     if (!confirm('Delete this journalist from the library entirely? This removes them from every client they were attached to.')) return;
@@ -2565,11 +2776,11 @@ function ContactsLibrary() {
               <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} className="btn btn-primary">
                 Add to client…
               </button>
-              <button onClick={destroyContacts} disabled={!selected.size} className="btn btn-danger btn-sm">
+              <button onClick={askDeleteSelectedContacts} disabled={!selected.size} className="btn btn-danger btn-sm">
                 Delete selected
               </button>
               {total > 0 && (
-                <button onClick={destroyAllMatching} className="btn btn-danger btn-sm"
+                <button onClick={askDeleteAllMatching} className="btn btn-danger btn-sm"
                   title={total > filtered.length ? `Delete all ${total.toLocaleString()} matching, not just the ${filtered.length.toLocaleString()} on screen` : ''}>
                   Delete all {total.toLocaleString()} matching
                 </button>
@@ -2632,14 +2843,17 @@ function ContactsLibrary() {
                   <th style={{ width: 28 }}>
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
                   </th>
-                  <th style={{ textAlign: 'left' }}>Name</th>
-                  <th style={{ textAlign: 'left' }}>Email</th>
-                  <th style={{ textAlign: 'left' }}>Publication</th>
-                  <th style={{ textAlign: 'left' }}>Country</th>
-                  <th style={{ textAlign: 'left' }}>Beat</th>
+                  <SortTh col="name">Name</SortTh>
+                  <SortTh col="email">Email</SortTh>
+                  <SortTh col="outlet">Publication</SortTh>
+                  <SortTh col="country">Country</SortTh>
+                  <SortTh col="beat">Beat</SortTh>
+                  {/* Tags and Attached-to are arrays. Sorting a list of
+                      tags alphabetically sorts by whichever happens to be
+                      first, which is not a sort anybody asked for. */}
                   <th style={{ textAlign: 'left' }}>Tags</th>
                   <th style={{ textAlign: 'left' }}>Attached to</th>
-                  <th style={{ textAlign: 'left' }}>Engagement</th>
+                  <SortTh col="total_replied">Engagement</SortTh>
                   <th style={{ textAlign: 'right' }}></th>
                 </tr>
               </thead>
@@ -2723,6 +2937,17 @@ function ContactsLibrary() {
           </div>
         )}
       </Card>
+
+      {pendingDelete && (
+        <DangerConfirm
+          count={pendingDelete.count}
+          noun="journalist"
+          detail={pendingDelete.detail}
+          busy={deletingContacts}
+          onConfirm={runPendingDelete}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

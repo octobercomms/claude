@@ -18,7 +18,10 @@ const { getSetting } = require('../utils/settings');
 // Columns safe to hand to the UI. password_enc never leaves this module.
 const PUBLIC_COLUMNS = `id, label, host, port, username, active, poll_replies,
   scan_ooo, known_senders_only, last_run_at, last_ok_at, last_match_at,
-  last_error, scanned, matched, unsubscribed, ooo_queued, created_at, updated_at`;
+  last_error, scanned, matched, unsubscribed, ooo_queued, created_at, updated_at,
+  auth_type, oauth_email, oauth_connected_at,
+  (password_enc IS NOT NULL) AS has_password,
+  (oauth_enc IS NOT NULL) AS has_oauth`;
 
 /**
  * Turn an ImapFlow error into something an operator can act on.
@@ -37,7 +40,7 @@ function describeImapError(err, inbox) {
   if (err?.serverResponseCode) parts.push(`[${err.serverResponseCode}]`);
 
   if (err?.authenticationFailed || /AUTHENTICATIONFAILED|invalid credentials/i.test(msg + (err?.responseText || ''))) {
-    parts.push('The username or app password was rejected. Gmail needs an app password, and a revoked one fails exactly like this.');
+    parts.push('The username or app password was rejected. A revoked app password fails exactly like this, and so does an account that no longer issues them: Google has withdrawn app passwords from many Workspace accounts, which is why press@ failed on 25 October and could not be fixed by typing a new one. Connect the mailbox with Google sign-in instead.');
   } else if (/command failed/i.test(msg)) {
     parts.push('The server rejected the command. Three causes account for nearly all of these: the address is a forwarding alias or group with no mailbox behind it, so there is nothing to open; IMAP is switched off for the account (Gmail → Settings → Forwarding and POP/IMAP → Enable IMAP); or the app password has been revoked. A forwarding address can never be read — put the mailbox it forwards INTO on this list instead.');
   }
@@ -113,18 +116,38 @@ async function list({ activeOnly = false } = {}) {
   return rows;
 }
 
-/** A mailbox with its password decrypted, for opening a connection. */
+/**
+ * A mailbox with its credential decrypted, for opening a connection.
+ *
+ * Which credential depends on auth_type: a password for the original kind, a
+ * Google grant for the kind that authenticates over XOAUTH2. The encrypted
+ * columns are dropped from what comes back, so a row handed around after this
+ * carries the plaintext once and the ciphertext nowhere.
+ */
 async function withCredentials(id) {
   const { rows } = await pool.query('SELECT * FROM outreach_inboxes WHERE id = $1', [id]);
   if (!rows.length) return null;
-  const row = rows[0];
+  const { password_enc: passwordEnc, oauth_enc: oauthEnc, ...row } = rows[0];
+
+  if (row.auth_type === 'google_oauth') {
+    let oauth = null;
+    if (oauthEnc) {
+      try {
+        oauth = decrypt(oauthEnc);
+      } catch (err) {
+        throw new Error(`The stored Google grant for "${row.label}" could not be decrypted (${err.message}). Reconnect it in Settings → Keys → Mailboxes.`);
+      }
+    }
+    return { ...row, password: null, oauth };
+  }
+
   let password = null;
   try {
-    password = decrypt(row.password_enc);
+    password = decrypt(passwordEnc);
   } catch (err) {
     throw new Error(`The stored password for "${row.label}" could not be decrypted (${err.message}). Re-enter it in Settings.`);
   }
-  return { ...row, password };
+  return { ...row, password, oauth: null };
 }
 
 /** Every active mailbox, credentials included, for the poll to work through. */
@@ -144,12 +167,19 @@ async function activeWithCredentials() {
   return out;
 }
 
-function assertFields({ label, host, username, password }, { requirePassword = true } = {}) {
+/** 'password' unless the caller asked for the Google kind. */
+function normAuthType(v) {
+  return String(v || '').trim() === 'google_oauth' ? 'google_oauth' : 'password';
+}
+
+function assertFields({ label, host, username, password, auth_type: authType }, { requirePassword = true } = {}) {
   const missing = [];
   if (!String(label || '').trim()) missing.push('a label');
   if (!normHost(host)) missing.push('a host');
   if (!normUser(username)) missing.push('a username');
-  if (requirePassword && !String(password || '')) missing.push('a password');
+  // A Google mailbox has no password to ask for. Its grant is attached after
+  // the row exists, because the consent screen needs a mailbox to come back to.
+  if (requirePassword && normAuthType(authType) === 'password' && !String(password || '')) missing.push('a password');
   if (missing.length) {
     const e = new Error(`That mailbox needs ${missing.join(', ')}.`);
     e.status = 400;
@@ -162,14 +192,15 @@ async function create(input = {}) {
   try {
     const { rows } = await pool.query(
       `INSERT INTO outreach_inboxes
-         (label, host, port, username, password_enc, active, poll_replies, scan_ooo, known_senders_only)
-       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9)
+         (label, host, port, username, password_enc, active, poll_replies, scan_ooo, known_senders_only, auth_type)
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10)
        RETURNING ${PUBLIC_COLUMNS}`,
       [
         String(input.label).trim(), normHost(input.host), Number(input.port) || 993,
-        normUser(input.username), JSON.stringify(encrypt(String(input.password))),
+        normUser(input.username),
+        input.password ? JSON.stringify(encrypt(String(input.password))) : null,
         input.active !== false, input.poll_replies !== false, input.scan_ooo !== false,
-        Boolean(input.known_senders_only),
+        Boolean(input.known_senders_only), normAuthType(input.auth_type),
       ]
     );
     return rows[0];
@@ -193,7 +224,12 @@ async function update(id, input = {}) {
   if (input.host !== undefined) push('host', normHost(input.host));
   if (input.port !== undefined) push('port', Number(input.port) || 993);
   if (input.username !== undefined) push('username', normUser(input.username));
-  if (input.password) push('password_enc', JSON.stringify(encrypt(String(input.password))));
+  // Typing a password is the operator saying "use this". Leaving the row on
+  // google_oauth would store the password and go on ignoring it.
+  if (input.password) {
+    push('password_enc', JSON.stringify(encrypt(String(input.password))));
+    push('auth_type', 'password');
+  }
   for (const flag of ['active', 'poll_replies', 'scan_ooo', 'known_senders_only']) {
     if (input[flag] !== undefined) push(flag, Boolean(input[flag]));
   }
@@ -243,19 +279,31 @@ async function recordState(id, patch = {}) {
  * Takes either an id (test what is stored) or raw fields (test before saving).
  */
 async function testConnection(input = {}) {
-  let host; let port; let username; let password; let label;
+  let target;
   if (input.id) {
     const row = await withCredentials(input.id);
     if (!row) { const e = new Error('Mailbox not found'); e.status = 404; throw e; }
-    ({ host, port, username, password, label } = row);
+    target = row;
   } else {
+    // Unsaved fields can only be a password mailbox: a Google grant belongs
+    // to a row, so there is nothing to test before saving.
     assertFields(input);
-    host = normHost(input.host); port = Number(input.port) || 993;
-    username = normUser(input.username); password = String(input.password);
-    label = input.label;
+    target = {
+      host: normHost(input.host), port: Number(input.port) || 993,
+      username: normUser(input.username), password: String(input.password),
+      label: input.label, auth_type: 'password',
+    };
   }
+  const { host, port, username, label } = target;
 
-  const client = imapClient({ host, port, username, password, label });
+  let client;
+  try {
+    client = await imapClient(target);
+  } catch (err) {
+    // Minting the token failed, so there is no socket to report on. The
+    // message already says what to do about it.
+    return { ok: false, label, error: err.message };
+  }
   try {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
@@ -289,14 +337,34 @@ async function testConnection(input = {}) {
  * mailboxes mid-fetch, and nothing here is evidence that the defaults are
  * wrong.
  */
-function imapClient(inbox, onError) {
+async function imapClient(inbox, onError) {
   const { ImapFlow } = require('imapflow');
   const port = Number(inbox.port) || 993;
+
+  // Two kinds of credential, one socket. A Google mailbox authenticates with
+  // a bearer token over XOAUTH2 because app passwords are no longer issued
+  // for the accounts October reads; everything after the handshake is
+  // identical, which is why the switch lives here and nowhere else.
+  //
+  // The token is minted per connection rather than cached on the row: it
+  // lasts an hour, the poll runs every fifteen minutes, and a token that
+  // expires mid-fetch fails in a way that looks like a wrong password.
+  let auth;
+  if (inbox.auth_type === 'google_oauth') {
+    const mailboxOauth = require('./mailboxOauth');
+    auth = {
+      user: String(inbox.username).trim(),
+      accessToken: await mailboxOauth.accessTokenFor(inbox),
+    };
+  } else {
+    auth = { user: String(inbox.username).trim(), pass: String(inbox.password).trim() };
+  }
+
   const client = new ImapFlow({
     host: String(inbox.host).trim(),
     port,
     secure: port === 993,
-    auth: { user: String(inbox.username).trim(), pass: String(inbox.password).trim() },
+    auth,
     logger: false,
   });
   client.on('error', (err) => {
@@ -313,4 +381,5 @@ function imapClient(inbox, onError) {
 module.exports = {
   list, create, update, remove, withCredentials, activeWithCredentials,
   recordState, testConnection, importLegacyOnce, describeImapError, imapClient,
+  normAuthType,
 };

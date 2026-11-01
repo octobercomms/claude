@@ -10,6 +10,8 @@ import { useToast } from '../context/ToastContext';
 
 // Each SOSTAC phase gets its own colour so the six sections read as distinct
 // chapters — a tinted header, a coloured number + title, a coloured spine.
+import { howFor } from '@shared/sostacHow.mjs';
+
 const SOSTAC = {
   'Situation Analysis': { n: 1, color: '#2f6fb0', tint: 'rgba(47,111,176,0.08)' },
   'Objectives':         { n: 2, color: '#2e7d57', tint: 'rgba(46,125,87,0.08)' },
@@ -285,7 +287,13 @@ export default function ClientStrategyPanel({ clientId }) {
         <div className="caption">Marketing strategy</div>
         {strat && !picking && (
           <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="body-xs text-subtle">{strat.progress.done}/{strat.progress.total} done</span>
+            {/* Guarded, like the pct above it. This line read
+                strat.progress.done unguarded, so a strategy that arrived
+                without the counter did not lose a counter: it threw inside
+                render, and the error boundary replaced the whole SOSTAC
+                screen with "Something went wrong here." The plan is the
+                screen; a missing pair of numbers must not take it down. */}
+            <span className="body-xs text-subtle">{strat.progress?.done ?? 0}/{strat.progress?.total ?? 0} done</span>
             <button className="btn btn-secondary btn-sm" onClick={tailor} disabled={busy}>{busy ? '…' : (strat.profile ? '✦ Re-tailor' : '✦ Tailor with Claude')}</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setPicking(true)}>Change</button>
           </div>
@@ -327,15 +335,17 @@ export default function ClientStrategyPanel({ clientId }) {
 
           {/* SOSTAC phases — each a colour-coded chapter with the working checklist */}
           <div className="caption" style={{ marginBottom: 'var(--s3)' }}>The SOSTAC plan</div>
-          {/* The stock template has no guidance under its items — the steps
-              are written per client at tailor time, because "audit the
-              funnel" means something different for a tour operator and a
-              furniture brand. Said once, here, rather than leaving every
-              item silently bare. */}
+          {/* An untailored plan is not a plan without guidance, and the first
+              attempt at fixing that added a paragraph saying the guidance
+              would arrive later, which is not guidance. Every phase now
+              carries its method, below, from the moment the playbook is
+              assigned. Tailoring replaces it per item with steps written for
+              the client. */}
           {!(strat.phases || []).some(p => (p.items || []).some(i => (i.how || []).length)) && (
-            <p className="body-sm text-muted" style={{ marginTop: 'calc(-1 * var(--s2))', marginBottom: 'var(--s4)', maxWidth: 620, lineHeight: 1.5 }}>
-              These are the stock actions for this playbook. Tailor the strategy to rewrite them
-              for {' '}this client and add step-by-step guidance under each one.
+            <p className="body-sm text-muted" style={{ marginTop: 'calc(-1 * var(--s2))', marginBottom: 'var(--s4)', maxWidth: 640, lineHeight: 1.5 }}>
+              These are the stock actions for this playbook, and each phase below opens with
+              how to work it and which OMI screens do the job. Tailoring rewrites the actions
+              for this client and puts the steps under each one.
             </p>
           )}
           <div className="stack stack-lg">
@@ -347,6 +357,28 @@ export default function ClientStrategyPanel({ clientId }) {
                     <span style={{ width: 34, height: 34, borderRadius: 'var(--r-pill)', background: s.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)', fontWeight: 800, flex: '0 0 auto' }}>{s.n}</span>
                     <div className="h2" style={{ color: s.color, margin: 0 }}>{ph.title}</div>
                   </div>
+                  {/* The method for this phase, stock. Phase-level rather than
+                      item-level on purpose: a stock item has no client behind
+                      it, so item-level advice would be invented, and invented
+                      advice reads exactly like real advice. This is true of
+                      every item in the phase, and says so. Collapsed, because
+                      six phases of five steps open at once is a document. */}
+                  {(() => {
+                    const method = howFor(ph.title);
+                    if (!method) return null;
+                    return (
+                      <details className="sostac-how" style={{ padding: 'var(--s3) var(--s5) 0' }}>
+                        <summary>How to work this phase</summary>
+                        <p className="body-sm" style={{ margin: 'var(--s2) 0', lineHeight: 1.5 }}>{method.aim}</p>
+                        <ol>
+                          {method.steps.map((step, i) => <li key={i}>{step}</li>)}
+                        </ol>
+                        <p className="body-xs text-subtle" style={{ margin: 'var(--s2) 0 0' }}>
+                          In OMI: {method.omi}
+                        </p>
+                      </details>
+                    );
+                  })()}
                   <div className="stack stack-sm" style={{ padding: 'var(--s4) var(--s5)' }}>
                     {(ph.items || []).map(it => (
                       <div key={it.id} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>

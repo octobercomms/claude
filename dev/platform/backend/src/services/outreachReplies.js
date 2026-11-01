@@ -187,8 +187,16 @@ async function pollOneInbox(inbox) {
   // Through the shared factory, which attaches the 'error' listener ImapFlow
   // needs. Without one, a socket error arriving after this poll has finished
   // reaches process.on('uncaughtException') instead of the per-mailbox
-  // handling below.
-  const client = inboxes.imapClient(inbox);
+  // handling below. It is awaited because a Google mailbox mints an access
+  // token before the socket opens, and a mailbox whose grant has lapsed must
+  // fail the same visible way a wrong password does.
+  let client;
+  try {
+    client = await inboxes.imapClient(inbox);
+  } catch (err) {
+    await inboxes.recordState(inbox.id, { last_run_at: new Date(), last_error: err.message });
+    throw err;
+  }
 
   let matched = 0;
   let scanned = 0;
@@ -354,7 +362,7 @@ async function pollOneInbox(inbox) {
       lock.release();
     }
   } finally {
-    await client.logout().catch(() => {});
+    if (client) await client.logout().catch(() => {});
   }
   await inboxes.recordState(inbox.id, {
     last_run_at: new Date(), last_ok_at: new Date(), last_error: null,
@@ -449,9 +457,10 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
   const errors = [];
 
   for (const inbox of list) {
-    const client = inboxes.imapClient(inbox);
+    let client;
     let boxScanned = 0; let boxQueued = 0;
     try {
+      client = await inboxes.imapClient(inbox);
       await client.connect();
       const lock = await client.getMailboxLock('INBOX');
       try {
@@ -492,7 +501,7 @@ async function backfillOoo({ days = 90, limit = 2000, inboxId = null } = {}) {
       errors.push(inboxes.describeImapError(err, inbox));
       console.warn('[OOO backfill]', inbox.label, err.message);
     } finally {
-      await client.logout().catch(() => {});
+      if (client) await client.logout().catch(() => {});
     }
     scanned += boxScanned; queued += boxQueued;
     per.push({ inbox: inbox.label, scanned: boxScanned, queued: boxQueued });

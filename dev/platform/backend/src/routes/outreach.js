@@ -385,6 +385,45 @@ function buildLibraryFilter(req, q) {
 //   ?include_count=1: { rows, total } — total is the unbounded match
 //      count, useful when the list is capped (1000) but the user might
 //      want to "delete all 21,000".
+// Sortable columns, by the name the UI uses for them.
+//
+// A whitelist, not an interpolation: ORDER BY cannot be parameterised, so the
+// only safe way to let the client choose it is to let the client choose from
+// a list the server wrote. Everything here is a column or an expression this
+// query already has.
+//
+// Sorting has to happen here rather than in the browser. The library holds
+// 21,000 contacts and the list draws a 200-row page, so a client-side sort
+// orders the page you happen to be looking at and calls it the library — the
+// same lie the client-side search told before it moved to the server.
+const LIBRARY_SORTS = {
+  name: 'lower(coalesce(c.name, c.first_name || \' \' || c.last_name, \'\'))',
+  email: 'lower(coalesce(c.email, \'\'))',
+  outlet: 'lower(coalesce(o.name, c.company, \'\'))',
+  country: 'lower(coalesce(c.country, \'\'))',
+  beat: 'lower(coalesce(c.beats::text, \'\'))',
+  created_at: 'c.created_at',
+  // Engagement. Only offered with ?include_totals=1, because without it
+  // these subqueries are not in the SELECT and sorting by them would make
+  // the cheap picker pay for the expensive query.
+  total_sent: '(SELECT COUNT(*) FROM outreach_sends s WHERE s.contact_id = c.id AND s.sent_at IS NOT NULL)',
+  total_replied: '(SELECT COUNT(*) FROM outreach_sends s WHERE s.contact_id = c.id AND s.replied_at IS NOT NULL)',
+};
+const TOTALS_SORTS = new Set(['total_sent', 'total_replied']);
+
+function librarySortSql(query, hasTotals) {
+  const key = String(query.sort || '').trim();
+  const expr = LIBRARY_SORTS[key];
+  // An unknown column, or an engagement sort without the totals to sort on,
+  // falls back to newest first rather than erroring: a stale bookmark should
+  // show the library, not a 500.
+  if (!expr || (TOTALS_SORTS.has(key) && !hasTotals)) return 'c.created_at DESC';
+  const dir = String(query.dir || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+  // NULLS LAST in both directions. A contact with no email is not the first
+  // thing you want when you sort by email to find the ones you can write to.
+  return `${expr} ${dir} NULLS LAST, c.created_at DESC`;
+}
+
 router.get('/contacts/library', async (req, res) => {
   const { include_totals, include_count } = req.query;
   try {
@@ -401,6 +440,7 @@ router.get('/contacts/library', async (req, res) => {
               (SELECT COUNT(*)::int FROM outreach_clicks ck JOIN outreach_sends s ON s.id = ck.send_id WHERE s.contact_id = c.id) AS total_clicked,
               (SELECT MAX(s.sent_at) FROM outreach_sends s WHERE s.contact_id = c.id) AS last_sent_at`
       : '';
+    const orderSql = librarySortSql(req.query, !!totalsCols);
     const pageSize = Math.min(1000, Math.max(1, parseInt(req.query.limit, 10) || 200));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const listParams = [...params, pageSize, offset];
@@ -419,7 +459,7 @@ router.get('/contacts/library', async (req, res) => {
          FROM outreach_contacts c
          LEFT JOIN pr_outlets o ON o.id = c.outlet_id
          ${whereSql}
-         ORDER BY c.created_at DESC
+         ORDER BY ${orderSql}
          LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
       listParams
     );

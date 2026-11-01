@@ -45,23 +45,29 @@ const check = (name, ok, detail) => {
 
 const INBOX = { host: ' imap.example.com ', port: '993', username: ' a@b.c ', password: ' pw ', label: 'press@' };
 
-const client = inboxes.imapClient(INBOX);
+// imapClient became async when mailboxes gained Google sign-in: a Google
+// mailbox mints an access token before the socket opens. Everything below
+// awaits it. Called without the await it returns a Promise, which has no
+// listenerCount and no emit, and this file failed with
+// "client.listenerCount is not a function" rather than with a useful word.
+async function main() {
+const client = await inboxes.imapClient(INBOX);
 
 check('the client is built from the mailbox', !!built && built.opts.host === 'imap.example.com',
   JSON.stringify(built && built.opts));
 check('and credentials are trimmed on the way in',
   built.opts.auth.user === 'a@b.c' && built.opts.auth.pass === 'pw');
 check('993 is treated as implicit TLS', built.opts.secure === true);
-inboxes.imapClient({ ...INBOX, port: 143 });
+await inboxes.imapClient({ ...INBOX, port: 143 });
 check('a plain port is not', built.opts.secure === false && built.opts.port === 143,
   JSON.stringify({ secure: built.opts.secure, port: built.opts.port }));
-inboxes.imapClient({ ...INBOX, port: '' });
+await inboxes.imapClient({ ...INBOX, port: '' });
 check('and a missing port falls back to 993',
   built.opts.port === 993 && built.opts.secure === true,
   JSON.stringify({ secure: built.opts.secure, port: built.opts.port }));
 
 // Rebuild the TLS case, since the two above moved `built` on.
-inboxes.imapClient(INBOX);
+await inboxes.imapClient(INBOX);
 
 // The one that matters.
 check('an error listener is attached', client.listenerCount('error') === 1,
@@ -74,13 +80,13 @@ check('so a socket error does not take the process down', threw === null,
 
 // The caller still gets to record the failure against the mailbox.
 let seen = null;
-const withCb = inboxes.imapClient(INBOX, (err) => { seen = err.message; });
+const withCb = await inboxes.imapClient(INBOX, (err) => { seen = err.message; });
 withCb.emit('error', new Error('Command failed'));
 check('and the caller is told', seen === 'Command failed', String(seen));
 
 // Reporting a failure must not become a second failure.
 let threw2 = null;
-const bad = inboxes.imapClient(INBOX, () => { throw new Error('reporting blew up'); });
+const bad = await inboxes.imapClient(INBOX, () => { throw new Error('reporting blew up'); });
 try { bad.emit('error', new Error('Socket timeout')); } catch (e) { threw2 = e; }
 check('a handler that throws is contained', threw2 === null, threw2 && threw2.message);
 
@@ -89,6 +95,17 @@ check('a handler that throws is contained', threw2 === null, threw2 && threw2.me
 check('the library’s own timeouts are left alone',
   built.opts.socketTimeout === undefined && built.opts.greetingTimeout === undefined,
   JSON.stringify(built.opts));
+
+// And the other half of that change: a Google mailbox authenticates with a
+// bearer token, never a password. Checked here because this is the file that
+// owns what reaches ImapFlow.
+const tokenInbox = { ...INBOX, auth_type: 'google_oauth', password: null,
+  oauth: { refresh_token: 'r', access_token: 'tok-123', expires_at: Date.now() + 3600_000 } };
+const tokenClient = await inboxes.imapClient(tokenInbox);
+check('a Google mailbox sends a bearer token',
+  built.opts.auth.accessToken === 'tok-123' && built.opts.auth.pass === undefined,
+  JSON.stringify(built.opts.auth));
+check('and still gets its error listener', tokenClient.listenerCount('error') === 1);
 
 Module._load = load;
 
@@ -108,3 +125,6 @@ check('only the factory constructs an IMAP client',
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
+}
+
+main().catch((err) => { console.error(err); process.exit(1); });

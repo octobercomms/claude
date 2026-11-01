@@ -1237,6 +1237,18 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .contacts-list-table tbody tr:hover td { background: var(--surface-raised); }
 .contacts-list-table tr:last-child td { border-bottom: none; }
 .table td.strong { color: var(--text); font-weight: 700; }
+/* A sortable column header. The <th> keeps its own styling; this is the
+   button inside it, so the whole label is the hit target rather than a
+   caret you have to aim at. */
+.th-sort {
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.th-sort:hover { color: var(--text); text-decoration: underline; }
+/* Reserves its width whether or not this column is the sorted one, so
+   clicking through the headers does not shuffle the table sideways. */
+.th-sort__pip { display: inline-block; min-width: 0.7em; font-size: 0.8em; color: var(--accent-ink, var(--text)); }
 
 /* ─── Empty state ────────────────────────────────────────────────── */
 
@@ -1332,6 +1344,61 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 }
 .tab:hover:not(.active) { color: var(--text); background: var(--surface-sunken); }
 .tab.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+/* A row of choices that fills the width it is given, one equal column each.
+   Shared's Create had three such rows as content-width pills, so "Short /
+   Medium / Long" sat in the left third of a full-width card and the four
+   platforms wrapped unevenly underneath. An option you have not picked also
+   looked like no option at all: .tab's resting state is transparent with no
+   border, so the unpicked ones read as labels rather than as the other
+   things you could click. */
+.opt-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
+/* @container, not @media: the nav panel takes 170px of the viewport, so a
+   viewport query makes this row collapse while the content box is still
+   wide. Seven number buttons at phone width would be 40px each. */
+@container appmain (max-width: 760px) {
+  .opt-row { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+}
+.opt-row .tab { justify-content: center; text-align: center; }
+/* Grey when inactive: a visible surface and border, so it reads as a button. */
+.opt-row .tab:not(.active) {
+  background: var(--surface-sunken);
+  border-color: var(--card-border);
+  color: var(--text-subtle);
+}
+.opt-row .tab:not(.active):hover { color: var(--text); border-color: var(--text-subtle); }
+
+/* Hook vault — the list at three quarters, the explanation beside it.
+   All four paragraphs used to sit above the list, so the thing the page is
+   for began below the fold, and the explanation was read once and scrolled
+   past every time after. Beside it, it is there when wanted and out of the
+   way when not. Stacks below 1100px, where 25% of the width is too narrow
+   to read a paragraph in. */
+.hookvault { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-comp); align-items: start; }
+/* @container, not @media, for the same reason: this sits inside .app-main,
+   whose width is the viewport minus the nav panel. */
+@container appmain (min-width: 1000px) {
+  .hookvault { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); }
+  .hookvault__rail { position: sticky; top: var(--s4); }
+}
+.hookvault__main { min-width: 0; }
+
+/* A search box with a filter beside it: three quarters to the typing, one
+   quarter to the dropdown.
+   This was a flex row with `flex: 1` on the input, which loses every time:
+   .select carries width: 100%, so in a flex container it claims the whole
+   row and the input, whose flex-basis is 0, collapses to its padding. On the
+   hook vault that left a 40px white square next to a full-width "All
+   frameworks", and the search box was the control you actually wanted.
+
+   Named filter-row, not search-row: .search-row is the global palette's
+   result row, 1,400 lines further down this file, and it sets display:flex.
+   The collision cost nothing only because the drive measured the columns
+   instead of trusting the class. */
+.filter-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: var(--s2); align-items: center; }
+@container appmain (max-width: 560px) {
+  .filter-row { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* Binary switch — two labels flank a track; the active one inks up and the knob
    slides to it. For true 2-way toggles only (sort A/B, filter all/starred). Any
@@ -1493,6 +1560,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
    (report template designer, social planner). 560px crammed two
    columns into a strip — these need room to breathe. */
 .modal-wide { width: 1120px; }
+/* 80% of the viewport, for a modal that IS the working surface rather than a
+   dialog over one: Paid's Draft opens the concept with five text fields, the
+   images and the chat beside them, and 1120px fixed meant a 2,560px monitor
+   showed it in the middle third. Percentage, not pixels, because the point is
+   to use the screen the operator actually has. */
+.modal-80 { width: 80vw; max-width: 80vw; }
 /* Near-fullscreen for modals that render full documents inline (report
    preview iframe). 95vw caps the side gutters; column layout so the
    iframe can flex-grow to take the remaining height. */
@@ -2351,6 +2424,16 @@ a:hover > .card-stat,
 .ds-stat--feature .ds-stat__value,
 .ds-stat--feature .ds-stat__label,
 .ds-stat--feature .ds-stat__sub { color: #fff; }
+
+/* Accent tile — the same job as the feature tile without inverting the
+   surface, for a screen that already carries one dark slab or shows two stat
+   rows at once. Earned's Results was both: a black tile in the attribution
+   row and another in the engagement row, so the emphasis cancelled out and
+   the screen read as a page of black blocks.
+   The ink stays black on purpose. The accent is #E7CD41, which measures about
+   1.7:1 on white: fine as a border or a wash, unreadable as a number, even at
+   display size where 3:1 is the floor. */
+.ds-stat--accent { border-color: var(--accent); background: var(--accent-soft); }
 
 /* L4 · StepRail — the one step indicator (merges Stepper + ProcessRail);
    it renders on the shared .stepper* classes above. */

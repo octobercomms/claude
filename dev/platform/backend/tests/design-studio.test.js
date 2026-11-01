@@ -502,8 +502,11 @@ check('and the destructive one is marked as such',
   'delete and duplicate sitting side by side as identical grey glyphs is how a set gets deleted by accident');
 
 // --- it is not loaded by people who never open it ----------------------------
+// lazyChunk, not React.lazy directly: the same code split, plus a reload when
+// the chunk has gone because a deploy landed under an open tab. This page was
+// in the error digest for 31 October for exactly that.
 check('the editor is code-split',
-  /lazy\(\(\) => import\('\.\/ClientDesignPage'\)\)/.test(tab),
+  /lazyChunk\('ClientDesignPage', \(\) => import\('\.\/ClientDesignPage'\)\)/.test(tab),
   'Fabric is 300KB; nobody who never opens this tab should download it');
 check('with something on screen while it loads', /Suspense/.test(tab));
 // This used to assert the gate by the shape of the tab strip entry. The

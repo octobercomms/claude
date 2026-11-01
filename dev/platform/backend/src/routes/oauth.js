@@ -142,6 +142,18 @@ router.get('/google/calendar/start', authenticate, (req, res) => {
   res.redirect(require('../services/googleCalendar').getAuthUrl(state));
 });
 
+// A mailbox OMI reads, authenticated by its own Google account instead of an
+// app password. Returned as JSON rather than a redirect for the same reason
+// /oauth/start-url is: the SPA holds its JWT in localStorage, which a popup's
+// top-level navigation does not carry.
+router.get('/google/mailbox/start-url', authenticate, (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  const inboxId = req.query.inbox_id;
+  if (!inboxId) return res.status(400).json({ error: 'inbox_id required' });
+  const state = signOAuthState({ purpose: 'mailbox', inbox_id: String(inboxId) });
+  res.json({ url: require('../services/mailboxOauth').authUrl(state) });
+});
+
 router.get('/google/start', (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
@@ -156,6 +168,10 @@ router.get('/google/callback', async (req, res) => {
 
   try {
     const payload = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
+    if (payload.purpose === 'mailbox') {
+      const attached = await require('../services/mailboxOauth').attach(payload.inbox_id, code);
+      return res.send(oauthPopupHtml('success', `${attached.label} connected (${attached.email}). OMI will read it over IMAP without a password.`, 'mailbox'));
+    }
     if (payload.purpose === 'calendar') {
       const email = await require('../services/googleCalendar').handleCallback(code);
       return res.send(oauthPopupHtml('success', `Google Calendar connected${email ? ` (${email})` : ''}.`, 'google_calendar'));

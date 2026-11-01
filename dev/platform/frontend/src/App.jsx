@@ -1,4 +1,11 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
+// Not React.lazy directly. Every one of these is a separate chunk whose
+// filename changes on each deploy, and a tab open across a deploy asks for
+// the old name and gets a 404 — six of those in the error digest for
+// 31 October alone, each a blank error screen on a page that works after a
+// refresh. lazyChunk retries once, then reloads the page to pick up the new
+// index.html, and will not do it twice for the same chunk.
+import { lazyChunk } from './utils/lazyChunk';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -15,34 +22,34 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import WatchPage from './pages/WatchPage';
 
-const Layout = lazy(() => import('./components/Layout'));
-const ClientsPage = lazy(() => import('./pages/ClientsPage'));
-const ClientDetailPage = lazy(() => import('./pages/ClientDetailPage'));
-const RankingsPage = lazy(() => import('./pages/RankingsPage'));
-const ClientSEOPage = lazy(() => import('./pages/ClientSEOPage'));
-const ClientConvertPage = lazy(() => import('./pages/ClientConvertPage'));
-const ClientAdsPage = lazy(() => import('./pages/ClientAdsPage'));
-const ClientSalesTrafficPage = lazy(() => import('./pages/ClientSalesTrafficPage'));
-const ClientSocialPage = lazy(() => import('./pages/ClientSocialPage'));
-const ApprovePage = lazy(() => import('./pages/ApprovePage'));
-const SetPasswordPage = lazy(() => import('./pages/SetPasswordPage'));
-const GuidePage = lazy(() => import('./pages/GuidePage'));
+const Layout = lazyChunk('Layout', () => import('./components/Layout'));
+const ClientsPage = lazyChunk('ClientsPage', () => import('./pages/ClientsPage'));
+const ClientDetailPage = lazyChunk('ClientDetailPage', () => import('./pages/ClientDetailPage'));
+const RankingsPage = lazyChunk('RankingsPage', () => import('./pages/RankingsPage'));
+const ClientSEOPage = lazyChunk('ClientSEOPage', () => import('./pages/ClientSEOPage'));
+const ClientConvertPage = lazyChunk('ClientConvertPage', () => import('./pages/ClientConvertPage'));
+const ClientAdsPage = lazyChunk('ClientAdsPage', () => import('./pages/ClientAdsPage'));
+const ClientSalesTrafficPage = lazyChunk('ClientSalesTrafficPage', () => import('./pages/ClientSalesTrafficPage'));
+const ClientSocialPage = lazyChunk('ClientSocialPage', () => import('./pages/ClientSocialPage'));
+const ApprovePage = lazyChunk('ApprovePage', () => import('./pages/ApprovePage'));
+const SetPasswordPage = lazyChunk('SetPasswordPage', () => import('./pages/SetPasswordPage'));
+const GuidePage = lazyChunk('GuidePage', () => import('./pages/GuidePage'));
 // Temporary: the checker calibration bench. Goes when the thresholds are set.
-const SnapshotStudioPage = lazy(() => import('./pages/SnapshotStudioPage'));
-const TenderWorkspacePage = lazy(() => import('./pages/TenderWorkspacePage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const ClientPRPage = lazy(() => import('./pages/ClientPRPage'));
-const JournalistProfilePage = lazy(() => import('./pages/JournalistProfilePage'));
-const OutletProfilePage = lazy(() => import('./pages/OutletProfilePage'));
-const ContactCleanupPage = lazy(() => import('./pages/ContactCleanupPage'));
-const PublicCoveragePage = lazy(() => import('./pages/PublicCoveragePage'));
-const PressReviewPage = lazy(() => import('./pages/PressReviewPage'));
-const ProposalPublicPage = lazy(() => import('./pages/ProposalPublicPage'));
-const BookingManagePage = lazy(() => import('./pages/BookingManagePage'));
-const ProposalEditorPage = lazy(() => import('./pages/ProposalEditorPage'));
-const ProposalSamplePage = lazy(() => import('./pages/ProposalSamplePage'));
-const ClientVideoTab = lazy(() => import('./pages/ClientVideoTab'));
-const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage'));
+const SnapshotStudioPage = lazyChunk('SnapshotStudioPage', () => import('./pages/SnapshotStudioPage'));
+const TenderWorkspacePage = lazyChunk('TenderWorkspacePage', () => import('./pages/TenderWorkspacePage'));
+const SettingsPage = lazyChunk('SettingsPage', () => import('./pages/SettingsPage'));
+const ClientPRPage = lazyChunk('ClientPRPage', () => import('./pages/ClientPRPage'));
+const JournalistProfilePage = lazyChunk('JournalistProfilePage', () => import('./pages/JournalistProfilePage'));
+const OutletProfilePage = lazyChunk('OutletProfilePage', () => import('./pages/OutletProfilePage'));
+const ContactCleanupPage = lazyChunk('ContactCleanupPage', () => import('./pages/ContactCleanupPage'));
+const PublicCoveragePage = lazyChunk('PublicCoveragePage', () => import('./pages/PublicCoveragePage'));
+const PressReviewPage = lazyChunk('PressReviewPage', () => import('./pages/PressReviewPage'));
+const ProposalPublicPage = lazyChunk('ProposalPublicPage', () => import('./pages/ProposalPublicPage'));
+const BookingManagePage = lazyChunk('BookingManagePage', () => import('./pages/BookingManagePage'));
+const ProposalEditorPage = lazyChunk('ProposalEditorPage', () => import('./pages/ProposalEditorPage'));
+const ProposalSamplePage = lazyChunk('ProposalSamplePage', () => import('./pages/ProposalSamplePage'));
+const ClientVideoTab = lazyChunk('ClientVideoTab', () => import('./pages/ClientVideoTab'));
+const DesignSystemPage = lazyChunk('DesignSystemPage', () => import('./pages/DesignSystemPage'));
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();

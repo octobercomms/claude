@@ -168,4 +168,8 @@ module.exports = {
   recordApiCost, recordClaudeCost, claudeCostFromUsage,
   webSearchCostFromUsage, CLAUDE_PRICES, WEB_SEARCH_USD_PER_SEARCH,
   priceForModel, UNPRICED,
+  // Exported so the cache report prices reads and writes with the same
+  // numbers the cost log charges them at. Two copies of 1.25 would drift,
+  // and the report's whole job is to be believed.
+  CACHE_WRITE_MULTIPLIER, CACHE_1H_WRITE_MULTIPLIER, DEFAULT_CACHE_READ,
 };

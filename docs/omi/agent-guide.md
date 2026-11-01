@@ -2692,6 +2692,28 @@ claiming that a `.db` test protects anything.
   untick three, refresh, and an unpersisted set hands the download nine.
   `null` means every post, which is not the same as a set of every current id:
   a batch loads its posts after its id.
+- **App passwords are no longer a credential you can ask Daniel for.** Google
+  has withdrawn them from the Workspace accounts October uses: the screen that
+  issued one now reads "the setting that you are looking for is not available
+  for your account". press@ failed with `AUTHENTICATIONFAILED` on 25 October
+  and stayed broken for a week because the fix looked like typing a new
+  password. A mailbox now carries `auth_type` of `password` or `google_oauth`,
+  and the OAuth kind authenticates the same IMAP socket with a bearer token
+  (`auth: { user, accessToken }` — ImapFlow builds the XOAUTH2 string itself).
+  The only scope IMAP accepts is `https://mail.google.com/`, which is full
+  mailbox access; `gmail.readonly` works against the REST API and is refused at
+  the IMAP handshake, so narrowing it stops every poll. Google classifies it as
+  restricted, so **the OAuth client has to be Internal to the Workspace that
+  owns the mailbox**, or pass a security assessment — and
+  `https://mail.google.com/` must be added to the consent screen's scope list
+  in Google Cloud before the grant will run. It is deliberately NOT in
+  `connectors/google.js` SCOPES: putting it there would show "read all your
+  email" on the consent screen every client sees.
+- **`inboxes.imapClient()` is async.** It mints the access token before the
+  socket opens, so all three call sites await it, and the two loops that build
+  a client per mailbox guard their `client.logout()` because construction can
+  now throw before a client exists. `tests/mailbox-oauth.test.js` catches a
+  call site that drops the await.
 - **Auto-merge fires within ~3 minutes of CI going green**, so a commit pushed
   while a PR is open joins it and a commit pushed after the merge needs a new
   PR. Open the PR in the same breath as the push, not after writing it up.
@@ -3358,3 +3380,48 @@ claiming that a `.db` test protects anything.
 - L5 pattern = add an `embedded` prop to the detail modal, then `ListDetail sidebar`.
 - Don't brand OMI "nvelope".
 - The real next prize is **Phase 3 (GTM Brain)**, not more table refactors.
+
+## 11. Reading CI on a PR (this cost nine commits on 1 November)
+
+`pull_request_read` with `method: "get_status"` returns **commit statuses**.
+This repo reports through **check runs**, so that call answers
+`{"state":"pending","total_count":0,"statuses":[]}` whether CI is running,
+green or red — and it says exactly that when every check has already failed.
+Nine commits went up on red before a batch of webhook notifications made it
+obvious.
+
+Read `mcp__github__get_check_run`, or the `check_run.completed` events that
+arrive on their own, and treat `total_count: 0` from `get_status` as **no
+information**, never as "still going".
+
+**Run the whole suite, not your own guards.** The backend job enumerates
+about 64 standalone `node tests/*.test.js` guards, and `npm run test:units`
+does not touch them. Both failures that day were existing guards broken by a
+change, not new ones:
+
+- `imapClient()` became async for the Gmail token, so `imap-client.test.js`
+  got a Promise and died on `client.listenerCount is not a function`.
+- the `lazyChunk` rename broke the `lazy(() => import('./ClientDesignPage'))`
+  pattern in `design-studio.test.js`, the same way it broke
+  `shareLinkWeight.test.mjs`.
+
+Both are the same shape: **a signature or an identifier you changed is
+pinned by a guard somewhere else.** After any rename or signature change,
+grep the test directories for the old spelling before pushing.
+
+To run the backend job locally, pull the commands out of the workflow rather
+than listing files, so a guard added to CI and not to your script cannot hide:
+
+```bash
+grep -oE 'node tests/[A-Za-z0-9._-]+\.js' .github/workflows/platform-checks.yml \
+  | sort -u | while read -r t; do (cd dev/platform/backend && $t >/dev/null 2>&1) \
+  || echo "FAILED: $t"; done
+```
+
+It takes a few minutes; `captions.test.js` needs ffmpeg and is the slow one.
+
+**`npm run test:browser` needs the browser path in this container.** Playwright
+looks for `chrome-headless-shell` at a path that does not exist here and
+prints "Please run npx playwright install", which is wrong advice — installing
+again gets a second browser the test still will not find. Run it as
+`PW_CHROMIUM=/opt/pw-browsers/chromium npm run test:browser`.
