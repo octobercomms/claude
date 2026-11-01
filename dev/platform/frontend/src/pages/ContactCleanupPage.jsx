@@ -9,7 +9,12 @@ import ReplyCatchupPanel from '../components/ReplyCatchupPanel';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
-// Contact Cleanup Centre. Replaces the cramped 460-px modal with a real page
+// Database tools. One destination for every maintenance job on the media
+// database, renamed from Cleanup Centre on 1 November when the rest of the
+// tools moved in: half of them are not cleanup, and a page whose name stops
+// describing its contents is the "Other" problem again.
+//
+// Was: Contact Cleanup Centre. Replaced the cramped 460-px modal with a page
 // because a 20k-contact library produces hundreds of clusters — the AM needs
 // space to work through them, plus an inline Delete affordance to drop a
 // duplicate outright instead of merging it.
@@ -46,7 +51,7 @@ function countRemaining(s) {
   return s.clusters.filter((c, i) => !s.done[i] && (c.members?.length || 0) >= 2).length;
 }
 
-export default function ContactCleanupPage() {
+export default function DatabaseToolsPage() {
   const toast = useToast();
   // Open with the tab requested via ?tab=… so the Cleanup Centre link on the
   // Publications panel lands the user directly on the Publications dupes tab.
@@ -157,7 +162,7 @@ export default function ContactCleanupPage() {
       <div className="kicker"><span className="pip" /><span>Admin • Journalists</span></div>
       <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div>
-          <h1 className="display">Cleanup Centre</h1>
+          <h1 className="display">Database tools</h1>
           <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 'var(--s2) 0 0' }}>
             Trim duplicates, fold orphaned coverage onto real journalists, and let Claude tidy the obvious fixes.
           </p>

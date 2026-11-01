@@ -255,13 +255,13 @@ export default function ClientPRPage() {
   }
   async function createPitchCampaign() {
     if (!pr) return;
-    if (pr.campaign_id) { navigate(`/clients/${id}/convert/email`); return; }
+    if (pr.campaign_id) { navigate(`/clients/${id}/email/campaigns`); return; }
     try {
       const r = await api.post(`/pr/press-releases/${pr.id}/create-campaign`, {});
       if (r.error) { toast(r.error, 'error'); return; }
       setPr((p) => ({ ...p, campaign_id: r.campaign_id }));
       toast('Pitch campaign created — opening Email', 'success');
-      navigate(`/clients/${id}/convert/email`);
+      navigate(`/clients/${id}/email/campaigns`);
     } catch (e) { toast(e.message, 'error'); }
   }
 

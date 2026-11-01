@@ -5,7 +5,6 @@ import PageShell from '../components/shells/PageShell';
 import PillarMeasure from '../components/PillarMeasure';
 import ClarityCroPanel from '../components/ClarityCroPanel';
 import FormsTab from '../components/FormsTab';
-import ClientOutreachPage from './ClientOutreachPage';
 import { useScreen } from '../hooks/useScreen';
 
 // Convert — turning a visitor into a lead, and a lead into a reply.
@@ -42,9 +41,8 @@ export default function ClientConvertPage() {
 
         {tab === 'cro' && <ClarityCroPanel clientId={id} />}
         {tab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
-        {/* Outreach runs its own ?etab=, which is why it is embedded rather
-            than unpicked into rows here. */}
-        {tab === 'email' && <ClientOutreachPage embedded clientId={id} />}
+        {/* Email left on 1 November: five screens behind one row is a section
+            wearing a row. It is /clients/:id/email now. */}
       </PageShell>
     </div>
   );

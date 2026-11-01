@@ -225,7 +225,16 @@ export const SECTIONS = {
       // 'review' still equal to this row's tab key, which is the collision
       // sectionPanel.test.mjs used to have to allowlist. Daniel's call,
       // 31 October.
-      { heading: 'Create', rows: [
+      // "maybe the section changes to BUILD? otherwise we have 2 creates."
+      // A group called Create holding a row called Create. BUILD would have
+      // collided with Earned > Build and Paid > Build, so Make, which is what
+      // Create/Refine/Produce/Schedule all are.
+      //
+      // Worth recording: Produce also has a Make group. That is the same
+      // cross-section repeat as Earned/Paid Build, and the panel shows one
+      // section at a time so the two are never on screen together — unlike
+      // the Create-inside-Create this replaces, which was.
+      { heading: 'Make', rows: [
         { tab: 'brainstorm', label: 'Create', slug: 'create',     step: 1 },
         { tab: 'refine',     label: 'Refine', slug: 'refine',     step: 2 },
         { tab: 'produce',    label: 'Produce', slug: 'produce',   step: 3 },
@@ -243,7 +252,12 @@ export const SECTIONS = {
         // while writing.
         { tab: 'hooks',         label: 'Hook vault', slug: 'hook-vault' },
         { tab: 'competitors',   label: 'Compare', slug: 'compare' },
-        { tab: 'audit',         label: 'Improve', slug: 'improve' },
+        // Improve is gone from here. "This is all the same report really" —
+        // Learn said what worked and Improve said what to change next, which
+        // are the two halves of one read. SocialAuditPanel now renders inside
+        // Learn. An old /improve link falls back to the section default
+        // rather than 404ing, which useScreen already does for any unknown
+        // screen.
       ] },
     ],
   },
@@ -315,7 +329,33 @@ export const SECTIONS = {
         // routeTargets direction 3 exists to catch.
         { tab: 'cro',   label: 'Optimise', slug: 'optimise' },
         { tab: 'forms', label: 'Forms' },
-        { tab: 'email', label: 'Email' },
+        // Email left Convert on 1 November. It was one row hiding five
+        // screens behind a tab strip, which is a section wearing a row.
+      ] },
+    ],
+  },
+
+  // Email. Five screens that used to live behind a tab strip on one Convert
+  // row, so "I'm not sure where to start and what I'm achieving here" had no
+  // answer: the destinations were invisible until you clicked in.
+  //
+  // Prospects, not Leads. As a buried tab the collision with Biz dev > Leads
+  // was survivable; as a nav row OMI would show Leads under a client meaning
+  // one thing and Leads under Biz dev meaning October's own pipeline.
+  email: {
+    key: 'email',
+    leaf: 'email',
+    title: 'Email',
+    scope: 'client',
+    base: (id) => `/clients/${id}/email`,
+    defaultTab: 'campaigns',
+    groups: [
+      { heading: null, rows: [
+        { tab: 'campaigns',   label: 'Campaigns' },
+        { tab: 'contacts',    label: 'Prospects', slug: 'prospects' },
+        { tab: 'tasks',       label: 'Tasks' },
+        { tab: 'sending',     label: 'Sending' },
+        { tab: 'prospecting', label: 'Selective outreach', slug: 'selective-outreach' },
       ] },
     ],
   },
@@ -372,9 +412,14 @@ export const SECTIONS = {
     groups: [
       { heading: 'Costs', rows: [
         { tab: 'costs', label: 'Usage' },
+        // "the models is the section selecting which model to use, and this
+        // lives under COSTS... this page is doing two different things."
+        // Choosing a model is a cost decision, and it belongs beside what
+        // each feature has actually spent. Connections keeps AI for the
+        // credentials.
+        { tab: 'ai', label: 'Models', slug: 'models' },
       ] },
       { heading: 'Connections', rows: [
-        { tab: 'ai',           label: 'Models', slug: 'models' },
         { tab: 'gen',          label: 'Generation' },
         { tab: 'email',        label: 'Email' },
         { tab: 'ads',          label: 'Ad platforms', slug: 'ad-platforms' },
