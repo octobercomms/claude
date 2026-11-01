@@ -313,7 +313,8 @@ router.post('/clients/:clientId/generate', async (req, res) => {
 });
 
 router.put('/posts/:id', async (req, res) => {
-  const { hook, caption, hashtags, visual_concept, storyboard, status, notes } = req.body || {};
+  const { hook, caption, hashtags, visual_concept, storyboard, status, notes,
+    show_to_client } = req.body || {};
   try {
     const { rows } = await pool.query(
       `UPDATE social_posts SET
@@ -323,8 +324,9 @@ router.put('/posts/:id', async (req, res) => {
         visual_concept = COALESCE($4, visual_concept),
         storyboard = COALESCE($5::jsonb, storyboard),
         status = COALESCE($6, status),
-        notes = COALESCE($7, notes)
-       WHERE id = $8 RETURNING *`,
+        notes = COALESCE($7, notes),
+        show_to_client = COALESCE($8, show_to_client)
+       WHERE id = $9 RETURNING *`,
       [
         hook ?? null, caption ?? null,
         hashtags === undefined ? null : hashtags,
@@ -332,6 +334,9 @@ router.put('/posts/:id', async (req, res) => {
         storyboard === undefined ? null : JSON.stringify(storyboard),
         status ?? null,
         notes ?? null,
+        // Only a real boolean sets it: `false` must reach the column, and
+        // `?? null` would turn it into "leave alone" via COALESCE.
+        typeof show_to_client === 'boolean' ? show_to_client : null,
         req.params.id,
       ]
     );
