@@ -64,7 +64,9 @@ router.get('/public/:token', async (req, res) => {
       const { rows: ps } = await pool.query(
         `SELECT p.*,
            (SELECT json_agg(m.*) FROM social_post_media m WHERE m.post_id = p.id) AS media
-         FROM social_posts p WHERE p.batch_id = $1 ORDER BY p.position ASC`,
+         FROM social_posts p
+         WHERE p.batch_id = $1 AND p.show_to_client
+         ORDER BY p.position ASC`,
         [link.scope_id]
       );
       posts = ps;
@@ -177,18 +179,27 @@ router.post('/public/:token/respond', async (req, res) => {
 });
 
 // Verify a post belongs to whichever set the approval link authorises:
-// - 'social_batch' scope: post must live inside link.scope_id batch
+// - 'social_batch' scope: post must live inside link.scope_id batch AND be
+//   one the client is shown
 // - 'post_list' scope: post must appear in link.post_ids
 // - 'ad_creative_batch' scope: no posts allowed at all
 async function postIsInLinkScope(link, postId) {
   if (link.scope === 'social_batch') {
+    // `show_to_client` as well as the batch, so the gate matches the page.
+    // Without it a post withheld from the client could still be approved by
+    // anyone who had its id, which is a decision recorded against work the
+    // client was never shown.
     const { rows } = await pool.query(
-      `SELECT 1 FROM social_posts WHERE id = $1 AND batch_id = $2 LIMIT 1`,
+      `SELECT 1 FROM social_posts
+        WHERE id = $1 AND batch_id = $2 AND show_to_client LIMIT 1`,
       [postId, link.scope_id]
     );
     return rows.length > 0;
   }
   if (link.scope === 'post_list') {
+    // Not filtered: a post_list link is an explicit choice of posts made when
+    // the link was created, so the list is the selection. Narrowing it later
+    // from a tick on another screen would change a link already sent.
     const ids = Array.isArray(link.post_ids) ? link.post_ids : [];
     return ids.includes(postId);
   }

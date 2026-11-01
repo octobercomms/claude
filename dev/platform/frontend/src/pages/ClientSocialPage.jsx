@@ -26,7 +26,6 @@ import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import { tickedIds, toggleTick, tickSummary } from '../utils/ticks';
 import FeatureCost from '../components/FeatureCost';
 import ReelCheckSummary from '../components/social/ReelCheckSummary';
-import usePersistedState from '../hooks/usePersistedState';
 import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
 import SideDrawer from '../components/ui/SideDrawer';
@@ -55,7 +54,11 @@ export default function ClientSocialPage() {
   // Persisted, because the alternative is quiet: untick three posts, hit
   // refresh, and the download hands you nine. A batch is worked over more
   // than one sitting.
-  const [tickStore, setTickStore] = usePersistedState('shared_ticks', {});
+  // The tick used to live here, in this browser, keyed by batch. That is why
+  // it survived a reload for the AM and never reached the client: the
+  // approval link is a different page, opened in a different browser, days
+  // later. It is a column on the post now (`show_to_client`), and this
+  // screen reads and writes that.
   const [competitors, setCompetitors] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [brief, setBrief] = useState('');
@@ -225,19 +228,32 @@ export default function ClientSocialPage() {
   }
   useEffect(() => { loadAll(); /* eslint-disable-line */ }, [id, plansRefreshKey]);
 
-  const ticked = useMemo(() => {
-    const held = tickStore && tickStore[activeBatchId];
-    return Array.isArray(held) ? new Set(held) : null;
-  }, [tickStore, activeBatchId]);
-  // null is stored as null, which reads back as "all of them" rather than
-  // as an empty set. Old batches are pruned so the key cannot grow forever.
-  const setTicked = useCallback((next) => {
+  // Derived from the posts themselves, so one tick drives both things it was
+  // asked to drive: what the next step acts on, and what the client is shown.
+  const ticked = useMemo(
+    () => new Set((posts || []).filter(p => p.show_to_client !== false).map(p => p.id)),
+    [posts],
+  );
+
+  // Written through to the server, optimistically. A failed write puts the
+  // tick back rather than leaving the screen saying one thing and the
+  // client's page showing another, which is the fault this replaces.
+  const setTicked = useCallback(async (next) => {
     if (!activeBatchId) return;
-    setTickStore(prev => {
-      const kept = Object.entries(prev || {}).slice(-40);
-      return { ...Object.fromEntries(kept), [activeBatchId]: next === null ? null : [...next] };
-    });
-  }, [activeBatchId, setTickStore]);
+    const want = next === null ? new Set((posts || []).map(p => p.id)) : next;
+    const changed = (posts || []).filter(p => (p.show_to_client !== false) !== want.has(p.id));
+    if (!changed.length) return;
+    const before = posts;
+    setPosts(prev => prev.map(p => (changed.some(c => c.id === p.id)
+      ? { ...p, show_to_client: want.has(p.id) } : p)));
+    try {
+      await Promise.all(changed.map(p =>
+        api.put(`/social/posts/${p.id}`, { show_to_client: want.has(p.id) })));
+    } catch (err) {
+      setPosts(before);
+      toast('Could not save which posts the client sees. Nothing was changed.', 'error');
+    }
+  }, [activeBatchId, posts, toast]);
 
   async function selectBatch(batchId) {
     setActiveBatchId(batchId);
