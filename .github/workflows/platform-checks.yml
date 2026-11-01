@@ -207,6 +207,8 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the burn assertions would silently skip'; exit 1; }
           node tests/captions.test.js
+      - name: Guard — the social SQL only names columns that exist
+        run: node tests/social-sql-columns.test.js
       - name: Guard — the edit decision list, which is the timeline's model
         run: node tests/edl.test.js
       - name: Guard — the processor routes an edit to the right render path
