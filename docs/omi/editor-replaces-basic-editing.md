@@ -1,5 +1,20 @@
 # Replacing basic editing
 
+> **SUPERSEDED, 1 November 2026, a few hours after it was written.**
+> This is the increment plan: each slice preserved what was underneath it so
+> that something shipped each time. Daniel's answer to it was *"shall we focus
+> on the end goal and not the next PR… I'm happy to not use it until we built
+> that. You often focus on the task and not the goal."*
+>
+> **Read `editor-composition-model.md` instead.** It designs backwards from
+> one editor rather than forwards from what was safe to ship, which makes the
+> composition model, the render graph and the preview rewrites rather than
+> extensions.
+>
+> What is still worth reading here: the nine jobs, the audited list of what the
+> preview does not show (F1 to F9), and the faults recorded at the end. Those
+> are findings. The slice order is not.
+
 **Status:** direction agreed 1 November 2026, not started. Daniel's goal, in his
 words: *"something that can replace basic editing."* The test:
 
