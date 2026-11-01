@@ -523,14 +523,36 @@ async function getRecentTrendingSounds(clientId, { limit = 25 } = {}) {
     [clientId]
   );
   const all = rows[0]?.sounds || [];
-  return Array.isArray(all) ? all.slice(0, limit) : [];
+  // Normalised on the way out, not trusted as stored. Snapshots are written
+  // once and never revisited, so a correction to the ingest only ever fixes
+  // sounds fetched after it; deriving the link here fixes every snapshot
+  // already taken. See shared/tiktokSound.mjs.
+  const { normaliseSounds } = await loadSoundHelpers();
+  return normaliseSounds(Array.isArray(all) ? all.slice(0, limit) : []);
+}
+
+// ESM from CommonJS, loaded on first use, the same shape editProcessor uses
+// for the other shared modules.
+let _sounds = null;
+async function loadSoundHelpers() {
+  if (!_sounds) {
+    const { pathToFileURL } = require('node:url');
+    const path = require('node:path');
+    const SHARED = path.join(__dirname, '..', '..', '..', 'shared');
+    _sounds = await import(pathToFileURL(path.join(SHARED, 'tiktokSound.mjs')).href);
+  }
+  return _sounds;
 }
 
 // Pull a fresh trending-sounds snapshot from Apify and persist it.
 // Apify charges per actor run, so callers should debounce: this is
 // intentionally on-demand rather than a per-request fetch.
 async function refreshTrendingSounds({ clientId, region = 'GB', limit = 25 } = {}) {
-  const sounds = await apify.fetchTrendingSounds({ region, limit });
+  const fetched = await apify.fetchTrendingSounds({ region, limit });
+  // Through the same normaliser as the read, so a stored snapshot and a
+  // derived one cannot disagree about what a sound's link is.
+  const { normaliseSounds } = await loadSoundHelpers();
+  const sounds = normaliseSounds(fetched);
   await pool.query(
     `INSERT INTO trending_sounds_snapshots (client_id, region, sounds, source)
      VALUES ($1, $2, $3, 'apify')`,
