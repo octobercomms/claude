@@ -123,5 +123,32 @@ ok(/not published through OMI/.test(prompt),
 ok(/Coverage:/.test(prompt), 'and what the data does not cover');
 ok(/reach unknown/.test(prompt), 'a post with no reach is described as unknown rather than as zero');
 
+// --- which Instagram account the figures came from -----------------------
+// A Meta login commonly administers several Pages, each with its own
+// Instagram account. The report used to call pickPublishingTargets with no
+// saved selection, so it read "the first Page with Instagram attached" —
+// whichever Meta returned first — and printed one client's numbers under
+// another client's name. The selection lives on the instagram_insights
+// connector's config, where Publish and the health check already read it.
+const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'services', 'socialReport.js'), 'utf8');
+ok(/pickPublishingTargets\(\s*conn\.credentials\s*,\s*conn\.preferredIgId\s*\)/.test(src),
+  'the report asks for the Instagram account chosen on Connectors, not the first one Meta lists');
+ok(!/pickPublishingTargets\(\s*(creds|conn\.credentials)\s*\)/.test(src),
+  'and never calls it with no selection, which is what silently picked the wrong account');
+ok(/connector_type\s*===\s*'instagram_insights'/.test(src),
+  'the selection is read off the instagram_insights row, not off whichever row held the credentials');
+
+// The account is named in the coverage note, so a figure can be checked
+// against the account it came from rather than taken on trust.
+const named = report._coverageNotes({
+  connected: true, feedCount: 12, platforms: ['instagram'],
+  accountLabel: 'Hillcroft Gardens / Instagram 178',
+});
+ok(named.some(n => /Hillcroft Gardens \/ Instagram 178/.test(n)),
+  'the coverage note says which account the numbers are from');
+const unnamed = report._coverageNotes({ connected: true, feedCount: 12, platforms: ['instagram'] });
+ok(unnamed.some(n => /covers every post/.test(n)) && !unnamed.some(n => /undefined/.test(n)),
+  'and reads properly when the account could not be named, rather than printing undefined');
+
 console.log(failures ? `\n${failures} failed` : '\nall passed');
 process.exit(failures ? 1 : 0);
