@@ -16,15 +16,29 @@
 // duplication is first-class — a page, or a whole project — and there is no
 // library to curate and keep in step with anything.
 //
-// Assets are not stored here. brand_assets already holds a client's logos,
-// images and fonts with upload and authenticated serving; a scene references
-// them by URL.
+// The scene's *inputs* are not stored here. brand_assets already holds a
+// client's logos, images and fonts with upload and authenticated serving; a
+// scene references them by URL.
+//
+// Its *outputs* are, as of 1 November. Export was entirely client-side: the
+// canvas rasterised, the browser downloaded, and nothing in OMI knew a design
+// had ever been finished. So "what have we made for this client" — the one
+// question the asset library exists to answer — could not see the design
+// studio at all. A rendered page is now recorded in client_assets, carrying
+// the set it came from, which is what makes it findable alongside everything
+// else.
 
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, assertClientAccess } = require('../middleware/clientAccess');
+const fs = require('fs');
+const pathMod = require('path');
+const crypto = require('crypto');
+const assets = require('../services/assets');
+
+const UPLOAD_ROOT = pathMod.join(__dirname, '../../uploads');
 
 router.use(authenticate);
 router.use(loadVisibleClientIds);
@@ -300,6 +314,75 @@ router.put('/pages/:id', express.json({ limit: '8mb' }), async (req, res) => {
     // preview — but doing it silently let a stale card sit there for days.
     res.json({ ...rows[0], thumbnail_rejected: !!req.body?.thumbnail && !thumb });
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Record a rendered page in the client asset library.
+//
+// The rasterising stays in the browser, because that is where the fonts and
+// the canvas already are and a server-side renderer would be a second
+// implementation of the same drawing with its own differences. What comes up
+// here is the finished PNG or JPEG, which is written to disk and indexed.
+//
+// Idempotent on the page, by assets.record's ON CONFLICT (source, source_id):
+// exporting a page twice replaces what the library knows about it rather than
+// leaving the old version sitting there looking current. The new file is
+// written under its own name, so a URL that was handed out keeps resolving.
+//
+// Fire-and-forget from the caller's point of view. A failure here must never
+// turn into a failed export: the operator has the file either way, and a
+// missing library row is a findability problem.
+const MAX_RENDER_BYTES = 12 * 1024 * 1024;
+
+router.post('/pages/:id/render', express.json({ limit: '20mb' }), async (req, res) => {
+  try {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Page not found' });
+    const { rows: page } = await pool.query(
+      'SELECT id, project_id, width, height FROM design_pages WHERE id = $1', [req.params.id]);
+    if (!page.length) return res.status(404).json({ error: 'Page not found' });
+    const project = await loadProject(req, page[0].project_id);
+    // A set with no client is a scratch set; there is no library to put it in.
+    if (!project.client_id) {
+      return res.status(400).json({ error: 'That set does not belong to a client, so there is nowhere to file it.' });
+    }
+
+    const m = /^data:image\/(png|jpeg);base64,(.+)$/i.exec(String(req.body?.data_url || ''));
+    if (!m) return res.status(400).json({ error: 'Expected a PNG or JPEG data URL.' });
+    const bytes = Buffer.from(m[2], 'base64');
+    if (!bytes.length) return res.status(400).json({ error: 'That render is empty.' });
+    if (bytes.length > MAX_RENDER_BYTES) {
+      return res.status(413).json({ error: 'That render is too large to file.' });
+    }
+
+    const ext = m[1].toLowerCase() === 'jpeg' ? 'jpg' : 'png';
+    const dir = pathMod.join(UPLOAD_ROOT, project.client_id);
+    fs.mkdirSync(dir, { recursive: true });
+    const name = `design-${Date.now()}-${crypto.randomBytes(3).toString('hex')}.${ext}`;
+    fs.writeFileSync(pathMod.join(dir, name), bytes);
+
+    const index = Number(req.body?.index);
+    const asset = await assets.record({
+      client_id: project.client_id, source: 'design', source_id: page[0].id,
+      // Named after the set and the page's place in it, because that is how
+      // the work is referred to. "design-1762012800-a1b2c3.png" is not.
+      title: req.body?.title
+        || `${project.name || 'Design'}${Number.isFinite(index) ? ` · page ${index + 1}` : ''}`,
+      url: `/api/brand/file/${project.client_id}/${name}`,
+      mime: `image/${m[1].toLowerCase()}`,
+      width: Number(req.body?.width) || page[0].width || project.width || null,
+      height: Number(req.body?.height) || page[0].height || project.height || null,
+      bytes: bytes.length, created_by: req.user?.id || null,
+      // The link back to the set. Without the project id the library row is a
+      // picture with no way home, which is the half of this that mattered.
+      metadata: {
+        design_project_id: project.id,
+        design_project_name: project.name || null,
+        design_page_id: page[0].id,
+        page_index: Number.isFinite(index) ? index : null,
+      },
+    });
+    if (!asset) return res.status(500).json({ error: 'The render was saved but could not be filed.' });
+    res.status(201).json({ asset });
+  } catch (err) { res.status(err.status || 400).json({ error: err.message }); }
 });
 
 // Serve a thumbnail as an image rather than embedding it in JSON.

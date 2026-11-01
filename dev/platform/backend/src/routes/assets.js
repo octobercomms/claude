@@ -15,6 +15,7 @@ const pool = require('../db');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const multer = require('multer');
 const scenes = require('../services/scenes');
 const silenceCut = require('../services/silenceCut');
 const reelOutcomes = require('../services/reelOutcomes');
@@ -27,6 +28,80 @@ const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
 const router = express.Router();
 router.use(authenticate);
 router.use(loadVisibleClientIds);
+
+// ── Uploading into the library ───────────────────────────────────────────────
+//
+// The rule at the top of this file is that assets are created by whichever
+// tool produced them, never by posting here. This is the one case where the
+// upload *is* the producer: footage shot on a phone has no production run
+// behind it, and before this it could only enter OMI by being dropped into a
+// single-clip editor, which made one clip into one draft and gave you nowhere
+// to put the other four.
+//
+// So the drop target takes several files and they land here, as `upload`,
+// which is a source the library already labels "Uploaded".
+const uploadStore = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(UPLOAD_ROOT, req.params.clientId);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    // Never the name the browser sent. A filename from a client is attacker
+    // input, and this one is put straight into a URL that is later served
+    // back with a Content-Type.
+    const ext = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '');
+    cb(null, `up-${Date.now()}-${crypto.randomBytes(3).toString('hex')}${ext}`);
+  },
+});
+const libraryUpload = multer({
+  storage: uploadStore,
+  limits: { fileSize: 500 * 1024 * 1024, files: 25 },
+  fileFilter: (req, file, cb) => {
+    // Video, image and audio only, and no SVG. The brand kit allows SVG
+    // because logos are vector, and pays for it with a sanitiser and a CSP
+    // sandbox. Footage has no reason to be SVG, so the whole class stays out
+    // rather than being made safe.
+    const m = String(file.mimetype || '').toLowerCase();
+    if (m === 'image/svg+xml') return cb(new Error('SVG is not footage. Put logos in the brand kit.'));
+    if (/^(video|image|audio)\//.test(m)) return cb(null, true);
+    return cb(new Error(`That is not a clip, an image or audio: ${file.mimetype}`));
+  },
+});
+
+router.post('/clients/:clientId/assets/upload',
+  requireClientAccess({ paramNames: ['clientId'] }),
+  (req, res, next) => libraryUpload.array('files', 25)(req, res, (err) => {
+    // multer's own errors arrive as a 500 otherwise, which reads as "the
+    // server broke" for what is usually "that file is 600MB".
+    if (err) return res.status(400).json({ error: err.message });
+    return next();
+  }),
+  async (req, res) => {
+    try {
+      const clientId = req.params.clientId;
+      if (!req.files?.length) return res.status(400).json({ error: 'Nothing was sent.' });
+      const added = [];
+      const failed = [];
+      for (const f of req.files) {
+        const asset = await assets.record({
+          client_id: clientId, source: 'upload', source_id: f.filename,
+          title: f.originalname || f.filename,
+          url: `/api/brand/file/${clientId}/${f.filename}`,
+          mime: f.mimetype, bytes: f.size, created_by: req.user?.id || null,
+          metadata: { uploaded: true, original_name: f.originalname },
+        });
+        // record() never throws, by design: a finished render must not be
+        // lost to an index that is briefly down. Here the file on disk with
+        // no row is invisible, so the upload has to say which ones made it.
+        if (asset) added.push(asset); else failed.push(f.originalname || f.filename);
+      }
+      res.status(added.length ? 201 : 500).json({ added, failed });
+    } catch (err) {
+      console.error('[assets] upload failed:', err.message);
+      res.status(400).json({ error: err.message });
+    }
+  });
 
 router.get('/clients/:clientId/assets',
   requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {

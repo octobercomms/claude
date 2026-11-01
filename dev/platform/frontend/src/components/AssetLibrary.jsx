@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../utils/api';
+import { Link } from 'react-router-dom';
 import { useRevealRow } from '../hooks/useOpenRecord';
+import { SECTIONS, slugForTab } from '../nav/sections';
 
 /**
  * Everything October has made for one client.
@@ -37,6 +39,22 @@ const SOURCE_LABEL = {
   edit_job: 'Edited in Produce',
   upload: 'Uploaded',
 };
+
+// Where a design asset came from.
+//
+// A rendered page without a way back to its set is a picture you cannot edit:
+// you can see the post went out and not open the artwork that made it. The
+// render route writes the set's id into the asset's metadata; this turns it
+// into the link.
+//
+// Built from sections.js rather than typed, because a typed path is how a
+// link rots the next time the Design slug moves.
+function setLink(asset) {
+  const pid = asset?.metadata?.design_project_id;
+  if (!pid || !asset?.client_id) return null;
+  const base = SECTIONS.produce.base(asset.client_id);
+  return `${base}/${slugForTab(SECTIONS.produce, 'design')}?design=${encodeURIComponent(pid)}`;
+}
 
 function human(n) {
   if (!n) return '';
@@ -197,6 +215,17 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
                   {a.duration_s ? ` · ${duration(a.duration_s)}` : ''}
                   {a.bytes ? ` · ${human(Number(a.bytes))}` : ''}
                 </div>
+                {/* stopPropagation, because the card is itself a picker in
+                    half the places this renders, and opening the set from
+                    inside one would also pick the asset. */}
+                {setLink(a) && (
+                  <Link to={setLink(a)} onClick={(e) => e.stopPropagation()}
+                    style={{ ...CAP, display: 'block', marginTop: 2 }}>
+                    {a.metadata?.design_project_name
+                      ? `Open ${a.metadata.design_project_name}`
+                      : 'Open the set'}
+                  </Link>
+                )}
               </div>
             );
           })}
