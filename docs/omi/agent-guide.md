@@ -3380,3 +3380,48 @@ claiming that a `.db` test protects anything.
 - L5 pattern = add an `embedded` prop to the detail modal, then `ListDetail sidebar`.
 - Don't brand OMI "nvelope".
 - The real next prize is **Phase 3 (GTM Brain)**, not more table refactors.
+
+## 11. Reading CI on a PR (this cost nine commits on 1 November)
+
+`pull_request_read` with `method: "get_status"` returns **commit statuses**.
+This repo reports through **check runs**, so that call answers
+`{"state":"pending","total_count":0,"statuses":[]}` whether CI is running,
+green or red — and it says exactly that when every check has already failed.
+Nine commits went up on red before a batch of webhook notifications made it
+obvious.
+
+Read `mcp__github__get_check_run`, or the `check_run.completed` events that
+arrive on their own, and treat `total_count: 0` from `get_status` as **no
+information**, never as "still going".
+
+**Run the whole suite, not your own guards.** The backend job enumerates
+about 64 standalone `node tests/*.test.js` guards, and `npm run test:units`
+does not touch them. Both failures that day were existing guards broken by a
+change, not new ones:
+
+- `imapClient()` became async for the Gmail token, so `imap-client.test.js`
+  got a Promise and died on `client.listenerCount is not a function`.
+- the `lazyChunk` rename broke the `lazy(() => import('./ClientDesignPage'))`
+  pattern in `design-studio.test.js`, the same way it broke
+  `shareLinkWeight.test.mjs`.
+
+Both are the same shape: **a signature or an identifier you changed is
+pinned by a guard somewhere else.** After any rename or signature change,
+grep the test directories for the old spelling before pushing.
+
+To run the backend job locally, pull the commands out of the workflow rather
+than listing files, so a guard added to CI and not to your script cannot hide:
+
+```bash
+grep -oE 'node tests/[A-Za-z0-9._-]+\.js' .github/workflows/platform-checks.yml \
+  | sort -u | while read -r t; do (cd dev/platform/backend && $t >/dev/null 2>&1) \
+  || echo "FAILED: $t"; done
+```
+
+It takes a few minutes; `captions.test.js` needs ffmpeg and is the slow one.
+
+**`npm run test:browser` needs the browser path in this container.** Playwright
+looks for `chrome-headless-shell` at a path that does not exist here and
+prints "Please run npx playwright install", which is wrong advice — installing
+again gets a second browser the test still will not find. Run it as
+`PW_CHROMIUM=/opt/pw-browsers/chromium npm run test:browser`.
