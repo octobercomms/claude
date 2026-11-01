@@ -247,6 +247,8 @@ jobs:
         run: node tests/domain-exists.test.js
       - name: Guard — the browser drives still run outside the container that wrote them
         run: node tests/drives-portable.test.js
+      - name: Guard — the browser harness wraps the page in the app's own providers
+        run: node tests/harness-providers.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist

@@ -3503,3 +3503,29 @@ certainly exists resolves from the same host at the same moment, and returns
 `docs/omi/browser-drives.md`. They used to live in a session scratchpad and
 die with the container, so every session rewrote them or skipped the step.
 Import Playwright from `./pw.mjs`, never an absolute path.
+
+### The browser harness is a second copy of App.jsx's provider stack
+
+Adding `PromptProvider` to `App.jsx` and not to `tests/browser/entry.jsx`
+turned the frontend job red on a PR whose lint, units and build were all
+clean: the harness mounts `ClientDesignPage` standalone, so `usePrompt` threw
+at render.
+
+That is the browser suite doing its job. What it caught was me pushing
+without running it, which my own loop requires precisely because lint and the
+build cannot see a render-time throw.
+
+**Run `PW_CHROMIUM=/opt/pw-browsers/chromium npm run test:browser` before
+every push that touches a component.** It is about ninety seconds.
+
+`tests/harness-providers.test.js` now fails when `App.jsx` grows a provider
+the harness does not have, so the next one is caught in a second rather than
+a CI cycle. It also found `FeatureCostProvider` missing from the harness all
+along — invisible because its hook has a default rather than a throw.
+
+One more thing that suite taught: `smoke.mjs` drove the set rename through
+`page.once('dialog', …)`, which is a native `window.prompt`. With the prompt
+gone, that waited for a dialog that never came AND left the replacement modal
+open across every later check, so one change produced two unrelated-looking
+failures. A harness that drives native dialogs is coupled to the thing you
+are most likely to remove.

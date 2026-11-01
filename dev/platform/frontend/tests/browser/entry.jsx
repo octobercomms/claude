@@ -12,6 +12,16 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../src/context/AuthContext';
 import { ToastProvider } from '../../src/context/ToastContext';
+// Every provider App.jsx wraps the router in has to be here too. A page
+// mounted without one throws at render, which is the failure this harness
+// exists to catch — so it must not be the harness causing it.
+// tests/harness-providers.test.js fails if App.jsx grows one and this does not.
+import { PromptProvider } from '../../src/context/PromptContext';
+// FeatureCostProvider does not throw when it is missing — its hook has a
+// default — so its absence here never showed up. The harness still claims to
+// mount the page as shipped, and a provider the app has and this does not
+// means that claim is not quite true.
+import { FeatureCostProvider } from '../../src/components/FeatureCost';
 import ClientDesignPage from '../../src/pages/ClientDesignPage';
 import '../../src/index.css';
 
@@ -21,7 +31,11 @@ createRoot(document.getElementById('root')).render(
   <MemoryRouter initialEntries={[`/clients/${CLIENT}/video?tab=design`]}>
     <AuthProvider>
       <ToastProvider>
-        <ClientDesignPage embedded clientId={CLIENT} />
+        <PromptProvider>
+          <FeatureCostProvider>
+            <ClientDesignPage embedded clientId={CLIENT} />
+          </FeatureCostProvider>
+        </PromptProvider>
       </ToastProvider>
     </AuthProvider>
   </MemoryRouter>,
