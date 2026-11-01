@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
-import SuiteTabs from '../components/SuiteTabs';
-import StepRail from '../components/shells/StepRail';
 import MailboxesPanel from '../components/MailboxesPanel';
 import OutreachTasksPanel from '../components/OutreachTasksPanel';
 import { useToast } from '../context/ToastContext';
@@ -512,29 +510,23 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         </header>
       )}
 
-      {embedded ? (
-        // Embedded in Owned → Email: a stepped Build → Run rail (verbs), to
-        // match every other suite group. ✓ derives from real state.
-        <div className="stepper-block">
-          <StepRail numbered wrap grouped activeKey={tab} onStep={setTab} steps={[
-            { groupLabel: 'Your list' },
-            { key: 'contacts',  title: 'Find',  sub: 'Your lead list',           status: contacts.length ? 'done' : 'todo' },
-            { key: 'campaigns', title: 'Write', sub: 'The email sequence',        status: outreachCampaigns.length ? 'done' : 'todo' },
-            { key: 'sending',   title: 'Send',  sub: 'From your domain, tracked', status: (stats?.emails_sent || 0) > 0 ? 'done' : 'todo' },
-            { key: 'tasks',     title: 'Chase', sub: 'Replies & follow-ups',      status: 'todo' },
-            { groupLabel: 'AI-sourced' },
-            { key: 'prospecting', title: 'Selective', sub: 'AI finds them, you approve each', status: 'todo' },
-          ]} />
-        </div>
-      ) : (
-        <SuiteTabs tabs={[
-          { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined, active: tab === 'campaigns', onClick: () => setTab('campaigns') },
-          { key: 'contacts',  label: 'Prospects', badge: contacts.length || undefined, active: tab === 'contacts', onClick: () => setTab('contacts') },
-          { key: 'tasks',     label: 'Tasks',                                           active: tab === 'tasks',     onClick: () => setTab('tasks') },
-          { key: 'sending',   label: 'Sending',                                         active: tab === 'sending',   onClick: () => setTab('sending') },
-          { key: 'prospecting', label: 'Selective outreach',                            active: tab === 'prospecting', onClick: () => setTab('prospecting') },
-        ]} />
-      )}
+      {/* No navigation of its own. The five screens are rows in Convert's
+          panel under Outreach, and this page drew a step rail over the same
+          five under a second set of names — Find, Write, Send, Chase,
+          Selective against Prospects, Campaigns, Sending, Tasks, Find leads.
+          Two doors to one screen, both visible at once, which is the fault
+          this section spent 1 November removing everywhere else.
+
+          The rail's ✓ marks went with it. They derived real state (contacts
+          exist, a campaign has run, mail has gone out) and that is worth
+          something, but not a second navigation to carry it: the place for
+          it is the rows, if it earns its way there.
+
+          The other arm of this was a SuiteTabs strip for the non-embedded
+          case. Nothing renders this page non-embedded — ClientConvertPage is
+          the only caller and always passes `embedded` — so that arm could
+          not run. The `!embedded` kicker and hero above are dead for the
+          same reason and are left for a pass of their own. */}
 
       {tab === 'prospecting' && (
         <SelectiveOutreachPanel clientId={id} />
