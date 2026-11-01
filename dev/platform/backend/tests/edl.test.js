@@ -599,3 +599,52 @@ test('a fade alone makes the edit no longer a plain combine', () => {
   edl = E.setTransition(edl, edl.items[1].id, 'cut');
   assert.ok(E.isWholeClipsInOrder(edl, CLIPS));
 });
+
+test('normalise carries transitions through, or every stored fade is lost', () => {
+  // This is not a reopen-only concern. The page re-normalises the edit against
+  // its clip list every time a clip is added, so without this a fade set
+  // before a second upload disappeared silently. Found by driving a reopen,
+  // which is the one path that had been wired without being driven.
+  const stored = { version: 1, items: [
+    { id: 'a', clip: 0, in: 1.5, out: 7, gain: 1 },
+    { id: 'b', clip: 1, in: 0.5, out: 3.5, gain: 1, trans: { type: 'fade', dur: 0.6 } },
+  ] };
+  const fixed = E.normalise(stored, CLIPS);
+  assert.equal(fixed.items[1].trans?.type, 'fade', 'the stored fade survives');
+  assert.ok(Math.abs(fixed.items[1].trans.dur - 0.6) < 1e-9);
+  // 5.5 + 3 - 0.6
+  assert.ok(Math.abs(E.duration(fixed) - 7.9) < 1e-9,
+    `the length must account for the fade, got ${E.duration(fixed)}`);
+  assert.equal(E.hasTransitions(fixed), true);
+  assert.equal(E.isWholeClipsInOrder(fixed, CLIPS), false);
+});
+
+test('normalise drops a transition on the first block rather than carrying it', () => {
+  // Carried, it would sit in the row with nothing honouring it, and
+  // isWholeClipsInOrder would then refuse an edit that is in fact untouched.
+  const stored = { version: 1, items: [
+    { id: 'a', clip: 0, in: 0, out: 10, gain: 1, trans: { type: 'fade', dur: 1 } },
+    { id: 'b', clip: 1, in: 0, out: 5, gain: 1 },
+    { id: 'c', clip: 2, in: 0, out: 20, gain: 1 },
+  ] };
+  const fixed = E.normalise(stored, CLIPS);
+  assert.equal(fixed.items[0].trans, undefined);
+  assert.equal(E.duration(fixed), 35, 'and the edit is its full length');
+  assert.ok(E.isWholeClipsInOrder(fixed, CLIPS),
+    'an edit whose only stored transition is on the first block is still a plain combine');
+});
+
+test('normalise rejects a stored transition it does not recognise', () => {
+  const stored = { version: 1, items: [
+    { id: 'a', clip: 0, in: 0, out: 10, gain: 1 },
+    { id: 'b', clip: 1, in: 0, out: 5, gain: 1, trans: { type: 'explode', dur: 9 } },
+  ] };
+  const fixed = E.normalise(stored, CLIPS);
+  assert.equal(fixed.items[1].trans, undefined, 'an unknown type must not reach ffmpeg');
+  // And a known type with a nonsense duration is brought into range.
+  const wild = E.normalise({ version: 1, items: [
+    { id: 'a', clip: 0, in: 0, out: 10, gain: 1 },
+    { id: 'b', clip: 1, in: 0, out: 5, gain: 1, trans: { type: 'fade', dur: 500 } },
+  ] }, CLIPS);
+  assert.ok(wild.items[1].trans.dur <= E.MAX_TRANS, `got ${wild.items[1].trans.dur}`);
+});

@@ -667,6 +667,30 @@ and that is now written in the agent guide as a rule rather than a story.
   a row with nothing in it and return the same video. That is precisely the
   complaint this whole project exists to end.
 
+### After session 6 · the sweep, and the bug it found
+
+Everything buildable was green together: 244 frontend units, 178 backend
+assertions across every file CI lists, and four browser drives.
+
+Then one path that had been wired without ever being driven: reopening a saved
+job whose stored edit carries trims, a cross-fade and an overlay. **It lost the
+fade.** `normalise` did not copy the transition, and normalise runs on every
+reopen *and* every time the clip list changes, so a fade set before a second
+upload disappeared silently in ordinary use, with the overlap still drawn a
+second earlier.
+
+Both halves are now driven: a reopen that checks the trims, the fade, its
+length and the overlay all came back and go out again in the payload; and an
+upload mid-session that checks the fade survives it. That is also now a rule in
+the agent guide, because it is the third rule of this shape: a new EDL field
+must be carried through `normalise`.
+
+One assertion in my own drive had to be rewritten rather than the code: it
+expected an overlay band "about 30% along" from where the ruler was clicked,
+but the lane scrolls, so a click at a fraction of its width is not a fraction
+of the edit. It now derives the expectation from the overlay's own start
+against the edit's length.
+
 ### Next session
 
 **2.2, the frame-accurate preview, on WebCodecs** — but not before the
