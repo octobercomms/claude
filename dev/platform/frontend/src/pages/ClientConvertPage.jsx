@@ -5,6 +5,7 @@ import PageShell from '../components/shells/PageShell';
 import PillarMeasure from '../components/PillarMeasure';
 import ClarityCroPanel from '../components/ClarityCroPanel';
 import FormsTab from '../components/FormsTab';
+import ClientOutreachPage from './ClientOutreachPage';
 import { useScreen } from '../hooks/useScreen';
 
 // Convert — turning a visitor into a lead, and a lead into a reply.
@@ -18,11 +19,40 @@ import { useScreen } from '../hooks/useScreen';
 // Sitting next to Paid/Earned/Shared/Owned without a chip, like Produce: the
 // four pillars carry a chip because PESO needs translating, and these two do
 // not because their names already say what they are.
+
+// What each Outreach screen produces, in the shape the Paid Brief step uses:
+// what comes out of it, not what is on it. The five were behind a tab strip
+// with nothing saying where to start or what any of them achieved; the rows
+// answer the first and these answer the second.
+// The five screens Convert hands to ClientOutreachPage, named rather than
+// derived from the map below: the panel's rows, this list and the page's
+// branches have to agree, and routeTargets reads this to prove it.
+const OUTREACH_SCREENS = ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting'];
+
+const OUTREACH_PRODUCES = {
+  campaigns: 'A sequence that goes out on its own: first email, then follow-ups on a delay, '
+    + 'skipping anyone who has replied, bounced or unsubscribed. You end up with a list of who '
+    + 'opened, who clicked and who answered.',
+  contacts: 'The people this client is pitching, and where each one got to. Add them by hand, '
+    + 'or let Find leads find them. A prospect here is a company you want to reach, not '
+    + 'a journalist and not one of October’s own leads.',
+  tasks: 'What needs a person rather than a sequence: a reply to answer, a bounce to clean up, '
+    + 'a thread to pick up. Cleared from here, so nothing sits unanswered because it was only '
+    + 'ever visible in an inbox.',
+  sending: 'Whether the mail can actually leave: the mailbox, its authentication, the daily cap '
+    + 'and what has gone out today. Check it here before a campaign, not after a campaign has '
+    + 'quietly failed.',
+  prospecting: 'A list of companies worth approaching, built from a brief rather than a scrape, '
+    + 'with the reasoning kept beside each one so you can dismiss the wrong ones and keep the '
+    + 'rest. Nothing is contacted from here.',
+};
+
 export default function ClientConvertPage() {
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
-  const [tab] = useScreen('convert');
+  const [tab, setTab] = useScreen('convert');
+  const outreach = OUTREACH_SCREENS.includes(tab);
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(setClient).catch(() => {});
@@ -41,8 +71,18 @@ export default function ClientConvertPage() {
 
         {tab === 'cro' && <ClarityCroPanel clientId={id} />}
         {tab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
-        {/* Email left on 1 November: five screens behind one row is a section
-            wearing a row. It is /clients/:id/email now. */}
+
+        {outreach && (
+          <>
+            <p className="body text-muted" style={{ maxWidth: 660, margin: '0 0 var(--s4)', lineHeight: 1.6 }}>
+              {OUTREACH_PRODUCES[tab]}
+            </p>
+            {/* One component, five screens. It reads which one it is on from
+                the path, the way SettingsPage already does for Database and
+                Biz dev, so nothing here is a rewrite of a working page. */}
+            <ClientOutreachPage embedded clientId={id} screen={tab} onScreen={setTab} />
+          </>
+        )}
       </PageShell>
     </div>
   );

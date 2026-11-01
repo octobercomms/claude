@@ -118,7 +118,29 @@ const DISPATCHED_ELSEWHERE = {
   // Paid groups its screens — `currentGroup === 'measure'` renders the whole
   // measure group rather than one branch per row.
   paid: ['measure'],
+  // Convert's five Outreach rows are one branch: ClientOutreachPage takes the
+  // screen as a prop and renders it, the way SettingsPage serves three
+  // sections. Five `tab === 'x' && <ClientOutreachPage screen="x">` branches
+  // would differ only in the string and would be worse code written to satisfy
+  // this scan. The check below keeps the entry honest.
+  convert: ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting'],
 };
+
+test('nothing is allowlisted that is no longer a row', () => {
+  // The half the check below does not cover. It asks whether the page still
+  // mentions the tab; this asks whether the panel still offers it. An entry
+  // that outlives its row is dead weight that reads as a decision, and the
+  // next person widening the list has no way to tell the two apart.
+  const problems = [];
+  for (const [key, tabs] of Object.entries(DISPATCHED_ELSEWHERE)) {
+    assert.ok(SECTION_PAGES[key], `DISPATCHED_ELSEWHERE names section '${key}', which has no page`);
+    const rows = new Set(SECTIONS[key].groups.flatMap(g => g.rows.map(r => r.tab)));
+    for (const t of tabs) {
+      if (!rows.has(t)) problems.push(`${key}: '${t}' is allowlisted but is no longer a row`);
+    }
+  }
+  assert.deepStrictEqual(problems, [], '\n  ' + problems.join('\n  '));
+});
 
 test('every panel row points at a screen its page renders', () => {
   // The other direction, and the one a row-level mutation slips through: a row

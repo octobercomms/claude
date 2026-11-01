@@ -38,9 +38,6 @@ const PAGES = {
   settings:  { file: 'SettingsPage.jsx',     v: 'tab' },
   database:  { file: 'SettingsPage.jsx',     v: 'tab' },
   bizdev:    { file: 'SettingsPage.jsx',     v: 'tab' },
-  // Email left Convert on 1 November: five screens behind one row is a
-  // section wearing a row. Same component, now reached as its own section.
-  email:     { file: 'ClientEmailPage.jsx',   v: 'tab' },
 };
 
 // The sections that live at the top level rather than under /clients/:id.
@@ -51,10 +48,10 @@ test('every section is covered by this file, so nothing is silently skipped', ()
 });
 
 test('the sections are not empty, so the checks below cannot pass vacuously', () => {
-  // Two, not three. Convert is Optimise and Forms since Email became its own
-  // section, and two rows still exercise every check below. Worth saying out
-  // loud rather than burying in a threshold: a section with two rows is a
-  // question about whether it is a section, and that one is Daniel's.
+  // Convert carries seven: Optimise, Forms, and the five under Outreach.
+  // It briefly carried two, while Email was promoted to a section of its
+  // own — which is the arrangement this threshold would have let through
+  // either way, so it is not what caught that.
   for (const [key, section] of Object.entries(SECTIONS)) {
     assert.ok(tabsOf(section).length >= 2, `${key} has almost no rows`);
   }
@@ -113,6 +110,26 @@ test('every section has a route that takes a screen', () => {
     if (!app.includes(pat)) missing.push(`${key} (${pat})`);
   }
   assert.deepEqual(missing, [], 'a section with no :screen route 404s on every row');
+});
+
+test('every section has an entry in the nav rail', () => {
+  // The rule the Email section broke. It was promoted out of Convert on
+  // 1 November with its own leaf, base, route and five rows, and nothing was
+  // added to Layout.jsx — so the panel was correct, the URLs worked, every
+  // check in this file passed, and there was no way to get there by clicking.
+  //
+  // The rail is the only door to a section. A section without one is reachable
+  // by typing its URL or by the search palette, which is not a menu.
+  const layout = read(path.join('components', 'Layout.jsx'));
+  const missing = [];
+  for (const [key, section] of Object.entries(SECTIONS)) {
+    const pat = GLOBAL.has(key)
+      ? new RegExp(`to="/${section.leaf}"`)
+      : new RegExp('to=\\{`/clients/\\$\\{clientId\\}/' + section.leaf + '`\\}');
+    if (!pat.test(layout)) missing.push(`${key} (/${section.leaf})`);
+  }
+  assert.deepEqual(missing, [],
+    'these sections have rows, routes and no way in — add a NavLink to the rail');
 });
 
 test('no route or link still carries ?tab=', () => {

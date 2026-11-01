@@ -32,7 +32,6 @@ const settings = stripComments(read('src/pages/SettingsPage.jsx'));
 const social = stripComments(read('src/pages/ClientSocialPage.jsx'));
 const convert = stripComments(read('src/pages/ClientConvertPage.jsx'));
 const outreach = stripComments(read('src/pages/ClientOutreachPage.jsx'));
-const emailPage = read('src/pages/ClientEmailPage.jsx');
 const tools = stripComments(read('src/components/database/RecordTools.jsx'));
 
 let passed = 0;
@@ -60,36 +59,42 @@ ok('the Shared group is Make, and no group repeats a row inside it', () => {
     `a group contains a row of the same name: ${found.join(', ')}`);
 });
 
-// ── 2. Email is its own section ──────────────────────────────────────────
-ok('Email is a section with five rows, and Leads is now Prospects', () => {
-  const sec = code.slice(code.indexOf('  email: {'), code.indexOf('  produce: {'));
-  assert.ok(/leaf: 'email'/.test(sec), 'it has its own leaf');
-  assert.ok(/base: \(id\) => `\/clients\/\$\{id\}\/email`/.test(sec), 'and its own base');
+// ── 2. Outreach is a group inside Convert ────────────────────────────────
+//
+// Corrected 1 November, after the first version promoted Email to a section
+// of its own: "it isnt meant to have its own top level nav, its meant to be a
+// section heading inside convert". The promotion also shipped with no entry
+// in the nav rail, so for a few hours the five screens had a route, a panel
+// and no door. That rule now lives in sectionPanel.test.mjs, where it applies
+// to every section rather than to this one.
+ok('Outreach is a group inside Convert, with five rows', () => {
+  const sec = code.slice(code.indexOf('  convert: {'), code.indexOf('  produce: {'));
+  assert.ok(/{ heading: 'Outreach', rows: \[/.test(sec), 'the group is headed Outreach');
   const labels = [...sec.matchAll(/label: '([^']+)'/g)].map(m => m[1]);
   assert.deepStrictEqual(labels,
-    ['Campaigns', 'Prospects', 'Tasks', 'Sending', 'Selective outreach'],
-    'the five screens, with Prospects rather than Leads');
-  assert.ok(/slug: 'prospects'/.test(sec), 'and the slug moved with the label');
+    ['Optimise', 'Forms', 'Campaigns', 'Prospects', 'Tasks', 'Sending', 'Find leads'],
+    'Convert carries its own two, then the five under Outreach');
+  assert.ok(/slug: 'prospects'/.test(sec), 'Prospects rather than Leads, slug and all');
+  assert.ok(/slug: 'find-leads'/.test(sec), 'and Find leads rather than Selective outreach');
 });
 
-ok('Convert no longer carries Email, and its route lost the third segment', () => {
-  const sec = code.slice(code.indexOf('  convert: {'), code.indexOf('  email: {'));
-  assert.ok(!/tab: 'email'/.test(sec), 'Email is out of the Convert group');
-  assert.ok(!/ClientOutreachPage/.test(convert), 'and off the Convert page');
-  assert.ok(!/convert\/:screen\?\/:sub\?/.test(app), 'the :sub? segment is gone');
-  assert.ok(/clients\/:id\/email\/:screen\?/.test(app), 'and Email has its own route');
+ok('there is no Email section, and no route that would orphan one', () => {
+  assert.ok(!/^  email: \{/m.test(code), 'no top-level Email section');
+  assert.ok(!/clients\/:id\/email/.test(app), 'and no route left pointing at one');
+  assert.ok(/ClientOutreachPage/.test(convert), 'Convert renders the outreach screens');
+  assert.ok(!/convert\/:screen\?\/:sub\?/.test(app), 'the :sub? segment is still gone');
 });
 
-ok('nothing builds an Email path by hand any more', () => {
+ok('nothing builds an Outreach path by hand', () => {
   // The old version navigated with a template the route guard could not
   // read, which is how a link rots unseen. The parent owns the mapping.
   assert.ok(!/\/email\/\$\{SLUG/.test(outreach), 'no hand-built slug path');
   assert.ok(/onScreen \|\| \(\(\) => \{\}\)/.test(outreach), 'it calls the parent instead');
-  assert.ok(/onScreen=\{setTab\}/.test(emailPage), 'and the parent passes useScreen\'s setter');
+  assert.ok(/onScreen=\{setTab\}/.test(convert), 'and the parent passes useScreen\'s setter');
 });
 
-ok('each Email screen says what it produces', () => {
-  const map = emailPage.slice(emailPage.indexOf('WHAT_IT_PRODUCES'), emailPage.indexOf('export default'));
+ok('each Outreach screen says what it produces', () => {
+  const map = convert.slice(convert.indexOf('OUTREACH_PRODUCES'), convert.indexOf('export default'));
   for (const k of ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting']) {
     assert.ok(new RegExp(`${k}:`).test(map), `${k} has a line`);
   }
