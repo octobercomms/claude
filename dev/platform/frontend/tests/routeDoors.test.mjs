@@ -91,9 +91,24 @@ const routes = allRoutes.filter(r => !r.path.includes(':'));
 
 // Client-scoped pages: /clients/:id/<tail>. The link is built from a template
 // literal, so the tail is what there is to look for.
+//
+// A trailing optional segment is dropped before the tail is read. Every
+// section route is `/clients/:id/<leaf>/:screen?` since screens became path
+// segments, and a link to one points at the leaf — `/clients/${id}/convert` —
+// with the screen appended or left off. Keeping the `:screen?` in the tail
+// meant every one of them was filtered out by the colon guard below, so on
+// 1 November this check was reading one route out of nine: /data. It passed
+// on the day a top-level Email section shipped with no entry in the nav rail,
+// which is precisely the orphan it exists to catch.
+//
+// Only a trailing optional segment is dropped. A route with a required
+// parameter in the middle has no single literal tail to look for and is still
+// skipped, which is what the colon filter is actually for.
+const OPTIONAL_TAIL = /\/:[A-Za-z0-9_]+\?$/;
+
 const clientRoutes = allRoutes
   .filter(r => r.path.startsWith('/clients/:id/'))
-  .map(r => ({ ...r, tail: '/' + r.path.split('/').slice(3).join('/') }))
+  .map(r => ({ ...r, tail: ('/' + r.path.split('/').slice(3).join('/')).replace(OPTIONAL_TAIL, '') }))
   .filter(r => !r.tail.includes(':'));
 
 // Everything that is not App.jsx — a route defined in App.jsx is not a door.
@@ -172,6 +187,30 @@ const hasClientDoor = (tail) => {
     new RegExp(`\\bto=\\{[^}]*[\`'"][^'"\`]*${target}[\`'"]`),
   ].some(re => re.test(haystack));
 };
+
+test('the sectioned routes are actually being checked', () => {
+  // The regression this file shipped with. Nine client routes exist and eight
+  // of them end in `/:screen?`; before the optional tail was stripped, the
+  // colon filter dropped all eight and the orphan check below ran against
+  // /data alone. Naming the count is the point: a check that silently shrinks
+  // to one route still passes, which is how a section with no door got
+  // through a green run.
+  assert.ok(clientRoutes.length >= 8,
+    `only ${clientRoutes.length} client routes are being checked — the tail filter has eaten the sectioned ones`);
+  for (const leaf of ['convert', 'ads', 'pr', 'social', 'seo', 'produce', 'dashboard']) {
+    assert.ok(clientRoutes.some(r => r.tail === `/${leaf}`),
+      `/clients/:id/${leaf} is not among the routes being checked`);
+  }
+});
+
+test('an optional trailing segment is dropped, a required one is not', () => {
+  assert.equal('/convert/:screen?'.replace(OPTIONAL_TAIL, ''), '/convert');
+  assert.equal('/convert'.replace(OPTIONAL_TAIL, ''), '/convert');
+  // Required, so there is no literal tail to look for and it stays skipped.
+  assert.equal('/edit/:jobId'.replace(OPTIONAL_TAIL, ''), '/edit/:jobId');
+  // Only the trailing one: a mid-path parameter is not a tail.
+  assert.equal('/jobs/:jobId/steps'.replace(OPTIONAL_TAIL, ''), '/jobs/:jobId/steps');
+});
 
 test('every client-scoped page is linked from somewhere', () => {
   const orphans = clientRoutes

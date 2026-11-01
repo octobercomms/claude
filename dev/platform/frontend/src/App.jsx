@@ -29,7 +29,6 @@ const ClientDetailPage = lazyChunk('ClientDetailPage', () => import('./pages/Cli
 const RankingsPage = lazyChunk('RankingsPage', () => import('./pages/RankingsPage'));
 const ClientSEOPage = lazyChunk('ClientSEOPage', () => import('./pages/ClientSEOPage'));
 const ClientConvertPage = lazyChunk('ClientConvertPage', () => import('./pages/ClientConvertPage'));
-const ClientEmailPage = lazyChunk('ClientEmailPage', () => import('./pages/ClientEmailPage'));
 const ClientAdsPage = lazyChunk('ClientAdsPage', () => import('./pages/ClientAdsPage'));
 const ClientSalesTrafficPage = lazyChunk('ClientSalesTrafficPage', () => import('./pages/ClientSalesTrafficPage'));
 const ClientSocialPage = lazyChunk('ClientSocialPage', () => import('./pages/ClientSocialPage'));
@@ -122,12 +121,12 @@ export default function App() {
             <Route path="clients/:id/pr/:screen?" element={<ClientPRPage />} />
             <Route path="clients/:id/social/:screen?" element={<ClientSocialPage />} />
             <Route path="clients/:id/seo/:screen?" element={<ClientSEOPage />} />
-            {/* Convert is back to one segment. It took a third because its
-                Email screen embedded five more; Email is its own section now,
-                so the five are rows and the third segment has nothing left
-                to name. */}
+            {/* Convert holds seven screens: Optimise, Forms, and the five
+                under Outreach. They are rows in Convert's panel rather than a
+                section of their own — a top-level Email section shipped on
+                1 November with no entry in the nav rail, so its five screens
+                had a route, a panel and no door for a few hours. */}
             <Route path="clients/:id/convert/:screen?" element={<ClientConvertPage />} />
-            <Route path="clients/:id/email/:screen?" element={<ClientEmailPage />} />
             <Route path="clients/:id/produce/:screen?" element={<ClientVideoTab />} />
             <Route path="settings/:screen?" element={<SettingsPage />} />
             {/* Database and Biz dev are their own sections now, not groups

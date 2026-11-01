@@ -329,33 +329,40 @@ export const SECTIONS = {
         // routeTargets direction 3 exists to catch.
         { tab: 'cro',   label: 'Optimise', slug: 'optimise' },
         { tab: 'forms', label: 'Forms' },
-        // Email left Convert on 1 November. It was one row hiding five
-        // screens behind a tab strip, which is a section wearing a row.
       ] },
-    ],
-  },
 
-  // Email. Five screens that used to live behind a tab strip on one Convert
-  // row, so "I'm not sure where to start and what I'm achieving here" had no
-  // answer: the destinations were invisible until you clicked in.
-  //
-  // Prospects, not Leads. As a buried tab the collision with Biz dev > Leads
-  // was survivable; as a nav row OMI would show Leads under a client meaning
-  // one thing and Leads under Biz dev meaning October's own pipeline.
-  email: {
-    key: 'email',
-    leaf: 'email',
-    title: 'Email',
-    scope: 'client',
-    base: (id) => `/clients/${id}/email`,
-    defaultTab: 'campaigns',
-    groups: [
-      { heading: null, rows: [
+      // Outreach: five rows inside Convert, not a section of its own.
+      //
+      // The complaint these answer is "I'm not sure where to start and what
+      // I'm achieving here". Email was one row hiding five screens behind a
+      // tab strip, so the destinations were invisible until you clicked in.
+      // Listing them is the fix.
+      //
+      // It was promoted to a top-level section on 1 November and that was the
+      // wrong reading of "do we make EMAIL a section, and then all the steps
+      // are listed in the nav?" — the steps belong in the nav, Email belongs
+      // in Convert. It also shipped with no rail entry, so for a few hours
+      // the five screens had a route, a panel and no door. A group gives the
+      // steps their rows without a seventh item in the rail.
+      //
+      // Prospects, not Leads: Leads under a client meaning the client's
+      // prospects and Leads under Biz dev meaning October's own pipeline is a
+      // collision a buried tab survived and a visible row would not.
+      //
+      // Outreach rather than Email, because only two of the five rows are
+      // email. The group is finding people, writing to them, chasing the
+      // replies and keeping the mailbox able to send; Email names the channel
+      // that carries three of those. It is also what the page has always been
+      // called in the code (ClientOutreachPage).
+      { heading: 'Outreach', rows: [
         { tab: 'campaigns',   label: 'Campaigns' },
         { tab: 'contacts',    label: 'Prospects', slug: 'prospects' },
         { tab: 'tasks',       label: 'Tasks' },
         { tab: 'sending',     label: 'Sending' },
-        { tab: 'prospecting', label: 'Selective outreach', slug: 'selective-outreach' },
+        // "find leads as a page" — the row says what you came to do. It was
+        // Selective outreach, which named the mechanism, and sat inside a
+        // group that now carries the word Outreach anyway.
+        { tab: 'prospecting', label: 'Find leads', slug: 'find-leads' },
       ] },
     ],
   },

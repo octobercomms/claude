@@ -43,37 +43,79 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
   await p.close();
 }
 
-// ── 2 + 3. Email is its own section, with a line per screen ──────────────
+// ── 2 + 3. Outreach is a group inside Convert, with a line per screen ────
+//
+// Corrected after the first version of this drive. It opened each screen by
+// typing its URL and then matched the row labels in the page, under the name
+// "is reachable from the nav" — which proves the panel renders once you are
+// already standing on it, and says nothing about anything taking you there.
+// Email shipped with no entry in the nav rail and this drive stayed green.
+// So the reachability check now starts from a page you can reach and clicks.
 for (const [slug, want] of [
   ['campaigns', /A sequence that goes out on its own/i],
   ['prospects', /The people this client is pitching/i],
   ['tasks', /What needs a person rather than a sequence/i],
   ['sending', /Whether the mail can actually leave/i],
-  ['selective-outreach', /companies worth approaching/i],
+  ['find-leads', /companies worth approaching/i],
 ]) {
-  const p = await open(`/clients/c1/email/${slug}`);
+  const p = await open(`/clients/c1/convert/${slug}`);
   const t = await text(p);
-  say(want.test(t), `Email › ${slug} says what it produces`);
+  say(want.test(t), `Convert › ${slug} says what it produces`);
   if (slug === 'prospects') {
     say(/Prospects/.test(t), 'and the row is called Prospects, not Leads');
   }
   await p.close();
 }
 {
-  // Five rows in the nav, not a tab strip behind one row.
-  const p = await open('/clients/c1/email/campaigns');
-  const t = await text(p);
-  for (const row of ['Campaigns', 'Prospects', 'Tasks', 'Sending', 'Selective outreach']) {
-    say(new RegExp(row, 'i').test(t), `${row} is reachable from the nav`);
+  // The rail is the only door to a section, so the walk starts there: open
+  // Convert from the client page by clicking, then click each Outreach row
+  // and check a screen actually arrives.
+  const p = await open('/clients/c1/dashboard/measure');
+  await p.locator('a[href$="/clients/c1/convert"]').first().click();
+  await p.waitForTimeout(900);
+  const panel = await text(p);
+  say(/OUTREACH/i.test(panel), 'the Convert panel carries an Outreach group');
+
+  for (const [label, slug, want] of [
+    ['Campaigns', 'campaigns', /A sequence that goes out on its own/i],
+    ['Prospects', 'prospects', /The people this client is pitching/i],
+    ['Tasks', 'tasks', /What needs a person rather than a sequence/i],
+    ['Sending', 'sending', /Whether the mail can actually leave/i],
+    ['Find leads', 'find-leads', /companies worth approaching/i],
+  ]) {
+    // Panel rows are buttons, not links — they call the section's setter
+    // rather than carrying an href, which is why the rail is the only thing
+    // routeDoors can see and why the rail guard had to be written separately.
+    const row = p.getByRole('button', { name: label, exact: true }).first();
+    const there = await row.count() > 0;
+    say(there, `${label} is a row you can click in the Convert panel`);
+    if (!there) continue;
+    await row.click();
+    await p.waitForTimeout(900);
+    const t = await text(p);
+    say(want.test(t), `and clicking ${label} opens its screen`);
+    say(p.url().endsWith(`/clients/c1/convert/${slug}`), `and ${label} lands on its own URL`, p.url());
   }
   await p.close();
 }
 {
-  // Convert keeps two rows and no longer carries Email.
+  // No seventh item in the rail. The whole correction.
+  const p = await open('/clients/c1/convert/optimise');
+  const railHrefs = await p.locator('a[href^="/clients/c1/"]').evaluateAll(
+    (as) => as.map(a => a.getAttribute('href')));
+  say(!railHrefs.some(h => /\/clients\/c1\/email(\/|$)/.test(h)),
+    'nothing in the app links to a top-level Email section',
+    railHrefs.filter(h => /email/.test(h)).join(', '));
+  await p.close();
+}
+
+{
+  // Convert keeps its own two rows above the Outreach group.
   const p = await open('/clients/c1/convert/optimise');
   const t = await text(p);
   say(/Optimise/i.test(t) && /Forms/i.test(t), 'Convert still has Optimise and Forms');
-  say(!/\bEmail\b/.test(t.slice(0, 1200)), 'and Email has left its panel');
+  say(!/\bEMAIL\b/.test(t.slice(0, 600)),
+    'and the group above them is headed Outreach, not Email');
   await p.close();
 }
 
