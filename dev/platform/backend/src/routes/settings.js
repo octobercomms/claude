@@ -896,6 +896,13 @@ router.delete('/inboxes/:id', async (req, res) => {
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// Put a mailbox back on a password. Refused when there is no password stored,
+// because that would leave a mailbox on the list that nothing can open.
+router.delete('/inboxes/:id/google', async (req, res) => {
+  try { res.json(await require('../services/mailboxOauth').detach(req.params.id)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // Open a connection and close it. Answers the only question worth asking
 // before saving: will the poll be able to read this mailbox? Takes either a
 // saved id or the raw fields, so it can be tried before anything is stored.

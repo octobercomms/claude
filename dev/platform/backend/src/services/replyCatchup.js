@@ -132,9 +132,10 @@ async function scan({ days = 180, limit = 3000, inboxId = null, user = null } = 
   const errors = [];
 
   for (const inbox of list) {
-    const client = inboxes.imapClient(inbox);
+    let client;
     let boxScanned = 0; let boxFound = 0;
     try {
+      client = await inboxes.imapClient(inbox);
       await client.connect();
       const lock = await client.getMailboxLock('INBOX');
       try {
@@ -164,7 +165,7 @@ async function scan({ days = 180, limit = 3000, inboxId = null, user = null } = 
       errors.push(inboxes.describeImapError(err, inbox));
       console.warn('[Reply catch-up]', inbox.label, err.message);
     } finally {
-      await client.logout().catch(() => {});
+      if (client) await client.logout().catch(() => {});
     }
     scanned += boxScanned;
     per.push({ inbox: inbox.label, scanned: boxScanned, found: boxFound });

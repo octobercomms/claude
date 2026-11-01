@@ -2692,6 +2692,28 @@ claiming that a `.db` test protects anything.
   untick three, refresh, and an unpersisted set hands the download nine.
   `null` means every post, which is not the same as a set of every current id:
   a batch loads its posts after its id.
+- **App passwords are no longer a credential you can ask Daniel for.** Google
+  has withdrawn them from the Workspace accounts October uses: the screen that
+  issued one now reads "the setting that you are looking for is not available
+  for your account". press@ failed with `AUTHENTICATIONFAILED` on 25 October
+  and stayed broken for a week because the fix looked like typing a new
+  password. A mailbox now carries `auth_type` of `password` or `google_oauth`,
+  and the OAuth kind authenticates the same IMAP socket with a bearer token
+  (`auth: { user, accessToken }` — ImapFlow builds the XOAUTH2 string itself).
+  The only scope IMAP accepts is `https://mail.google.com/`, which is full
+  mailbox access; `gmail.readonly` works against the REST API and is refused at
+  the IMAP handshake, so narrowing it stops every poll. Google classifies it as
+  restricted, so **the OAuth client has to be Internal to the Workspace that
+  owns the mailbox**, or pass a security assessment — and
+  `https://mail.google.com/` must be added to the consent screen's scope list
+  in Google Cloud before the grant will run. It is deliberately NOT in
+  `connectors/google.js` SCOPES: putting it there would show "read all your
+  email" on the consent screen every client sees.
+- **`inboxes.imapClient()` is async.** It mints the access token before the
+  socket opens, so all three call sites await it, and the two loops that build
+  a client per mailbox guard their `client.logout()` because construction can
+  now throw before a client exists. `tests/mailbox-oauth.test.js` catches a
+  call site that drops the await.
 - **Auto-merge fires within ~3 minutes of CI going green**, so a commit pushed
   while a PR is open joins it and a commit pushed after the merge needs a new
   PR. Open the PR in the same breath as the push, not after writing it up.

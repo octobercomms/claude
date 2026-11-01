@@ -213,6 +213,8 @@ jobs:
         run: node tests/month-end.test.js
       - name: Guard — a trending sound links to a page that opens
         run: node tests/tiktok-sound.test.js
+      - name: Guard — a mailbox OMI reads can be opened without a password
+        run: node tests/mailbox-oauth.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist
