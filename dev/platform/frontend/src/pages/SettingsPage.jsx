@@ -50,6 +50,10 @@ const SECTIONS = [
   // four unrelated groups re-filed. See nav/sections.js for the reasoning.
   { key: 'costs', subs: [
     { k: 'costs' },
+    // Which model runs each feature, beside what each feature has spent.
+    // Keyed `models`, not `ai`: the AI credential category is keyed `ai`,
+    // and sharing the key is what put the keys on this screen as well.
+    { k: 'models' },
   ] },
   { key: 'connections', subs: [
     { k: 'ai' },
@@ -344,7 +348,7 @@ export default function SettingsPage() {
       {tab === 'reports' && <ReportsPage embedded />}
       {tab === 'checker' && <CheckerBenchPage />}
 
-      {tab === 'ai' && <AiModelsPanel />}
+      {tab === 'models' && <AiModelsPanel />}
 
       {SUBTAB_CATS[tab] && (<>
       {/* Provider keys for this section — one or more categories. */}

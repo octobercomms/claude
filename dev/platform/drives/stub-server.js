@@ -58,6 +58,11 @@ let backfillMode = process.env.STUB_BACKFILL || 'all';
 // The real resolver, so the drive exercises the shipped rule rather than a
 // hand-written copy of what I hope it returns.
 const { summariseAdsCurrency } = require(path.join(__dirname, '..', 'backend', 'src', 'services', 'adsCurrency'));
+// The real model list and feature groups, for the same reason: a drive that
+// checks the Models screen should see the groups OMI actually routes, not a
+// convenient five. getMap() reads the database, so the saved routing is the
+// one thing supplied here — empty, which is every feature on the default.
+const aiModels = require(path.join(__dirname, '..', 'backend', 'src', 'services', 'aiModels'));
 
 // Two Google accounts on different currencies (a UK + US setup, which is the
 // ordinary case) and one Meta account in USD.
@@ -162,6 +167,15 @@ const API = {
   // reason — it is the stub missing fixtures, not the page being broken.
   '/api/users': [{ id: 'u1', username: 'daniel', role: 'admin', client_id: null }],
   '/api/settings/platform-keys': { keys: [], categories: [] },
+  // Which model runs each feature. The Models screen under Costs renders
+  // this; the AI screen under Connections renders credentials and must not
+  // render any of it.
+  '/api/settings/ai-models': {
+    models: aiModels.MODELS,
+    default: aiModels.DEFAULT_MODEL,
+    features: aiModels.FEATURES,
+    map: {},
+  },
   // The mailboxes OMI reads. Three rows, one of each state the panel has to
   // tell apart: a Google mailbox with a grant, one still waiting for its
   // grant, and an old app-password mailbox.

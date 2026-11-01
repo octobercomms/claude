@@ -118,9 +118,26 @@ ok('Improve is off the nav and renders inside Learn', () => {
 // ── 4. Settings: Models under Costs ──────────────────────────────────────
 ok('Models sits under Costs, and Connections keeps only credentials', () => {
   const costs = code.slice(code.indexOf("{ heading: 'Costs'"), code.indexOf("{ heading: 'Connections'"));
-  assert.ok(/tab: 'ai', label: 'Models'/.test(costs), 'Models is a Costs row');
+  assert.ok(/tab: 'models', label: 'Models'/.test(costs), 'Models is a Costs row');
   const conns = code.slice(code.indexOf("{ heading: 'Connections'"), code.indexOf("{ heading: 'Tools'"));
   assert.ok(!/label: 'Models'/.test(conns), 'and no longer a Connections row');
+  assert.ok(/tab: 'ai',\s+label: 'AI'/.test(conns), 'the AI credentials are a Connections row');
+
+  // The half the move left undone. Moving the row put the routing list under
+  // Costs and left the AI provider keys rendering underneath it, so the
+  // screen still did two jobs — which is the complaint the move answered.
+  // The keys are what separate them: SUBTAB_CATS is keyed by screen, so a
+  // screen keyed 'ai' picks up the AI credential category whatever it is
+  // called or wherever it sits.
+  const settingsPage = read('src/pages/SettingsPage.jsx');
+  assert.ok(/\{tab === 'models' && <AiModelsPanel \/>\}/.test(settingsPage),
+    'the routing list renders on the Models screen');
+  assert.ok(!/\btab === 'ai'\b/.test(stripComments(settingsPage)),
+    'and nothing renders a panel for the AI screen but its credentials');
+  const cats = read('src/settings/catalogue.js');
+  assert.ok(/^\s*ai: \['AI'\],/m.test(cats), "the AI category is keyed 'ai'");
+  assert.ok(!/^\s*models: \[/m.test(cats),
+    'and Models claims no credential category, or the keys come back');
 });
 
 // ── 5. Database tools ────────────────────────────────────────────────────
