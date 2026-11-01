@@ -479,7 +479,11 @@ export const SECTIONS = {
         { tab: 'publications', label: 'Publications' },
         { tab: 'tags',         label: 'Tags' },
         { tab: 'tasks',        label: 'Tasks' },
-        { tab: 'assistant',    label: 'Assistant' },
+        // Assistant is not a row any more. It is a chat that proposes changes
+        // to the records, so being a destination meant leaving the list you
+        // wanted it to act on — the same fault the client analyst had as a tab
+        // inside Data. It is a panel over whatever Database screen you are on,
+        // opened from the bubble in the top bar, deep-linked with ?assistant=1.
       ] },
 
       // Cleanup: the seven screens that were a page of their own behind a

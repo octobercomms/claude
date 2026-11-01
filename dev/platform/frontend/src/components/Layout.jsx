@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import ClientTopBar from './ClientTopBar';
+import ClientTopBar, { ChatIcon } from './ClientTopBar';
 import GlobalSearch, { SearchIcon } from './GlobalSearch';
 import AnalystPanel from './AnalystPanel';
+import DatabaseAssistantPanel from './database/DatabaseAssistantPanel';
 import SectionPanel from './SectionPanel';
 import MobileScreenNav from './MobileScreenNav';
 import { SECTIONS, sectionForPath, screenForPath, labelForTab } from '../nav/sections';
@@ -131,6 +132,22 @@ export default function Layout() {
   // The ref is not decoration: an effect runs on mount as well as on change, so
   // without it the mount pass closes the panel ?analyst=1 had opened, and the
   // deep link renders the chat for one frame and then hides it.
+  // The Database assistant, the same shape as the analyst above: the bubble
+  // is in the top bar and the panel sits outside the page, so neither owns
+  // the state. ?assistant=1 is its deep link.
+  const [assistantOpen, setAssistantOpen] = useState(() =>
+    new URLSearchParams(window.location.search).get('assistant') === '1');
+  const onDatabase = currentSection?.key === 'database';
+  // Leaving Database closes it. Same ref guard as the analyst's below: an
+  // effect runs on mount as well as on change, so without it the mount pass
+  // closes the panel ?assistant=1 had just opened.
+  const wasOnDatabase = useRef(onDatabase);
+  useEffect(() => {
+    if (wasOnDatabase.current === onDatabase) return;
+    wasOnDatabase.current = onDatabase;
+    if (!onDatabase) setAssistantOpen(false);
+  }, [onDatabase]);
+
   const lastClientId = useRef(clientId);
   useEffect(() => {
     if (lastClientId.current === clientId) return;
@@ -352,6 +369,21 @@ export default function Layout() {
             client. */}
         {!(clientId && !readOnly) && (
           <div className="client-topbar">
+            {/* The media-desk assistant, on Database only. Beside search
+                rather than in the section panel: it is a thing you do while
+                looking at a list, not a destination you navigate to. */}
+            {onDatabase && !readOnly && (
+              <button
+                type="button"
+                className={`client-topbar-icon${assistantOpen ? ' is-on' : ''}`}
+                onClick={() => setAssistantOpen(o => !o)}
+                title="Media-desk assistant"
+                aria-label="Media-desk assistant"
+                aria-pressed={assistantOpen}
+              >
+                <ChatIcon />
+              </button>
+            )}
             <button
               type="button"
               className="client-topbar-icon"
@@ -379,6 +411,12 @@ export default function Layout() {
           open={analystOpen}
           onClose={() => setAnalystOpen(false)}
           pathname={location.pathname}
+        />
+      )}
+      {onDatabase && !readOnly && (
+        <DatabaseAssistantPanel
+          open={assistantOpen}
+          onClose={() => setAssistantOpen(false)}
         />
       )}
       {/* The client a client-scoped screen result opens against: the one in

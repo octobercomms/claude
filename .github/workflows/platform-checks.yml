@@ -255,6 +255,8 @@ jobs:
         run: node tests/pr2-nav-session.test.js
       - name: Guard — PR 3 of the review plan, one place for every database job
         run: node tests/pr3-database-tools.test.js
+      - name: Guard — the media-desk assistant is a panel, not a row
+        run: node tests/assistant-panel.test.js
       - name: Guard — a publication can be added by hand, and only once
         run: node tests/outlet-create.test.js
       - name: Guard — PR 4 of the review plan, footage in and designs findable
