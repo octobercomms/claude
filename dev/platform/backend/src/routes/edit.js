@@ -88,6 +88,39 @@ function edlProblem(edl, clipCount) {
   return null;
 }
 
+/**
+ * Positioned text arrives from the browser too, so it is bounded here.
+ *
+ * The text itself is not sanitised at this layer: shared/overlays.mjs escapes
+ * it when it builds the ASS file, which is the only place it could be
+ * misinterpreted, and escaping twice would mean the operator's braces are
+ * replaced in the database as well as on screen. This is the resource limit:
+ * the count, the length, and times that are numbers.
+ */
+const MAX_OVERLAYS_IN = 40;
+const MAX_OVERLAY_TEXT = 200;
+
+function overlayProblem(list) {
+  if (list == null) return null;
+  if (!Array.isArray(list)) return 'The text overlays are malformed.';
+  if (list.length > MAX_OVERLAYS_IN) {
+    return `An edit can hold up to ${MAX_OVERLAYS_IN} text overlays; this one has ${list.length}.`;
+  }
+  for (const o of list) {
+    if (!o || typeof o !== 'object') return 'A text overlay is malformed.';
+    if (typeof o.text !== 'string') return 'A text overlay has no text.';
+    if (o.text.length > MAX_OVERLAY_TEXT) {
+      return `A text overlay is longer than ${MAX_OVERLAY_TEXT} characters.`;
+    }
+    for (const key of ['from', 'to']) {
+      if (o[key] == null) continue;
+      const v = Number(o[key]);
+      if (!Number.isFinite(v) || v < 0) return 'A text overlay has an invalid time.';
+    }
+  }
+  return null;
+}
+
 // Several clips → combined into one video (in upload order) before editing.
 router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clientId'] }),
   uploadDisk.fields([{ name: 'files', maxCount: 20 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
@@ -105,9 +138,14 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     const hasEdl = !!(ops.edl && Array.isArray(ops.edl.items) && ops.edl.items.length);
     const hasCuts = hasEdl
       || (Array.isArray(ops.segments) ? ops.segments.length > 0 : (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)));
-    const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original') || hasCuts || ops.clean_audio || ops.captions;
+    const hasOverlays = Array.isArray(ops.overlays) && ops.overlays.some(
+      (o) => o && typeof o.text === 'string' && o.text.trim());
+    const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original')
+      || hasCuts || hasOverlays || ops.clean_audio || ops.captions;
     const edlErr = edlProblem(ops.edl, files.length);
     if (edlErr) return res.status(400).json({ error: edlErr });
+    const ovErr = overlayProblem(ops.overlays);
+    if (ovErr) return res.status(400).json({ error: ovErr });
     // Refuse an unknown caption template here rather than at render time. The
     // renderer refuses it too, but by then the operator has waited for a job
     // to reach the front of the queue to be told a name was wrong.
@@ -291,6 +329,8 @@ router.post('/clients/:clientId/edit/:id/reopen', requireClientAccess({ paramNam
     // has. This still catches a malformed or oversized edit before it queues.
     const edlErr = edlProblem(ops.edl, null);
     if (edlErr) return res.status(400).json({ error: edlErr });
+    const ovErr = overlayProblem(ops.overlays);
+    if (ovErr) return res.status(400).json({ error: ovErr });
     const job = await editJobs.reopen(req.params.clientId, req.params.id, { ops, name: req.body?.name || null, createdBy: req.user.id });
     editProcessor.kick();
     res.status(201).json(job);

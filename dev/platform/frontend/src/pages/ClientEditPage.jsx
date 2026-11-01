@@ -66,6 +66,10 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
   const [edl, setEdl] = useState(EDL.emptyEdl());
   const [selectedId, setSelectedId] = useState(null);
   const [playhead, setPlayhead] = useState(0);
+  // Positioned text over time, at timeline times. Separate from the EDL
+  // because an overlay is not a property of a block: it belongs to the edit's
+  // own clock and may span a cut.
+  const [overlays, setOverlays] = useState([]);
   const [cleanAudio, setCleanAudio] = useState(true);
   const [captions, setCaptions] = useState(true);
   const [capSize, setCapSize] = useState('medium');
@@ -186,6 +190,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
   // A real edit is anything the plain stream-copy combine would not produce.
   const effectiveTrim = clips.length > 0 && edl.items.length > 0
     && !EDL.isWholeClipsInOrder(edl, clips);
+  // Text on screen is an edit in its own right, even over untouched clips.
+  const hasOverlays = overlays.some(o => String(o?.text || '').trim());
 
   // Which clip the playhead is over, and where inside it. The preview shows
   // that clip and seeks to that point. It does not play across a cut: that is
@@ -204,7 +210,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
 
   const previewClip = clips[atPlayhead.clipIndex] || clips[0] || null;
   const capCost = captions && keptDuration ? (keptDuration / 60) * WHISPER_PER_MIN : 0;
-  const nothingChosen = !(combining || aspect !== 'original' || effectiveTrim || cleanAudio || captions);
+  const nothingChosen = !(combining || aspect !== 'original' || effectiveTrim
+    || hasOverlays || cleanAudio || captions);
 
   function opsPayload() {
     return {
@@ -213,6 +220,13 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
       // single-clip-only model this replaces, and sending both would cut the
       // already-cut output a second time.
       edl: effectiveTrim ? { version: EDL.EDL_VERSION, items: edl.items } : null,
+      // Sent whenever there is any, independently of the EDL: text over
+      // untouched clips is still text on screen.
+      overlays: hasOverlays
+        ? overlays.filter(o => String(o?.text || '').trim()).map(o => ({
+          id: o.id, text: o.text, from: o.from, to: o.to, x: o.x, y: o.y, size: o.size,
+        }))
+        : null,
       segments: null,
       clean_audio: cleanAudio,
       captions,
@@ -239,7 +253,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
         await api.postForm(`/edit/clients/${clientId}/edit`, fd);
       }
       toast(draft ? 'Saved as draft.' : combining ? 'Combining & rendering…' : 'Edit queued — rendering…', 'success');
-      clearClips(); setReopenJobId(null); setEdl(EDL.emptyEdl()); setSelectedId(null); setPlayhead(0);
+      clearClips(); setReopenJobId(null); setEdl(EDL.emptyEdl()); setSelectedId(null);
+      setPlayhead(0); setOverlays([]);
       loadJobs(); if (!draft && !pollRef.current) startPoll();
     } catch (err) {
       toast(err.message || 'Could not save the edit.', 'error');
@@ -304,6 +319,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
       setEdl(EDL.emptyEdl());
     }
     setSelectedId(null); setPlayhead(0);
+    setOverlays(Array.isArray(o.overlays) ? o.overlays : []);
     setCleanAudio(o.clean_audio !== false); setCaptions(!!o.captions);
     setCapSize(o.caption_style?.size || 'medium'); setCapPos(o.caption_style?.pos || 0);
     setCapTemplate(o.caption_template || null); setCapTemplateName(null);
@@ -434,6 +450,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                     }}
                     selectedId={selectedId}
                     onSelect={setSelectedId}
+                    overlays={overlays}
+                    onOverlaysChange={setOverlays}
                   />
                 </div>
               </>
@@ -612,6 +630,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                       {' '}{stamp(keptDuration)}, from {edl.items.length}
                       {' '}{edl.items.length === 1 ? 'block' : 'blocks'}
                       {effectiveTrim ? ' as cut on the timeline' : ''}
+                      {hasOverlays ? `, with ${overlays.filter(o => String(o?.text || '').trim()).length} text `
+                        + `${overlays.filter(o => String(o?.text || '').trim()).length === 1 ? 'overlay' : 'overlays'}` : ''}
                       {captions ? ', with burned captions' : ''}
                       {cleanAudio ? ', audio cleaned' : ''}.
                     </span>

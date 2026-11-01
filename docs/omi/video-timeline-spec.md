@@ -600,6 +600,73 @@ nothing else could see: every xfade type produces the same output length.
    wipe read as a uniform blend and the assertion failed against correct code.
    Four columns, comparing the outer two.
 
+### Session 6 · positioned text over time
+
+Built: **2.7 (text and overlays over time)**. That is the last part before the
+preview.
+
+| What | Where |
+|---|---|
+| The compiler and the escaping | `shared/overlays.mjs` |
+| The burn | `backend/src/services/editProcessor.js` → `burnOverlays` |
+| Bounds at the route | `backend/src/routes/edit.js` → `overlayProblem` |
+| The editor and the bands | `frontend/src/components/video/Timeline.jsx` |
+| Guards | `tests/overlays.test.js` (30, of which 7 render real video), `edit-route-edl.test.js` (17), and the browser drive at 88 |
+
+**ASS subtitles, not `drawtext`.** The caption pipeline already burns ASS
+reliably through ffmpeg's `subtitles=` filter, ASS has absolute positioning and
+per-event timing natively, and its escaping rules are narrow enough to state
+exactly. `drawtext` would have meant a second text mechanism with its own font
+handling and operator text interpolated into a filter string. One of those is
+a known quantity.
+
+**The escaping is the part that matters.** In ASS, `{` opens an override
+block, so `{\pos(0,0)}` typed into a text box would move the text and
+`{\c&HFF&}` would recolour it: an operator would have found a way to drive the
+renderer by typing. Both braces are replaced rather than stripped, so the text
+still reads as what was typed, and a backslash becomes a forward slash so it
+cannot start an escape of its own. There is a test that renders the injection
+attempt and checks the text stays where *it* was placed rather than where the
+typed tag asked.
+
+**Positions and sizes are fractions of the frame**, so the same overlay is in
+the same place whether the edit renders 9:16, 1:1 or 4:5, and a size that
+reads well on 1080×1920 is not tiny on a wider frame.
+
+**Times are timeline times, which pins an overlay to a time and not to a
+block.** Reordering the timeline therefore moves the footage underneath it.
+That is right for what these are mostly for, a hook line over the first three
+seconds of a reel, and wrong for a lower third naming whoever is on screen.
+Pinning to a block is a later choice rather than an oversight, and the spec
+should say so before somebody treats it as a bug.
+
+**The cost, stated.** The overlay burn is a second encode of the whole video,
+because it runs after the caption pass so text sits on top of everything the
+edit produced. On a reel that is seconds; on a long render it is real. The fix,
+when it is worth doing, is to chain two `subtitles=` filters inside the caption
+pass so both burn together, which means reaching into `captions.burn` and is a
+bigger change than this part needed.
+
+### The float trap, for the third time
+
+`1.2 - 1` is 0.19999999999999996, so an overlay repaired to exactly the minimum
+shown length was then judged too short and dropped. That is the same trap as
+`MIN_ITEM` in session one and the waveform's own assertions in session three.
+`shownLongEnough()` now owns the comparison and both the module and its tests
+go through it. **Any duration comparison in this codebase wants an epsilon**,
+and that is now written in the agent guide as a rule rather than a story.
+
+### Two more things the drive caught
+
+- **Text alone was not counted as an edit**, so a set of untouched clips plus
+  one line of text came back "nothing is set to change" while the text was
+  plainly on the timeline. The same shape as the fade in session five and gain
+  in session one: three instances now, each found by driving rather than
+  reading.
+- **An empty text row counted as an edit**, which would have let Render run on
+  a row with nothing in it and return the same video. That is precisely the
+  complaint this whole project exists to end.
+
 ### Next session
 
 **2.2, the frame-accurate preview, on WebCodecs** — but not before the

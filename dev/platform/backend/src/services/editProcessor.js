@@ -34,6 +34,11 @@ async function edlMod() {
   if (!_edl) _edl = await import(pathToFileURL(path.join(SHARED, 'edl.mjs')).href);
   return _edl;
 }
+let _ov = null;
+async function overlayMod() {
+  if (!_ov) _ov = await import(pathToFileURL(path.join(SHARED, 'overlays.mjs')).href);
+  return _ov;
+}
 let _workers = 0;
 
 /**
@@ -693,6 +698,54 @@ async function render(srcPath, ops, work, apiKey, clientId = null, deps = {}, ct
   return { outputPath: final, srtPath: path.join(work, 'subs.srt'), durationS };
 }
 
+/**
+ * Burn positioned text onto a finished render.
+ *
+ * Built as ASS and burned with `subtitles=`, the same filter the caption
+ * templates already use, rather than `drawtext`: see shared/overlays.mjs for
+ * why. Applied last, so an overlay sits on top of whatever the edit produced,
+ * burned captions included.
+ *
+ * **This is a second encode of the whole video**, and that cost is real on a
+ * long render rather than free. The fix, when it is worth doing, is to chain
+ * two `subtitles=` filters in the caption pass so both texts burn together;
+ * that means reaching into captions.burn, which is a bigger change than this
+ * part needed. For a reel it is seconds.
+ *
+ * Returns the original path unchanged when there is nothing to draw, so a job
+ * with no overlays is never re-encoded for them.
+ */
+async function burnOverlays(srcPath, overlays, work, ctx = {}) {
+  const { jobId = null, prog = NO_PROGRESS } = ctx;
+  const O = await overlayMod();
+  const meta = await probe(srcPath);
+  const list = O.normaliseOverlays(overlays, meta.duration || 0);
+  if (!list.length) return srcPath;
+
+  const ass = O.overlayAss(list, { width: meta.width || 1080, height: meta.height || 1920 });
+  if (!ass) return srcPath;
+  const assPath = path.join(work, 'overlays.ass');
+  fs.writeFileSync(assPath, ass, 'utf8');
+
+  const out = path.join(work, 'overlaid.mp4');
+  if (isCancelled(jobId)) throw new Cancelled();
+  prog.at('captions', 0.85, `Adding ${list.length} text ${list.length === 1 ? 'overlay' : 'overlays'}`);
+  await run(FFMPEG, ['-y', '-i', srcPath,
+    // The path is escaped for the filter's own parser: a colon would start a
+    // new filter option and a backslash would escape the next character. The
+    // work directory is ours and contains neither, but the escaping is here so
+    // that stays true if it ever moves.
+    '-vf', `subtitles=${assPath.replace(/\\/g, '/').replace(/:/g, '\\:')}`,
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+    '-c:a', 'copy', '-movflags', '+faststart', out], {
+    jobId,
+    onProgress: (sec) => prog.at('captions',
+      0.85 + (meta.duration ? Math.min(1, sec / meta.duration) * 0.1 : 0),
+      `Adding ${list.length} text ${list.length === 1 ? 'overlay' : 'overlays'}`),
+  });
+  return out;
+}
+
 async function processOne(job) {
   const clips = (Array.isArray(job.clips) && job.clips.length) ? job.clips : [{ url: job.source_url }];
   // Indexed to match `clips`, with null where a source has gone from disk. An
@@ -768,8 +821,13 @@ async function processOne(job) {
         renderOps = { ...renderOps, trim: null };   // cuts already applied
       }
     }
-    const { outputPath, srtPath, durationS } = await render(
+    const rendered = await render(
       srcPath, renderOps, work, apiKey, job.client_id, {}, ctx);
+    const { srtPath, durationS } = rendered;
+    // Positioned text last: it goes over everything the edit produced.
+    const outputPath = Array.isArray(renderOps.overlays) && renderOps.overlays.length
+      ? await burnOverlays(rendered.outputPath, renderOps.overlays, work, ctx)
+      : rendered.outputPath;
 
     const outMeta = await probe(outputPath);
     const outBytes = fs.statSync(outputPath).size;

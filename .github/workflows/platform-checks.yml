@@ -215,6 +215,11 @@ jobs:
         run: node tests/edit-route-edl.test.js
       - name: Guard — render progress, Stop, and queue concurrency
         run: node tests/edit-queue.test.js
+      - name: Guard — positioned text burns where and when it was asked for
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the overlay render assertions would silently skip'; exit 1; }
+          node --test-timeout=300000 tests/overlays.test.js
       - name: Guard — a cross-fade lands where the timeline drew it
         run: |
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \

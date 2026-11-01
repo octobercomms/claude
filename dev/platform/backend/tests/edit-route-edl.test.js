@@ -98,3 +98,74 @@ test('both the create and the reopen route validate the edit', () => {
   assert.equal(calls.length, 2,
     'an edit that could not be created must not be reachable by reopening a job');
 });
+
+// ---- positioned text ---------------------------------------------------
+
+function loadOverlayValidator() {
+  const start = src.indexOf('const MAX_OVERLAYS_IN');
+  const end = src.indexOf('// Several clips →');
+  assert.ok(start > 0 && end > start, 'the overlay validator must still be there to test');
+  // eslint-disable-next-line no-new-func
+  return new Function(`${src.slice(start, end)}; return { overlayProblem, MAX_OVERLAYS_IN, MAX_OVERLAY_TEXT };`)();
+}
+const OV = loadOverlayValidator();
+const text = (over = {}) => ({ text: 'Hook', from: 0, to: 3, ...over });
+
+test('no overlays is not a problem', () => {
+  assert.equal(OV.overlayProblem(null), null);
+  assert.equal(OV.overlayProblem(undefined), null);
+  assert.equal(OV.overlayProblem([]), null);
+});
+
+test('a plain set of overlays passes', () => {
+  assert.equal(OV.overlayProblem([text(), text({ from: 4, to: 6 })]), null);
+  assert.equal(OV.overlayProblem([text({ from: null, to: null })]), null,
+    'missing times are filled in later, not refused here');
+});
+
+test('the overlay count and text length are capped', () => {
+  const many = Array.from({ length: OV.MAX_OVERLAYS_IN + 1 }, () => text());
+  assert.match(OV.overlayProblem(many), new RegExp(String(OV.MAX_OVERLAYS_IN)));
+  assert.equal(OV.overlayProblem(Array.from({ length: OV.MAX_OVERLAYS_IN }, () => text())), null);
+  assert.ok(OV.overlayProblem([text({ text: 'x'.repeat(OV.MAX_OVERLAY_TEXT + 1) })]));
+  assert.equal(OV.overlayProblem([text({ text: 'x'.repeat(OV.MAX_OVERLAY_TEXT) })]), null);
+});
+
+test('an overlay with no text, or a malformed one, is refused', () => {
+  assert.ok(OV.overlayProblem([{ from: 0, to: 2 }]));
+  assert.ok(OV.overlayProblem([{ text: 42, from: 0, to: 2 }]));
+  assert.ok(OV.overlayProblem([null]));
+  assert.ok(OV.overlayProblem(['Hook']));
+  assert.ok(OV.overlayProblem('Hook'));
+  assert.ok(OV.overlayProblem({ text: 'Hook' }), 'a single object is not a list');
+});
+
+test('an invalid time is refused', () => {
+  assert.ok(OV.overlayProblem([text({ from: NaN })]));
+  assert.ok(OV.overlayProblem([text({ to: Infinity })]));
+  assert.ok(OV.overlayProblem([text({ from: -1 })]));
+  assert.ok(OV.overlayProblem([text({ from: 'soon' })]));
+});
+
+test('the route does not sanitise the text, because the ASS builder does', () => {
+  // Escaping here as well would replace the operator's braces in the database
+  // and not only on screen. One place owns it: shared/overlays.mjs.
+  assert.equal(OV.overlayProblem([text({ text: 'Hook {\\pos(0,0)}' })]), null);
+  assert.doesNotMatch(src.slice(src.indexOf('function overlayProblem')), /replace\(/,
+    'the validator must bound the text, not rewrite it');
+});
+
+test('text alone counts as an edit', () => {
+  // Without this, adding only an overlay comes back "pick at least one edit"
+  // while the text is plainly on the timeline.
+  assert.match(src, /const hasOverlays = Array\.isArray\(ops\.overlays\)/);
+  const gate = src.slice(src.indexOf('const hasOverlays'), src.indexOf('const edlErr'));
+  assert.match(gate, /o\.text\.trim\(\)/, 'an overlay of only spaces is not an edit');
+  assert.match(gate, /\|\| hasOverlays \|\|/);
+});
+
+test('both the create and the reopen route bound the overlays', () => {
+  const calls = src.match(/overlayProblem\(ops\.overlays\)/g) || [];
+  assert.equal(calls.length, 2,
+    'an edit that could not be created must not be reachable by reopening a job');
+});
