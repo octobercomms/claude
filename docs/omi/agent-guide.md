@@ -2264,6 +2264,48 @@ apart, so an ascending first-match loop turns every 30fps clip into 29.97.
 
 ---
 
+### Verifying a fix: four ways this went wrong on 1 November
+
+**A commit is not a screen.** Three items in the 31 October audit were marked
+delivered on the strength of a commit touching the right file, and the
+account lead found all three still broken on the page (the Database
+Publications layout, the SOSTAC how-to, the Campaigns boxes). Where an item
+is about what a screen looks like, the only evidence is the screen. Drive it
+or ask for a screenshot; do not read a diff and tick.
+
+**A feature built for Paid and "done for Shared too" is probably half done.**
+Twice in one morning: the client-visibility tick and the Instagram account
+selection. In both cases the half that shipped was the half visible on the
+account manager's own screen, and the half that did not was the half only
+the client or the data sees. When porting a Paid feature to Shared, check
+the column, the route, the filter AND the gate, not the control.
+
+**A test stub written from your assumption tests your assumption.** The
+audit page's marks vanished on every load because the `db` `onSnapshot`
+callback is handed a QuerySnapshot whose documents are on `.docs`, and the
+code iterated the snapshot itself. The stub passed an array, so it agreed
+with the bug. **Build a stub from the type definitions or the real response,
+never from memory**, and prove it by reverting the fix and watching the test
+fail.
+
+**Mutation-test the assertion, not just the code.** One guard used a match
+window wide enough to span the next function, so it passed while the thing
+it guarded was reverted. A guard that cannot fail is worse than no guard,
+because it is believed.
+
+### Auto-merge lands in one to three minutes
+
+`auto-merge-claude.yml` merges as soon as CI is green, so a second commit
+pushed to the same branch minutes after the first silently misses the PR and
+needs its own. This happened twice in one session, once leaving a merged
+PR's description describing a fix it did not contain.
+
+**One fix, one PR, and re-branch from `origin/main` before starting the
+next.** Check the PR state before pushing a follow-up, and if a description
+already merged is wrong, correct it with a note rather than quietly.
+
+---
+
 ## 8. Working conventions
 
 - **Keep this guide true. Do it as part of every change, before you open the
