@@ -219,6 +219,8 @@ jobs:
         run: node tests/earned-results-tiles.test.js
       - name: Guard — a 500-row delete has to be typed, and deletes only those
         run: node tests/publications-panel.test.js
+      - name: Guard — SOSTAC guidance exists untailored and names real screens
+        run: node tests/sostac-how.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist
