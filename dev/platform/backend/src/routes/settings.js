@@ -627,6 +627,17 @@ router.get('/usage/cost-log', async (req, res) => {
 // Spend controls — the monthly hard cap + daily alert threshold, plus the live
 // month-to-date total so the operator can set the cap safely (a cap below the
 // current MTD pauses AI immediately, so we show MTD next to the field).
+// What prompt caching is actually doing, per feature.
+//
+// Anthropic's console estimates a saving; this says where it is. Three
+// states, each needing a different fix: working (leave it), wasting (paying
+// the 25% write premium and never reading it back, which is worse than not
+// caching at all), and uncached.
+router.get('/usage/cache', async (req, res) => {
+  try { res.json(await require('../services/cacheReport').cacheReport({ days: req.query.days })); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/usage/spend-controls', async (req, res) => {
   // Never 500 the whole panel over one failing read — each field is computed
   // independently and falls back, so the AM can always open the panel and set

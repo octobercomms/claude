@@ -32,6 +32,7 @@ import ReportsPage from './ReportsPage';
 import CheckerBenchPage from './CheckerBenchPage';
 import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
 import RecordTools, { ToolRow } from '../components/database/RecordTools';
+import StatStrip from '../components/shells/StatStrip';
 import DangerConfirm from '../components/ui/DangerConfirm';
 
 // The page's own list of settings screen keys, per section.
@@ -323,6 +324,7 @@ export default function SettingsPage() {
       <SpendControlsPanel />
       <TaskBudgetsPanel />
       <KeywordSpendPanel />
+      <PromptCachePanel />
       <CostLogPanel />
       </>)}
       {tab === 'praddon' && <PrAddonPanel />}
@@ -1093,6 +1095,111 @@ function MField({ label, children, full }) { return <label className="field" sty
 
 // PR Gmail add-on — surfaces the API base URL + shared key to paste into the
 // Google Apps Script add-on's config, with a Regenerate (rotate) button.
+// What prompt caching is doing, per feature.
+//
+// Anthropic's console estimates a saving; this says where it is, from OMI's
+// own cost log, which already stores every call's usage payload including the
+// cache fields. Three states, because each needs the opposite fix:
+//
+//   working   writing and reading back. Leave it.
+//   wasting   writing and never reading it. WORSE than not caching: a 25%
+//             premium on every call that nobody collects. Usually a prompt
+//             that varies per call, or calls spaced wider than the 5-minute
+//             window.
+//   uncached  no caching at all. The opportunity, if the prefix is stable
+//             and over the 1,024-token minimum.
+function PromptCachePanel() {
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    setData(null); setErr(null);
+    api.get(`/settings/usage/cache?days=${days}`).then(setData).catch(e => setErr(e.message));
+  }, [days]);
+
+  const tok = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}m` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n || 0));
+  const usd = (n) => `${n < 0 ? '-' : ''}$${Math.abs(n).toFixed(2)}`;
+  const TONE = {
+    working: { label: 'Working', cls: 'chip-success' },
+    wasting: { label: 'Wasting', style: { background: 'var(--negative-soft)', color: 'var(--negative)' } },
+    uncached: { label: 'Not cached', style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+    quiet: { label: 'Too quiet to say', style: { background: '#eee', color: 'var(--text-subtle)' } },
+  };
+
+  return (
+    <Card style={{ marginBottom: 'var(--s4)' }}>
+      <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
+        <div>
+          <CardTitle>Prompt caching</CardTitle>
+          <p className="body-sm text-muted" style={{ maxWidth: 680, lineHeight: 1.5 }}>
+            Repeated input can be cached and re-sent at a tenth of the price. Writing to the
+            cache costs a quarter more than not caching, so a feature that writes and never
+            reads is paying a premium nobody collects. Measured from OMI&apos;s own cost log.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+          {[7, 30, 90].map(d => (
+            <button key={d} type="button" onClick={() => setDays(d)}
+              className={`tab ${days === d ? 'active' : ''}`}>{d}d</button>
+          ))}
+        </div>
+      </div>
+
+      {err && <div className="body-sm" style={{ color: 'var(--negative)' }}>{err}</div>}
+      {!data && !err && <p className="body-sm text-muted">Loading…</p>}
+
+      {data && (data.totals.calls === 0 ? (
+        <p className="body-sm text-subtle" style={{ marginTop: 'var(--s3)' }}>
+          No Claude calls logged in the last {data.window_days} days.
+        </p>
+      ) : (<>
+        <div style={{ marginTop: 'var(--s4)' }}>
+          <StatStrip items={[
+            { label: 'of input served from cache', value: `${data.totals.hit_rate}%`,
+              accent: true, sub: `${tok(data.totals.read_tokens)} tokens` },
+            { label: 'net saved by caching', value: usd(data.totals.saved_usd),
+              sub: data.totals.saved_usd < 0 ? 'the writes cost more than the reads saved' : 'reads, less the write premium' },
+            { label: 'spent on Claude', value: usd(data.totals.spent_usd), sub: `${data.totals.calls.toLocaleString()} calls` },
+            { label: 'sent uncached', value: tok(data.totals.plain_tokens), sub: 'input tokens with no caching at all' },
+          ]} />
+        </div>
+
+        <div style={{ overflowX: 'auto', marginTop: 'var(--s4)' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Feature</th><th></th><th className="num">Calls</th>
+                <th className="num">From cache</th><th className="num">Written</th>
+                <th className="num">Uncached</th><th className="num">Hit</th>
+                <th className="num">Saved</th><th className="num">Spent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.features.map(f => {
+                const t = TONE[f.state] || TONE.quiet;
+                return (
+                  <tr key={f.feature}>
+                    <td className="strong">{f.feature}</td>
+                    <td><span className={`chip ${t.cls || ''}`} style={t.style}>{t.label}</span></td>
+                    <td className="num">{f.calls.toLocaleString()}</td>
+                    <td className="num">{tok(f.read_tokens)}</td>
+                    <td className="num">{tok(f.write_tokens)}</td>
+                    <td className="num">{tok(f.plain_tokens)}</td>
+                    <td className="num">{f.hit_rate}%</td>
+                    <td className="num" style={{ color: f.saved_usd < 0 ? 'var(--negative)' : undefined }}>{usd(f.saved_usd)}</td>
+                    <td className="num">{usd(f.spent_usd)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>))}
+    </Card>
+  );
+}
+
 function PrAddonPanel() {
   const { readOnly } = useAuth();
   const [key, setKey] = useState(null);
