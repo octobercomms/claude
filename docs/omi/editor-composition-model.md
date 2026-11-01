@@ -1,6 +1,21 @@
 # One editor: the composition model
 
-**Status:** design, agreed 1 November 2026. Supersedes
+> **PARKED, 1 November 2026, the same evening this was agreed. Nothing here
+> is being built. Do not start step 1.**
+>
+> Asked to weigh the editor against Phase 3, the per-client GTM Brain, Daniel
+> chose the GTM Brain. The editor is 25 to 35 sessions and the GTM Brain has
+> been the stated remaining prize since the agent guide was written, so the
+> two were competing for the same month and had never been put side by side.
+>
+> The design below is not withdrawn and nothing in it is known to be wrong.
+> It is waiting. If it is picked up again, start at **Build order** and read
+> **The mapping** first, which is still the part most likely to kill it.
+>
+> The practical consequence, from the deal below: Daniel uses CapCut for
+> reels until this is built, and that is a cost he accepted knowingly.
+
+**Status:** design, agreed 1 November 2026 and parked the same day. Supersedes
 `editor-replaces-basic-editing.md`, which was an increment plan and is the
 wrong plan.
 
