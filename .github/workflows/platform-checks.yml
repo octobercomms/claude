@@ -263,6 +263,8 @@ jobs:
         run: node tests/library-upload.test.js
       - name: Guard — a finished design is filed, and knows its set
         run: node tests/design-render-filed.test.js
+      - name: Guard — PR 5 of the review plan, a boosted block can be set and heard
+        run: node tests/pr5-preview-fidelity.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist

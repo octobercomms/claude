@@ -3568,3 +3568,17 @@ pattern before the zero-length check runs; `base64,=` is the input that
 reaches it). The other answered 400 either way, from a validation message in
 one case and a thrown `path.join(root, null)` in the other — so the assertion
 now reads the message, not just the code.
+
+### The mutation harness has to back up everything the mutation touches
+
+The PR 5 run mutated `shared/edl.mjs` and `shared/edlPlay.mjs` with a harness
+whose backup covered `frontend/src` and `backend/src` only. `restore` quietly
+did nothing for those files, so four mutations **accumulated** instead of
+reverting: by the fourth, the file under test held three earlier faults as
+well, and "caught" no longer said which one did it. Re-run with `shared/` in
+the backup, all four were genuinely caught — but the first run's results were
+worthless, and the repo was left holding a renamed export and two deleted
+guard clauses until `grep` found them.
+
+If a harness mutates a path, that path goes in the backup. Check what the
+tree holds after a run, not only what the run printed.

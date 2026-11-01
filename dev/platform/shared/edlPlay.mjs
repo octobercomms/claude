@@ -304,6 +304,49 @@ export function volumeFor(gain) {
 }
 
 /**
+ * What to set, once a block's gain can actually be applied.
+ *
+ * `volumeFor` answers the question an HTML element can answer: its `volume`
+ * is clamped to 1 by the spec, so a block boosted to 160% played at 100% and
+ * the player said so. Exceeding 1 means routing the element through a
+ * WebAudio gain node, and then there are two knobs rather than one.
+ *
+ * The element's own `volume` is applied *before* the graph taps its output,
+ * so the two multiply. Leaving `volume` at 1 and putting the whole gain on
+ * the node keeps one place to reason about; a cross-fade scales the node, not
+ * the element, for the same reason.
+ *
+ * Without a graph this degrades to exactly what `volumeFor` gave: the gain is
+ * capped at 1 and `needsAudioGraph` stays true so the interface can keep
+ * saying the preview is quieter than the render.
+ */
+export function levelFor(gain, { graph = false, blend = 1 } = {}) {
+  const v = volumeFor(gain);
+  // `num(null, 1)` is 0, not 1: Number(null) is 0 and 0 is finite, so the
+  // fallback never fires. A caller passing blend: null — which is what an
+  // absent value from a saved EDL looks like — would silence the block.
+  // `num(null, 1)` is 0, not 1: Number(null) is 0 and 0 is finite, so the
+  // fallback never fires. A caller passing blend: null — which is what an
+  // absent value from a saved EDL looks like — would silence the block.
+  const b = blend == null ? 1 : Math.min(1, Math.max(0, num(blend, 1)));
+  if (!graph) {
+    return {
+      ...v,
+      volume: v.muted ? 0 : v.volume * b,
+      gainValue: null,
+      // Still true: this is the case the warning exists for.
+      capped: v.needsAudioGraph,
+    };
+  }
+  return {
+    ...v,
+    volume: 1,
+    gainValue: v.muted ? 0 : v.gain * b,
+    capped: false,
+  };
+}
+
+/**
  * A frame rate from two frames the browser says it presented.
  *
  * `requestVideoFrameCallback` hands back `mediaTime` and `presentedFrames`
