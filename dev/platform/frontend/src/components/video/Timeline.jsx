@@ -4,6 +4,7 @@ import { roWrite } from '../../utils/readOnly';
 import { useFilmstrips, thumbsForBlock, THUMB_HEIGHT } from '../../utils/filmstrip';
 import { useWaveforms } from '../../utils/waveform';
 import { peaksForBlock, peaksPath } from '../../utils/waveformPeaks';
+import * as OV from '@shared/overlays.mjs';
 
 /**
  * The timeline surface: the edit, drawn, and editable by dragging it.
@@ -92,6 +93,8 @@ export default function Timeline({
   clips = [],
   edl,
   onChange,
+  overlays = [],
+  onOverlaysChange = null,
   playhead = 0,
   onSeek,
   selectedId = null,
@@ -109,6 +112,12 @@ export default function Timeline({
   // scrubbing to find out where it landed. Extracted in the browser; see
   // utils/filmstrip.js for why not on the server.
   const strips = useFilmstrips(clips);
+
+  // Positioned text, normalised against the edit's real length so a band is
+  // never drawn for an overlay the render will not show.
+  const [pickedOverlay, setPickedOverlay] = useState(null);
+  const liveOverlays = useMemo(
+    () => OV.normaliseOverlays(overlays, EDL.duration(edl)), [overlays, edl]);
 
   // Audio peaks under each block. You cut on speech, so without this a trim
   // lands in the middle of a word and you find out on playback.
@@ -338,7 +347,7 @@ export default function Timeline({
             position: 'relative',
             width: Math.max(laneWidth, xOf(drawnTotal) + 12),
             minWidth: '100%',
-            height: RULER_H + height + 10,
+            height: RULER_H + height + (liveOverlays.length ? 24 : 10),
             outlineOffset: -2,
           }}
         >
@@ -529,6 +538,31 @@ export default function Timeline({
             );
           })}
 
+          {/* Positioned text, as a band under the blocks: a line that
+              appears at 00:03 is only placeable if you can see what is on
+              screen at 00:03. Times are timeline times, so the band sits
+              against the footage it will actually cover. */}
+          {liveOverlays.map((o, i) => {
+            const left = xOf(o.from);
+            const w = Math.max(3, xOf(o.to - o.from));
+            return (
+              <div key={o.id || i}
+                title={`"${o.text}" · ${stamp(o.from)} to ${stamp(o.to)}`}
+                onPointerDown={(e) => { e.stopPropagation(); setPickedOverlay(o.id); }}
+                style={{
+                  position: 'absolute', left, width: w,
+                  top: RULER_H + height + 6, height: 12,
+                  background: pickedOverlay === o.id ? 'var(--accent)' : 'var(--accent-soft)',
+                  border: `1px solid var(--accent)`,
+                  borderRadius: 'var(--r-sm)',
+                  cursor: readOnly ? 'default' : 'pointer',
+                  overflow: 'hidden', whiteSpace: 'nowrap',
+                  fontSize: 9, lineHeight: '10px', padding: '0 3px',
+                  color: pickedOverlay === o.id ? 'var(--accent-on)' : 'var(--text)',
+                }}>{o.text}</div>
+            );
+          })}
+
           {/* Playhead, above the blocks and never interactive: it is drawn
               state, and clicking it would steal the drag from the block. */}
           <div style={{
@@ -594,6 +628,110 @@ export default function Timeline({
           </div>
         );
       })()}
+
+      {/* The text itself. Times are timeline times, positions are fractions of
+          the frame, so the same overlay is in the same place whether the edit
+          renders 9:16, 1:1 or 4:5. */}
+      {onOverlaysChange && !readOnly && (
+        <div style={{ marginTop: 'var(--s3)' }}>
+          <div className="row between center wrap" style={{ gap: 'var(--s2)' }}>
+            <span className="caption">Text on screen</span>
+            <button type="button" className="btn-chip" style={{ fontSize: 'var(--fs-caption)' }}
+              onClick={() => {
+                const total = EDL.duration(edl) || 5;
+                const from = Math.min(playhead, Math.max(0, total - 1));
+                onOverlaysChange([...(overlays || []), {
+                  id: `o${Date.now().toString(36)}`,
+                  text: 'New text',
+                  from, to: Math.min(total, from + 2),
+                  x: 0.5, y: 0.18, size: OV.DEFAULT_SIZE,
+                }]);
+              }}>+ Add text at the playhead</button>
+          </div>
+
+          {!(overlays || []).length && (
+            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+              Nothing on screen yet. Text added here appears and leaves at the times
+              you set, over whatever the edit shows then.
+            </div>
+          )}
+
+          {(overlays || []).map((o, i) => {
+            const total = EDL.duration(edl) || 0;
+            const patch = (fields) => onOverlaysChange(
+              (overlays || []).map((x, k) => (k === i ? { ...x, ...fields } : x)));
+            // What the renderer will make of this row, so the page shows the
+            // clamped values rather than the typed ones.
+            const asRendered = OV.normaliseOverlays([o], total)[0] || null;
+            return (
+              <div key={o.id || i} className="row center wrap"
+                style={{
+                  gap: 'var(--s2)', marginTop: 'var(--s2)', padding: 'var(--s2)',
+                  border: `var(--border-w) solid ${pickedOverlay === o.id ? 'var(--accent)' : 'var(--card-border)'}`,
+                  borderRadius: 'var(--r-sm)',
+                }}
+                onPointerDown={() => setPickedOverlay(o.id)}>
+                <input type="text" value={o.text || ''} maxLength={OV.MAX_TEXT}
+                  onChange={(e) => patch({ text: e.target.value })}
+                  placeholder="What it says"
+                  aria-label="Overlay text"
+                  style={{ flex: '1 1 160px', minWidth: 120 }} />
+                <label className="body-xs text-subtle">from
+                  <input type="number" min="0" max={total || undefined} step="0.1"
+                    value={Number(o.from) || 0}
+                    onChange={(e) => patch({ from: Number(e.target.value) })}
+                    aria-label="Appears at"
+                    style={{ width: 62, marginLeft: 4 }} />
+                </label>
+                <label className="body-xs text-subtle">to
+                  <input type="number" min="0" max={total || undefined} step="0.1"
+                    value={Number(o.to) || 0}
+                    onChange={(e) => patch({ to: Number(e.target.value) })}
+                    aria-label="Leaves at"
+                    style={{ width: 62, marginLeft: 4 }} />
+                </label>
+                <label className="body-xs text-subtle">across
+                  <input type="range" min="0" max="1" step="0.05"
+                    value={o.x == null ? 0.5 : o.x}
+                    onChange={(e) => patch({ x: Number(e.target.value) })}
+                    aria-label="Position across the frame"
+                    style={{ width: 70, marginLeft: 4 }} />
+                </label>
+                <label className="body-xs text-subtle">down
+                  <input type="range" min="0" max="1" step="0.05"
+                    value={o.y == null ? 0.18 : o.y}
+                    onChange={(e) => patch({ y: Number(e.target.value) })}
+                    aria-label="Position down the frame"
+                    style={{ width: 70, marginLeft: 4 }} />
+                </label>
+                <label className="body-xs text-subtle">size
+                  <input type="range" min={OV.MIN_SIZE} max={OV.MAX_SIZE} step="0.005"
+                    value={o.size == null ? OV.DEFAULT_SIZE : o.size}
+                    onChange={(e) => patch({ size: Number(e.target.value) })}
+                    aria-label="Text size"
+                    style={{ width: 70, marginLeft: 4 }} />
+                </label>
+                <button type="button" className="btn-chip"
+                  style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}
+                  onClick={() => onOverlaysChange((overlays || []).filter((x, k) => k !== i))}
+                  aria-label="Remove this text">Remove</button>
+                {/* When the typed window is not what will render, say so rather
+                    than silently showing one thing and rendering another. */}
+                {!asRendered ? (
+                  <span className="body-xs" style={{ color: 'var(--warning)', flexBasis: '100%' }}>
+                    This will not appear: it has no text, or its window is past the end of the edit.
+                  </span>
+                ) : (Math.abs(asRendered.from - (Number(o.from) || 0)) > 0.01
+                     || Math.abs(asRendered.to - (Number(o.to) || 0)) > 0.01) ? (
+                    <span className="body-xs text-subtle" style={{ flexBasis: '100%' }}>
+                      Will render {stamp(asRendered.from)} to {stamp(asRendered.to)}, clamped to the edit.
+                    </span>
+                  ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="row between center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
         <span className="body-xs text-subtle">

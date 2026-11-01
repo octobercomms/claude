@@ -2426,6 +2426,49 @@ Sample at least four columns across the frame when telling a wipe from a fade:
 two columns smear the whole width into both samples and a real wipe reads as a
 uniform blend.
 
+**Positioned text is in, built as ASS and burned with `subtitles=`**, the same
+filter the caption templates use, never `drawtext`. `shared/overlays.mjs` owns
+it. Four things:
+
+- **`escapeAss` is security, not formatting.** `{` opens an override block in
+  ASS, so `{\pos(0,0)}` typed into a text box would move the text and
+  `{\c&HFF&}` recolour it. Both braces are replaced and a backslash becomes a
+  forward slash. Never pass operator text into an ASS event without it, and
+  never add a second escaping layer elsewhere: the route deliberately bounds
+  the text without rewriting it, so the operator's braces are not replaced in
+  the database as well as on screen.
+- **An overlay is pinned to a TIME, not to a block**, so a reorder moves the
+  footage underneath it. Right for a hook line, wrong for a lower third.
+  That is a decision, not a bug.
+- **Positions and sizes are fractions of the frame**, so the same overlay
+  survives a reframe to 1:1 or 4:5.
+- **The burn is a second encode of the whole video.** Fine for a reel, real on
+  a long render. The fix is chaining two `subtitles=` filters inside
+  `captions.burn`, which nothing has needed yet.
+
+### A rule, not a story: every duration comparison wants an epsilon
+
+Three separate bugs in this work came from the same thing, and the next one
+will too unless this is a rule. `(5 + 0.05) - 5` is 0.049999999999999822 and
+`1.2 - 1` is 0.19999999999999996, so an exact `>=` against a minimum length
+rejects a value that is exactly that length, and rejects it in some places and
+not others depending on where in the clip it sits. The three:
+`atLeastMin()` in `shared/edl.mjs`, the waveform's own test assertions, and
+`shownLongEnough()` in `shared/overlays.mjs`. **Write the comparison as a named
+helper with an epsilon, export it, and use it in the tests as well as the
+module**, or the test will fail against correct code and you will "fix" the
+code.
+
+### A second rule: anything the stream-copy combine cannot do belongs in `isWholeClipsInOrder`
+
+Also three instances: gain (session one), cross-fades (session five), and text
+on screen (session six). Each time, an edit whose only change was that one
+thing read as "untouched", so it was never sent to the renderer and the output
+came back without it. The page showed the change; the video did not have it.
+When you add a field to the EDL or to `ops`, ask whether a stream-copy concat
+can honour it, and if it cannot, say so in that function **and** in the page's
+own `nothingChosen`.
+
 Still open: **2.2 the frame-accurate preview**, which waits on the
 capability probe at https://claude.ai/artifact/6NujtFbjeRAkpurKH619mU coming
 back from Daniel's real devices. If a plain seek already lands inside a frame
