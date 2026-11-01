@@ -207,6 +207,8 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the burn assertions would silently skip'; exit 1; }
           node tests/captions.test.js
+      - name: Guard — clicking a past brief goes somewhere
+        run: node tests/paid-past-briefs.test.js
       - name: Guard — the authority fill lands before the monthly reports
         run: node tests/month-end.test.js
       - name: Guard — a trending sound links to a page that opens

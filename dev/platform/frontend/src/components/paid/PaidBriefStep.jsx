@@ -12,13 +12,18 @@ import { roWrite } from '../../utils/readOnly';
 // entire job of this step, so it is what the step shows.
 //
 // Past briefs sit underneath: a record, not the main event.
-export default function PaidBriefStep({ pipeline, clientId, clientName, briefSeed }) {
+export default function PaidBriefStep({ pipeline, clientId, clientName, briefSeed, onOpenBatch }) {
   const {
     batches, realBatches, exampleBatch, ensuringExample, exampleError, ensureExample,
     activeBatchId, selectBatch, deleteBatch,
     assets, generate, generateMatrix, generating, loaded,
   } = pipeline;
   const { readOnly } = useAuth();
+
+  // Open a brief: select it, and go where the effect of selecting it shows.
+  // Falls back to selecting alone if no opener was passed, so the component
+  // still behaves if it is ever mounted somewhere with no step rail.
+  const open = (id) => (onOpenBatch ? onOpenBatch(id) : selectBatch(id));
 
   const onlyExample = loaded && !realBatches.length;
 
@@ -60,15 +65,20 @@ export default function PaidBriefStep({ pipeline, clientId, clientName, briefSee
         </p>
       )}
 
-      {/* Daniel: "The past briefs doesnt seem to do anything." It does —
-          clicking a card selects that batch, and every later step then runs
-          against it. Nothing said so, and only the already-selected card
-          carried a chip, so the one state you could see was the one you did
-          not need to be told about. */}
+      {/* "The past briefs doesnt seem to do anything", then, after a round
+          of explanatory copy, "i click it and nothing happens".
+          
+          Both true. Clicking selected the batch, and selecting changed only
+          what the LATER steps work on, so on the screen where the click
+          happened nothing moved except a border colour. The first fix added
+          a sentence explaining that, which explains a problem rather than
+          removing it. An action whose entire effect is on another screen
+          should take you to that screen, so a click now opens Draft with
+          that brief loaded. */}
       <div className="row between center" style={{ marginBottom: 'var(--s3)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div className="caption">Past briefs</div>
         {batches.length > 1 && (
-          <div className="body-xs text-subtle">Click one to work on it — Draft, Render and Launch all follow the selected brief.</div>
+          <div className="body-xs text-subtle">Click one to open it in Draft. Render and Launch follow it too.</div>
         )}
       </div>
 
@@ -100,14 +110,14 @@ export default function PaidBriefStep({ pipeline, clientId, clientName, briefSee
             return (
               <div key={b.id} className={`card brief-card${isActive ? ' is-active' : ''}`}
                 role="button" tabIndex={0}
-                title={isActive ? 'This is the brief the other steps are working on.' : 'Work on this brief'}
+                title={isActive ? 'Open this brief in Draft. It is the one the other steps are working on.' : 'Open this brief in Draft'}
                 style={{
                   padding: 'var(--s4)',
                   background: isActive ? 'var(--accent-soft)' : 'var(--surface)',
                   borderColor: isActive || isExample ? 'var(--accent)' : 'var(--card-border)',
                 }}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBatch(b.id); } }}
-                onClick={() => selectBatch(b.id)}>
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(b.id); } }}
+                onClick={() => open(b.id)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
                   <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                     {isExample && <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Example</span>}

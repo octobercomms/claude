@@ -51,7 +51,12 @@ export default function PaidPipelinePanel({ clientId, clientName, step, steps, m
       case 'brief':
       default:
         return <PaidBriefStep pipeline={pipeline} clientId={clientId} clientName={clientName}
-          briefSeed={briefSeed} />;
+          briefSeed={briefSeed}
+          // Clicking a past brief selects it AND opens Draft. Selecting alone
+          // changed only the other steps, so on the screen where you clicked
+          // it nothing moved: "i click it and nothing happens." An action
+          // whose whole effect is somewhere else needs to take you there.
+          onOpenBatch={(id) => { pipeline.selectBatch(id); go('concepts'); }} />;
     }
   })();
 
