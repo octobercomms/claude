@@ -592,7 +592,24 @@ cron.schedule('30 2 * * *', async () => {
 // With nothing left to type there is nothing to remind anyone about.
 //
 // Paced for the free Moz tier, so twelve clients take about two minutes.
-cron.schedule('0 7 1 * *', async () => {
+//
+// On the LAST evening of the month, not the morning of the 1st.
+//
+// It used to run at 07:00 on the 1st, one hour before the monthly reports go
+// out at 08:00. That worked, and worked only by an hour of margin between two
+// crons that know nothing about each other. Moz being slow, a rate limit, or
+// a failure that morning would send every client's report with last month's
+// domain authority and nobody would be told. Daniel, on the Authority
+// screen: "does this fetch each month on the last day, ready for the report
+// on the 1st? Can it." It can, and this is it.
+//
+// node-cron has no `L`, so it fires on each day that could be the last one
+// and leaves unless tomorrow is the 1st. The check reads the date in
+// PLATFORM_TZ rather than the server's own, because the cron fires on London
+// time and a server on UTC is a different date for an hour of the year.
+const { lastDayOfMonth } = require('../utils/monthEnd');
+cron.schedule('0 22 28-31 * *', async () => {
+  if (!lastDayOfMonth(PLATFORM_TZ)) return;
   console.log('[Scheduler] Filling SEO authority metrics for the month…');
   try {
     const r = await require('./seoAuthority').fillAllClients();
