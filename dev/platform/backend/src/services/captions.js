@@ -166,6 +166,13 @@ async function previewFrame({ words, templateId, kit, formatId = 'vertical', sou
   // screen at t=0 of the ASS rather than at the moment asked for — which made
   // every preview show the same frame, usually an empty one. Output seeking is
   // slower, and on a four-second sample that costs nothing worth having.
+  // On why there is no transparent variant of this, which was tried on
+  // 1 November so the editor could lay the captions over its own preview:
+  // ffmpeg's `subtitles` filter draws libass output into the colour planes
+  // and leaves alpha alone. Over a `color=black@0.0` ground, measured across
+  // rgba, yuva420p and yuva444p, every pixel of the result came back at
+  // alpha 0 — a file with the type in its RGB and nothing to show it
+  // through. An overlay nobody can see is worse than no overlay.
   const input = source
     ? ['-i', source, '-ss', String(seek)]
     : ['-f', 'lavfi', '-i', `color=c=0x101010:s=${format.width}x${format.height}:d=${seek + 1}:r=25`,

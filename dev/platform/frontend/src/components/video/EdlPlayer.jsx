@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as PLAY from '../../../../shared/edlPlay.mjs';
+import * as GAIN from './audioGain';
 
 /**
  * Playing the edit, not the clip.
@@ -29,6 +30,13 @@ import * as PLAY from '../../../../shared/edlPlay.mjs';
  * and a 2.5-second keyframe interval. The premise for decoding frames by
  * hand — that an element seeks to keyframes — did not hold. `driftFrames`
  * keeps the question open at runtime for browsers where it might.
+ *
+ * Audio above 100% goes through a WebAudio gain node, built only when a block
+ * asks for it and only from inside the play gesture. `audioGain.js` has the
+ * three ways that can lose all the sound and what is done about each; the
+ * player's part is that `graph` is a fact it checks rather than assumes, so a
+ * browser that will not route still gets the capped preview and the line
+ * saying the render will be louder.
  */
 
 const BLACK = '#000';
@@ -64,6 +72,10 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
   const [drift, setDrift] = useState(null);        // frames between asked-for and shown
   const [approx, setApprox] = useState(false);     // no frame callback in this browser
   const [boosted, setBoosted] = useState(false);   // a block louder than volume can show
+  // Whether the gain graph is actually running. Not whether we tried: a
+  // suspended context or a CORS-tainted element both leave this false, and
+  // the warning stays up, which is the honest answer.
+  const [graph, setGraph] = useState(false);
   // The shape of the footage itself, used when no output aspect is chosen.
   // Without it a vertical reel previews inside a letterboxed 16:9 box, which
   // is most of the picture missing to make room for black.
@@ -76,6 +88,8 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
   const m = useRef({
     playhead: 0, edl: null, clips: [], playing: false,
     active: 'a', loadedInto: { a: null, b: null }, sparePlaying: false,
+    // Read by the frame loop, so it lives here as well as in state.
+    graph: false,
     fps: new Map(), samples: new Map(), seeking: false,
     // The last frame each element reported painting, and the animation frame
     // driving the machine. These are separate on purpose: see `loop`.
@@ -100,9 +114,10 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
       node.load();
       m.current.loadedInto[key] = cue.clip;
     }
-    const v = PLAY.volumeFor(cue.gain);
+    const v = PLAY.levelFor(cue.gain, { graph: m.current.graph });
     node.muted = v.muted;
     node.volume = v.volume;
+    if (v.gainValue != null) GAIN.setGain(node, v.gainValue);
     if (Math.abs(node.currentTime - cue.sourceTime) > 0.001) {
       node.currentTime = Math.max(0, cue.sourceTime);
       // What the element last reported painting described where it was. Held
@@ -165,12 +180,21 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
         }
       }
       if (scene.incoming) {
-        const outV = PLAY.volumeFor(scene.main.gain);
-        const inV = PLAY.volumeFor(scene.incoming.gain);
+        const outV = PLAY.levelFor(scene.main.gain, { graph: st.graph, blend: 1 - scene.blend });
+        const inV = PLAY.levelFor(scene.incoming.gain, { graph: st.graph, blend: scene.blend });
         const outNode = el(st.active);
         const inNode = el(st.active === 'a' ? 'b' : 'a');
-        if (outNode && !outNode.muted) outNode.volume = outV.volume * (1 - scene.blend);
-        if (inNode && !inNode.muted) inNode.volume = inV.volume * scene.blend;
+        // With a graph the ramp runs on the node, because the element's own
+        // volume is capped at 1 and a boosted block fading out from 160%
+        // would otherwise sit at 100% for the first third of the fade.
+        if (outNode && !outNode.muted) {
+          outNode.volume = outV.volume;
+          if (outV.gainValue != null) GAIN.setGain(outNode, outV.gainValue);
+        }
+        if (inNode && !inNode.muted) {
+          inNode.volume = inV.volume;
+          if (inV.gainValue != null) GAIN.setGain(inNode, inV.gainValue);
+        }
       }
     }
 
@@ -212,9 +236,10 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
     const node = el(spare);
     if (node && st.loadedInto[spare] !== nextCue.clip) place(spare, nextCue);
     if (node) {
-      const v = PLAY.volumeFor(nextCue.gain);
+      const v = PLAY.levelFor(nextCue.gain, { graph: st.graph });
       node.muted = v.muted;
       node.volume = v.volume;
+      if (v.gainValue != null) GAIN.setGain(node, v.gainValue);
       node.play().catch(() => {});
     }
     const oldNode = el(old);
@@ -307,6 +332,30 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
     if (settled) { node.currentTime = Math.max(0, settled.sourceTime); st.latest[st.active] = null; }
   }, [el, fpsOf, onSeek]);
 
+  // Build the gain graph, if this edit needs one and the browser will.
+  //
+  // Called from the play gesture and nowhere else. `createMediaElementSource`
+  // is irreversible and a suspended context is silent, so an edit with no
+  // boosted block is never routed at all: there is nothing to gain and a way
+  // to lose the audio.
+  const wireGain = useCallback(async () => {
+    const st = m.current;
+    if (st.graph) return true;
+    if (!PLAY.rows(st.edl).some((r) => PLAY.volumeFor(r.gain).needsAudioGraph)) return false;
+    if (!(await GAIN.wake())) return false;
+    const a = el('a');
+    const b = el('b');
+    const okA = !!GAIN.gainNodeFor(a);
+    const okB = !!GAIN.gainNodeFor(b);
+    // Both or neither. One routed element and one not means a cut swaps
+    // between two different audio paths, and the one that is not routed
+    // cannot go above 100% anyway.
+    if (!okA || !okB) return false;
+    st.graph = true;
+    setGraph(true);
+    return true;
+  }, [el]);
+
   const start = useCallback(() => {
     const st = m.current;
     if (!PLAY.total(st.edl)) return;
@@ -324,12 +373,21 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
     st.playing = true;
     setPlaying(true);
     node.play().catch(() => { stop(); });
+    // After play(), not before: awaiting the context first would put the
+    // element's own play() outside the gesture and some browsers refuse it.
+    // The level is re-applied once the graph is up, because `place` ran while
+    // st.graph was still false.
+    wireGain().then((up) => {
+      if (!up) return;
+      const cue2 = PLAY.cueAt(m.current.edl, m.current.playhead);
+      if (cue2) place(m.current.active, cue2);
+    });
     attach('a'); attach('b');
     if (st.raf) cancelAnimationFrame(st.raf);
     st.raf = requestAnimationFrame(loop);
     const pre = PLAY.prerollAt(st.edl, st.playhead);
     if (pre) place(st.active === 'a' ? 'b' : 'a', pre.cue);
-  }, [attach, el, place, onSeek, stop, loop]);
+  }, [attach, el, place, onSeek, stop, loop, wireGain]);
 
   const step = useCallback((dir) => {
     const st = m.current;
@@ -369,8 +427,11 @@ const EdlPlayer = React.forwardRef(function EdlPlayer({
       setBlend(scene.drawable ? scene.blend : (scene.blend >= 0.5 ? 1 : 0));
       if (scene.incoming) place(st.active === 'a' ? 'b' : 'a', scene.incoming);
     }
-    setBoosted(PLAY.volumeFor(cue.gain).needsAudioGraph);
-  }, [playhead, edl, place]);
+    // The warning is about being capped, not about being boosted: with the
+    // graph running, a boosted block plays at its gain and there is nothing
+    // to warn about.
+    setBoosted(PLAY.levelFor(cue.gain, { graph }).capped);
+  }, [playhead, edl, place, graph]);
 
   // Stop when the edit or the clips change under us: the element would
   // otherwise keep playing a block that no longer exists.

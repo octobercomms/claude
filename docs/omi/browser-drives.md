@@ -48,6 +48,7 @@ because they exist to verify one change set end to end:
 | `drive-pr2.mjs` | the nav session: Make, Email as a section, Improve inside Learn, Models under Costs, the tools kebab in the page header | 27 |
 | `drive-pr3.mjs` | every maintenance job on one tab, the pointers left behind, Add publication and its duplicate check | 25 |
 | `drive-pr4.mjs` | the multi-clip drop target (one file to the editor, several to the library), a named rejection, a filed design's link back to its set | 18 |
+| `drive-pr5.mjs` | the three browser facts the audio gain graph rests on, measured rather than assumed | 9 |
 
 Keep running them. Each one is a regression check on a change that reached
 production, and PR 2 re-ran PR 1's before pushing. They are cheap: all three
@@ -68,6 +69,10 @@ screen, or on a sequence of clicks:
 
 Two traps that have cost this project time:
 
+- **`indexOf` returns -1, and -1 is less than everything.** An ordering
+  assertion (`a.indexOf(x) < a.indexOf(y)`) passes when `x` is missing
+  entirely. Check both are present first. This showed up three times in one
+  day, in three different guards.
 - **A locator or an indexOf on an element name matches a longer name too.**
   `makeAReel.indexOf('<ClipDrop')` still finds `<ClipDropX`, so a rename slips
   straight past it. Pin the attribute: `<ClipDrop clientId=`.

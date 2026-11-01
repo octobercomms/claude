@@ -539,6 +539,9 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                   <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4, lineHeight: 1.4 }}>
                     The template sets the type, the size and where it sits, and takes this
                     client&rsquo;s brand colours where they are readable over footage.
+                    {' '}The swatch in the picker is what it looks like. It is not drawn over
+                    the preview above, so render a test clip if you need to see what it
+                    covers.
                   </div>
                 )}
               </div>

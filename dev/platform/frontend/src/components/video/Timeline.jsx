@@ -629,6 +629,44 @@ export default function Timeline({
         );
       })()}
 
+      {/* One block's volume.
+          
+          The model has carried `gain` since the EDL was written, the renderer
+          applies it, and nothing ever set it — so a quiet piece to camera
+          could be boosted only by hand-editing a saved EDL, and the player's
+          "this block is boosted above 100%" line described a state nothing
+          could produce.
+          
+          Per block, not per edit, because the case it is for is one clip
+          recorded quieter than the rest. 0 to 200% on the slider: the model
+          allows 4 and a boost past 2 on speech is distortion rather than
+          volume. */}
+      {selected && !readOnly && (() => {
+        const g = EDL.gainOf(selected.item);
+        return (
+          <div className="row center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
+            <span className="caption">Volume</span>
+            <input type="range" min="0" max="2" step="0.05" value={Math.min(2, g)}
+              onChange={(e) => commit(EDL.setGain(edl, selected.item.id, Number(e.target.value)))}
+              style={{ width: 130 }} aria-label="Block volume" />
+            <span className="body-xs" style={{ fontVariantNumeric: 'tabular-nums', minWidth: 42 }}>
+              {g === 0 ? 'Silent' : `${Math.round(g * 100)}%`}
+            </span>
+            {g !== 1 && (
+              <button type="button" className="btn-chip" style={{ fontSize: 'var(--fs-caption)' }}
+                onClick={() => commit(EDL.setGain(edl, selected.item.id, 1))}>
+                Back to 100%
+              </button>
+            )}
+            {g > 1 && (
+              <span className="body-xs text-subtle">
+                Louder than the source. Check it against the rest of the edit.
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
       {/* The text itself. Times are timeline times, positions are fractions of
           the frame, so the same overlay is in the same place whether the edit
           renders 9:16, 1:1 or 4:5. */}

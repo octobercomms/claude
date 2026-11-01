@@ -229,6 +229,34 @@ export function setTransition(edl, id, type, dur = DEFAULT_TRANS) {
   return replaceItems(edl, items);
 }
 
+/**
+ * Set one block's volume.
+ *
+ * The model has carried `gain` since the EDL was written, `normalise` clamps
+ * it to 0..4, and `editProcessor` applies it with ffmpeg's volume filter. No
+ * surface ever set it. So a feature that worked end to end could only be
+ * reached by hand-editing a saved EDL, and the preview's "this block is
+ * boosted above 100%" warning described a state nothing could produce.
+ *
+ * The clamp is here as well as in `normalise`, because this is the entry
+ * point a control calls and a value that is wrong should not travel as far as
+ * the next save to be corrected.
+ */
+export function setGain(edl, id, gain) {
+  const items = [...(edl?.items || [])];
+  const idx = items.findIndex((it) => it.id === id);
+  if (idx < 0) return edl;
+  const g = Math.min(4, Math.max(0, num(gain, 1)));
+  if (Math.abs(num(items[idx].gain, 1) - g) < 1e-9) return edl;
+  items[idx] = { ...items[idx], gain: g };
+  return replaceItems(edl, items);
+}
+
+/** One block's volume, as a number, whatever the saved row holds. */
+export function gainOf(item) {
+  return Math.min(4, Math.max(0, num(item?.gain, 1)));
+}
+
 export function itemDuration(item) {
   if (!item) return 0;
   if (item.out == null) return 0;

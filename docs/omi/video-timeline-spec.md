@@ -778,3 +778,70 @@ render will, and there is no audio gain node, so a block boosted above 100%
 plays at the volume cap and says so rather than sounding right.
 
 Everything else in sections 2.1 to 2.7 and the transitions line is built.
+
+### Session 8 · the gain that nothing could set, and a dead end
+
+**The audio gain node is built, and the control that makes it worth having.**
+
+The gap as session 7 left it was that "a block boosted above 100% plays at the
+volume cap and says so rather than sounding right". Looking at it again turned
+up something worse: **nothing in the interface could set a gain at all.** The
+EDL has carried `gain` since it was written, `normalise` clamps it to 0..4,
+and `editProcessor` applies it with ffmpeg's `volume` filter — and no surface
+ever wrote it. So the feature worked end to end and could only be reached by
+hand-editing a saved EDL, and the player's warning described a state nothing
+could produce.
+
+Both halves shipped together, because either alone is pointless:
+
+- `EDL.setGain` / `EDL.gainOf`, and a per-block volume slider on the selected
+  block in the timeline. Per block, not per edit: the case it is for is one
+  clip recorded quieter than the rest. 0 to 200%, although the model allows
+  400%, because a boost past 2 on speech is distortion rather than volume.
+- `components/video/audioGain.js` and `PLAY.levelFor`. An element's `volume`
+  is clamped to 1, so exceeding it means element → `MediaElementAudioSourceNode`
+  → `GainNode` → destination.
+
+Three browser facts the design rests on, each measured in `drive-pr5.mjs`
+rather than assumed:
+
+| fact | why it shapes the code |
+|---|---|
+| `createMediaElementSource` throws on a second call for the same element | the node is cached on the element, and a *failed* attempt is cached too, as `null` |
+| Setting `element.volume` above 1 **throws** in Chromium, it does not clamp | a gain put on the element would stop playback, not play quietly; `levelFor` keeps the element at 1 and the gain on the node |
+| `AudioParam.value` is float32 — 1.6 reads back as 1.600000023841858 | nothing reads it back to compare |
+
+The graph is built only for an edit that has a boosted block, and only from
+inside the play gesture, because routing is irreversible and a suspended
+context is silent — a player that routed every edit would risk the audio for
+nothing. Both elements are routed or neither is. Where any of that fails,
+`levelFor` degrades to exactly what `volumeFor` gave and the warning stays up.
+
+**The caption overlay is a dead end with this toolchain.** The other half of
+2.2's remaining edge was compositing a chosen caption template over the
+preview, which draws nothing today: the plain captions have a CSS placeholder
+and the template, the thing that sets the type, the size and the position,
+has none.
+
+The plan was to ask `previewFrame` for its own frame on a transparent ground
+and lay that over the picture — same ASS, same fonts, same geometry. It does
+not work. ffmpeg's `subtitles` filter draws libass output into the colour
+planes and leaves alpha alone: over a `color=black@0.0` ground, measured
+across `rgba`, `yuva420p` and `yuva444p`, **every one of 2,073,600 pixels came
+back at alpha 0** — the type is in the file's RGB with nothing to show it
+through. An overlay nobody can see is worse than no overlay, so it was taken
+back out and the editor says the template is not drawn over the preview.
+
+Two ways to close it, costed:
+
+1. **Burn the sample captions over a real frame of the footage.** `previewFrame`
+   already takes a `source`, so this is the engine's own compositing rather
+   than a second implementation of it. The work is resolving the editor's
+   current clip to a path the backend can read, and showing a still rather
+   than a live overlay. Call it half a session.
+2. **Re-implement the templates in CSS.** 31 of them, each with its own
+   animation type, and every one a guess at what ffmpeg will do. This is the
+   thing the wipe transition is deliberately not claimed for.
+
+My read is (1), and only if "where will this template put its words" comes up
+again. The swatch in the picker already answers what it looks like.

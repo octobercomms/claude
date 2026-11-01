@@ -401,3 +401,86 @@ test('drift is unknown rather than zero when nothing was reported', () => {
   assert.equal(P.driftFrames(4.2, null, 30), null);
   assert.equal(P.driftFrames(4.2, undefined, 30), null);
 });
+
+// ---- a block louder than the source ------------------------------------
+//
+// The last thing left in section 2.2. An element's `volume` is clamped to 1,
+// so a block boosted to 160% played at 100% and the player said the render
+// would be louder than what you were hearing — honest, and no use when the
+// reason you boosted it is to find out whether 160% is enough.
+//
+// `levelFor` is the arithmetic of the two knobs that appear once a WebAudio
+// gain node is in the path. `audioGain.js` owns the plumbing; this owns the
+// numbers, because getting them wrong is silent either way: too quiet and
+// the preview lies, too loud and it clips.
+
+test('without a graph, levelFor is exactly what volumeFor was', () => {
+  const v = P.levelFor(1.6);
+  assert.equal(v.volume, 1, 'capped at the element limit');
+  assert.equal(v.gainValue, null, 'and there is no node to set');
+  assert.equal(v.capped, true, 'which is what the warning is about');
+});
+
+test('with a graph, the whole gain goes on the node and the element stays at 1', () => {
+  // They multiply: `volume` is applied before the graph taps the output. Both
+  // set to 1.6 would play at 2.56.
+  const v = P.levelFor(1.6, { graph: true });
+  assert.equal(v.volume, 1);
+  assert.equal(v.gainValue, 1.6);
+  assert.equal(v.capped, false, 'nothing to warn about any more');
+});
+
+test('a cross-fade ramps the node, not the element', () => {
+  // The reason this matters: an element fading out from 160% sits at the 100%
+  // cap for the first three eighths of the fade and then starts dropping, so
+  // a dissolve between two boosted blocks has an audible plateau.
+  const out = P.levelFor(1.6, { graph: true, blend: 0.75 });
+  // Float noise: 1.6 * 0.75 is 1.2000000000000002. The node does not care and
+  // neither does the ear, so the assertion is about the value, not its bits.
+  assert.ok(Math.abs(out.gainValue - 1.2) < 1e-9, `got ${out.gainValue}`);
+  assert.equal(out.volume, 1, 'the element is left alone');
+  const half = P.levelFor(1.6, { graph: true, blend: 0.5 });
+  assert.equal(half.gainValue, 0.8);
+});
+
+test('without a graph a cross-fade still ramps the element', () => {
+  assert.equal(P.levelFor(0.8, { blend: 0.25 }).volume, 0.2);
+  assert.equal(P.levelFor(1, { blend: 0 }).volume, 0);
+});
+
+test('a muted block is silent on both paths', () => {
+  assert.equal(P.levelFor(0).volume, 0);
+  assert.equal(P.levelFor(0).muted, true);
+  // With a graph the element is left at 1 and the node is zeroed. `muted` is
+  // still true, so the element is muted as well — belt and braces, because a
+  // graph that fails to apply would otherwise play a silenced block at full.
+  assert.equal(P.levelFor(0, { graph: true }).gainValue, 0);
+  assert.equal(P.levelFor(0, { graph: true }).muted, true);
+});
+
+test('the gain ceiling holds on the node too', () => {
+  // volumeFor clamps to 4. A node is not clamped by anything, so a gain of
+  // 99 arriving from a saved EDL would be deafening rather than loud.
+  assert.equal(P.levelFor(99, { graph: true }).gainValue, 4);
+  assert.equal(P.levelFor(-1, { graph: true }).gainValue, 0);
+});
+
+test('a blend outside 0..1 cannot make a block louder than its gain', () => {
+  assert.equal(P.levelFor(1.6, { graph: true, blend: 3 }).gainValue, 1.6);
+  assert.equal(P.levelFor(1.6, { graph: true, blend: -1 }).gainValue, 0);
+  assert.equal(P.levelFor(1.6, { graph: true, blend: null }).gainValue, 1.6);
+});
+
+test('a block at or below 100% needs no graph at all', () => {
+  // The graph is only built for an edit that has a boosted block, because
+  // createMediaElementSource is irreversible and a suspended context is
+  // silent. A player that routed every edit would be risking the audio for
+  // nothing.
+  assert.equal(P.levelFor(1).needsAudioGraph, false);
+  assert.equal(P.levelFor(0.5).needsAudioGraph, false);
+  // Anything above 1 by more than EPS (1e-6) counts, which is volumeFor's
+  // existing and already-guarded rule. 1.0001 is not a gain the interface can
+  // produce, and loosening the threshold here would change what every other
+  // caller of volumeFor means by boosted.
+  assert.equal(P.levelFor(1.01).needsAudioGraph, true);
+});
