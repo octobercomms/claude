@@ -1493,6 +1493,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
    (report template designer, social planner). 560px crammed two
    columns into a strip — these need room to breathe. */
 .modal-wide { width: 1120px; }
+/* 80% of the viewport, for a modal that IS the working surface rather than a
+   dialog over one: Paid's Draft opens the concept with five text fields, the
+   images and the chat beside them, and 1120px fixed meant a 2,560px monitor
+   showed it in the middle third. Percentage, not pixels, because the point is
+   to use the screen the operator actually has. */
+.modal-80 { width: 80vw; max-width: 80vw; }
 /* Near-fullscreen for modals that render full documents inline (report
    preview iframe). 95vw caps the side gutters; column layout so the
    iframe can flex-grow to take the remaining height. */

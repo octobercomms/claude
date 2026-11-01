@@ -15,10 +15,13 @@ import React, { useEffect, useState } from 'react';
 //   count   — how many records go. Typed back to confirm.
 //   noun    — singular; pluralised with an s.
 //   detail  — what else this touches, in the operator's own terms.
+//   phrase  — type this instead of the count. For ONE named record, "1" is
+//             not a confirmation anybody has to read; the record's own name
+//             is. Use it for a single row and leave it off for a batch.
 //   onConfirm / onClose
-export default function DangerConfirm({ count, noun = 'record', detail, onConfirm, onClose, busy = false }) {
+export default function DangerConfirm({ count, noun = 'record', detail, phrase, onConfirm, onClose, busy = false }) {
   const [typed, setTyped] = useState('');
-  const expected = String(count);
+  const expected = phrase != null ? String(phrase) : String(count);
   const armed = typed.trim() === expected;
 
   useEffect(() => {
@@ -36,7 +39,9 @@ export default function DangerConfirm({ count, noun = 'record', detail, onConfir
         style={{ maxWidth: 480 }}
       >
         <h2 className="h2" style={{ marginTop: 0 }}>
-          Delete {count.toLocaleString()} {noun}{count === 1 ? '' : 's'}?
+          {phrase != null
+            ? `Delete ${phrase}?`
+            : `Delete ${count.toLocaleString()} ${noun}${count === 1 ? '' : 's'}?`}
         </h2>
         {detail && (
           <p className="body-sm text-muted" style={{ lineHeight: 1.5 }}>{detail}</p>
@@ -55,13 +60,13 @@ export default function DangerConfirm({ count, noun = 'record', detail, onConfir
             placeholder={expected}
             autoComplete="off"
             autoFocus
-            inputMode="numeric"
+            inputMode={phrase != null ? 'text' : 'numeric'}
           />
         </label>
         <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end', marginTop: 'var(--s4)' }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-danger" disabled={!armed || busy}>
-            {busy ? 'Deleting…' : `Delete ${count.toLocaleString()}`}
+            {busy ? 'Deleting…' : (phrase != null ? 'Delete' : `Delete ${count.toLocaleString()}`)}
           </button>
         </div>
       </form>

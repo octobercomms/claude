@@ -49,8 +49,11 @@ ok('the confirm needs the count typed, and Return alone does nothing', () => {
   assert.ok(/disabled=\{!armed \|\| busy\}/.test(confirmUi), 'the button stays dead until it matches');
   assert.ok(/if \(armed && !busy\) onConfirm\(\)/.test(confirmUi),
     'submit must re-check: Return in the field submits the form');
-  assert.ok(/const expected = String\(count\)/.test(confirmUi),
+  // A batch delete types the count. (A single named record types its name
+  // instead, via `phrase` — see review-batch-small for that half.)
+  assert.ok(/const expected = phrase != null \? String\(phrase\) : String\(count\)/.test(confirmUi),
     'the word to type is the count, which cannot be muscle memory');
+  assert.ok(!/phrase=/.test(panel), 'Publications deletes batches, so it uses the count');
 });
 
 ok('it says what else the delete touches', () => {

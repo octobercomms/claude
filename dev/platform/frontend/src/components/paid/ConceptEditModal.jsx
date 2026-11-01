@@ -107,7 +107,11 @@ export default function ConceptEditModal({ creative, clientId, onSave, onClose }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className={`modal${showChat ? ' modal-wide' : ''}`} onClick={e => e.stopPropagation()}>
+      {/* 80% of the viewport, with or without the chat. This was 560px, and
+          1120px once the chat opened, so editing a concept happened in a
+          strip in the middle of the screen while the page behind it sat
+          empty. The fields are the work; give them the room. */}
+      <div className="modal modal-80" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <div>
             <h2 className="h2" style={{ margin: 0 }}>Edit concept</h2>

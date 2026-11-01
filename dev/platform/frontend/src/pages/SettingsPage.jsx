@@ -111,7 +111,6 @@ export default function SettingsPage() {
   const [hgTestMsg, setHgTestMsg] = useState(null);
   const [testingPsi, setTestingPsi] = useState(false);
   const [psiTestMsg, setPsiTestMsg] = useState(null);
-  const [openCategories, setOpenCategories] = useState({});
   // The screen is the path. This page has now been through three ways of
   // holding it: component state plus history.replaceState (which React Router
   // never saw, so a panel row did nothing), then ?tab=, now /settings/<slug>.
@@ -149,10 +148,6 @@ export default function SettingsPage() {
 
   function handleChange(key, val) {
     setValues(prev => ({ ...prev, [key]: val }));
-  }
-
-  function toggleCategory(title) {
-    setOpenCategories(prev => ({ ...prev, [title]: !prev[title] }));
   }
 
   async function handleSaveSection(group) {
@@ -349,28 +344,25 @@ export default function SettingsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--s4)', alignItems: 'start' }}>
           {CATEGORIES.filter(cat => SUBTAB_CATS[tab].includes(cat.title)).map(cat => {
             const groupsInCat = KEY_GROUPS.filter(g => g.category === cat.title);
-            const open = openCategories[cat.title] !== false;
             const configuredCount = groupsInCat.filter(g => g.keys.some(k => values[k.key] === '••••••••')).length;
 
+            // No accordion, and no card around the category. A sub-tab
+            // already shows one category, usually one, so the accordion only
+            // ever had one thing to hide and hid it behind a click on
+            // arrival. Accordions off, each connection in its own box: the
+            // category is now a heading over a stack of boxes, one per
+            // connection, which is the thing you came to find.
             return (
-              <Card key={cat.title}>
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(cat.title)}
-                  className="row between center accordion-trigger"
-                >
+              <div key={cat.title}>
+                <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
                   <div>
                     <div className="h3">{cat.title}</div>
                     {cat.description && <div className="body-sm text-muted">{cat.description}</div>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
-                    <span className={`chip ${configuredCount === groupsInCat.length ? 'chip-success' : 'chip-accent'}`}>{configuredCount} / {groupsInCat.length}</span>
-                    <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
-                  </div>
-                </button>
+                  <span className={`chip ${configuredCount === groupsInCat.length ? 'chip-success' : 'chip-accent'}`}>{configuredCount} / {groupsInCat.length}</span>
+                </div>
 
-                {open && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s5)', marginTop: 'var(--s4)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
                     {groupsInCat.map(group => {
                       // "Set" = every required key (those without "optional" in the
                       // label) is stored. Turns the section green, like a connected
@@ -378,20 +370,14 @@ export default function SettingsPage() {
                       const reqKeys = group.keys.filter(k => !/optional/i.test(k.label));
                       const groupSet = reqKeys.length > 0 && reqKeys.every(k => values[k.key] === '••••••••');
                       return (
-                      /* No box. Settings used to be one long page of
-                         collapsed categories, where a filled panel with a
-                         4px left rule told you where one provider's fields
-                         ended and the next began. Now that it is split into
-                         sub-tabs, every category on a tab is open, so each
-                         provider sat in a tinted box inside an open category
-                         inside a card, with its set fields tinted again:
-                         four levels of chrome around a list of text inputs.
-
-                         A rule between groups does the separating. The green
-                         is not information lost — the ✓ Set chip beside the
-                         title says the same thing in words, and the field
-                         itself shows ●●●●●●●● once stored. */
-                      <div key={group.title} style={{ paddingTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                      /* One box per connection.
+                         This was a rule between groups inside one card for
+                         the category, which read as a single long form: the
+                         boundary between "Hunter" and "Serper" was a hairline
+                         you had to look for. The category card is gone, so
+                         this is one level of chrome, not four, and the thing
+                         in the box is the thing you came for. */
+                      <div key={group.title} className="card">
                         <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
                           <div className="h3" style={{ margin: 0 }}>{group.title}</div>
                           {groupSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ Set</span>}
@@ -573,9 +559,8 @@ export default function SettingsPage() {
                         per-mailbox switches. Lives here because it is the
                         Outreach plumbing an operator comes to this page for. */}
                     {cat.title === 'Outreach' && <InboxesPanel />}
-                  </div>
-                )}
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>

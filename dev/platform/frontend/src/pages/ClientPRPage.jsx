@@ -992,16 +992,23 @@ export default function ClientPRPage() {
             </div>
             {suggestions.length > 0 && (
               <>
-                <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s2)' }}>
+                {/* "Add" does two things, and only one of them was obvious.
+                    Approving a suggestion writes the journalist into the
+                    shared media database (reusing the row if that email is
+                    already in it) AND attaches them to this client. The
+                    buttons now say both, because an AM adding forty names
+                    is entitled to know they are adding them to everyone's
+                    database as well as to this account. */}
+                <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s2)', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
-                  <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', suggestions.map((s) => s.id)) })}>Add all {suggestions.length}</button>
+                  <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', suggestions.map((s) => s.id)) })}>Add all {suggestions.length} to DB + client</button>
                   {selSugg.size > 0 && <>
-                    <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
+                    <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected to DB + client</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => bulkSuggestions('dismiss')}>Dismiss selected</button>
                   </>}
                 </div>
                 <table className="table">
-                  <thead><tr><th style={{ width: 28 }}><input type="checkbox" checked={selSugg.size === suggestions.length} onChange={toggleAllSugg} /></th><th>Journalist</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 150 }}></th></tr></thead>
+                  <thead><tr><th style={{ width: 28 }}><input type="checkbox" checked={selSugg.size === suggestions.length} onChange={toggleAllSugg} /></th><th>Journalist</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 210 }}></th></tr></thead>
                   <tbody>
                     {suggestions.map((s) => (
                       <tr key={s.id}>
@@ -1024,7 +1031,7 @@ export default function ClientPRPage() {
                           {s.source_url && <> · <a href={s.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></>}
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })}>Add</button>
+                          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })} title="Adds this journalist to the shared media database and attaches them to this client">Add to DB + client</button>
                           <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'var(--s1)' }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
                         </td>
                       </tr>
