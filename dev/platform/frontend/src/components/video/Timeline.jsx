@@ -57,13 +57,24 @@ function drawLength(item) {
   return d > 0 ? d : NOMINAL_LEN;
 }
 
+/**
+ * Where each block is drawn.
+ *
+ * Shares `laidOut`'s overlap arithmetic rather than repeating it: a cross-fade
+ * pulls a block back over the end of the one before, and if the drawing used
+ * its own sum the timeline would show a cut somewhere the render will not put
+ * one. The only difference is the nominal width for a clip whose duration has
+ * not been probed yet, which has no real length to lay out.
+ */
 function drawRows(edl) {
+  const items = edl?.items || [];
   let at = 0;
-  return (edl?.items || []).map((item) => {
+  return items.map((item, i) => {
     const length = drawLength(item);
-    const row = { item, start: at, length, known: EDL.itemDuration(item) > 0 };
-    at += length;
-    return row;
+    const overlap = i > 0 ? Math.min(length, EDL.transitionOf(item).dur) : 0;
+    const start = Math.max(0, at - overlap);
+    at = start + length;
+    return { item, start, length, overlap, known: EDL.itemDuration(item) > 0 };
   });
 }
 
@@ -494,6 +505,19 @@ export default function Timeline({
                   );
                 })()}
 
+                {/* The cross-fade, drawn over the overlap it actually
+                    occupies. A transition shown as a marker between abutting
+                    blocks would be a lie about the length of the output; shown
+                    as the overlap, the drawing and the render agree. */}
+                {row.overlap > 0 && xOf(row.overlap) > 3 && (
+                  <div aria-hidden="true" style={{
+                    position: 'absolute', top: 0, bottom: 0, left: 0,
+                    width: xOf(row.overlap), pointerEvents: 'none',
+                    background: 'repeating-linear-gradient(135deg, var(--accent-soft) 0 3px, transparent 3px 6px)',
+                    borderRight: '1px solid var(--accent)',
+                  }} />
+                )}
+
                 {/* Where the next block would land during a reorder drag. */}
                 {drag?.mode === 'move' && drag.dropIndex === i && drag.index !== i && (
                   <div style={{
@@ -513,6 +537,63 @@ export default function Timeline({
           }} />
         </div>
       </div>
+
+      {/* The transition into the selected block. Only offered on a block that
+          has one to its left and room for a visible fade, because a control
+          that can be pressed and does nothing is worse than no control. */}
+      {selected && !readOnly && (() => {
+        const idx = rows.findIndex((r) => r.item.id === selected.item.id);
+        if (idx <= 0) {
+          return (
+            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+              The first block has nothing before it to fade from.
+            </div>
+          );
+        }
+        const ceiling = EDL.maxTransitionAt(edl, idx);
+        if (!(ceiling >= EDL.MIN_TRANS)) {
+          return (
+            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+              These blocks are too short to fade between.
+            </div>
+          );
+        }
+        const current = EDL.transitionOf(selected.item);
+        return (
+          <div className="row center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
+            <span className="caption">Into this block</span>
+            {['cut', ...EDL.TRANSITIONS.filter((t) => t !== 'cut')].map((t) => (
+              <button key={t} type="button" className="btn-chip"
+                style={{
+                  fontSize: 'var(--fs-caption)',
+                  borderColor: current.type === t ? 'var(--accent)' : undefined,
+                  fontWeight: current.type === t ? 700 : undefined,
+                }}
+                onClick={() => commit(EDL.setTransition(edl, selected.item.id, t,
+                  current.dur || EDL.DEFAULT_TRANS))}>
+                {t === 'cut' ? 'Cut' : t === 'wipeleft' ? 'Wipe' : t === 'fadeblack' ? 'Via black'
+                  : t === 'dissolve' ? 'Dissolve' : 'Fade'}
+              </button>
+            ))}
+            {current.type !== 'cut' && (
+              <>
+                <input type="range" min={EDL.MIN_TRANS} max={ceiling} step="0.05"
+                  value={Math.min(ceiling, current.dur)}
+                  onChange={(e) => commit(EDL.setTransition(edl, selected.item.id,
+                    current.type, Number(e.target.value)))}
+                  style={{ width: 110 }}
+                  aria-label="Transition length" />
+                <span className="body-xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {current.dur.toFixed(2)}s
+                </span>
+                <span className="body-xs text-subtle">
+                  takes {current.dur.toFixed(2)}s off the edit
+                </span>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="row between center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
         <span className="body-xs text-subtle">

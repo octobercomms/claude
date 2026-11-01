@@ -120,10 +120,13 @@ test('an edit can cut across more than one clip, which is the capability gap', (
   edl = E.trim(edl, edl.items[2].id, 'out', 6, CLIPS);    // three.mp4 0 → 6
   assert.equal(E.duration(edl), 8 + 5 + 6);
   const segs = E.compile(edl, CLIPS);
+  // `len` and `trans` ride along for the transition plan: the filter graph's
+  // offsets are measured in output seconds, so it needs each block's length
+  // without recomputing it from in and out.
   assert.deepEqual(segs, [
-    { clip: 0, url: 'one.mp4', start: 2, end: 10, gain: 1 },
-    { clip: 1, url: 'two.mp4', start: 0, end: 5, gain: 1 },
-    { clip: 2, url: 'three.mp4', start: 0, end: 6, gain: 1 },
+    { clip: 0, url: 'one.mp4', start: 2, end: 10, gain: 1, len: 8, trans: null },
+    { clip: 1, url: 'two.mp4', start: 0, end: 5, gain: 1, len: 5, trans: null },
+    { clip: 2, url: 'three.mp4', start: 0, end: 6, gain: 1, len: 6, trans: null },
   ]);
 });
 
@@ -226,7 +229,8 @@ test('an unprobed clip stays unprobed rather than being read as empty', () => {
   assert.equal(E.clipDuration(unknown[0]), null, 'unknown is null, never 0');
   assert.equal(E.clipDuration({ url: 'x', duration: 0 }), null);
   const segs = E.compile(edl, unknown);
-  assert.deepEqual(segs, [{ clip: 0, url: 'pending.mp4', start: 0, end: null, gain: 1 }],
+  assert.deepEqual(segs,
+    [{ clip: 0, url: 'pending.mp4', start: 0, end: null, gain: 1, len: 0, trans: null }],
     'a whole clip of unknown length renders to its end');
   assert.equal(E.normalise(edl, unknown).items.length, 1,
     'normalise must not delete an unprobed clip');
@@ -242,7 +246,7 @@ test('compile refuses a zero-length cut from a stored edit', () => {
     { id: 'd', clip: 0, in: 0, out: 2, gain: 1 },
   ] };
   assert.deepEqual(E.compile(stored, CLIPS),
-    [{ clip: 0, url: 'one.mp4', start: 0, end: 2, gain: 1 }],
+    [{ clip: 0, url: 'one.mp4', start: 0, end: 2, gain: 1, len: 2, trans: null }],
     'only the one cut long enough to be a cut survives');
 });
 
@@ -294,7 +298,8 @@ test('every block carries an id, including ones restored without one', () => {
 test('append adds a clip whole and refuses an index that does not exist', () => {
   let edl = E.emptyEdl();
   edl = E.append(edl, 1, CLIPS);
-  assert.deepEqual(E.compile(edl, CLIPS), [{ clip: 1, url: 'two.mp4', start: 0, end: 5, gain: 1 }]);
+  assert.deepEqual(E.compile(edl, CLIPS),
+    [{ clip: 1, url: 'two.mp4', start: 0, end: 5, gain: 1, len: 5, trans: null }]);
   assert.equal(E.append(edl, 9, CLIPS).items.length, 1);
   assert.equal(E.append(edl, -1, CLIPS).items.length, 1);
 });
@@ -360,4 +365,237 @@ test('stored times are pinned to the microsecond', () => {
     assert.ok(Math.abs(rows[i].start - rows[i - 1].end) < 1e-9,
       'blocks must abut exactly, with no gap to draw');
   }
+});
+
+// ---- transitions -------------------------------------------------------
+//
+// A cross-fade is the one thing a concat cannot express: it overlaps two
+// blocks instead of joining them end to end. The arithmetic below decides
+// where every fade lands, and ffmpeg does not complain when it is wrong — it
+// produces a video whose cuts are in the wrong place.
+
+test('an edit with no transitions is all hard cuts', () => {
+  const edl = E.edlFromClips(CLIPS);
+  assert.equal(E.hasTransitions(edl), false);
+  assert.equal(E.xfadeGraph(E.compile(edl, CLIPS)), null,
+    'no fades means no filter graph, so the proven concat path runs');
+  for (const it of edl.items) assert.deepEqual(E.transitionOf(it), { type: 'cut', dur: 0 });
+});
+
+test('a cross-fade shortens the edit by its own duration', () => {
+  // 10 + 5 + 20 = 35, less a 0.5s fade, is 34.5. Telling the operator 35 is
+  // the same class of lie as a progress bar that says 41%.
+  let edl = E.edlFromClips(CLIPS);
+  assert.equal(E.duration(edl), 35);
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 0.5);
+  assert.equal(E.duration(edl), 34.5);
+  edl = E.setTransition(edl, edl.items[2].id, 'fade', 1);
+  assert.equal(E.duration(edl), 33.5, 'two fades take both their durations off');
+  assert.ok(E.hasTransitions(edl));
+});
+
+test('the drawn positions equal the rendered times', () => {
+  // The property that matters: if these diverge, the timeline shows a cut
+  // somewhere the render will not put one.
+  let edl = E.edlFromClips(CLIPS);
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 0.5);
+  edl = E.setTransition(edl, edl.items[2].id, 'fade', 1);
+  const rows = E.laidOut(edl);
+  assert.deepEqual(rows.map(r => [r.start, r.end]), [[0, 10], [9.5, 14.5], [13.5, 33.5]]);
+  const { plan, outLen } = E.transitionPlan(E.compile(edl, CLIPS));
+  assert.equal(outLen, E.duration(edl), 'the plan and the drawing agree on the length');
+  // Each fade begins where the block it fades into begins.
+  for (const p of plan) {
+    assert.equal(p.offset, rows[p.into].start,
+      `fade into block ${p.into} starts at ${p.offset} but the block is drawn at ${rows[p.into].start}`);
+  }
+});
+
+test('a chained offset is measured against the output, not the blocks', () => {
+  // The bug this guards: computing an offset from the block's own start time.
+  // The second xfade's first input is the OUTPUT of the first, which is
+  // already shorter by the first fade, so an offset taken from the blocks puts
+  // every fade after the first one late by the sum of the fades before it.
+  const segs = [{ len: 10 }, { len: 6, trans: { type: 'fade', dur: 0.5 } },
+    { len: 8, trans: { type: 'fade', dur: 1 } }];
+  const { plan, outLen } = E.transitionPlan(segs);
+  assert.deepEqual(plan.map(p => [p.into, p.dur, p.offset]), [[1, 0.5, 9.5], [2, 1, 14.5]]);
+  assert.equal(outLen, 22.5);
+  // 15.5 would be the wrong answer, and is what a naive sum of block lengths
+  // minus this fade gives: 10 + 6 - 0.5 = 15.5.
+  assert.notEqual(plan[1].offset, 15.5);
+});
+
+test('three fades accumulate, they do not compound', () => {
+  const segs = [{ len: 5 }, { len: 5, trans: { type: 'fade', dur: 1 } },
+    { len: 5, trans: { type: 'fade', dur: 1 } }, { len: 5, trans: { type: 'fade', dur: 1 } }];
+  const { plan, outLen } = E.transitionPlan(segs);
+  assert.equal(outLen, 17, '20 less three one-second fades');
+  assert.deepEqual(plan.map(p => p.offset), [4, 8, 12]);
+});
+
+test('the first block cannot be faded into', () => {
+  const edl = E.edlFromClips(CLIPS);
+  const after = E.setTransition(edl, edl.items[0].id, 'fade', 0.5);
+  assert.equal(after.items[0].trans, undefined, 'there is nothing to its left to fade from');
+  assert.equal(E.duration(after), 35, 'and it cannot shorten the edit');
+  // A stored edit that carries one anyway is ignored rather than obeyed.
+  const stored = { version: 1, items: [
+    { id: 'a', clip: 0, in: 0, out: 10, gain: 1, trans: { type: 'fade', dur: 1 } },
+    { id: 'b', clip: 1, in: 0, out: 5, gain: 1 },
+  ] };
+  assert.equal(E.duration(E.normalise(stored, CLIPS)), 15);
+  assert.equal(E.transitionPlan(E.compile(E.normalise(stored, CLIPS), CLIPS)).plan.length, 0);
+});
+
+test('a fade is clamped to half the shorter block it joins', () => {
+  // A fade longer than either block makes xfade produce an output shorter than
+  // its own offset, which ffmpeg does not report: it drops frames.
+  const short = [{ url: 'a.mp4', duration: 10 }, { url: 'b.mp4', duration: 1 }];
+  let edl = E.edlFromClips(short);
+  assert.equal(E.maxTransitionAt(edl, 1), 0.5, 'half of the one-second block');
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 2);
+  assert.equal(E.transitionOf(edl.items[1]).dur, 0.5);
+  assert.ok(E.duration(edl) > 0);
+});
+
+test('a fade is bounded at both ends', () => {
+  const long = [{ url: 'a.mp4', duration: 60 }, { url: 'b.mp4', duration: 60 }];
+  let edl = E.edlFromClips(long);
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 30);
+  assert.equal(E.transitionOf(edl.items[1]).dur, E.MAX_TRANS,
+    'a thirty-second cross-fade on social video is the transition, not the content');
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 0.001);
+  assert.equal(E.transitionOf(edl.items[1]).dur, E.MIN_TRANS,
+    'and a one-millisecond fade is invisible, so it is raised to the floor');
+});
+
+test('blocks too short to fade are left as a cut', () => {
+  const tiny = [{ url: 'a.mp4', duration: 10 }, { url: 'b.mp4', duration: 0.15 }];
+  let edl = E.edlFromClips(tiny);
+  assert.ok(E.maxTransitionAt(edl, 1) < E.MIN_TRANS);
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 0.4);
+  assert.equal(edl.items[1].trans, undefined,
+    'no room for a visible fade, so the join stays a cut rather than a fade that is not one');
+});
+
+test('a transition can be cleared', () => {
+  let edl = E.edlFromClips(CLIPS);
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 0.5);
+  assert.ok(edl.items[1].trans);
+  edl = E.setTransition(edl, edl.items[1].id, 'cut');
+  assert.equal(edl.items[1].trans, undefined);
+  assert.equal(E.duration(edl), 35, 'and the edit is its full length again');
+  assert.equal(E.hasTransitions(edl), false);
+});
+
+test('an unknown transition type reads as a cut rather than reaching ffmpeg', () => {
+  assert.deepEqual(E.transitionOf({ trans: { type: 'explode', dur: 1 } }), { type: 'cut', dur: 0 });
+  assert.deepEqual(E.transitionOf({ trans: 'fade' }), { type: 'cut', dur: 0 });
+  assert.deepEqual(E.transitionOf({ trans: { dur: 1 } }), { type: 'cut', dur: 0 });
+  let edl = E.edlFromClips(CLIPS);
+  edl = E.setTransition(edl, edl.items[1].id, 'explode', 1);
+  assert.equal(edl.items[1].trans, undefined, 'and cannot be set in the first place');
+});
+
+test('every transition type names a real xfade filter', () => {
+  for (const t of E.TRANSITIONS) {
+    if (t === 'cut') continue;
+    assert.ok(E.XFADE_NAME[t], `${t} has no ffmpeg name, so the render would fail`);
+  }
+});
+
+test('the filter graph chains the right labels in the right order', () => {
+  const segs = [{ len: 10 }, { len: 6, trans: { type: 'fade', dur: 0.5 } },
+    { len: 8, trans: { type: 'wipeleft', dur: 1 } }];
+  const g = E.xfadeGraph(segs);
+  assert.equal(g.filter,
+    '[0:v][1:v]xfade=transition=fade:duration=0.5:offset=9.5[v1];'
+    + '[0:a][1:a]acrossfade=d=0.5[a1];'
+    + '[v1][2:v]xfade=transition=wipeleft:duration=1:offset=14.5[v2];'
+    + '[a1][2:a]acrossfade=d=1[a2]');
+  assert.equal(g.videoOut, '[v2]');
+  assert.equal(g.audioOut, '[a2]');
+  assert.equal(g.outLen, 22.5);
+});
+
+test('a hard cut inside a faded edit still goes through the chain', () => {
+  // A single pass cannot mix concatenation with xfade, so a cut between two
+  // faded joins becomes the shortest fade the filter will honour: one frame.
+  const segs = [{ len: 5 }, { len: 5 }, { len: 5, trans: { type: 'fade', dur: 1 } }];
+  const g = E.xfadeGraph(segs);
+  assert.ok(g, 'the edit has a fade, so it needs the graph');
+  assert.equal((g.filter.match(/xfade/g) || []).length, 2,
+    'both joins are in the chain, cut or not');
+  const first = /offset=([\d.]+)\[v1\]/.exec(g.filter);
+  assert.ok(Number(first[1]) > 4.9, `the cut joins at the end of block one: ${first[1]}`);
+  assert.ok(/duration=0.0333/.test(g.filter), 'and takes one frame, not a visible fade');
+});
+
+test('one block, or none, needs no graph', () => {
+  assert.equal(E.xfadeGraph([{ len: 5 }]), null);
+  assert.equal(E.xfadeGraph([]), null);
+  assert.equal(E.xfadeGraph(null), null);
+});
+
+test('a transition survives a reorder, attached to its own block', () => {
+  // Stored on the block being faded INTO, so a reorder carries it rather than
+  // needing a between-blocks list re-indexed.
+  let edl = E.edlFromClips(CLIPS);
+  edl = E.setTransition(edl, edl.items[2].id, 'fade', 0.5);
+  const movedId = edl.items[2].id;
+  edl = E.move(edl, movedId, 1);
+  const moved = edl.items.find(it => it.id === movedId);
+  assert.equal(moved.trans.type, 'fade', 'the fade moved with its block');
+  assert.equal(edl.items[1].id, movedId);
+  assert.equal(E.duration(edl), 34.5);
+});
+
+test('a transition on a block moved to the front stops applying', () => {
+  let edl = E.edlFromClips(CLIPS);
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 0.5);
+  const id = edl.items[1].id;
+  edl = E.move(edl, id, 0);
+  // The data is still there, but the first block has nothing to fade from, so
+  // it must not shorten the edit or reach the filter graph.
+  assert.equal(E.duration(edl), 35);
+  assert.equal(E.transitionPlan(E.compile(edl, CLIPS)).plan.length, 0);
+  assert.equal(E.hasTransitions(edl), false);
+});
+
+test('the transition operations never mutate the edit they were given', () => {
+  const edl = E.edlFromClips(CLIPS);
+  const snap = JSON.stringify(edl);
+  E.setTransition(edl, edl.items[1].id, 'fade', 0.5);
+  E.setTransition(edl, edl.items[1].id, 'cut');
+  assert.equal(JSON.stringify(edl), snap);
+});
+
+
+test('each compiled block carries its own cut length, not its clip length', () => {
+  // The filter graph's offsets are measured in output seconds, so a block
+  // reporting its source clip's length instead of its cut's would put every
+  // fade after it late by the difference.
+  let edl = E.edlFromClips(CLIPS);
+  edl = E.trim(edl, edl.items[0].id, 'out', 4, CLIPS);
+  const segs = E.compile(edl, CLIPS);
+  assert.equal(segs[0].len, 4, `clip one is 10s but the cut is 4s; got ${segs[0].len}`);
+  assert.equal(segs[2].len, 20);
+  for (const sg of segs) {
+    assert.equal(sg.len, sg.end == null ? 0 : sg.end - sg.start);
+  }
+});
+
+test('a fade alone makes the edit no longer a plain combine', () => {
+  // The same trap as gain, and worse: the stream-copy combine joins clips end
+  // to end by definition, so an edit whose only change is a cross-fade would
+  // be sent down it and come back with hard cuts where the timeline drew
+  // fades. Caught by driving the page, not by reading the code.
+  let edl = E.edlFromClips(CLIPS);
+  assert.ok(E.isWholeClipsInOrder(edl, CLIPS), 'untouched, these are a plain combine');
+  edl = E.setTransition(edl, edl.items[1].id, 'fade', 0.5);
+  assert.equal(E.isWholeClipsInOrder(edl, CLIPS), false);
+  // And clearing it puts the edit back on the cheap path.
+  edl = E.setTransition(edl, edl.items[1].id, 'cut');
+  assert.ok(E.isWholeClipsInOrder(edl, CLIPS));
 });

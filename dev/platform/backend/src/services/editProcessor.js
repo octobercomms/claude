@@ -439,6 +439,44 @@ async function cutEdl(clipPaths, segments, work, ctx = {}) {
   }
   if (!outs.length) throw new Error('This edit has no cuts long enough to render.');
   if (outs.length === 1) return outs[0];
+
+  // Transitions, when the edit asks for any. A cross-fade overlaps two blocks,
+  // which a concat cannot express at all: it joins them end to end by
+  // definition. So the blocks go into one xfade/acrossfade chain instead.
+  //
+  // The blocks are already normalised to identical resolution, frame rate,
+  // pixel format and audio parameters by the loop above, which is exactly what
+  // xfade requires of its inputs. The spec expected this to be the hard part
+  // and it turned out to be the part already solved: the normalisation that
+  // made an arbitrary concat safe makes the filter graph safe too.
+  //
+  // The offsets come from shared/edl.mjs, so the fades land where the timeline
+  // drew them. Verified against ffmpeg frame by frame rather than trusted:
+  // a three-block chain with 0.5s and 1s fades produced the predicted output
+  // length, with the colour exactly midway between two blocks at exactly the
+  // predicted instant.
+  const graph = ctx.graph || null;
+  if (graph && outs.length === segments.length) {
+    prog.stage('assemble', `Fading ${outs.length} blocks together`);
+    const a = ['-y'];
+    for (const f of outs) a.push('-i', f);
+    a.push('-filter_complex', graph.filter,
+      '-map', graph.videoOut, '-map', graph.audioOut,
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-ar', '48000', '-b:a', '160k',
+      '-movflags', '+faststart');
+    const faded = path.join(work, 'edlfaded.mp4');
+    a.push(faded);
+    if (isCancelled(jobId)) throw new Cancelled();
+    await run(FFMPEG, a, {
+      jobId,
+      onProgress: (sec) => prog.at('assemble',
+        graph.outLen ? Math.min(1, sec / graph.outLen) : 0,
+        `Fading ${outs.length} blocks together`),
+    });
+    return faded;
+  }
+
   const list = path.join(work, 'edl.txt');
   fs.writeFileSync(list, outs.map(f => `file '${f.replace(/'/g, "'\\''")}'`).join('\n'));
   const joined = path.join(work, 'edljoined.mp4');
@@ -712,7 +750,12 @@ async function processOne(job) {
     if (storedEdl && storedEdl.items.length && !E.isWholeClipsInOrder(storedEdl, clips)) {
       // A real edit: cuts, a reorder, a gain change, or any mix. Rendered as a
       // cut list across clips, which is the capability the page never had.
-      srcPath = await cutEdl(clipPaths, E.compile(storedEdl, clips), work, ctx);
+      const cutList = E.compile(storedEdl, clips);
+      // The filter graph is built from the same arithmetic the surface used to
+      // draw the edit, so a fade cannot land somewhere the timeline did not
+      // show it. Null when nothing is faded, and then the concat path runs.
+      srcPath = await cutEdl(clipPaths, cutList, work,
+        { ...ctx, graph: E.xfadeGraph(cutList) });
       renderOps = { ...renderOps, trim: null, segments: null };
     } else {
       // No EDL, or an EDL that says "every clip, whole, in order". Both take

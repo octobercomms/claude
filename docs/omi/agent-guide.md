@@ -2400,6 +2400,32 @@ into an ArrayBuffer takes the tab down. Three traps:
 
 The queue now runs `EDIT_WORKERS` renders at once, default 2, bounded 1 to 4.
 
+**Transitions are in, and the filter graph with them.** Five types, stored on
+the block being faded INTO (not in a between-blocks list, which would need
+re-indexing on every reorder, split and delete). Four traps:
+
+- **An `xfade` offset is measured against the chained OUTPUT, not the blocks.**
+  Each xfade's first input is the output of the one before, already shorter by
+  every fade so far. Compute it from block start times and every fade after
+  the first is late by the sum of the fades before it, and ffmpeg renders it
+  without complaint. `transitionPlan()` owns this; never recompute it.
+- **`laidOut()` and the plan return the same numbers, deliberately.** That
+  equality is what stops a fade landing somewhere the timeline never showed
+  it. `drawRows` in Timeline.jsx shares the arithmetic for the same reason.
+- **`isWholeClipsInOrder` must reject an edit whose only change is a fade.**
+  It did not at first, so the EDL was never sent and the render came back with
+  hard cuts where the page drew fades. Same trap as gain. Any new EDL field
+  that the stream-copy combine cannot honour belongs in that check.
+- **A fade is clamped to half the shorter block it joins.** Longer and `xfade`
+  produces an output shorter than its own offset, which it does not report: it
+  drops frames.
+
+`tests/edit-transitions.test.js` renders real video and samples colours out of
+it at known times, which is the only way to catch a fade in the wrong place.
+Sample at least four columns across the frame when telling a wipe from a fade:
+two columns smear the whole width into both samples and a real wipe reads as a
+uniform blend.
+
 Still open: **2.2 the frame-accurate preview**, which waits on the
 capability probe at https://claude.ai/artifact/6NujtFbjeRAkpurKH619mU coming
 back from Daniel's real devices. If a plain seek already lands inside a frame
