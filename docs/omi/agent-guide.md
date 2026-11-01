@@ -6,6 +6,15 @@
 > the shared-shell architecture, the product roadmap, and the hard-won
 > gotchas that are easy to get wrong.
 
+> **Picking up the video editor rebuild? Read
+> `docs/omi/editor-session-brief.md` first, then
+> `editor-composition-model.md`.** Agreed 1 November 2026: one video editor
+> replacing both the wizard and the current timeline, built from the end state
+> rather than in shippable increments, locked behind a setting until it is
+> finished. Nine decisions are settled in that brief with the reasoning
+> attached, because each one cost an argument. Daniel's instruction was that
+> the next session should not have to question all of it again.
+
 ---
 
 ## 1. What OMI is
