@@ -42,7 +42,6 @@ const SettingsPage = lazyChunk('SettingsPage', () => import('./pages/SettingsPag
 const ClientPRPage = lazyChunk('ClientPRPage', () => import('./pages/ClientPRPage'));
 const JournalistProfilePage = lazyChunk('JournalistProfilePage', () => import('./pages/JournalistProfilePage'));
 const OutletProfilePage = lazyChunk('OutletProfilePage', () => import('./pages/OutletProfilePage'));
-const DatabaseToolsPage = lazyChunk('DatabaseToolsPage', () => import('./pages/ContactCleanupPage'));
 const PublicCoveragePage = lazyChunk('PublicCoveragePage', () => import('./pages/PublicCoveragePage'));
 const PressReviewPage = lazyChunk('PressReviewPage', () => import('./pages/PressReviewPage'));
 const ProposalPublicPage = lazyChunk('ProposalPublicPage', () => import('./pages/ProposalPublicPage'));
@@ -158,12 +157,11 @@ export default function App() {
             <Route path="proposals/:id" element={<ProposalEditorPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="design" element={<DesignSystemPage />} />
-            {/* Cleanup Centre became Database tools on 1 November. Every
-                maintenance tool moves into it, and half of those are not
-                cleanup — "email me this week's digest" is not tidying — so a
-                page called Cleanup Centre holding them would have the problem
-                that killed the "Other" settings group. */}
-            <Route path="database-tools" element={<DatabaseToolsPage />} />
+            {/* Database tools was a top-level page reached from a kebab on
+                whichever list you were standing on. Its seven screens are the
+                Cleanup group in the Database panel now, so they are rows with
+                paths of their own rather than one route holding its screen in
+                useState seeded from ?tab=. */}
           </Route>
         </Routes>
         </Suspense>

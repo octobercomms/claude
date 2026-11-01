@@ -223,12 +223,43 @@ have not actually run the screen, say so; don't claim it "works" from a build.
 - **OMI** = `dev/platform` = `platform.octobercomms.com`.
 - **October Events / ADF** = `dev/october-platform` = `*.pages.dev`.
 
-And within OMI there are **two different "Leads" screens** — always disambiguate:
-- **Owned → Email → Leads** = a client's outreach contacts
-  (`ClientOutreachPage`). *This is a two-pane workbench.*
+There used to be **two different "Leads" screens**, and the collision is why
+one of them is not called that any more:
+- **Convert → Outreach → Prospects** = a client's outreach contacts
+  (`ClientOutreachPage`). *This is a two-pane workbench.* It was Owned → Email
+  → Leads, then Convert → Email → Leads; as a buried tab the name collision
+  was survivable, and it stopped being so the moment it became a visible row.
 - **Settings → Biz dev → Leads** = the agency's snapshot/prospect pipeline
   (`LeadsPage` → `SnapshotStudioPage`). *This is a plain table → full page and
   should stay that way* (its detail is itself a big two-column workspace).
+
+### Where the screens live, after 1 November
+
+Three sections were re-cut on 1 November and the old shapes are still in
+commit messages and half this file's memory, so name them from here:
+
+- **Convert** = Optimise, Forms, then an **Outreach** group: Campaigns,
+  Prospects, Tasks, Sending, Find leads. One page, `ClientConvertPage`, which
+  hands the five to `ClientOutreachPage` with a `screen` prop. Email is not a
+  section and `ClientEmailPage` does not exist; Outreach rather than Email
+  because only two of the five are email.
+- **Database** = Health, Journalists, Publications, Tags, Tasks, Assistant,
+  then a **Cleanup** group: the seven screens that were the `/database-tools`
+  page. That route is gone, `ContactCleanupPage` takes a `screen` prop, and
+  `SettingsPage` renders it for those seven keys. Nothing is reached through a
+  kebab any more, because there is no kebab.
+- **Settings → Costs → Models** is the per-feature routing list;
+  **Settings → Connections → AI** is the provider credentials.
+
+**The trap in that last one, which cost two attempts.** `SUBTAB_CATS` in
+`settings/catalogue.js` maps a settings *screen key* to the credential
+categories it renders. The routing list sat on a screen keyed `ai`, and the AI
+credential category is keyed `ai`, so the keys followed the screen when it was
+moved from Connections to Costs and when it was renamed Models — the screen
+went on doing two jobs and the move looked done. **Moving or renaming a
+settings screen carries its credential block with it unless you change the
+key.** The routing screen is keyed `models` now precisely so it cannot pick one
+up.
 
 ### The client Dashboard (Oct 2026)
 
@@ -287,7 +318,7 @@ deleted. Each suite now lands on its first real tab.
 | Earned | Health (Coverage) |
 | Shared | Measure (Review) |
 | Owned | Health |
-| Email | Campaigns |
+| Convert | Optimise |
 
 `SuiteOverview`, `DataFlowMap` and `OverviewChat` went with them — nothing
 imported them afterwards. `SocialSuiteOverview` stays and is a different
@@ -1731,12 +1762,30 @@ What this means in practice:
   something in there that should be a page.
 - **`tests/lib/tabDoors.mjs` counts a panel row as a door**, which it is and a
   better one than the in-page links it looks for.
+- **The nav rail is a section's only door, and no path scan can see the panel.**
+  Panel rows are `<button>`s calling the section's setter, not links, so a
+  check that greps for `to=` / `href=` / `navigate(` finds nothing in the
+  panel and everything in `Layout.jsx`. Add a section to `sections.js` without
+  adding a `NavLink` to the rail and it has rows, routes, slugs and no way in.
+  That shipped on 1 November: Email was promoted out of Convert with five
+  working screens nobody could reach except through the ⌘K palette.
+  `sectionPanel.test.mjs` now asserts every section has a rail entry.
+  - **`routeDoors.test.mjs` was blind to it, and to almost everything else.**
+    It drops any client route whose tail holds a colon, and every section
+    route has ended in `/:screen?` since screens became path segments — so it
+    was checking one client route out of nine (`/data`) and had been for
+    weeks, while reading as a door check for the whole app. It strips a
+    trailing optional segment now. A guard that quietly shrinks its own scope
+    still passes, which is the failure mode to watch for in the others.
 
 Widths and colours are measured, not chosen, and the numbers have no slack in
 them worth spending. In Brockmann at 14px the widest nav row is "Shared" plus
 its Social chip at 110px, so the 170px nav indents 24px rather than 40px (at 40
-the lane is 106px and the chip clips). The widest panel row is `Keyword
-footprint` at 124px against a 142px lane, so a 150px panel breaks it. The nav
+the lane is 106px and the chip clips). Panel rows no longer have a width ceiling: `.sp-row` was
+`white-space: nowrap` with an ellipsis, which rendered "Publication duplicates"
+as "Publication duplic..." in the 170px panel, and they wrap now. **Do not put
+the nowrap back** to keep rows on one line — a vertical list has room downward
+and none sideways, and a truncated row is a destination you cannot read. The nav
 is `#000000` because the logo has a black background and `#0b0b0c` shows an
 edge — **do not put a gradient back on `.app-nav`**, there was one and that was
 the cause. `#000` against the panel's `#222` is only 1.32:1, so the 1px `#333`
@@ -3375,8 +3424,8 @@ claiming that a `.db` test protects anything.
   matches nothing changes nothing and says nothing, and the suite goes green
   with the new assertions never run.
 - L1 masthead stays **big** (display title + kicker), matching Settings.
-- Two "Leads" screens — name which one. Owned→Email→Leads is two-pane;
-  Biz dev→Leads stays a table.
+- One "Leads" screen now: Biz dev→Leads, and it stays a table. The client-side
+  one is Convert→Outreach→Prospects, renamed off the collision.
 - L5 pattern = add an `embedded` prop to the detail modal, then `ListDetail sidebar`.
 - Don't brand OMI "nvelope".
 - The real next prize is **Phase 3 (GTM Brain)**, not more table refactors.

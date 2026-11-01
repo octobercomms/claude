@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ScreenHeading from '../components/ScreenHeading';
 import { Link, useLocation } from 'react-router-dom';
 import { useScreen } from '../hooks/useScreen';
-import { sectionForPath } from '../nav/sections';
+import { sectionForPath, slugForTab, SECTIONS as SECTIONS_NAV } from '../nav/sections';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
@@ -31,7 +31,8 @@ import { useAuth } from '../context/AuthContext';
 import ReportsPage from './ReportsPage';
 import CheckerBenchPage from './CheckerBenchPage';
 import { KEY_GROUPS, CATEGORIES, SUBTAB_CATS } from '../settings/catalogue';
-import RecordTools, { ToolRow, DatabaseToolsSlot, DatabaseToolsTrigger } from '../components/database/RecordTools';
+import RecordTools from '../components/database/RecordTools';
+import DatabaseToolsPage from './ContactCleanupPage';
 import StatStrip from '../components/shells/StatStrip';
 import DangerConfirm from '../components/ui/DangerConfirm';
 import { usePrompt } from '../context/PromptContext';
@@ -73,6 +74,15 @@ const SECTIONS = [
     { k: 'tags' },
     { k: 'tasks' },
     { k: 'assistant' },
+    // Cleanup. Seven screens that were a page of their own behind a kebab;
+    // they are rows in this section now, so the path carries which one.
+    { k: 'duplicates' },
+    { k: 'coverage' },
+    { k: 'tidy' },
+    { k: 'ooo' },
+    { k: 'replies' },
+    { k: 'pubdupes' },
+    { k: 'maintenance' },
   ] },
   { key: 'tools', subs: [
     { k: 'reports' },
@@ -96,6 +106,16 @@ const SECTIONS = [
   ] },
 ];
 const ALL_SUBS = SECTIONS.flatMap(s => s.subs.map(x => x.k));
+
+// The Cleanup group's screens, named rather than derived: the panel's rows,
+// this list and the page's own branches have to agree, and routeTargets reads
+// this to prove it.
+const CLEANUP_SCREENS = ['duplicates', 'coverage', 'tidy', 'ooo', 'replies', 'pubdupes', 'maintenance'];
+
+// Built from sections.js, not written out: four screens point at Maintenance,
+// and a renamed row would otherwise leave four dead links — the class this
+// repo shipped six of in one commit.
+const MAINTENANCE_PATH = `${SECTIONS_NAV.database.base()}/${slugForTab(SECTIONS_NAV.database, 'maintenance')}`;
 
 export default function SettingsPage() {
   const { readOnly } = useAuth();
@@ -294,8 +314,6 @@ export default function SettingsPage() {
   const sectionTitle = sectionForPath(location.pathname)?.title || 'Settings';
 
   return (
-    <DatabaseToolsSlot>
-      {(tools) => (
     <div>
       <div className="kicker"><span className="pip" />Admin</div>
       <header className="hero">
@@ -305,10 +323,6 @@ export default function SettingsPage() {
             <h1 className="display">{sectionTitle}</h1>
             <ScreenHeading title={sectionTitle} />
           </div>
-          {/* The list's tools, in the page header. They used to sit inside
-              the first card on the screen, which is where a control that
-              acts on one record goes, not one that acts on the lot. */}
-          <DatabaseToolsTrigger tools={tools} />
         </div>
       </header>
 
@@ -319,6 +333,10 @@ export default function SettingsPage() {
           tests/sectionPanel.test.mjs checks the two have not drifted. */}
 
       {tab === 'integrations' && <IntegrationsPage embedded />}
+      {CLEANUP_SCREENS.includes(tab) && (
+        <DatabaseToolsPage screen={tab} onScreen={switchTab} />
+      )}
+
       {tab === 'health' && <MediaHealthPanel />}
       {tab === 'contacts' && <ContactsLibrary />}
       {tab === 'tasks' && <JournalistTasks />}
@@ -583,8 +601,6 @@ export default function SettingsPage() {
       </form>
       </>)}
     </div>
-      )}
-    </DatabaseToolsSlot>
   );
 }
 
@@ -748,15 +764,13 @@ function PublicationsPanel() {
             publication's; a journalist inherits it.)
           </p>
         </div>
-        <RecordTools label="publication" primary={
+        <RecordTools primary={
           <button onClick={() => setAdding(true)} className="btn btn-primary btn-sm">+ Add publication</button>
         }>
-          <ToolRow note="Find duplicate publications, merge them and dismiss false positives. The same page as Journalists uses, on its publications tab.">
-            <Link to="/database-tools?tab=pubdupes" className="btn btn-secondary">🧹 Database tools</Link>
-          </ToolRow>
-          <ToolRow note={outlets?.length ? `${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}, as a spreadsheet.` : 'Nothing to export yet.'}>
-            <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary">↓ Export CSV</button>
-          </ToolRow>
+          <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary btn-sm"
+            title={outlets?.length ? `${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}, as a spreadsheet.` : 'Nothing to export yet.'}>
+            ↓ Export CSV
+          </button>
         </RecordTools>
       </div>
       {/* Find websites + feeds moved to Database tools › Maintenance on
@@ -766,7 +780,7 @@ function PublicationsPanel() {
           sitting on a list screen. */}
       <p className="body-xs text-subtle" style={{ margin: 'var(--s3) 0 0', maxWidth: 640, lineHeight: 1.5 }}>
         Websites and feeds fill in on their own overnight.{' '}
-        <Link to="/database-tools?tab=maintenance">Run a batch now</Link>, along with the rest of the
+        <Link to={MAINTENANCE_PATH}>Run a batch now</Link>, along with the rest of the
         database jobs.
       </p>
       <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: 'var(--s3) 0' }} />
@@ -2000,7 +2014,7 @@ function JournalistTasks() {
         <div className="body-sm text-muted" style={{ flex: 1, minWidth: 220 }}>
           📬 Every Monday you get a digest of everything below — new journalists, gone-quiet, duplicates, moves, bad emails — so you never have to remember to check.
         </div>
-        <Link to="/database-tools?tab=maintenance" className="btn btn-secondary btn-sm">Send it now, and other jobs</Link>
+        <Link to={MAINTENANCE_PATH} className="btn btn-secondary btn-sm">Send it now, and other jobs</Link>
       </div>
 
       {/* Find new journalists */}
@@ -2019,7 +2033,7 @@ function JournalistTasks() {
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runScout, disabled: scoutBusy || !scoutClientId })}>
                 {scoutBusy ? 'Scanning…' : '✦ Find new journalists'}
               </button>
-              <Link to="/database-tools?tab=maintenance" className="btn btn-secondary btn-sm"
+              <Link to={MAINTENANCE_PATH} className="btn btn-secondary btn-sm"
                 title="Classify new bylines from every publication's RSS feed into review suggestions, and flag journalists who've gone quiet. Runs nightly on its own.">
                 🛰 Mine feeds now
               </Link>
@@ -2738,20 +2752,19 @@ function ContactsLibrary() {
               to the others.
             </p>
           </div>
-          <RecordTools label="journalist" primary={
+          <RecordTools primary={
             <button {...roWrite(readOnly, { onClick: () => setAddOpen(true) })} className="btn btn-primary btn-sm">
               + Add journalist
             </button>
           }>
-            <ToolRow note="Find and merge duplicates, fold orphaned coverage onto the right person, fix capitalisation, emails and companies, and strip leftover Notion-URL fragments. It is a workspace of its own, so it opens as a page.">
-              <Link to="/database-tools" className="btn btn-secondary">🧹 Database tools</Link>
-            </ToolRow>
-            <ToolRow note={total ? `${total.toLocaleString()} journalist${total === 1 ? '' : 's'} match the filters above, and those are what the file holds.` : 'Nothing matches the filters above, so there is nothing to export.'}>
-              <button onClick={exportCsv} disabled={!total} className="btn btn-secondary">↓ Export CSV</button>
-            </ToolRow>
-            <ToolRow note="A column header row and one journalist per line. Existing people are matched on email, so re-importing an updated file corrects them rather than duplicating them.">
-              <button onClick={() => setImportOpen(true)} className="btn btn-secondary">Import CSV</button>
-            </ToolRow>
+            <button onClick={() => setImportOpen(true)} className="btn btn-secondary btn-sm"
+              title="A column header row and one journalist per line. Existing people are matched on email, so re-importing an updated file corrects them rather than duplicating them.">
+              Import CSV
+            </button>
+            <button onClick={exportCsv} disabled={!total} className="btn btn-secondary btn-sm"
+              title={total ? `${total.toLocaleString()} journalist${total === 1 ? '' : 's'} match the filters above, and those are what the file holds.` : 'Nothing matches the filters above, so there is nothing to export.'}>
+              ↓ Export CSV
+            </button>
           </RecordTools>
         </div>
 
@@ -3085,7 +3098,7 @@ function TagsManager() {
               1 November. It read as a control on this list; it rewrites tags
               across every journalist, and the plan it returns is the part you
               have to sit and read. */}
-          <Link to="/database-tools?tab=maintenance" className="btn btn-secondary btn-sm">✦ Tidy with Claude</Link>
+          <Link to={MAINTENANCE_PATH} className="btn btn-secondary btn-sm">✦ Tidy with Claude</Link>
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>

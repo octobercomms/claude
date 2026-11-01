@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { SECTIONS, slugForTab } from '../nav/sections';
-import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import SuiteTabs from '../components/SuiteTabs';
 import OooReviewPanel from '../components/OooReviewPanel';
 import ReplyCatchupPanel from '../components/ReplyCatchupPanel';
 import MaintenanceTools from '../components/database/MaintenanceTools';
@@ -23,7 +20,7 @@ import { useAuth } from '../context/AuthContext';
 // Phase 1: Duplicates tab only. Coverage matchups + Tidy fixes tabs are
 // placeholders; they wire up in phases 2 and 3 of the cleanup roadmap.
 //
-// UI conventions: reuses the platform's kicker/hero/SuiteTabs/card/chip/table
+// UI conventions: reuses the platform's card/chip/table
 // pattern from the other suite pages (Client PR, Outlet profile, etc.) so it
 // reads as "another suite page" rather than a one-off.
 
@@ -47,18 +44,17 @@ function emptyTabState() {
   return { clusters: null, scanning: false, chosen: {}, done: {} };
 }
 
-function countRemaining(s) {
-  if (!s?.clusters) return 0;
-  return s.clusters.filter((c, i) => !s.done[i] && (c.members?.length || 0) >= 2).length;
-}
-
-export default function DatabaseToolsPage() {
+// Embedded in the Database section, which owns the screen.
+//
+// It used to be a page of its own at /database-tools, holding its tab in
+// useState seeded once from ?tab= — so the URL named the screen you arrived
+// on and then never changed again as you moved through it. The seven screens
+// are rows in the Database panel now, so the parent passes which one is
+// showing and the path carries it, like every other screen in the app.
+export default function DatabaseToolsPage({ screen, onScreen }) {
   const toast = useToast();
-  // Open with the tab requested via ?tab=… so the Cleanup Centre link on the
-  // Publications panel lands the user directly on the Publications dupes tab.
-  const [params] = useSearchParams();
-  const initialTab = params.get('tab') || 'duplicates';
-  const [tab, setTab] = useState(initialTab);
+  const tab = screen || 'duplicates';
+  const setTab = onScreen || (() => {});
   const [byTab, setByTab] = useState({ duplicates: emptyTabState(), coverage: emptyTabState() });
   const [busy, setBusy] = useState(false);
 
@@ -158,32 +154,26 @@ export default function DatabaseToolsPage() {
   const remaining = clusters ? clusters.filter((_, i) => !done[i] && (clusters[i].members?.length || 0) >= 2) : [];
   const exactCount = clusters ? clusters.filter((c, i) => c.method === 'exact_email' && !done[i]).length : 0;
 
+  // What this screen is for, per screen. The page used to carry one blurb
+  // under one heading for all seven; as rows, each is arrived at directly and
+  // the sentence has to be about the screen you are on.
+  const BLURB = {
+    duplicates: 'Journalists entered twice. Scan, review each cluster, and merge the ones that are the same person.',
+    coverage: 'Coverage attached to a name rather than a journalist record. Fold it onto the right person so their history is in one place.',
+    tidy: 'Capitalisation, stray email formatting, company names and leftover URL fragments, fixed in batches you approve.',
+    ooo: 'Out-of-office replies name the person covering and where someone has moved. This reads them and offers the changes.',
+    replies: 'Replies that arrived while nobody was looking, matched to the campaign and the journalist they answer.',
+    pubdupes: 'The same publication entered more than once. Merge them so coverage and journalists do not split across two records.',
+    maintenance: 'Jobs that act on the whole database rather than one record: find websites and feeds, mine feeds for new bylines, semantic matching, the weekly digest, and tidying tags.',
+  };
+
   return (
     <div className="suite-cleanup">
-      <div className="kicker"><span className="pip" /><span>Admin • Journalists</span></div>
-      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-        <div>
-          <h1 className="display">Database tools</h1>
-          <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 'var(--s2) 0 0' }}>
-            Trim duplicates, fold orphaned coverage onto real journalists, and run every job that acts on
-            the whole media database rather than on one record.
-          </p>
-        </div>
-        <Link to={`${SECTIONS.database.base()}/${slugForTab(SECTIONS.database, 'contacts')}`} className="btn btn-secondary">← Back to journalists</Link>
-      </header>
-
-      <SuiteTabs tabs={[
-        { groupLabel: 'Journalists' },
-        { key: 'duplicates', label: `Duplicates${byTab.duplicates.clusters ? ` (${countRemaining(byTab.duplicates)})` : ''}`, active: tab === 'duplicates', onClick: () => setTab('duplicates') },
-        { key: 'coverage', label: `Coverage matchups${byTab.coverage.clusters ? ` (${countRemaining(byTab.coverage)})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
-        { key: 'tidy', label: 'Tidy fixes', active: tab === 'tidy', onClick: () => setTab('tidy') },
-        { key: 'ooo', label: 'Contact updates', active: tab === 'ooo', onClick: () => setTab('ooo') },
-        { key: 'replies', label: 'Reply catch-up', active: tab === 'replies', onClick: () => setTab('replies') },
-        { groupLabel: 'Publications' },
-        { key: 'pubdupes', label: 'Duplicates', active: tab === 'pubdupes', onClick: () => setTab('pubdupes') },
-        { groupLabel: 'Whole database' },
-        { key: 'maintenance', label: 'Maintenance', active: tab === 'maintenance', onClick: () => setTab('maintenance') },
-      ]} />
+      {BLURB[tab] && (
+        <p className="body text-muted" style={{ maxWidth: 680, margin: '0 0 var(--s4)', lineHeight: 1.6 }}>
+          {BLURB[tab]}
+        </p>
+      )}
 
       {tab === 'maintenance' && <MaintenanceTools />}
 

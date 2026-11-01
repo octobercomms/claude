@@ -36,12 +36,19 @@ let passed = 0;
 const ok = (what, fn) => { fn(); passed += 1; void what; };
 
 // ── 1. The tab exists, and it is where the jobs live ─────────────────────
-ok('Database tools has a Maintenance tab', () => {
-  assert.ok(/key: 'maintenance'/.test(toolsPage), 'the tab is registered');
-  assert.ok(/tab === 'maintenance' && <MaintenanceTools \/>/.test(toolsPage), 'and renders the tools');
-  // Grouped under its own heading rather than appended to the Journalists
-  // run, because none of these are about journalists in particular.
-  assert.ok(/groupLabel: 'Whole database'/.test(toolsPage), 'under its own group heading');
+ok('Maintenance is a Cleanup row, and it renders the tools', () => {
+  // This asserted the SuiteTabs entry and its 'Whole database' group label,
+  // which was the strip the seven screens had inside their own page. They are
+  // rows in the Database panel now, so the tab list is gone and the row is
+  // what has to exist. The decision the guard is for — these jobs have one
+  // home and it is reachable — is unchanged.
+  const sections = stripComments(read('src/nav/sections.js'));
+  const db = sections.slice(sections.indexOf('  database: {'), sections.indexOf('  bizdev: {'));
+  assert.ok(/{ heading: 'Cleanup', rows: \[/.test(db), 'Database has a Cleanup group');
+  assert.ok(/tab: 'maintenance',\s+label: 'Maintenance'/.test(db), 'with a Maintenance row');
+  assert.ok(/tab === 'maintenance' && <MaintenanceTools \/>/.test(toolsPage), 'and it renders the tools');
+  assert.ok(/CLEANUP_SCREENS\.includes\(tab\)/.test(settings),
+    'and the Database section renders the Cleanup screens');
 });
 
 // ── 2. Every job that moved, moved ───────────────────────────────────────
@@ -101,8 +108,17 @@ ok('every job says when it runs on its own', () => {
 
 // ── 4. Nothing is left pointing at a button that moved ───────────────────
 ok('the screens the jobs left point at where they went', () => {
-  const links = (settings.match(/\/database-tools\?tab=maintenance/g) || []).length;
+  // Was a count of /database-tools?tab=maintenance. That path no longer
+  // exists: Maintenance is a row in the Database panel, and the four screens
+  // build the path from sections.js through one constant, so a renamed row
+  // cannot leave four dead links. Pinning the literal string again would make
+  // this guard fail on a rename that is correct.
+  const links = (settings.match(/to=\{MAINTENANCE_PATH\}/g) || []).length;
   assert.ok(links >= 4, `each screen links on (found ${links})`);
+  assert.ok(/const MAINTENANCE_PATH = `\$\{SECTIONS_NAV\.database\.base\(\)\}\/\$\{slugForTab\(SECTIONS_NAV\.database, 'maintenance'\)\}`/.test(settings),
+    'and the path is derived from the row rather than written out');
+  assert.ok(!/database-tools/.test(settings + stripComments(read('src/App.jsx'))),
+    'nothing still points at the old top-level page');
   // The one thing worse than a job in two places is a line describing a
   // button that is not there any more.
   assert.ok(!/<strong>Find websites \+ feeds<\/strong> runs over every publication/.test(settings),
