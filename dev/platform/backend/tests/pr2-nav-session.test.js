@@ -123,8 +123,16 @@ ok('Cleanup Centre is renamed, and no link points at the old path', () => {
   assert.ok(/path="database-tools"/.test(app), 'the route is /database-tools');
   assert.ok(!/contacts\/cleanup/.test(app + settings), 'nothing links to the old path');
   assert.ok(!/>🧹 Cleanup Centre</.test(settings), 'and no button still says Cleanup Centre');
-  assert.strictEqual((settings.match(/to="\/database-tools/g) || []).length, 2,
-    'both lists link to the new one');
+  // Named, not counted. This asserted "exactly 2" until PR 3 moved every
+  // maintenance job onto the page and added four more pointers to it. A count
+  // pins a number; what this cares about is that each list's drawer still
+  // reaches the page, and lands on its own tab. Relaxing the count to "at
+  // least 2" would have been worse than either: both halves of this could
+  // then break and the four new pointers would still satisfy it.
+  assert.ok(/to="\/database-tools\?tab=pubdupes"/.test(settings),
+    'the Publications drawer lands on its own duplicates tab');
+  assert.ok(/to="\/database-tools"/.test(settings),
+    'and the Journalists drawer lands on the page itself');
 });
 
 ok('the tools kebab is published to the page header, not drawn in the card', () => {

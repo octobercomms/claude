@@ -36,6 +36,22 @@ build.
 never from an absolute path, or the drive silently fails to start anywhere
 but the machine it was written on.
 
+## The per-PR drives
+
+Most drives are named after a screen (`drive-tenders.mjs`, `drive-hook-vault.mjs`)
+and stay useful indefinitely. Three are named after a pull request instead,
+because they exist to verify one change set end to end:
+
+| file | what it drives | assertions |
+|---|---|---|
+| `drive-pr1.mjs` | six styles below the upload, Library tools gone, Video/Edit explainers, the cross-site Funnel health read | 18 |
+| `drive-pr2.mjs` | the nav session: Make, Email as a section, Improve inside Learn, Models under Costs, the tools kebab in the page header | 27 |
+| `drive-pr3.mjs` | every maintenance job on one tab, the pointers left behind, Add publication and its duplicate check | 25 |
+
+Keep running them. Each one is a regression check on a change that reached
+production, and PR 2 re-ran PR 1's before pushing. They are cheap: all three
+take under a minute together.
+
 ## What a drive is for
 
 A guard asserts about source text. A drive asserts about a rendered page.

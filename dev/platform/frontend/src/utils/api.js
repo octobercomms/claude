@@ -89,7 +89,16 @@ async function request(path, options = {}) {
       throw new Error(`Server returned HTML (HTTP ${res.status}) — the backend may be offline. Check pm2 / nginx.`);
     }
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    // The message is what almost every caller wants, and until 1 November it
+    // was all they got — the rest of the body was parsed and dropped. A 409
+    // that answers "already there, and here is the row" was indistinguishable
+    // from one that only said no, so the caller could not offer to open it.
+    // Everything the server sent now rides along on .body, and .status with
+    // it, for the handful of callers that branch on the code.
+    const e = new Error(err.error || `HTTP ${res.status}`);
+    e.status = res.status;
+    e.body = err;
+    throw e;
   }
 
   if (looksHtml) {
@@ -181,7 +190,10 @@ export const api = {
     if (res.status === 401) { bounceToLogin(); throw new Error('Session expired'); }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}`);
+      const e = new Error(err.error || `HTTP ${res.status}`);
+      e.status = res.status;
+      e.body = err;
+      throw e;
     }
     const disp = res.headers.get('content-disposition') || '';
     const m = disp.match(/filename="?([^"]+)"?/);

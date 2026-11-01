@@ -620,6 +620,7 @@ function ScopesBlock({ scopes }) {
 // as the Contacts equivalent), so this panel is the live list + inline rename
 // + per-row delete only.
 function PublicationsPanel() {
+  const [adding, setAdding] = useState(false);
   const [err, setErr] = useState(null);
   const [outlets, setOutlets] = useState(null);
   const [outletSearch, setOutletSearch] = useState('');
@@ -640,51 +641,6 @@ function PublicationsPanel() {
     } catch (e) { setErr(e.message); }
     finally { setRssBusy(null); }
   }
-  // Sweep every unresolved publication for a feed.
-  async function sweepRss() {
-    setRssBusy('sweep');
-    try {
-      const r = await api.post('/pr/outlets/find-rss/sweep', {});
-      setErr(null);
-      // Reload to reflect the newly-found feeds.
-      const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
-      const res = await api.get(path);
-      setOutlets(res.items || []);
-      alert(`Feed sweep: checked ${r.checked}, found ${r.found}. (Only checks publications that already have a website on file — use “Find missing websites” for the rest.)`);
-    } catch (e) { setErr(e.message); }
-    finally { setRssBusy(null); }
-  }
-  // One button that progresses EVERY unresolved publication: first find feeds for
-  // the ones that already have a website (fast, cheap), then find the website AND
-  // feed for the ones with none (web search). A batch per click; the nightly job
-  // does the bulk.
-  async function resolveWebsites() {
-    setRssBusy('resolve');
-    try {
-      const known = await api.post('/pr/outlets/find-rss/sweep', { limit: 60 });
-      const missing = await api.post('/pr/outlets/resolve-websites/sweep', { limit: 20 });
-      setErr(null);
-      const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
-      const res = await api.get(path);
-      setOutlets(res.items || []);
-      const feedsFromKnown = known.found || 0;
-      const totalFeeds = feedsFromKnown + (missing.feeds || 0);
-      alert(`Found ${totalFeeds} feed${totalFeeds === 1 ? '' : 's'} this pass (${feedsFromKnown} from publications that had a website, ${missing.feeds || 0} + ${missing.websites || 0} new websites from ${missing.checked || 0} that had none). This also runs automatically every night — click again to do another batch now.`);
-    } catch (e) { setErr(e.message); }
-    finally { setRssBusy(null); }
-  }
-
-  // Reload on every search-term change. Server-side ILIKE means the user
-  // finds zero-coverage outlets (Vogue.nl etc.) that fall outside the
-  // top-2000-by-coverage window the unfiltered list returns. Debounce so
-  // we don't hit the API on every keystroke.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
-      api.get(path).then((r) => { setOutlets(r.items || []); setSelected(new Set()); }).catch((e) => setErr(e.message));
-    }, 250);
-    return () => clearTimeout(t);
-  }, [outletSearch]);
   async function setTier(id, tier) {
     setOutlets((list) => list.map((o) => (o.id === id ? { ...o, tier } : o)));
     try { await api.patch(`/pr/outlets/${id}`, { tier }); } catch (e) { setErr(e.message); }
@@ -789,9 +745,7 @@ function PublicationsPanel() {
           </p>
         </div>
         <RecordTools label="publication" primary={
-          <button onClick={resolveWebsites} disabled={rssBusy === 'resolve'} className="btn btn-primary btn-sm">
-            {rssBusy === 'resolve' ? 'Finding feeds…' : '🔎 Find websites + feeds'}
-          </button>
+          <button onClick={() => setAdding(true)} className="btn btn-primary btn-sm">+ Add publication</button>
         }>
           <ToolRow note="Find duplicate publications, merge them and dismiss false positives. The same page as Journalists uses, on its publications tab.">
             <Link to="/database-tools?tab=pubdupes" className="btn btn-secondary">🧹 Database tools</Link>
@@ -801,13 +755,15 @@ function PublicationsPanel() {
           </ToolRow>
         </RecordTools>
       </div>
-      {/* "How does find websites and feeds button work? i think i have to
-          select publications or not?" — it does not take a selection, and
-          that was only ever said in a tooltip. */}
+      {/* Find websites + feeds moved to Database tools › Maintenance on
+          1 November. "i think i have to select publications or not?" was the
+          question it kept raising, and the answer — it runs over everything,
+          ignoring your selection — is the definition of a whole-database job
+          sitting on a list screen. */}
       <p className="body-xs text-subtle" style={{ margin: 'var(--s3) 0 0', maxWidth: 640, lineHeight: 1.5 }}>
-        <strong>Find websites + feeds</strong> runs over every publication, not the ones you have ticked:
-        it finds the feed for any that already has a website, and searches for the website and the feed
-        for any that has neither. One batch per click, and the rest run on their own overnight.
+        Websites and feeds fill in on their own overnight.{' '}
+        <Link to="/database-tools?tab=maintenance">Run a batch now</Link>, along with the rest of the
+        database jobs.
       </p>
       <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: 'var(--s3) 0' }} />
 
@@ -901,6 +857,21 @@ function PublicationsPanel() {
         </div>
       )}
 
+      {adding && (
+        <AddOutletModal
+          onClose={() => setAdding(false)}
+          onCreated={(o) => {
+            // Straight to the top of the list rather than a refetch: the list
+            // is ordered by coverage, and a new publication has none, so a
+            // refetch would file it below 2,000 others and read as a failure.
+            setOutlets((list) => [o, ...(list || [])]);
+            setAdding(false);
+            setOpenOutlet({ id: o.id });
+          }}
+          onExisting={(o) => { setAdding(false); setOpenOutlet({ id: o.id }); }}
+        />
+      )}
+
       {openOutlet && (
         <OutletEditModal
           key={openOutlet.id}
@@ -931,6 +902,108 @@ function PublicationsPanel() {
       {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)' }}>{err}</div>}
     </Card>
     </>
+  );
+}
+
+// Add a publication by hand.
+//
+// Until 1 November a publication could only arrive by being named in coverage
+// or by a CSV import, so a title you wanted to pitch but had never covered
+// could not be put in the database at all.
+//
+// Name is the only required field, because the rest fills itself in: the
+// nightly feed job finds the website and the RSS feed, and ✨ Generate writes
+// the About line from coverage once there is any. A form that demanded six
+// fields would get a name and five blanks.
+//
+// A clashing name or domain comes back 409 with the row it clashed with, and
+// this offers to open it. Every dedup tool on the Database tools page exists
+// because near-identical publications got in; a create form that waved them
+// through would be feeding it.
+function AddOutletModal({ onClose, onCreated, onExisting }) {
+  const [form, setForm] = useState({ name: '', url: '', tier: '', region: '', notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+  const [clash, setClash] = useState(null);
+  const update = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErr(null); setClash(null); };
+
+  async function save() {
+    if (!form.name.trim() || saving) return;
+    setSaving(true); setErr(null); setClash(null);
+    try {
+      const created = await api.post('/pr/outlets', form);
+      onCreated(created);
+    } catch (e) {
+      // api.js throws with the body attached where there is one, so the 409's
+      // existing row survives the trip. Without it this would say "already in
+      // the database" and leave you to go and find it.
+      const existing = e?.body?.existing || e?.existing;
+      if (existing) { setClash(existing); setErr(null); }
+      else setErr(e.message);
+    } finally { setSaving(false); }
+  }
+
+  const onSubmit = (e) => { e.preventDefault(); save(); };
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={onSubmit} className="modal" style={{ padding: 'var(--s6)' }}>
+        <div className="modal-head">
+          <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>Add a publication</h2>
+          <button type="button" onClick={onClose} className="modal-close">×</button>
+        </div>
+
+        {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', padding: '0 0 var(--s2)' }}>{err}</div>}
+        {clash && (
+          <div style={{ padding: 'var(--s3)', background: 'var(--warning-soft)', borderRadius: 'var(--r-sm)',
+            marginBottom: 'var(--s3)', display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="body-sm" style={{ flex: 1, minWidth: 200 }}>
+              <strong>{clash.name}</strong> is already in the database{clash.domain ? ` (${clash.domain})` : ''}.
+            </span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => onExisting(clash)}>
+              Open it
+            </button>
+          </div>
+        )}
+
+        <div className="grid">
+          <MField label="Name" full>
+            <input className="input" autoFocus value={form.name} onChange={(e) => update('name', e.target.value)}
+              placeholder="Dezeen" />
+          </MField>
+          <MField label="Website" full>
+            <input className="input" value={form.url} onChange={(e) => update('url', e.target.value)}
+              placeholder="dezeen.com" />
+          </MField>
+          <MField label="Tier">
+            <select className="input" value={form.tier} onChange={(e) => update('tier', e.target.value)}>
+              <option value="">Not set</option>
+              <option value="T1">T1 — premium</option>
+              <option value="T2">T2 — broad</option>
+              <option value="T3">T3 — blogs / microbloggers</option>
+            </select>
+          </MField>
+          <MField label="Region">
+            <input className="input" value={form.region} onChange={(e) => update('region', e.target.value)}
+              placeholder="UK" />
+          </MField>
+          <MField label="Notes" full>
+            <textarea className="input" rows={2} value={form.notes} onChange={(e) => update('notes', e.target.value)}
+              placeholder="Why this one matters, who you know there." />
+          </MField>
+        </div>
+
+        <p className="body-xs text-subtle" style={{ margin: 'var(--s3) 0 0' }}>
+          The feed and the About line fill in on their own. Only the name is needed now.
+        </p>
+
+        <div className="row end" style={{ marginTop: 'var(--s4)' }}>
+          <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+          <button type="submit" disabled={!form.name.trim() || saving} className="btn btn-primary">
+            {saving ? 'Adding…' : 'Add publication'}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -1787,8 +1860,6 @@ function JournalistTasks() {
   const [suggestions, setSuggestions] = useState([]);
   const [scoutClientId, setScoutClientId] = useState('');
   const [scoutBusy, setScoutBusy] = useState(false);
-  const [mineBusy, setMineBusy] = useState(false);
-  const [digestBusy, setDigestBusy] = useState(false);
   const [selSugg, setSelSugg] = useState(() => new Set());
   // Archive review
   const [archiveReview, setArchiveReview] = useState([]);
@@ -1843,39 +1914,6 @@ function JournalistTasks() {
       loadSuggestions();
     } catch (e) { toast(e.message, 'error'); }
     finally { setScoutBusy(false); }
-  }
-  async function mineFeeds() {
-    setMineBusy(true);
-    try {
-      const r = await api.post('/pr/feeds/mine', {});
-      const bits = [];
-      if (r.queued) bits.push(`${r.queued} new journalist${r.queued === 1 ? '' : 's'} from ${r.outlets} feed${r.outlets === 1 ? '' : 's'}`);
-      if (r.flagged) bits.push(`${r.flagged} flagged gone-quiet`);
-      toast(bits.length ? bits.join(' · ') : 'Feeds processed — nothing new to review right now.', bits.length ? 'success' : 'info');
-      loadSuggestions();
-      loadArchiveReview();
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setMineBusy(false); }
-  }
-  const [embedBusy, setEmbedBusy] = useState(false);
-  async function embedNow() {
-    setEmbedBusy(true);
-    try {
-      const r = await api.post('/pr/embeddings/backfill', {});
-      if (r.skipped === 'no-key') toast('Add an OpenAI key in Settings → AI to enable semantic matching.', 'info');
-      else toast(r.embedded ? `Embedded ${r.embedded} journalist profile${r.embedded === 1 ? '' : 's'} for semantic matching. Run again for more.` : 'Everyone with a topic profile is already embedded.', 'success');
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setEmbedBusy(false); }
-  }
-  async function sendDigestNow() {
-    setDigestBusy(true);
-    try {
-      const r = await api.post('/pr/digest/send-now', {});
-      if (r.sent) toast(`Digest emailed — ${r.counts.total} item${r.counts.total === 1 ? '' : 's'} this week.`, 'success');
-      else if (!r.counts?.total) toast('Nothing to review this week — no digest sent.', 'info');
-      else toast('Digest built, but no alert email is configured to send it to.', 'info');
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setDigestBusy(false); }
   }
   async function approveSuggestion(sid) {
     try {
@@ -1950,19 +1988,15 @@ function JournalistTasks() {
     <div className="stack stack-lg">
       {err && <div style={{ padding: 'var(--s2)', background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)' }}>{err}</div>}
 
+      {/* Semantic matching and the digest moved to Database tools › Maintenance
+          on 1 November, with every other job that acts on the whole database.
+          The line stays, because the Monday digest is the reason this screen
+          does not have to be checked, and that is worth knowing from here. */}
       <div className="card" style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', background: 'var(--surface-raised, #fafafa)' }}>
         <div className="body-sm text-muted" style={{ flex: 1, minWidth: 220 }}>
-          📬 Every Monday you get a digest of everything below — new journalists, gone-quiet, duplicates, moves, bad emails — so you never have to remember to check. Preview it now:
+          📬 Every Monday you get a digest of everything below — new journalists, gone-quiet, duplicates, moves, bad emails — so you never have to remember to check.
         </div>
-        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: embedNow, disabled: embedBusy })}
-            title="Build 'meaning fingerprints' for journalists with a topic profile, so the best-contacts matcher can rank by meaning. Runs nightly too.">
-            {embedBusy ? 'Embedding…' : '🧠 Enable semantic matching'}
-          </button>
-          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: sendDigestNow, disabled: digestBusy })}>
-            {digestBusy ? 'Sending…' : '📬 Email me this week’s digest'}
-          </button>
-        </div>
+        <Link to="/database-tools?tab=maintenance" className="btn btn-secondary btn-sm">Send it now, and other jobs</Link>
       </div>
 
       {/* Find new journalists */}
@@ -1971,7 +2005,7 @@ function JournalistTasks() {
           <div style={{ minWidth: 240, flex: 1 }}>
             <div className="h3 mb-2">🔭 Find new journalists</div>
             <div className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>
-              Two ways in: <strong>scout the web</strong> for journalists who cover a client’s beats, or <strong>mine your RSS feeds</strong> for new bylines already appearing at outlets you track. Nothing’s added until you approve it.
+              Two ways in: <strong>scout the web</strong> for journalists who cover a client’s beats, or <strong>mine your RSS feeds</strong> for new bylines already appearing at outlets you track. Nothing’s added until you approve it, and whatever either one finds is reviewed here.
             </div>
             <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
               <select className="input" style={{ maxWidth: 260 }} value={scoutClientId} onChange={(e) => setScoutClientId(e.target.value)}>
@@ -1981,9 +2015,10 @@ function JournalistTasks() {
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runScout, disabled: scoutBusy || !scoutClientId })}>
                 {scoutBusy ? 'Scanning…' : '✦ Find new journalists'}
               </button>
-              <button className="btn btn-secondary btn-sm" title="Classify new bylines from every publication's RSS feed into review suggestions, and flag journalists who've gone quiet. Runs nightly too." {...roWrite(readOnly, { onClick: mineFeeds, disabled: mineBusy })}>
-                {mineBusy ? 'Mining feeds…' : '🛰 Mine feeds now'}
-              </button>
+              <Link to="/database-tools?tab=maintenance" className="btn btn-secondary btn-sm"
+                title="Classify new bylines from every publication's RSS feed into review suggestions, and flag journalists who've gone quiet. Runs nightly on its own.">
+                🛰 Mine feeds now
+              </Link>
             </div>
           </div>
         </div>
@@ -2989,10 +3024,6 @@ function TagsManager() {
   const [err, setErr] = useState(null);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [plan, setPlan] = useState(null);            // { operations: [], tagCount }
-  const [selectedOps, setSelectedOps] = useState(() => new Set());
-  const [applying, setApplying] = useState(false);
 
   async function reload() {
     try {
@@ -3014,38 +3045,6 @@ function TagsManager() {
       await reload();
     } catch (e) { setErr(e.message); }
     finally { setBusy(false); }
-  }
-
-  async function tidyWithClaude() {
-    setAnalyzing(true); setErr(null); setInfo(null); setPlan(null); setSelectedOps(new Set());
-    try {
-      const r = await api.post('/outreach/tags/analyze', {});
-      setPlan(r);
-      // Pre-tick everything Claude suggested — the AM can untick anything
-      // they disagree with. Safer than ticking nothing (would be missed).
-      setSelectedOps(new Set((r.operations || []).map((_, i) => i)));
-      if (!(r.operations || []).length) setInfo('Claude has no cleanup suggestions — the catalogue looks tidy.');
-    } catch (e) { setErr(e.message); }
-    finally { setAnalyzing(false); }
-  }
-
-  async function applyPlan() {
-    if (!plan || !selectedOps.size) return;
-    const ops = plan.operations.filter((_, i) => selectedOps.has(i));
-    if (!confirm(`Apply ${ops.length} cleanup operation${ops.length === 1 ? '' : 's'}? This rewrites tags on journalists and can't be undone in one click.`)) return;
-    setApplying(true); setErr(null);
-    try {
-      const r = await api.post('/outreach/tags/apply-plan', { operations: ops });
-      const totals = (r.results || []).reduce((acc, x) => {
-        acc[x.op.type] = (acc[x.op.type] || 0) + (x.updated || 0);
-        return acc;
-      }, {});
-      const summary = Object.entries(totals).map(([k, v]) => `${k}: ${v.toLocaleString()}`).join(' · ');
-      setInfo(`Applied ${ops.length} operation${ops.length === 1 ? '' : 's'}. ${summary}`);
-      setPlan(null); setSelectedOps(new Set());
-      await reload();
-    } catch (e) { setErr(e.message); }
-    finally { setApplying(false); }
   }
 
   async function deleteTag(tag, count) {
@@ -3078,60 +3077,12 @@ function TagsManager() {
               old CSV imports.
             </p>
           </div>
-          <button {...roWrite(readOnly, { onClick: tidyWithClaude, disabled: analyzing || applying, title: 'Send the tag list to Claude and get cleanup suggestions' })} className="btn btn-secondary btn-sm">
-            {analyzing ? 'Analysing…' : '✦ Tidy with Claude'}
-          </button>
+          {/* Tidy with Claude moved to Database tools › Maintenance on
+              1 November. It read as a control on this list; it rewrites tags
+              across every journalist, and the plan it returns is the part you
+              have to sit and read. */}
+          <Link to="/database-tools?tab=maintenance" className="btn btn-secondary btn-sm">✦ Tidy with Claude</Link>
         </div>
-
-        {plan && plan.operations && plan.operations.length > 0 && (
-          <div style={{ marginTop: 'var(--s4)', padding: 'var(--s4)', border: '1px solid #ddd6a8', borderRadius: 'var(--r-md)', background: 'var(--warning-soft)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
-              <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
-                Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
-              </div>
-              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} className="btn-icon" aria-label="Close">×</button>
-            </div>
-            <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)'  }}>
-              Untick anything you disagree with, then apply. Each operation rewrites tags on journalists and can't be undone in one click.
-            </p>
-            <div style={{ maxHeight: 380, overflowY: 'auto', borderTop: '1px solid #eee' }}>
-              {plan.operations.map((op, i) => {
-                const ticked = selectedOps.has(i);
-                return (
-                  <label key={i} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 'var(--s3)',
-                    padding: 'var(--s3) 0', borderBottom: '1px solid #f0eccd', cursor: 'pointer',
-                  }}>
-                    <input type="checkbox" checked={ticked} onChange={() => {
-                      setSelectedOps(prev => {
-                        const n = new Set(prev);
-                        if (n.has(i)) n.delete(i); else n.add(i);
-                        return n;
-                      });
-                    }} style={{ marginTop: 'var(--s1)' }} />
-                    <div style={{ flex: 1, fontSize: 'var(--fs-caption)' }}>
-                      <div style={{ marginBottom: 'var(--s1)' }}>
-                        <span className="chip chip-outline" style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', marginRight: 'var(--s2)'  }}>{op.type}</span>
-                        <OpSummary op={op} />
-                      </div>
-                      {op.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic' }}>{op.why}</div>}
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
-              <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} className="btn btn-secondary btn-sm">Tick all</button>
-              <button onClick={() => setSelectedOps(new Set())} className="btn btn-secondary btn-sm">Untick all</button>
-              <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
-              <button onClick={applyPlan} disabled={!selectedOps.size || applying}
-                className="btn btn-primary btn-sm">
-                {applying ? 'Applying…' : `Apply ${selectedOps.size} operation${selectedOps.size === 1 ? '' : 's'}`}
-              </button>
-            </div>
-          </div>
-        )}
 
         <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
           <input
@@ -3457,16 +3408,6 @@ const tidyStyles = {
 
 // Human-readable summary of a single tag-tidy operation. Rendered
 // alongside the checkbox in the plan panel.
-function OpSummary({ op }) {
-  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: 'var(--s1) var(--s1)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>{txt}</code>;
-  if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
-  if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
-  if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;
-  if (op.type === 'add_parent') return <span>Add parent {chip(op.parent)} to every journalist tagged {chip(op.child)}</span>;
-  return <span>{op.type}</span>;
-}
-
-
 // Spend controls — a monthly hard cap that pauses AI when hit, plus the daily
 // alert threshold. Shows live month-to-date so a cap can be set safely (a cap
 // below the current MTD would pause AI immediately).

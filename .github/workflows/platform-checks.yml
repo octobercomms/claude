@@ -253,6 +253,10 @@ jobs:
         run: node tests/pr1-review-fixes.test.js
       - name: Guard — PR 2 of the review plan, the nav session, holds
         run: node tests/pr2-nav-session.test.js
+      - name: Guard — PR 3 of the review plan, one place for every database job
+        run: node tests/pr3-database-tools.test.js
+      - name: Guard — a publication can be added by hand, and only once
+        run: node tests/outlet-create.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist
