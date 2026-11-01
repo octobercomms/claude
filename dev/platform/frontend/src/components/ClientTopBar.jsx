@@ -136,7 +136,10 @@ function CogIcon() {
   );
 }
 
-function ChatIcon() {
+// Exported: the Database assistant's bubble uses the same glyph, so the two
+// chat panels in OMI are opened by the same mark rather than by two drawings
+// of a speech bubble that drift apart.
+export function ChatIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

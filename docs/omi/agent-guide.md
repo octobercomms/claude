@@ -243,11 +243,17 @@ commit messages and half this file's memory, so name them from here:
   hands the five to `ClientOutreachPage` with a `screen` prop. Email is not a
   section and `ClientEmailPage` does not exist; Outreach rather than Email
   because only two of the five are email.
-- **Database** = Health, Journalists, Publications, Tags, Tasks, Assistant,
-  then a **Cleanup** group: the seven screens that were the `/database-tools`
-  page. That route is gone, `ContactCleanupPage` takes a `screen` prop, and
+- **Database** = Health, Journalists, Publications, Tags, Tasks, then a
+  **Cleanup** group: the seven screens that were the `/database-tools` page.
+  That route is gone, `ContactCleanupPage` takes a `screen` prop, and
   `SettingsPage` renders it for those seven keys. Nothing is reached through a
   kebab any more, because there is no kebab.
+  - **Assistant is not a row.** It is a chat that proposes changes to the
+    records, so being a destination meant leaving the list you wanted it to
+    act on. It is `DatabaseAssistantPanel` over whatever Database screen you
+    are on, opened from a bubble in the top bar, deep-linked `?assistant=1`,
+    agency-only. Same move the client analyst made out of Data, for the same
+    reason.
 - **Settings → Costs → Models** is the per-feature routing list;
   **Settings → Connections → AI** is the provider credentials.
 
@@ -355,6 +361,25 @@ Two things worth knowing before trusting or changing it:
   `ClientDetailPage` (tab straight off the search params). Both are pinned in
   the test's `UNREADABLE` list, so a green run never silently implies coverage
   it does not have, and a third such page fails until someone decides about it.
+
+### Two chat panels now, one set of rules (1 Nov 2026)
+
+`.analyst-panel` is the **chat-panel shape**, named for its first user rather
+than owned by the analyst. `AnalystPanel` (per client, every page) and
+`DatabaseAssistantPanel` (the media desk, Database only) both use it, and both
+copy the same dismiss listener. Reach for it rather than writing a third
+copy — two panels with their own rules is how they start behaving differently.
+
+The rules, which the section below sets out in full: no backdrop, no scroll
+lock, Escape and the × and a click outside all close it, and the panel covers
+the top bar so the bubble that opened it is underneath while it is open.
+
+**Be exact about which half of that listener is proven.** Mutation-tested on
+the assistant: moving the listener to the bubble phase turns its drive red,
+because the dismissing click then also presses the row it landed on. Removing
+the `stopPropagation` while keeping capture changed nothing any check could
+see — `preventDefault` in the capture phase was already enough. The line is
+kept for parity, so do not cite it as the mechanism.
 
 ### The analyst is a panel, and it knows where you are (29 Oct 2026)
 
