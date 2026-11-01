@@ -229,6 +229,8 @@ jobs:
         run: node tests/goto-urls.test.js
       - name: Guard — a deploy under an open tab reloads instead of erroring
         run: node tests/lazy-chunk.test.js
+      - name: Guard — Create's options, the Releases back link, the hook vault split
+        run: node tests/layout-three.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist

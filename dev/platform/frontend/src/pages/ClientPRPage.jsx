@@ -685,7 +685,19 @@ export default function ClientPRPage() {
   );
 
   const renderReleases = () => (
-        <div className="card">
+        <div>
+          {/* "All releases" sits above the box, not inside it.
+              It is the way out of this screen, and a way out drawn inside
+              the thing it leaves reads as part of the record you are
+              editing. Above the card it is where a back arrow goes. */}
+          {pr && (
+            <button type="button" className="btn-link"
+              onClick={() => { setPr(null); loadReleases(); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
+              ← All releases
+            </button>
+          )}
+          <div className="card">
           {pr ? (
             <PressReleaseEditor
               pr={pr} setPr={setPr} clientId={id} readOnly={readOnly} saving={prSaving}
@@ -724,6 +736,7 @@ export default function ClientPRPage() {
               </table>
             </div>
           )}
+          </div>
         </div>
   );
 

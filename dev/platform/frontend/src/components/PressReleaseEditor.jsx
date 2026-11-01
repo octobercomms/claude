@@ -767,14 +767,10 @@ export default function PressReleaseEditor({
           .oc-release-rail { position: sticky; top: var(--s4); align-self: start; }
         }
       `}</style>
-      {/* The way out sits above the title, top-left, where a back arrow goes.
-          It was a button in a cluster on the right, reading as a third action
-          of equal weight to the download beside it, when it is the only thing
-          on the row that leaves the page. */}
-      <button type="button" className="btn-link" onClick={onCancel}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
-        ← All releases
-      </button>
+      {/* "All releases" is not here any more. It is the way out of this
+          screen, so it is drawn by the page, above the card this editor
+          fills, rather than inside the record you are editing. Two copies
+          would be worse than the wrong one. */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s4)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         {/* .h3 is 14px — the same size as the body text under it — so the
             title of the thing you are editing was the quietest line on the

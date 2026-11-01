@@ -1345,6 +1345,40 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .tab:hover:not(.active) { color: var(--text); background: var(--surface-sunken); }
 .tab.active { background: var(--text); color: #fff; border-color: var(--text); }
 
+/* A row of choices that fills the width it is given, one equal column each.
+   Shared's Create had three such rows as content-width pills, so "Short /
+   Medium / Long" sat in the left third of a full-width card and the four
+   platforms wrapped unevenly underneath. An option you have not picked also
+   looked like no option at all: .tab's resting state is transparent with no
+   border, so the unpicked ones read as labels rather than as the other
+   things you could click. */
+.opt-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
+@media (max-width: 760px) {
+  /* Seven number buttons at phone width would be 40px each. */
+  .opt-row { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+}
+.opt-row .tab { justify-content: center; text-align: center; }
+/* Grey when inactive: a visible surface and border, so it reads as a button. */
+.opt-row .tab:not(.active) {
+  background: var(--surface-sunken);
+  border-color: var(--card-border);
+  color: var(--text-subtle);
+}
+.opt-row .tab:not(.active):hover { color: var(--text); border-color: var(--text-subtle); }
+
+/* Hook vault — the list at three quarters, the explanation beside it.
+   All four paragraphs used to sit above the list, so the thing the page is
+   for began below the fold, and the explanation was read once and scrolled
+   past every time after. Beside it, it is there when wanted and out of the
+   way when not. Stacks below 1100px, where 25% of the width is too narrow
+   to read a paragraph in. */
+.hookvault { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-comp); align-items: start; }
+@media (min-width: 1100px) {
+  .hookvault { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); }
+  .hookvault__rail { position: sticky; top: var(--s4); }
+}
+.hookvault__main { min-width: 0; }
+
 /* Binary switch — two labels flank a track; the active one inks up and the knob
    slides to it. For true 2-way toggles only (sort A/B, filter all/starred). Any
    choice with 3+ options uses .tab. Toggle .switch-track.on to flip. */

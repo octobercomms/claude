@@ -2016,10 +2016,16 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
             placeholder="What's the angle? Any constraints?" />
         </div>
 
-        {/* The options, under the brief */}
+        {/* The options, under the brief, each row filling the width.
+            They were content-width pills, so "Short / Medium / Long" sat in
+            the left third of a full-width card and the four platforms wrapped
+            unevenly under them. And an option you had not picked looked like
+            no option at all: .tab's resting state is transparent with no
+            border, so the unpicked ones read as labels. .opt-row gives each
+            row equal columns and the unpicked ones a grey surface. */}
         <div>
           <label style={{ ...modalStyles.label, marginTop: 0 }}>How many posts</label>
-          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
+          <div className="opt-row">
             {[1, 2, 3, 4, 5, 6, 9].map(nn => (
               <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
                 className={`tab ${count === nn ? 'active' : ''}`}>
@@ -2028,7 +2034,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
             ))}
           </div>
           <label style={modalStyles.label}>Post length</label>
-          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
+          <div className="opt-row">
             {[
               { id: 'short', label: 'Short', hint: 'punchy — 1–2 lines' },
               { id: 'medium', label: 'Medium', hint: 'a short paragraph' },
@@ -2044,7 +2050,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
             {length === 'short' ? 'Punchy captions, 1–2 lines.' : length === 'long' ? 'Detailed, storytelling captions.' : 'A short paragraph per post.'}
           </p>
           <label style={modalStyles.label}>Platforms</label>
-          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
+          <div className="opt-row">
             {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
               <button key={p} onClick={() => togglePlatform(p)} type="button" className={`tab ${platforms.includes(p) ? 'active' : ''}`} style={{ textTransform: 'capitalize' }}>
                 {p}
