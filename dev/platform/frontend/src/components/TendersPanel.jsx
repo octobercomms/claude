@@ -60,6 +60,13 @@ export default function TendersPanel() {
   const [market, setMarket] = useState('');
   const [relevance, setRelevance] = useState('match');
   const [verdict, setVerdict] = useState('shortlist'); // go/no-go view
+  // Two filters that used to be hard-coded in the request and invisible on
+  // screen: closed notices were always hidden, and a dismissed notice could
+  // not be reached again from anywhere in the UI. Both are now switches, so
+  // "the list is empty" has an answer you can act on.
+  const [showClosed, setShowClosed] = useState(false);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [totals, setTotals] = useState(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
 
@@ -92,12 +99,14 @@ export default function TendersPanel() {
   async function loadNotices() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ upcoming: '1', relevance, verdict, limit: '300' });
+      const params = new URLSearchParams({ upcoming: showClosed ? '0' : '1', relevance, verdict, limit: '300' });
+      if (showDismissed) params.set('dismissed', '1');
       if (market) params.set('market', market);
       const res = await api.get(`/tender/notices?${params.toString()}`);
       setNotices(res.notices || []);
       setCounts(res.counts || null);
       setVcounts(res.vcounts || null);
+      setTotals(res.totals || null);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
   }
@@ -126,7 +135,7 @@ export default function TendersPanel() {
   }
 
   useEffect(() => { loadSources(); loadSettings(); loadCompany(); }, []); // eslint-disable-line
-  useEffect(() => { loadNotices(); }, [market, relevance, verdict]); // eslint-disable-line
+  useEffect(() => { loadNotices(); }, [market, relevance, verdict, showClosed, showDismissed]); // eslint-disable-line
 
   async function runScan() {
     if (running) return;
@@ -291,6 +300,22 @@ export default function TendersPanel() {
           </div>
         </div>
 
+        {/* Closed and dismissed were hard-coded out of the request, so a
+            notice you dismissed by mistake could not be reached from
+            anywhere, and a deadline that had passed took the whole record
+            with it. The counts sit on the labels, so the list's shape is
+            readable without ticking anything. */}
+        <div style={{ display: 'flex', gap: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
+          <label className="body-sm text-muted" style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showClosed} onChange={() => setShowClosed(v => !v)} />
+            Include closed{totals && totals.closed ? ` (${totals.closed})` : ''}
+          </label>
+          <label className="body-sm text-muted" style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showDismissed} onChange={() => setShowDismissed(v => !v)} />
+            Include dismissed{totals && totals.dismissed ? ` (${totals.dismissed})` : ''}
+          </label>
+        </div>
+
         {/* Add a tender by URL — the guaranteed path for one you've already found. */}
         <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
           <input className="input" type="url" placeholder="Found one yourself? Paste a tender URL to add it…"
@@ -315,10 +340,40 @@ export default function TendersPanel() {
         {loading ? (
           <p className="body-sm text-muted">Loading…</p>
         ) : !notices.length ? (
-          <div className="empty" style={{ padding: 'var(--s5)' }}>
-            {counts && counts.total > 0
-              ? <>Nothing worth a look in this view. Try <strong>No-go</strong> or <strong>All verdicts</strong>, or widen the relevance filter to <strong>All PR / comms</strong>.</>
-              : <>Nothing ingested yet. Hit <strong>Run scan now</strong> to pull the latest notices from the live feeds.</>}
+          /* An empty list has four different causes and they need four
+             different actions. The old message named one of them and
+             defaulted to the most alarming: "Nothing ingested yet. Hit Run
+             scan now" — which was what a database of 200 expired notices
+             also said, because the count behind it was taken after the
+             closed-and-dismissed filter had already removed them.
+
+             Each branch below names a number you can check and offers the
+             switch that reveals what it is talking about. */
+          <div className="empty" style={{ padding: 'var(--s5)', display: 'grid', gap: 'var(--s3)', justifyItems: 'start' }}>
+            {counts && counts.total > 0 ? (
+              <span>
+                {counts.total} notice{counts.total === 1 ? '' : 's'} in this view, none of them past the
+                filters. Try <strong>No-go</strong> or <strong>All verdicts</strong>, or widen the relevance
+                filter to <strong>All PR / comms</strong>.
+              </span>
+            ) : totals && totals.stored > 0 ? (
+              <>
+                <span>
+                  {totals.stored} notice{totals.stored === 1 ? '' : 's'} stored
+                  {market ? ' for this market' : ''}, and none of them are open and undismissed.
+                  {totals.closed > 0 && <> {totals.closed} {totals.closed === 1 ? 'has' : 'have'} closed.</>}
+                  {totals.dismissed > 0 && <> {totals.dismissed} {totals.dismissed === 1 ? 'was' : 'were'} dismissed.</>}
+                </span>
+                <span className="body-sm text-muted">
+                  Nothing is lost. Tick a box below to see them, or scan for new ones.
+                </span>
+              </>
+            ) : (
+              <span>
+                Nothing ingested yet. Hit <strong>Run scan now</strong> to pull the latest notices from
+                the live feeds.
+              </span>
+            )}
           </div>
         ) : (
           <div className="md-table-wrap">

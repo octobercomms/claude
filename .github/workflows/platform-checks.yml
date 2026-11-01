@@ -237,6 +237,16 @@ jobs:
         run: node tests/login-flicker.test.js
       - name: Guard — the writing standard sits in the header, beside Share
         run: node tests/writing-standard.test.js
+      - name: Guard — an empty tender list says which of the four reasons it is
+        run: node tests/tenders-empty.test.js
+      - name: Guard — every failure count says what it counts
+        run: node tests/campaign-failures.test.js
+      - name: Guard — nothing calls window.prompt, which can silently do nothing
+        run: node tests/no-window-prompt.test.js
+      - name: Guard — a dead domain is named once; a broken resolver is not believed
+        run: node tests/domain-exists.test.js
+      - name: Guard — the browser drives still run outside the container that wrote them
+        run: node tests/drives-portable.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist

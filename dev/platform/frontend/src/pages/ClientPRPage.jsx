@@ -5,6 +5,7 @@ import { useScreen } from '../hooks/useScreen';
 import { useOpenOnce, useOpenState, useViewParam } from '../hooks/useOpenRecord';
 import PressReleaseEditor from '../components/PressReleaseEditor';
 import WritingStandardDrawer from '../components/WritingStandardDrawer';
+import { usePrompt } from '../context/PromptContext';
 import PillarMeasure from '../components/PillarMeasure';
 import { useToast } from '../context/ToastContext';
 import PageShell from '../components/shells/PageShell';
@@ -114,6 +115,7 @@ export default function ClientPRPage() {
   // Which Health / Build accordion sections are open. A real toggle Set (like
   // Owned's) so clicking an open header collapses it — the tab-derived open
   // state used before could never close the one open section.
+  const ask = usePrompt();
   const [shareOpen, setShareOpen] = useState(false);
   // The writing standard opens from the page header, not from inside a
   // release, so the page holds the state.
@@ -657,7 +659,9 @@ export default function ClientPRPage() {
       // clipboard and say so.
       if (!w) {
         try { await navigator.clipboard.writeText(url); toast('Popup blocked — the coverage link is on your clipboard', 'warning'); }
-        catch { window.prompt('Client coverage report:', url); }
+        // window.prompt was the old last resort and is inert in an embedded
+        // view, so the link disappeared. Show it instead.
+        catch { await ask({ title: 'Client coverage report', detail: 'Copy this link.', defaultValue: url, confirmLabel: 'Done' }); }
       }
     } catch (err) { toast(err.message, 'error'); }
   }

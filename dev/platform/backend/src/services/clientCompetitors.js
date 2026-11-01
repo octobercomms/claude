@@ -19,6 +19,7 @@
 
 const pool = require('../db');
 const competitorSuggest = require('./competitorSuggest');
+const { domainExists } = require('../utils/domainExists');
 
 const REGIONS = ['GB', 'US', 'IE', 'AU', 'CA', 'NZ', 'FR', 'DE', 'ES', 'IT', 'NL'];
 
@@ -164,7 +165,27 @@ async function suggest(clientId, { force = false } = {}) {
   if (existing.length && !force) return { competitors: existing, from: 'stored' };
 
   const proposed = await competitorSuggest.suggestCompetitors(clientId);
-  for (const c of proposed) {
+
+  // A suggested domain is checked before it is stored.
+  //
+  // Claude proposes a plausible-looking hostname, which is not the same as a
+  // hostname that exists. A dead one stored here is worse than no suggestion:
+  // it becomes a competitor on the record, gets fetched by the SEO scans, and
+  // produces a run of failures whose cause is a name nobody typed. That is
+  // what happened with morrowcomms.com on 1 November.
+  //
+  // Checked in parallel and only dropped on a definitive answer. When the
+  // resolver cannot be trusted the suggestion is kept, because an unknown
+  // answer must never silently discard good work.
+  const checked = await Promise.all(proposed.map(async (c) => {
+    if (!c.domain) return { c, keep: true };
+    const r = await domainExists(c.domain).catch(() => ({ exists: true, known: false }));
+    return { c, keep: !(r.known && !r.exists), reason: r.reason };
+  }));
+  const dropped = checked.filter(x => !x.keep).map(x => x.c.domain);
+  if (dropped.length) console.warn('[competitors] suggestions dropped, no DNS:', dropped.join(', '));
+
+  for (const { c } of checked.filter(x => x.keep)) {
     // One at a time, because a single competitor failing to insert should
     // not lose the other seven. The unique index makes a repeat a no-op.
     try {
@@ -173,7 +194,7 @@ async function suggest(clientId, { force = false } = {}) {
       console.error('[competitors] could not store suggestion:', c.domain || c.name, err.message);
     }
   }
-  return { competitors: await list(clientId), from: 'claude' };
+  return { competitors: await list(clientId), from: 'claude', dropped_no_dns: dropped };
 }
 
 module.exports = { list, add, update, remove, suggest, normalizeHost, normalizeRegion, REGIONS };

@@ -10,11 +10,13 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 import { SECTIONS, slugForTab } from '../nav/sections';
+import { usePrompt } from '../context/PromptContext';
 
 const ROW = { padding: 'var(--s3) var(--s3)', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: '1px solid var(--card-border)' };
 
 export default function ClarityConnectorCard({ clientId }) {
   const toast = useToast();
+  const ask = usePrompt();
   const [sites, setSites] = useState(null); // null = loading
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState('');
@@ -40,7 +42,8 @@ export default function ClarityConnectorCard({ clientId }) {
   }
 
   async function rename(site) {
-    const next = window.prompt('Site label (e.g. DTC, Trade, UK):', site.label);
+    const next = await ask({ title: 'Rename this site', label: 'Site label',
+      placeholder: 'e.g. DTC, Trade, UK', defaultValue: site.label, confirmLabel: 'Rename' });
     if (next == null) return;
     const lbl = next.trim();
     if (!lbl || lbl === site.label) return;

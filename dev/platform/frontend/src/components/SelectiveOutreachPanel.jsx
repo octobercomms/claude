@@ -9,6 +9,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { usePrompt } from '../context/PromptContext';
 
 const FIT_COLOUR = { fit: '#1a7f37', maybe: '#9a6b00', disqualified: '#c62828' };
 
@@ -24,6 +25,7 @@ function FitBadge({ verdict, score }) {
 
 export default function SelectiveOutreachPanel({ clientId }) {
   const toast = useToast();
+  const ask = usePrompt();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState(null);
@@ -44,7 +46,8 @@ export default function SelectiveOutreachPanel({ clientId }) {
   const active = campaigns.find(c => c.id === activeId) || null;
 
   async function createCampaign() {
-    const name = prompt('Name this campaign (e.g. "Architecture practices — Q3"):');
+    const name = await ask({ title: 'Name this campaign', label: 'Campaign name',
+      placeholder: 'e.g. Architecture practices — Q3', required: true, confirmLabel: 'Create campaign' });
     if (!name || !name.trim()) return;
     try {
       const c = await api.post('/prospecting/campaigns', { client_id: clientId, name: name.trim() });
@@ -218,6 +221,7 @@ function QueueView({ campaign, onChange }) {
 
 function ProspectsView({ campaign, onChange }) {
   const toast = useToast();
+  const ask = usePrompt();
   const [state, setState] = useState('new');
   const [data, setData] = useState({ prospects: [], counts: {} });
   const [loading, setLoading] = useState(true);
@@ -262,7 +266,9 @@ function ProspectsView({ campaign, onChange }) {
     catch (e) { toast(e.message, 'error'); }
   }
   async function dismiss(p) {
-    const reason = prompt('Dismiss reason (optional):') ?? '';
+    const reason = await ask({ title: `Dismiss ${p.company_name || p.domain || 'this prospect'}?`,
+      label: 'Reason (optional)', detail: 'Cancel leaves it in the list.', confirmLabel: 'Dismiss' });
+    if (reason === null) return;
     try { await api.post(`/prospecting/prospects/${p.id}/dismiss`, { reason }); load(); }
     catch (e) { toast(e.message, 'error'); }
   }

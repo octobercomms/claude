@@ -10,6 +10,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
+import { usePrompt } from '../context/PromptContext';
 
 const STATUS = {
   new:      { label: 'New',      cls: 'chip-neutral' },
@@ -37,6 +38,7 @@ function exportCsv(prospects, searchName) {
 
 export default function IgOutreachPanel({ clientId }) {
   const toast = useToast();
+  const ask = usePrompt();
   const { readOnly } = useAuth();
   const [searches, setSearches] = useState([]);
   const [unassigned, setUnassigned] = useState(0);
@@ -97,7 +99,9 @@ export default function IgOutreachPanel({ clientId }) {
   }
 
   async function editGoal(s) {
-    const next = window.prompt('What are you DMing these people about? (used to draft messages)', s.outreach_goal || '');
+    const next = await ask({ title: 'What are you DMing these people about?',
+      detail: 'Used to draft the messages.', label: 'Goal', multiline: true,
+      defaultValue: s.outreach_goal || '', confirmLabel: 'Save goal' });
     if (next == null) return;
     try { await api.patch(`/ig-outreach/clients/${clientId}/searches/${s.id}`, { outreach_goal: next.trim() }); await loadSearches(s.id); toast('Outreach goal saved — redraft to use it.', 'success'); }
     catch (e) { toast(e.message, 'error'); }
