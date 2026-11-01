@@ -325,9 +325,6 @@ export function levelFor(gain, { graph = false, blend = 1 } = {}) {
   // `num(null, 1)` is 0, not 1: Number(null) is 0 and 0 is finite, so the
   // fallback never fires. A caller passing blend: null — which is what an
   // absent value from a saved EDL looks like — would silence the block.
-  // `num(null, 1)` is 0, not 1: Number(null) is 0 and 0 is finite, so the
-  // fallback never fires. A caller passing blend: null — which is what an
-  // absent value from a saved EDL looks like — would silence the block.
   const b = blend == null ? 1 : Math.min(1, Math.max(0, num(blend, 1)));
   if (!graph) {
     return {
