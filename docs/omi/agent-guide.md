@@ -2217,6 +2217,53 @@ on Shared, so it passed by luck of markup.
 
 ---
 
+### Video in the browser: four things that cost a session each
+
+All four were found building the timeline's player (`EdlPlayer.jsx`,
+`shared/edlPlay.mjs`). The spec's own history is in
+`docs/omi/video-timeline-spec.md`; these are the parts that generalise.
+
+**An HTML `<video>` seeks to the frame, not to the keyframe.** The timeline
+spec said the opposite and costed two to three sessions of WebCodecs on it.
+Measured in Chromium against footage with the frame number burned into every
+frame as a colour: eleven of eleven mid-GOP seeks exact, on a clean 30fps
+file and on one at 29.97 with B-frames, rotation metadata and a 2.5-second
+keyframe interval; a one-frame step was exact on both. `currentTime` does a
+precise seek, `fastSeek()` is the coarse one. **Before building a decoder,
+spend twenty minutes proving you need it** — the probe is
+`scratchpad/probe/` and the colour-coded clip is four lines of `ffmpeg geq`.
+
+**Never drive a media state machine from `requestVideoFrameCallback`.** It
+fires per painted frame, which makes it the right place to *read* position
+and the worst place to *decide* anything: a clip reaching its end stops the
+painting, which stops the callback, which strands any hand-off living inside
+it. Run the machine on `requestAnimationFrame` and let the frame callback
+only record. Add an `ended` listener as well, and then assert the position
+advances *within* a clip, because with only the listener everything about
+ordering still passes while the playhead jumps once per cut.
+
+**Seeking to a frame's exact boundary is a coin flip.** Repeated
+`currentTime += 1/fps` steps showed the same frame twice and then skipped
+one. Step on the *source's* frame grid and land in the middle of a frame.
+The grid has to be the source's: adding `1/fps` to a timeline time
+accumulates an offset belonging to no clip, and two clips in one edit need
+not share a rate.
+
+**Pausing leaves the clock and the picture a frame apart.** `currentTime` is
+where playback stopped; the picture is the last frame painted, which can be
+the next one along. Settle the position onto the painted frame on pause — but
+only off the back of playback. A paused element paints nothing, so settling
+on its last report drags the position back to where play stopped and fights
+every step after it.
+
+And the measurement that makes all of this checkable: `rateFrom` reads a
+clip's frame rate off two `requestVideoFrameCallback` reports
+(`presentedFrames` over `mediaTime`), then snaps to the **nearest** real rate
+from a list. Nearest, not the first within tolerance: 30 and 29.97 are 0.1%
+apart, so an ascending first-match loop turns every 30fps clip into 29.97.
+
+---
+
 ## 8. Working conventions
 
 - **Keep this guide true. Do it as part of every change, before you open the

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as EDL from '@shared/edl.mjs';
 import Timeline, { stamp } from '../components/video/Timeline';
+import EdlPlayer from '../components/video/EdlPlayer';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -49,7 +50,6 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
   const clientId = clientIdProp || routeClientId;
   const toast = useToast();
   const fileRef = useRef(null);
-  const videoRef = useRef(null);
   const frameRef = useRef(null);
   const pollRef = useRef(null);
   const [client, setClient] = useState(null);
@@ -101,14 +101,13 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
     return () => { clearInterval(pollRef.current); clips.forEach(c => !c.remote && URL.revokeObjectURL(c.url)); };
   }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function measurePreview() { const el = frameRef.current || videoRef.current; if (el) setPreviewH(el.clientHeight); }
+  function measurePreview() { const el = frameRef.current; if (el) setPreviewH(el.clientHeight); }
   useEffect(() => {
     window.addEventListener('resize', measurePreview);
     return () => window.removeEventListener('resize', measurePreview);
   }, []);
   // Re-measure when the frame's aspect changes.
   useEffect(() => { measurePreview(); }, [aspect, clips.length]); // eslint-disable-line
-  function seek(t) { if (videoRef.current && isFinite(t)) videoRef.current.currentTime = Math.max(0, t); }
 
   // Keep captions out of the platform safe zones (clamped when a zone is shown):
   // above the bottom UI (handle/caption for Reel, the bigger CTA box for Ad),
@@ -193,22 +192,10 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
   // Text on screen is an edit in its own right, even over untouched clips.
   const hasOverlays = overlays.some(o => String(o?.text || '').trim());
 
-  // Which clip the playhead is over, and where inside it. The preview shows
-  // that clip and seeks to that point. It does not play across a cut: that is
-  // the frame-accurate preview, which is its own piece of work, and a preview
-  // that pretended to play the edit would be showing frames the render will
-  // not contain.
-  const atPlayhead = useMemo(() => {
-    const row = EDL.itemAt(edl, playhead);
-    if (!row) return { clipIndex: 0, sourceTime: 0, item: null };
-    return {
-      clipIndex: row.item.clip,
-      sourceTime: (row.item.in || 0) + (playhead - row.start),
-      item: row.item,
-    };
-  }, [edl, playhead]);
-
-  const previewClip = clips[atPlayhead.clipIndex] || clips[0] || null;
+  // The player works out which clip the playhead is over and where inside it,
+  // and plays straight across a cut. The page only has to say whether there
+  // is anything to show.
+  const hasPreview = clips.length > 0 && EDL.duration(edl) > 0;
   const capCost = captions && keptDuration ? (keptDuration / 60) * WHISPER_PER_MIN : 0;
   const nothingChosen = !(combining || aspect !== 'original' || effectiveTrim
     || hasOverlays || cleanAudio || captions);
@@ -397,57 +384,47 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
 
           {/* LEFT */}
           <div>
-            {previewClip ? (
+            {hasPreview ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'center', background: '#000', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
-                  <div ref={frameRef} style={frameAR
-                    ? { position: 'relative', aspectRatio: `${frameAR[0]} / ${frameAR[1]}`, height: '62vh', maxWidth: '100%', background: '#000' }
-                    : { position: 'relative', lineHeight: 0, maxWidth: '100%' }}>
-                    <video ref={videoRef} src={previewClip.url} controls
-                      onTimeUpdate={e => {
-                        // Report the source time back as a timeline position,
-                        // so the playhead tracks playback inside the block it
-                        // is over. Across a cut it stops, which is honest:
-                        // playing the assembled edit is the frame-accurate
-                        // preview, and that is not built yet.
-                        const row = edlRows.find(r => r.item.clip === atPlayhead.clipIndex);
-                        if (!row) return;
-                        const t = e.target.currentTime - (row.item.in || 0);
-                        if (t >= 0 && t <= row.length + 0.001) setPlayhead(row.start + t);
-                      }}
-                      onLoadedMetadata={e => { measurePreview(); if (previewClip.remote && !previewClip.duration) { const d = e.target.duration; setClips(prev => prev.map((x) => x.id === previewClip.id ? { ...x, duration: d } : x)); } }}
-                      style={frameAR
-                        ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }
-                        : { maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
-                    {safeZone !== 'off' && previewH > 0 && safeBoxes(safeZone).map(b => (
-                      <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 'var(--r-sm)', pointerEvents: 'none', boxSizing: 'border-box' }}>
-                        <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 'var(--fs-caption)', fontWeight: 700, color: '#fff', textShadow: '0 1px 2px #000', textTransform: 'uppercase', letterSpacing: 0.3 }}>{b.label}</span>
+                <EdlPlayer
+                  clips={clips}
+                  edl={edl}
+                  playhead={playhead}
+                  onSeek={setPlayhead}
+                  frameAR={frameAR}
+                  frameRef={frameRef}
+                  onMeta={({ clip, duration, height }) => {
+                    if (height) setPreviewH(height);
+                    // A clip uploaded earlier has no length until something
+                    // loads it, and the timeline cannot lay out a block whose
+                    // length is unknown.
+                    if (duration) {
+                      setClips(prev => prev.map((x, i) => (i === clip && !x.duration ? { ...x, duration } : x)));
+                    }
+                  }}
+                >
+                  {safeZone !== 'off' && previewH > 0 && safeBoxes(safeZone).map(b => (
+                    <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 'var(--r-sm)', pointerEvents: 'none', boxSizing: 'border-box' }}>
+                      <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 'var(--fs-caption)', fontWeight: 700, color: '#fff', textShadow: '0 1px 2px #000', textTransform: 'uppercase', letterSpacing: 0.3 }}>{b.label}</span>
+                    </div>
+                  ))}
+                  {captions && !capTemplate && previewH > 0 && (() => {
+                    const fontPx = Math.max(9, previewH * (ASS_SIZE[capSize] || 24) / 288);
+                    const marginPx = previewH * marginVFor(capPos) / 288;
+                    return (
+                      <div style={{ position: 'absolute', left: 0, right: 0, bottom: marginPx, textAlign: 'center', pointerEvents: 'none', padding: '0 16%' }}>
+                        <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 800, fontSize: fontPx, lineHeight: 1.15, color: '#fff', WebkitTextStrokeColor: '#000', WebkitTextStrokeWidth: Math.max(1, fontPx * 0.07), paintOrder: 'stroke', textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>the quick brown fox</span>
                       </div>
-                    ))}
-                    {captions && !capTemplate && previewH > 0 && (() => {
-                      const fontPx = Math.max(9, previewH * (ASS_SIZE[capSize] || 24) / 288);
-                      const marginPx = previewH * marginVFor(capPos) / 288;
-                      return (
-                        <div style={{ position: 'absolute', left: 0, right: 0, bottom: marginPx, textAlign: 'center', pointerEvents: 'none', padding: '0 16%' }}>
-                          <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 800, fontSize: fontPx, lineHeight: 1.15, color: '#fff', WebkitTextStrokeColor: '#000', WebkitTextStrokeWidth: Math.max(1, fontPx * 0.07), paintOrder: 'stroke', textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>the quick brown fox</span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
+                    );
+                  })()}
+                </EdlPlayer>
                 <div className="card" style={{ marginTop: 'var(--s3)' }}>
                   <Timeline
                     clips={clips}
                     edl={edl}
                     onChange={setEdl}
                     playhead={playhead}
-                    onSeek={(t) => {
-                      setPlayhead(t);
-                      const row = EDL.itemAt(edl, t);
-                      if (row && videoRef.current && row.item.clip === atPlayhead.clipIndex) {
-                        seek((row.item.in || 0) + (t - row.start));
-                      }
-                    }}
+                    onSeek={setPlayhead}
                     selectedId={selectedId}
                     onSelect={setSelectedId}
                     overlays={overlays}

@@ -691,14 +691,90 @@ but the lane scrolls, so a click at a fraction of its width is not a fraction
 of the edit. It now derives the expectation from the overlay's own start
 against the edit's length.
 
+### Session 7 · playing the edit, and the probe that changed the plan
+
+**2.2 is built, and not on WebCodecs.** The decision to use WebCodecs rested
+on one claim in section 2.2: that an HTML `<video>` seeks to keyframes rather
+than frames, so a playhead at 00:04.20 lands somewhere between 00:03 and
+00:05. That claim is wrong for Chromium, and the probe that settled it took
+twenty minutes.
+
+**The probe.** Footage with its frame number burned into every frame as a
+colour: the low nibble in red, the high nibble in green, a clip identifier in
+blue, so reading one pixel gives the exact frame on screen. Then eleven seeks
+per clip, deliberately mid-GOP, comparing the frame painted against the frame
+asked for.
+
+| Footage | Keyframe interval | Targets exact | One-frame step |
+|---|---|---|---|
+| 30fps, clean | 2.0s | 11 of 11 | exact |
+| 29.97fps, B-frames, rotation metadata | 2.5s | 11 of 11 | exact |
+
+`currentTime` does a precise seek; `fastSeek()` is the keyframe one. So
+decoding frames by hand would have rebuilt, at the cost of a demuxer
+dependency and two to three sessions, something the browser already does
+correctly. **`driftFrames` keeps the question open at runtime**: the player
+compares the painted frame's `mediaTime` against the time it asked for, and
+where a browser does seek coarsely it says which frame is actually on screen
+rather than letting the playhead and the picture disagree in silence.
+
+**What got built instead.** `shared/edlPlay.mjs` is the playback model —
+which clip is on screen and where inside it, when the next hand-off falls,
+which clip to load before it arrives, what is on screen during a cross-fade,
+and where one frame forward or back lands. `components/video/EdlPlayer.jsx`
+is two stacked elements: one plays the current block while the other is
+already loaded and seeked to the next block's in-point, so a cut is a swap
+rather than a stall. Transport is play, pause, one frame either way, and the
+arrow keys.
+
+Cross-fades are drawn rather than skipped, because `laidOut` already computes
+the overlap: during one, both elements play and the opacity ramp is the
+transition. `fade` and `dissolve` are that ramp; `fadeblack` adds a veil that
+dips through black at the midpoint; a wipe is **not** claimed, because the
+easing would be the component guessing at ffmpeg, so it previews as a cut and
+the player says which transition the render will apply.
+
+### Three faults, each only findable by driving it
+
+1. **The machine deadlocked at every clip's natural end.** It was driven from
+   inside `requestVideoFrameCallback`, which is the right place to read the
+   painted frame and the worst place to make decisions: the element stops
+   painting when the clip ends, so the callback stops firing, and the
+   hand-off that would have moved to the next clip lives inside the callback
+   that is no longer running. The machine now runs on `requestAnimationFrame`
+   and the frame callback only records. **An `ended` listener is the belt to
+   that braces** — and the drive now asserts the playhead advances *within* a
+   clip, because with only the listener the position jumps once per cut and
+   is frozen in between, which every assertion about ordering still passes.
+
+2. **A seek to a frame's exact boundary is a coin flip.** Stepping by `1/fps`
+   from an arbitrary time lands on boundaries, and repeated steps showed the
+   same frame twice and then skipped one. Steps now run on the *source's*
+   frame grid and land in the middle of a frame, where there is only one
+   frame it can be. The grid has to be the source's, not the timeline's:
+   adding `1/fps` to a timeline time accumulates an offset belonging to no
+   clip, and two clips in one edit need not share a rate.
+
+3. **Pausing left the clock and the picture a frame apart.** The element's
+   `currentTime` is where playback stopped; the picture is the last frame it
+   painted, which can be the next one along. Invisible until you step, and
+   then every step is out by one. `stop()` now settles the playhead onto the
+   painted frame and seeks the element to the middle of it — but only off the
+   back of playback, because a paused element paints nothing, so settling on
+   its last report drags the playhead back to where play stopped and every
+   subsequent step fights it.
+
+The guards: `backend/tests/edl-play.test.js` (42 assertions, all ten
+mutations caught) and `scratchpad/edl/drive-play.mjs` (61 assertions against
+the frame-indexed footage). Two component faults survived the drive's first
+version — no heartbeat, and no settle — and the two assertions added to catch
+them are the ones that compare the readout to the painted pixel.
+
 ### Next session
 
-**2.2, the frame-accurate preview, on WebCodecs** — but not before the
-capability probe comes back from the real devices. The probe reports whether
-`VideoDecoder` exists and how far a plain seek lands from the frame asked for,
-on footage shot on that device. If a plain seek is already inside a frame, the
-preview is cheaper than scoped; if Safari has no `VideoDecoder`, proxies are
-needed as a fallback and that is better known now than in session 12.
+**What remains of the spec.** Only 2.2's furthest edge: the preview does not
+composite burned captions or the safe-zone guides into playback the way the
+render will, and there is no audio gain node, so a block boosted above 100%
+plays at the volume cap and says so rather than sounding right.
 
-Cheapest useful work that needs no probe result: **2.3 filmstrip** and **2.4
-waveform**, one session each, both server-side extraction on upload.
+Everything else in sections 2.1 to 2.7 and the transitions line is built.
