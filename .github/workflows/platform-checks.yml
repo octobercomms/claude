@@ -211,6 +211,8 @@ jobs:
         run: node tests/social-sql-columns.test.js
       - name: Guard — the edit decision list, which is the timeline's model
         run: node tests/edl.test.js
+      - name: Guard — playing the edit back, across its cuts
+        run: node tests/edl-play.test.js
       - name: Guard — the processor routes an edit to the right render path
         run: node tests/edit-edl-render.test.js
       - name: Guard — the edit route refuses a malformed or oversized edit
