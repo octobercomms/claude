@@ -1237,6 +1237,18 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .contacts-list-table tbody tr:hover td { background: var(--surface-raised); }
 .contacts-list-table tr:last-child td { border-bottom: none; }
 .table td.strong { color: var(--text); font-weight: 700; }
+/* A sortable column header. The <th> keeps its own styling; this is the
+   button inside it, so the whole label is the hit target rather than a
+   caret you have to aim at. */
+.th-sort {
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.th-sort:hover { color: var(--text); text-decoration: underline; }
+/* Reserves its width whether or not this column is the sorted one, so
+   clicking through the headers does not shuffle the table sideways. */
+.th-sort__pip { display: inline-block; min-width: 0.7em; font-size: 0.8em; color: var(--accent-ink, var(--text)); }
 
 /* ─── Empty state ────────────────────────────────────────────────── */
 

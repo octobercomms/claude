@@ -2254,6 +2254,12 @@ function ContactsLibrary() {
   const [tagSearch, setTagSearch] = useState('');
   const [tagsExpanded, setTagsExpanded] = useState(false);
   const [bulkTagsToAdd, setBulkTagsToAdd] = useState(() => new Set());
+  // Sort, on the server for the same reason search is: the library holds
+  // 21,000 contacts and the list draws a 200-row page, so sorting in the
+  // browser orders the page you are looking at and calls it the library.
+  const [sort, setSort] = useState({ key: 'created_at', dir: 'desc' });
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deletingContacts, setDeletingContacts] = useState(false);
 
   // Filter state lives in the URL params we send to the server — with
   // 21k+ contacts in the library the old client-side filter was lying
@@ -2274,8 +2280,36 @@ function ContactsLibrary() {
     // per-client in Owned → Email, never in this workspace-wide view.
     p.set('kind', 'media');
     if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
+    p.set('sort', sort.key);
+    p.set('dir', sort.dir);
     return p;
   }
+
+  // Click a column: first click sorts it, clicking the same one again flips
+  // it. Name, publication, country and beat start ascending because A-first
+  // is what you mean by "sort by name"; the counts and the date start
+  // descending, because most and newest are what you are looking for.
+  const ASC_FIRST = new Set(['name', 'email', 'outlet', 'country', 'beat']);
+  function sortBy(key) {
+    setSort((s) => (s.key === key
+      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: ASC_FIRST.has(key) ? 'asc' : 'desc' }));
+  }
+  const SortTh = ({ col, children, align = 'left' }) => (
+    <th style={{ textAlign: align }}>
+      <button
+        type="button"
+        className="th-sort"
+        onClick={() => sortBy(col)}
+        aria-label={`Sort by ${String(children)}`}
+      >
+        {children}
+        <span className="th-sort__pip" aria-hidden="true">
+          {sort.key === col ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+        </span>
+      </button>
+    </th>
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   async function loadMore() {
     setLoadingMore(true);
@@ -2320,7 +2354,7 @@ function ContactsLibrary() {
     }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, activeTags]);
+  }, [search, activeTags, sort]);
 
   async function reload() {
     try {
@@ -2353,24 +2387,52 @@ function ContactsLibrary() {
     } catch (e) { setErr(e.message); }
   }
 
-  async function destroyAllMatching() {
+  // Both library deletes go through the typed dialog, for the same reason
+  // Publications does. This one had a confirm() and then, above 100 rows, a
+  // prompt() asking for the word DELETE. Two problems with that: a fixed word
+  // becomes muscle memory within a week, and prompt() is blocked outright in
+  // some embedded views, where it returns null and the delete silently does
+  // nothing. The count is typed instead, and it is the count the server is
+  // told to expect.
+  function askDeleteAllMatching() {
     if (!total) return;
     const filterDesc = (search.trim() ? `matching "${search.trim()}"` : '') +
       (activeTags.size ? ` tagged ${Array.from(activeTags).join(' + ')}` : '') ||
       'in the entire library';
-    if (!confirm(`Delete all ${total.toLocaleString()} journalists ${filterDesc.trim()} from the library? This removes them from every client they were attached to and CANNOT be undone.`)) return;
-    if (total > 100) {
-      const typed = prompt(`This will delete ${total.toLocaleString()} journalists. Type DELETE to confirm.`);
-      if (typed !== 'DELETE') return;
-    }
+    setPendingDelete({
+      mode: 'filter',
+      count: total,
+      detail: `Every journalist ${filterDesc.trim()}, not only the ${filtered.length.toLocaleString()} on screen. They are removed from every client they were attached to, and their send history goes with them.`,
+    });
+  }
+
+  function askDeleteSelectedContacts() {
+    if (!selected.size) return;
+    setPendingDelete({
+      mode: 'ids',
+      count: selected.size,
+      ids: Array.from(selected),
+      detail: 'They are removed from the library and from every client they were attached to, and their send history goes with them.',
+    });
+  }
+
+  async function runPendingDelete() {
+    if (!pendingDelete) return;
+    setDeletingContacts(true);
     try {
-      const res = await api.post('/outreach/contacts/library/delete-by-filter', {
-        ...filterBody(),
-        expected_count: total,
-      });
-      setInfo(`Deleted ${res.deleted.toLocaleString()} journalist${res.deleted === 1 ? '' : 's'}.`);
+      if (pendingDelete.mode === 'filter') {
+        const res = await api.post('/outreach/contacts/library/delete-by-filter', {
+          ...filterBody(),
+          expected_count: pendingDelete.count,
+        });
+        setInfo(`Deleted ${res.deleted.toLocaleString()} journalist${res.deleted === 1 ? '' : 's'}.`);
+      } else {
+        await api.post('/outreach/contacts/bulk-delete', { ids: pendingDelete.ids });
+      }
+      setPendingDelete(null);
       await reload();
     } catch (e) { setErr(e.message); }
+    finally { setDeletingContacts(false); }
   }
 
   function toggleTag(t) {
@@ -2406,16 +2468,7 @@ function ContactsLibrary() {
     }
   }
 
-  async function destroyContacts() {
-    if (!selected.size) return;
-    if (!confirm(`Delete ${selected.size} journalist${selected.size === 1 ? '' : 's'} from the library entirely? This also removes them from every client they were attached to.`)) return;
-    try {
-      await api.post('/outreach/contacts/bulk-delete', { ids: Array.from(selected) });
-      await reload();
-    } catch (e) {
-      setErr(e.message);
-    }
-  }
+
 
   async function destroyOne(contactId) {
     if (!confirm('Delete this journalist from the library entirely? This removes them from every client they were attached to.')) return;
@@ -2616,11 +2669,11 @@ function ContactsLibrary() {
               <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} className="btn btn-primary">
                 Add to client…
               </button>
-              <button onClick={destroyContacts} disabled={!selected.size} className="btn btn-danger btn-sm">
+              <button onClick={askDeleteSelectedContacts} disabled={!selected.size} className="btn btn-danger btn-sm">
                 Delete selected
               </button>
               {total > 0 && (
-                <button onClick={destroyAllMatching} className="btn btn-danger btn-sm"
+                <button onClick={askDeleteAllMatching} className="btn btn-danger btn-sm"
                   title={total > filtered.length ? `Delete all ${total.toLocaleString()} matching, not just the ${filtered.length.toLocaleString()} on screen` : ''}>
                   Delete all {total.toLocaleString()} matching
                 </button>
@@ -2683,14 +2736,17 @@ function ContactsLibrary() {
                   <th style={{ width: 28 }}>
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
                   </th>
-                  <th style={{ textAlign: 'left' }}>Name</th>
-                  <th style={{ textAlign: 'left' }}>Email</th>
-                  <th style={{ textAlign: 'left' }}>Publication</th>
-                  <th style={{ textAlign: 'left' }}>Country</th>
-                  <th style={{ textAlign: 'left' }}>Beat</th>
+                  <SortTh col="name">Name</SortTh>
+                  <SortTh col="email">Email</SortTh>
+                  <SortTh col="outlet">Publication</SortTh>
+                  <SortTh col="country">Country</SortTh>
+                  <SortTh col="beat">Beat</SortTh>
+                  {/* Tags and Attached-to are arrays. Sorting a list of
+                      tags alphabetically sorts by whichever happens to be
+                      first, which is not a sort anybody asked for. */}
                   <th style={{ textAlign: 'left' }}>Tags</th>
                   <th style={{ textAlign: 'left' }}>Attached to</th>
-                  <th style={{ textAlign: 'left' }}>Engagement</th>
+                  <SortTh col="total_replied">Engagement</SortTh>
                   <th style={{ textAlign: 'right' }}></th>
                 </tr>
               </thead>
@@ -2774,6 +2830,17 @@ function ContactsLibrary() {
           </div>
         )}
       </Card>
+
+      {pendingDelete && (
+        <DangerConfirm
+          count={pendingDelete.count}
+          noun="journalist"
+          detail={pendingDelete.detail}
+          busy={deletingContacts}
+          onConfirm={runPendingDelete}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

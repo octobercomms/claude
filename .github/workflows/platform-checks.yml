@@ -223,6 +223,8 @@ jobs:
         run: node tests/sostac-how.test.js
       - name: Guard — the small fixes off the 31 October review
         run: node tests/review-batch-small.test.js
+      - name: Guard — the contact library sorts on the server, and its red button asks for the count
+        run: node tests/contacts-sort.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist
