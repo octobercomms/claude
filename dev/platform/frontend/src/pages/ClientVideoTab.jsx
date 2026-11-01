@@ -9,8 +9,6 @@ import ClientVisualisePage from './ClientVisualisePage';
 import TranscribePage from './TranscribePage';
 import MakeAReel from './MakeAReel';
 import AssetLibrary from '../components/AssetLibrary';
-import TightenEdit from '../components/TightenEdit';
-import BrollPlan from '../components/BrollPlan';
 // Lazily loaded: the design editor pulls in Fabric.js, which is a large
 // dependency that nobody who never opens this tab should be made to download.
 // Reloads rather than showing a blank error when a deploy lands
@@ -30,14 +28,6 @@ export default function ClientVideoTab() {
   const canVisualise = !readOnly || !!user?.can_use_visualise;
   const [tab, setTab] = useScreen('produce');
   const [client, setClient] = useState(null);
-  // The clip the operator has picked out of the library to work on. Held here
-  // rather than inside the library, because the library's job is to say what
-  // exists and this is a tool pointed at one of those things.
-  const [picked, setPicked] = useState(null);
-  const [made, setMade] = useState(0);
-  // The transcript for the picked clip, paid for once and shared by both
-  // panels below.
-  const [words, setWords] = useState(null);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
@@ -71,52 +61,13 @@ export default function ClientVideoTab() {
         <>
           <div className="card" style={{ marginTop: 'var(--s4)' }}>
             <AssetLibrary clientId={id} title="Everything made for this client"
-              refreshKey={made}
-              onPick={readOnly ? null : (a) => {
-                setPicked(a.kind === 'video' ? a : null);
-                setWords(null);          // a different clip, a different transcript
-              }} />
-            {!readOnly && (
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)',
-                marginTop: 'var(--s3)' }}>
-                Pick a video to take the pauses and the fillers out of it.
-              </div>
-            )}
+              /* Picking an asset used to open Tighten and B-roll right here.
+                 Both are steps in the Video flow now, and leaving them here as
+                 well put one tool in two places, which is what the review
+                 reported in the first place. Library lists what has been made;
+                 the tools live where there is already a clip in hand. */ />
           </div>
 
-          {picked && !readOnly && (
-            <div className="card" style={{ marginTop: 'var(--s3)' }}>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)',
-                marginBottom: 'var(--s2)' }}>
-                {picked.title || 'Untitled'}
-                <button type="button" onClick={() => setPicked(null)}
-                  style={{ background: 'none', border: 0, padding: 0, marginLeft: 8,
-                    cursor: 'pointer', color: 'inherit', textDecoration: 'underline',
-                    fontSize: 'inherit' }}>
-                  pick another
-                </button>
-              </div>
-              {/* Keyed on the asset so switching clips clears the previous
-                  proposal. A plan from one video shown against another is the
-                  kind of mistake that renders before anyone notices. */}
-              {/* The selection is deliberately kept after a render. Clearing it
-                  unmounted the panel along with the one line that said what had
-                  just happened, so an operator pressed go, waited, and watched
-                  the whole thing disappear without a word. */}
-              <TightenEdit key={picked.id} asset={picked} onWords={setWords}
-                onTightened={() => setMade((n) => n + 1)} />
-
-              {/* Cutting the dead air and planning the cutaways are the same
-                  sitting: both run on the transcript, and an operator who has
-                  just tightened a clip is looking at exactly the thing that
-                  wants b-roll. */}
-              <div style={{ marginTop: 'var(--s4)', paddingTop: 'var(--s3)',
-                borderTop: 'var(--border-w) solid var(--card-border)' }}>
-                <BrollPlan key={`broll-${picked.id}`} asset={picked} clientId={id}
-                  words={words} onRendered={() => setMade((n) => n + 1)} />
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

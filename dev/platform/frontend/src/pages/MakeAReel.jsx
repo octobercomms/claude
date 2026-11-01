@@ -160,6 +160,14 @@ export default function MakeAReel({ clientId, clientName = '' }) {
 
   return (
     <div>
+      {/* Which of the two this is. The pages sit next to each other and read
+          as the same thing, so each names its own job and points at the
+          other rather than leaving you to work it out. */}
+      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', maxWidth: 660,
+        margin: '0 0 var(--s4)' }}>
+        Give it your clips and it assembles a reel: tightened, captioned, with cutaways laid in.
+        To cut one yourself on a timeline, use Edit.
+      </p>
       <Rail at={at} reached={reached} onJump={setAt} />
       {error && (
         <div className="card" style={{ ...card, color: 'var(--negative)' }}>{error}</div>
@@ -173,14 +181,6 @@ export default function MakeAReel({ clientId, clientName = '' }) {
             step reads the words, so a clip with no speech only gets as far as the edit.
           </div>
 
-          {/* The output, before any input. Somebody who has never used this has
-              no idea what comes out the other end, and the tab names do not
-              tell them. */}
-          <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)',
-            borderTop: 'var(--border-w) solid var(--card-border)' }}>
-            <ExampleReel />
-          </div>
-
           <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)', flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-sm" disabled={!!busy}
               onClick={() => fileRef.current?.click()}>
@@ -189,6 +189,14 @@ export default function MakeAReel({ clientId, clientName = '' }) {
             <input ref={fileRef} type="file" accept="video/*" style={{ display: 'none' }}
               onChange={(e) => e.target.files?.[0] && startFromUpload(e.target.files[0])} />
             <span style={CAP}>or pick something already made for {clientName || 'this client'}:</span>
+          </div>
+
+          {/* Below the upload, not above it. It sat first on the page, which
+              read as the opening move when it is a preview of what the upload
+              leads to. Disabled until there is a clip, saying so. */}
+          <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)',
+            borderTop: 'var(--border-w) solid var(--card-border)' }}>
+            <ExampleReel />
           </div>
 
           <div style={{ marginTop: 'var(--s3)' }}>
