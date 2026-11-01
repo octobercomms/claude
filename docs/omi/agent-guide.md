@@ -2006,14 +2006,31 @@ Three phases:
        Studio detail is a full two-column workspace; don't cram it into a pane).
    - So the L5 rollout is a judgement call, not a mandate. Convert journalists
      if desired; keywords is low-value; Biz dev Leads should stay a table.
-3. **Phase 3 — the per-client GTM Brain.** ❌ **Not started. This is where the
-   real remaining value is.** The idea: a per-client go-to-market intelligence
-   layer that ties the currently-siloed suites together — read the client's
-   state across Data/Paid/Earned/Shared/Owned, produce a strategy, recommend the
-   next best actions, and measure them — instead of each suite being an island.
-   This is a multi-session product build, not a night's work. Scope it with the
-   user before diving in. Related existing docs: `client-strategy.md`,
-   `redesign-brief.md`, `sales-pipeline.md`.
+3. **Phase 3 — the per-client GTM Brain.** ⬅ **This is the work. Chosen
+   1 November 2026 over the video editor, which is parked.** A per-client
+   go-to-market intelligence layer that ties the currently-siloed suites
+   together — read the client's state across Data/Paid/Earned/Shared/Owned,
+   produce a strategy, recommend the next best actions, and measure them —
+   instead of each suite being an island.
+
+   **It is scoped with Daniel before anything is built, and that has not
+   happened yet.** A multi-session product build started on inference is the
+   expensive mistake available here. The questions the scope has to answer,
+   because none of them can be inferred from the code: which client it is
+   built against first; what it reads that OMI does not already surface;
+   where the line sits between a recommendation it may act on and one it may
+   only propose; and how you would know it worked.
+
+   Existing material to read first, all of it older than the decision:
+   `client-strategy.md`, `redesign-brief.md`, `sales-pipeline.md`. The
+   Strategist is the nearest thing already running — a weekly cross-PESO
+   briefing with a queue and a memory — so start by asking what the GTM Brain
+   does that the Strategist does not, rather than by designing a second one.
+
+   **The video editor is parked, not cancelled.** `editor-composition-model.md`
+   carries the design and a header saying so. It was agreed and parked on the
+   same day: 25 to 35 sessions against a month on this, put side by side for
+   the first time. Do not start its step 1.
 
 ### The Costs panel reported the whole Anthropic account (31 Oct 2026)
 
@@ -2469,12 +2486,25 @@ holds the default, the publisher's filter and the screen's wording. Earned's
 Measure group, its Reports row and `PrBacklinkRoi` are gone;
 `PrBacklinkTotal` puts three tiles at the top of Coverage.
 
-### The video timeline is being built, surface first (31 Oct 2026)
+### The video timeline, as it stands while the editor is parked
 
-`docs/omi/video-timeline-spec.md`, whose section 7 is the build log and the
-place to add to. Daniel chose **option C, build it**, with **WebCodecs** for
-the preview, and said to go straight at the timeline with no interim fix. The
-surface and the model are in; the preview is not.
+**Nothing here is in progress.** The rewrite that would have replaced all of
+it is parked (see §7), so what follows describes the timeline that is live
+today and the rules its code holds you to. It is still the thing an account
+manager edits with.
+
+`docs/omi/video-timeline-spec.md`, whose section 7 is the build log. Daniel
+chose **option C, build it**, and said to go straight at the timeline with no
+interim fix. The surface and the model are in.
+
+**The preview is on the `<video>` element, not WebCodecs.** This section used
+to say WebCodecs was chosen, and it was, twice — then a probe on 31 October
+disproved the claim the choice rested on. Footage with its frame number burned
+into every frame, eleven deliberately mid-GOP seeks per clip, on a clean 30fps
+file and on one at 29.97 with B-frames and a 2.5s keyframe interval:
+`currentTime` landed exact on all twenty-two. So `fastSeek()` is the keyframe
+one and nothing calls it. `driftFrames` keeps the question open at runtime for
+a browser where the premise does hold.
 
 **The edit is one object now.** `dev/platform/shared/edl.mjs` is the edit
 decision list: a list of blocks, each naming a clip index and an in/out point

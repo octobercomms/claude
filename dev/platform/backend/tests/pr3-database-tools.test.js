@@ -182,6 +182,29 @@ ok('api.js hands the response body to the caller', () => {
   assert.strictEqual(carriesCount, 2, `and both carry the body (found ${carriesCount})`);
 });
 
+// ── 5. The move must not take the list with it ───────────────────────────
+ok('Publications still loads its list, and still searches the server', () => {
+  // This is the regression this PR actually shipped, found a day later by
+  // re-running drive-pubs: the debounced load-and-search effect sat directly
+  // under the "Find websites + feeds" sweep handler, that button moved to
+  // Database tools, and the effect went out with the handler. Nothing
+  // replaced it, so `outlets` stayed null and the whole Publications list
+  // showed "Loading…" for ever — on a change about where a button lives.
+  //
+  // The shape to hold is narrow and the whole point: something fetches the
+  // list, and the search term reaches the server rather than filtering what
+  // is already in the browser. The unfiltered list is the top 2,000 by
+  // coverage, so a zero-coverage outlet can only be found by asking.
+  const pubs = settings.slice(settings.indexOf('function PublicationsPanel()'),
+    settings.indexOf('function OutletDetail'));
+  assert.ok(pubs.length > 200, 'found the Publications panel');
+  assert.ok(/api\.get\(path\)\.then\(\(r\) => \{ setOutlets\(r\.items \|\| \[\]\)/.test(pubs),
+    'the list is fetched into state; without this the screen never leaves "Loading…"');
+  assert.ok(/\/pr\/outlets\?q=\$\{encodeURIComponent/.test(pubs),
+    'and the search term goes to the server, not a filter over the loaded page');
+  assert.ok(/\}, \[outletSearch\]\)/.test(pubs), 'reloading when the term changes');
+});
+
 console.log(`${passed} guards`);
 console.log('---');
 console.log('ONE PLACE FOR EVERY DATABASE JOB');

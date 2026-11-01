@@ -659,6 +659,26 @@ function PublicationsPanel() {
     } catch (e) { setErr(e.message); }
     finally { setRssBusy(null); }
   }
+  // Load the list, and reload it when the search term changes.
+  //
+  // This was deleted on 1 November as collateral: it sat directly under the
+  // "Find websites + feeds" sweep handler, that button moved to Database
+  // tools, and the effect went out with the handler. Nothing replaced it, so
+  // `outlets` stayed null and the screen showed "Loading…" for ever — the
+  // whole Publications list, gone, on a change about where a button lives.
+  //
+  // Server-side ILIKE rather than filtering in the browser: the unfiltered
+  // list is the top 2,000 by coverage, so a zero-coverage outlet (Vogue.nl
+  // and friends) is not in it and can only be found by asking the server.
+  // Debounced so a search does not hit the API on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
+      api.get(path).then((r) => { setOutlets(r.items || []); setSelected(new Set()); }).catch((e) => setErr(e.message));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [outletSearch]);
+
   async function setTier(id, tier) {
     setOutlets((list) => list.map((o) => (o.id === id ? { ...o, tier } : o)));
     try { await api.patch(`/pr/outlets/${id}`, { tier }); } catch (e) { setErr(e.message); }
