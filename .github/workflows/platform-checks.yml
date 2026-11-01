@@ -207,6 +207,8 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the burn assertions would silently skip'; exit 1; }
           node tests/captions.test.js
+      - name: Guard — a trending sound links to a page that opens
+        run: node tests/tiktok-sound.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist

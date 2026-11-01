@@ -2080,6 +2080,19 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
   );
 }
 
+// One labelled line of a sound card. The label is what makes it readable:
+// a bare string of three values gives no way to tell an artist from a title
+// when either is long enough to wrap.
+function SoundLine({ label, value, strong }) {
+  if (!value) return null;
+  return (
+    <div style={{ display: 'flex', gap: 'var(--s2)', fontSize: 'var(--fs-caption)', lineHeight: 1.45, minWidth: 0 }}>
+      <span style={{ color: 'var(--text-subtle)', flexShrink: 0, width: 44 }}>{label}</span>
+      <span style={{ fontWeight: strong ? 700 : 400, overflowWrap: 'anywhere', minWidth: 0 }}>{value}</span>
+    </div>
+  );
+}
+
 function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
   const { readOnly } = useAuth();
   const [open, setOpen] = React.useState(false);
@@ -2103,14 +2116,17 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         )}
       </div>
       {!!visible.length && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
+        // A row of pills put the title, the artist and the use count on one
+        // line and ellipsised all three, so the one thing you need — what to
+        // type into search — was the part that got cut. Labelled lines in a
+        // grid instead: "its truncated, so i dont know."
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s2)' }}>
           {visible.map((s, i) => (
             <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
-              style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center', maxWidth: 280 }}
-              title={`${s.title} — ${s.author || 'unknown'}`}>
-              <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
-              {s.author && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.author}</span>}
-              {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{s.use_count.toLocaleString()}</span>}
+              style={{ padding: 'var(--s2) var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', color: 'var(--text)', textDecoration: 'none', display: 'block', minWidth: 0 }}>
+              <SoundLine label="Title" value={s.title} strong />
+              <SoundLine label="Artist" value={s.author} />
+              <SoundLine label="Used" value={s.use_count ? `${s.use_count.toLocaleString()} posts` : null} />
             </a>
           ))}
         </div>
