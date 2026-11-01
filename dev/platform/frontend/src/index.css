@@ -2538,14 +2538,21 @@ a:hover > .card-stat,
 .sp-heading:hover { color: rgba(255,255,255,0.75); }
 .sp-heading-mark { font-weight: 400; font-size: var(--fs-body); line-height: 1; }
 
+/* A row wraps rather than truncating. The panel is 170px and was
+   white-space: nowrap with an ellipsis, so any label past about twenty
+   characters was unreadable — "Publication duplicates" rendered as
+   "Publication duplic...". A vertical list has room downward and none
+   sideways, so the second line is free and the ellipsis was not.
+   align-items: flex-start keeps a step number beside the first line rather
+   than centred against two. */
 .sp-row {
-  display: flex; align-items: center; gap: var(--s2); width: 100%;
+  display: flex; align-items: flex-start; gap: var(--s2); width: 100%;
   background: none; border: none; cursor: pointer; text-align: left;
   padding: 7px var(--s3) 7px var(--s4);
   border-left: 2px solid transparent;
   font-family: inherit; font-size: var(--fs-body); font-weight: 400;
   letter-spacing: 0.2px; color: rgba(255,255,255,0.72);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  overflow: hidden;
 }
 .sp-row:hover { color: #fff; background: rgba(255,255,255,0.06); }
 .sp-row.is-active {
@@ -2558,7 +2565,7 @@ a:hover > .card-stat,
   font-size: var(--fs-caption); font-weight: 700; color: rgba(255,255,255,0.4);
 }
 .sp-row.is-active .sp-step { color: var(--accent); }
-.sp-label { overflow: hidden; text-overflow: ellipsis; }
+.sp-label { min-width: 0; overflow-wrap: break-word; line-height: 1.35; }
 
 /* ─── The section's screens, on a phone (MobileScreenNav) ────────── */
 /* A 170px fixed column beside a 260px drawer leaves nothing for the page, so

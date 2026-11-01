@@ -141,38 +141,41 @@ ok('Models sits under Costs, and Connections keeps only credentials', () => {
 });
 
 // ── 5. Database tools ────────────────────────────────────────────────────
-ok('Cleanup Centre is renamed, and no link points at the old path', () => {
-  assert.ok(/path="database-tools"/.test(app), 'the route is /database-tools');
-  assert.ok(!/contacts\/cleanup/.test(app + settings), 'nothing links to the old path');
+ok('the Cleanup screens are rows, not a page behind a kebab', () => {
+  // This block asserted the kebab, the slot that published into it and the
+  // drawer it opened. All three are gone: "the drawer icon is completely the
+  // wrong place", and with the seven screens in the panel the drawer had one
+  // item left on Publications and two on Journalists.
+  assert.ok(!/path="database-tools"/.test(app), 'the top-level page is gone');
+  assert.ok(!/contacts\/cleanup/.test(app + settings), 'nothing links to the old path either');
   assert.ok(!/>🧹 Cleanup Centre</.test(settings), 'and no button still says Cleanup Centre');
-  // Named, not counted. This asserted "exactly 2" until PR 3 moved every
-  // maintenance job onto the page and added four more pointers to it. A count
-  // pins a number; what this cares about is that each list's drawer still
-  // reaches the page, and lands on its own tab. Relaxing the count to "at
-  // least 2" would have been worse than either: both halves of this could
-  // then break and the four new pointers would still satisfy it.
-  assert.ok(/to="\/database-tools\?tab=pubdupes"/.test(settings),
-    'the Publications drawer lands on its own duplicates tab');
-  assert.ok(/to="\/database-tools"/.test(settings),
-    'and the Journalists drawer lands on the page itself');
+
+  const db = code.slice(code.indexOf('  database: {'), code.indexOf('  bizdev: {'));
+  const cleanup = db.slice(db.indexOf("{ heading: 'Cleanup'"));
+  const labels = [...cleanup.matchAll(/label: '([^']+)'/g)].map(m => m[1]);
+  assert.deepStrictEqual(labels,
+    ['Journalist duplicates', 'Coverage matchups', 'Tidy fixes', 'Contact updates',
+      'Reply catch-up', 'Publication duplicates', 'Maintenance'],
+    'all seven screens are rows, and the two Duplicates say which is which');
+
+  // They were the last screens in Database outside the path scheme: the page
+  // seeded its tab from ?tab= once and never updated the URL again.
+  assert.ok(!/useSearchParams/.test(stripComments(read('src/pages/ContactCleanupPage.jsx'))),
+    'the page no longer reads its screen from a query string');
+  for (const slug of ['journalist-duplicates', 'coverage-matchups', 'tidy-fixes',
+    'contact-updates', 'reply-catch-up', 'publication-duplicates']) {
+    assert.ok(cleanup.includes(`slug: '${slug}'`), `${slug} is a readable permalink`);
+  }
 });
 
-ok('the tools kebab is published to the page header, not drawn in the card', () => {
-  assert.ok(/export function DatabaseToolsSlot/.test(tools), 'there is a slot');
-  assert.ok(/export function DatabaseToolsTrigger/.test(tools), 'and a trigger for the header');
-  // RecordTools must no longer render a kebab itself, or there would be two.
-  const rt = tools.slice(tools.indexOf('export default function RecordTools'));
-  assert.ok(!/icon-circle/.test(rt), 'RecordTools draws no kebab of its own');
-  assert.ok(/return primary \|\| null;/.test(rt), 'it renders only the primary action');
-  assert.ok(/<DatabaseToolsTrigger tools=\{tools\} \/>/.test(settings), 'the header renders it');
-  assert.ok(settings.indexOf('<DatabaseToolsTrigger') < settings.indexOf('</header>'),
-    'and it is inside the header element');
-});
-
-ok('switching lists does not leave the previous list\'s tools behind', () => {
-  // Publications and Journalists both publish into one slot. Without the
-  // cleanup the header would keep showing whichever mounted first.
-  assert.ok(/return \(\) => publish\(null\);/.test(tools), 'the slot is cleared on unmount');
+ok('the kebab and its drawer are gone, and the list keeps its own actions', () => {
+  assert.ok(!/DatabaseToolsSlot|DatabaseToolsTrigger/.test(tools + settings),
+    'no slot and no trigger survive');
+  assert.ok(!/icon-circle/.test(tools), 'and nothing draws a kebab');
+  assert.ok(!/SideDrawer/.test(tools), 'nor opens a drawer');
+  // The actions that were inside it are buttons on the list's own header.
+  assert.ok(/Export CSV/.test(settings) && /Import CSV/.test(settings),
+    'export and import are still offered');
 });
 
 console.log(`${passed} guards`);

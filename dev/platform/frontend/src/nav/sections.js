@@ -481,6 +481,47 @@ export const SECTIONS = {
         { tab: 'tasks',        label: 'Tasks' },
         { tab: 'assistant',    label: 'Assistant' },
       ] },
+
+      // Cleanup: the seven screens that were a page of their own behind a
+      // kebab on whichever list you happened to be standing on.
+      //
+      // "the drawer icon is completely the wrong place... in the database
+      // second nav panel, we need a list of the cleanup centre pages? thats
+      // better than the drawer?" It is, for a reason the page itself was
+      // already admitting: it grouped its own tabs Journalists /
+      // Publications / Whole database, which is a nav panel drawn as a
+      // horizontal strip inside a page you could only reach through a
+      // floating control.
+      //
+      // Not a drawer, and this is the house rule rather than a preference: a
+      // drawer is for reading and choosing, and anything you would deep link
+      // to, or spend more than a minute inside, is a page. Merging duplicates
+      // is both.
+      //
+      // They also get real permalinks out of it. The page held its tab in
+      // useState seeded once from ?tab=, so the URL never changed as you
+      // moved through it — these were the last screens in Database still
+      // outside the path scheme.
+      //
+      // The two Duplicates screens are named for what they hold. As tabs they
+      // sat under Journalists and Publications group labels; as rows in one
+      // group, two rows both reading "Duplicates" is a coin toss.
+      { heading: 'Cleanup', rows: [
+        { tab: 'duplicates',  label: 'Journalist duplicates',  slug: 'journalist-duplicates' },
+        { tab: 'coverage',    label: 'Coverage matchups',      slug: 'coverage-matchups' },
+        { tab: 'tidy',        label: 'Tidy fixes',             slug: 'tidy-fixes' },
+        // 'ooo' and 'pubdupes' are the keys the page compares against and a
+        // permalink nobody could read, so the slugs say what they are.
+        { tab: 'ooo',         label: 'Contact updates',        slug: 'contact-updates' },
+        { tab: 'replies',     label: 'Reply catch-up',         slug: 'reply-catch-up' },
+        { tab: 'pubdupes',    label: 'Publication duplicates', slug: 'publication-duplicates' },
+        // Maintenance is the odd one in a group called Cleanup: it holds the
+        // weekly digest and semantic matching, which are not tidying. That is
+        // the objection that renamed Cleanup Centre to Database tools this
+        // morning. Kept here because the alternative is a group of one, and
+        // flagged for Daniel rather than quietly re-filed.
+        { tab: 'maintenance', label: 'Maintenance',            slug: 'maintenance' },
+      ] },
     ],
   },
   bizdev: {

@@ -28,8 +28,24 @@ ok('every lazy route goes through it', () => {
   // screen, and it will be the one nobody tested.
   const bare = app.split('\n').filter((l) => /\blazy\(/.test(l) && !/lazyChunk\(/.test(l));
   assert.deepStrictEqual(bare, [], `App.jsx still has bare lazy(): ${bare.join(' | ')}`);
-  const count = (app.match(/lazyChunk\(/g) || []).length;
-  assert.ok(count >= 27, `all the routes are wrapped (${count})`);
+  // Was `count >= 27`, which is today's number rather than the rule, and it
+  // went red the moment a route was deleted — a guard that fails on a correct
+  // change teaches people to edit the guard. What it is actually for is a
+  // canary: without it, the scan above passes vacuously if App.jsx stops
+  // lazy-loading altogether. So it pins the relationship instead — every
+  // component a Route renders is either imported eagerly at the top or
+  // wrapped, and nothing routed is left on a bare import nobody notices.
+  const wrapped = new Set([...app.matchAll(/const (\w+) = lazyChunk\(/g)].map((m) => m[1]));
+  const eager = new Set([...app.matchAll(/^import (\w+) from/gm)].map((m) => m[1]));
+  // Components App.jsx defines itself — the route guards, HomeRoute and
+  // ClientHome — are not imports and are not chunks.
+  const local = new Set([...app.matchAll(/^function (\w+)\(/gm)].map((m) => m[1]));
+  const routed = [...app.matchAll(/<Route path="[^"]*" element=\{<(\w+)/g)].map((m) => m[1]);
+  assert.ok(routed.length >= 20, `the Route scan still matches (${routed.length})`);
+  const unaccounted = [...new Set(routed)].filter((c) => !wrapped.has(c) && !eager.has(c) && !local.has(c));
+  assert.deepStrictEqual(unaccounted, [],
+    'these routed components are neither imported at the top nor lazyChunk-wrapped');
+  assert.ok(wrapped.size >= 20, `App.jsx still lazy-loads its pages (${wrapped.size})`);
   assert.ok(!/\blazy\b/.test(videoTab.split('\n')[0]), 'and the nested one does not import lazy any more');
   assert.ok(/lazyChunk\('ClientDesignPage'/.test(videoTab), 'the Design page is nested inside Video, and was in the digest too');
 });
@@ -38,7 +54,7 @@ ok('each wrapper gets a name that survives the reload', () => {
   // The marker is read back after the page reloads, so it cannot be the
   // hashed filename — that is the thing that changed.
   const names = [...app.matchAll(/const (\w+) = lazyChunk\('(\w+)'/g)];
-  assert.ok(names.length >= 27);
+  assert.ok(names.length >= 20, `the wrapper scan still matches (${names.length})`);
   for (const [, varName, label] of names) {
     assert.strictEqual(varName, label, `${varName} is labelled with its own name`);
   }
