@@ -46,7 +46,7 @@ function safeBoxes(mode) {
   return boxes;
 }
 
-export default function ClientEditPage({ embedded = false, clientId: clientIdProp } = {}) {
+export default function ClientEditPage({ clientId: clientIdProp } = {}) {
   const { id: routeClientId } = useParams();
   const clientId = clientIdProp || routeClientId;
   const toast = useToast();
@@ -342,10 +342,6 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
 
   return (
     <div className="stack stack-lg">
-      {!embedded && (<>
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Edit</span></div>
-      <header className="hero"><div><h1 className="display mt-2">Edit</h1></div></header>
-      </>)}
       <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', maxWidth: 660, marginTop: -8 }}>
         {mode === 'video'
           ? 'Cut a video yourself on a timeline: trim, clean up the audio, add auto-captions, or drop in several clips to combine them. To have a reel assembled for you instead, use Video. Rendered on our own servers; nothing uploaded to a third party.'

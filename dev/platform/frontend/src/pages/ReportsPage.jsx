@@ -8,11 +8,12 @@ import { REPORT_STATUSES, reportStatusLabel, reportStatusColor } from '../utils/
 import ReportDelivery from '../components/ReportDelivery';
 import BulkDeleteReports from '../components/BulkDeleteReports';
 
-// `embedded` renders it inside the Settings page, which supplies its own
-// page title. The standalone /reports route redirects there, so in practice
-// this is always embedded; the flag stays because the page is still a
-// self-contained component and a bare render should not lose its heading.
-export default function ReportsPage({ embedded = false } = {}) {
+// Rendered only by the Settings page, which supplies the page title; the
+// standalone /reports route redirects there. It kept its own hero behind an
+// `embedded` prop that the one caller always passed, with a comment saying
+// the flag stayed in case of a bare render. Nothing renders it bare, so the
+// hero was unreachable and is gone.
+export default function ReportsPage() {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [reports, setReports] = useState([]);
@@ -90,20 +91,9 @@ export default function ReportsPage({ embedded = false } = {}) {
 
   return (
     <div className="suite-reports">
-      {embedded ? (
-        <div className="row end" style={{ marginBottom: 'var(--s5)' }}>
-          <button onClick={() => setShowTrigger(true)} className="btn btn-primary btn-sm">+ Trigger Report</button>
-        </div>
-      ) : (
-        <header className="hero">
-          <div>
-            <h1 className="display">Reports</h1>
-          </div>
-          <div className="hero-actions">
-            <button onClick={() => setShowTrigger(true)} className="btn btn-primary btn-sm">+ Trigger Report</button>
-          </div>
-        </header>
-      )}
+      <div className="row end" style={{ marginBottom: 'var(--s5)' }}>
+        <button onClick={() => setShowTrigger(true)} className="btn btn-primary btn-sm">+ Trigger Report</button>
+      </div>
 
       <ReportDelivery />
 

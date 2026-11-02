@@ -528,7 +528,7 @@ export default function ClientDetailPage() {
       {/* Brand lives inside Setup, below the brief. */}
       {tab === 'details' && (
         <div style={{ marginTop: 'var(--s5)' }}>
-          <ClientBrandPage embedded />
+          <ClientBrandPage />
         </div>
       )}
 

@@ -48,15 +48,15 @@ export default function ClientVideoTab() {
       {tab === 'reel' && !readOnly && (
         <MakeAReel clientId={id} clientName={client?.name || ''} />
       )}
-      {tab === 'record' && <RecordingsPage embedded clientId={id} onSendToEdit={() => setTab('edit')} />}
-      {tab === 'edit' && !readOnly && <ClientEditPage embedded clientId={id} />}
+      {tab === 'record' && <RecordingsPage clientId={id} onSendToEdit={() => setTab('edit')} />}
+      {tab === 'edit' && !readOnly && <ClientEditPage clientId={id} />}
       {tab === 'design' && !readOnly && (
         <Suspense fallback={<div className="card" style={{ marginTop: 'var(--s4)' }}>Loading the editor…</div>}>
-          <ClientDesignPage embedded clientId={id} />
+          <ClientDesignPage clientId={id} />
         </Suspense>
       )}
-      {tab === 'visualise' && canVisualise && <ClientVisualisePage embedded clientId={id} />}
-      {tab === 'transcribe' && !readOnly && <TranscribePage embedded clientId={id} />}
+      {tab === 'visualise' && canVisualise && <ClientVisualisePage clientId={id} />}
+      {tab === 'transcribe' && !readOnly && <TranscribePage clientId={id} />}
       {tab === 'library' && (
         <>
           <div className="card" style={{ marginTop: 'var(--s4)' }}>

@@ -23,7 +23,7 @@ function labelFor(speaker, names, speakers) {
   return `Speaker ${i >= 0 ? i + 1 : '?'}`;
 }
 
-export default function TranscribePage({ embedded = false, clientId = null } = {}) {
+export default function TranscribePage({ clientId = null } = {}) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [list, setList] = useState([]);

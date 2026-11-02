@@ -22,11 +22,12 @@ const KINDS = [
 const BANK_KINDS = new Set(['b_roll_clip', 'prop_image']);
 const IDENTITY_KINDS = KINDS.filter(k => !BANK_KINDS.has(k.value));
 
-// `embedded` true means this page is rendered inside ClientDetailPage's
-// Setup → Brand tab, where the parent owns the hero + tab strip. In
-// that mode we drop our own hero so the AM doesn't see two "October
-// Communications" overlines stacked on top of each other.
-export default function ClientBrandPage({ embedded = false } = {}) {
+// Rendered only inside ClientDetailPage's Setup → Brand tab, where the parent
+// owns the hero and tab strip, so this page draws neither — two "October
+// Communications" overlines stacked is what it looked like when it did. It
+// kept that standalone hero behind an `embedded` prop its one caller always
+// passed, so the hero could not draw.
+export default function ClientBrandPage() {
   const { id } = useParams();
   const toast = useToast();
   const [client, setClient] = useState(null);
@@ -147,17 +148,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
   const byKind = (k) => assets.filter(a => a.kind === k);
 
   return (
-    <div className={embedded ? '' : 'suite-setup'}>
-      {!embedded && (
-        <>
-          <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>
-          <header className="hero">
-            <div>
-              <h1 className="display mt-2">Brand</h1>
-            </div>
-          </header>
-        </>
-      )}
+    <div>
       <p className="body mb-5">
         Upload the brand's logos, product photography, fonts, colour palette and voice guidelines.
         Both the Social and Ad Creative generators pull these as reference so output stays on-brand

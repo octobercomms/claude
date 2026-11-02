@@ -231,7 +231,12 @@ test('the brand kit has exactly one home, and it is inside Setup', () => {
     'the standalone brand route is back; the kit would have two homes again');
 
   const detail = fs.readFileSync(new URL('../src/pages/ClientDetailPage.jsx', import.meta.url), 'utf8');
-  assert.ok(/<ClientBrandPage embedded \/>/.test(detail),
+  // Matched on the tag alone, not on a prop. It used to pin
+  // "<ClientBrandPage embedded />"; the `embedded` prop is gone (its one
+  // caller always passed it, so the standalone half could never draw), and a
+  // test that pinned the prop failed for the deletion rather than for the
+  // arrangement it is here to guard.
+  assert.ok(/<ClientBrandPage\s*\/>/.test(detail),
     'the brand kit is not rendered inside Setup, so it has no home at all');
   assert.ok(!/to=\{`\/clients\/\$\{id\}\/brand`\}/.test(detail),
     'a link to the removed standalone route is back');

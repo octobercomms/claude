@@ -462,14 +462,38 @@ Three things that cost time here:
 - **`?analyst=1` is the deep link**, and it is what the old
   `/clients/:id/chat` URL now redirects to, via `?tab=measure&analyst=1`.
 
-`ClientChatPage` takes `embedded`, `clientId` and `persona` as props, and is
-mounted only while the panel is open, so moving from Paid to Owned starts the
-right conversation rather than re-labelling the previous one. Nothing routes it
-as a page any more, so `embedded` was permanently true and the `!embedded`
-branch unreachable. Both are deleted (2 Nov), along with the same dead half in
-`ClientOutreachPage`, which Convert is the only caller of. The prop is gone
-from both; a page with one caller that always passes the same flag has one
-behaviour, and keeping the other was keeping a layout nobody could reach.
+`ClientChatPage` takes `clientId` and `persona` as props, and is mounted only
+while the panel is open, so moving from Paid to Owned starts the right
+conversation rather than re-labelling the previous one. It also took
+`embedded`, but nothing routes it as a page any more, so the flag was
+permanently true and the `!embedded` branch unreachable. Both are deleted
+(2 Nov), along with the same dead half in `ClientOutreachPage`, which Convert
+is the only caller of. A page with one caller that always passes the same flag
+has one behaviour, and keeping the other was keeping a layout nobody could
+reach.
+
+**Then the same scan found seven more, and one in the opposite direction**
+(2 Nov). Fixing two instances by hand was the wrong shape, so the rule was
+written down as a check instead, and the check found the rest:
+`IntegrationsPage`, `ManageUsersPage`, `LeadsPage`, `ReportsPage`,
+`ClientBrandPage`, `ClientEditPage`, `ClientDesignPage`, `ClientVisualisePage`,
+`RecordingsPage` and `TranscribePage` all declared `embedded = false` with one
+caller that always passed it. Between them they carried four heroes, four
+kickers, a `maxWidth: 980` wrapper and, in `ClientVisualisePage`, a second
+`?tab=` key — none of which could draw. `ReportsPage` even carried a comment
+saying the flag stayed in case of a bare render; nothing renders it bare.
+`OutletEditModal` had the mirror-image fault: its *embedded* half had been
+dead since Publications went back to a full-width table on 1 November.
+
+All ten are gone, and `backend/tests/embedded-reachable.test.js` is the rule
+rather than the list: a component declaring `embedded = false` must have a
+caller that passes it and either a caller that does not or a route, or one
+side of its branches cannot draw. It asserts a count of zero, not an
+allowlist, so the next one fails CI. `EditContactModal` is the shape that
+earns the prop — SettingsPage opens it as a modal, ClientOutreachPage renders
+it as a pane, both halves draw. Driven in `drives/drive-embedded.mjs`, 44
+assertions across the ten screens, because a deleted render branch is where a
+clean build and a blank screen look identical.
 
 **The panel's chrome was cut back to give the chat the room** (29 Oct 2026),
 across PRs #1804, #1805 and #1806. Measured at 1440x1000, the thread ends up
@@ -1861,7 +1885,7 @@ renders all six live as documentation.
 | **L2 Launchpad** | `shells/Launchpad.jsx` | Minimal overview hero (kicker/headline/cta/children) | `.ds-launchpad` | Effectively superseded by **`SuiteOverview`** (a much richer overview: hero + section-map + capability cards, `.oview`/`.smap`), which every pillar Overview tab already uses. Launchpad is demo-only. |
 | **L3 StatStrip** | `shells/StatStrip.jsx` | The ONE metric-tile row | `.ds-stats`/`.ds-stat` | Every stat tile. Supports `feature` (dark tile), `sub`, `delta`+`dir`, `spark` (inline `Sparkline`), `sparkReverse` (lower-is-better). |
 | **L4 StepRail** | `shells/StepRail.jsx` | The ONE step indicator | `.stepper*` | Superset of the old `Stepper` (position) + `ProcessRail` (status): `label`/`title`, `sub`, `status` done/todo/info, `groupLabel`, "· next" cue, `numbered`, `wrap`, `grouped`. |
-| **L5 ListDetail** | `shells/ListDetail.jsx` | List-left / detail-right two-pane | `.ds-workbench` (+`--sidebar` narrow-list variant) | Adopted: TranscribePage, ClientVideoPage, **contacts** (ClientOutreachPage), **Publications** (SettingsPage). |
+| **L5 ListDetail** | `shells/ListDetail.jsx` | List-left / detail-right two-pane | `.ds-workbench` (+`--sidebar` narrow-list variant) | Adopted by three screens, which `grep -rl ListDetail src` will confirm: `TranscribePage`, `StrategyTemplatesPanel` and **contacts** (`ClientOutreachPage`), plus `DesignSystemPage` as documentation. This row read "TranscribePage, ClientVideoPage, contacts, Publications" until 2 Nov: Publications dropped the pattern on 1 Nov (see the roadmap), ClientVideoPage is not a file, and StrategyTemplatesPanel was missing. |
 | **L6 ChatCanvas** | `shells/ChatCanvas.jsx` | Chat-left / live-artifact-right | `.ds-chatcanvas` (+`--fill` height-filling flex variant for modals) | Adopted: `ReportTemplateChat`, `SocialPlannerChat`. |
 
 ### The L5 "modal → pane" pattern (reuse this)
@@ -1871,7 +1895,14 @@ To turn a "table + edit modal" screen into a two-pane workbench:
    instead of the `.modal-backdrop`/`.modal` wrapper; skip the Escape-to-close
    listener; and don't call `onClose()` after Save (leave the pane showing the
    saved record). Default stays a modal so other callers are unaffected.
-   Examples: `EditContactModal` and `SettingsPage`'s `OutletEditModal`.
+   The one working example is `EditContactModal`: SettingsPage opens it as a
+   modal, ClientOutreachPage renders it as a pane. `SettingsPage`'s
+   `OutletEditModal` was the second, and is not any more — when Publications
+   went back to a table the pane half stopped being called and the flag was
+   deleted. **A prop whose caller always passes the same value is not a
+   pattern, it is dead code**, and `backend/tests/embedded-reachable.test.js`
+   fails CI on one, so only add the flag in the same change that adds the
+   second caller.
 2. Add a `selectedId` (or reuse an existing "open" state) and render:
    ```jsx
    <ListDetail sidebar
@@ -2003,15 +2034,31 @@ Three phases:
 1. **Phase 1 — one design system.** ✅ Done (tokens, buttons, forms).
 2. **Phase 2 — collapse ~20 bespoke pages onto 6 reusable shells.** ✅ Done —
    all six shells are adopted and live. One optional tail remains:
-   - **L5 table rollout.** The two-pane pattern is proven on **contacts** and
-     **Publications**. Two more tables *could* convert but are weaker fits:
-     - **Journalists** (Earned → Build) — several tables, in-place profile; messy.
-     - **Keywords** (Owned) — big sortable table whose "detail" is a rank-history
-       chart, not an edit form; doesn't map cleanly to list+detail.
+   - **L5 table rollout. This tail is now closed, and the answer is no more
+     conversions.** The pattern is proven on **contacts** (ClientOutreachPage)
+     and nowhere else. Publications adopted it and came back off it on
+     1 November: a 300px picker rail holds one narrow line per record, and the
+     six facts per publication were exactly what an operator could not see, so
+     it went back to a full-width table with a column per fact and a modal for
+     the record. That commit says in as many words that it now matches
+     Journalists, "the same screen for the other half of the database".
+     - **Journalists** (Database, and the per-client table under Earned →
+       Build) — **do not convert** (decided 2 Nov). The workspace-wide list is
+       21,000 records across ten columns, which is strictly worse for a rail
+       than the 2,000 × six facts that just failed, and converting it would
+       split the two halves of the database apart again a day after they were
+       deliberately aligned. The per-client table's detail is a read-only
+       profile, which is the better case of the two, but it is seven columns
+       of relationship signal and the profile body is itself wide.
+     - **Keywords** (Owned) — big sortable table whose "detail" is a
+       rank-history chart, not an edit form; doesn't map cleanly to
+       list+detail.
      - **Biz dev → Leads** — deliberately **left as a table** (its Snapshot
        Studio detail is a full two-column workspace; don't cram it into a pane).
-   - So the L5 rollout is a judgement call, not a mandate. Convert journalists
-     if desired; keywords is low-value; Biz dev Leads should stay a table.
+   - So Phase 2 is done. L5 is one of six shells, not a target to hit: a
+     record you consult beside a short list earns it, and a wide table of
+     facts does not. If a later session is handed "convert X to two-pane" as a
+     task, read this paragraph before starting.
 3. **Phase 3 — the per-client GTM Brain.** ⬅ **This is the work. Chosen
    1 November 2026 over the video editor, which is parked.** A per-client
    go-to-market intelligence layer that ties the currently-siloed suites
@@ -2987,11 +3034,12 @@ claiming that a `.db` test protects anything.
   `assets.record` NEVER throws at its caller: a render that discarded a
   finished video because the library was briefly unreachable would be far worse
   than one missing row.
-- **`ClientVideoPage.jsx` is dead code and nothing imports it.** The Produce
-  tab's Edit panel is `ClientEditPage.jsx`; `ClientVideoPage.jsx` is an older
-  studio page that no route reaches. Both features that were mounted there, and
-  so were never visible in the product, now live on `ClientEditPage`: the reel
-  checks and `CaptionTemplates`. Before adding a panel anywhere, check that
+- **`ClientVideoPage.jsx` has been deleted** (noted 2 Nov; this entry used to
+  say it was dead code still sitting in the tree). It was an older studio page
+  no route reached, and the two features mounted on it — the reel checks and
+  `CaptionTemplates` — were therefore never visible in the product. Both now
+  live on `ClientEditPage.jsx`, which is the Produce tab's Edit panel. The
+  lesson is the one worth keeping: before adding a panel anywhere, check that
   something imports the page you are adding it to.
 - **Produce's edit pipeline has two caption paths, and the template one is the
   fork to watch.** With `ops.caption_template` set, `editProcessor.render`
