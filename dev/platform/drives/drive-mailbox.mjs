@@ -5,7 +5,7 @@
 // account. This drive checks the screen, not the diff: the three states a
 // mailbox can be in, the button each one needs, and that nothing on the panel
 // tells an operator to go and get an app password.
-import pw from './pw.mjs';
+import pw, { artifact } from './pw.mjs';
 const { chromium } = pw;
 const B = 'http://127.0.0.1:4599';
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -111,7 +111,7 @@ form = await panel();
 ok(!/Test connection/.test(form), 'and Test connection goes again on the Google side');
 
 ok(errors.length === 0, 'no page errors', errors.join(' | '));
-await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/mailbox.png', fullPage: false });
+await page.screenshot({ path: artifact('mailbox.png'), fullPage: false });
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

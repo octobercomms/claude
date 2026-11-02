@@ -4,7 +4,7 @@
 // was forty lines saying what to do and nothing about how. The fix before this
 // one was a paragraph promising that guidance would arrive at tailor time,
 // which is why the item came back.
-import pw from './pw.mjs';
+import pw, { artifact } from './pw.mjs';
 const browser = await pw.chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1400, height: 1200 } });
 let pass = 0, fail = 0;
@@ -76,7 +76,7 @@ ok(!/add step-by-step guidance under each one\.\s*$/m.test(intro),
    'and no longer promises guidance for later instead of giving it');
 
 ok(errors.length === 0, 'no page errors', errors.join(' | '));
-await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/sostac.png', fullPage: false });
+await page.screenshot({ path: artifact('sostac.png'), fullPage: false });
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -38,3 +38,24 @@ export const chromium = {
   ),
 };
 export default { chromium };
+
+// Where a drive puts a screenshot or a log it writes for a human to look at.
+//
+// These used to be absolute paths into one session's working directory under
+// /tmp, named after a container that has since been destroyed. On any other
+// machine the write either lands somewhere meaningless or throws — and
+// drive-thread, which READ its fixture from the same dead directory, had been
+// unrunnable for days before anything ran it.
+//
+// Beside the drives instead, in a directory that is created on demand and
+// gitignored. Call it for every artefact a drive writes.
+import { mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ARTIFACTS = join(dirname(fileURLToPath(import.meta.url)), '.artifacts');
+
+export function artifact(name) {
+  mkdirSync(ARTIFACTS, { recursive: true });
+  return join(ARTIFACTS, name);
+}

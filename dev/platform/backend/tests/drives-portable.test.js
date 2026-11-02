@@ -88,6 +88,12 @@ ok('nothing points at one particular container', () => {
     const src = fs.readFileSync(path.join(DIR, f), 'utf8');
     src.split('\n').forEach((line, i) => {
       if (/\/home\/user\//.test(line)) bad.push(`${f}:${i + 1} (home path)`);
+      // A scratchpad path is worse than a home path, because it names a
+      // session that has ended: drive-thread read its fixture from
+      // /tmp/claude-0/.../678f754e-.../scratchpad/audit/review-audit.html,
+      // a file belonging to a container that no longer exists. It had been
+      // unrunnable for days and only showed up when something finally ran it.
+      if (/\/tmp\/claude-|scratchpad\//.test(line)) bad.push(`${f}:${i + 1} (scratchpad path)`);
       // pw.mjs is allowed to name the container's path, because its whole job
       // is to try that first and fall back when it is not there.
       if (f !== 'pw.mjs' && /\/opt\/(node-tools|pw-browsers)/.test(line)) bad.push(`${f}:${i + 1} (container path)`);

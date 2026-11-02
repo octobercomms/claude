@@ -1,5 +1,5 @@
 // Biz dev → Leads: archive, and a permanent delete with a real confirm.
-import pw from './pw.mjs';
+import pw, { artifact } from './pw.mjs';
 const browser = await pw.chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1400, height: 1100 } });
 let pass = 0, fail = 0;
@@ -106,7 +106,7 @@ r = await rows();
 ok(!r.some(x => /Falcon Workshop/.test(x)), 'and off the list');
 
 ok(errors.length === 0, 'no page errors', errors.join(' | '));
-await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/leads.png' });
+await page.screenshot({ path: artifact('leads.png') });
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
