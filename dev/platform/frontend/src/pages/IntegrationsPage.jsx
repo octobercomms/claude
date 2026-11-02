@@ -88,7 +88,10 @@ const SECTIONS = [
   },
 ];
 
-export default function IntegrationsPage({ embedded = false }) {
+// Rendered only by the Settings page's Integrations tab, which supplies the
+// kicker and hero. The standalone pair it carried behind an `embedded` prop
+// could not run, so only the tab's short intro is left.
+export default function IntegrationsPage() {
   const [open, setOpen] = useState(() => new Set(['overview']));
   function toggle(id) {
     setOpen(prev => {
@@ -99,24 +102,10 @@ export default function IntegrationsPage({ embedded = false }) {
   }
   return (
     <div>
-      {!embedded && (
-        <>
-          <div className="kicker"><span className="pip" />Setup &amp; installation</div>
-          <header className="hero">
-            <h1 className="display">Integrations</h1>
-            <p className="body mt-4">
-              How each client integration works, the files and apps to install, and the tools to set them up.
-              Per-client connecting lives on each client&rsquo;s <strong>Setup → Connectors</strong> tab.
-            </p>
-          </header>
-        </>
-      )}
-      {embedded && (
-        <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 'var(--s5)' }}>
-          How each client integration works, the files and apps to install, and the tools to set them up.
-          Per-client connecting lives on each client&rsquo;s <strong>Setup → Connectors</strong> tab.
-        </p>
-      )}
+      <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 'var(--s5)' }}>
+        How each client integration works, the files and apps to install, and the tools to set them up.
+        Per-client connecting lives on each client&rsquo;s <strong>Setup → Connectors</strong> tab.
+      </p>
 
       <IntegrationTools />
 

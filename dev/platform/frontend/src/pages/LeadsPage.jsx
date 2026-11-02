@@ -16,7 +16,10 @@ const STATUS = {
   archived: { label: 'Archived', tone: 'var(--text-subtle)' },
 };
 
-export default function LeadsPage({ embedded = false } = {}) {
+// Rendered only by Settings → Biz dev → Leads, which supplies the chrome.
+// Its own "Snapshot Studio" kicker and hero sat behind an `embedded` prop the
+// one caller always passed, so they never drew.
+export default function LeadsPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const [leads, setLeads] = useState(null);
@@ -79,16 +82,6 @@ export default function LeadsPage({ embedded = false } = {}) {
 
   return (
     <div>
-      {!embedded && (<>
-      <div className="kicker"><span className="pip" />Snapshot Studio</div>
-      <header className="hero">
-        <h1 className="display">Leads</h1>
-        <p className="body mt-4" style={{ maxWidth: 640 }}>
-          Enter a prospect's website. We draft a personalised <strong>Growth Snapshot</strong> from their site — a taste of every way October could help — that you curate and send to book the call.
-        </p>
-      </header>
-      </>)}
-
       <div className="card mb-6" style={{ borderColor: 'var(--accent)' }}>
         <div className="caption mb-2">New snapshot</div>
         <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>

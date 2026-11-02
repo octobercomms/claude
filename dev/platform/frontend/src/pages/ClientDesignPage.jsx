@@ -287,7 +287,7 @@ function Swatches({ colours, onPick, current, what = 'Brand colour' }) {
   );
 }
 
-export default function ClientDesignPage({ embedded = false, clientId: clientIdProp } = {}) {
+export default function ClientDesignPage({ clientId: clientIdProp } = {}) {
   const { id: routeId } = useParams();
   const clientId = clientIdProp || routeId;
   const toast = useToast();

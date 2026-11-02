@@ -43,7 +43,7 @@ function pickMime() {
 const baseMime = (m) => (String(m || '').split(';')[0].trim() || 'video/webm');
 const extFor = (m) => (baseMime(m) === 'video/mp4' ? 'mp4' : 'webm');
 
-export default function RecordingsPage({ embedded = false, clientId = null, onSendToEdit } = {}) {
+export default function RecordingsPage({ clientId = null, onSendToEdit } = {}) {
   const toast = useToast();
   const ask = usePrompt();
   const { readOnly } = useAuth();
@@ -668,13 +668,6 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
 
   return (
     <div>
-      {!embedded && (<>
-      <div className="kicker"><span className="pip" /><span>Video</span></div>
-      <header className="hero"><div><h1 className="display mt-2">Video</h1>
-        <p className="body text-subtle" style={{ maxWidth: 560, marginTop: 'var(--s2)' }}>
-          Record a screen walkthrough with your voice, get a share link, and see who watched — in-house, no Loom.
-        </p></div></header>
-      </>)}
 
       {canEdit && (!supported ? (
         <div className="card" style={{ marginTop: 'var(--s4)', color: 'var(--negative)' }}>
@@ -846,7 +839,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       </SideDrawer>
       )}
 
-      <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: embedded ? 16 : 28, marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
+      <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <h2 className="h5" style={{ margin: 0 }}>{clientId ? 'Videos' : 'My recordings'}</h2>
         {canEdit && !selected.size && (
           <button onClick={() => setImportOpen(true)} className="btn btn-secondary btn-sm">

@@ -16,13 +16,14 @@ const STATUS = {
   locked: { label: 'Locked', tone: 'var(--positive)' },
 };
 
-export default function ClientVisualisePage({ embedded = false, clientId: clientIdProp } = {}) {
+export default function ClientVisualisePage({ clientId: clientIdProp } = {}) {
   const { id: routeId } = useParams();
   const id = clientIdProp || routeId;
   const [params, setParams] = useSearchParams();
-  // Use a distinct query key when embedded so it doesn't collide with the
-  // parent Produce page's ?tab param.
-  const tabKey = embedded ? 'vtab' : 'tab';
+  // 'vtab', not 'tab': this is always inside the Produce page, which owns
+  // 'tab'. It was `embedded ? 'vtab' : 'tab'` while a standalone render was
+  // thought possible; nothing renders it that way.
+  const tabKey = 'vtab';
   const tab = params.get(tabKey) || 'library';
   const projectId = params.get('project');
 
@@ -31,16 +32,15 @@ export default function ClientVisualisePage({ embedded = false, clientId: client
 
   return (
     <div>
-      {!embedded && <div className="kicker"><span className="pip" />Visualise</div>}
       {tab === 'studio' && projectId
         ? <Studio clientId={id} projectId={projectId} onBack={openLibrary} />
-        : <Library clientId={id} onOpen={openStudio} embedded={embedded} />}
+        : <Library clientId={id} onOpen={openStudio} />}
     </div>
   );
 }
 
 // ── Library ───────────────────────────────────────────────────────────────────
-function Library({ clientId, onOpen, embedded = false }) {
+function Library({ clientId, onOpen }) {
   const toast = useToast();
   const [projects, setProjects] = useState(null);
   const [presets, setPresets] = useState([]);
@@ -61,15 +61,6 @@ function Library({ clientId, onOpen, embedded = false }) {
 
   return (
     <>
-      {!embedded && (
-      <header className="hero">
-        <h1 className="display">Visualise</h1>
-        <p className="body mt-4" style={{ maxWidth: 640 }}>
-          Reference in → generate → circle-and-fix the wrong bit → lock → faithful 4K.
-          Every project is saved here and reopenable.
-        </p>
-      </header>
-      )}
 
       <div className="row between center mb-6 wrap" style={{ gap: 'var(--s3)' }}>
         <div className="caption">{projects?.length || 0} project{projects?.length === 1 ? '' : 's'}</div>

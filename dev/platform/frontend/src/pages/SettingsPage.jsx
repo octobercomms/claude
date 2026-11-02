@@ -331,7 +331,7 @@ export default function SettingsPage() {
           legacy-alias handling; nav/sections.js mirrors its shape, and
           tests/sectionPanel.test.mjs checks the two have not drifted. */}
 
-      {tab === 'integrations' && <IntegrationsPage embedded />}
+      {tab === 'integrations' && <IntegrationsPage />}
       {CLEANUP_SCREENS.includes(tab) && (
         <DatabaseToolsPage screen={tab} onScreen={switchTab} />
       )}
@@ -341,8 +341,8 @@ export default function SettingsPage() {
       {tab === 'tasks' && <JournalistTasks />}
       {tab === 'publications' && <PublicationsPanel />}
       {tab === 'tags' && <TagsManager />}
-      {tab === 'users' && <ManageUsersPage embedded />}
-      {tab === 'leads' && <LeadsPage embedded />}
+      {tab === 'users' && <ManageUsersPage />}
+      {tab === 'leads' && <LeadsPage />}
       {tab === 'proposals' && <ProposalsPage />}
       {tab === 'proof' && <ProofLibraryPage />}
       {tab === 'booking' && <BookingSettingsPage />}
@@ -361,7 +361,7 @@ export default function SettingsPage() {
       {/* Reports and the checker bench live here rather than in the nav rail:
           both are agency admin touched rarely, and the top rail is four items.
           /reports and /lab/checker redirect in. */}
-      {tab === 'reports' && <ReportsPage embedded />}
+      {tab === 'reports' && <ReportsPage />}
       {tab === 'checker' && <CheckerBenchPage />}
 
       {tab === 'models' && <AiModelsPanel />}
@@ -1047,7 +1047,7 @@ function AddOutletModal({ onClose, onCreated, onExisting }) {
 // gets the same interaction model whether they click a contact or a
 // publication. Fetches everything fresh from /pr/outlets/:id (summary,
 // journalists, coverage history) rather than relying on the row data.
-function OutletEditModal({ outletId, onClose, onSaved, onDeleted, embedded = false }) {
+function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
   const { readOnly } = useAuth();
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
@@ -1066,15 +1066,13 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted, embedded = fal
   }, [outletId]);
 
   useEffect(() => {
-    if (embedded) return;
     function onKey(e) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, embedded]);
+  }, [onClose]);
 
   if (!data || !form) {
     const loading = err ? <p style={{ color: 'var(--negative)' }}>{err}</p> : <p style={{ color: 'var(--text-subtle)' }}>Loading…</p>;
-    if (embedded) return <div className="card">{loading}</div>;
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()} className="modal" style={{ padding: 'var(--s6)' }}>
@@ -1090,7 +1088,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted, embedded = fal
     try {
       await api.patch(`/pr/outlets/${outletId}`, form);
       onSaved({ id: outletId, name: form.name, tier: form.tier });
-      if (!embedded) onClose();
+      onClose();
     } catch (e) { setErr(e.message); }
     finally { setSaving(false); }
   }
@@ -1197,9 +1195,6 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted, embedded = fal
     </>
   );
 
-  if (embedded) {
-    return <form onSubmit={onSubmit} className="card">{content}</form>;
-  }
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={onSubmit} className="modal modal-wide">{content}</form>

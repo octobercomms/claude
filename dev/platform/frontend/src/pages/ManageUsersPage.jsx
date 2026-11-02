@@ -6,10 +6,11 @@ import { roWrite } from '../utils/readOnly';
 // Admin-only user management. Lists all users; supports add, password reset,
 // per-user client visibility assignment, and delete.
 //
-// `embedded` true means we're being rendered inside the Settings page as a
-// tab — drop the h1 and outer max-width wrapper so the Settings shell owns
-// the page chrome.
-export default function ManageUsersPage({ embedded = false } = {}) {
+// Rendered only by the Settings page, as its Users & access tab, so the
+// Settings shell owns the page chrome: no h1 and no max-width wrapper of its
+// own. It had both behind an `embedded` prop that its one caller always
+// passed, which is a layout nobody could reach.
+export default function ManageUsersPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [clients, setClients] = useState([]);
@@ -50,10 +51,9 @@ export default function ManageUsersPage({ embedded = false } = {}) {
   }
 
   return (
-    <div style={embedded ? undefined : { maxWidth: 980 }}>
+    <div>
       <div className="row between center mb-2">
-        {!embedded && <h1 className="h2">Manage users</h1>}
-        {embedded && <div className="h3">Users &amp; access</div>}
+        <div className="h3">Users &amp; access</div>
         <div className="row" style={{ gap: 'var(--s2)' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowInvite(true)}>Invite client</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Add user</button>
