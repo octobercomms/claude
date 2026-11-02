@@ -3,7 +3,7 @@
 // Checked as computed pixels, not as a class name: the claim is that the
 // screen no longer reads as a page of black blocks, and only the browser can
 // answer that.
-import pw from './pw.mjs';
+import pw, { artifact } from './pw.mjs';
 const browser = await pw.chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1500, height: 1400 } });
 let pass = 0, fail = 0;
@@ -85,7 +85,7 @@ ok(byLabel(/warm/) && !byLabel(/warm/).feature && !byLabel(/warm/).accent,
    'warm carries no emphasis at all, so the screen has exactly one');
 
 ok(errors.length === 0, 'no page errors', errors.join(' | '));
-await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/tiles.png' });
+await page.screenshot({ path: artifact('tiles.png') });
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -3601,12 +3601,35 @@ certainly exists resolves from the same host at the same moment, and returns
 `{ exists: true, known: false }` otherwise. **Every caller must read
 `known && !exists`, never `!exists`.**
 
-### The drives are in the repo now
+### The drives run in CI now (2 Nov 2026)
 
-`dev/platform/drives/` holds the stub and 25 named drives; see
+`dev/platform/drives/` holds the stub, 27 drives and 6 probes; see
 `docs/omi/browser-drives.md`. They used to live in a session scratchpad and
-die with the container, so every session rewrote them or skipped the step.
-Import Playwright from `./pw.mjs`, never an absolute path.
+die with the container, then they were committed, and from 2 November the
+`drives` job runs every `drive-*.mjs` against the stub on every PR. Import
+Playwright from `./pw.mjs`, never an absolute path.
+
+**A drive asserts and exits non-zero. A probe prints and decides nothing.**
+`probe-*.mjs` is excluded from CI on purpose. The names matter because ten
+files called `drive-*` could not fail a run: five counted failures and still
+exited 0 — including the five that verified the review-plan PRs — and six had
+no assertions at all. `drives-portable.test.js` now fails if a drive loses its
+exit code, if a probe grows assertions, or if the CI job stops globbing.
+
+Two things that made this worth doing, both found by doing it:
+
+- **Nothing had run them since they landed**, so three were asserting a kebab
+  and a `/database-tools` page hours after both were deleted, and
+  Database → Publications shipped broken and stayed broken for a day. The one
+  thing that opens that screen is a drive.
+- **The stub died on the first drive that asked for a missing file.** An
+  uncaught ENOENT inside the request handler ended the process, so every later
+  drive failed with a connection refusal in about a second — thirty red
+  drives, none of them about the app. Every request is wrapped now, and the CI
+  job pings the stub between drives rather than assuming it survived.
+
+The whole suite is about six minutes, which is why it is its own job rather
+than bolted onto the frontend one.
 
 ### The browser harness is a second copy of App.jsx's provider stack
 

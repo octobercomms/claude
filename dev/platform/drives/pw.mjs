@@ -8,8 +8,18 @@
 //
 // Usage:  import { chromium } from './pw.mjs';
 export async function load() {
+  // The frontend already depends on playwright for its own browser suite, and
+  // that install is the one a CI runner will have. It has to be named as a
+  // path: ESM resolution walks node_modules UP from this file, so a sibling
+  // directory's install is invisible to a bare `import('playwright')`, and
+  // NODE_PATH does not apply to ESM at all. Setting NODE_PATH looked like it
+  // worked here only because the /opt candidate below exists in this
+  // container and is tried first — on a clean runner every drive failed with
+  // "No Playwright found".
+  const sibling = new URL('../frontend/node_modules/playwright/index.js', import.meta.url).href;
   const tries = [
     '/opt/node-tools/node_modules/playwright/index.js',  // the cloud container
+    sibling,                                             // the frontend's own install
     'playwright',                                        // an ordinary install
     'playwright-core',
   ];
@@ -38,3 +48,24 @@ export const chromium = {
   ),
 };
 export default { chromium };
+
+// Where a drive puts a screenshot or a log it writes for a human to look at.
+//
+// These used to be absolute paths into one session's working directory under
+// /tmp, named after a container that has since been destroyed. On any other
+// machine the write either lands somewhere meaningless or throws — and
+// drive-thread, which READ its fixture from the same dead directory, had been
+// unrunnable for days before anything ran it.
+//
+// Beside the drives instead, in a directory that is created on demand and
+// gitignored. Call it for every artefact a drive writes.
+import { mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ARTIFACTS = join(dirname(fileURLToPath(import.meta.url)), '.artifacts');
+
+export function artifact(name) {
+  mkdirSync(ARTIFACTS, { recursive: true });
+  return join(ARTIFACTS, name);
+}

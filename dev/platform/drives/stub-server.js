@@ -811,7 +811,14 @@ const handler = (req, res) => {
     };
     return /slow=1/.test(req.url) ? setTimeout(send, 900) : send();
   }
-  if (url.startsWith('/api/chat/')) fs.appendFileSync('/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/stub/chat-requests.log', req.method + ' ' + req.url + '\n');
+  // Beside the stub, not in a dead session's scratchpad. The old path was
+  // absolute into a container that no longer exists, so this append threw —
+  // and before the handler was wrapped, that throw killed the whole server.
+  if (url.startsWith('/api/chat/')) {
+    const dir = path.join(__dirname, '.artifacts');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(path.join(dir, 'chat-requests.log'), req.method + ' ' + req.url + '\n');
+  }
   if (url === '/api/reports/bulk' && req.method === 'DELETE') {
     let raw = ''; req.on('data', c => raw += c);
     return req.on('end', () => {

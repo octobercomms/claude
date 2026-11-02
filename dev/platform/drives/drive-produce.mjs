@@ -3,6 +3,13 @@
 // and the only way to bring a post into production was the "Produce →"
 // link on a Review tile.
 import pw from './pw.mjs';
+
+// Slugs updated 2 November. Shared's Create group was renamed on 1 November
+// (Ideas/Brief/Workbench became Create/Refine/Produce) and these still asked
+// for /social/brief and /social/workbench. An unknown screen falls back to
+// the section default rather than erroring, so the drive landed on Swipe,
+// found no posts, and reported the feature broken. Nothing caught it because
+// nothing ran the drives.
 const { chromium } = pw;
 const B = 'http://127.0.0.1:4599';
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -28,12 +35,12 @@ const cards = () => page.evaluate((hooks) => {
 const boxes = () => page.locator('.app-main input[type="checkbox"][aria-label^="Include post"]');
 
 // Start from all ticked.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1400);
 const tickAll = page.locator('.app-main button', { hasText: /^Tick all$/ });
 if (await tickAll.count()) { await tickAll.click(); await page.waitForTimeout(250); }
 
-await page.goto(`${B}/clients/c1/social/workbench`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/produce`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 let text = await mainText();
 let shown = await cards();
@@ -45,7 +52,7 @@ const prodButtons = await page.locator('.app-main button', { hasText: /^Produce 
 ok(prodButtons === 2, 'each with its own production options', String(prodButtons));
 
 // Arriving from a tile opens that post's options, not the other's.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 await page.locator('.app-main button', { hasText: /Produce →/ }).nth(1).click();
 await page.waitForTimeout(900);
@@ -56,11 +63,11 @@ ok(opened.some(o => o.hook === HOOKS[0] && o.open === false),
    'and the other sits collapsed rather than filling the page', JSON.stringify(opened));
 
 // An unticked post is not on Produce.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 await boxes().nth(1).click();
 await page.waitForTimeout(300);
-await page.goto(`${B}/clients/c1/social/workbench`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/produce`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1200);
 text = await mainText();
 shown = await cards();
@@ -70,7 +77,7 @@ ok(/1 post you ticked/i.test(text), 'and the count says one', text.match(/The \d
 
 // Asking to produce an unticked post ticks it rather than sending you to
 // a step that will not show it.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 ok(await boxes().nth(1).isChecked() === false, 'the second post is still unticked');
 await page.locator('.app-main button', { hasText: /Produce →/ }).nth(1).click();
@@ -81,11 +88,11 @@ ok(shown.some(c => c.hook === HOOKS[1]), 'producing an unticked post brings it b
 ok(/2 posts you ticked/i.test(text), 'and ticks it', text.match(/The \d+ posts? you ticked/i)?.[0]);
 
 // Nothing ticked: the step says where to choose rather than looking broken.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 await page.locator('.app-main button', { hasText: /^Untick all$/ }).click();
 await page.waitForTimeout(300);
-await page.goto(`${B}/clients/c1/social/workbench`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/produce`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1200);
 text = await mainText();
 ok(/nothing is ticked/i.test(text), 'with nothing ticked, Produce says so');

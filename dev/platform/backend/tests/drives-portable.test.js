@@ -24,11 +24,78 @@ const ok = (what, fn) => { fn(); passed += 1; void what; };
 
 const files = fs.readdirSync(DIR);
 const drives = files.filter(f => f.endsWith('.mjs') && f !== 'pw.mjs');
+// Two kinds live here and the difference decides what CI may run.
+//
+//   drive-*.mjs  asserts, counts failures, exits non-zero. A check.
+//   probe-*.mjs  prints observations for a person to read. Asserts nothing.
+//
+// Before 2 November they were all called drive-*, and six of them had no
+// assertions at all. Running those in CI would have dressed a diagnostic tool
+// up as a guard: green for ever, whatever it printed.
+const checks = files.filter(f => /^drive-.*\.mjs$/.test(f));
+const probes = files.filter(f => /^probe-.*\.mjs$/.test(f));
 
 ok('the drives and the stub are both here', () => {
   assert.ok(drives.length >= 20, `the drives are committed (${drives.length})`);
   assert.ok(files.includes('stub-server.js'), 'and the fixture server they run against');
   assert.ok(files.includes('pw.mjs'), 'and the resolver that finds Playwright');
+});
+
+ok('every drive signals failure with an exit code', () => {
+  // The thing that made this whole directory unusable in CI. Ten drives
+  // counted their failures, printed "--- 3 FAILED ---" and exited 0 — among
+  // them the five that verified the review-plan PRs. Any runner would have
+  // called those a pass whatever they printed.
+  assert.ok(checks.length >= 20, `the checks are here (${checks.length})`);
+  const silent = checks.filter(f => !/process\.exit\(/.test(fs.readFileSync(path.join(DIR, f), 'utf8')));
+  assert.deepStrictEqual(silent, [],
+    `these drives cannot fail a CI run, whatever they print: ${silent.join(', ')}`);
+});
+
+ok('probes are named apart, and assert nothing', () => {
+  assert.ok(probes.length >= 4, `the probes are here (${probes.length})`);
+  // If one grows assertions it should become a drive, so this fails rather
+  // than letting a real check sit outside the glob CI runs.
+  const asserting = probes.filter(f => {
+    const src = fs.readFileSync(path.join(DIR, f), 'utf8');
+    return /\bsay\(|\bok\(|\bassert\b|process\.exit\(/.test(src);
+  });
+  assert.deepStrictEqual(asserting, [],
+    `these probes assert; rename them drive-*.mjs so CI runs them: ${asserting.join(', ')}`);
+});
+
+ok('CI runs the drives, by glob rather than by list', () => {
+  // A list here would drift the moment someone adds a drive and forgets.
+  const wf = fs.readFileSync(
+    path.join(__dirname, '..', '..', '..', '..', '.github', 'workflows', 'platform-checks.yml'), 'utf8');
+  assert.ok(/^\s{2}drives:$/m.test(wf), 'there is a drives job');
+  assert.ok(/for f in drive-\*\.mjs/.test(wf), 'and it globs the drives rather than naming them');
+  assert.ok(/node stub-server\.js &/.test(wf), 'starting the fixture server they run against');
+  assert.ok(/the stub died during/.test(wf),
+    'and checking the stub is still alive between drives, because one death used to fail every later drive');
+  // Pinned to what would actually run one, not to the word: the job's own
+  // comment explains why probes are excluded, and an absence check against
+  // the raw file matches that explanation rather than the code. Same trap as
+  // the "no backdrop element" check on the assistant panel.
+  const runs = wf.split('\n').filter(l => !l.trim().startsWith('#')).join('\n');
+  assert.ok(!/(node|for f in)\s+probe-/.test(runs), 'nothing in the job runs a probe');
+});
+
+ok('CI installs what the stub imports', () => {
+  // The stub imports real backend services on purpose, so a drive checks the
+  // shipped rule rather than a hand-written copy. That makes the drives job
+  // depend on backend node_modules, which is not obvious from looking at a
+  // directory full of frontend drives: the job installed frontend deps only,
+  // aiModels reached src/db.js and therefore pg, the stub could not start,
+  // and every drive failed on a connection refusal. First run, straight red.
+  const stub = fs.readFileSync(path.join(DIR, 'stub-server.js'), 'utf8');
+  const needsBackend = /require\(path\.join\(__dirname, '\.\.', 'backend'/.test(stub);
+  if (!needsBackend) return;
+  const wf = fs.readFileSync(
+    path.join(__dirname, '..', '..', '..', '..', '.github', 'workflows', 'platform-checks.yml'), 'utf8');
+  const job = wf.slice(wf.indexOf('\n  drives:'), wf.indexOf('\n  backend:'));
+  assert.ok(/working-directory: dev\/platform\/backend\n\s*run: npm ci/.test(job),
+    'the stub imports backend modules, so the drives job has to install backend deps');
 });
 
 ok('nothing points at one particular container', () => {
@@ -38,6 +105,12 @@ ok('nothing points at one particular container', () => {
     const src = fs.readFileSync(path.join(DIR, f), 'utf8');
     src.split('\n').forEach((line, i) => {
       if (/\/home\/user\//.test(line)) bad.push(`${f}:${i + 1} (home path)`);
+      // A scratchpad path is worse than a home path, because it names a
+      // session that has ended: drive-thread read its fixture from
+      // /tmp/claude-0/.../678f754e-.../scratchpad/audit/review-audit.html,
+      // a file belonging to a container that no longer exists. It had been
+      // unrunnable for days and only showed up when something finally ran it.
+      if (/\/tmp\/claude-|scratchpad\//.test(line)) bad.push(`${f}:${i + 1} (scratchpad path)`);
       // pw.mjs is allowed to name the container's path, because its whole job
       // is to try that first and fall back when it is not there.
       if (f !== 'pw.mjs' && /\/opt\/(node-tools|pw-browsers)/.test(line)) bad.push(`${f}:${i + 1} (container path)`);
@@ -57,6 +130,9 @@ ok('every drive gets Playwright through the resolver', () => {
 ok('the resolver tries more than one place and says so when it fails', () => {
   const src = fs.readFileSync(path.join(DIR, 'pw.mjs'), 'utf8');
   assert.ok(/'\/opt\/node-tools\/node_modules\/playwright\/index\.js'/.test(src), 'the container first');
+  assert.ok(/node_modules\/playwright\/index\.js', import\.meta\.url/.test(src),
+    "then the frontend's own install, named as a path because ESM resolution "
+    + 'does not walk sideways into a sibling directory and NODE_PATH does not apply to it');
   assert.ok(/'playwright'/.test(src), 'then an ordinary install');
   assert.ok(/No Playwright found/.test(src), 'and a failure names what it tried');
   // Setting an executablePath that does not exist fails louder than letting

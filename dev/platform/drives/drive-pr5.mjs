@@ -107,3 +107,8 @@ say(facts.resumedState === 'running', 'and the context resumes',
 console.log(errs.length ? 'PAGE ERRORS: ' + errs.join(' | ') : 'no page errors');
 console.log(fails === 0 && errs.length === 0 ? '--- PR 5 DRIVES PASS ---' : `--- ${fails} FAILED ---`);
 await b.close();
+// Exit non-zero when anything failed. Without this the drive printed
+// "--- 3 FAILED ---" and exited 0, so any runner would have called it a pass.
+// Page errors count too: a drive whose assertions pass while the console
+// throws has not proved the screen works.
+process.exit(fails === 0 && errs.length === 0 ? 0 : 1);

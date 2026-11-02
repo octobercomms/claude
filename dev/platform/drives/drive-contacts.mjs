@@ -4,7 +4,7 @@
 // now is: the library holds 21,000 contacts and the list draws a 200-row
 // page, so doing either in the browser orders or filters the page you happen
 // to be looking at and calls it the library.
-import pw from './pw.mjs';
+import pw, { artifact } from './pw.mjs';
 const browser = await pw.chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
 let pass = 0, fail = 0;
@@ -162,7 +162,7 @@ lib = await q();
 ok(lib.count === 420, 'and cancelling still deletes nothing', `count: ${lib.count}`);
 
 ok(errors.length === 0, 'no page errors', errors.join(' | '));
-await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/contacts.png' });
+await page.screenshot({ path: artifact('contacts.png') });
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

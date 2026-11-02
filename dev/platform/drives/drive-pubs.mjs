@@ -5,7 +5,7 @@
 // window.confirm() one Return away, while the list drew 500. A click deleted
 // 1,500 publications nobody had looked at, detaching every journalist and
 // coverage entry attached to them, and it could not be undone.
-import pw from './pw.mjs';
+import pw, { artifact } from './pw.mjs';
 const browser = await pw.chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1500, height: 1200 } });
 let pass = 0, fail = 0;
@@ -146,7 +146,7 @@ const final = await state();
 ok(final.count === 120, 'cancelling deletes nothing', `count: ${final.count}`);
 
 ok(errors.length === 0, 'no page errors', errors.join(' | '));
-await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/pubs.png' });
+await page.screenshot({ path: artifact('pubs.png') });
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -26,12 +26,20 @@ const ok = (c, n, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'ok  ' : 
   // exactly what a deploy looks like from the browser's side: serve the SPA's
   // index.html for the missing file, the nastier variant, because the browser
   // then reports a MIME type error rather than a network one.
+  //
+  // Refused until the tab reloads, not merely once. lazyChunk retries the
+  // import once before it reloads — a dropped request on a flaky connection
+  // looks exactly like a stale chunk — so releasing after a single refusal
+  // let that retry succeed and no reload ever happened. Which of the two the
+  // single refusal landed on, the modulepreload or the import, then decided
+  // whether this drive saw a reload at all: it did here and did not on a CI
+  // runner, where the preload took the refusal and the import sailed through.
+  // Blocking until the reload is also the more faithful deploy: the old
+  // filename is gone until the browser fetches a new index.html.
   let blocked = 0;
-  let blocking = true;
   await page.route('**/assets/ClientSEOPage-*.js', (route) => {
-    if (!blocking) return route.continue();
+    if (loads > 1) return route.continue();   // past the reload, serve the real file
     blocked += 1;
-    blocking = false;   // the reload gets the real file, as it would
     return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html></html>' });
   });
 

@@ -1,6 +1,6 @@
 // Three layout notes off the review, driven. Each is a reading of a short
 // note, so the screenshots matter as much as the assertions.
-import pw from './pw.mjs';
+import pw, { artifact } from './pw.mjs';
 const browser = await pw.chromium.launch({ args: ['--no-sandbox'] });
 const B = 'http://127.0.0.1:4599';
 let pass = 0, fail = 0;
@@ -38,7 +38,7 @@ const errs = [];
     ok(r.inactive.every(b => b.border !== 'rgba(0, 0, 0, 0)'),
        `row ${i + 1}: and a border, so it reads as a button`, r.inactive[0]?.border);
   }
-  await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/create-opts.png' });
+  await page.screenshot({ path: artifact('create-opts.png') });
   await page.close();
 }
 
@@ -76,7 +76,7 @@ const errs = [];
   await page.waitForTimeout(1200);
   const back = await page.evaluate(() => document.querySelector('.app-main').innerText);
   ok(/New press release/.test(back), 'and clicking it goes back to the list');
-  await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/releases.png' });
+  await page.screenshot({ path: artifact('releases.png') });
   await page.close();
 }
 
@@ -147,7 +147,7 @@ const errs = [];
   ok(stacked.scroll, 'with no sideways scroll');
   await page.setViewportSize({ width: 1500, height: 1200 });
   await page.waitForTimeout(400);
-  await page.screenshot({ path: '/tmp/claude-0/-home-user-claude/678f754e-8874-5413-b278-fc834fcb4dab/scratchpad/hookvault.png' });
+  await page.screenshot({ path: artifact('hookvault.png') });
   await page.close();
 }
 

@@ -2,6 +2,13 @@
 // follow. The fixture batch holds two posts, sp1 (instagram) and sp2
 // (tiktok), both ticked when the batch opens.
 import pw from './pw.mjs';
+
+// Slugs updated 2 November. Shared's Create group was renamed on 1 November
+// (Ideas/Brief/Workbench became Create/Refine/Produce) and these still asked
+// for /social/brief and /social/workbench. An unknown screen falls back to
+// the section default rather than erroring, so the drive landed on Swipe,
+// found no posts, and reported the feature broken. Nothing caught it because
+// nothing ran the drives.
 const { chromium } = pw;
 const B = 'http://127.0.0.1:4599';
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -18,7 +25,7 @@ const dlLabel = () => page.evaluate(() => {
   return b ? { label: b.innerText.trim(), disabled: b.disabled } : null;
 });
 
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1400);
 
 ok(await boxes().count() === 2, 'every post on Review has a tick', String(await boxes().count()));
@@ -54,7 +61,7 @@ ok(asked && asked.ids.length === 1 && asked.ids[0] === 'sp1',
    'the export request carries just the ticked post', JSON.stringify(asked));
 
 // Ticking everything back asks for the whole batch, with no filter at all.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 // page.goto is a full reload, so this is the refresh case: the ticks are
 // persisted, not held in a component that unmounts.
@@ -72,7 +79,7 @@ const whole = await page.evaluate(async () => (await fetch('/__last-social-expor
 ok(!/posts=/.test(whole?.query || ''), 'a fully ticked batch asks for no filter at all', JSON.stringify(whole?.query));
 
 // Nothing ticked is a real state: the next step says it has nothing.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 await page.locator('.app-main button', { hasText: /^Untick all$/ }).click();
 await page.waitForTimeout(300);
@@ -84,7 +91,7 @@ ok(dl?.disabled === true, 'and the download is off rather than quietly empty', J
 
 // Bulk schedule starts from the ticks too. Only sp1 (instagram) is one
 // the autopilot can publish, so unticking it leaves the modal with none.
-await page.goto(`${B}/clients/c1/social/brief`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/clients/c1/social/refine`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1300);
 await page.locator('.app-main button', { hasText: /^Tick all$/ }).click();
 await page.waitForTimeout(250);
