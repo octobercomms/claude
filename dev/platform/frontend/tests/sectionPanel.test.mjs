@@ -174,9 +174,11 @@ test('each page reads its screen from the path, not from a query', () => {
 });
 
 test('useTabParam survives only where a page is embedded in another', () => {
-  // Outreach standalone and the analyst chat are pages-within-pages; they are
-  // the only query-param tabs left, and they say so.
-  const users = ['ClientOutreachPage.jsx', 'ClientChatPage.jsx', 'ClientVisualisePage.jsx']
+  // The analyst chat and Visualise are pages-within-pages; they are the only
+  // query-param tabs left, and they say so. Outreach was a third until its
+  // `embedded` prop went: it is only ever rendered by Convert, which reads the
+  // screen off the path, so its ?tab= half was unreachable.
+  const users = ['ClientChatPage.jsx', 'ClientVisualisePage.jsx']
     .filter(f => { try { return page(f).includes('useTabParam'); } catch { return false; } });
   for (const [, { file }] of Object.entries(PAGES)) {
     assert.ok(!page(file).includes('useTabParam('),

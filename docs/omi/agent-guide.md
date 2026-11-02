@@ -465,8 +465,11 @@ Three things that cost time here:
 `ClientChatPage` takes `embedded`, `clientId` and `persona` as props, and is
 mounted only while the panel is open, so moving from Paid to Owned starts the
 right conversation rather than re-labelling the previous one. Nothing routes it
-as a page any more, so `embedded` is in practice always true and the
-`!embedded` branch is unreachable — worth deleting rather than maintaining.
+as a page any more, so `embedded` was permanently true and the `!embedded`
+branch unreachable. Both are deleted (2 Nov), along with the same dead half in
+`ClientOutreachPage`, which Convert is the only caller of. The prop is gone
+from both; a page with one caller that always passes the same flag has one
+behaviour, and keeping the other was keeping a layout nobody could reach.
 
 **The panel's chrome was cut back to give the chat the room** (29 Oct 2026),
 across PRs #1804, #1805 and #1806. Measured at 1440x1000, the thread ends up

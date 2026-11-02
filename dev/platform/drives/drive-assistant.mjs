@@ -150,6 +150,22 @@ for (const [path, want] of [['/database/journalists', 1], ['/settings/costs', 0]
   await p.close();
 }
 
+// ── The client analyst still renders, after its dead half was deleted ────
+//
+// ClientChatPage had an `embedded` prop and a standalone layout behind it,
+// from when it was a page at /clients/:id/chat. The panel is the only caller,
+// so that half could not run and is gone. A build cannot tell you the chat
+// still mounts; this can.
+{
+  const p = await open('/clients/c1/dashboard/measure?analyst=1');
+  const cls = await p.locator('aside[aria-label="Analyst"]').getAttribute('class');
+  say((cls || '').includes('open'), 'the client analyst opens on ?analyst=1');
+  const t = (await p.locator('aside[aria-label="Analyst"]').innerText()).replace(/\s+/g, ' ');
+  say(t.length > 40, 'and the chat renders inside it', t.slice(0, 50));
+  say(!/AI Data Analyst/i.test(t), 'without the standalone hero it used to carry');
+  await p.close();
+}
+
 console.log(errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors');
 console.log(fails ? `--- ${fails} FAILED ---` : '--- ASSISTANT PANEL DRIVE PASSES ---');
 await b.close();

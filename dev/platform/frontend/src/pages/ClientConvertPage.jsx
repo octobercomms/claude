@@ -80,7 +80,7 @@ export default function ClientConvertPage() {
             {/* One component, five screens. It reads which one it is on from
                 the path, the way SettingsPage already does for Database and
                 Biz dev, so nothing here is a rewrite of a working page. */}
-            <ClientOutreachPage embedded clientId={id} screen={tab} onScreen={setTab} />
+            <ClientOutreachPage clientId={id} screen={tab} onScreen={setTab} />
           </>
         )}
       </PageShell>
