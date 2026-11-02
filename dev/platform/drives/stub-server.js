@@ -703,7 +703,17 @@ function ok(job, action) {
   return job.status === 'failed' || job.status === 'cancelled';
 }
 
-http.createServer((req, res) => {
+// A 1x1 transparent PNG, for fixtures that only need an image to exist.
+const PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64');
+
+// Every request runs inside a try/catch, because this is a fixture server and
+// a fixture that throws should cost one request, not the whole suite. Before
+// this, a single missing file took the process down and left every later
+// drive reporting a connection refusal — the failure looked like it belonged
+// to the drives rather than to the stub.
+const handler = (req, res) => {
   const url = req.url.split('?')[0];
   if (url === '/api/edit/clients/c1/edit' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' });
@@ -1143,8 +1153,16 @@ http.createServer((req, res) => {
   // The public page the client opens. One concept with three sizes, copy long
   // enough to be clipped on two of the three surfaces.
   if (url === '/stub-ad.png') {
+    // Inline rather than read from disk. This used to be
+    // fs.readFileSync(__dirname + '/ad.png'), and that file has never existed
+    // here — so the first drive to request it threw inside the request
+    // handler and killed the whole stub. Every drive after it then failed
+    // with ERR_CONNECTION_REFUSED in about a second, which reads as "the
+    // drives are broken" rather than "the fixture server is dead".
+    // A 1x1 transparent PNG needs no file, cannot go missing, and is enough
+    // for a drive that only cares that an image element has a source.
     res.writeHead(200, { 'Content-Type': 'image/png' });
-    return res.end(fs.readFileSync(__dirname + '/ad.png'));
+    return res.end(PIXEL_PNG);
   }
   // A social batch sent for approval. The caption is long enough to clip on
   // every surface, which is the thing the preview exists to show.
@@ -1421,4 +1439,17 @@ http.createServer((req, res) => {
   const type = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.gif':'image/gif', '.png':'image/png', '.svg':'image/svg+xml' }[ext] || 'application/octet-stream';
   res.writeHead(200, { 'Content-Type': type });
   res.end(fs.readFileSync(f));
+};
+
+http.createServer((req, res) => {
+  try {
+    handler(req, res);
+  } catch (err) {
+    // Loud, so a broken fixture is findable, and survivable, so the run goes
+    // on. Headers may already be sent, in which case there is nothing to say
+    // but the socket still has to be closed.
+    console.error(`stub: ${req.method} ${req.url} threw`, err && err.message);
+    if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json' });
+    try { res.end('{"error":"stub: handler threw"}'); } catch { /* socket gone */ }
+  }
 }).listen(4599, () => console.log('stub on 4599'));
