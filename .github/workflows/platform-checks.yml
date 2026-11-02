@@ -99,10 +99,12 @@ jobs:
       - name: Chromium
         working-directory: dev/platform/frontend
         run: npx playwright install --with-deps chromium
+      # No NODE_PATH here on purpose. It does nothing for ESM, and the drives
+      # are ESM: pw.mjs resolves Playwright by path instead, naming the
+      # frontend's own install. Setting it looked like it worked locally only
+      # because the container has a copy under /opt that pw.mjs tries first.
       - name: Run every drive
         working-directory: dev/platform/drives
-        env:
-          NODE_PATH: dev/platform/frontend/node_modules
         run: |
           node stub-server.js &
           stub=$!
@@ -114,7 +116,7 @@ jobs:
           failed=""
           for f in drive-*.mjs; do
             echo "::group::$f"
-            if NODE_PATH="$GITHUB_WORKSPACE/dev/platform/frontend/node_modules" node "$f"; then
+            if node "$f"; then
               echo "::endgroup::"
             else
               echo "::endgroup::"

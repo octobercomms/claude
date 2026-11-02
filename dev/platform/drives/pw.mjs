@@ -8,8 +8,18 @@
 //
 // Usage:  import { chromium } from './pw.mjs';
 export async function load() {
+  // The frontend already depends on playwright for its own browser suite, and
+  // that install is the one a CI runner will have. It has to be named as a
+  // path: ESM resolution walks node_modules UP from this file, so a sibling
+  // directory's install is invisible to a bare `import('playwright')`, and
+  // NODE_PATH does not apply to ESM at all. Setting NODE_PATH looked like it
+  // worked here only because the /opt candidate below exists in this
+  // container and is tried first — on a clean runner every drive failed with
+  // "No Playwright found".
+  const sibling = new URL('../frontend/node_modules/playwright/index.js', import.meta.url).href;
   const tries = [
     '/opt/node-tools/node_modules/playwright/index.js',  // the cloud container
+    sibling,                                             // the frontend's own install
     'playwright',                                        // an ordinary install
     'playwright-core',
   ];

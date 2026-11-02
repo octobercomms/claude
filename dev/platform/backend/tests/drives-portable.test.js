@@ -130,6 +130,9 @@ ok('every drive gets Playwright through the resolver', () => {
 ok('the resolver tries more than one place and says so when it fails', () => {
   const src = fs.readFileSync(path.join(DIR, 'pw.mjs'), 'utf8');
   assert.ok(/'\/opt\/node-tools\/node_modules\/playwright\/index\.js'/.test(src), 'the container first');
+  assert.ok(/node_modules\/playwright\/index\.js', import\.meta\.url/.test(src),
+    "then the frontend's own install, named as a path because ESM resolution "
+    + 'does not walk sideways into a sibling directory and NODE_PATH does not apply to it');
   assert.ok(/'playwright'/.test(src), 'then an ordinary install');
   assert.ok(/No Playwright found/.test(src), 'and a failure names what it tried');
   // Setting an executablePath that does not exist fails louder than letting
