@@ -247,6 +247,13 @@ jobs:
       # build, so running it here keeps it honest.
       - name: Guard — ffmpeg does everything the pipeline needs
         run: node scripts/ffmpeg-check.js
+      # "8 of 8 playback copies" counts play_key, which says a remux happened,
+      # not that it produced a usable index. cues-audit.js is the check that
+      # opens the files; this guards its judgement and that the offsets it
+      # reads mean what they say. It builds real WebMs, so it needs the ffmpeg
+      # installed above, and it fails rather than skips without one.
+      - name: Guard — a playback copy indexed at the tail is not called ready
+        run: node tests/cues-audit.test.js
       - name: Guard — the reel checks do not fail the plan's own example hook
         run: node tests/reel-checks.test.js
       - name: Guard — a tightened edit keeps no sliver too short to watch

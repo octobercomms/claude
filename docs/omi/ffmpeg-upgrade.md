@@ -1,8 +1,25 @@
 # Upgrading ffmpeg on the platform box
 
-**Why:** the box runs ffmpeg 4.4 (libavformat 58.76). `-cues_to_front` arrived
-in ffmpeg 6.0, so every WebM remux on that box writes its seek index at the
-tail. Measured on a 5-minute capture: with the flag the Cues element sits at
+> **Already done on the current box, on 31 October 2026.** `/opt/ffmpeg` holds
+> the build and `backend/.env` carries `FFMPEG_PATH` / `FFPROBE_PATH`. Check
+> before you start:
+>
+> ```bash
+> grep -n 'FFMPEG_PATH\|FFPROBE_PATH' /opt/october-source/dev/platform/backend/.env
+> stat -c '%n modified %y' /opt/ffmpeg /opt/ffmpeg/ffmpeg
+> node scripts/ffmpeg-check.js
+> ```
+>
+> If the grep finds the lines and the check passes 9 of 9, there is nothing to
+> do here. **Step 1's `cp` overwrites an existing `/opt/ffmpeg` without
+> comment**, and on 2 November a session that trusted a stale line in the agent
+> guide replaced a working build that way before noticing the switch was
+> already thrown. This runbook is for a new box, a rollback, or a deliberate
+> version change.
+
+**Why:** the system package is ffmpeg 4.4 (libavformat 58.76).
+`-cues_to_front` arrived in ffmpeg 6.0, so every WebM remux on 4.4 writes its
+seek index at the tail. Measured on a 5-minute capture: with the flag the Cues element sits at
 byte 465, without it at byte 16,329,148. A viewer dragging the scrubber then
 costs a range request to the end of the file.
 
@@ -139,14 +156,30 @@ node scripts/ffmpeg-check.js    # no env now: reads .env, so it should pass 9 of
 
 ## 4. Redo the three recordings
 
+First find out whether they still need it. **Do not use
+`media-store-status.js` for this**: it counts `play_key IS NOT NULL`, so it
+reports that a remux happened, not that the remux produced a usable index.
+All three tail-indexed recordings already have a `play_key` — which is exactly
+why `--force` is needed below — so its "8 of 8 playback copies" was already
+true while three of the eight were still broken. It read as finished and cost
+a session.
+
+```bash
+node scripts/cues-audit.js
+```
+
+That opens each playback copy and reports whether its Cues sit before or after
+the first Cluster, naming any that are still at the tail. It exits non-zero
+while any are, so it also serves as the check that the backfill worked.
+
 ```bash
 node scripts/remux-backfill.js --commit --force
-node scripts/media-store-status.js       # 8 of 8 playback copies
+node scripts/cues-audit.js               # expect every copy front-indexed
 ```
 
 `--force` is needed because those three already have a `play_key`; without it
 they are skipped as done. Then open one of the three in the platform and drag
-the scrubber: that is the only check that proves the point.
+the scrubber: that is the only check that proves the point to a human.
 
 ## Rolling back
 
