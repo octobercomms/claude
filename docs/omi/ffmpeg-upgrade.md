@@ -168,9 +168,15 @@ a session.
 node scripts/cues-audit.js
 ```
 
-That opens each playback copy and reports whether its Cues sit before or after
-the first Cluster, naming any that are still at the tail. It exits non-zero
-while any are, so it also serves as the check that the backfill worked.
+That opens each playback copy and reports whether its index is at the front,
+naming any that are not. It exits non-zero while any are, so it also serves as
+the check that the backfill worked. It asks the right question per container:
+Cues before the first Cluster for a WebM, `moov` before `mdat` for the MP4
+copies that a non-WebM capture produces.
+
+**Run on 2 November 2026 it came back clean: all eight front-indexed**, so the
+three recordings below were already redone on 31 October and the backfill is
+not owed on this box. The commands are kept for a future one.
 
 ```bash
 node scripts/remux-backfill.js --commit --force
