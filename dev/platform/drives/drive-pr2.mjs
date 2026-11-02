@@ -182,7 +182,7 @@ for (const [slug, want] of [
 {
   const p = await open('/database/journalists');
   const t = await text(p);
-  say(/CLEANUP/i.test(t), 'Database carries a Cleanup group in its panel');
+  say(/TIDY & MAINTAIN/i.test(t), 'Database carries the Tidy & Maintain group in its panel');
   say(!/Cleanup Centre/i.test(t), 'and nothing is called Cleanup Centre');
   // The old page is not a route any more. Its screens are rows, so a link to
   // it would be the dead-link class this file exists to catch.

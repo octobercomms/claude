@@ -244,7 +244,10 @@ commit messages and half this file's memory, so name them from here:
   section and `ClientEmailPage` does not exist; Outreach rather than Email
   because only two of the five are email.
 - **Database** = Health, Journalists, Publications, Tags, Tasks, then a
-  **Cleanup** group: the seven screens that were the `/database-tools` page.
+  **Tidy & Maintain** group: the seven screens that were the `/database-tools`
+  page. It was called Cleanup for a day; Maintenance holds the weekly digest
+  and semantic matching, which are not tidying, so the heading names both
+  halves rather than the odd row being moved out.
   That route is gone, `ContactCleanupPage` takes a `screen` prop, and
   `SettingsPage` renders it for those seven keys. Nothing is reached through a
   kebab any more, because there is no kebab.

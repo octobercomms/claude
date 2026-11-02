@@ -486,8 +486,14 @@ export const SECTIONS = {
         // opened from the bubble in the top bar, deep-linked with ?assistant=1.
       ] },
 
-      // Cleanup: the seven screens that were a page of their own behind a
-      // kebab on whichever list you happened to be standing on.
+      // Tidy & Maintain: the seven screens that were a page of their own
+      // behind a kebab on whichever list you happened to be standing on.
+      //
+      // Called Cleanup until 2 November. Maintenance sat oddly inside it: the
+      // weekly digest and semantic matching are not tidying, which is the
+      // objection that renamed Cleanup Centre to Database tools the day
+      // before. Daniel's call was to keep the group and name it for both
+      // halves rather than move the odd row out of it.
       //
       // "the drawer icon is completely the wrong place... in the database
       // second nav panel, we need a list of the cleanup centre pages? thats
@@ -510,7 +516,7 @@ export const SECTIONS = {
       // The two Duplicates screens are named for what they hold. As tabs they
       // sat under Journalists and Publications group labels; as rows in one
       // group, two rows both reading "Duplicates" is a coin toss.
-      { heading: 'Cleanup', rows: [
+      { heading: 'Tidy & Maintain', rows: [
         { tab: 'duplicates',  label: 'Journalist duplicates',  slug: 'journalist-duplicates' },
         { tab: 'coverage',    label: 'Coverage matchups',      slug: 'coverage-matchups' },
         { tab: 'tidy',        label: 'Tidy fixes',             slug: 'tidy-fixes' },
@@ -519,11 +525,9 @@ export const SECTIONS = {
         { tab: 'ooo',         label: 'Contact updates',        slug: 'contact-updates' },
         { tab: 'replies',     label: 'Reply catch-up',         slug: 'reply-catch-up' },
         { tab: 'pubdupes',    label: 'Publication duplicates', slug: 'publication-duplicates' },
-        // Maintenance is the odd one in a group called Cleanup: it holds the
-        // weekly digest and semantic matching, which are not tidying. That is
-        // the objection that renamed Cleanup Centre to Database tools this
-        // morning. Kept here because the alternative is a group of one, and
-        // flagged for Daniel rather than quietly re-filed.
+        // Maintenance is why the group is not just called Cleanup: the
+        // weekly digest and semantic matching are jobs that keep the database
+        // current rather than tidy it.
         { tab: 'maintenance', label: 'Maintenance',            slug: 'maintenance' },
       ] },
     ],
