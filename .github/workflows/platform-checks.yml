@@ -85,6 +85,14 @@ jobs:
       - name: Install frontend deps
         working-directory: dev/platform/frontend
         run: npm ci --no-audit --no-fund
+      # The stub imports real backend services on purpose — adsCurrency and
+      # aiModels — so a drive checks the shipped rule rather than a convenient
+      # copy of it. aiModels reaches src/db.js and therefore pg, so without
+      # these the stub cannot start and every drive fails on a connection
+      # refusal. That is how this job failed the first time it ran.
+      - name: Install backend deps, which the stub imports
+        working-directory: dev/platform/backend
+        run: npm ci --no-audit --no-fund
       - name: Build the app the drives run against
         working-directory: dev/platform/frontend
         run: npm run build

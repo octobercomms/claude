@@ -81,6 +81,23 @@ ok('CI runs the drives, by glob rather than by list', () => {
   assert.ok(!/(node|for f in)\s+probe-/.test(runs), 'nothing in the job runs a probe');
 });
 
+ok('CI installs what the stub imports', () => {
+  // The stub imports real backend services on purpose, so a drive checks the
+  // shipped rule rather than a hand-written copy. That makes the drives job
+  // depend on backend node_modules, which is not obvious from looking at a
+  // directory full of frontend drives: the job installed frontend deps only,
+  // aiModels reached src/db.js and therefore pg, the stub could not start,
+  // and every drive failed on a connection refusal. First run, straight red.
+  const stub = fs.readFileSync(path.join(DIR, 'stub-server.js'), 'utf8');
+  const needsBackend = /require\(path\.join\(__dirname, '\.\.', 'backend'/.test(stub);
+  if (!needsBackend) return;
+  const wf = fs.readFileSync(
+    path.join(__dirname, '..', '..', '..', '..', '.github', 'workflows', 'platform-checks.yml'), 'utf8');
+  const job = wf.slice(wf.indexOf('\n  drives:'), wf.indexOf('\n  backend:'));
+  assert.ok(/working-directory: dev\/platform\/backend\n\s*run: npm ci/.test(job),
+    'the stub imports backend modules, so the drives job has to install backend deps');
+});
+
 ok('nothing points at one particular container', () => {
   const bad = [];
   for (const f of files) {
