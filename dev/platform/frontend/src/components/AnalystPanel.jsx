@@ -124,7 +124,7 @@ export default function AnalystPanel({ clientId, open, onClose, pathname }) {
             panel costs nothing. */}
         {open && (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-            <ClientChatPage embedded clientId={clientId} persona={persona} onChatState={setChat} clearRef={clearRef} />
+            <ClientChatPage clientId={clientId} persona={persona} onChatState={setChat} clearRef={clearRef} />
           </div>
         )}
       </div>

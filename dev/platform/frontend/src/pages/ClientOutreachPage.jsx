@@ -12,7 +12,6 @@ import ImportWizard from '../components/ImportWizard';
 import SequenceBuilder from '../components/SequenceBuilder';
 import SelectiveOutreachPanel from '../components/SelectiveOutreachPanel';
 import { csvEscape } from '../utils/csv';
-import { useTabParam } from '../hooks/useTabParam';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
@@ -127,7 +126,12 @@ function CampaignSequence({ campaign, onCampaignChange }) {
   );
 }
 
-export default function ClientOutreachPage({ embedded = false, clientId: clientIdProp, screen, onScreen } = {}) {
+// Always inside ClientConvertPage, which owns the Outreach group and passes
+// the screen it read off the path. There was an `embedded` prop and a
+// standalone half behind it — its own kicker, its own hero, its own ?tab= —
+// from when this was a page in its own right. Convert has been the only
+// caller since Email stopped being a section, so that half could not run.
+export default function ClientOutreachPage({ clientId: clientIdProp, screen, onScreen } = {}) {
   const { id: routeId } = useParams();
   const id = clientIdProp || routeId;
   const toast = useToast();
@@ -140,18 +144,16 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   // it keeps ?tab=, which is the only place that param survives.
   const OUTREACH_TABS = ['campaigns', 'contacts', 'tasks', 'sending', 'prospecting'];
   const navigate = useNavigate();
-  const [qTab, setQTab] = useTabParam('campaigns', OUTREACH_TABS);
-  // Embedded, the screen comes from the parent, which read it off the path
-  // through useScreen. It used to read the third path segment itself
-  // (/convert/email/campaigns); Email is a section now, so the segment it was
-  // reading no longer exists and the parent owns the mapping.
-  const tab = embedded ? (OUTREACH_TABS.includes(screen) ? screen : 'campaigns') : qTab;
-  // Embedded, the parent navigates. It owns the section and already has
-  // useScreen's setter, which maps a key to its slug from nav/sections.js —
-  // so the slug table lives in one place and routeTargets can still see that
-  // every link resolves. Building the path here meant a template the guard
-  // could not read.
-  const setTab = embedded ? (onScreen || (() => {})) : setQTab;
+  // The screen comes from the parent, which read it off the path through
+  // useScreen. This page used to read the third path segment itself
+  // (/convert/email/campaigns); Email stopped being a section, so that segment
+  // does not exist and the parent owns the mapping.
+  const tab = OUTREACH_TABS.includes(screen) ? screen : 'campaigns';
+  // The parent navigates, with useScreen's setter, which maps a key to its
+  // slug from nav/sections.js — so the slug table lives in one place and
+  // routeTargets can still see that every link resolves. Building the path
+  // here meant a template the guard could not read.
+  const setTab = onScreen || (() => {});
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -501,14 +503,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
 
   return (
     <div className="suite-email">
-      {!embedded && <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Email outreach · sequences &amp; mailboxes</span></div>}
-      {!embedded && (
-        <header className="hero">
-          <div>
-            <h1 className="display mt-2">Email</h1>
-          </div>
-        </header>
-      )}
 
       {/* No navigation of its own. The five screens are rows in Convert's
           panel under Outreach, and this page drew a step rail over the same
@@ -523,10 +517,8 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           it is the rows, if it earns its way there.
 
           The other arm of this was a SuiteTabs strip for the non-embedded
-          case. Nothing renders this page non-embedded — ClientConvertPage is
-          the only caller and always passes `embedded` — so that arm could
-          not run. The `!embedded` kicker and hero above are dead for the
-          same reason and are left for a pass of their own. */}
+          case, and the kicker and hero above it were the same. All of it is
+          gone with the `embedded` prop, which was permanently true. */}
 
       {tab === 'prospecting' && (
         <SelectiveOutreachPanel clientId={id} />

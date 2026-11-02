@@ -465,8 +465,11 @@ Three things that cost time here:
 `ClientChatPage` takes `embedded`, `clientId` and `persona` as props, and is
 mounted only while the panel is open, so moving from Paid to Owned starts the
 right conversation rather than re-labelling the previous one. Nothing routes it
-as a page any more, so `embedded` is in practice always true and the
-`!embedded` branch is unreachable — worth deleting rather than maintaining.
+as a page any more, so `embedded` was permanently true and the `!embedded`
+branch unreachable. Both are deleted (2 Nov), along with the same dead half in
+`ClientOutreachPage`, which Convert is the only caller of. The prop is gone
+from both; a page with one caller that always passes the same flag has one
+behaviour, and keeping the other was keeping a layout nobody could reach.
 
 **The panel's chrome was cut back to give the chat the room** (29 Oct 2026),
 across PRs #1804, #1805 and #1806. Measured at 1440x1000, the thread ends up
@@ -2076,8 +2079,39 @@ now land in `UNPRICED` and are reported in the card's raw payload instead of
 being quietly charged at the default, and cache reads take the model's own
 multiplier (0.05x on Opus 5.5 and Sonnet 5.5, 0.025x on Fable 5.1).
 
-One thing left: the endpoint is now marked legacy in favour of
-`/v1/organizations/analytics/usage`. Migrating is its own piece of work.
+**The legacy endpoint stays, and that is a decision, not an omission**
+(2 Nov 2026). `usage_report/messages` is marked legacy in favour of the Usage
+and Cost Analytics API at `/v1/organizations/analytics/usage`. It was looked
+at properly rather than migrated, and the reasons are worth keeping because
+they will come up again:
+
+- **The legacy API "remains supported"** in Anthropic's own words, with no
+  retirement date given. There is no clock on this.
+- **The replacement is in beta**, behind `anthropic-beta:
+  analytics-usage-cost-2026-08-24`, so its contract can still move.
+- **It is far less fresh, and provisional.** The legacy report lands within
+  about five minutes. Analytics refreshes within 4 hours, can take 24, and
+  "values can be revised as late events arrive and reconciliation runs, until
+  about 7 days after the end of the calendar month". The Costs panel exists to
+  answer "what is OMI costing this month", so a month-to-date figure that is a
+  day behind and still being revised is a worse answer than the one it has.
+
+If it is ever migrated, these are the changes, all confirmed against the docs
+rather than guessed: the Admin key, `anthropic-version`, `starting_at`,
+`ending_at`, bracket notation, the pagination fields and **every token field
+name carry over** — `uncached_input_tokens`, `cache_read_input_tokens`,
+`cache_creation.ephemeral_5m_input_tokens` / `_1h_`, `output_tokens` are
+identical, so `claudeCostFromUsage` needs nothing. What changes: the beta
+header; `bucket_width` becomes `time_bucket_width` with no default (omit it
+for a whole-range total, which is what the panel wants and which removes the
+bucket-dedup machinery); `data` stops being time buckets with nested
+`results` and becomes rows ranked by `order_by`, each carrying its dimensions
+in `group` and metrics in `usage`; `limit` counts rows rather than buckets,
+default 20, so it must be raised for model × key combinations; and a request
+may span **at most 31 days**, which a calendar month can equal exactly.
+`api_key_ids[]` and grouping still exist, so the OMI-key scoping survives, and
+the response adds `data_refreshed_at`, which is what a migrated panel should
+show beside the figure.
 
 ### Six dead links, and the scan that now catches them (31 Oct 2026)
 

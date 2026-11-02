@@ -94,7 +94,13 @@ function BotGlyph() {
 // frontend had ever asked for one. The analyst panel does: on Paid you get the
 // paid persona, on Owned the one that can draft content. Anything else is the
 // general analyst.
-export default function ClientChatPage({ embedded = false, clientId: clientIdProp, persona = 'analyst', onChatState, clearRef } = {}) {
+// Always inside AnalystPanel. There was an `embedded` prop and a standalone
+// layout behind it, from when this was a page at /clients/:id/chat; that route
+// became a redirect to ?analyst=1 and the panel is the only caller, so the
+// prop was permanently true and the other half of every branch was
+// unreachable. The panel supplies the kicker, the hero and the Clear-history
+// button beside its close ×, so none of that belongs here.
+export default function ClientChatPage({ clientId: clientIdProp, persona = 'analyst', onChatState, clearRef } = {}) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const { id: routeId } = useParams();
@@ -128,8 +134,9 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   // Embedded inside Data → AI Analyst: skip the standalone Overview landing and
   // go straight to chat, and use ?ctab= so we don't fight the host over ?tab=.
   // Overview deleted Oct 2026 — it described the chat rather than being it.
-  // Chat is the only thing here now, embedded or not.
-  const [tab, setTab] = useTabParam('chat', ['chat'], embedded ? 'ctab' : 'tab');
+  // Chat is the only thing here now. 'ctab' rather than 'tab' because the
+  // page it opens over owns 'tab'.
+  const [tab, setTab] = useTabParam('chat', ['chat'], 'ctab');
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -300,24 +307,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   ];
 
   return (
-    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? (embedded ? { flex: 1, minHeight: 0 } : { height: 'calc(100vh - 64px)' }) : {}) }}>
-      {/* Embedded, the panel supplies its own header (and the Clear-history
-          button beside its close ×), so the hero is only for the standalone page. */}
-      {!embedded && (
-        <>
-          <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>
-          <header className="hero">
-            <div><h1 className="display mt-2">AI Data Analyst</h1></div>
-            {tab === 'chat' && messages.length > 0 && (
-              <div className="hero-actions">
-                <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">
-                  {clearing ? 'Clearing…' : 'Clear history'}
-                </button>
-              </div>
-            )}
-          </header>
-        </>
-      )}
+    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? { flex: 1, minHeight: 0 } : {}) }}>
 
       {tab === 'chat' && (
       <>
