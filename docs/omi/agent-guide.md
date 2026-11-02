@@ -82,18 +82,47 @@ read its restart section before any `pm2 kill`: doing that upgrade took
 omi.octobercomms.com down, because the daemon runs two apps and the runbook
 named one.
 
-**ffmpeg on the box is still 4.4**, which has no `-cues_to_front`, so a
-remuxed WebM keeps its seek index at the tail: on a 5-minute capture, byte
-16,329,148 instead of byte 465. `services/recordingRemux.js` probes the binary
-and drops the flag where it is unsupported, so nothing fails; three recordings
-(`13464815`, `1b82dce3`, `b7f3d0c4`) are still indexed at the tail and want
-`remux-backfill.js --commit --force` after the upgrade.
-`docs/omi/ffmpeg-upgrade.md` is the runbook: a pinned static build in `/opt`
-(8.1 as of 31 Oct 2026; BtbN publishes 8.1 and 9.0 and no 7.x, so check the
-list rather than a version written down), proven with
-`scripts/ffmpeg-check.js`, switched on with two lines in
-`.env` and a reload, and rolled back by deleting them. The system package is
-never touched.
+**The ffmpeg upgrade is done. It was done on 31 October 2026, and this
+paragraph said otherwise until 2 November.** `/opt/ffmpeg` was created at
+11:38 that day and `backend/.env` got `FFMPEG_PATH` / `FFPROBE_PATH` at 11:40,
+two minutes later. The box has been serving on the `/opt` build ever since,
+with zero ENOENT in the logs. The previous wording ("ffmpeg on the box is still
+4.4") sent a later session through the whole runbook from step 1, and because
+`cp` into an existing `/opt/ffmpeg` overwrites without comment, that session
+replaced a working build with another one before anyone noticed the switch was
+already thrown. No harm done — `ffmpeg-check.js` passed 9 of 9 on the
+replacement — but **check `grep FFMPEG_PATH backend/.env` and
+`stat /opt/ffmpeg` before touching either.**
+
+The system package is untouched and still 4.4; that is by design, and it is
+what a bare `ffmpeg` on the box resolves to.
+
+Why it mattered: 4.4 has no `-cues_to_front`, so a remuxed WebM keeps its seek
+index at the tail — on a 5-minute capture, byte 16,329,148 instead of byte 465.
+`services/recordingRemux.js` probes the binary and drops the flag where it is
+unsupported, so nothing fails loudly; it just produces a file that costs a range
+request to the end to scrub. Three recordings (`13464815`, `1b82dce3`,
+`b7f3d0c4`) were remuxed in that state.
+
+**"8 of 8 ready recordings have a seekable playback copy" is not proof those
+three were redone, and reading it that way is the trap this cost a session to.**
+`media-store-status.js` counts `play_key IS NOT NULL`: it reports that a remux
+happened, not that the remux produced a usable index. All three tail-indexed
+recordings already had a `play_key` — which is precisely why
+`remux-backfill.js` needs `--force` to redo them — so 8 of 8 was already true
+while three of the eight were still broken. Use **`scripts/cues-audit.js`**,
+which opens each playback copy and reports whether its Cues sit before or after
+the first Cluster, and exits non-zero if any are at the tail. Walk the EBML
+structure, never search for the Cues id: `SeekHead` carries a pointer to Cues
+near byte 100, so a substring search calls every file front-indexed.
+`tests/cues-audit.test.js` guards that judgement against real WebMs built both
+ways, and is in CI.
+
+`docs/omi/ffmpeg-upgrade.md` is the runbook, kept for the next box and for
+rollback: a pinned static build in `/opt` (8.1 as of 2 Nov 2026; BtbN publishes
+8.1 and 9.0 and no 7.x, so check the list rather than a version written down),
+proven with `scripts/ffmpeg-check.js`, switched on with two lines in `.env` and
+a reload, and rolled back by deleting them.
 
 **One ffmpeg for the whole backend.** Every service takes its binary from
 `services/ffmpegBin.js` (`FFMPEG`, `FFPROBE`, resolved from `FFMPEG_PATH` /
