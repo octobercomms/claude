@@ -111,12 +111,27 @@ happened, not that the remux produced a usable index. All three tail-indexed
 recordings already had a `play_key` — which is precisely why
 `remux-backfill.js` needs `--force` to redo them — so 8 of 8 was already true
 while three of the eight were still broken. Use **`scripts/cues-audit.js`**,
-which opens each playback copy and reports whether its Cues sit before or after
-the first Cluster, and exits non-zero if any are at the tail. Walk the EBML
-structure, never search for the Cues id: `SeekHead` carries a pointer to Cues
-near byte 100, so a substring search calls every file front-indexed.
-`tests/cues-audit.test.js` guards that judgement against real WebMs built both
-ways, and is in CI.
+which opens each playback copy and reports whether its index sits at the front,
+and exits non-zero if any do not.
+
+**It has to ask two different questions, because `recordingRemux.argsFor`
+makes two containers.** A WebM capture is remuxed to WebM with
+`-cues_to_front`; anything else becomes an MP4 with `-movflags +faststart`. So
+the check is Cues before the first Cluster in Matroska, and `moov` before
+`mdat` in MP4, chosen from the file's own magic bytes rather than its key's
+extension. The first version of the script asked the Matroska question of
+everything and reported the box's five MP4 copies as "no Cues element at all",
+which read as five broken recordings and was entirely the script's fault.
+
+Read structure, never search for an id: `SeekHead` carries a pointer to Cues
+near byte 100, so a substring search calls every WebM front-indexed.
+`tests/cues-audit.test.js` guards both judgements against real WebMs and real
+MP4s built each way, and is in CI.
+
+**The audit's answer on 2 Nov 2026: all eight playback copies front-indexed.**
+The three the paragraph above names were redone on 31 October, so the backfill
+is finished and `remux-backfill.js --commit --force` is not owed. Three are
+WebM with Cues at 604-612; five are MP4 with `moov` ahead of `mdat`.
 
 `docs/omi/ffmpeg-upgrade.md` is the runbook, kept for the next box and for
 rollback: a pinned static build in `/opt` (8.1 as of 2 Nov 2026; BtbN publishes
