@@ -41,7 +41,11 @@ const ROWS = [
   const p = await open('/database/journalists');
   const panel = await text(p);
   // Headings render uppercase, so match case-insensitively.
-  say(/CLEANUP/i.test(panel), 'the Database panel carries a Cleanup group');
+  // Renamed from CLEANUP on 2 November: Maintenance holds the weekly digest
+  // and semantic matching, which are not tidying, so the heading names both
+  // halves. Matched case-insensitively because headings render uppercase.
+  say(/TIDY & MAINTAIN/i.test(panel), 'the Database panel carries the Tidy & Maintain group');
+  say(!/\bCLEANUP\b/i.test(panel), 'and no longer calls it Cleanup');
 
   for (const [label, slug] of ROWS) {
     const row = p.getByRole('button', { name: label, exact: true }).first();
@@ -87,6 +91,6 @@ for (const [screen, primary] of [['journalists', '+ Add journalist'], ['publicat
 }
 
 console.log(errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors');
-console.log(fails ? `--- ${fails} FAILED ---` : '--- CLEANUP ROWS DRIVE PASSES ---');
+console.log(fails ? `--- ${fails} FAILED ---` : '--- TIDY & MAINTAIN ROWS DRIVE PASSES ---');
 await b.close();
 process.exit(fails ? 1 : 0);

@@ -151,7 +151,7 @@ ok('the Cleanup screens are rows, not a page behind a kebab', () => {
   assert.ok(!/>🧹 Cleanup Centre</.test(settings), 'and no button still says Cleanup Centre');
 
   const db = code.slice(code.indexOf('  database: {'), code.indexOf('  bizdev: {'));
-  const cleanup = db.slice(db.indexOf("{ heading: 'Cleanup'"));
+  const cleanup = db.slice(db.indexOf("{ heading: 'Tidy & Maintain'"));
   const labels = [...cleanup.matchAll(/label: '([^']+)'/g)].map(m => m[1]);
   assert.deepStrictEqual(labels,
     ['Journalist duplicates', 'Coverage matchups', 'Tidy fixes', 'Contact updates',

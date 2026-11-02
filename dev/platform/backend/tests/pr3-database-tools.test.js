@@ -44,7 +44,8 @@ ok('Maintenance is a Cleanup row, and it renders the tools', () => {
   // home and it is reachable — is unchanged.
   const sections = stripComments(read('src/nav/sections.js'));
   const db = sections.slice(sections.indexOf('  database: {'), sections.indexOf('  bizdev: {'));
-  assert.ok(/{ heading: 'Cleanup', rows: \[/.test(db), 'Database has a Cleanup group');
+  assert.ok(/{ heading: 'Tidy & Maintain', rows: \[/.test(db),
+    'Database has the group — renamed from Cleanup on 2 November, because Maintenance is not tidying');
   assert.ok(/tab: 'maintenance',\s+label: 'Maintenance'/.test(db), 'with a Maintenance row');
   assert.ok(/tab === 'maintenance' && <MaintenanceTools \/>/.test(toolsPage), 'and it renders the tools');
   assert.ok(/CLEANUP_SCREENS\.includes\(tab\)/.test(settings),
