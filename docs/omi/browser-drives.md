@@ -19,12 +19,31 @@ agent either rewrote them or skipped the step that caught the most.
 
 They are here now. Add to them rather than starting again.
 
+## Two kinds of file here
+
+| | asserts | exits non-zero | run by CI |
+|---|---|---|---|
+| `drive-*.mjs` | yes | yes | **yes, every PR** |
+| `probe-*.mjs` | no | no | no |
+
+A **drive** is a check: it asserts, counts failures and exits non-zero. A
+**probe** prints observations for a person to read and decides nothing —
+`probe-flicker.mjs` counts page loads, `probe-standard.mjs` lists which
+buttons are on a screen. Both are worth having and only one can be automated.
+
+Until 2 November everything was called `drive-*`, and ten of them never set an
+exit code at all: five counted failures, printed "--- 3 FAILED ---" and exited
+0, and six had no assertions to begin with. Any runner would have called all
+ten a pass whatever they printed. If a probe grows assertions, rename it
+`drive-*.mjs` so CI picks it up; `drives-portable.test.js` fails if one
+asserts under a probe's name, or if a drive loses its exit code.
+
 ## Running one
 
 ```sh
 cd dev/platform/frontend && npx vite build     # the drives use the real bundle
 node dev/platform/drives/stub-server.js &      # a fake backend on :4599
-node dev/platform/drives/drive-tenders.mjs
+node dev/platform/drives/drive-cleanup.mjs
 ```
 
 The stub serves `frontend/dist`, so a drive exercises the shipped build and
@@ -38,21 +57,23 @@ but the machine it was written on.
 
 ## The per-PR drives
 
-Most drives are named after a screen (`drive-tenders.mjs`, `drive-hook-vault.mjs`)
-and stay useful indefinitely. Three are named after a pull request instead,
+Most drives are named after a screen (`drive-cleanup.mjs`, `drive-pubs.mjs`)
+and stay useful indefinitely. Five are named after a pull request instead,
 because they exist to verify one change set end to end:
 
 | file | what it drives | assertions |
 |---|---|---|
 | `drive-pr1.mjs` | six styles below the upload, Library tools gone, Video/Edit explainers, the cross-site Funnel health read | 18 |
-| `drive-pr2.mjs` | the nav session: Make, Email as a section, Improve inside Learn, Models under Costs, the tools kebab in the page header | 27 |
+| `drive-pr2.mjs` | the nav session: Make, Outreach inside Convert, Improve inside Learn, Models under Costs, Cleanup rows and no kebab | 40 |
 | `drive-pr3.mjs` | every maintenance job on one tab, the pointers left behind, Add publication and its duplicate check | 25 |
 | `drive-pr4.mjs` | the multi-clip drop target (one file to the editor, several to the library), a named rejection, a filed design's link back to its set | 18 |
 | `drive-pr5.mjs` | the three browser facts the audio gain graph rests on, measured rather than assumed | 9 |
 
-Keep running them. Each one is a regression check on a change that reached
-production, and PR 2 re-ran PR 1's before pushing. They are cheap: all three
-take under a minute together.
+CI runs all of them on every PR now, so keeping them true is not optional:
+a drive asserting something you deliberately changed turns the build red, and
+the fix is to update the assertion to the new decision rather than to delete
+it. Three of these were asserting a kebab and a `/database-tools` page hours
+after both were removed, and nothing noticed, because nothing ran them.
 
 ## What a drive is for
 
