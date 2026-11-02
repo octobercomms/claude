@@ -2066,19 +2066,32 @@ Three phases:
    produce a strategy, recommend the next best actions, and measure them —
    instead of each suite being an island.
 
-   **It is scoped with Daniel before anything is built, and that has not
-   happened yet.** A multi-session product build started on inference is the
-   expensive mistake available here. The questions the scope has to answer,
-   because none of them can be inferred from the code: which client it is
-   built against first; what it reads that OMI does not already surface;
-   where the line sits between a recommendation it may act on and one it may
-   only propose; and how you would know it worked.
+   **It is now scoped: `docs/omi/gtm-brain.md`, agreed with Daniel on
+   2 November. Read it before writing any of it.** Do not re-derive the scope
+   and do not widen it; the four answers below were given against stated
+   alternatives, and three of them rule things out.
 
-   Existing material to read first, all of it older than the decision:
-   `client-strategy.md`, `redesign-brief.md`, `sales-pipeline.md`. The
-   Strategist is the nearest thing already running — a weekly cross-PESO
-   briefing with a queue and a memory — so start by asking what the GTM Brain
-   does that the Strategist does not, rather than by designing a second one.
+   - **It is not a new product.** It closes the Strategist's loop. The
+     Strategist already reads all four pillars, synthesises them and raises a
+     carried queue with age and priority. What is missing is outcome:
+     `strategist_briefing_recommendations` records that a box was ticked, not
+     what number the item was about or whether it moved. Migrations 041, 140
+     and 215 each promised to grade follow-through and none did, which is why
+     this was specified before being built.
+   - **Falcon first.**
+   - **Autonomy is earned per action type**, on `prThanks.js`'s pattern —
+     three stages, a confidence threshold each, and the human moves the stage.
+     It does not auto-graduate, and it does not spend or send outside OMI.
+   - **Success is the attention tile's stale count trending down**, so capture
+     that baseline per client *before* Phase 1 or there is nothing to have
+     improved against.
+
+   Ruled out, having been offered: pricing actions by expected return before
+   doing them, and a cross-client brain that learns across the book. Neither
+   is cancelled; both need the track record first.
+
+   Background material, all older than the decision and none of it binding:
+   `client-strategy.md`, `redesign-brief.md`, `sales-pipeline.md`.
 
    **The video editor is parked, not cancelled.** `editor-composition-model.md`
    carries the design and a header saying so. It was agreed and parked on the
@@ -3569,6 +3582,8 @@ claiming that a `.db` test protects anything.
 - L5 pattern = add an `embedded` prop to the detail modal, then `ListDetail sidebar`.
 - Don't brand OMI "nvelope".
 - The real next prize is **Phase 3 (GTM Brain)**, not more table refactors.
+  It is scoped as of 2 November: `docs/omi/gtm-brain.md`. The L5 two-pane
+  tail is closed, so "convert X to two-pane" is no longer work to pick up.
 
 ## 11. Reading CI on a PR (this cost nine commits on 1 November)
 
