@@ -124,16 +124,22 @@ router.get('/:id/cleaned', async (req, res) => {
     if (rows[0].client_id) assertClientAccess(req, rows[0].client_id);
     if (!rows[0].cleaned_key) return res.status(404).json({ error: 'Cleaned audio not ready yet.' });
 
+    // Downloads stream through the backend so we can set Content-Disposition
+    // (a redirect to R2 would cross origins and block the fetch-based download).
+    if (req.query.dl === '1') {
+      const buf = await mediaStore.getBuffer(rows[0].cleaned_key);
+      const { rows: meta } = await pool.query('SELECT title FROM audio_cleanups WHERE id = $1', [req.params.id]);
+      const name = (meta[0]?.title || 'cleaned').replace(/\.[a-z0-9]+$/i, '') + '-cleaned.mp3';
+      res.set('Content-Type', 'audio/mpeg');
+      res.set('Content-Length', String(buf.length));
+      res.set('Content-Disposition', `attachment; filename="${name}"`);
+      return res.send(buf);
+    }
     const signed = await mediaStore.signedGetUrl(rows[0].cleaned_key, 3600).catch(() => null);
     if (signed) return res.redirect(signed);
     const { stream, size, mime } = await mediaStore.openRead(rows[0].cleaned_key);
     res.set('Content-Type', mime || 'audio/mpeg');
     if (size) res.set('Content-Length', String(size));
-    if (req.query.dl === '1') {
-      const { rows: meta } = await pool.query('SELECT title FROM audio_cleanups WHERE id = $1', [req.params.id]);
-      const name = (meta[0]?.title || 'cleaned').replace(/\.[a-z0-9]+$/i, '') + '-cleaned.mp3';
-      res.set('Content-Disposition', `attachment; filename="${name}"`);
-    }
     stream.pipe(res);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
