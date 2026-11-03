@@ -3579,6 +3579,11 @@ function DailySpendChart() {
   const trend = linearTrend(allValues);
   const avg = allValues.reduce((s, v) => s + v, 0) / allValues.length;
 
+  const sorted = [...allValues].sort((a, b) => a - b);
+  const p90 = sorted[Math.floor(sorted.length * 0.9)] || 1;
+  const ceiling = Math.max(Math.ceil(p90 / 5) * 5, 5);
+  const outliers = allValues.filter(v => v > ceiling).length;
+
   const monthLabel = (key) => {
     const [y, m] = key.split('-');
     return new Date(Number(y), Number(m) - 1).toLocaleString('en-GB', { month: 'short', year: '2-digit' });
@@ -3591,6 +3596,7 @@ function DailySpendChart() {
         Each line is a calendar month, overlaid on day of month. Dashed line is the {allValues.length}-day average (${avg.toFixed(2)}/day).
         {trend && trend.slope > 0.01 && <span style={{ color: 'var(--warning)' }}> Trending up.</span>}
         {trend && trend.slope < -0.01 && <span style={{ color: 'var(--positive)' }}> Trending down.</span>}
+        {outliers > 0 && <span> Y-axis capped at ${ceiling}; {outliers} day{outliers > 1 ? 's' : ''} above (hover for real value).</span>}
       </p>
       <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
         {monthKeys.map((mk, i) => {
@@ -3606,7 +3612,7 @@ function DailySpendChart() {
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={chartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
           <XAxis dataKey="day" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => d} />
-          <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} />
+          <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} domain={[0, ceiling]} allowDataOverflow />
           <Tooltip
             formatter={(v, name) => [`$${Number(v).toFixed(2)}`, monthLabel(name)]}
             labelFormatter={d => `Day ${d}`}
