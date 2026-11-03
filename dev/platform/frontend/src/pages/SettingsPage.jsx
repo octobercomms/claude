@@ -3547,9 +3547,21 @@ function linearTrend(points) {
 
 function DailySpendChart() {
   const [data, setData] = useState(null);
+  const [snapshotTotal, setSnapshotTotal] = useState(null);
 
   useEffect(() => {
     api.get('/settings/usage/cost-log?days=90').then(setData).catch(() => {});
+    api.get('/settings/usage').then(rows => {
+      if (!Array.isArray(rows)) return;
+      const total = rows.reduce((acc, r) => {
+        const s = r.snapshot;
+        if (!s) return acc;
+        if (s.cost_this_period != null && (s.currency || 'USD') === 'USD') return acc + Number(s.cost_this_period);
+        if (r.spend_this_month && (s.currency || 'USD') === 'USD') return acc + Number(r.spend_this_month);
+        return acc;
+      }, 0);
+      if (total > 0) setSnapshotTotal(total);
+    }).catch(() => {});
   }, []);
 
   if (!data?.daily?.length) return null;
@@ -3564,6 +3576,9 @@ function DailySpendChart() {
 
   const monthKeys = Object.keys(byMonth).sort();
   if (!monthKeys.length) return null;
+
+  const now = new Date();
+  const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const maxDay = Math.max(...monthKeys.map(k => Math.max(...Object.keys(byMonth[k]).map(Number))));
   const chartData = [];
@@ -3589,6 +3604,12 @@ function DailySpendChart() {
     return new Date(Number(y), Number(m) - 1).toLocaleString('en-GB', { month: 'short', year: '2-digit' });
   };
 
+  const monthTotal = (mk) => {
+    const tracked = Object.values(byMonth[mk]).reduce((s, v) => s + v, 0);
+    if (mk === thisMonthKey && snapshotTotal != null && snapshotTotal > tracked) return snapshotTotal;
+    return tracked;
+  };
+
   return (
     <div className="card" style={{ marginBottom: 'var(--s4)' }}>
       <h2 className="caption" style={{ marginBottom: 'var(--s1)' }}>Daily spend</h2>
@@ -3600,7 +3621,7 @@ function DailySpendChart() {
       </p>
       <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
         {monthKeys.map((mk, i) => {
-          const total = Object.values(byMonth[mk]).reduce((s, v) => s + v, 0);
+          const total = monthTotal(mk);
           return (
             <span key={mk} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
               <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: MONTH_COLOURS[i % MONTH_COLOURS.length], marginRight: 'var(--s1)', verticalAlign: 'middle' }} />

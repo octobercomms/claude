@@ -51,7 +51,23 @@ async function getClient() {
     return cfg;
   });
   client.interceptors.response.use(
-    res => res,
+    res => {
+      const cost = Number(res.data?.tasks_cost);
+      if (cost > 0) {
+        const url = res.config?.url || '';
+        const seg = url.replace(/^\//, '').split('/')[0] || 'other';
+        const featureMap = { serp: 'dfs_serp', backlinks: 'dfs_backlinks', keywords_data: 'dfs_keywords', dataforseo_labs: 'dfs_labs', domain_analytics: 'dfs_domain', appendix: 'dfs_util' };
+        try {
+          require('../services/costLog').recordApiCost({
+            provider: 'dataforseo',
+            feature: featureMap[seg] || `dfs_${seg}`,
+            costUsd: cost,
+            meta: { endpoint: url.slice(0, 120) },
+          });
+        } catch { /* best effort */ }
+      }
+      return res;
+    },
     err => {
       if (err.response?.status === 401) {
         const detail = err.response.data?.status_message || 'check the login and password on the Settings page';
