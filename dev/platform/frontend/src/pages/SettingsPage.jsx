@@ -35,6 +35,7 @@ import RecordTools from '../components/database/RecordTools';
 import DatabaseToolsPage from './ContactCleanupPage';
 import StatStrip from '../components/shells/StatStrip';
 import DangerConfirm from '../components/ui/DangerConfirm';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { usePrompt } from '../context/PromptContext';
 
 // The page's own list of settings screen keys, per section.
@@ -351,6 +352,7 @@ export default function SettingsPage() {
       {tab === 'strategy' && <StrategyTemplatesPanel />}
       {tab === 'costs' && (<>
       <CostsPanel />
+      <DailySpendChart />
       <SpendControlsPanel />
       <TaskBudgetsPanel />
       <KeywordSpendPanel />
@@ -3518,6 +3520,112 @@ function TaskBudgetsPanel() {
         </div>
       )}
       {msg && <p className="body-sm" style={{ marginTop: 'var(--s3)', color: msg.startsWith('Error') ? 'var(--negative)' : 'var(--text-muted)' }}>{msg}</p>}
+    </div>
+  );
+}
+
+const MONTH_COLOURS = [
+  'var(--text-primary)',
+  'var(--accent)',
+  'var(--positive)',
+  'var(--warning)',
+  'var(--negative)',
+  'var(--text-subtle)',
+];
+
+function linearTrend(points) {
+  const n = points.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sx += i; sy += points[i]; sxx += i * i; sxy += i * points[i];
+  }
+  const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  const intercept = (sy - slope * sx) / n;
+  return { slope, intercept };
+}
+
+function DailySpendChart() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    api.get('/settings/usage/cost-log?days=90').then(setData).catch(() => {});
+  }, []);
+
+  if (!data?.daily?.length) return null;
+
+  const byMonth = {};
+  for (const row of data.daily) {
+    const d = new Date(row.day);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!byMonth[key]) byMonth[key] = {};
+    byMonth[key][d.getDate()] = (byMonth[key][d.getDate()] || 0) + row.cost_usd;
+  }
+
+  const monthKeys = Object.keys(byMonth).sort();
+  if (!monthKeys.length) return null;
+
+  const maxDay = Math.max(...monthKeys.map(k => Math.max(...Object.keys(byMonth[k]).map(Number))));
+  const chartData = [];
+  for (let d = 1; d <= maxDay; d++) {
+    const point = { day: d };
+    for (const mk of monthKeys) {
+      if (byMonth[mk][d] != null) point[mk] = Math.round(byMonth[mk][d] * 100) / 100;
+    }
+    chartData.push(point);
+  }
+
+  const allValues = data.daily.map(r => r.cost_usd);
+  const trend = linearTrend(allValues);
+  const avg = allValues.reduce((s, v) => s + v, 0) / allValues.length;
+
+  const monthLabel = (key) => {
+    const [y, m] = key.split('-');
+    return new Date(Number(y), Number(m) - 1).toLocaleString('en-GB', { month: 'short', year: '2-digit' });
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+      <h2 className="caption" style={{ marginBottom: 'var(--s1)' }}>Daily spend</h2>
+      <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
+        Each line is a calendar month, overlaid on day of month. Dashed line is the {allValues.length}-day average (${avg.toFixed(2)}/day).
+        {trend && trend.slope > 0.01 && <span style={{ color: 'var(--warning)' }}> Trending up.</span>}
+        {trend && trend.slope < -0.01 && <span style={{ color: 'var(--positive)' }}> Trending down.</span>}
+      </p>
+      <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
+        {monthKeys.map((mk, i) => {
+          const total = Object.values(byMonth[mk]).reduce((s, v) => s + v, 0);
+          return (
+            <span key={mk} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
+              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: MONTH_COLOURS[i % MONTH_COLOURS.length], marginRight: 'var(--s1)', verticalAlign: 'middle' }} />
+              {monthLabel(mk)} ${total.toFixed(2)}
+            </span>
+          );
+        })}
+      </div>
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={chartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
+          <XAxis dataKey="day" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => d} />
+          <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} />
+          <Tooltip
+            formatter={(v, name) => [`$${Number(v).toFixed(2)}`, monthLabel(name)]}
+            labelFormatter={d => `Day ${d}`}
+          />
+          <ReferenceLine y={avg} stroke="var(--text-subtle)" strokeDasharray="4 4" strokeWidth={1} />
+          {monthKeys.map((mk, i) => (
+            <Line
+              key={mk}
+              type="monotone"
+              dataKey={mk}
+              stroke={MONTH_COLOURS[i % MONTH_COLOURS.length]}
+              strokeWidth={mk === monthKeys[monthKeys.length - 1] ? 2 : 1.5}
+              strokeOpacity={mk === monthKeys[monthKeys.length - 1] ? 1 : 0.5}
+              dot={{ r: mk === monthKeys[monthKeys.length - 1] ? 2.5 : 1.5 }}
+              connectNulls={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 }
