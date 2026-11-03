@@ -106,6 +106,8 @@ router.get('/:id/original', async (req, res) => {
     if (rows[0].client_id) assertClientAccess(req, rows[0].client_id);
     if (!rows[0].storage_key) return res.status(404).json({ error: 'Original audio not stored.' });
 
+    const signed = await mediaStore.signedGetUrl(rows[0].storage_key, 3600).catch(() => null);
+    if (signed) return res.redirect(signed);
     const { stream, size, mime } = await mediaStore.openRead(rows[0].storage_key);
     res.set('Content-Type', mime || rows[0].mime || 'audio/mpeg');
     if (size) res.set('Content-Length', String(size));
@@ -122,6 +124,8 @@ router.get('/:id/cleaned', async (req, res) => {
     if (rows[0].client_id) assertClientAccess(req, rows[0].client_id);
     if (!rows[0].cleaned_key) return res.status(404).json({ error: 'Cleaned audio not ready yet.' });
 
+    const signed = await mediaStore.signedGetUrl(rows[0].cleaned_key, 3600).catch(() => null);
+    if (signed) return res.redirect(signed);
     const { stream, size, mime } = await mediaStore.openRead(rows[0].cleaned_key);
     res.set('Content-Type', mime || 'audio/mpeg');
     if (size) res.set('Content-Length', String(size));
