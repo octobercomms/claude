@@ -7,6 +7,7 @@ import RecordingsPage from './RecordingsPage';
 import ClientEditPage from './ClientEditPage';
 import ClientVisualisePage from './ClientVisualisePage';
 import TranscribePage from './TranscribePage';
+import AudioPage from './AudioPage';
 import MakeAReel from './MakeAReel';
 import AssetLibrary from '../components/AssetLibrary';
 // Lazily loaded: the design editor pulls in Fabric.js, which is a large
@@ -32,7 +33,7 @@ export default function ClientVideoTab() {
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
   useEffect(() => {
-    if (readOnly && (tab === 'reel' || tab === 'edit' || tab === 'transcribe' || tab === 'design')) setTab('record');
+    if (readOnly && (tab === 'reel' || tab === 'edit' || tab === 'transcribe' || tab === 'design' || tab === 'audio')) setTab('record');
     if (tab === 'visualise' && !canVisualise) setTab('record');
   }, [readOnly, canVisualise, tab, setTab]);
 
@@ -57,6 +58,7 @@ export default function ClientVideoTab() {
       )}
       {tab === 'visualise' && canVisualise && <ClientVisualisePage clientId={id} />}
       {tab === 'transcribe' && !readOnly && <TranscribePage clientId={id} />}
+      {tab === 'audio' && !readOnly && <AudioPage clientId={id} />}
       {tab === 'library' && (
         <>
           <div className="card" style={{ marginTop: 'var(--s4)' }}>
