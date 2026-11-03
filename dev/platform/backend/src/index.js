@@ -227,6 +227,7 @@ app.use('/api/recordings', require('./routes/recordings'));
 // services/globalSearch.js; see the note there on why it is all in one place.
 app.use('/api/search', require('./routes/search'));
 app.use('/api/transcripts', require('./routes/transcripts'));
+app.use('/api/audio', require('./routes/audio'));
 app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));
 app.use('/api/waitlist', require('./routes/waitlist'));
