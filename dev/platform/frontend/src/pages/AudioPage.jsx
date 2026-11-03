@@ -171,16 +171,11 @@ export default function AudioPage({ clientId = null } = {}) {
     try { await api.delete(`/audio/${id}`); if (current?.id === id) setCurrent(null); loadList(); }
     catch (e) { toast(e.message, 'error'); }
   }
-  async function downloadCleaned() {
-    try {
-      const res = await fetch(`/api/audio/${current.id}/cleaned`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const name = (current.title || 'cleaned').replace(/\.[a-z0-9]+$/i, '') + '-cleaned.mp3';
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = name; a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) { toast(`Download failed: ${e.message}`, 'error'); }
+  function downloadCleaned() {
+    const a = document.createElement('a');
+    a.href = `/api/audio/${current.id}/cleaned?dl=1`;
+    a.download = '';
+    a.click();
   }
 
   return (
