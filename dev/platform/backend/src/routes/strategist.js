@@ -439,4 +439,32 @@ router.delete('/steer/:id', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// GTM Brain Phase 0 — baseline snapshots of stale crucial items per client.
+const baseline = require('../services/strategist/baseline');
+
+router.get('/baselines', async (req, res) => {
+  try {
+    const rows = await baseline.getBaselines({ limit: Number(req.query.limit) || 52 });
+    const latest = await baseline.latestSnapshot();
+    res.json({ snapshots: rows, latest });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/baselines', async (req, res) => {
+  try {
+    const rows = await baseline.getBaselines({
+      clientId: req.params.clientId,
+      limit: Number(req.query.limit) || 52,
+    });
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/baselines/capture', async (req, res) => {
+  try {
+    const result = await baseline.captureBaseline({ log: console.log });
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

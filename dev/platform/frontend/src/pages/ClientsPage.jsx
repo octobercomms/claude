@@ -92,6 +92,7 @@ export default function ClientsPage() {
   // renders "all clear" rather than throwing on the tile.
   const attention = (summary && summary.attention) || { clients: [], stale: 0, total: 0 };
   const worstClient = attention.clients[0] || null;
+  const gtmBaseline = summary?.gtm_baseline || null;
 
   // Enrich the spine with the summary's connector / last-report data. The rule
   // (and the trap in it) lives in utils/clientList.js, guarded by tests.
@@ -181,6 +182,30 @@ export default function ClientsPage() {
           }
         />
       </div>
+
+      {gtmBaseline && gtmBaseline.trend?.length > 1 && (() => {
+        const t = gtmBaseline.trend;
+        const current = t[0]?.stale_count ?? 0;
+        const prev = t[1]?.stale_count ?? 0;
+        const delta = current - prev;
+        const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '→';
+        const tone = delta < 0 ? 'text-positive' : delta > 0 ? 'text-negative' : 'text-muted';
+        return (
+          <div className={`text-[length:var(--fs-caption)] ${tone} mb-s5 -mt-s4`}>
+            Stale items across the book: <strong>{current}</strong> {arrow}{' '}
+            <span className="text-subtle">
+              (was {prev} on {new Date(t[1].snapshot_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})
+            </span>
+            {t.length >= 4 && (() => {
+              const oldest = t[t.length - 1]?.stale_count ?? 0;
+              const weeks = t.length - 1;
+              return oldest !== current
+                ? <span className="text-subtle"> · {weeks}w trend: {oldest} {'→'} {current}</span>
+                : null;
+            })()}
+          </div>
+        );
+      })()}
 
       {/* Secondary controls. The archive filter only exists once something is
           archived — an option that cannot apply yet is noise. */}

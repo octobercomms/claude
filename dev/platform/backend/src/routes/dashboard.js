@@ -142,6 +142,16 @@ router.get('/', async (req, res) => {
       attention = summariseAttention(attRows);
     } catch (e) { console.error('[dashboard] attention roll-up failed:', e.message); }
 
+    // GTM baseline trend — the last 12 weekly snapshots so the dashboard can
+    // show whether stale items are trending down. Best-effort like attention.
+    let gtmBaseline = null;
+    try {
+      const bl = require('../services/strategist/baseline');
+      const latest = await bl.latestSnapshot();
+      const snapshots = await bl.getBaselines({ limit: 12 });
+      if (latest) gtmBaseline = { latest, trend: snapshots };
+    } catch (e) { console.error('[dashboard] gtm baseline failed:', e.message); }
+
     // Combined API spend this month — admin only (it's workspace-wide
     // cost data). visibleIds === null means the user sees everything.
     let apiSpend = null;
@@ -154,6 +164,7 @@ router.get('/', async (req, res) => {
       clients,
       alerts: { expired_meta_tokens: expiredMeta },
       attention,
+      gtm_baseline: gtmBaseline,
       upcoming_reports: upcoming,
       recent_reports: recentReports,
       report_health: reportHealth,
