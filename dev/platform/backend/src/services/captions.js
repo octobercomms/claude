@@ -346,7 +346,7 @@ async function setHouseClip(srcPath) {
 /** Pull word timings off the house clip, so the examples say what he says. */
 async function transcribeHouseClip(fromPath = null) {
   const { getSetting } = require('../utils/settings');
-  const { whisperWords } = require('./editProcessor');
+  const { whisperWords } = require('./whisper');
   const key = (await getSetting('OPENAI_API_KEY')) || process.env.OPENAI_API_KEY;
   if (!key) throw new Error('no OpenAI key, so the sample captions stay generic');
   const src = fromPath || HOUSE_CLIP;

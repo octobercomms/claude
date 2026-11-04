@@ -430,7 +430,6 @@ export default function Layout() {
         clientId={clientId || lastClientPathId(lastClientPath)}
         readOnly={readOnly}
         canVisualise={!!user?.can_use_visualise}
-        canCompose={!!user?.composition_editor}
       />}
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
     </div>
