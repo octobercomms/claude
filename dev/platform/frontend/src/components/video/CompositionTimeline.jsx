@@ -4,6 +4,8 @@ import * as PB from '@shared/compositionPlayback.mjs';
 import { useFilmstrips, thumbsForBlock, THUMB_HEIGHT } from '../../utils/filmstrip';
 import { useWaveforms } from '../../utils/waveform';
 import { peaksForBlock, peaksPath } from '../../utils/waveformPeaks';
+import { findSnap } from '@shared/snap.mjs';
+import TimelineMinimap from './TimelineMinimap';
 
 /**
  * Multi-track composition timeline.
@@ -49,12 +51,17 @@ export default function CompositionTimeline({
   selectedTrackId = null,
   onSelect,
   readOnly = false,
+  onDragStart,
+  onDragEnd,
+  onDragCancel,
 }) {
   const scrollRef = useRef(null);
   const laneRef = useRef(null);
   const [pps, setPps] = useState(null);
   const [drag, setDrag] = useState(null);
   const [laneWidth, setLaneWidth] = useState(0);
+  const [snapLine, setSnapLine] = useState(null);
+  const [scrollLeftVal, setScrollLeftVal] = useState(0);
 
   const comp = composition;
   const total = useMemo(() => comp ? C.duration(comp) : 0, [comp]);
@@ -127,6 +134,10 @@ export default function CompositionTimeline({
     [laneWidth, xOf, total]
   );
 
+  const onMinimapNavigate = useCallback((newScrollLeft) => {
+    if (scrollRef.current) scrollRef.current.scrollLeft = newScrollLeft;
+  }, []);
+
   const commit = useCallback((next) => {
     if (readOnly || !onChange || next === comp) return;
     onChange(next);
@@ -166,6 +177,7 @@ export default function CompositionTimeline({
     e.stopPropagation();
     e.currentTarget.setPointerCapture?.(e.pointerId);
     onSelect?.(item.id, trackId);
+    onDragStart?.();
     frozen.current = scale;
     setDrag({
       mode,
@@ -186,12 +198,25 @@ export default function CompositionTimeline({
 
     const dx = e.clientX - drag.originX;
     const dt = dx / scale;
+    const snapThreshold = Math.max(0.05, 5 / scale);
+    const snapOpts = { threshold: snapThreshold, playhead };
 
     if (drag.mode === 'trim-in') {
       let adj = dt;
       if (drag.baseIn + adj < 0) adj = -drag.baseIn;
       if (drag.baseAt + adj < 0) adj = -drag.baseAt;
       if (drag.baseLen - adj < MIN_ITEM_LEN) adj = drag.baseLen - MIN_ITEM_LEN;
+      const snap = findSnap(
+        { trackId: drag.trackId, itemId: drag.itemId, edge: 'start', time: drag.baseAt + adj },
+        drag.baseComp, snapOpts
+      );
+      if (snap.snapped) {
+        const snapAdj = snap.time - drag.baseAt;
+        if (drag.baseIn + snapAdj >= 0 && drag.baseLen - snapAdj >= MIN_ITEM_LEN) {
+          adj = snapAdj;
+        }
+      }
+      setSnapLine(snap.snapped ? snap.time : null);
       commit(C.updateItem(drag.baseComp, drag.trackId, drag.itemId, {
         at: drag.baseAt + adj,
         in: drag.baseIn + adj,
@@ -210,20 +235,62 @@ export default function CompositionTimeline({
         const maxLen = src.duration - drag.baseIn;
         if (maxLen > 0 && newLen > maxLen) newLen = maxLen;
       }
+      const endTime = drag.baseAt + newLen;
+      const snap = findSnap(
+        { trackId: drag.trackId, itemId: drag.itemId, edge: 'end', time: endTime },
+        drag.baseComp, snapOpts
+      );
+      if (snap.snapped) {
+        const snappedLen = snap.time - drag.baseAt;
+        if (snappedLen >= MIN_ITEM_LEN) newLen = snappedLen;
+      }
+      setSnapLine(snap.snapped ? snap.time : null);
       commit(C.updateItem(drag.baseComp, drag.trackId, drag.itemId, { len: newLen }));
       return;
     }
 
     if (drag.mode === 'move') {
-      commit(C.updateItem(drag.baseComp, drag.trackId, drag.itemId, {
-        at: Math.max(0, drag.baseAt + dt),
-      }));
+      const proposedAt = Math.max(0, drag.baseAt + dt);
+      const snapStart = findSnap(
+        { trackId: drag.trackId, itemId: drag.itemId, edge: 'start', time: proposedAt },
+        drag.baseComp, snapOpts
+      );
+      const snapEnd = findSnap(
+        { trackId: drag.trackId, itemId: drag.itemId, edge: 'end', time: proposedAt + drag.baseLen },
+        drag.baseComp, snapOpts
+      );
+
+      let finalAt = proposedAt;
+      let snappedTime = null;
+
+      if (snapStart.snapped && snapEnd.snapped) {
+        const dStart = Math.abs(snapStart.time - proposedAt);
+        const dEnd = Math.abs(snapEnd.time - (proposedAt + drag.baseLen));
+        if (dStart <= dEnd) {
+          finalAt = snapStart.time;
+          snappedTime = snapStart.time;
+        } else {
+          finalAt = snapEnd.time - drag.baseLen;
+          snappedTime = snapEnd.time;
+        }
+      } else if (snapStart.snapped) {
+        finalAt = snapStart.time;
+        snappedTime = snapStart.time;
+      } else if (snapEnd.snapped) {
+        finalAt = snapEnd.time - drag.baseLen;
+        snappedTime = snapEnd.time;
+      }
+
+      setSnapLine(snappedTime);
+      commit(C.updateItem(drag.baseComp, drag.trackId, drag.itemId, { at: Math.max(0, finalAt) }));
     }
   };
 
   const endDrag = (e) => {
     if (!drag || (e && e.pointerId !== drag.pointerId)) return;
     frozen.current = null;
+    setSnapLine(null);
+    if (drag.mode !== 'scrub') onDragEnd?.();
     setDrag(null);
   };
 
@@ -231,8 +298,10 @@ export default function CompositionTimeline({
     if (!drag) return;
     if (drag.baseComp) commit(drag.baseComp);
     frozen.current = null;
+    setSnapLine(null);
+    onDragCancel?.();
     setDrag(null);
-  }, [drag, commit]);
+  }, [drag, commit, onDragCancel]);
 
   useEffect(() => {
     if (!drag) return undefined;
@@ -338,8 +407,21 @@ export default function CompositionTimeline({
         </div>
       </div>
 
+      {/* Minimap */}
+      <div style={{ marginBottom: 'var(--s1)' }}>
+        <TimelineMinimap
+          composition={comp}
+          duration={total}
+          zoom={scale}
+          scrollLeft={scrollLeftVal}
+          viewportWidth={laneWidth}
+          onNavigate={onMinimapNavigate}
+          playhead={playhead}
+        />
+      </div>
+
       {/* The scrollable surface */}
-      <div ref={scrollRef} style={{
+      <div ref={scrollRef} onScroll={(e) => setScrollLeftVal(e.currentTarget.scrollLeft)} style={{
         overflowX: 'auto', overflowY: 'hidden',
         border: 'var(--border-w) solid var(--card-border)',
         borderRadius: 'var(--r-sm)',
@@ -551,6 +633,16 @@ export default function CompositionTimeline({
             width: 2, background: 'var(--negative)',
             pointerEvents: 'none', zIndex: 3,
           }} />
+
+          {/* Snap indicator */}
+          {snapLine != null && (
+            <div style={{
+              position: 'absolute', top: 0, bottom: 0,
+              left: xOf(snapLine),
+              width: 1, borderLeft: '1px dashed var(--positive)',
+              pointerEvents: 'none', zIndex: 3, opacity: 0.8,
+            }} />
+          )}
         </div>
       </div>
 
