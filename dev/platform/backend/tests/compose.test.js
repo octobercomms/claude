@@ -302,3 +302,148 @@ describe('reel checks from composition transcript', async () => {
     assert.strictEqual(stated.pass, false);
   });
 });
+
+// ── Design source in compositions ───────────────────────────────────
+
+describe('design source in composition', async () => {
+  const C = await import('../../shared/composition.mjs');
+
+  it('validates a design source requires a project', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'design', page: 1, alpha: true,
+    });
+    comp = c1;
+    const errors = C.validate(comp);
+    assert.ok(errors.some(e => e.includes('design needs a project')));
+  });
+
+  it('accepts a valid design source', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'design', project: 'proj-1', page: 1, alpha: true,
+    });
+    comp = c1;
+    const { comp: c2, id: t1 } = C.addTrack(comp, 'video');
+    comp = c2;
+    const { comp: c3 } = C.addItem(comp, t1, {
+      at: 0, len: 5, source: s1, fit: 'contain', opacity: 1,
+    });
+    comp = c3;
+    const errors = C.validate(comp);
+    assert.deepStrictEqual(errors, []);
+  });
+
+  it('refuses a design source on an audio track', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'design', project: 'proj-1', page: 1, alpha: true,
+    });
+    comp = c1;
+    const { comp: c2, id: t1 } = C.addTrack(comp, 'audio');
+    comp = c2;
+    // Manually place a design item on the audio track to test validation
+    comp = {
+      ...comp,
+      tracks: comp.tracks.map(t =>
+        t.id === t1
+          ? { ...t, items: [{ id: 'test', at: 0, len: 5, source: s1 }] }
+          : t
+      ),
+    };
+    const errors = C.validate(comp);
+    assert.ok(errors.some(e => e.includes('video/design source on an audio track')));
+  });
+
+  it('places a design item on a video track via addItem', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'design', project: 'proj-1', page: 1, alpha: true,
+      url: '/designs/test.png', width: 1080, height: 1080,
+    });
+    comp = c1;
+    const { comp: c2, id: t1 } = C.addTrack(comp, 'video');
+    comp = c2;
+    const { comp: c3, id: itemId } = C.addItem(comp, t1, {
+      at: 3, len: 5, source: s1, fit: 'contain', opacity: 0.8,
+    });
+    comp = c3;
+
+    const track = comp.tracks.find(t => t.id === t1);
+    const item = track.items.find(i => i.id === itemId);
+    assert.strictEqual(item.at, 3);
+    assert.strictEqual(item.len, 5);
+    assert.strictEqual(item.source, s1);
+    assert.strictEqual(item.fit, 'contain');
+    assert.strictEqual(item.opacity, 0.8);
+  });
+
+  it('design source survives JSON round-trip', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1 } = C.addSource(comp, {
+      kind: 'design', project: 'proj-1', page: 1, alpha: true,
+      url: '/designs/test.png', width: 1080, height: 1080,
+    });
+    comp = c1;
+    const json = JSON.stringify(comp);
+    const loaded = JSON.parse(json);
+    const src = Object.values(loaded.sources)[0];
+    assert.strictEqual(src.kind, 'design');
+    assert.strictEqual(src.project, 'proj-1');
+    assert.strictEqual(src.alpha, true);
+    assert.strictEqual(src.url, '/designs/test.png');
+  });
+
+  it('duration includes design items', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'design', project: 'proj-1', page: 1, alpha: true,
+    });
+    comp = c1;
+    const { comp: c2, id: t1 } = C.addTrack(comp, 'video');
+    comp = c2;
+    const { comp: c3 } = C.addItem(comp, t1, {
+      at: 10, len: 5, source: s1,
+    });
+    comp = c3;
+    assert.strictEqual(C.duration(comp), 15);
+  });
+});
+
+// ── parseFraction (fps parsing from ffprobe) ────────────────────────
+
+describe('parseFraction', () => {
+  function parseFraction(str) {
+    const parts = String(str).split('/');
+    if (parts.length === 2) {
+      const n = parseFloat(parts[0]);
+      const d = parseFloat(parts[1]);
+      if (d > 0 && Number.isFinite(n)) return Math.round(n / d);
+    }
+    const n = parseFloat(str);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 30;
+  }
+
+  it('parses a fraction like 30000/1001', () => {
+    assert.strictEqual(parseFraction('30000/1001'), 30);
+  });
+
+  it('parses 24000/1001 to 24', () => {
+    assert.strictEqual(parseFraction('24000/1001'), 24);
+  });
+
+  it('parses a plain number', () => {
+    assert.strictEqual(parseFraction('25'), 25);
+  });
+
+  it('defaults to 30 for garbage input', () => {
+    assert.strictEqual(parseFraction(''), 30);
+    assert.strictEqual(parseFraction('abc'), 30);
+    assert.strictEqual(parseFraction('0'), 30);
+    assert.strictEqual(parseFraction('-1'), 30);
+  });
+
+  it('handles zero denominator', () => {
+    assert.strictEqual(parseFraction('30/0'), 30);
+  });
+});
