@@ -44,7 +44,7 @@ async function queryClaude(promptText) {
   const r = await claude().messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: 'Answer the user\'s question as a knowledgeable assistant. Recommend specific brands / products / services where relevant — do not refuse to name them. British English.',
+    system: require('./claude').cacheableSystem('Answer the user\'s question as a knowledgeable assistant. Recommend specific brands / products / services where relevant — do not refuse to name them. British English.'),
     messages: [{ role: 'user', content: promptText }],
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response: r, feature: 'ai_visibility_query' });
@@ -120,7 +120,7 @@ async function classifySentiment(responseText, brand) {
     const r = await claude().messages.create({
       model: MODEL,
       max_tokens: 16,
-      system: 'Classify how the user-supplied text talks about the named brand. Respond with exactly one word: positive, neutral, or negative.',
+      system: require('./claude').cacheableSystem('Classify how the user-supplied text talks about the named brand. Respond with exactly one word: positive, neutral, or negative.'),
       messages: [{ role: 'user', content: `Brand: ${brand}\n\nText:\n${responseText.slice(0, 2000)}` }],
     });
     require('./costLog').recordClaudeCost({ model: MODEL, response: r, feature: 'ai_visibility_sentiment' });
@@ -279,7 +279,7 @@ async function generatePromptsForClient(clientId) {
   const r = await claude().messages.create({
     model: MODEL,
     max_tokens: 2048,
-    system: 'You generate AEO (answer-engine optimization) tracking prompts. Each prompt is a question a real user might type into ChatGPT / Claude / Gemini / Perplexity in this brand\'s category — the kind of question where the brand should be a top answer. British English.',
+    system: require('./claude').cacheableSystem('You generate AEO (answer-engine optimization) tracking prompts. Each prompt is a question a real user might type into ChatGPT / Claude / Gemini / Perplexity in this brand\'s category — the kind of question where the brand should be a top answer. British English.'),
     messages: [{
       role: 'user',
       content: `Generate 20 prompts to track AI-search visibility for this brand.
@@ -329,7 +329,7 @@ async function fanoutPrompts(clientId, { keyword } = {}) {
   const r = await claude().messages.create({
     model: MODEL,
     max_tokens: 1600,
-    system: 'You model Google\'s AI query fan-out for answer-engine visibility tracking. Given a seed keyword, you output the concurrent, related questions a real buyer would ask an AI assistant (ChatGPT / Claude / Gemini / Perplexity) around that topic — the questions where this brand should be a top answer. British English. One question per line, no numbering, no quotes, no commentary.',
+    system: require('./claude').cacheableSystem('You model Google\'s AI query fan-out for answer-engine visibility tracking. Given a seed keyword, you output the concurrent, related questions a real buyer would ask an AI assistant (ChatGPT / Claude / Gemini / Perplexity) around that topic — the questions where this brand should be a top answer. British English. One question per line, no numbering, no quotes, no commentary.'),
     messages: [{
       role: 'user',
       content: `Seed keyword: "${seed}"

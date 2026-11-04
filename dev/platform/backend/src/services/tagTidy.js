@@ -74,7 +74,7 @@ async function analyseTags(visibleClientIds) {
     // truncate the JSON mid-array. 16k gives us plenty of headroom and the
     // recover-from-truncation pass below mops up anything that still spills.
     max_tokens: 16384,
-    system,
+    system: require('./claude').cacheableSystem(system),
     messages: [{ role: 'user', content: prompt }],
   });
 

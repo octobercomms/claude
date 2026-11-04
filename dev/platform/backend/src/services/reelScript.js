@@ -34,7 +34,7 @@ async function generate(clientId, { topic, seconds } = {}) {
   const r = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1500,
-    system: `You write scripts for a single talking-head avatar reel (one presenter speaking to camera). Output ONLY the spoken words — no scene directions, camera notes, timestamps, headings, or markdown. It must read as a natural spoken monologue. British English.${voice ? `\n\nWrite in this brand voice:\n${voice}` : ''}`,
+    system: require('./claude').cacheableSystem(`You write scripts for a single talking-head avatar reel (one presenter speaking to camera). Output ONLY the spoken words — no scene directions, camera notes, timestamps, headings, or markdown. It must read as a natural spoken monologue. British English.${voice ? `\n\nWrite in this brand voice:\n${voice}` : ''}`),
     messages: [{
       role: 'user',
       content: `Write a spoken script of about ${words} words (≈ ${secs} seconds at a natural pace) for ${c.name}${c.domain ? ` (${c.domain})` : ''}.

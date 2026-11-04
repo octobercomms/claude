@@ -136,7 +136,7 @@ async function analyseBatch(client, contacts) {
   const resp = await client.messages.create({
     model: MODEL,
     max_tokens: 4096,
-    system,
+    system: require('./claude').cacheableSystem(system),
     messages: [{ role: 'user', content: prompt }],
   });
   // Tidy sweeps run per-40-contact batch — at 20k library that's ~500 calls.

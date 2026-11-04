@@ -11,7 +11,7 @@
 const claudeService = require('./claude');
 const tpl = require('./reportTemplate');
 
-const SYSTEM_PROMPT = 'You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.';
+const { SYSTEM_PROMPT } = require('./claude');
 
 async function resolveTemplate({ template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory = [], narrativeCache, fxRates }) {
   const resolved = [];

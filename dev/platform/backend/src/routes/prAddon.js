@@ -46,7 +46,7 @@ ${String(body).slice(0, 8000)}`;
     const message = await sdk.messages.create({
       model: EXTRACT_MODEL,
       max_tokens: 400,
-      system,
+      system: require('../services/claude').cacheableSystem(system),
       messages: [{ role: 'user', content: userMsg }],
     });
     costLog.recordClaudeCost({ model: EXTRACT_MODEL, response: message, feature: 'gmail_addon_extract' });
