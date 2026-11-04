@@ -64,20 +64,22 @@ async function wpFetch(endpoint, { method = "GET", body } = {}) {
 }
 
 function formatTourSummary(tour) {
-  const meta = tour.meta || {};
   const parts = [
     `ID: ${tour.id}`,
     `Title: ${tour.title}`,
     `Status: ${tour.status}`,
   ];
-  if (tour.date) parts.push(`Date: ${tour.date}`);
+  if (tour.date) parts.push(`Published: ${tour.date}`);
   if (tour.permalink) parts.push(`URL: ${tour.permalink}`);
-  if (meta.tour_date) parts.push(`Tour date: ${meta.tour_date}`);
-  if (meta.tour_end_date) parts.push(`End date: ${meta.tour_end_date}`);
-  if (meta.availability_status) parts.push(`Availability: ${meta.availability_status}`);
-  if (meta.max_capacity) parts.push(`Capacity: ${meta.max_capacity}`);
-  if (meta.price) parts.push(`Price: ${meta.price}`);
-  if (meta.location) parts.push(`Location: ${meta.location}`);
+
+  const tf = tour.tour_fields || {};
+  if (tf.tour_date) parts.push(`Tour date: ${tf.tour_date}`);
+  if (tf.tour_end_date) parts.push(`End date: ${tf.tour_end_date}`);
+  if (tf.availability_status) parts.push(`Availability: ${tf.availability_status}`);
+  if (tf.max_capacity) parts.push(`Capacity: ${tf.max_capacity}`);
+  if (tf.price) parts.push(`Price: ${tf.price}`);
+  if (tf.location) parts.push(`Location: ${tf.location}`);
+
   return parts.join("\n");
 }
 
@@ -111,9 +113,15 @@ function formatTourDetail(tour) {
   if (metaKeys.length > 0) {
     lines.push("", "## Meta fields");
     for (const key of metaKeys) {
-      const val =
-        typeof meta[key] === "object" ? JSON.stringify(meta[key]) : meta[key];
-      lines.push(`${key}: ${val ?? "—"}`);
+      const entry = meta[key];
+      if (entry && typeof entry === "object" && "value" in entry) {
+        const label = entry.label || key;
+        const val = typeof entry.value === "object" ? JSON.stringify(entry.value) : entry.value;
+        lines.push(`${label} (${key}): ${val ?? "—"}`);
+      } else {
+        const val = typeof entry === "object" ? JSON.stringify(entry) : entry;
+        lines.push(`${key}: ${val ?? "—"}`);
+      }
     }
   }
 
@@ -349,11 +357,21 @@ server.tool(
       return parts.join("\n");
     });
 
+    const info = [];
+    if (data.post_type) info.push(`Post type: ${data.post_type} (${data.label || "—"})`);
+    if (data.field_mapping && Object.keys(data.field_mapping).length > 0) {
+      info.push("", "Field mapping (configured in WP admin):");
+      for (const [role, name] of Object.entries(data.field_mapping)) {
+        info.push(`  ${role} → ${name || "(not set)"}`);
+      }
+    }
+    const header = info.length > 0 ? info.join("\n") + "\n\n" : "";
+
     return {
       content: [
         {
           type: "text",
-          text: `Available tour fields (${data.length}):\n\n${lines.join("\n\n")}`,
+          text: `${header}Available tour fields (${fields.length}):\n\n${lines.join("\n\n")}`,
         },
       ],
     };
