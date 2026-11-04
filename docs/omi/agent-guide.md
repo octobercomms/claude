@@ -2115,20 +2115,17 @@ Three phases:
    and do not widen it; the four answers below were given against stated
    alternatives, and three of them rule things out.
 
-   - **It is not a new product.** It closes the Strategist's loop. The
-     Strategist already reads all four pillars, synthesises them and raises a
-     carried queue with age and priority. What is missing is outcome:
-     `strategist_briefing_recommendations` records that a box was ticked, not
-     what number the item was about or whether it moved. Migrations 041, 140
-     and 215 each promised to grade follow-through and none did, which is why
-     this was specified before being built.
+   - **It is not a new product.** It closes the Strategist's loop.
    - **Falcon first.**
-   - **Autonomy is earned per action type**, on `prThanks.js`'s pattern —
-     three stages, a confidence threshold each, and the human moves the stage.
-     It does not auto-graduate, and it does not spend or send outside OMI.
-   - **Success is the attention tile's stale count trending down**, so capture
-     that baseline per client *before* Phase 1 or there is nothing to have
-     improved against.
+   - **Autonomy is earned per action type**, on `prThanks.js`'s pattern.
+   - **Success is the attention tile's stale count trending down.**
+
+   **Build progress (see `docs/omi/gtm-brain.md` for detail):**
+   - Phase 0 (baselines): ✅ Done (PR #1944).
+   - Phase 1 (outcome columns + metric enum): ✅ Done (PR #1946).
+   - Phase 2 (read the numbers back): ✅ Done (PR #1947).
+   - Phase 3 (track record per action type): ✅ Done (PR TBD).
+   - Phase 4 (graduated autonomy): next.
 
    Ruled out, having been offered: pricing actions by expected return before
    doing them, and a cross-client brain that learns across the book. Neither

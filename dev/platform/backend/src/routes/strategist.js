@@ -497,4 +497,33 @@ router.get('/clients/:clientId/outcomes', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GTM Brain Phase 3 — track record (how often recommendations move the needle).
+const trackRecord = require('../services/strategist/trackRecord');
+
+router.get('/track-record', async (req, res) => {
+  try {
+    const groupBy = req.query.by === 'pillar' ? 'pillar' : 'metric';
+    const data = groupBy === 'pillar'
+      ? await trackRecord.byPillar()
+      : await trackRecord.byMetric();
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/track-record', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    const detail = req.query.detail === 'true';
+    if (detail) {
+      res.json(await trackRecord.forClient(clientId));
+    } else {
+      const groupBy = req.query.by === 'pillar' ? 'pillar' : 'metric';
+      const data = groupBy === 'pillar'
+        ? await trackRecord.byPillar({ clientId })
+        : await trackRecord.byMetric({ clientId });
+      res.json(data);
+    }
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

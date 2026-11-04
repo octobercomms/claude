@@ -87,10 +87,16 @@ same pillar gatherers the briefing uses. Cross metrics (revenue/orders) go
 through `dataCollector`. Routes: `POST /outcomes/read` (manual trigger),
 `GET /clients/:clientId/outcomes`. 31 tests for the extractor function.
 
-**Phase 3 — the track record, per action type.** Group outcomes by what kind
-of action they were, not by client. This is what makes autonomy earnable: you
-cannot sensibly let the Brain act on its own judgement until you can see that
-its judgement on *that kind of thing* has been right.
+**Phase 3 — the track record, per action type.** ✅ Done (PR TBD).
+`strategist/trackRecord.js`: classifies each completed item's outcome as
+improved, flat or declined using the metric's direction (higher-is-better or
+lower-is-better, from the enum). Groups by metric_ref or by pillar, cross-
+client. The 5% flat-threshold stops noise from reading as a win or a loss.
+Routes: `GET /track-record` (all clients, by metric or pillar),
+`GET /clients/:clientId/track-record` (per client, with optional item-level
+detail). 27 tests for classification, percentage change, and row enrichment.
+Metric direction added to the enum: `directionFor()` returns 'up', 'down' or
+'neutral' per ref.
 
 **Phase 4 — graduated autonomy.** `prThanks.js` is the pattern and it is worth
 copying exactly, including its restraint: three stages (assisted, supervised,

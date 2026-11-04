@@ -3,7 +3,7 @@
 //   node tests/strategist-metrics.test.js
 
 const assert = require('assert');
-const { isValid, windowFor, labelFor, allRefs, refsByPillar } = require('../src/services/strategist/metrics');
+const { isValid, windowFor, labelFor, allRefs, refsByPillar, directionFor } = require('../src/services/strategist/metrics');
 
 let failed = 0;
 function check(name, fn) {
@@ -75,6 +75,28 @@ check('returns refs for a specific pillar', () => {
 
 check('returns empty for unknown pillar', () => {
   assert.deepStrictEqual(refsByPillar('unknown'), []);
+});
+
+console.log('\ndirectionFor');
+
+check('returns up for metrics where higher is better', () => {
+  assert.strictEqual(directionFor('paid:roas'), 'up');
+  assert.strictEqual(directionFor('owned:top3'), 'up');
+  assert.strictEqual(directionFor('cross:revenue'), 'up');
+});
+
+check('returns down for metrics where lower is better', () => {
+  assert.strictEqual(directionFor('paid:cpa'), 'down');
+});
+
+check('returns neutral for context-dependent metrics', () => {
+  assert.strictEqual(directionFor('paid:spend'), 'neutral');
+});
+
+check('returns null for invalid refs', () => {
+  assert.strictEqual(directionFor(null), null);
+  assert.strictEqual(directionFor('paid:nonsense'), null);
+  assert.strictEqual(directionFor(''), null);
 });
 
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
