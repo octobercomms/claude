@@ -13,6 +13,7 @@
 const pool = require('../../db');
 const claude = require('../claude');
 const { parseQueue, reconcile, openItemsBlock } = require('./queue');
+const { allRefs, isValid, windowFor } = require('./metrics');
 const dataCollector = require('../dataCollector');
 
 const MODEL = 'claude-opus-4-8';
@@ -184,11 +185,14 @@ The page shows this prose and then the queue, as a list of tickable rows. There 
 \`### The queue\`
 Every item, most important first, one per line, in this exact shape:
 
-\`[CRUCIAL][PAID][A1] The action :: why it matters, with the figure that shows it\`
+\`[CRUCIAL][PAID][A1]{paid:roas} The action :: why it matters, with the figure that shows it\`
 
 - \`[CRUCIAL]\` means do it in the next 30 days and it moves the needle. \`[NICE]\` means worthwhile but it can wait. Be hard about this: if everything is crucial, nothing is.
 - **The pillar tag** is which analysis the item came out of: \`[PAID]\`, \`[EARNED]\`, \`[SHARED]\` or \`[OWNED]\`. Every row shows it on screen, so it is how the account lead sees at a glance which part of the account their week is in. Use \`[CROSS]\` only for work that genuinely spans the account, such as attribution or a measurement fix that no single pillar owns. **Do not tag everything \`[CROSS]\`**: an item that came out of the Paid analysis is \`[PAID]\`, even when fixing it helps everything.
 - The \`[A1]\` tag: copy it verbatim from the open list above when this item continues one that is already open, so it keeps its age. Leave the tag off entirely for anything newly raised. Never invent a tag.
+- **The metric reference** in curly braces names which number this item is about. Use exactly one of:
+  \`${allRefs().join('`, `')}\`
+  If the item cannot be tied to a single number (e.g. "set up a reporting process"), write \`{qualitative}\` instead. Every item must have either a metric reference or \`{qualitative}\`.
 - Drop an open item by simply not re-emitting it. Only drop it when it is genuinely resolved or no longer worth doing, and say which in What changed.
 - The action is one sentence, specific enough to start on Monday. The rationale after \` :: \` is one sentence and carries the number.
 
@@ -274,7 +278,8 @@ async function loadOpenItems(clientId) {
   if (!brows.length) return { openItems: [], lastGeneratedAt: null, lastBriefingId: null };
 
   const { rows } = await pool.query(
-    `SELECT id, text, rationale, pillar, priority, first_raised_at
+    `SELECT id, text, rationale, pillar, priority, first_raised_at,
+            metric_ref, qualitative
        FROM strategist_briefing_recommendations
       WHERE briefing_id = $1 AND done = false
       ORDER BY first_raised_at ASC, position ASC`, [brows[0].id]);
@@ -287,18 +292,18 @@ async function insertRecs(briefingId, clientId, recs) {
   const params = [briefingId, clientId];
   recs.forEach((r, i) => {
     const base = params.length;
-    // first_raised_at defaults to NOW() for a newly raised item; a carried one
-    // brings the date it first appeared, which is the age the UI shows.
-    values.push(`($1, $2, $${base + 1}, $${base + 2}, ${i + 1}, $${base + 3}, $${base + 4}, COALESCE($${base + 5}::timestamptz, NOW()), $${base + 6}::uuid)`);
+    const ref = r.metric_ref && isValid(r.metric_ref) ? r.metric_ref : null;
+    values.push(`($1, $2, $${base + 1}, $${base + 2}, ${i + 1}, $${base + 3}, $${base + 4}, COALESCE($${base + 5}::timestamptz, NOW()), $${base + 6}::uuid, $${base + 7}, $${base + 8}, $${base + 9})`);
     params.push(
       r.pillar, r.priority === 'crucial' ? 'crucial' : 'nice', r.text.slice(0, 1000),
       r.rationale ? String(r.rationale).slice(0, 2000) : null,
       r.first_raised_at || null, r.carried_from || null,
+      ref, r.qualitative || false, ref ? windowFor(ref) : 30,
     );
   });
   await pool.query(
     `INSERT INTO strategist_briefing_recommendations
-       (briefing_id, client_id, pillar, priority, position, text, rationale, first_raised_at, carried_from)
+       (briefing_id, client_id, pillar, priority, position, text, rationale, first_raised_at, carried_from, metric_ref, qualitative, measurement_window_days)
      VALUES ${values.join(',')}`, params);
 }
 
