@@ -340,6 +340,12 @@ jobs:
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist
         run: node tests/social-sql-columns.test.js
+      - name: Guard — snap engine finds edges within threshold and excludes the dragged item
+        run: node tests/snap.test.js
+      - name: Guard — the render route starts ffmpeg, tracks progress and serves the file
+        run: node tests/composition-render-route.test.js
+      - name: Guard — the render service resolves assets and parses ffmpeg progress
+        run: node tests/composition-render-service.test.js
       - name: Syntax check every service and route
         run: |
           set -e
