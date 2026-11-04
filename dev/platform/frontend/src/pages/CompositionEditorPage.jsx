@@ -9,6 +9,7 @@ import * as PB from '@shared/compositionPlayback.mjs';
 import ReelChecks from '../components/ReelChecks';
 import TightenPanel from '../components/video/TightenPanel';
 import BrollPanel from '../components/video/BrollPanel';
+import ShortcutReference, { ShortcutButton } from '../components/video/ShortcutReference';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -48,6 +49,7 @@ export default function CompositionEditorPage({ clientId }) {
   const [designs, setDesigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
   const audioFileRef = useRef(null);
@@ -539,6 +541,21 @@ export default function CompositionEditorPage({ clientId }) {
     handleFiles(e.dataTransfer.files);
   }, [handleFiles]);
 
+  // ── Shortcut-reference toggle (? key) ─────────────────────────────
+
+  useEffect(() => {
+    function onKey(e) {
+      const tag = (e.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return;
+      if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsOpen(prev => !prev);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // ── Render ────────────────────────────────────────────────────────
 
   if (loading) {
@@ -606,10 +623,13 @@ export default function CompositionEditorPage({ clientId }) {
           <div className="card" style={{ padding: 'var(--s4)' }}>
             <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
               <h3 className="title">Editor</h3>
-              <button type="button" className="btn btn-secondary btn-sm"
-                onClick={() => doSave(compId)} disabled={saveStatus === 'saving'}>
-                {saveStatus === 'saving' ? 'Saving...' : 'Save now'}
-              </button>
+              <div className="row center" style={{ gap: 'var(--s1)' }}>
+                <ShortcutButton onClick={() => setShortcutsOpen(v => !v)} />
+                <button type="button" className="btn btn-secondary btn-sm"
+                  onClick={() => doSave(compId)} disabled={saveStatus === 'saving'}>
+                  {saveStatus === 'saving' ? 'Saving...' : 'Save now'}
+                </button>
+              </div>
             </div>
 
             {/* Add clip / design / audio */}
@@ -866,6 +886,8 @@ export default function CompositionEditorPage({ clientId }) {
           )}
         </div>
       </div>
+
+      <ShortcutReference visible={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }
