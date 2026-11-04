@@ -1640,6 +1640,7 @@ function formatNum(n) {
 }
 
 function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
+  const toast = useToast();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingPlanId, setEditingPlanId] = useState(null);
@@ -1974,6 +1975,7 @@ function GeneratingOverlay({ count = 9 }) {
 // (no longer a modal). Writes the brief, picks count + platforms + optional
 // reference uploads, and kicks off generation.
 function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count = 9, setCount, length = 'medium', setLength, onSubmit, submitting }) {
+  const toast = useToast();
   const { readOnly } = useAuth();
   const isMobile = useIsMobile();
   const [uploads, setUploads] = useState([]);
@@ -2413,6 +2415,7 @@ function ShareLinkBanner({ url, onDismiss }) {
 }
 
 function PostCard({ post, clientId, engagement, media, reelCheck, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel, defaultProdOpen }) {
+  const toast = useToast();
   const { readOnly } = useAuth();
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
