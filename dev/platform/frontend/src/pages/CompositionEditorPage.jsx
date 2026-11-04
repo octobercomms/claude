@@ -43,6 +43,7 @@ export default function CompositionEditorPage({ clientId }) {
   const [captionTemplates, setCaptionTemplates] = useState(null);
   const [saveStatus, setSaveStatus] = useState('saved');
   const [dragOver, setDragOver] = useState(false);
+  const [designs, setDesigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
@@ -67,12 +68,14 @@ export default function CompositionEditorPage({ clientId }) {
     let live = true;
     async function init() {
       try {
-        const [list, templates] = await Promise.all([
+        const [list, templates, designList] = await Promise.all([
           api.get(`/compose/clients/${clientId}/compositions`),
           api.get('/compose/caption-templates').catch(() => []),
+          api.get(`/compose/designs/${clientId}`).catch(() => []),
         ]);
         if (!live) return;
         setCaptionTemplates(templates);
+        setDesigns(designList);
         setCompList(list);
 
         if (list.length > 0) {
@@ -341,6 +344,52 @@ export default function CompositionEditorPage({ clientId }) {
     });
     toast('Captions added to timeline.', 'success');
   }, [transcripts, toast]);
+
+  // ── Add design page as graphic ────────────────────────────────────
+
+  const addDesign = useCallback((design, durationSecs = 5) => {
+    setComposition(prev => {
+      const { comp: c1, id: sourceId } = addSource(prev, {
+        kind: 'design',
+        project: design.id,
+        page: 1,
+        alpha: true,
+        url: design.url,
+        width: design.width || 1080,
+        height: design.height || 1080,
+      });
+      let comp = c1;
+
+      let overlayTrackId = null;
+      for (const t of comp.tracks) {
+        if (t.kind === 'video') {
+          const hasDesignItems = t.items.some(i => comp.sources[i.source]?.kind === 'design');
+          const hasCaptionItems = t.items.some(i => comp.sources[i.source]?.kind === 'captions');
+          if (hasDesignItems && !hasCaptionItems) {
+            overlayTrackId = t.id;
+            break;
+          }
+        }
+      }
+      if (!overlayTrackId) {
+        const r = addTrack(comp, 'video');
+        comp = r.comp;
+        overlayTrackId = r.id;
+      }
+
+      const end = compDuration(comp);
+      const at = Math.max(0, playhead);
+      const { comp: c2 } = addItem(comp, overlayTrackId, {
+        at, len: durationSecs, source: sourceId,
+        fit: 'contain', opacity: 1,
+      });
+
+      setSourceUrls(u => ({ ...u, [sourceId]: design.url }));
+      setSourceNames(n => ({ ...n, [sourceId]: design.title || 'Design' }));
+      return c2;
+    });
+    toast('Design added to timeline.', 'success');
+  }, [playhead, toast]);
 
   // ── Switch composition ────────────────────────────────────────────
 
