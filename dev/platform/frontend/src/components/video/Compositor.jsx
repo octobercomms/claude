@@ -71,6 +71,22 @@ const Compositor = React.forwardRef(function Compositor({
 
     const src = st.composition?.sources?.[sourceId];
     const isImage = src?.kind === 'design';
+    const isAudio = src?.kind === 'audio';
+
+    if (isAudio) {
+      const aud = new Audio();
+      aud.preload = 'auto';
+      aud.crossOrigin = 'anonymous';
+      aud.src = url;
+      aud._isAudio = true;
+      st.elements.set(sourceId, aud);
+      if (onMeta) {
+        aud.addEventListener('loadedmetadata', () => {
+          onMeta({ sourceId, duration: Number.isFinite(aud.duration) ? aud.duration : null, width: 0, height: 0 });
+        });
+      }
+      return aud;
+    }
 
     if (isImage) {
       const img = new Image();
@@ -146,7 +162,7 @@ const Compositor = React.forwardRef(function Compositor({
     // Draw each layer bottom to top
     for (const layer of scene.layers) {
       const el = getElement(layer.sourceId);
-      if (!el) continue;
+      if (!el || el._isAudio) continue;
 
       const isImg = !!el._isImage;
       if (isImg) { if (!el.complete || !el.naturalWidth) continue; }
@@ -216,7 +232,7 @@ const Compositor = React.forwardRef(function Compositor({
     for (const layer of scene.layers) {
       activeSourceIds.add(layer.sourceId);
       const el = getElement(layer.sourceId);
-      if (!el || el._isImage) continue;
+      if (!el || el._isImage || el._isAudio) continue;
 
       if (st.playing) {
         seekTo(el, layer.sourceTime);
@@ -228,7 +244,7 @@ const Compositor = React.forwardRef(function Compositor({
       }
     }
 
-    // Handle audio-only items
+    // Handle audio items: play/pause/seek + apply per-item gain
     const audio = PB.audioAt(st.composition, st.playhead);
     for (const a of audio) {
       if (activeSourceIds.has(a.sourceId)) continue;
@@ -238,10 +254,25 @@ const Compositor = React.forwardRef(function Compositor({
       if (st.playing) {
         seekTo(el, a.sourceTime);
         if (el.paused) el.play().catch(() => {});
+        GAIN.gainNodeFor(el);
+        GAIN.setGain(el, a.gain ?? 1);
+      } else {
+        seekTo(el, a.sourceTime);
+        if (!el.paused) el.pause();
       }
     }
 
-    // Pause video elements that are no longer active
+    // Also apply gain to video elements that have audio (from scene layers)
+    for (const layer of scene.layers) {
+      const el = st.elements.get(layer.sourceId);
+      if (!el || el._isImage || el._isAudio) continue;
+      if (st.playing) {
+        GAIN.gainNodeFor(el);
+        GAIN.setGain(el, layer.item.gain ?? 1);
+      }
+    }
+
+    // Pause elements that are no longer active
     for (const [sourceId, el] of st.elements) {
       if (el._isImage) continue;
       if (!activeSourceIds.has(sourceId) && !el.paused) {
@@ -269,7 +300,10 @@ const Compositor = React.forwardRef(function Compositor({
     st.playing = false;
     if (st.raf) { cancelAnimationFrame(st.raf); st.raf = null; }
     setPlaying(false);
-    for (const [, vid] of st.elements) vid.pause();
+    for (const [, el] of st.elements) {
+      if (el._isImage) continue;
+      el.pause();
+    }
   }, []);
 
   const startPlayback = useCallback(() => {
@@ -281,18 +315,30 @@ const Compositor = React.forwardRef(function Compositor({
       if (onSeek) onSeek(0);
     }
 
+    GAIN.wake();
+
     st.playing = true;
     setPlaying(true);
 
     // Start all active video elements
     const scene = PB.sceneAt(st.composition, st.playhead);
     for (const layer of scene.layers) {
-      const vid = getElement(layer.sourceId);
-      if (vid) {
-        seekTo(vid, layer.sourceTime);
-        vid.muted = false;
-        vid.play().catch(() => {});
-      }
+      const el = getElement(layer.sourceId);
+      if (!el || el._isImage || el._isAudio) continue;
+      seekTo(el, layer.sourceTime);
+      el.muted = false;
+      el.play().catch(() => {});
+    }
+
+    // Start audio items
+    const audio = PB.audioAt(st.composition, st.playhead);
+    for (const a of audio) {
+      const el = getElement(a.sourceId);
+      if (!el || el._isImage) continue;
+      seekTo(el, a.sourceTime);
+      if (el.paused) el.play().catch(() => {});
+      GAIN.gainNodeFor(el);
+      GAIN.setGain(el, a.gain ?? 1);
     }
 
     if (st.raf) cancelAnimationFrame(st.raf);
@@ -340,10 +386,10 @@ const Compositor = React.forwardRef(function Compositor({
   useEffect(() => () => {
     if (m.current.raf) cancelAnimationFrame(m.current.raf);
     m.current.playing = false;
-    for (const [, vid] of m.current.elements) {
-      vid.pause();
-      vid.removeAttribute('src');
-      vid.load();
+    for (const [, el] of m.current.elements) {
+      if (el._isImage) continue;
+      el.pause();
+      if (!el._isAudio) { el.removeAttribute('src'); el.load(); }
     }
     m.current.elements.clear();
   }, []);
@@ -415,7 +461,7 @@ const Compositor = React.forwardRef(function Compositor({
       </div>
 
       <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
-        <div>Captions and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.</div>
+        <div>Captions, ducking, and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.</div>
       </div>
     </div>
   );
