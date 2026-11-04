@@ -11,8 +11,13 @@
 //
 // The line shape we ask the model for:
 //
-//   - [CRUCIAL][PAID][A1] Fix the Meta Pixel on Summer Sale :: 4,360 clicks at
-//     zero conversions is a tracking failure, not a performance result.
+//   - [CRUCIAL][PAID][A1]{paid:roas} Fix the Meta Pixel on Summer Sale :: 4,360
+//     clicks at zero conversions is a tracking failure, not a performance result.
+//
+// `{paid:roas}` is the metric reference from the GTM Brain enum — which number
+// the item is about. `{qualitative}` marks items that cannot be tied to a
+// metric. Both are optional; an item with neither inherits from the open item
+// it continues, or stays untagged for the caller to default.
 //
 // `[PAID]` is which part of the account the item belongs to, and `[A1]` the
 // tag of an open item this continues, absent on anything newly raised. ` :: `
@@ -63,7 +68,15 @@ function peelTags(rest, carryTag) {
     if (!carry && /^[A-Z]\d{1,3}$/.test(tag)) { carry = tag; rest = rest.slice(m[0].length); continue; }
     break;
   }
-  return { rest, pillar, carry };
+  let metricRef = null;
+  let qualitative = false;
+  const mm = rest.match(/^\{([a-z][a-z0-9_:]*)\}\s*/);
+  if (mm) {
+    if (mm[1] === 'qualitative') qualitative = true;
+    else metricRef = mm[1];
+    rest = rest.slice(mm[0].length);
+  }
+  return { rest, pillar, carry, metricRef, qualitative };
 }
 
 // Pull the queue out of a markdown block. Returns
@@ -76,7 +89,7 @@ function parseQueue(markdown) {
     const m = raw.match(LINE);
     if (!m) continue;
     const [, priority, firstTag, afterPriority] = m;
-    const { rest, pillar, carry } = peelTags(afterPriority, firstTag ? firstTag.toUpperCase() : null);
+    const { rest, pillar, carry, metricRef, qualitative } = peelTags(afterPriority, firstTag ? firstTag.toUpperCase() : null);
 
     // ` :: ` splits action from reasoning. Split once: a rationale is free to
     // contain anything, including another colon pair.
@@ -93,6 +106,8 @@ function parseQueue(markdown) {
       pillar,
       text,
       rationale,
+      metricRef,
+      qualitative,
     });
   }
   return out;
@@ -120,6 +135,14 @@ function reconcile(parsed, openItems) {
   for (const p of parsed || []) {
     const match = p.carryTag && !claimed.has(p.carryTag) ? byTag.get(p.carryTag) : null;
     if (match) claimed.add(p.carryTag);
+    // An explicit metric ref or qualitative tag from the model wins. When the
+    // model says nothing, inherit from the carried item so a continued item
+    // does not lose its metric across weeks.
+    let metric_ref, qualitative;
+    if (p.metricRef) { metric_ref = p.metricRef; qualitative = false; }
+    else if (p.qualitative) { metric_ref = null; qualitative = true; }
+    else { metric_ref = match?.metric_ref || null; qualitative = match?.qualitative || false; }
+
     items.push({
       priority: p.priority,
       text: p.text,
@@ -131,6 +154,8 @@ function reconcile(parsed, openItems) {
       // pillar keeps a continued item from drifting to `cross` on a pass where
       // the model left the tag off.
       pillar: p.pillar || (match ? match.pillar : null),
+      metric_ref,
+      qualitative,
     });
   }
 
@@ -146,7 +171,8 @@ function openItemsBlock(openItems, now = new Date()) {
   return tagged.map(i => {
     const days = ageInDays(i.first_raised_at, now);
     const age = days == null ? 'age unknown' : days === 0 ? 'raised today' : `open ${days} day${days === 1 ? '' : 's'}`;
-    return `- [${i.tag}] (${i.priority}, ${age}) ${i.text}`;
+    const metric = i.metric_ref ? `, ${i.metric_ref}` : (i.qualitative ? ', qualitative' : '');
+    return `- [${i.tag}] (${i.priority}, ${age}${metric}) ${i.text}`;
   }).join('\n');
 }
 

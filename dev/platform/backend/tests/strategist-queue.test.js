@@ -28,6 +28,7 @@ check('reads priority, action and rationale', () => {
     priority: 'crucial', carryTag: null, pillar: null,
     text: 'Fix the Meta Pixel',
     rationale: '4,360 clicks at zero conversions is a tracking failure.',
+    metricRef: null, qualitative: false,
   });
 });
 
@@ -94,8 +95,8 @@ check('empty, null and tag-only lines yield nothing', () => {
 console.log('\nreconcile');
 
 const open = [
-  { id: 'id-1', text: 'Fix the Meta Pixel', pillar: 'paid', priority: 'crucial', first_raised_at: '2026-10-01T00:00:00Z' },
-  { id: 'id-2', text: 'Restore Google Ads data', pillar: 'paid', priority: 'crucial', first_raised_at: '2026-10-08T00:00:00Z' },
+  { id: 'id-1', text: 'Fix the Meta Pixel', pillar: 'paid', priority: 'crucial', first_raised_at: '2026-10-01T00:00:00Z', metric_ref: 'paid:roas', qualitative: false },
+  { id: 'id-2', text: 'Restore Google Ads data', pillar: 'paid', priority: 'crucial', first_raised_at: '2026-10-08T00:00:00Z', metric_ref: 'paid:conversions', qualitative: false },
 ];
 
 check('a tagged item keeps its age and records its lineage', () => {
@@ -103,6 +104,7 @@ check('a tagged item keeps its age and records its lineage', () => {
   assert.strictEqual(items[0].first_raised_at, '2026-10-01T00:00:00Z', 'age must not reset');
   assert.strictEqual(items[0].carried_from, 'id-1');
   assert.strictEqual(items[0].pillar, 'paid', 'a carried item keeps its pillar');
+  assert.strictEqual(items[0].metric_ref, 'paid:roas', 'inherits metric ref from carried item');
 });
 
 check('an untagged item is new: no age, no lineage', () => {
@@ -110,6 +112,8 @@ check('an untagged item is new: no age, no lineage', () => {
   assert.strictEqual(items[0].first_raised_at, null);
   assert.strictEqual(items[0].carried_from, null);
   assert.strictEqual(items[0].pillar, null);
+  assert.strictEqual(items[0].metric_ref, null, 'new item without metric ref is null');
+  assert.strictEqual(items[0].qualitative, false, 'default qualitative is false');
 });
 
 check('items the model stopped re-emitting come back as dropped', () => {
@@ -247,6 +251,76 @@ check('and the model can move a carried item to another pillar', () => {
   const { items } = reconcile(parseQueue('- [CRUCIAL][OWNED][A1] Fix tracking :: it is a site problem.'), open);
   assert.strictEqual(items[0].pillar, 'owned');
   assert.strictEqual(items[0].carried_from, 'old-1', 'and it still keeps its age');
+});
+
+console.log('\nthe metric reference');
+
+check('a metric ref is parsed from curly braces', () => {
+  const [a] = parseQueue('- [CRUCIAL][PAID]{paid:roas} Fix the Pixel :: ROAS is 0.3x.');
+  assert.strictEqual(a.metricRef, 'paid:roas');
+  assert.strictEqual(a.qualitative, false);
+  assert.strictEqual(a.text, 'Fix the Pixel', 'the metric ref must not survive into the action');
+});
+
+check('{qualitative} marks an item as unmeasurable', () => {
+  const [a] = parseQueue('- [NICE][OWNED]{qualitative} Set up a reporting cadence :: no number to track.');
+  assert.strictEqual(a.metricRef, null);
+  assert.strictEqual(a.qualitative, true);
+});
+
+check('no metric ref or qualitative tag defaults to both false/null', () => {
+  const [a] = parseQueue('- [CRUCIAL][PAID] Fix the Pixel :: reason.');
+  assert.strictEqual(a.metricRef, null);
+  assert.strictEqual(a.qualitative, false);
+});
+
+check('metric ref works alongside pillar and carry tags in any order', () => {
+  const [a] = parseQueue('- [CRUCIAL][PAID][A1]{paid:cpa} Lower CPA :: currently at 14.');
+  const [b] = parseQueue('- [CRUCIAL][A1][PAID]{paid:cpa} Lower CPA :: currently at 14.');
+  for (const item of [a, b]) {
+    assert.strictEqual(item.metricRef, 'paid:cpa');
+    assert.strictEqual(item.pillar, 'paid');
+    assert.strictEqual(item.carryTag, 'A1');
+    assert.strictEqual(item.text, 'Lower CPA');
+  }
+});
+
+check('reconcile inherits metric_ref from carried item when model omits it', () => {
+  const prev = [{ id: 'old-1', text: 'Fix the Pixel', pillar: 'paid', first_raised_at: '2026-10-01T00:00:00Z', metric_ref: 'paid:roas', qualitative: false }];
+  const { items } = reconcile(parseQueue('- [CRUCIAL][A1] Fix the Pixel :: still dead.'), prev);
+  assert.strictEqual(items[0].metric_ref, 'paid:roas', 'must not lose its metric across weeks');
+  assert.strictEqual(items[0].qualitative, false);
+});
+
+check('model can override the metric ref on a carried item', () => {
+  const prev = [{ id: 'old-1', text: 'Fix tracking', pillar: 'paid', first_raised_at: '2026-10-01T00:00:00Z', metric_ref: 'paid:roas', qualitative: false }];
+  const { items } = reconcile(parseQueue('- [CRUCIAL][A1]{paid:conversions} Fix tracking :: it was a conversion issue.'), prev);
+  assert.strictEqual(items[0].metric_ref, 'paid:conversions', 'explicit ref wins');
+});
+
+check('model can mark a previously metric item as qualitative', () => {
+  const prev = [{ id: 'old-1', text: 'Fix tracking', pillar: 'paid', first_raised_at: '2026-10-01T00:00:00Z', metric_ref: 'paid:roas', qualitative: false }];
+  const { items } = reconcile(parseQueue('- [CRUCIAL][A1]{qualitative} Fix tracking :: now a process fix.'), prev);
+  assert.strictEqual(items[0].metric_ref, null, 'qualitative clears the metric ref');
+  assert.strictEqual(items[0].qualitative, true);
+});
+
+check('a new item with no metric tag gets null/false, not inherited from nothing', () => {
+  const { items } = reconcile(parseQueue('- [CRUCIAL] New thing :: reason.'), open);
+  assert.strictEqual(items[0].metric_ref, null);
+  assert.strictEqual(items[0].qualitative, false);
+});
+
+check('openItemsBlock shows metric ref when present', () => {
+  const block = openItemsBlock(open, new Date('2026-10-29T00:00:00Z'));
+  assert.match(block, /paid:roas/, 'metric ref should appear in the block');
+  assert.match(block, /paid:conversions/);
+});
+
+check('openItemsBlock shows qualitative when flagged', () => {
+  const items = [{ id: 'q-1', text: 'Set up process', pillar: 'owned', priority: 'nice', first_raised_at: '2026-10-20T00:00:00Z', qualitative: true }];
+  const block = openItemsBlock(items, new Date('2026-10-29T00:00:00Z'));
+  assert.match(block, /qualitative/, 'qualitative should appear');
 });
 
 if (failed) { console.log(`\n${failed} failed`); process.exit(1); }
