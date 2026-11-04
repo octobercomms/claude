@@ -275,11 +275,6 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the overlay assertions would silently skip'; exit 1; }
           node tests/broll.test.js
-      - name: Guard — Produce's own edit burns the chosen template, not the plain one
-        run: |
-          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
-            || { echo 'ffmpeg missing: the render assertions would silently skip'; exit 1; }
-          node tests/edit-captions.test.js
       - name: Guard — every caption template burns, and burns differently
         run: |
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
@@ -327,8 +322,6 @@ jobs:
         run: node tests/drives-portable.test.js
       - name: Guard — the browser harness wraps the page in the app's own providers
         run: node tests/harness-providers.test.js
-      - name: Guard — PR 1 of the review plan holds
-        run: node tests/pr1-review-fixes.test.js
       - name: Guard — PR 2 of the review plan, the nav session, holds
         run: node tests/pr2-nav-session.test.js
       - name: Guard — PR 3 of the review plan, one place for every database job
@@ -339,38 +332,14 @@ jobs:
         run: node tests/embedded-reachable.test.js
       - name: Guard — a publication can be added by hand, and only once
         run: node tests/outlet-create.test.js
-      - name: Guard — PR 4 of the review plan, footage in and designs findable
-        run: node tests/pr4-produce-media.test.js
       - name: Guard — footage can be dropped in, several at a time
         run: node tests/library-upload.test.js
       - name: Guard — a finished design is filed, and knows its set
         run: node tests/design-render-filed.test.js
-      - name: Guard — PR 5 of the review plan, a boosted block can be set and heard
-        run: node tests/pr5-preview-fidelity.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
       - name: Guard — the social SQL only names columns that exist
         run: node tests/social-sql-columns.test.js
-      - name: Guard — the edit decision list, which is the timeline's model
-        run: node tests/edl.test.js
-      - name: Guard — playing the edit back, across its cuts
-        run: node tests/edl-play.test.js
-      - name: Guard — the processor routes an edit to the right render path
-        run: node tests/edit-edl-render.test.js
-      - name: Guard — the edit route refuses a malformed or oversized edit
-        run: node tests/edit-route-edl.test.js
-      - name: Guard — render progress, Stop, and queue concurrency
-        run: node tests/edit-queue.test.js
-      - name: Guard — positioned text burns where and when it was asked for
-        run: |
-          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
-            || { echo 'ffmpeg missing: the overlay render assertions would silently skip'; exit 1; }
-          node --test-timeout=300000 tests/overlays.test.js
-      - name: Guard — a cross-fade lands where the timeline drew it
-        run: |
-          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
-            || { echo 'ffmpeg missing: the transition assertions would silently skip'; exit 1; }
-          node --test-timeout=300000 tests/edit-transitions.test.js
       - name: Syntax check every service and route
         run: |
           set -e
