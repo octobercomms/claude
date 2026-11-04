@@ -2134,10 +2134,10 @@ Three phases:
    Background material, all older than the decision and none of it binding:
    `client-strategy.md`, `redesign-brief.md`, `sales-pipeline.md`.
 
-   **The video editor is now the work.** `editor-composition-model.md`
-   carries the design. It was parked on 1 November while the GTM Brain
-   shipped; resumed 4 November after all five GTM Brain phases merged.
-   25 to 35 sessions. Build order is in the spec; start at step 1.
+   **The video editor rewrite is complete.** All 8 steps of
+   `editor-composition-model.md` shipped on PR #1952. The composition editor
+   is the sole video editor for all users. The wizard (`MakeAReel.jsx`) and
+   the old single-track editor (`ClientEditPage.jsx`) are deleted.
 
 ### The Costs panel reported the whole Anthropic account (31 Oct 2026)
 
@@ -3237,13 +3237,11 @@ claiming that a `.db` test protects anything.
 - **`video-samples/house.mp4` is tracked in git.** Standing in a longer clip to
   verify something overwrites a committed binary, and `git status` is the only
   thing that catches it. Back it up first, or inject the source instead.
-- **"Make a reel" is the route, not a pipeline.** `pages/MakeAReel.jsx` owns
-  no rendering of its own: it mounts the existing panels in the order a reel
-  is made (footage, edit, tighten, b-roll, finish), carries one clip between
-  them and lets any step be skipped. The tabs it walks through all still work
-  on their own. It exists because captions were chosen in Edit while the
-  cutting lived behind a thumbnail in the Library, and a tool nobody finds is
-  a tool nobody has.
+- **The wizard is gone.** `pages/MakeAReel.jsx` and `pages/ClientEditPage.jsx`
+  were deleted in step 8 of the editor rewrite. The composition editor
+  (`CompositionEditorPage.jsx`) is the sole video editor, reached via the
+  "Video" tab under Produce. Tighten and B-roll are panels in the clip
+  inspector, not separate wizard steps.
 - **Rendering with chosen settings goes through `reopen`, not `render`.**
   `POST /edit/clients/:id/edit/:id/render` queues a draft with the ops it was
   *created* with, which for a fresh upload is `{}`. `reopen` copies the

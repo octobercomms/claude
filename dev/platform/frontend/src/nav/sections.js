@@ -373,20 +373,15 @@ export const SECTIONS = {
     title: 'Produce',
     scope: 'client',
     base: (id) => `/clients/${id}/produce`,
-    defaultTab: 'reel',
+    defaultTab: 'compose',
     groups: [
       { heading: 'Make', rows: [
-        // "Make a reel should just be Video." It is the guided route through
-        // the tools end to end, so beside Record (capture one), Edit (change
-        // one) and Library (find one), Video is the one that makes one.
-        { tab: 'reel',       label: 'Video', when: agencyOnly, phone: false },
+        { tab: 'compose',    label: 'Video',       when: agencyOnly, phone: false },
         { tab: 'record',     label: 'Record' },
-        { tab: 'edit',       label: 'Edit',        when: agencyOnly, phone: false },
         { tab: 'design',     label: 'Design',      when: agencyOnly },
         { tab: 'visualise',  label: 'Visualise',   when: (ctx) => !!ctx.canVisualise },
         { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly },
         { tab: 'audio',      label: 'Audio',       when: agencyOnly },
-        { tab: 'compose',    label: 'Editor',      when: (ctx) => !!ctx.canCompose, phone: false },
       ] },
       { heading: null, rows: [{ tab: 'library', label: 'Library' }] },
     ],

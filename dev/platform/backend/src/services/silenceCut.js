@@ -46,7 +46,7 @@ async function wordsFor(source, supplied = null) {
   try {
     await run(FFMPEG, ['-y', '-loglevel', 'error', '-i', source,
       '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio]);
-    const { whisperWords } = require('./editProcessor');
+    const { whisperWords } = require('./whisper');
     return await whisperWords(audio, key);
   } finally { fs.existsSync(audio) && fs.unlinkSync(audio); }
 }
