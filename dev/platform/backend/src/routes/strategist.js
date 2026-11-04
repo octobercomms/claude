@@ -526,4 +526,58 @@ router.get('/clients/:clientId/track-record', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GTM Brain Phase 4 — graduated autonomy (per-client action stage).
+const autonomy = require('../services/strategist/autonomy');
+
+router.get('/clients/:clientId/autonomy', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT strategist_action_stage FROM clients WHERE id = $1',
+      [req.params.clientId]
+    );
+    const stage = (rows[0] && rows[0].strategist_action_stage) || 'assist';
+    const record = await autonomy.decisionRecord(req.params.clientId);
+    const rates = Object.fromEntries(await autonomy.winRates({ clientId: req.params.clientId }));
+    res.json({ stage, stages: autonomy.STAGES, record, win_rates: rates });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/clients/:clientId/autonomy', async (req, res) => {
+  try {
+    const stage = autonomy.STAGE_KEYS.includes(req.body.stage) ? req.body.stage : 'assist';
+    await pool.query(
+      'UPDATE clients SET strategist_action_stage = $1 WHERE id = $2',
+      [stage, req.params.clientId]
+    );
+    res.json({ updated: 1, stage });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Record a manual review decision on a recommendation.
+router.patch('/recommendations/:id/decision', async (req, res) => {
+  try {
+    const valid = ['accepted', 'edited', 'dismissed'];
+    const decision = valid.includes(req.body.decision) ? req.body.decision : null;
+    if (!decision) return res.status(400).json({ error: 'decision must be accepted, edited, or dismissed' });
+    const { rows } = await pool.query(
+      `UPDATE strategist_briefing_recommendations
+          SET review_decision = $1,
+              review_decision_at = NOW(),
+              review_decision_by = $2
+        WHERE id = $3
+        RETURNING id, review_decision, review_decision_at`,
+      [decision, req.user?.id || null, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Recommendation not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/autonomy/tick', async (req, res) => {
+  try {
+    const result = await autonomy.runAuto({ log: console.log });
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
