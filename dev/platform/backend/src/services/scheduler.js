@@ -984,6 +984,19 @@ cron.schedule('15 7 * * 1', async () => {
   } catch (e) { console.error('[Scheduler] GTM baseline failed:', e.message); }
 });
 
+// GTM Brain Phase 2 — daily outcome reader. Captures baselines for newly
+// raised items with a metric ref, and reads outcomes for completed items
+// whose measurement window has elapsed. No LLM; calls the same pillar
+// gatherers the briefing uses, so the numbers match.
+cron.schedule('30 3 * * *', async () => {
+  try {
+    const r = await require('./strategist/outcome').runDaily({ log: (m) => console.log(m) });
+    if (r.baselines || r.outcomes) {
+      console.log(`[Scheduler] GTM outcome: ${r.baselines} baseline(s), ${r.outcomes} outcome(s)`);
+    }
+  } catch (e) { console.error('[Scheduler] GTM outcome reader failed:', e.message); }
+});
+
 // Cross-PESO Strategist briefing — the whole-account briefing (Paid/Earned/
 // Shared/Owned + synthesis) is generated ON DEMAND from Data → Strategist, not
 // on a schedule. The weekly Monday cron was disabled to cut cost (each briefing
