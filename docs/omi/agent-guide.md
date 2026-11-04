@@ -2135,9 +2135,15 @@ Three phases:
    `client-strategy.md`, `redesign-brief.md`, `sales-pipeline.md`.
 
    **The video editor rewrite is complete.** All 8 steps of
-   `editor-composition-model.md` shipped on PR #1952. The composition editor
-   is the sole video editor for all users. The wizard (`MakeAReel.jsx`) and
-   the old single-track editor (`ClientEditPage.jsx`) are deleted.
+   `editor-composition-model.md` shipped on PR #1952 (steps 1-7) and
+   PR #1955 (step 8: tighten, b-roll, old editor deletion, unlock).
+   Polish: PR #1957 added undo/redo, snap-to-edge, minimap, export
+   modal, keyboard shortcuts, and seven other independent components;
+   PR #1958 wired them into the editor page. Interaction: PR #1959
+   added ripple edit mode, cross-track drag, and redesigned resize
+   handles. The composition editor is the sole video editor for all
+   users. The wizard (`MakeAReel.jsx`) and the old single-track editor
+   (`ClientEditPage.jsx`) are deleted.
 
 ### The Costs panel reported the whole Anthropic account (31 Oct 2026)
 

@@ -223,6 +223,22 @@ kill the project are both invisible, so they go first.
 
 Steps 1 and 2 are where the six weeks is won or lost.
 
+## Post-build polish and interaction (PRs #1957-#1959)
+
+After the eight build steps, three further PRs added editing polish:
+
+- **PR [#1957](https://github.com/octobercomms/claude/pull/1957):** eight
+  independent components (undo/redo history hook, snap-to-edge, minimap,
+  export modal, keyboard shortcut reference, filmstrip improvements, item
+  inspector, waveform enhancements).
+- **PR [#1958](https://github.com/octobercomms/claude/pull/1958):** wired all
+  eight components into CompositionEditorPage and CompositionTimeline.
+- **PR [#1959](https://github.com/octobercomms/claude/pull/1959):** ripple
+  edit mode (toggle with R; subsequent items shift on delete/trim), cross-track
+  drag (move items between tracks during drag), redesigned resize handles with
+  grip-bar SVG. 11 new tests for ripple functions (38 total in
+  composition-editing.test.js).
+
 ## The lock (removed)
 
 The `composition_editor` boolean on the users table gated access during
