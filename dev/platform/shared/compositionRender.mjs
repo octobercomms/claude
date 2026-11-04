@@ -272,10 +272,11 @@ export function renderGraph(comp, opts = {}) {
   //
   // Speech = audio from clip sources (typically on video tracks).
   // Music  = audio from audio-kind sources (typically on audio tracks).
-  // When ducking is enabled and both exist, sidechaincompress lowers the
-  // music when speech is present, then the two are mixed.
+  // When any audio track has duckUnder set (or comp.ducking / opts.ducking
+  // is truthy), sidechaincompress lowers the music when speech is present.
 
-  const ducking = comp.ducking || opts.ducking || null;
+  const hasDuckUnder = comp.tracks.some(t => t.duckUnder);
+  const ducking = hasDuckUnder || comp.ducking || opts.ducking || null;
 
   const speechPads = audioItemPads.filter(a => {
     const src = comp.sources[a.item.source];
