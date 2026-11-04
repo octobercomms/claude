@@ -600,6 +600,7 @@ export default function CompositionEditorPage({ clientId }) {
             ref={compositorRef}
             composition={composition}
             sourceUrls={sourceUrls}
+            transcripts={transcripts}
             playhead={playhead}
             onSeek={setPlayhead}
             onMeta={onMeta}

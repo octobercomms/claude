@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as PB from '@shared/compositionPlayback.mjs';
 import * as GAIN from './audioGain';
+import useCaptionPreview from '../../hooks/useCaptionPreview';
 
 /**
  * The new-model preview: one compositor, not three approximations.
@@ -11,7 +12,7 @@ import * as GAIN from './audioGain';
  *   1. Base video track, drawn to canvas
  *   2. Higher video tracks, composited in track order
  *   3. (future) Design pages rendered to images with alpha
- *   4. (future) Captions via libass WASM (JASSUB)
+ *   4. Captions via libass WASM (JASSUB)
  *   5. (future) Guides: safe areas, preview-only
  *
  * The playback model (shared/compositionPlayback.mjs) drives every
@@ -22,6 +23,11 @@ import * as GAIN from './audioGain';
  * element, seeked to the right source time, playing when the compositor
  * is playing. The pool grows as needed and elements are reused across
  * items that share a source.
+ *
+ * Captions are rendered by JASSUB onto a transparent overlay canvas
+ * positioned over the main canvas. The shared ASS compiler
+ * (shared/captions/compile.mjs) drives both the preview and the ffmpeg
+ * render, so the timing and positioning agree by construction.
  */
 
 const BLACK = '#000';
@@ -29,6 +35,7 @@ const BLACK = '#000';
 const Compositor = React.forwardRef(function Compositor({
   composition,
   sourceUrls = {},   // { [sourceId]: url }
+  transcripts = {},  // { [sourceId]: [{ word, start, end }] }
   playhead = 0,
   onSeek,
   maxHeight = '62vh',
@@ -36,6 +43,7 @@ const Compositor = React.forwardRef(function Compositor({
   onMeta,
 }, ref) {
   const canvasRef = useRef(null);
+  const captionContainerRef = useRef(null);
   const wrapRef = useRef(null);
   const frameRef = useRef(null);
 
@@ -59,6 +67,14 @@ const Compositor = React.forwardRef(function Compositor({
   const W = comp?.size?.width || 1080;
   const H = comp?.size?.height || 1920;
   const fps = comp?.fps || 30;
+
+  // ── Caption overlay (JASSUB / libass WASM) ─────────────────────────
+
+  const {
+    hasCaptions,
+    error: captionError,
+    render: renderCaptions,
+  } = useCaptionPreview(composition, transcripts, playhead, captionContainerRef, W, H);
 
   // ── Media element pool (video + image) ──────────────────────────────
 
@@ -285,7 +301,9 @@ const Compositor = React.forwardRef(function Compositor({
     if (pre) getElement(pre.sourceId);
 
     draw();
-  }, [draw, getElement, seekTo, onSeek]);
+    // Render captions for the current frame via JASSUB
+    renderCaptions(st.playhead);
+  }, [draw, getElement, seekTo, onSeek, renderCaptions]);
 
   const loop = useCallback(() => {
     if (!m.current.playing) return;
@@ -437,6 +455,34 @@ const Compositor = React.forwardRef(function Compositor({
             ref={canvasRef}
             style={{ width: '100%', height: '100%', display: 'block' }}
           />
+          {/* JASSUB creates and owns its canvas inside this container */}
+          <div
+            ref={captionContainerRef}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+            }}
+          />
+          {captionError && (
+            <div style={{
+              position: 'absolute',
+              bottom: 'var(--s2)',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(0,0,0,0.7)',
+              color: '#ccc',
+              padding: '2px 8px',
+              borderRadius: 4,
+              fontSize: '11px',
+              pointerEvents: 'none',
+            }}>
+              {captionError}
+            </div>
+          )}
           {children}
         </div>
       </div>
@@ -461,7 +507,11 @@ const Compositor = React.forwardRef(function Compositor({
       </div>
 
       <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
-        <div>Captions, ducking, and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.</div>
+        <div>
+          {hasCaptions
+            ? 'Ducking and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.'
+            : 'Captions, ducking, and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.'}
+        </div>
       </div>
     </div>
   );
