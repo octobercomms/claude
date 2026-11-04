@@ -3,10 +3,12 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SECTIONS, slugForTab } from '../nav/sections';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Snapshot Studio cockpit — draft on the left (live preview), curate on the
 // right (lead fields · asset tray · refine chat). Admin-only.
 export default function SnapshotStudioPage() {
+  useDocumentTitle('Snapshot Studio');
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();

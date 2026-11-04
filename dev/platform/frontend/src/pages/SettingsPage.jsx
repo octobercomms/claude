@@ -5,6 +5,7 @@ import { useScreen } from '../hooks/useScreen';
 import { sectionForPath, slugForTab, SECTIONS as SECTIONS_NAV } from '../nav/sections';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import ImportWizard from '../components/ImportWizard';
 import AddContactModal from '../components/AddContactModal';
 import EditContactModal from '../components/EditContactModal';
@@ -118,6 +119,7 @@ const CLEANUP_SCREENS = ['duplicates', 'coverage', 'tidy', 'ooo', 'replies', 'pu
 const MAINTENANCE_PATH = `${SECTIONS_NAV.database.base()}/${slugForTab(SECTIONS_NAV.database, 'maintenance')}`;
 
 export default function SettingsPage() {
+  useDocumentTitle('Settings');
   const { readOnly } = useAuth();
   const [values, setValues] = useState({});
   const [revealed, setRevealed] = useState(false);
@@ -1323,6 +1325,7 @@ function PrAddonPanel() {
   // to fall through to window.prompt, which is inert in an embedded view, so
   // the key vanished with no message.
   const [copyNote, setCopyNote] = useState('');
+  const toast = useToast();
   const { readOnly } = useAuth();
   const [key, setKey] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -1335,7 +1338,7 @@ function PrAddonPanel() {
     if (key && !window.confirm('Regenerate the key? The current key stops working immediately and the add-on must be updated.')) return;
     setBusy(true);
     try { const r = await api.post('/settings/pr-addon-key/regenerate', {}); setKey(r.key); setReveal(true); }
-    catch (e) { alert(e.message); }
+    catch (e) { toast(e.message, 'error'); }
     finally { setBusy(false); }
   }
   // No window.prompt fallback: in an embedded view it shows nothing and

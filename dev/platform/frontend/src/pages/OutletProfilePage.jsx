@@ -1,10 +1,12 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import OutletProfileBody from '../components/OutletProfileBody';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Full-page publication card (deep-linkable route). The editable body is shared
 // with the in-place ProfileModal — see components/OutletProfileBody.jsx.
 export default function OutletProfilePage() {
+  useDocumentTitle('Outlet');
   const { id } = useParams();
   const nav = useNavigate();
   return (

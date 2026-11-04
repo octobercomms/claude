@@ -7,9 +7,13 @@ import { useParams } from 'react-router-dom';
 import AdPlatformPreview from '../components/AdPlatformPreview';
 import SocialPlatformPreview from '../components/SocialPlatformPreview';
 import usePersistedState from '../hooks/usePersistedState';
+import { useToast } from '../context/ToastContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 export default function ApprovePage() {
+  useDocumentTitle('Approve');
   const { token } = useParams();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   // This is the page a client opens from an email, so it is the one most
@@ -40,7 +44,7 @@ export default function ApprovePage() {
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
       load();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   if (err) return (

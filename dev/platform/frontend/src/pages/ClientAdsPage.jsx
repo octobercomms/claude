@@ -13,6 +13,7 @@ import PageShell from '../components/shells/PageShell';
 import StatStrip from '../components/shells/StatStrip';
 import SideDrawer from '../components/ui/SideDrawer';
 import { useScreen } from '../hooks/useScreen';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import { api } from '../utils/api';
 import { formatMoney } from '../utils/money';
 import { showCombined } from '../utils/adsTotals';
@@ -24,6 +25,7 @@ import { useToast } from '../context/ToastContext';
 // questions about performance, budgets and creative strategy live there now,
 // against the same underlying connector data.
 export default function ClientAdsPage() {
+  useDocumentTitle('Advertising');
   // `screen` is the raw slug out of the URL. The redirect below needs it
   // rather than the resolved tab — see the note on that effect.
   const { id, screen: rawScreen } = useParams();

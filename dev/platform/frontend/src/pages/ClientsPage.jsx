@@ -22,11 +22,13 @@ import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import ClientHomeDashboard from '../components/ClientHomeDashboard';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import Pip from '../components/ui/Pip';
 import { mergeClientList, summariseClients, filterClients, autoSlug } from '../utils/clientList';
 import { reportStatusLabel, reportStatusTone } from '../utils/reportStatus';
 
 export default function ClientsPage() {
+  useDocumentTitle('Clients');
   const { readOnly } = useAuth();
   const [clients, setClients] = useState([]);
   const [summary, setSummary] = useState(null);

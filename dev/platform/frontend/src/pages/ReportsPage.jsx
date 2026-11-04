@@ -77,7 +77,7 @@ export default function ReportsPage() {
       const { url } = await api.get(`/reports/${reportId}/preview-url`);
       window.open(url, '_blank');
     } catch (err) {
-      alert(`Could not open preview: ${err.message}`);
+      toast(`Could not open preview: ${err.message}`, 'error');
     }
   }
 

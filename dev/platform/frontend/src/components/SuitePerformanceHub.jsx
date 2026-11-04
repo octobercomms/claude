@@ -33,9 +33,9 @@ export default function SuitePerformanceHub({
           marginBottom: 'var(--s6)',
         }}
       >
-        <h1 className="display" style={{ color: 'var(--surface)', maxWidth: 920, marginBottom: 'var(--s4)' }}>
+        <h2 className="display" style={{ color: 'var(--surface)', maxWidth: 920, marginBottom: 'var(--s4)' }}>
           {headline}
-        </h1>
+        </h2>
         {description && (
           <p className="body" style={{ color: 'rgba(255,255,255,0.78)', maxWidth: 760, marginBottom: primaryCta ? 'var(--s6)' : 0 }}>
             {description}

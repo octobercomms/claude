@@ -444,9 +444,9 @@ function ScorecardCard({ reportId, section }) {
 // Inline styles that give the markdown a tighter, document feel instead
 // of the default browser margins react-markdown emits.
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: 'var(--s6) 0 var(--s3)' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s6) 0 var(--s3)', paddingBottom: 'var(--s2)', borderBottom: '1px solid #e8e8e8' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s5) 0 var(--s2)', color: 'var(--text)' }} {...p} />,
+  h1: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: 'var(--s6) 0 var(--s3)' }} {...p} />,
+  h2: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s6) 0 var(--s3)', paddingBottom: 'var(--s2)', borderBottom: '1px solid #e8e8e8' }} {...p} />,
+  h3: ({ node, ...p }) => <h4 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s5) 0 var(--s2)', color: 'var(--text)' }} {...p} />,
   p: ({ node, ...p }) => <p style={{ margin: '0 0 var(--s3)', lineHeight: 1.6, fontSize: 'var(--fs-body)', color: 'var(--text)' }} {...p} />,
   ul: ({ node, ...p }) => <ul style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s6)' }} {...p} />,
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s6)' }} {...p} />,

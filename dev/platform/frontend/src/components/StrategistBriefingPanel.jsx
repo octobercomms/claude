@@ -579,9 +579,9 @@ function fmtRelative(d) {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s5) 0 var(--s3)' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s5) 0 var(--s3)', paddingBottom: 'var(--s2)', borderBottom: '1px solid var(--card-border)' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s4) 0 var(--s2)' }} {...p} />,
+  h1: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s5) 0 var(--s3)' }} {...p} />,
+  h2: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s5) 0 var(--s3)', paddingBottom: 'var(--s2)', borderBottom: '1px solid var(--card-border)' }} {...p} />,
+  h3: ({ node, ...p }) => <h4 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s4) 0 var(--s2)' }} {...p} />,
   p: ({ node, ...p }) => <p style={{ margin: '0 0 var(--s3)', lineHeight: 1.6, fontSize: 'var(--fs-body)' }} {...p} />,
   ul: ({ node, ...p }) => <ul style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s6)' }} {...p} />,
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s6)' }} {...p} />,

@@ -5,6 +5,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ProposalDocument, { PROPOSAL_CSS } from '../components/proposal/ProposalDocument';
 import { usePrompt } from '../context/PromptContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // One-glance approval. Left: the proposal exactly as the prospect will see it.
 // Right: the checks that matter before it goes (who it's to, which proof was
@@ -24,6 +25,7 @@ const SECTION_LABEL = {
 };
 
 export default function ProposalEditorPage() {
+  useDocumentTitle('Proposal');
   const ask = usePrompt();
   const { id } = useParams();
   const navigate = useNavigate();

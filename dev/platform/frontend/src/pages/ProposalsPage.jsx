@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import MethodsPanel from '../components/proposal/MethodsPanel';
 
 // Every proposal and where it sits. Sorted by what needs Daniel: opened and
@@ -17,6 +18,7 @@ const STATUS = {
 const ORDER = { viewed: 0, sent: 1, draft: 2, replied: 3, accepted: 4, lost: 5 };
 
 export default function ProposalsPage() {
+  useDocumentTitle('Proposals');
   const toast = useToast();
   const navigate = useNavigate();
   const [rows, setRows] = useState(null);

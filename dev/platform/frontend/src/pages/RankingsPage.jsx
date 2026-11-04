@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -34,6 +35,7 @@ const LOCATIONS = [
 const DEFAULT_LOC = LOCATIONS[0];
 
 export default function RankingsPage() {
+  useDocumentTitle('Rankings');
   const toast = useToast();
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');

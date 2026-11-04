@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Public page an invited client lands on from their email. Validates the
 // one-time token, lets them set a password, then points them at login.
 export default function SetPasswordPage() {
+  useDocumentTitle('Set password');
   const { token } = useParams();
   const [email, setEmail] = useState(null);
   const [checking, setChecking] = useState(true);

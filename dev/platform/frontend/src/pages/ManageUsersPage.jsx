@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { roWrite } from '../utils/readOnly';
+import { useToast } from '../context/ToastContext';
 
 // Admin-only user management. Lists all users; supports add, password reset,
 // per-user client visibility assignment, and delete.
@@ -12,6 +13,7 @@ import { roWrite } from '../utils/readOnly';
 // passed, which is a layout nobody could reach.
 export default function ManageUsersPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export default function ManageUsersPage() {
       await api.delete(`/users/${target.id}`);
       refresh();
     } catch (e) {
-      alert(e.message);
+      toast(e.message, 'error');
     }
   }
 
