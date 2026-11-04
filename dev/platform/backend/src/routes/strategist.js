@@ -441,6 +441,8 @@ router.delete('/steer/:id', async (req, res) => {
 
 // GTM Brain Phase 0 — baseline snapshots of stale crucial items per client.
 const baseline = require('../services/strategist/baseline');
+// GTM Brain Phase 2 — outcome reader.
+const outcome = require('../services/strategist/outcome');
 
 router.get('/baselines', async (req, res) => {
   try {
@@ -464,6 +466,34 @@ router.post('/baselines/capture', async (req, res) => {
   try {
     const result = await baseline.captureBaseline({ log: console.log });
     res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GTM Brain Phase 2 — outcome reader (manual trigger + per-client read).
+router.post('/outcomes/read', async (req, res) => {
+  try {
+    const result = await outcome.runDaily({ log: console.log });
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/outcomes', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.text, r.metric_ref, r.baseline_value, r.baseline_at,
+              r.outcome_value, r.outcome_at, r.measurement_window_days,
+              r.done, r.done_at, r.priority, r.pillar, r.first_raised_at
+         FROM strategist_briefing_recommendations r
+         JOIN strategist_briefings b ON b.id = r.briefing_id
+        WHERE r.client_id = $1
+          AND r.metric_ref IS NOT NULL
+          AND r.qualitative = false
+          AND (r.baseline_value IS NOT NULL OR r.outcome_value IS NOT NULL)
+        ORDER BY r.first_raised_at DESC NULLS LAST
+        LIMIT 100`,
+      [req.params.clientId]
+    );
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

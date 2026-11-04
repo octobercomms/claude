@@ -67,25 +67,25 @@ fourth attempt that stalls.
 
 ## Shape of the build
 
-**Phase 0 — capture the baseline before changing anything.** Success is
-"stale crucial items trend down", and that number exists today in
-`attention.js` (`stale`, items open 14+ days). Record it for every client
-before the first line of Phase 1, or there is nothing to have improved
-against. One query, written down, dated.
+**Phase 0 — capture the baseline before changing anything.** ✅ Done (PR #1945).
+`strategist/baseline.js` + `gtm_baselines` table + weekly cron + Clients page
+attention tile. Records stale crucial item counts per client per week.
 
-**Phase 1 — the outcome columns and the metric enum.** Extend
-`strategist_briefing_recommendations` with the metric reference, the baseline
-value, the baseline timestamp, the measurement window, and the reading taken
-after. The synthesis prompt learns to emit the metric reference on each line,
-which is a change to `queue.js`'s line shape — the fragile seam, and the one
-place in the Strategist with its own test file for exactly this reason. Any
-change there carries mutation tests.
+**Phase 1 — the outcome columns and the metric enum.** ✅ Done (PR #1946).
+Migration 233 adds metric_ref, baseline_value, baseline_at,
+measurement_window_days, outcome_value, outcome_at, qualitative to
+`strategist_briefing_recommendations`. `strategist/metrics.js` is the
+pillar-scoped enum (22 refs across 5 pillars). `queue.js` line shape extended
+with `{metric:ref}` / `{qualitative}`. Synthesis prompt requires a metric ref
+on every queue item. 46 tests across queue + metrics.
 
-**Phase 2 — read the numbers back.** A scheduled pass that, for each completed
-item whose window has elapsed, re-reads its metric through the same pillar
-gatherer that produced the briefing, and stores the result. Reusing the
-gatherer matters: a second path to the same number is a second place for the
-number to be wrong, and the Costs panel already taught that lesson.
+**Phase 2 — read the numbers back.** ✅ Done (PR TBD).
+`strategist/outcome.js`: daily cron at 03:30 that (a) captures baselines for
+newly raised items with a metric ref but no baseline yet, and (b) reads
+outcomes for completed items whose measurement window has elapsed. Reuses the
+same pillar gatherers the briefing uses. Cross metrics (revenue/orders) go
+through `dataCollector`. Routes: `POST /outcomes/read` (manual trigger),
+`GET /clients/:clientId/outcomes`. 31 tests for the extractor function.
 
 **Phase 3 — the track record, per action type.** Group outcomes by what kind
 of action they were, not by client. This is what makes autonomy earnable: you
