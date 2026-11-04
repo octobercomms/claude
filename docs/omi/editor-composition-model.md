@@ -209,7 +209,7 @@ kill the project are both invisible, so they go first.
 | | What | Visible? | Why here |
 |---|---|---|---|
 | 1 | The composition model and the mapping, in `shared/`, with unit tests and mutation testing | No | **Done.** `shared/composition.mjs` (model), `shared/compositionMapping.mjs` (mapping). 53 unit tests + 30 mapping tests + 12 targeted mutations, all killed |
-| 2 | The render graph against the new model | No | "The renderer cannot do that" is the other way this dies. Find out before building a UI for it |
+| 2 | The render graph against the new model | No | **Done.** `shared/compositionRender.mjs`. Single `filter_complex` graph from a Composition: per-item trim+scale+place, same-track xfade, multi-track overlay, audio mixing with amix (normalize=0), captions via subtitles filter. 47 unit tests + 11 targeted mutations, all killed |
 | 3 | The compositor, proved to agree with the renderer on fixtures | Yes, locked | The agreement is the product. Prove it on fixtures before trusting it |
 | 4 | The timeline UI, with tracks | Yes, locked | Only worth building once 1 to 3 hold |
 | 5 | Clips upload on add; transcript on one press; captions from the real words | Yes, locked | Brings six dead reel checks alive as a side effect |
