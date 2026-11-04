@@ -263,6 +263,24 @@ router.post('/compositions/:id/transcribe', loadComposition, async (req, res) =>
   }
 });
 
+// ── Design pages available as composition sources ─────────────────
+
+router.get('/designs/:clientId',
+  requireClientAccess({ paramNames: ['clientId'] }),
+  async (req, res) => {
+    try {
+      const rows = await assets.list(req.params.clientId, { source: 'design', limit: 200 });
+      res.json(rows.map(r => ({
+        id: r.id,
+        title: r.title,
+        url: r.url,
+        width: r.width,
+        height: r.height,
+        metadata: r.metadata,
+      })));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
 // ── Caption templates (read from the shared library) ────────────────
 
 router.get('/caption-templates', (req, res) => {

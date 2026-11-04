@@ -18,6 +18,8 @@ const SIZE_PRESETS = [
 
 const FPS_OPTIONS = [24, 25, 30, 60];
 
+const AUTOSAVE_MS = 1500;
+
 function initComp() {
   const base = emptyComposition();
   const { comp } = addTrack(base, 'video');
@@ -35,23 +37,127 @@ export default function CompositionEditorPage({ clientId }) {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedTrackId, setSelectedTrackId] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [transcribing, setTranscribing] = useState(null);
   const [compId, setCompId] = useState(null);
+  const [compList, setCompList] = useState(null);
   const [captionTemplates, setCaptionTemplates] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('saved');
   const [dragOver, setDragOver] = useState(false);
+  const [loading, setLoading] = useState(true);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
+  const saveTimerRef = useRef(null);
+  const latestCompRef = useRef(null);
+  const latestAssetsRef = useRef(null);
+  const latestTransRef = useRef(null);
 
   const total = compDuration(composition);
   const fps = composition.fps || 30;
   const W = composition.size?.width || 1080;
   const H = composition.size?.height || 1920;
 
+  // Keep refs in sync for the auto-save closure
+  latestCompRef.current = composition;
+  latestAssetsRef.current = sourceAssets;
+  latestTransRef.current = transcripts;
+
+  // ── Initialise: load compositions list, templates ─────────────────
+
   useEffect(() => {
-    api.get('/compose/caption-templates').then(setCaptionTemplates).catch(() => {});
+    let live = true;
+    async function init() {
+      try {
+        const [list, templates] = await Promise.all([
+          api.get(`/compose/clients/${clientId}/compositions`),
+          api.get('/compose/caption-templates').catch(() => []),
+        ]);
+        if (!live) return;
+        setCaptionTemplates(templates);
+        setCompList(list);
+
+        if (list.length > 0) {
+          const row = list[0];
+          loadFromRow(row);
+        } else {
+          const row = await api.post(`/compose/clients/${clientId}/compositions`, {
+            title: 'Untitled', data: initComp(),
+          });
+          if (!live) return;
+          setCompId(row.id);
+          setCompList([row]);
+        }
+      } catch (err) {
+        if (live) toast('Failed to load compositions.', 'error');
+      } finally {
+        if (live) setLoading(false);
+      }
+    }
+    init();
+    return () => { live = false; };
+  }, [clientId]);
+
+  function loadFromRow(row) {
+    const data = row.data && typeof row.data === 'object' && row.data.version
+      ? row.data : initComp();
+    setCompId(row.id);
+    setComposition(data);
+    setSourceAssets(row.source_assets || {});
+    setTranscripts(row.transcripts || {});
+    setPlayhead(0);
+    setSelectedId(null);
+    setSelectedTrackId(null);
+
+    const urls = {};
+    const names = {};
+    if (data.sources) {
+      for (const [sid, src] of Object.entries(data.sources)) {
+        if (src.url) urls[sid] = src.url;
+        names[sid] = src.originalName || src.url?.split('/').pop() || 'Clip';
+      }
+    }
+    setSourceUrls(urls);
+    setSourceNames(names);
+    setSaveStatus('saved');
+  }
+
+  // ── Auto-save ─────────────────────────────────────────────────────
+
+  const doSave = useCallback(async (id) => {
+    if (!id) return;
+    setSaveStatus('saving');
+    try {
+      await api.put(`/compose/compositions/${id}`, {
+        data: latestCompRef.current,
+        sourceAssets: latestAssetsRef.current,
+        transcripts: latestTransRef.current,
+      });
+      setSaveStatus('saved');
+    } catch {
+      setSaveStatus('error');
+    }
   }, []);
+
+  const scheduleSave = useCallback(() => {
+    setSaveStatus('unsaved');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      doSave(compId);
+    }, AUTOSAVE_MS);
+  }, [compId, doSave]);
+
+  useEffect(() => {
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, []);
+
+  // Mark unsaved on composition changes (skip during initial load)
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    if (!compId) return;
+    scheduleSave();
+  }, [composition, sourceAssets, transcripts]);
+
+  // ── Selection ─────────────────────────────────────────────────────
 
   const handleSelect = useCallback((itemId, trackId) => {
     setSelectedId(itemId);
@@ -70,71 +176,71 @@ export default function CompositionEditorPage({ clientId }) {
   const selectedSource = selectedItem
     ? composition.sources[selectedItem.item.source] : null;
 
+  // ── Clip upload via compose endpoint ──────────────────────────────
+
   const handleFiles = useCallback(async (files) => {
     if (!files?.length) return;
     const vids = Array.from(files).filter(f => f.type.startsWith('video/'));
-    if (!vids.length) { toast('Please choose video files.', 'error'); return; }
+    if (!vids.length) { toast('Choose video files.', 'error'); return; }
+    if (!compId) { toast('Composition not ready yet.', 'error'); return; }
 
     setUploading(true);
-    setUploadProgress(0);
 
     try {
-      const fd = new FormData();
-      vids.forEach(f => fd.append('files', f));
-      const result = await api.postFormProgress(
-        `/clients/${clientId}/assets/upload`, fd,
-        (pct) => setUploadProgress(pct),
-      );
-      const added = result.added || [];
-      if (!added.length) { toast('Upload failed.', 'error'); return; }
-
-      setComposition(prev => {
-        let comp = prev;
-        let trackId = comp.tracks.find(t => t.kind === 'video')?.id;
-        if (!trackId) {
-          const r = addTrack(comp, 'video');
-          comp = r.comp;
-          trackId = r.id;
+      for (const file of vids) {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`/api/compose/compositions/${compId}/clip`, {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || res.statusText);
         }
+        const clip = await res.json();
 
-        const newUrls = {};
-        const newNames = {};
-        const newAssets = {};
-        for (const asset of added) {
-          const blobFile = vids.find(f => f.name === asset.title);
-          const blobUrl = blobFile ? URL.createObjectURL(blobFile) : null;
+        const blobUrl = URL.createObjectURL(file);
+
+        setComposition(prev => {
+          let comp = prev;
+          let trackId = comp.tracks.find(t => t.kind === 'video')?.id;
+          if (!trackId) {
+            const r = addTrack(comp, 'video');
+            comp = r.comp;
+            trackId = r.id;
+          }
 
           const { comp: c2, id: sourceId } = addSource(comp, {
-            kind: 'clip', asset: asset.id, url: asset.url, duration: 0,
-            width: 0, height: 0, fps: 30,
+            kind: 'clip', asset: clip.assetId, url: clip.url,
+            duration: clip.duration || 0,
+            width: clip.width || 0, height: clip.height || 0,
+            fps: clip.fps || 30, originalName: clip.originalName,
           });
           comp = c2;
 
           const end = compDuration(comp);
+          const len = clip.duration || 0;
           const { comp: c3 } = addItem(comp, trackId, {
-            at: end, len: 0, source: sourceId,
+            at: end, len, source: sourceId,
           });
           comp = c3;
 
-          if (blobUrl) newUrls[sourceId] = blobUrl;
-          else if (asset.url) newUrls[sourceId] = asset.url;
-          newNames[sourceId] = asset.title || 'Clip';
-          newAssets[sourceId] = asset.id;
-        }
-        setSourceUrls(u => ({ ...u, ...newUrls }));
-        setSourceNames(n => ({ ...n, ...newNames }));
-        setSourceAssets(a => ({ ...a, ...newAssets }));
-        return comp;
-      });
+          setSourceUrls(u => ({ ...u, [sourceId]: blobUrl }));
+          setSourceNames(n => ({ ...n, [sourceId]: clip.originalName || 'Clip' }));
+          setSourceAssets(a => ({ ...a, [sourceId]: clip.assetId }));
+          return comp;
+        });
+      }
 
-      toast(`${added.length} clip${added.length > 1 ? 's' : ''} added.`, 'success');
+      toast(`${vids.length} clip${vids.length > 1 ? 's' : ''} added.`, 'success');
     } catch (err) {
       toast(err.message || 'Upload failed.', 'error');
     } finally {
       setUploading(false);
-      setUploadProgress(0);
     }
-  }, [clientId, toast]);
+  }, [compId, toast]);
 
   const onFileChange = useCallback((e) => {
     handleFiles(e.target.files);
@@ -177,76 +283,53 @@ export default function CompositionEditorPage({ clientId }) {
     setComposition(prev => ({ ...prev, fps: f }));
   }, []);
 
-  // ── Save / load ─────────────────────────────────────────────────────
-
-  const save = useCallback(async () => {
-    setSaving(true);
-    try {
-      if (compId) {
-        await api.put(`/compose/compositions/${compId}`, {
-          data: composition, sourceAssets, transcripts,
-        });
-      } else {
-        const row = await api.post(`/compose/clients/${clientId}/compositions`, {
-          title: 'Untitled', data: composition,
-        });
-        setCompId(row.id);
-        await api.put(`/compose/compositions/${row.id}`, { sourceAssets, transcripts });
-      }
-      toast('Saved.', 'success');
-    } catch (err) {
-      toast(err.message || 'Save failed.', 'error');
-    } finally { setSaving(false); }
-  }, [compId, composition, sourceAssets, transcripts, clientId, toast]);
-
-  // ── Transcribe ──────────────────────────────────────────────────────
+  // ── Transcribe ────────────────────────────────────────────────────
 
   const transcribeSource = useCallback(async (sourceId) => {
-    if (!compId) {
-      toast('Save the composition first.', 'error');
-      return;
-    }
-    const assetId = sourceAssets[sourceId];
-    if (!assetId) {
-      toast('This clip has no uploaded asset yet.', 'error');
-      return;
-    }
+    if (!compId) { toast('Save the composition first.', 'error'); return; }
+    if (!sourceAssets[sourceId]) { toast('No uploaded asset for this clip.', 'error'); return; }
+
     setTranscribing(sourceId);
     try {
+      await doSave(compId);
       const result = await api.post(`/compose/compositions/${compId}/transcribe`, { sourceId });
       setTranscripts(prev => ({ ...prev, [sourceId]: result.words }));
       toast(`Transcribed: ${result.words.length} words.`, 'success');
     } catch (err) {
       toast(err.message || 'Transcription failed.', 'error');
     } finally { setTranscribing(null); }
-  }, [compId, sourceAssets, toast]);
+  }, [compId, sourceAssets, toast, doSave]);
 
-  // ── Add captions ────────────────────────────────────────────────────
+  // ── Add captions ──────────────────────────────────────────────────
 
   const addCaptions = useCallback((sourceId, templateId) => {
     const words = transcripts[sourceId];
     if (!words?.length) { toast('Transcribe the clip first.', 'error'); return; }
-    const src = composition.sources[sourceId];
-    if (!src) return;
 
     setComposition(prev => {
       const { comp: c1, id: captionSourceId } = addSource(prev, {
-        kind: 'captions', transcript: words, template: templateId,
+        kind: 'captions', transcript: sourceId, template: templateId,
         marginV: 60,
       });
       let comp = c1;
 
-      let audioTrackId = comp.tracks.find(t => t.kind === 'audio')?.id;
-      if (!audioTrackId) {
-        const r = addTrack(comp, 'audio');
+      let captionTrackId = null;
+      for (const t of comp.tracks) {
+        if (t.kind === 'video' && t.items.some(i => comp.sources[i.source]?.kind === 'captions')) {
+          captionTrackId = t.id;
+          break;
+        }
+      }
+      if (!captionTrackId) {
+        const r = addTrack(comp, 'video');
         comp = r.comp;
-        audioTrackId = r.id;
+        captionTrackId = r.id;
       }
 
-      for (const track of comp.tracks) {
+      for (const track of prev.tracks) {
         for (const item of track.items) {
           if (item.source === sourceId) {
-            const { comp: c2 } = addItem(comp, audioTrackId, {
+            const { comp: c2 } = addItem(comp, captionTrackId, {
               at: item.at, len: item.len, source: captionSourceId,
               in: item.in || 0,
             });
@@ -257,13 +340,43 @@ export default function CompositionEditorPage({ clientId }) {
       return comp;
     });
     toast('Captions added to timeline.', 'success');
-  }, [transcripts, composition, toast]);
+  }, [transcripts, toast]);
+
+  // ── Switch composition ────────────────────────────────────────────
+
+  const switchComposition = useCallback(async (id) => {
+    if (id === compId) return;
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    if (compId && saveStatus === 'unsaved') await doSave(compId);
+
+    try {
+      const row = await api.get(`/compose/compositions/${id}`);
+      loadFromRow(row);
+    } catch (err) {
+      toast('Failed to load composition.', 'error');
+    }
+  }, [compId, saveStatus, doSave, toast]);
+
+  const createNew = useCallback(async () => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    if (compId && saveStatus === 'unsaved') await doSave(compId);
+
+    try {
+      const row = await api.post(`/compose/clients/${clientId}/compositions`, {
+        title: 'Untitled', data: initComp(),
+      });
+      setCompList(prev => [row, ...(prev || [])]);
+      loadFromRow(row);
+    } catch (err) {
+      toast('Failed to create composition.', 'error');
+    }
+  }, [clientId, compId, saveStatus, doSave, toast]);
+
+  // ── Derived state ─────────────────────────────────────────────────
 
   const hasSources = Object.keys(composition.sources).length > 0;
   const selectedSourceId = selectedItem?.item?.source;
   const hasTranscript = selectedSourceId && transcripts[selectedSourceId]?.length > 0;
-
-  // ── Reel checks: combine all transcripts into timeline-mapped timings ──
 
   const allTimings = useMemo(() => {
     const words = [];
@@ -296,28 +409,57 @@ export default function CompositionEditorPage({ clientId }) {
     caption_template: hasCaptionSource ? 'yes' : null,
   }), [total, hasCaptionSource]);
 
-  // ── Drag-and-drop ──────────────────────────────────────────────────
+  // ── Drag-and-drop ─────────────────────────────────────────────────
 
-  const onDragOver = useCallback((e) => {
-    e.preventDefault();
-    setDragOver(true);
-  }, []);
-
+  const onDragOver = useCallback((e) => { e.preventDefault(); setDragOver(true); }, []);
   const onDragLeave = useCallback((e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     setDragOver(false);
   }, []);
-
   const onDrop = useCallback((e) => {
-    e.preventDefault();
-    setDragOver(false);
+    e.preventDefault(); setDragOver(false);
     handleFiles(e.dataTransfer.files);
   }, [handleFiles]);
+
+  // ── Render ────────────────────────────────────────────────────────
+
+  if (loading) {
+    return <div style={{ padding: 'var(--s6)', textAlign: 'center', color: 'var(--text-muted)' }}>Loading editor...</div>;
+  }
+
+  const saveLabel = saveStatus === 'saving' ? 'Saving...'
+    : saveStatus === 'unsaved' ? 'Unsaved'
+    : saveStatus === 'error' ? 'Save failed' : 'Saved';
 
   return (
     <div style={{ marginTop: 'var(--s4)' }}
       onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
-      <div className="edit-split" style={{ marginTop: 'var(--s4)' }}>
+
+      {/* Composition switcher */}
+      {compList && compList.length > 0 && (
+        <div className="row center" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
+          <select
+            className="input"
+            style={{ maxWidth: 260, fontSize: 'var(--fs-caption)' }}
+            value={compId || ''}
+            onChange={(e) => switchComposition(Number(e.target.value))}
+          >
+            {compList.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.title || 'Untitled'} ({new Date(c.updated_at).toLocaleDateString()})
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={createNew}>
+            + New
+          </button>
+          <span className="body-xs text-subtle" style={{ marginLeft: 'auto' }}>
+            {saveLabel}
+          </span>
+        </div>
+      )}
+
+      <div className="edit-split" style={{ marginTop: 'var(--s2)' }}>
         <div>
           <Compositor
             ref={compositorRef}
@@ -331,7 +473,6 @@ export default function CompositionEditorPage({ clientId }) {
           <div style={{ marginTop: 'var(--s3)' }}>
             <CompositionTimeline
               composition={composition}
-              sourceNames={sourceNames}
               onChange={setComposition}
               sourceUrls={sourceUrls}
               playhead={playhead}
@@ -347,23 +488,19 @@ export default function CompositionEditorPage({ clientId }) {
           <div className="card" style={{ padding: 'var(--s4)' }}>
             <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
               <h3 className="title">Editor</h3>
-              <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                <button type="button" className="btn btn-secondary btn-sm"
-                  onClick={save} disabled={saving}>
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
+              <button type="button" className="btn btn-secondary btn-sm"
+                onClick={() => doSave(compId)} disabled={saveStatus === 'saving'}>
+                {saveStatus === 'saving' ? 'Saving...' : 'Save now'}
+              </button>
             </div>
 
             {/* Add clip */}
             <div style={{ marginBottom: 'var(--s4)' }}>
-              <input
-                ref={fileRef} type="file" accept="video/*" multiple
-                style={{ display: 'none' }} onChange={onFileChange}
-              />
+              <input ref={fileRef} type="file" accept="video/*" multiple
+                style={{ display: 'none' }} onChange={onFileChange} />
               <button type="button" className="btn btn-primary btn-sm"
                 onClick={() => fileRef.current?.click()} disabled={uploading}>
-                {uploading ? `Uploading ${Math.round(uploadProgress * 100)}%` : '+ Add clip'}
+                {uploading ? 'Uploading...' : '+ Add clip'}
               </button>
             </div>
 
@@ -380,7 +517,7 @@ export default function CompositionEditorPage({ clientId }) {
               </div>
             )}
 
-            {/* Selected item properties */}
+            {/* Selected item inspector */}
             {selectedItem && (
               <div style={{
                 marginBottom: 'var(--s4)', padding: 'var(--s3)',
@@ -422,18 +559,16 @@ export default function CompositionEditorPage({ clientId }) {
                       </button>
 
                       {hasTranscript && captionTemplates?.length > 0 && (
-                        <select
-                          className="btn-chip"
+                        <select className="btn-chip"
                           style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
                           defaultValue=""
                           onChange={(e) => {
                             if (e.target.value) addCaptions(selectedSourceId, e.target.value);
                             e.target.value = '';
-                          }}
-                        >
+                          }}>
                           <option value="">+ Captions</option>
                           {captionTemplates.map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
+                            <option key={t.id} value={t.id}>{t.name || t.id}</option>
                           ))}
                         </select>
                       )}
@@ -492,7 +627,6 @@ export default function CompositionEditorPage({ clientId }) {
             )}
           </div>
 
-          {/* Reel checks: live advisory panel, runs on transcript data */}
           {hasSources && (
             <div className="card" style={{ padding: 'var(--s4)', marginTop: 'var(--s3)' }}>
               <ReelChecks

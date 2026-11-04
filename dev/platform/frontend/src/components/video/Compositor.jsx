@@ -60,7 +60,7 @@ const Compositor = React.forwardRef(function Compositor({
   const H = comp?.size?.height || 1920;
   const fps = comp?.fps || 30;
 
-  // ── Video element pool ──────────────────────────────────────────────
+  // ── Media element pool (video + image) ──────────────────────────────
 
   const getElement = useCallback((sourceId) => {
     const st = m.current;
@@ -68,6 +68,27 @@ const Compositor = React.forwardRef(function Compositor({
 
     const url = st.sourceUrls[sourceId];
     if (!url) return null;
+
+    const src = st.composition?.sources?.[sourceId];
+    const isImage = src?.kind === 'design';
+
+    if (isImage) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      img._isImage = true;
+      st.elements.set(sourceId, img);
+
+      img.addEventListener('load', () => {
+        if (img.naturalWidth && img.naturalHeight && !natAR) {
+          setNatAR(img.naturalWidth / img.naturalHeight);
+        }
+        if (onMeta) {
+          onMeta({ sourceId, duration: null, width: img.naturalWidth, height: img.naturalHeight });
+        }
+      });
+      return img;
+    }
 
     const vid = document.createElement('video');
     vid.muted = true;
@@ -124,34 +145,36 @@ const Compositor = React.forwardRef(function Compositor({
 
     // Draw each layer bottom to top
     for (const layer of scene.layers) {
-      const vid = getElement(layer.sourceId);
-      if (!vid || vid.readyState < 2) continue;
+      const el = getElement(layer.sourceId);
+      if (!el) continue;
+
+      const isImg = !!el._isImage;
+      if (isImg) { if (!el.complete || !el.naturalWidth) continue; }
+      else { if (el.readyState < 2) continue; }
 
       ctx.save();
       if (layer.opacity < 1) {
         ctx.globalAlpha = layer.opacity;
       }
 
-      // Cover fit: scale up to fill, then crop to canvas
-      const vw = vid.videoWidth || W;
-      const vh = vid.videoHeight || H;
+      const ew = isImg ? (el.naturalWidth || W) : (el.videoWidth || W);
+      const eh = isImg ? (el.naturalHeight || H) : (el.videoHeight || H);
       const fit = layer.item.fit || 'cover';
 
       if (fit === 'cover') {
-        const scale = Math.max(W / vw, H / vh);
-        const dw = vw * scale;
-        const dh = vh * scale;
+        const scale = Math.max(W / ew, H / eh);
+        const dw = ew * scale;
+        const dh = eh * scale;
         const dx = (W - dw) / 2;
         const dy = (H - dh) / 2;
-        ctx.drawImage(vid, dx, dy, dw, dh);
+        ctx.drawImage(el, dx, dy, dw, dh);
       } else {
-        // Contain: scale down to fit, letterbox
-        const scale = Math.min(W / vw, H / vh);
-        const dw = vw * scale;
-        const dh = vh * scale;
+        const scale = Math.min(W / ew, H / eh);
+        const dw = ew * scale;
+        const dh = eh * scale;
         const dx = (W - dw) / 2;
         const dy = (H - dh) / 2;
-        ctx.drawImage(vid, dx, dy, dw, dh);
+        ctx.drawImage(el, dx, dy, dw, dh);
       }
 
       ctx.restore();
@@ -192,16 +215,16 @@ const Compositor = React.forwardRef(function Compositor({
 
     for (const layer of scene.layers) {
       activeSourceIds.add(layer.sourceId);
-      const vid = getElement(layer.sourceId);
-      if (!vid) continue;
+      const el = getElement(layer.sourceId);
+      if (!el || el._isImage) continue;
 
       if (st.playing) {
-        seekTo(vid, layer.sourceTime);
-        if (vid.paused) vid.play().catch(() => {});
-        vid.muted = false;
+        seekTo(el, layer.sourceTime);
+        if (el.paused) el.play().catch(() => {});
+        el.muted = false;
       } else {
-        seekTo(vid, layer.sourceTime);
-        if (!vid.paused) vid.pause();
+        seekTo(el, layer.sourceTime);
+        if (!el.paused) el.pause();
       }
     }
 
@@ -210,18 +233,19 @@ const Compositor = React.forwardRef(function Compositor({
     for (const a of audio) {
       if (activeSourceIds.has(a.sourceId)) continue;
       activeSourceIds.add(a.sourceId);
-      const vid = getElement(a.sourceId);
-      if (!vid) continue;
+      const el = getElement(a.sourceId);
+      if (!el || el._isImage) continue;
       if (st.playing) {
-        seekTo(vid, a.sourceTime);
-        if (vid.paused) vid.play().catch(() => {});
+        seekTo(el, a.sourceTime);
+        if (el.paused) el.play().catch(() => {});
       }
     }
 
-    // Pause elements that are no longer active
-    for (const [sourceId, vid] of st.elements) {
-      if (!activeSourceIds.has(sourceId) && !vid.paused) {
-        vid.pause();
+    // Pause video elements that are no longer active
+    for (const [sourceId, el] of st.elements) {
+      if (el._isImage) continue;
+      if (!activeSourceIds.has(sourceId) && !el.paused) {
+        el.pause();
       }
     }
 
