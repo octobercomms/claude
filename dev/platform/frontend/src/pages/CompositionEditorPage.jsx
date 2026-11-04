@@ -543,14 +543,30 @@ export default function CompositionEditorPage({ clientId }) {
               </button>
             </div>
 
-            {/* Add clip */}
-            <div style={{ marginBottom: 'var(--s4)' }}>
+            {/* Add clip / design */}
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
               <input ref={fileRef} type="file" accept="video/*" multiple
                 style={{ display: 'none' }} onChange={onFileChange} />
               <button type="button" className="btn btn-primary btn-sm"
                 onClick={() => fileRef.current?.click()} disabled={uploading}>
                 {uploading ? 'Uploading...' : '+ Add clip'}
               </button>
+
+              {designs.length > 0 && (
+                <select className="btn-chip"
+                  style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
+                  value=""
+                  onChange={(e) => {
+                    const d = designs.find(x => String(x.id) === e.target.value);
+                    if (d) addDesign(d);
+                    e.target.value = '';
+                  }}>
+                  <option value="">+ Add design</option>
+                  {designs.map(d => (
+                    <option key={d.id} value={d.id}>{d.title || `Design ${d.id}`}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {!hasSources && (
@@ -621,6 +637,26 @@ export default function CompositionEditorPage({ clientId }) {
                           ))}
                         </select>
                       )}
+                    </>
+                  )}
+
+                  {selectedSource?.kind === 'design' && (
+                    <>
+                      <span className="body-xs text-muted">
+                        {selectedSource.width || '?'} x {selectedSource.height || '?'}
+                      </span>
+                      <select className="btn-chip"
+                        style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
+                        value={selectedItem.item.fit || 'contain'}
+                        onChange={(e) => {
+                          setComposition(prev =>
+                            updateItem(prev, selectedItem.track.id, selectedItem.item.id,
+                              { fit: e.target.value })
+                          );
+                        }}>
+                        <option value="contain">Contain</option>
+                        <option value="cover">Cover</option>
+                      </select>
                     </>
                   )}
                 </div>
