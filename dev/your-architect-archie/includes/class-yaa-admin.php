@@ -78,6 +78,7 @@ class YAA_Admin {
 				'smtp_user'             => sanitize_text_field( $in['smtp_user'] ?? '' ),
 				'smtp_pass'             => isset( $in['smtp_pass'] ) ? $in['smtp_pass'] : '',
 				'delegate_tracking'     => empty( $in['delegate_tracking'] ) ? 0 : 1,
+				'ab_test_on'            => empty( $in['ab_test_on'] ) ? 0 : 1,
 				'github_repo'           => sanitize_text_field( $in['github_repo'] ?? 'octobercomms/claude' ),
 				'github_token'          => isset( $in['github_token'] ) ? $in['github_token'] : '',
 				'github_tag_prefix'     => sanitize_text_field( $in['github_tag_prefix'] ?? 'yaa-v' ),
@@ -216,6 +217,19 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Open / click tracking', 'your-architect-archie' ); ?></th><td>
 						<label><input type="checkbox" name="delegate_tracking" value="1" <?php checked( (int) $s['delegate_tracking'], 1 ); ?>> <?php esc_html_e( 'Let the relay (Brevo) track opens & clicks — don\'t add our own pixel.', 'your-architect-archie' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Recommended with a relay: avoids double tracking (two pixels, double-wrapped links), which reads as bulk mail and hurts deliverability. Brevo\'s events — opens, clicks, delivered, bounced, spam — flow into the email log once you point a Brevo webhook at this URL:', 'your-architect-archie' ); ?> <code><?php echo esc_html( rest_url( 'yaa/v1/brevo-webhook' ) ); ?></code>. <?php esc_html_e( 'In Brevo: Transactional → Settings → Webhook — tick delivered, opened, click, hard bounce, soft bounce, blocked, spam and unsubscribed. Untick the box above to go back to our own built-in pixel tracking instead.', 'your-architect-archie' ); ?></p>
+					</td></tr>
+				</table>
+
+				<h2><?php esc_html_e( 'A/B test — email-first gate', 'your-architect-archie' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th><?php esc_html_e( 'Run the A/B test', 'your-architect-archie' ); ?></th><td>
+						<label><input type="checkbox" name="ab_test_on" value="1" <?php checked( (int) $s['ab_test_on'], 1 ); ?>> <?php esc_html_e( 'Split new visitors 50/50 between the email-first gate (A) and the normal flow (B).', 'your-architect-archie' ); ?></label>
+						<p class="description"><?php
+						printf(
+							/* translators: %s: link to the A/B Test report page */
+							esc_html__( 'Untick to pause: everyone goes back to the normal flow immediately (including anyone mid-chat on A), and the %s keeps the data collected so far. Re-tick any time to resume.', 'your-architect-archie' ),
+							'<a href="' . esc_url( add_query_arg( 'page', 'yaa-experiment', admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'A/B Test report', 'your-architect-archie' ) . '</a>'
+						); ?></p>
 					</td></tr>
 				</table>
 
