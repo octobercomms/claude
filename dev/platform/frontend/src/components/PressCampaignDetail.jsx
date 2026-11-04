@@ -547,7 +547,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
       : '';
     if (plan && plan.already > 0) {
       if (plan.new === 0) {
-        alert(`All ${plan.already} of these recipients have already been sent this release in this campaign. There's no one new to send to.`);
+        toast(`All ${plan.already} of these recipients have already been sent this release in this campaign.`, 'warning');
         return;
       }
       const msg = `${plan.already} of these ${plan.total} recipient${plan.total === 1 ? '' : 's'} were already emailed this release in this campaign — they will be skipped automatically (no duplicates).\n\n`

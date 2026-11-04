@@ -35,6 +35,7 @@ export default function AudioPage({ clientId = null } = {}) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -52,7 +53,10 @@ export default function AudioPage({ clientId = null } = {}) {
   const previewRef = useRef(null);
 
   function loadList() {
-    api.get(`/audio${clientId ? `?client_id=${clientId}` : ''}`).then(r => setList(r.items || [])).catch(() => {});
+    api.get(`/audio${clientId ? `?client_id=${clientId}` : ''}`)
+      .then(r => setList(r.items || []))
+      .catch(e => toast(e.message || 'Failed to load audio', 'error'))
+      .finally(() => setLoading(false));
   }
   useEffect(() => { loadList(); return () => clearTimeout(pollRef.current); /* eslint-disable-next-line */ }, [clientId]);
 
@@ -236,7 +240,8 @@ export default function AudioPage({ clientId = null } = {}) {
 
           {/* List */}
           <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 var(--s2)' }}>Recent</div>
-          {!list.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No audio files yet.</div>}
+          {loading && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Loading…</div>}
+          {!loading && !list.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No audio files yet.</div>}
           {list.map(t => (
             <div key={t.id} onClick={() => open(t.id)}
               style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', marginBottom: 'var(--s2)', cursor: 'pointer',

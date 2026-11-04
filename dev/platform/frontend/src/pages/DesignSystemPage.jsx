@@ -5,6 +5,7 @@ import StatStrip from '../components/shells/StatStrip';
 import StepRail from '../components/shells/StepRail';
 import ListDetail from '../components/shells/ListDetail';
 import ChatCanvas from '../components/shells/ChatCanvas';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Living gallery for the L1–L6 shell components + the design foundations.
 // Route: /design. Renders the real components with example data so the system
@@ -49,6 +50,7 @@ const PEOPLE = [
 ];
 
 export default function DesignSystemPage() {
+  useDocumentTitle('Design system');
   const [group, setGroup] = useState('overview');
   const [step, setStep] = useState('draft');
   const [selected, setSelected] = useState(PEOPLE[0]);

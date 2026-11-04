@@ -13,6 +13,7 @@ import {
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
 import StepRail from '../components/shells/StepRail';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import StatStrip from '../components/shells/StatStrip';
 import PageShell from '../components/shells/PageShell';
 import FindPanel from '../components/organic/FindPanel';
@@ -271,6 +272,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
 }
 
 export default function ClientSEOPage() {
+  useDocumentTitle('SEO');
   const toast = useToast();
   const { id } = useParams();
   const navigate = useNavigate();

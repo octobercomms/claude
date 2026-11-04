@@ -401,6 +401,7 @@ function AssetCard({ asset, onDelete, onEdit, onUpdate }) {
 }
 
 function PaletteForm({ clientId, asset, onClose, onSaved }) {
+  const toast = useToast();
   const editing = !!asset;
   const [name, setName] = useState(asset?.name || '');
   const [colors, setColors] = useState(asset?.metadata?.colors?.length ? asset.metadata.colors : ['#1a1a1a', '#ffffff', '#e7cd41']);
@@ -414,7 +415,7 @@ function PaletteForm({ clientId, asset, onClose, onSaved }) {
         await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'palette', name: name || 'Brand palette', metadata: { colors } });
       }
       onSaved();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, 'error'); }
     finally { setSaving(false); }
   }
   return (
@@ -442,6 +443,7 @@ function PaletteForm({ clientId, asset, onClose, onSaved }) {
 }
 
 function GuidelineForm({ clientId, asset, onClose, onSaved }) {
+  const toast = useToast();
   const editing = !!asset;
   const [name, setName] = useState(asset?.name || '');
   const [body, setBody] = useState(asset?.metadata?.body || '');
@@ -456,7 +458,7 @@ function GuidelineForm({ clientId, asset, onClose, onSaved }) {
         await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'guideline', name: name || 'Brand voice', metadata: { body } });
       }
       onSaved();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, 'error'); }
     finally { setSaving(false); }
   }
   return (

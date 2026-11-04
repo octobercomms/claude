@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 
 // Operator's manual for the platform. Available to every signed-in user
@@ -264,6 +265,7 @@ const SECTIONS = [
 ];
 
 export default function GuidePage() {
+  useDocumentTitle('Guide');
   const [params] = useSearchParams();
   // ?open=<section id> expands that section, so another page can link
   // straight at the chapter it is talking about rather than dropping the

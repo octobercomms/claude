@@ -170,7 +170,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s5)' }}>
         <div>
-          <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: 0 }}>Ad Creative — {clientName}</h1>
+          <h2 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: 0 }}>Ad Creative — {clientName}</h2>
           <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: 'var(--s1) 0 0', maxWidth: 760, lineHeight: 1.5 }}>
             Generate batches of ad concepts using direct-response frameworks (PAS, AIDA, Before/After…),
             grounded in the brand assets and the brief you supply. Then render image variants per concept

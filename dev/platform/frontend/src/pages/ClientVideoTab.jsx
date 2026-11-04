@@ -17,6 +17,7 @@ import AssetLibrary from '../components/AssetLibrary';
 const ClientDesignPage = lazyChunk('ClientDesignPage', () => import('./ClientDesignPage'));
 import { useScreen } from '../hooks/useScreen';
 import { useAuth } from '../context/AuthContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Produce — the per-client media suite: Record (screen recorder + this client's
 // video library), Edit (guided video editor) and Visualise (image studio).
@@ -24,18 +25,22 @@ import { useAuth } from '../context/AuthContext';
 // Visualise follows the can_use_visualise grant. See
 // docs/omi/loom-replacement-plan.md.
 export default function ClientVideoTab() {
+  useDocumentTitle('Produce');
   const { id } = useParams();
   const { readOnly, user } = useAuth();
   const canVisualise = !readOnly || !!user?.can_use_visualise;
   const [tab, setTab] = useScreen('produce');
   const [client, setClient] = useState(null);
+  const [clientLoading, setClientLoading] = useState(true);
 
-  useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
+  useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}).finally(() => setClientLoading(false)); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
   useEffect(() => {
     if (readOnly && (tab === 'reel' || tab === 'edit' || tab === 'transcribe' || tab === 'design' || tab === 'audio')) setTab('record');
     if (tab === 'visualise' && !canVisualise) setTab('record');
   }, [readOnly, canVisualise, tab, setTab]);
+
+  if (clientLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--s10)', color: 'var(--text-muted)' }}>Loading…</div>;
 
   return (
     <div>

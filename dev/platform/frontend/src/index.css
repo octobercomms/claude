@@ -19,7 +19,7 @@
   --surface-sunken: #f3f3f3;
   --text: #1a1a1a;
   --text-muted: #555555;
-  --text-subtle: #888888;
+  --text-subtle: #6b6b6b;
   --border-neutral: #1a1a1a;
   --card-border: #e3e2db;   /* soft grey — the default bento border */
 
@@ -141,6 +141,14 @@ a { color: var(--text); text-decoration: none; }
 a:hover { color: var(--link-hover); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
 button { font-family: inherit; }
+
+.skip-link {
+  position: absolute; left: -9999px; top: auto;
+  padding: var(--s2) var(--s4); background: var(--text); color: var(--surface);
+  font-size: var(--fs-body); font-weight: 500; border-radius: var(--r-sm);
+  z-index: 10000; text-decoration: none;
+}
+.skip-link:focus { left: var(--s4); top: var(--s2); }
 
 .app-shell { display: flex; min-height: 100vh; background: var(--page-bg); }
 
@@ -1694,26 +1702,53 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 
 /* Phone (≤ 520px): collapse every inline grid to a single column.
    Stops pages with raw gridTemplateColumns props from crushing
-   their tiles together when the viewport is narrow. */
+   their tiles together when the viewport is narrow.
+   The selectors below catch the patterns React serialises into
+   style="grid-template-columns: …". They cannot catch every
+   permutation, but they cover the shapes the codebase uses:
+   plain fr grids, fractional fr, repeat(), and fixed-px columns. */
 @media (max-width: 520px) {
   div[style*="grid-template-columns: 1fr 1fr"],
   div[style*="grid-template-columns: repeat("],
   form[style*="grid-template-columns: 1fr 1fr"],
-  form[style*="grid-template-columns: repeat("] {
+  form[style*="grid-template-columns: repeat("],
+  div[style*="grid-template-columns: 2fr"],
+  div[style*="grid-template-columns: 1.5fr"],
+  form[style*="grid-template-columns: 2fr"],
+  form[style*="grid-template-columns: 1.5fr"],
+  div[style*="grid-template-columns: minmax("],
+  form[style*="grid-template-columns: minmax("],
+  div[style*="grid-template-columns: 210px"],
+  div[style*="grid-template-columns: 220px"],
+  div[style*="grid-template-columns: 230px"],
+  div[style*="grid-template-columns: 280px"],
+  div[style*="grid-template-columns: 300px"],
+  div[style*="grid-template-columns: 340px"] {
     grid-template-columns: 1fr !important;
   }
 }
 
 /* Small tablet (521 - 768px): 2-col grids stay 2-col; anything that
    asked for 3+ columns gets squashed to 2 so cells are still
-   readable. */
+   readable. Includes fractional-fr, multi-fr and fixed-px layouts. */
 @media (min-width: 521px) and (max-width: 768px) {
   div[style*="grid-template-columns: 1fr 1fr 1fr"],
   div[style*="grid-template-columns: repeat(3"],
   div[style*="grid-template-columns: repeat(4"],
   div[style*="grid-template-columns: repeat(5"],
   div[style*="grid-template-columns: repeat(6"],
-  div[style*="grid-template-columns: repeat(7"] {
+  div[style*="grid-template-columns: repeat(7"],
+  div[style*="grid-template-columns: 2fr 2fr"],
+  div[style*="grid-template-columns: 1.5fr"],
+  form[style*="grid-template-columns: 2fr 2fr"],
+  div[style*="grid-template-columns: minmax("],
+  form[style*="grid-template-columns: minmax("],
+  div[style*="grid-template-columns: 210px"],
+  div[style*="grid-template-columns: 220px"],
+  div[style*="grid-template-columns: 230px"],
+  div[style*="grid-template-columns: 280px"],
+  div[style*="grid-template-columns: 300px"],
+  div[style*="grid-template-columns: 340px"] {
     grid-template-columns: 1fr 1fr !important;
   }
 }

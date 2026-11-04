@@ -13,6 +13,7 @@ import SideDrawer from '../components/ui/SideDrawer';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import ProfileModal from '../components/ProfileModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import PressCampaignDetail from '../components/PressCampaignDetail';
 import PrBacklinkTotal from '../components/PrBacklinkTotal';
 import { roWrite } from '../utils/readOnly';
@@ -91,6 +92,7 @@ function fmtEta(secs) {
 }
 
 export default function ClientPRPage() {
+  useDocumentTitle('Press');
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();

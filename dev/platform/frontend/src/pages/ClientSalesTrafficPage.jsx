@@ -17,8 +17,10 @@ import { api } from '../utils/api';
 import PageShell from '../components/shells/PageShell';
 import MeasurePanel from '../components/MeasurePanel';
 import { useAuth } from '../context/AuthContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 export default function ClientSalesTrafficPage() {
+  useDocumentTitle('Data');
   const { id } = useParams();
   const { readOnly } = useAuth();
   const [client, setClient] = useState(null);

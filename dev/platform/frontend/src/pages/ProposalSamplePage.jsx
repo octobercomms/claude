@@ -3,6 +3,7 @@ import { SECTIONS, slugForTab } from '../nav/sections';
 import { Link } from 'react-router-dom';
 import ProposalDocument, { PROPOSAL_CSS } from '../components/proposal/ProposalDocument';
 import { SAMPLE_PROPOSAL } from '../components/proposal/sampleProposal';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // A whole proposal, filled in, for a practice that does not exist.
 //
@@ -15,6 +16,7 @@ import { SAMPLE_PROPOSAL } from '../components/proposal/sampleProposal';
 // No database row, no token, no tracking. Nothing here can be sent.
 
 export default function ProposalSamplePage() {
+  useDocumentTitle('Proposal preview');
   return (
     <div style={{ background: '#0d0d0d', minHeight: '100vh' }}>
       <style>{PROPOSAL_CSS}</style>

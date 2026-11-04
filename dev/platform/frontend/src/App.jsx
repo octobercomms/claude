@@ -50,6 +50,7 @@ const ProposalEditorPage = lazyChunk('ProposalEditorPage', () => import('./pages
 const ProposalSamplePage = lazyChunk('ProposalSamplePage', () => import('./pages/ProposalSamplePage'));
 const ClientVideoTab = lazyChunk('ClientVideoTab', () => import('./pages/ClientVideoTab'));
 const DesignSystemPage = lazyChunk('DesignSystemPage', () => import('./pages/DesignSystemPage'));
+const NotFoundPage = lazyChunk('NotFoundPage', () => import('./pages/NotFoundPage'));
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -162,7 +163,9 @@ export default function App() {
                 Cleanup group in the Database panel now, so they are rows with
                 paths of their own rather than one route holding its screen in
                 useState seeded from ?tab=. */}
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </Suspense>
       </BrowserRouter>

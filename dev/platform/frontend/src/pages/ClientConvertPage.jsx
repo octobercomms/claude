@@ -7,6 +7,7 @@ import ClarityCroPanel from '../components/ClarityCroPanel';
 import FormsTab from '../components/FormsTab';
 import ClientOutreachPage from './ClientOutreachPage';
 import { useScreen } from '../hooks/useScreen';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Convert — turning a visitor into a lead, and a lead into a reply.
 //
@@ -48,6 +49,7 @@ const OUTREACH_PRODUCES = {
 };
 
 export default function ClientConvertPage() {
+  useDocumentTitle('Convert');
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);

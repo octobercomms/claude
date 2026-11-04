@@ -20,6 +20,7 @@ import StrategistBriefingPanel from '../components/StrategistBriefingPanel';
 import SuiteTabs from '../components/SuiteTabs';
 import ReportPreviewModal from '../components/ReportPreviewModal';
 import ClientBrandPage from './ClientBrandPage';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
@@ -59,6 +60,7 @@ export default function ClientDetailPage() {
   const toast = useToast();
   const { readOnly, user } = useAuth();
   const [client, setClient] = useState(null);
+  useDocumentTitle(client?.name || 'Client');
   const [connectors, setConnectors] = useState([]);
   const [reports, setReports] = useState([]);
   const [previewType, setPreviewType] = useState(null);

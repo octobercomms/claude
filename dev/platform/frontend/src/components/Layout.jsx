@@ -193,6 +193,7 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <header className="app-topbar">
         {/* On a phone this said "Marketing Intelligence", which is the one
             thing you already know: you opened the app. The bar is 56px of
@@ -350,7 +351,7 @@ export default function Layout() {
           panel itself is display:none at that width — a 170px fixed column
           beside a 260px drawer leaves nothing for the page. */}
       <MobileScreenNav />
-      <main className="app-main" ref={mainRef}>
+      <main className="app-main" ref={mainRef} id="main-content">
         {readOnly && (
           <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             <span>👁</span>

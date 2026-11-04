@@ -11,6 +11,7 @@ import SocialDecisions from '../components/SocialDecisions';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import StepRail from '../components/shells/StepRail';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 import PageShell from '../components/shells/PageShell';
 import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
@@ -40,6 +41,7 @@ const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
 // hashtags, a visual concept, and a frame-by-frame storyboard. AM can
 // generate images via Replicate (Flux) or Ideogram.
 export default function ClientSocialPage() {
+  useDocumentTitle('Social');
   const { id } = useParams();
   const toast = useToast();
   const { readOnly } = useAuth(); // client logins: view-only, no produce/build
@@ -1672,7 +1674,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
       setPlans(r);
       setEditingPlanId(null);
     } catch (e) {
-      alert(`Reschedule failed: ${e.message}`);
+      toast(`Reschedule failed: ${e.message}`, 'error');
     } finally {
       setSavingEdit(false);
     }
@@ -1700,7 +1702,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
       await api.delete(`/social/clients/${clientId}/plans/${planId}`);
       setPlans(prev => prev.filter(p => p.id !== planId));
     } catch (e) {
-      alert(`Delete failed: ${e.message}`);
+      toast(`Delete failed: ${e.message}`, 'error');
     }
   }
 
@@ -1994,7 +1996,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
       const asset = await res.json();
       setUploads(u => [...u, { id: asset.id, name: asset.name, kind }]);
     } catch (e) {
-      alert(`Upload failed: ${e.message}`);
+      toast(`Upload failed: ${e.message}`, 'error');
     } finally {
       setUploading(false);
     }
@@ -2576,7 +2578,7 @@ function PostCard({ post, clientId, engagement, media, reelCheck, onChange, onDe
                   hint="The shot-by-shot plan behind this post." />
                 <ProdAction safe label="Production brief" onClick={async () => {
                   try { const { url } = await api.get(`/social/posts/${post.id}/brief-url`); window.open(url, '_blank'); }
-                  catch (e) { alert(`Could not open brief: ${e.message}`); }
+                  catch (e) { toast(`Could not open brief: ${e.message}`, 'error'); }
                 }} hint="A printable brief to hand whoever films it." />
               </ProdGroup>
 
