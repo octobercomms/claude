@@ -2134,10 +2134,10 @@ Three phases:
    Background material, all older than the decision and none of it binding:
    `client-strategy.md`, `redesign-brief.md`, `sales-pipeline.md`.
 
-   **The video editor is parked, not cancelled.** `editor-composition-model.md`
-   carries the design and a header saying so. It was agreed and parked on the
-   same day: 25 to 35 sessions against a month on this, put side by side for
-   the first time. Do not start its step 1.
+   **The video editor is now the work.** `editor-composition-model.md`
+   carries the design. It was parked on 1 November while the GTM Brain
+   shipped; resumed 4 November after all five GTM Brain phases merged.
+   25 to 35 sessions. Build order is in the spec; start at step 1.
 
 ### The Costs panel reported the whole Anthropic account (31 Oct 2026)
 
@@ -2624,12 +2624,12 @@ holds the default, the publisher's filter and the screen's wording. Earned's
 Measure group, its Reports row and `PrBacklinkRoi` are gone;
 `PrBacklinkTotal` puts three tiles at the top of Coverage.
 
-### The video timeline, as it stands while the editor is parked
+### The video timeline, as it stands while the editor rewrite is in progress
 
-**Nothing here is in progress.** The rewrite that would have replaced all of
-it is parked (see §7), so what follows describes the timeline that is live
-today and the rules its code holds you to. It is still the thing an account
-manager edits with.
+**The rewrite is in progress** (see §7 and `editor-composition-model.md`).
+What follows describes the timeline that is live today and the rules its
+code holds you to. The current editor keeps working, untouched, until the
+rewrite reaches step 8.
 
 `docs/omi/video-timeline-spec.md`, whose section 7 is the build log. Daniel
 chose **option C, build it**, and said to go straight at the timeline with no

@@ -1,21 +1,12 @@
 # One editor: the composition model
 
-> **PARKED, 1 November 2026, the same evening this was agreed. Nothing here
-> is being built. Do not start step 1.**
->
-> Asked to weigh the editor against Phase 3, the per-client GTM Brain, Daniel
-> chose the GTM Brain. The editor is 25 to 35 sessions and the GTM Brain has
-> been the stated remaining prize since the agent guide was written, so the
-> two were competing for the same month and had never been put side by side.
->
-> The design below is not withdrawn and nothing in it is known to be wrong.
-> It is waiting. If it is picked up again, start at **Build order** and read
-> **The mapping** first, which is still the part most likely to kill it.
->
-> The practical consequence, from the deal below: Daniel uses CapCut for
-> reels until this is built, and that is a cost he accepted knowingly.
+> **UNPARKED, 4 November 2026.** The GTM Brain shipped (all five phases,
+> PRs #1944 through #1948), so the editor is now the work. Start at **Build
+> order** and read **The mapping** first, which is still the part most likely
+> to kill it.
 
-**Status:** design, agreed 1 November 2026 and parked the same day. Supersedes
+**Status:** in progress, 4 November 2026. Design agreed 1 November; parked
+the same day while the GTM Brain shipped; resumed 4 November. Supersedes
 `editor-replaces-basic-editing.md`, which was an increment plan and is the
 wrong plan.
 
@@ -217,7 +208,7 @@ kill the project are both invisible, so they go first.
 
 | | What | Visible? | Why here |
 |---|---|---|---|
-| 1 | The composition model and the mapping, in `shared/`, with unit tests and mutation testing | No | Everything reads it. Wrong here means everything after is wasted |
+| 1 | The composition model and the mapping, in `shared/`, with unit tests and mutation testing | No | **Done.** `shared/composition.mjs` (model), `shared/compositionMapping.mjs` (mapping). 53 unit tests + 30 mapping tests + 12 targeted mutations, all killed |
 | 2 | The render graph against the new model | No | "The renderer cannot do that" is the other way this dies. Find out before building a UI for it |
 | 3 | The compositor, proved to agree with the renderer on fixtures | Yes, locked | The agreement is the product. Prove it on fixtures before trusting it |
 | 4 | The timeline UI, with tracks | Yes, locked | Only worth building once 1 to 3 hold |
