@@ -365,6 +365,163 @@ router.post('/compositions/:id/broll-plan', loadComposition, async (req, res) =>
   }
 });
 
+// ── Render: start a background ffmpeg encode ────────────────────────
+
+const RENDER_PATH = path.join(__dirname, '..', '..', '..', 'shared', 'compositionRender.mjs');
+let _renderMod = null;
+async function renderMod() {
+  if (!_renderMod) _renderMod = await import(pathToFileURL(RENDER_PATH).href);
+  return _renderMod;
+}
+
+/** In-memory render state, keyed by composition id. */
+const renderJobs = new Map();
+
+/**
+ * Parse an ffmpeg `time=HH:MM:SS.ms` progress stamp into seconds.
+ */
+function parseFFmpegTime(str) {
+  const m = str.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3]);
+}
+
+router.post('/compositions/:id/render', loadComposition, async (req, res) => {
+  try {
+    const comp = req.composition;
+    const compId = comp.id;
+    const clientId = comp.client_id;
+    const data = comp.data;
+
+    if (!data || !data.tracks || !data.sources) {
+      return res.status(400).json({ error: 'Composition has no timeline data.' });
+    }
+
+    // Resolve source asset paths
+    const sourceAssets = comp.source_assets || {};
+    const sourcePaths = {};
+    for (const [sourceId, assetId] of Object.entries(sourceAssets)) {
+      const asset = await assets.get(assetId);
+      if (!asset) continue;
+      const fp = assetFilePath(asset);
+      if (fp) sourcePaths[sourceId] = fp;
+    }
+
+    // Build the render graph
+    const rm = await renderMod();
+    const graph = rm.renderGraph(data, { sourcePaths });
+
+    if (!graph.inputs.length) {
+      return res.status(400).json({ error: 'No resolvable sources in the composition.' });
+    }
+
+    // Resolve input paths in order
+    const resolvedPaths = [];
+    for (const inp of graph.inputs) {
+      const p = sourcePaths[inp.sourceId];
+      if (!p) {
+        return res.status(400).json({ error: `Source "${inp.sourceId}" has no file on disk.` });
+      }
+      resolvedPaths.push(p);
+    }
+
+    // Prepare output path
+    const outDir = path.join(UPLOAD_ROOT, String(clientId));
+    fs.mkdirSync(outDir, { recursive: true });
+    const timestamp = Date.now();
+    const outputPath = path.join(outDir, `render-${compId}-${timestamp}.mp4`);
+
+    // Build ffmpeg args
+    const args = rm.ffmpegArgs(graph, resolvedPaths, outputPath);
+
+    // Mark the job as rendering
+    renderJobs.set(compId, { status: 'rendering', progress: 0, outputPath, error: null });
+
+    // Spawn ffmpeg in the background
+    const ff = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+
+    ff.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+      // Parse latest time= from ffmpeg stderr for progress
+      const lines = stderr.split('\r');
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const t = parseFFmpegTime(lines[i]);
+        if (t != null && graph.duration > 0) {
+          const pct = Math.min(100, Math.round((t / graph.duration) * 100));
+          const job = renderJobs.get(compId);
+          if (job && job.status === 'rendering') job.progress = pct;
+          break;
+        }
+      }
+    });
+
+    ff.on('error', (err) => {
+      console.error('[compose] render spawn error:', err.message);
+      renderJobs.set(compId, { status: 'failed', progress: 0, outputPath: null, error: err.message });
+    });
+
+    ff.on('close', async (code) => {
+      if (code !== 0) {
+        // Extract the last few lines of stderr for the error message
+        const tail = stderr.split('\n').slice(-5).join('\n').trim();
+        console.error(`[compose] render failed (exit ${code}):`, tail);
+        renderJobs.set(compId, { status: 'failed', progress: 0, outputPath: null, error: tail || `ffmpeg exited ${code}` });
+        return;
+      }
+
+      // Record the output as an asset
+      const outputFilename = path.basename(outputPath);
+      const stat = fs.statSync(outputPath);
+      assets.record({
+        client_id: clientId,
+        source: 'scene_render',
+        source_id: `render-${compId}-${timestamp}`,
+        title: (comp.title || 'Composition') + ' (render)',
+        url: `/api/brand/file/${clientId}/${outputFilename}`,
+        mime: 'video/mp4',
+        bytes: stat.size,
+        created_by: req.user?.id || null,
+        duration_s: graph.duration || null,
+        metadata: { composition_id: compId, rendered_at: new Date().toISOString() },
+      }).catch(() => {});
+
+      renderJobs.set(compId, {
+        status: 'done',
+        progress: 100,
+        outputPath,
+        outputUrl: `/api/brand/file/${clientId}/${outputFilename}`,
+        error: null,
+      });
+    });
+
+    res.json({ status: 'rendering' });
+  } catch (err) {
+    console.error('[compose] render start failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/compositions/:id/render-status', loadComposition, (req, res) => {
+  const job = renderJobs.get(req.composition.id);
+  if (!job) return res.json({ status: 'none' });
+  const out = { status: job.status, progress: job.progress };
+  if (job.status === 'done' && job.outputUrl) out.outputUrl = job.outputUrl;
+  if (job.status === 'failed' && job.error) out.error = job.error;
+  res.json(out);
+});
+
+router.get('/compositions/:id/render-download', loadComposition, (req, res) => {
+  const job = renderJobs.get(req.composition.id);
+  if (!job || job.status !== 'done' || !job.outputPath) {
+    return res.status(404).json({ error: 'No completed render available.' });
+  }
+  if (!fs.existsSync(job.outputPath)) {
+    return res.status(404).json({ error: 'Rendered file no longer on disk.' });
+  }
+  res.download(job.outputPath);
+});
+
 // ── Design pages available as composition sources ─────────────────
 
 router.get('/designs/:clientId',
@@ -393,3 +550,5 @@ router.get('/caption-templates', (req, res) => {
 });
 
 module.exports = router;
+module.exports._renderJobs = renderJobs;
+module.exports._parseFFmpegTime = parseFFmpegTime;
