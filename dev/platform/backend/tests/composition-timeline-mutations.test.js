@@ -24,7 +24,7 @@ function restore() {
 
 function testsPass() {
   try {
-    execSync(`node --test ${TESTS}`, { stdio: 'pipe', timeout: 30000 });
+    execSync(`node ${TESTS}`, { stdio: 'pipe', timeout: 30000 });
     return true;
   } catch {
     return false;
