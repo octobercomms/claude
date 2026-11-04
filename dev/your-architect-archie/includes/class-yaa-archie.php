@@ -26,12 +26,17 @@ class YAA_Archie {
 
 	/** The fixed opener (no Claude call — saves a turn's tokens). Free-text, no chips. */
 	/** The opener greeting text — no side effects, safe to show before a project exists. */
-	public static function opener_text() {
+	public static function opener_text( $variant = 'B' ) {
+		if ( 'A' === $variant ) {
+			// A/B Variant A (email-first gate): lead with the email ask.
+			return __( "Hi — I'm Archie, Your Architect's project assistant. I'll build your fixed price with you and email you a copy to keep. To get started, what's the best email address to send it to?", 'your-architect-archie' );
+		}
 		return __( "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few simple questions, explain anything that's unclear, and build your fixed price as we go. There are no silly questions here. To start, what's the address of the property?", 'your-architect-archie' );
 	}
 
 	public static function opener( $project_id ) {
-		$text = self::opener_text();
+		$variant = class_exists( 'YAA_Experiment' ) ? YAA_Experiment::variant( $project_id ) : 'B';
+		$text    = self::opener_text( $variant );
 		YAA_Project::add_message( $project_id, 'assistant', $text );
 		return array(
 			'message'     => $text,
@@ -48,7 +53,7 @@ class YAA_Archie {
 	 * by someone who knows nothing about architecture or planning. Rebuilt each turn
 	 * with what we've learned about the address so Archie can be clever, not scripted.
 	 */
-	private static function system_blocks( array $state = array() ) {
+	private static function system_blocks( array $state = array(), $email_first = false ) {
 		$t        = YAA_Pricing::table();
 		$services = YAA_Pricing::services();
 		$addons   = $t['addons'];
@@ -147,6 +152,11 @@ class YAA_Archie {
 		$stable = implode( "\n", $lines );
 
 		$vol = array();
+		// A/B Variant A: hard email gate. This lives in the volatile (uncached) block
+		// because it changes the moment we have their email — then the gate lifts.
+		if ( $email_first ) {
+			$vol[] = 'EMAIL FIRST — this visitor is in a variant that REQUIRES an email before anything else, and you do NOT have it yet. Your only job this turn is to warmly ask for the best email address to send their fixed-price quote to, explaining you will email their quote there and it is how the team gets back to them. Do NOT ask about the property, services or anything else; do NOT build, mention, hint at or reveal any price or quote; do NOT proceed until they give a valid email. If they hesitate, briefly explain that is simply how Your Architect sends the quote and sets up their project, and ask once more. The moment they give a valid email, thank them and carry on normally with the rest of the questions.';
+		}
 		$known = self::address_knowledge( $state );
 		if ( $known ) {
 			$vol[] = $known;
@@ -411,6 +421,11 @@ class YAA_Archie {
 		$messages = YAA_Project::messages( $project_id );
 		$state    = YAA_Project::state( $project_id );
 
+		// A/B — Variant A collects an email before anything else (hard gate). Here we
+		// only steer the prompt to ask for it first; the quote is actually withheld at
+		// the REST layer (self::message's caller) so every return path is covered.
+		$email_first = class_exists( 'YAA_Experiment' ) && YAA_Experiment::gated( $project_id, $state );
+
 		// Instant, no-model handling of the opening address/postcode steps.
 		$fast = self::fast_path( $project_id, $user_text, $state );
 		if ( null !== $fast ) {
@@ -435,7 +450,7 @@ class YAA_Archie {
 			YAA_Rate_Limit::count_session_turn( $session );
 		}
 
-		$result = YAA_Claude::turn( self::system_blocks( $state ), $messages, self::tools() );
+		$result = YAA_Claude::turn( self::system_blocks( $state, $email_first ), $messages, self::tools() );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
