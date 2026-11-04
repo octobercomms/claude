@@ -15,8 +15,8 @@ const SHORTCUT_GROUPS = [
       { keys: ['Space'], desc: 'Play / Pause' },
       { keys: ['K'], desc: 'Pause' },
       // TODO: wire J/K/L variable-speed playback in Compositor.jsx
-      { keys: ['J'], desc: 'Play backward (press again: 2x, 4x)', planned: true },
-      { keys: ['L'], desc: 'Play forward (press again: 2x, 4x)', planned: true },
+      { keys: ['J'], desc: 'Step backward' },
+      { keys: ['L'], desc: 'Play forward' },
     ],
   },
   {
@@ -44,8 +44,8 @@ const SHORTCUT_GROUPS = [
   {
     label: 'General',
     shortcuts: [
-      { keys: ['Ctrl', 'Z'], desc: 'Undo', planned: true },
-      { keys: ['Ctrl', 'Shift', 'Z'], desc: 'Redo', planned: true },
+      { keys: ['Ctrl', 'Z'], desc: 'Undo' },
+      { keys: ['Ctrl', 'Shift', 'Z'], desc: 'Redo' },
       { keys: ['?'], desc: 'Toggle this shortcuts panel' },
     ],
   },

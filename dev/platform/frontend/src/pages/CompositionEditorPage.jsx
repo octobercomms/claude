@@ -12,6 +12,8 @@ import BrollPanel from '../components/video/BrollPanel';
 import ShortcutReference, { ShortcutButton } from '../components/video/ShortcutReference';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useCompositionHistory } from '../hooks/useCompositionHistory';
+import ExportModal from '../components/video/ExportModal';
 
 const SIZE_PRESETS = [
   { w: 1080, h: 1920, label: '9:16' },
@@ -31,7 +33,11 @@ function initComp() {
 
 export default function CompositionEditorPage({ clientId }) {
   const toast = useToast();
-  const [composition, setComposition] = useState(initComp);
+  const {
+    state: composition, setState: setComposition,
+    undo, redo, canUndo, canRedo, resetHistory,
+    startBatch, commitBatch, discardBatch,
+  } = useCompositionHistory(initComp());
   const [sourceUrls, setSourceUrls] = useState({});
   const [sourceNames, setSourceNames] = useState({});
   const [sourceAssets, setSourceAssets] = useState({});
@@ -50,6 +56,7 @@ export default function CompositionEditorPage({ clientId }) {
   const [loading, setLoading] = useState(true);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
   const audioFileRef = useRef(null);
@@ -109,7 +116,7 @@ export default function CompositionEditorPage({ clientId }) {
     const data = row.data && typeof row.data === 'object' && row.data.version
       ? row.data : initComp();
     setCompId(row.id);
-    setComposition(data);
+    resetHistory(data);
     setSourceAssets(row.source_assets || {});
     setTranscripts(row.transcripts || {});
     setPlayhead(0);
@@ -547,6 +554,34 @@ export default function CompositionEditorPage({ clientId }) {
     function onKey(e) {
       const tag = (e.target?.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      if (e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        compositorRef.current?.step?.(-1);
+        return;
+      }
+      if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        compositorRef.current?.pause?.();
+        return;
+      }
+      if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        compositorRef.current?.play?.();
+        return;
+      }
+
       if (e.key === '?') {
         e.preventDefault();
         setShortcutsOpen(prev => !prev);
@@ -554,7 +589,7 @@ export default function CompositionEditorPage({ clientId }) {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [undo, redo]);
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -616,6 +651,9 @@ export default function CompositionEditorPage({ clientId }) {
               selectedId={selectedId}
               selectedTrackId={selectedTrackId}
               onSelect={handleSelect}
+              onDragStart={startBatch}
+              onDragEnd={commitBatch}
+              onDragCancel={discardBatch}
             />
           </div>
         </div>
@@ -625,7 +663,21 @@ export default function CompositionEditorPage({ clientId }) {
             <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
               <h3 className="title">Editor</h3>
               <div className="row center" style={{ gap: 'var(--s1)' }}>
+                <button type="button" className="btn-chip" title="Undo (Ctrl+Z)"
+                  disabled={!canUndo} onClick={undo}
+                  style={{ fontSize: 'var(--fs-caption)', width: 26, height: 26, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  &#x21a9;
+                </button>
+                <button type="button" className="btn-chip" title="Redo (Ctrl+Shift+Z)"
+                  disabled={!canRedo} onClick={redo}
+                  style={{ fontSize: 'var(--fs-caption)', width: 26, height: 26, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  &#x21aa;
+                </button>
                 <ShortcutButton onClick={() => setShortcutsOpen(v => !v)} />
+                <button type="button" className="btn btn-secondary btn-sm"
+                  onClick={() => setExportOpen(true)} disabled={!compId || total <= 0}>
+                  Export
+                </button>
                 <button type="button" className="btn btn-secondary btn-sm"
                   onClick={() => doSave(compId)} disabled={saveStatus === 'saving'}>
                   {saveStatus === 'saving' ? 'Saving...' : 'Save now'}
@@ -888,6 +940,10 @@ export default function CompositionEditorPage({ clientId }) {
         </div>
       </div>
 
+      {exportOpen && (
+        <ExportModal compId={compId} composition={composition}
+          onClose={() => setExportOpen(false)} />
+      )}
       <ShortcutReference visible={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
