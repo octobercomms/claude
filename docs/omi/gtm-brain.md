@@ -87,7 +87,7 @@ same pillar gatherers the briefing uses. Cross metrics (revenue/orders) go
 through `dataCollector`. Routes: `POST /outcomes/read` (manual trigger),
 `GET /clients/:clientId/outcomes`. 31 tests for the extractor function.
 
-**Phase 3 — the track record, per action type.** ✅ Done (PR TBD).
+**Phase 3 — the track record, per action type.** ✅ Done (PR #1947).
 `strategist/trackRecord.js`: classifies each completed item's outcome as
 improved, flat or declined using the metric's direction (higher-is-better or
 lower-is-better, from the enum). Groups by metric_ref or by pillar, cross-

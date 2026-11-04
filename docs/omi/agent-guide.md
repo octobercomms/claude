@@ -2124,7 +2124,7 @@ Three phases:
    - Phase 0 (baselines): ✅ Done (PR #1944).
    - Phase 1 (outcome columns + metric enum): ✅ Done (PR #1946).
    - Phase 2 (read the numbers back): ✅ Done (PR #1947).
-   - Phase 3 (track record per action type): ✅ Done (PR TBD).
+   - Phase 3 (track record per action type): ✅ Done (PR #1947).
    - Phase 4 (graduated autonomy): next.
 
    Ruled out, having been offered: pricing actions by expected return before
