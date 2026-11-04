@@ -410,6 +410,108 @@ describe('design source in composition', async () => {
   });
 });
 
+// ── Audio sources ──────────────────────────────────────────────────
+
+describe('audio sources', async () => {
+  const C = await import('../../shared/composition.mjs');
+
+  it('adds an audio source and places it on an audio track', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'audio', asset: 'music.mp3', duration: 30,
+    });
+    comp = c1;
+    const { comp: c2, id: t1 } = C.addTrack(comp, 'audio');
+    comp = c2;
+    const { comp: c3, id: itemId } = C.addItem(comp, t1, {
+      at: 0, len: 10, source: s1, in: 5, gain: 0.5,
+    });
+    comp = c3;
+    const errors = C.validate(comp);
+    assert.deepStrictEqual(errors, []);
+    const track = comp.tracks.find(t => t.id === t1);
+    const item = track.items.find(i => i.id === itemId);
+    assert.strictEqual(item.gain, 0.5);
+    assert.strictEqual(item.in, 5);
+  });
+
+  it('audio source survives JSON round-trip', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1 } = C.addSource(comp, {
+      kind: 'audio', asset: 'music.mp3', duration: 30,
+      url: '/api/brand/file/1/music.mp3',
+    });
+    comp = c1;
+    const json = JSON.stringify(comp);
+    const loaded = JSON.parse(json);
+    const src = Object.values(loaded.sources)[0];
+    assert.strictEqual(src.kind, 'audio');
+    assert.strictEqual(src.asset, 'music.mp3');
+    assert.strictEqual(src.duration, 30);
+  });
+
+  it('rejects audio source on a video track', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'audio', asset: 'music.mp3', duration: 30,
+    });
+    comp = c1;
+    const { comp: c2, id: t1 } = C.addTrack(comp, 'video');
+    comp = c2;
+    comp = {
+      ...comp,
+      tracks: comp.tracks.map(t =>
+        t.id === t1
+          ? { ...t, items: [{ id: 'test', at: 0, len: 5, source: s1 }] }
+          : t
+      ),
+    };
+    const errors = C.validate(comp);
+    assert.ok(errors.some(e => e.includes('audio source on a video track')));
+  });
+
+  it('validates duckUnder on audio track', () => {
+    let comp = C.emptyComposition();
+    const { comp: c1, id: s1 } = C.addSource(comp, {
+      kind: 'audio', asset: 'music.mp3', duration: 30,
+    });
+    comp = c1;
+    const { comp: c2, id: vt } = C.addTrack(comp, 'video');
+    comp = c2;
+    const { comp: c3, id: at } = C.addTrack(comp, 'audio');
+    comp = c3;
+    comp.tracks[comp.tracks.length - 1].duckUnder = vt;
+    const { comp: c4 } = C.addItem(comp, at, { at: 0, len: 10, source: s1 });
+    comp = c4;
+    assert.deepStrictEqual(C.validate(comp), []);
+  });
+
+  it('render graph produces sidechaincompress with duckUnder', () => {
+    const { renderGraph } = require('../../shared/compositionRender.mjs');
+    let comp = C.emptyComposition();
+    const { comp: c1, id: clipSrc } = C.addSource(comp, {
+      kind: 'clip', asset: 'a.mp4', duration: 10, width: 1920, height: 1080, fps: 30,
+    });
+    comp = c1;
+    const { comp: c2, id: musicSrc } = C.addSource(comp, {
+      kind: 'audio', asset: 'music.mp3', duration: 30,
+    });
+    comp = c2;
+    const { comp: c3, id: vt } = C.addTrack(comp, 'video');
+    comp = c3;
+    let r = C.addItem(comp, vt, { at: 0, len: 10, source: clipSrc });
+    comp = r.comp;
+    const { comp: c4, id: at } = C.addTrack(comp, 'audio');
+    comp = c4;
+    comp.tracks[comp.tracks.length - 1].duckUnder = vt;
+    r = C.addItem(comp, at, { at: 0, len: 10, source: musicSrc, gain: 0.5 });
+    comp = r.comp;
+    const result = renderGraph(comp);
+    assert.ok(result.graph.includes('sidechaincompress='));
+    assert.ok(result.graph.includes('asplit=2'));
+  });
+});
+
 // ── parseFraction (fps parsing from ffprobe) ────────────────────────
 
 describe('parseFraction', () => {
