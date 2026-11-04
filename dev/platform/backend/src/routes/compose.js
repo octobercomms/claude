@@ -11,7 +11,9 @@ const assets = require('../services/assets');
 const { FFMPEG, FFPROBE } = require('../services/ffmpegBin');
 const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('../services/costLog');
+const { whisperWords } = require('../services/whisper');
 
+const { pathToFileURL } = require('url');
 const multer = require('multer');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
@@ -258,27 +260,6 @@ function extractAudio(inPath) {
   });
 }
 
-async function whisperWords(audioPath, apiKey) {
-  const buf = fs.readFileSync(audioPath);
-  const form = new FormData();
-  form.append('file', new Blob([buf]), 'audio.mp3');
-  form.append('model', process.env.WHISPER_MODEL || 'whisper-1');
-  form.append('response_format', 'verbose_json');
-  form.append('timestamp_granularities[]', 'word');
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Whisper ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const body = await res.json();
-  const words = Array.isArray(body.words) ? body.words : [];
-  if (!words.length) throw new Error('Whisper returned no word timings.');
-  return words
-    .map(w => ({ word: String(w.word ?? '').trim(), start: Number(w.start), end: Number(w.end) }))
-    .filter(w => w.word && Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start);
-}
-
 function assetFilePath(asset) {
   if (!asset?.url) return null;
   const m = asset.url.match(/^\/api\/brand\/file\/(\d+)\/(.+)$/);
@@ -327,6 +308,60 @@ router.post('/compositions/:id/transcribe', loadComposition, async (req, res) =>
     res.status(500).json({ error: err.message });
   } finally {
     if (audioPath) fs.promises.unlink(audioPath).catch(() => {});
+  }
+});
+
+// ── Tighten: propose silence/filler cuts ───────────────────────────
+
+const SILENCE_CUT_PATH = path.join(__dirname, '..', '..', '..', 'shared', 'silenceCut.mjs');
+let _silenceMod = null;
+async function silenceMod() {
+  if (!_silenceMod) _silenceMod = await import(pathToFileURL(SILENCE_CUT_PATH).href);
+  return _silenceMod;
+}
+
+router.post('/compositions/:id/tighten', loadComposition, async (req, res) => {
+  try {
+    const { sourceId, options } = req.body || {};
+    if (!sourceId) return res.status(400).json({ error: 'sourceId is required' });
+
+    const comp = req.composition;
+    const words = (comp.transcripts || {})[sourceId];
+    if (!words?.length) return res.status(400).json({ error: 'No transcript for that source. Transcribe first.' });
+
+    const sc = await silenceMod();
+    const plan = sc.planCuts(words, options || {});
+    res.json(plan);
+  } catch (err) {
+    console.error('[compose] tighten failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── B-roll: propose cutaway moments ──────────────────────────────
+
+const BROLL_PLAN_PATH = path.join(__dirname, '..', '..', '..', 'shared', 'brollPlan.mjs');
+let _brollMod = null;
+async function brollMod() {
+  if (!_brollMod) _brollMod = await import(pathToFileURL(BROLL_PLAN_PATH).href);
+  return _brollMod;
+}
+
+router.post('/compositions/:id/broll-plan', loadComposition, async (req, res) => {
+  try {
+    const { sourceId, options } = req.body || {};
+    if (!sourceId) return res.status(400).json({ error: 'sourceId is required' });
+
+    const comp = req.composition;
+    const words = (comp.transcripts || {})[sourceId];
+    if (!words?.length) return res.status(400).json({ error: 'No transcript for that source. Transcribe first.' });
+
+    const bp = await brollMod();
+    const plan = bp.planBroll(words, options || {});
+    res.json(plan);
+  } catch (err) {
+    console.error('[compose] broll-plan failed:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

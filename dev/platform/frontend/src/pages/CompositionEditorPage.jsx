@@ -7,6 +7,8 @@ import {
 } from '@shared/composition.mjs';
 import * as PB from '@shared/compositionPlayback.mjs';
 import ReelChecks from '../components/ReelChecks';
+import TightenPanel from '../components/video/TightenPanel';
+import BrollPanel from '../components/video/BrollPanel';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -789,6 +791,26 @@ export default function CompositionEditorPage({ clientId }) {
                   }}>
                     {transcripts[selectedSourceId].map(w => w.word).join(' ')}
                   </div>
+                )}
+
+                {hasTranscript && selectedSource?.kind === 'clip' && (
+                  <TightenPanel
+                    compId={compId}
+                    sourceId={selectedSourceId}
+                    composition={composition}
+                    onCompositionChange={setComposition}
+                    trackId={selectedItem.track.id}
+                  />
+                )}
+
+                {hasTranscript && selectedSource?.kind === 'clip' && (
+                  <BrollPanel
+                    compId={compId}
+                    sourceId={selectedSourceId}
+                    clientId={clientId}
+                    composition={composition}
+                    onCompositionChange={setComposition}
+                  />
                 )}
               </div>
             )}

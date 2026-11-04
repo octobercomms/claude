@@ -103,7 +103,7 @@ async function captionForPost({ post, source, templateId, formatId = 'vertical',
     try {
       await run(FFMPEG, ['-y', '-loglevel', 'error', '-i', input,
         '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio]);
-      const { whisperWords } = require('./editProcessor');
+      const { whisperWords } = require('./whisper');
       timed = await whisperWords(audio, key);
     } finally { fs.existsSync(audio) && fs.unlinkSync(audio); }
   }
