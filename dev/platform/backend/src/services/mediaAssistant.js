@@ -180,7 +180,7 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
     messages.push({ role: 'user', content: 'Now call propose_actions with the concrete changes based on what you found. Do not reply with prose — the proposal only happens by calling the tool. Propose at most 40 items; if there are more, say so in the reply.' });
     let resp;
     try {
-      resp = await client.messages.create({ model, max_tokens: 8000, system: SYSTEM, tools: [proposeTool], tool_choice: { type: 'tool', name: 'propose_actions' }, messages });
+      resp = await client.messages.create({ model, max_tokens: 8000, system: require('./claude').cacheableSystem(SYSTEM), tools: [proposeTool], tool_choice: { type: 'tool', name: 'propose_actions' }, messages });
     } catch (e) { return { reply: `I found the details but couldn’t assemble the proposal: ${e.message}`, actions: [] }; }
     recordCost(resp);
     const propose = (resp.content || []).find((b) => b.type === 'tool_use' && b.name === 'propose_actions');
@@ -190,7 +190,7 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
   for (let step = 0; step < maxSteps; step++) {
     let resp;
     try {
-      resp = await client.messages.create({ model, max_tokens: 8000, system: SYSTEM, tools, messages });
+      resp = await client.messages.create({ model, max_tokens: 8000, system: require('./claude').cacheableSystem(SYSTEM), tools, messages });
     } catch (e) { return { reply: `Research failed: ${e.message}`, actions: [] }; }
     recordCost(resp);
 

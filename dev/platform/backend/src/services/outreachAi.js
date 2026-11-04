@@ -30,7 +30,7 @@ async function writeSequence(campaign, instructions = '') {
   const resp = await client.messages.create({
     model: MODEL,
     max_tokens: 2048,
-    system,
+    system: require('./claude').cacheableSystem(system),
     messages: [{ role: 'user', content: prompt }],
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'outreach_write_sequence', clientId: campaign?.client_id || null });
@@ -81,7 +81,7 @@ async function refineAudience({ campaign, audienceDescription, extraInstructions
   const resp = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system,
+    system: require('./claude').cacheableSystem(system),
     messages: [{ role: 'user', content: prompt }],
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'outreach_refine_audience', clientId: campaign?.client_id || null });
@@ -128,7 +128,7 @@ Respond as valid JSON only:
   const resp = await client.messages.create({
     model: MODEL,
     max_tokens: 256,
-    system,
+    system: require('./claude').cacheableSystem(system),
     messages: [{ role: 'user', content: prompt }],
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'outreach_classify_reply' });

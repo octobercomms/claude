@@ -216,7 +216,7 @@ async function callClaude({ system, user, max_tokens = 8000 }) {
   const message = await client.messages.create({
     model: MODEL,
     max_tokens,
-    system,
+    system: require('./claude').cacheableSystem(system),
     messages: [{ role: 'user', content: user }],
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response: message, feature: 'strategist_report' });
