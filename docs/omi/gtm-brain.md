@@ -98,15 +98,20 @@ detail). 27 tests for classification, percentage change, and row enrichment.
 Metric direction added to the enum: `directionFor()` returns 'up', 'down' or
 'neutral' per ref.
 
-**Phase 4 — graduated autonomy.** `prThanks.js` is the pattern and it is worth
-copying exactly, including its restraint: three stages (assisted, supervised,
-auto), a confidence threshold per stage, and **the human moves the stage**.
-`trackRecord` there only counts approved, edited, rejected and auto-sent, and
-the UI shows that count beside the picker with a line saying to switch
-supervised on once approvals build up. Nothing auto-graduates. Keep it that
-way here. Auto-graduation on a metric the system computes about its own
-performance is the one design in this document that could quietly go wrong at
-scale, and nobody has asked for it.
+**Phase 4 — graduated autonomy.** ✅ Done (PR #1948).
+`strategist/autonomy.js` follows the `prThanks.js` pattern exactly: three
+stages (assist, supervised, auto), a win-rate threshold per stage (75%
+supervised, 60% auto; assist never auto-acts), and the human moves the stage.
+Migration 234 adds `strategist_action_stage` to `clients` and
+`review_decision`/`review_decision_at`/`review_decision_by` to
+`strategist_briefing_recommendations`. `decisionRecord(clientId)` counts
+accepted/edited/dismissed/auto_completed decisions. `runAuto()` runs daily at
+04:00 (after the outcome reader at 03:30): for supervised/auto clients, it
+auto-completes done items whose outcome confirms improvement and whose
+metric_ref's cross-client win rate exceeds the stage threshold. The
+StrategistBriefingPanel drawer shows the stage picker and the decision track
+record beside it with a line nudging toward supervised once approvals build up.
+14 autonomy tests. Nothing auto-graduates.
 
 ## What this does not do
 

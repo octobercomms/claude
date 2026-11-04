@@ -997,6 +997,18 @@ cron.schedule('30 3 * * *', async () => {
   } catch (e) { console.error('[Scheduler] GTM outcome reader failed:', e.message); }
 });
 
+// GTM Brain Phase 4 — autonomy tick. Runs after the outcome reader so any
+// newly written outcomes are available for auto-completion. No LLM; reads
+// the track record and auto-completes items that improved for opted-in clients.
+cron.schedule('0 4 * * *', async () => {
+  try {
+    const r = await require('./strategist/autonomy').runAuto({ log: (m) => console.log(m) });
+    if (r.auto_completed) {
+      console.log(`[Scheduler] GTM autonomy: ${r.auto_completed} auto-completed across ${r.clients} client(s)`);
+    }
+  } catch (e) { console.error('[Scheduler] GTM autonomy tick failed:', e.message); }
+});
+
 // Cross-PESO Strategist briefing — the whole-account briefing (Paid/Earned/
 // Shared/Owned + synthesis) is generated ON DEMAND from Data → Strategist, not
 // on a schedule. The weekly Monday cron was disabled to cut cost (each briefing

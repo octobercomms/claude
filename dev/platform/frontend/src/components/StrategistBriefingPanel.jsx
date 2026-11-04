@@ -52,6 +52,7 @@ export default function StrategistBriefingPanel({ clientId }) {
   const [downloading, setDownloading] = useState(null);
   const [steer, setSteer] = useState([]);
   const [steerText, setSteerText] = useState('');
+  const [autonomy, setAutonomy] = useState(null);
 
   // `pick` forces the newest briefing to be selected, which a client change
   // must do. Without it the guard below keeps whatever was already selected.
@@ -102,6 +103,7 @@ export default function StrategistBriefingPanel({ clientId }) {
       setActive(c.strategist_active !== false);
       setRecipientsDirty(false);
     }).catch(() => {});
+    api.get(`/strategist/clients/${clientId}/autonomy`).then(setAutonomy).catch(() => {});
   }, [clientId]);
 
   const loadSteer = () => api.get(`/strategist/clients/${clientId}/steer`).then(setSteer).catch(() => {});
@@ -156,7 +158,12 @@ export default function StrategistBriefingPanel({ clientId }) {
   async function toggleAction(a) {
     const next = !a.done;
     setSelected(s => ({ ...s, recommendations: s.recommendations.map(r => r.id === a.id ? { ...r, done: next } : r) }));
-    try { await api.patch(`/strategist/briefing-actions/${a.id}`, { done: next }); }
+    try {
+      await api.patch(`/strategist/briefing-actions/${a.id}`, { done: next });
+      if (next && !a.review_decision) {
+        api.patch(`/strategist/recommendations/${a.id}/decision`, { decision: 'accepted' }).catch(() => {});
+      }
+    }
     catch (e) { toast(e.message, 'error'); setSelected(s => ({ ...s, recommendations: s.recommendations.map(r => r.id === a.id ? { ...r, done: a.done } : r) })); }
   }
 
@@ -170,6 +177,14 @@ export default function StrategistBriefingPanel({ clientId }) {
   async function saveRecipients() {
     try { await api.put(`/clients/${clientId}`, { strategist_recipients: recipients }); setRecipientsDirty(false); toast('Recipients saved'); }
     catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function setActionStage(stage) {
+    try {
+      await api.patch(`/strategist/clients/${clientId}/autonomy`, { stage });
+      setAutonomy(a => ({ ...(a || {}), stage }));
+      toast(stage === 'assist' ? 'Manual review on' : `Switched to ${stage}`);
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   // Delete a briefing from the archive.
@@ -407,6 +422,24 @@ export default function StrategistBriefingPanel({ clientId }) {
               </label>
               {recipientsDirty && <button onClick={saveRecipients} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>Save recipients</button>}
             </div>
+
+            {autonomy && (
+              <div className="drawer-group">
+                <div className="caption drawer-group-head">Autonomy</div>
+                <p className="body-xs text-subtle" style={{ marginBottom: 'var(--s2)' }}>
+                  How far the strategist acts on its own recommendations.
+                </p>
+                <select className="input" value={autonomy.stage || 'assist'} onChange={e => setActionStage(e.target.value)} style={{ width: '100%' }}>
+                  {Object.entries(autonomy.stages || { assist: 'Assisted' }).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                {autonomy.record && (autonomy.record.accepted + autonomy.record.edited + autonomy.record.dismissed + autonomy.record.auto_completed > 0) && (
+                  <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                    Track record: {autonomy.record.accepted} accepted · {autonomy.record.edited} edited · {autonomy.record.auto_completed} auto-completed · {autonomy.record.dismissed} dismissed.
+                    {autonomy.stage === 'assist' ? ' Once the approvals build up, consider switching to supervised.' : ''}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="drawer-group">
               <div className="caption drawer-group-head">How far back to look</div>

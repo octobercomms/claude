@@ -2125,7 +2125,7 @@ Three phases:
    - Phase 1 (outcome columns + metric enum): ✅ Done (PR #1946).
    - Phase 2 (read the numbers back): ✅ Done (PR #1947).
    - Phase 3 (track record per action type): ✅ Done (PR #1947).
-   - Phase 4 (graduated autonomy): next.
+   - Phase 4 (graduated autonomy): ✅ Done (PR #1948).
 
    Ruled out, having been offered: pricing actions by expected return before
    doing them, and a cross-client brain that learns across the book. Neither
