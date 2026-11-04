@@ -55,6 +55,9 @@ export default defineConfig({
   esbuild: {
     keepNames: true,
   },
+  worker: {
+    format: 'es',
+  },
   build: {
     outDir: 'dist',
   },
