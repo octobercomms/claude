@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.36
+Stable tag: 0.7.37
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,17 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.37 =
+* A/B test: "email first" vs the current browse-freely flow. Visitors are split
+  50/50 (sticky). Variant A is a hard gate — Archie asks for the email up front and
+  no quote is built or shown until it's given; Variant B is unchanged. A new
+  "A/B Test" admin page shows the funnel per variant — started, reached a quote
+  (the primary metric), recovered, submitted, converted — and calls significance on
+  the reached-a-quote rate with a two-proportion z-test, with an explicit "still
+  collecting / enough data" state so an early dip can't be mistaken for a result.
+* Manual "Converted" button per lead on that page, so projects the studio closes
+  offline (by direct email or phone) still count against the right variant.
 
 = 0.7.36 =
 * Tracking now comes from the sending relay, not from us. When the SMTP relay

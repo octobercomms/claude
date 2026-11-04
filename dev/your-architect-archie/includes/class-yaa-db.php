@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class YAA_DB {
 
 	const SCHEMA_OPTION = 'yaa_db_version';
-	const SCHEMA        = '7';
+	const SCHEMA        = '8';
 
 	public static function projects_table() {
 		global $wpdb;
@@ -69,6 +69,11 @@ class YAA_DB {
 			project_type VARCHAR(40) NULL,
 			package VARCHAR(20) NULL,
 			total INT NOT NULL DEFAULT 0,
+			variant CHAR(1) NULL,
+			quoted_at DATETIME NULL,
+			converted TINYINT(1) NOT NULL DEFAULT 0,
+			converted_at DATETIME NULL,
+			converted_note VARCHAR(255) NULL,
 			paid TINYINT(1) NOT NULL DEFAULT 0,
 			amount_paid INT NOT NULL DEFAULT 0,
 			stripe_intent VARCHAR(190) NULL,

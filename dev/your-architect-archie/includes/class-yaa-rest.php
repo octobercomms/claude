@@ -145,6 +145,15 @@ class YAA_Rest {
 			$state = YAA_Project::state( $id );
 			$pkg   = YAA_Project::package( $id );
 			$row   = YAA_Project::get( $id );
+			// A/B "recovered": left and came back after a gap (>30 min), not yet
+			// submitted — log once so the funnel can count genuine returns.
+			if ( empty( $state['resumed'] ) && $row && ! empty( $row->updated )
+				&& ( current_time( 'timestamp' ) - strtotime( (string) $row->updated ) ) > 1800
+				&& ! in_array( (string) $row->status, array( 'submitted', 'redirected', 'abandoned' ), true ) ) {
+				$state['resumed'] = 1;
+				YAA_Project::set_state( $id, $state );
+				YAA_Project::log_event( $id, 'resumed' );
+			}
 			// Already have everything and not yet submitted (e.g. arriving from the
 			// emailed-quote "Finish & submit" link) → show the submit-ready state.
 			$ready = ! empty( $state['email'] ) && ! empty( $pkg['total'] ) && empty( $pkg['redirect'] )
@@ -166,10 +175,13 @@ class YAA_Rest {
 			);
 		}
 
-		// Nothing started yet — greet without persisting anything.
+		// Nothing started yet — greet without persisting anything. The A/B variant is
+		// assigned here (sticky cookie) so the opener itself can differ (Variant A asks
+		// for the email first); the project carries the variant once it's created.
+		$variant = class_exists( 'YAA_Experiment' ) ? YAA_Experiment::variant_cookie() : 'B';
 		return new WP_REST_Response(
 			array(
-				'messages'    => array( array( 'role' => 'assistant', 'text' => YAA_Archie::opener_text() ) ),
+				'messages'    => array( array( 'role' => 'assistant', 'text' => YAA_Archie::opener_text( $variant ) ) ),
 				'package'     => array( 'nodes' => array(), 'total' => 0 ),
 				'options'     => array(),
 				'placeholder' => YAA_Archie::input_hint( array(), false ),
@@ -211,6 +223,18 @@ class YAA_Rest {
 		$result = YAA_Archie::turn( $id, $text, $session );
 		if ( is_wp_error( $result ) ) {
 			return new WP_REST_Response( array( 'error' => $result->get_error_code(), 'message' => $result->get_error_message() ), 502 );
+		}
+		// A/B — Variant A withholds the quote until there's an email on file (hard gate,
+		// enforced here so every path in turn() is covered). Otherwise mark "reached a
+		// quote" the first time a priced quote is actually shown.
+		if ( class_exists( 'YAA_Experiment' ) && is_array( $result ) ) {
+			$st = YAA_Project::state( $id );
+			if ( YAA_Experiment::gated( $id, $st ) ) {
+				$result['package']  = array( 'nodes' => array(), 'total' => 0 );
+				$result['redirect'] = false;
+			} elseif ( ! empty( $result['package']['nodes'] ) && (int) ( $result['package']['total'] ?? 0 ) > 0 ) {
+				YAA_Experiment::mark_quoted( $id );
+			}
 		}
 		return new WP_REST_Response( $result );
 	}
