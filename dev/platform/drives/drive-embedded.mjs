@@ -61,8 +61,8 @@ await screen({ path: '/biz-dev/leads', name: 'Biz dev Leads',
 // --- Client Produce tabs.
 await screen({ path: '/clients/c1/produce/record', name: 'Produce Record',
   shows: /Start recording/i });
-await screen({ path: '/clients/c1/produce/edit', name: 'Produce Edit',
-  shows: /Cut a video yourself on a timeline|Turn a set of still images/i });
+await screen({ path: '/clients/c1/produce/compose', name: 'Produce Compose',
+  shows: /Editor|Frame size|Loading editor/i });
 await screen({ path: '/clients/c1/produce/design', name: 'Produce Design',
   shows: /Layered posts for this client/i });
 await screen({ path: '/clients/c1/produce/transcribe', name: 'Produce Transcribe',
