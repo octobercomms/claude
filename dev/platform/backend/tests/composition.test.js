@@ -180,6 +180,40 @@ describe('validate', () => {
     comp = i.comp;
     assert.ok(validate(comp).some(e => /video\/design source on an audio track/.test(e)));
   });
+
+  it('validates duckUnder referencing a real track', () => {
+    let comp = emptyComposition();
+    const s = addSource(comp, { kind: 'audio', asset: 'music.mp3', duration: 10 });
+    comp = s.comp;
+    const vt = addTrack(comp, 'video');
+    comp = vt.comp;
+    const at = addTrack(comp, 'audio');
+    comp = at.comp;
+    comp.tracks[comp.tracks.length - 1].duckUnder = vt.id;
+    const r = addItem(comp, at.id, { at: 0, len: 5, source: s.id });
+    comp = r.comp;
+    assert.deepEqual(validate(comp), []);
+  });
+
+  it('rejects duckUnder referencing unknown track', () => {
+    let comp = emptyComposition();
+    const s = addSource(comp, { kind: 'audio', asset: 'music.mp3', duration: 10 });
+    comp = s.comp;
+    const at = addTrack(comp, 'audio');
+    comp = at.comp;
+    comp.tracks[comp.tracks.length - 1].duckUnder = 'nonexistent';
+    const r = addItem(comp, at.id, { at: 0, len: 5, source: s.id });
+    comp = r.comp;
+    assert.ok(validate(comp).some(e => /duckUnder references unknown track/.test(e)));
+  });
+
+  it('rejects non-string duckUnder', () => {
+    let comp = emptyComposition();
+    const at = addTrack(comp, 'audio');
+    comp = at.comp;
+    comp.tracks[comp.tracks.length - 1].duckUnder = 42;
+    assert.ok(validate(comp).some(e => /duckUnder must be a track id string/.test(e)));
+  });
 });
 
 // ── addSource / addTrack / addItem ────────────────────────────────────

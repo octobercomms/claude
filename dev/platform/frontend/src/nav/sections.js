@@ -386,6 +386,7 @@ export const SECTIONS = {
         { tab: 'visualise',  label: 'Visualise',   when: (ctx) => !!ctx.canVisualise },
         { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly },
         { tab: 'audio',      label: 'Audio',       when: agencyOnly },
+        { tab: 'compose',    label: 'Editor',      when: (ctx) => !!ctx.canCompose, phone: false },
       ] },
       { heading: null, rows: [{ tab: 'library', label: 'Library' }] },
     ],

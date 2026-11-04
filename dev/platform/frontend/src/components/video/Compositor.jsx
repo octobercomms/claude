@@ -60,7 +60,7 @@ const Compositor = React.forwardRef(function Compositor({
   const H = comp?.size?.height || 1920;
   const fps = comp?.fps || 30;
 
-  // ── Video element pool ──────────────────────────────────────────────
+  // ── Media element pool (video + image) ──────────────────────────────
 
   const getElement = useCallback((sourceId) => {
     const st = m.current;
@@ -68,6 +68,43 @@ const Compositor = React.forwardRef(function Compositor({
 
     const url = st.sourceUrls[sourceId];
     if (!url) return null;
+
+    const src = st.composition?.sources?.[sourceId];
+    const isImage = src?.kind === 'design';
+    const isAudio = src?.kind === 'audio';
+
+    if (isAudio) {
+      const aud = new Audio();
+      aud.preload = 'auto';
+      aud.crossOrigin = 'anonymous';
+      aud.src = url;
+      aud._isAudio = true;
+      st.elements.set(sourceId, aud);
+      if (onMeta) {
+        aud.addEventListener('loadedmetadata', () => {
+          onMeta({ sourceId, duration: Number.isFinite(aud.duration) ? aud.duration : null, width: 0, height: 0 });
+        });
+      }
+      return aud;
+    }
+
+    if (isImage) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      img._isImage = true;
+      st.elements.set(sourceId, img);
+
+      img.addEventListener('load', () => {
+        if (img.naturalWidth && img.naturalHeight && !natAR) {
+          setNatAR(img.naturalWidth / img.naturalHeight);
+        }
+        if (onMeta) {
+          onMeta({ sourceId, duration: null, width: img.naturalWidth, height: img.naturalHeight });
+        }
+      });
+      return img;
+    }
 
     const vid = document.createElement('video');
     vid.muted = true;
@@ -124,34 +161,36 @@ const Compositor = React.forwardRef(function Compositor({
 
     // Draw each layer bottom to top
     for (const layer of scene.layers) {
-      const vid = getElement(layer.sourceId);
-      if (!vid || vid.readyState < 2) continue;
+      const el = getElement(layer.sourceId);
+      if (!el || el._isAudio) continue;
+
+      const isImg = !!el._isImage;
+      if (isImg) { if (!el.complete || !el.naturalWidth) continue; }
+      else { if (el.readyState < 2) continue; }
 
       ctx.save();
       if (layer.opacity < 1) {
         ctx.globalAlpha = layer.opacity;
       }
 
-      // Cover fit: scale up to fill, then crop to canvas
-      const vw = vid.videoWidth || W;
-      const vh = vid.videoHeight || H;
+      const ew = isImg ? (el.naturalWidth || W) : (el.videoWidth || W);
+      const eh = isImg ? (el.naturalHeight || H) : (el.videoHeight || H);
       const fit = layer.item.fit || 'cover';
 
       if (fit === 'cover') {
-        const scale = Math.max(W / vw, H / vh);
-        const dw = vw * scale;
-        const dh = vh * scale;
+        const scale = Math.max(W / ew, H / eh);
+        const dw = ew * scale;
+        const dh = eh * scale;
         const dx = (W - dw) / 2;
         const dy = (H - dh) / 2;
-        ctx.drawImage(vid, dx, dy, dw, dh);
+        ctx.drawImage(el, dx, dy, dw, dh);
       } else {
-        // Contain: scale down to fit, letterbox
-        const scale = Math.min(W / vw, H / vh);
-        const dw = vw * scale;
-        const dh = vh * scale;
+        const scale = Math.min(W / ew, H / eh);
+        const dw = ew * scale;
+        const dh = eh * scale;
         const dx = (W - dw) / 2;
         const dy = (H - dh) / 2;
-        ctx.drawImage(vid, dx, dy, dw, dh);
+        ctx.drawImage(el, dx, dy, dw, dh);
       }
 
       ctx.restore();
@@ -192,36 +231,52 @@ const Compositor = React.forwardRef(function Compositor({
 
     for (const layer of scene.layers) {
       activeSourceIds.add(layer.sourceId);
-      const vid = getElement(layer.sourceId);
-      if (!vid) continue;
+      const el = getElement(layer.sourceId);
+      if (!el || el._isImage || el._isAudio) continue;
 
       if (st.playing) {
-        seekTo(vid, layer.sourceTime);
-        if (vid.paused) vid.play().catch(() => {});
-        vid.muted = false;
+        seekTo(el, layer.sourceTime);
+        if (el.paused) el.play().catch(() => {});
+        el.muted = false;
       } else {
-        seekTo(vid, layer.sourceTime);
-        if (!vid.paused) vid.pause();
+        seekTo(el, layer.sourceTime);
+        if (!el.paused) el.pause();
       }
     }
 
-    // Handle audio-only items
+    // Handle audio items: play/pause/seek + apply per-item gain
     const audio = PB.audioAt(st.composition, st.playhead);
     for (const a of audio) {
       if (activeSourceIds.has(a.sourceId)) continue;
       activeSourceIds.add(a.sourceId);
-      const vid = getElement(a.sourceId);
-      if (!vid) continue;
+      const el = getElement(a.sourceId);
+      if (!el || el._isImage) continue;
       if (st.playing) {
-        seekTo(vid, a.sourceTime);
-        if (vid.paused) vid.play().catch(() => {});
+        seekTo(el, a.sourceTime);
+        if (el.paused) el.play().catch(() => {});
+        GAIN.gainNodeFor(el);
+        GAIN.setGain(el, a.gain ?? 1);
+      } else {
+        seekTo(el, a.sourceTime);
+        if (!el.paused) el.pause();
+      }
+    }
+
+    // Also apply gain to video elements that have audio (from scene layers)
+    for (const layer of scene.layers) {
+      const el = st.elements.get(layer.sourceId);
+      if (!el || el._isImage || el._isAudio) continue;
+      if (st.playing) {
+        GAIN.gainNodeFor(el);
+        GAIN.setGain(el, layer.item.gain ?? 1);
       }
     }
 
     // Pause elements that are no longer active
-    for (const [sourceId, vid] of st.elements) {
-      if (!activeSourceIds.has(sourceId) && !vid.paused) {
-        vid.pause();
+    for (const [sourceId, el] of st.elements) {
+      if (el._isImage) continue;
+      if (!activeSourceIds.has(sourceId) && !el.paused) {
+        el.pause();
       }
     }
 
@@ -245,7 +300,10 @@ const Compositor = React.forwardRef(function Compositor({
     st.playing = false;
     if (st.raf) { cancelAnimationFrame(st.raf); st.raf = null; }
     setPlaying(false);
-    for (const [, vid] of st.elements) vid.pause();
+    for (const [, el] of st.elements) {
+      if (el._isImage) continue;
+      el.pause();
+    }
   }, []);
 
   const startPlayback = useCallback(() => {
@@ -257,18 +315,30 @@ const Compositor = React.forwardRef(function Compositor({
       if (onSeek) onSeek(0);
     }
 
+    GAIN.wake();
+
     st.playing = true;
     setPlaying(true);
 
     // Start all active video elements
     const scene = PB.sceneAt(st.composition, st.playhead);
     for (const layer of scene.layers) {
-      const vid = getElement(layer.sourceId);
-      if (vid) {
-        seekTo(vid, layer.sourceTime);
-        vid.muted = false;
-        vid.play().catch(() => {});
-      }
+      const el = getElement(layer.sourceId);
+      if (!el || el._isImage || el._isAudio) continue;
+      seekTo(el, layer.sourceTime);
+      el.muted = false;
+      el.play().catch(() => {});
+    }
+
+    // Start audio items
+    const audio = PB.audioAt(st.composition, st.playhead);
+    for (const a of audio) {
+      const el = getElement(a.sourceId);
+      if (!el || el._isImage) continue;
+      seekTo(el, a.sourceTime);
+      if (el.paused) el.play().catch(() => {});
+      GAIN.gainNodeFor(el);
+      GAIN.setGain(el, a.gain ?? 1);
     }
 
     if (st.raf) cancelAnimationFrame(st.raf);
@@ -316,10 +386,10 @@ const Compositor = React.forwardRef(function Compositor({
   useEffect(() => () => {
     if (m.current.raf) cancelAnimationFrame(m.current.raf);
     m.current.playing = false;
-    for (const [, vid] of m.current.elements) {
-      vid.pause();
-      vid.removeAttribute('src');
-      vid.load();
+    for (const [, el] of m.current.elements) {
+      if (el._isImage) continue;
+      el.pause();
+      if (!el._isAudio) { el.removeAttribute('src'); el.load(); }
     }
     m.current.elements.clear();
   }, []);
@@ -391,7 +461,7 @@ const Compositor = React.forwardRef(function Compositor({
       </div>
 
       <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
-        <div>Captions and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.</div>
+        <div>Captions, ducking, and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.</div>
       </div>
     </div>
   );

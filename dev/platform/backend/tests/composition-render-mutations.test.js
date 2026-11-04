@@ -27,7 +27,7 @@ function restore() {
 
 function testsPass() {
   try {
-    execSync(`node --test ${RENDER_TESTS}`, { stdio: 'pipe', timeout: 30000 });
+    execSync(`node ${RENDER_TESTS}`, { stdio: 'pipe', timeout: 30000 });
     return true;
   } catch {
     return false;

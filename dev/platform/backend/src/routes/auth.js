@@ -96,6 +96,7 @@ router.get('/me', authenticate, async (req, res) => {
     username: req.user.username,
     role: req.user.role,
     can_use_visualise: !!req.user.can_use_visualise,
+    composition_editor: !!req.user.composition_editor,
     client_id,
     dataforseo_availability: availabilityForClient(),
   });

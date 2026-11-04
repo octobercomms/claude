@@ -432,6 +432,80 @@ describe('renderGraph', () => {
       assert.ok(result.graph.includes(`trim=duration=${f(3)}`));
     });
   });
+
+  describe('ducking', () => {
+    function duckingComp(duckUnder) {
+      let comp = emptyComposition();
+      const clip = addSource(comp, { kind: 'clip', asset: 'a.mp4', duration: 10, width: 1920, height: 1080, fps: 30 });
+      comp = clip.comp;
+      const music = addSource(comp, { kind: 'audio', asset: 'music.mp3', duration: 30 });
+      comp = music.comp;
+      const vt = addTrack(comp, 'video');
+      comp = vt.comp;
+      let r = addItem(comp, vt.id, { at: 0, len: 10, source: clip.id, in: 0 });
+      comp = r.comp;
+      const at = addTrack(comp, 'audio');
+      comp = at.comp;
+      if (duckUnder) {
+        comp.tracks[comp.tracks.length - 1].duckUnder = vt.id;
+      }
+      r = addItem(comp, at.id, { at: 0, len: 10, source: music.id, in: 0, gain: 0.5 });
+      comp = r.comp;
+      return { comp, clipSource: clip.id, musicSource: music.id, videoTrackId: vt.id, audioTrackId: at.id };
+    }
+
+    it('uses sidechaincompress when duckUnder is set', () => {
+      const { comp } = duckingComp(true);
+      const result = renderGraph(comp);
+      assert.ok(result.graph.includes('sidechaincompress='), 'should include sidechaincompress');
+    });
+
+    it('splits speech signal with asplit for sidechain and final mix', () => {
+      const { comp } = duckingComp(true);
+      const result = renderGraph(comp);
+      assert.ok(result.graph.includes('asplit=2'), 'should split speech into two copies');
+    });
+
+    it('mixes ducked music with speech copy via amix', () => {
+      const { comp } = duckingComp(true);
+      const result = renderGraph(comp);
+      assert.ok(result.graph.includes('amix=inputs=2'), 'should mix speech + ducked music');
+    });
+
+    it('does not use sidechaincompress without duckUnder', () => {
+      const { comp } = duckingComp(false);
+      const result = renderGraph(comp);
+      assert.ok(!result.graph.includes('sidechaincompress='), 'should not duck without duckUnder');
+    });
+
+    it('falls back to plain amix when no ducking', () => {
+      const { comp } = duckingComp(false);
+      const result = renderGraph(comp);
+      assert.ok(result.graph.includes('amix=inputs=2'), 'should plain mix without ducking');
+      assert.ok(!result.graph.includes('asplit'), 'no asplit without ducking');
+    });
+
+    it('falls through to plain mix when only clip audio (no music)', () => {
+      let comp = emptyComposition();
+      const clip = addSource(comp, { kind: 'clip', asset: 'a.mp4', duration: 10, width: 1920, height: 1080, fps: 30 });
+      comp = clip.comp;
+      const vt = addTrack(comp, 'video');
+      comp = vt.comp;
+      const r = addItem(comp, vt.id, { at: 0, len: 10, source: clip.id, in: 0 });
+      comp = r.comp;
+      comp.ducking = { threshold: 0.02 };
+      const result = renderGraph(comp);
+      assert.ok(!result.graph.includes('sidechaincompress='), 'no sidechain with only speech');
+    });
+
+    it('uses custom threshold and ratio from comp.ducking', () => {
+      const { comp } = duckingComp(false);
+      comp.ducking = { threshold: 0.05, ratio: 12 };
+      const result = renderGraph(comp);
+      assert.ok(result.graph.includes('threshold=0.050000'), 'custom threshold');
+      assert.ok(result.graph.includes('ratio=12'), 'custom ratio');
+    });
+  });
 });
 
 // ── ffmpegArgs ───────────────────────────────────────────────────────

@@ -23,7 +23,8 @@ function SectionPanel({ navCollapsed, onToggleNav }, ref) {
   const ctx = useMemo(() => ({
     readOnly: user?.role === 'client',
     canVisualise: !!user?.can_use_visualise,
-  }), [user?.role, user?.can_use_visualise]);
+    canCompose: !!user?.composition_editor,
+  }), [user?.role, user?.can_use_visualise, user?.composition_editor]);
 
   const section = sectionForPath(location.pathname);
   const clientId = (location.pathname.match(/^\/clients\/([^/]+)/) || [])[1];
