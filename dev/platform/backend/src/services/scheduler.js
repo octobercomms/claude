@@ -974,6 +974,16 @@ cron.schedule('0 7 * * 1', async () => {
   }
 });
 
+// GTM Brain Phase 0 — weekly baseline snapshot of stale crucial items per
+// client. Runs after the strategist briefing so the snapshot reflects the
+// queue the briefing just wrote. Free (no LLM), fast (one query + inserts).
+cron.schedule('15 7 * * 1', async () => {
+  try {
+    const r = await require('./strategist/baseline').captureBaseline({ log: (m) => console.log(m) });
+    console.log(`[Scheduler] GTM baseline: ${r.clients} client(s) on ${r.date}`);
+  } catch (e) { console.error('[Scheduler] GTM baseline failed:', e.message); }
+});
+
 // Cross-PESO Strategist briefing — the whole-account briefing (Paid/Earned/
 // Shared/Owned + synthesis) is generated ON DEMAND from Data → Strategist, not
 // on a schedule. The weekly Monday cron was disabled to cut cost (each briefing
