@@ -36,6 +36,14 @@ const clipUpload = multer({
     cb(new Error('Only video files are accepted.'));
   },
 });
+const audioUpload = multer({
+  storage: clipStore,
+  limits: { fileSize: 100 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) => {
+    if (/^audio\//.test(String(file.mimetype || ''))) return cb(null, true);
+    cb(new Error('Only audio files are accepted.'));
+  },
+});
 
 const router = express.Router();
 router.use(authenticate);
@@ -171,6 +179,65 @@ router.post('/compositions/:id/clip', loadComposition, (req, res, next) => {
     });
   } catch (err) {
     console.error('[compose] clip upload failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Audio upload ──────────────────────────────────────────────────
+
+function probeAudio(filePath) {
+  return new Promise((resolve, reject) => {
+    const ff = spawn(FFPROBE, [
+      '-v', 'quiet', '-print_format', 'json',
+      '-show_format', '-show_streams', filePath,
+    ], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    ff.stdout.on('data', d => { out += d; });
+    ff.on('error', reject);
+    ff.on('close', code => {
+      if (code !== 0) return reject(new Error(`ffprobe exited ${code}`));
+      try {
+        const info = JSON.parse(out);
+        resolve({ duration: parseFloat(info.format?.duration) || 0 });
+      } catch { resolve({ duration: 0 }); }
+    });
+  });
+}
+
+router.post('/compositions/:id/audio', loadComposition, (req, res, next) => {
+  audioUpload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const comp = req.composition;
+    const clientId = comp.client_id;
+    const f = req.file;
+    if (!f) return res.status(400).json({ error: 'No file sent.' });
+
+    const filePath = path.join(UPLOAD_ROOT, String(clientId), f.filename);
+    const probe = await probeAudio(filePath);
+
+    const asset = await assets.record({
+      client_id: clientId, source: 'upload', source_id: f.filename,
+      title: f.originalname || f.filename,
+      url: `/api/brand/file/${clientId}/${f.filename}`,
+      mime: f.mimetype, bytes: f.size, created_by: req.user?.id || null,
+      duration_s: probe.duration || null,
+      metadata: { uploaded: true, original_name: f.originalname, composition_id: comp.id, audio: true },
+    });
+    if (!asset) return res.status(500).json({ error: 'Failed to record asset.' });
+
+    res.status(201).json({
+      assetId: asset.id,
+      url: asset.url,
+      mime: asset.mime,
+      originalName: f.originalname,
+      duration: probe.duration,
+    });
+  } catch (err) {
+    console.error('[compose] audio upload failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

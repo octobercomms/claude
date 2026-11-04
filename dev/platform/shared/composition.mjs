@@ -116,13 +116,21 @@ function validateItem(item, sources, trackKind) {
 
 const TRACK_KINDS = ['video', 'audio'];
 
-function validateTrack(track, sources) {
+function validateTrack(track, sources, allTracks) {
   if (!track || typeof track !== 'object') return 'track is not an object';
   if (!TRACK_KINDS.includes(track.kind)) {
     return `track "${track.id}": unknown kind "${track.kind}"`;
   }
   if (!Array.isArray(track.items)) {
     return `track "${track.id}": items must be an array`;
+  }
+  if (track.duckUnder != null) {
+    if (typeof track.duckUnder !== 'string') {
+      return `track "${track.id}": duckUnder must be a track id string`;
+    }
+    if (allTracks && !allTracks.some(t => t.id === track.duckUnder)) {
+      return `track "${track.id}": duckUnder references unknown track "${track.duckUnder}"`;
+    }
   }
   for (const item of track.items) {
     const err = validateItem(item, sources, track.kind);
@@ -171,7 +179,7 @@ export function validate(comp) {
     errors.push('tracks must be an array');
   } else {
     for (const track of comp.tracks) {
-      const err = validateTrack(track, comp.sources || {});
+      const err = validateTrack(track, comp.sources || {}, comp.tracks);
       if (err) errors.push(err);
     }
   }

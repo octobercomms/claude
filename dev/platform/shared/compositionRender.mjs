@@ -268,20 +268,110 @@ export function renderGraph(comp, opts = {}) {
     }
   }
 
-  // ── Mix audio ───────────────────────────────────────────────────────
+  // ── Mix audio (with optional ducking) ────────────────────────────────
+  //
+  // Speech = audio from clip sources (typically on video tracks).
+  // Music  = audio from audio-kind sources (typically on audio tracks).
+  // When ducking is enabled and both exist, sidechaincompress lowers the
+  // music when speech is present, then the two are mixed.
+
+  const ducking = comp.ducking || opts.ducking || null;
+
+  const speechPads = audioItemPads.filter(a => {
+    const src = comp.sources[a.item.source];
+    return src?.kind === 'clip';
+  });
+  const musicPads = audioItemPads.filter(a => {
+    const src = comp.sources[a.item.source];
+    return src?.kind === 'audio';
+  });
 
   let audioOut = null;
 
-  if (audioItemPads.length === 1) {
-    // Single audio stream: trim to composition duration
-    const outPad = 'aout';
-    filters.push(`[${audioItemPads[0].pad}]atrim=0:${f(compDuration)}[${outPad}]`);
-    audioOut = outPad;
-  } else if (audioItemPads.length > 1) {
-    const mixPads = audioItemPads.map(a => `[${a.pad}]`).join('');
+  if (audioItemPads.length === 0) {
+    // No audio at all
+  } else if (!ducking || !speechPads.length || !musicPads.length) {
+    // No ducking, or only one kind of audio: plain mix
+    if (audioItemPads.length === 1) {
+      const outPad = 'aout';
+      filters.push(`[${audioItemPads[0].pad}]atrim=0:${f(compDuration)}[${outPad}]`);
+      audioOut = outPad;
+    } else {
+      const mixPads = audioItemPads.map(a => `[${a.pad}]`).join('');
+      const outPad = 'aout';
+      filters.push(
+        `${mixPads}amix=inputs=${audioItemPads.length}:duration=longest:normalize=0,`
+        + `atrim=0:${f(compDuration)}[${outPad}]`
+      );
+      audioOut = outPad;
+    }
+  } else {
+    // Ducking: mix speech, mix music, sidechain compress music, then combine
+    const threshold = ducking.threshold || 0.02;
+    const ratio = ducking.ratio || 8;
+    const attack = ducking.attack || 200;
+    const release = ducking.release || 1000;
+
+    let speechMix;
+    if (speechPads.length === 1) {
+      speechMix = speechPads[0].pad;
+    } else {
+      speechMix = 'aspeech';
+      const pads = speechPads.map(a => `[${a.pad}]`).join('');
+      filters.push(`${pads}amix=inputs=${speechPads.length}:duration=longest:normalize=0[${speechMix}]`);
+    }
+
+    let musicMix;
+    if (musicPads.length === 1) {
+      musicMix = musicPads[0].pad;
+    } else {
+      musicMix = 'amusic';
+      const pads = musicPads.map(a => `[${a.pad}]`).join('');
+      filters.push(`${pads}amix=inputs=${musicPads.length}:duration=longest:normalize=0[${musicMix}]`);
+    }
+
+    // sidechaincompress: music is the main input, speech is the sidechain
+    const duckedPad = 'aducked';
+    filters.push(
+      `[${musicMix}][${speechMix}]sidechaincompress=`
+      + `threshold=${f(threshold)}:ratio=${ratio}:`
+      + `attack=${attack}:release=${release}[${duckedPad}]`
+    );
+
+    // Split the speech signal (consumed by sidechain) and mix with ducked music
+    const speechSplit = 'aspsplit';
+    // sidechaincompress consumes the sidechain, so we need a copy of speech
+    // Actually, sidechaincompress does NOT consume the sidechain in ffmpeg,
+    // but we already used it as a filter input. We need to split it before.
+    // Let's restructure: split speech first, then use one copy for sidechain
+    // and the other for the final mix.
+
+    // Remove the last two filters and rebuild with asplit
+    filters.pop(); // remove sidechaincompress
+    if (speechPads.length > 1) filters.pop(); // remove speech amix
+
+    // Rebuild: mix speech, split it, sidechain one copy, mix the other with ducked music
+    if (speechPads.length === 1) {
+      speechMix = speechPads[0].pad;
+    } else {
+      speechMix = 'aspeech';
+      const pads = speechPads.map(a => `[${a.pad}]`).join('');
+      filters.push(`${pads}amix=inputs=${speechPads.length}:duration=longest:normalize=0[${speechMix}]`);
+    }
+
+    const splitA = 'aspA';
+    const splitB = 'aspB';
+    filters.push(`[${speechMix}]asplit=2[${splitA}][${splitB}]`);
+
+    filters.push(
+      `[${musicMix}][${splitB}]sidechaincompress=`
+      + `threshold=${f(threshold)}:ratio=${ratio}:`
+      + `attack=${attack}:release=${release}[${duckedPad}]`
+    );
+
     const outPad = 'aout';
     filters.push(
-      `${mixPads}amix=inputs=${audioItemPads.length}:duration=longest:normalize=0,`
+      `[${splitA}][${duckedPad}]amix=inputs=2:duration=longest:normalize=0,`
       + `atrim=0:${f(compDuration)}[${outPad}]`
     );
     audioOut = outPad;
