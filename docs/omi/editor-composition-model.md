@@ -5,12 +5,14 @@
 > order** and read **The mapping** first, which is still the part most likely
 > to kill it.
 
-**Status:** complete, 4 November 2026. All 8 build steps shipped on
-PR [#1952](https://github.com/octobercomms/claude/pull/1952). The wizard
-(`MakeAReel.jsx`) and old single-track editor (`ClientEditPage.jsx`) are
-deleted; the composition editor is the sole video editor for all users.
-Supersedes `editor-replaces-basic-editing.md`, which was an increment plan
-and is the wrong plan.
+**Status:** complete, 4 November 2026. Steps 1 through 7 shipped on
+PR [#1952](https://github.com/octobercomms/claude/pull/1952); step 8
+(tighten, b-roll, old editor deletion, unlock) on
+PR [#1955](https://github.com/octobercomms/claude/pull/1955). The wizard,
+the old single-track editor and the entire old render pipeline are deleted;
+the composition editor is the sole video editor for all users. Supersedes
+`editor-replaces-basic-editing.md`, which was an increment plan and is the
+wrong plan.
 
 ## The deal
 
@@ -217,7 +219,7 @@ kill the project are both invisible, so they go first.
 | 5 | Clips upload on add; transcript on one press; captions from the real words | Yes, locked | **Done.** `compositions` table (migration 236) stores full composition JSON, source-asset map, and word-level transcripts. CRUD + clip upload + transcribe endpoints in `routes/compose.js`; Whisper word-timing via `extractAudio` (ffmpeg) + `whisperWords` (OpenAI). `CompositionEditorPage.jsx` rewritten with server persistence (auto-save 1.5s debounce), composition list/switcher, clip upload via compose endpoint with probed metadata (duration, width, height, fps), drag-and-drop, one-press transcription, caption template dropdown, transcript preview, reel checks panel (timeline-mapped timings bring six of seven checks alive). 26 compose/service tests. PR [#1952](https://github.com/octobercomms/claude/pull/1952) |
 | 6 | Design pages as graphics in time | Yes, locked | **Done.** `GET /compose/designs/:clientId` lists design-type assets. Compositor extended: Image element pool alongside video, cover/contain fit for stills, skip play/pause/seek for images. Render graph: `loop`+`trim` for design stills, opacity via `colorchannelmixer`. Editor: design page picker dropdown, `addDesign()` places a 5s design overlay on its own track, fit selector in inspector. 10 design-source tests (model, render, playback, endpoint). PR [#1952](https://github.com/octobercomms/claude/pull/1952) |
 | 7 | Audio: level matching, music bed, ducking under speech | Yes, locked | **Done.** `POST /compositions/:id/audio` for music/sfx upload. Compositor: `<audio>` elements for audio sources, per-item gain via WebAudio GainNodes on both video and audio items. Editor: "+ Add music" button, volume slider (0-4), ducking toggle. Render: `sidechaincompress` ducking (speech vs music separation, configurable threshold/ratio/attack/release). `duckUnder` track property validated in composition model. PR [#1952](https://github.com/octobercomms/claude/pull/1952) |
-| 8 | Fold Tighten and B-roll in. Delete the wizard. Unlock | Yes | **Done.** TightenPanel: `POST /compositions/:id/tighten` calls `planCuts()` from `shared/silenceCut.mjs`, returns silence/filler proposals; panel shows checkboxes per cut, apply rebuilds timeline items (split+remove). BrollPanel: `POST /compositions/:id/broll-plan` calls `planBroll()` from `shared/brollPlan.mjs`, returns cutaway moments; per-moment asset picker, `sourceToTimeline()` maps source time to timeline, places clips on overlay track via `addSource`/`addItem`. Migration 237 sets `composition_editor = true` for all users. Nav: reel/edit tabs removed, compose becomes default "Video" tab. `MakeAReel.jsx` and `ClientEditPage.jsx` deleted. `composition_editor` flag removed from frontend (GlobalSearch, SectionPanel, MobileScreenNav, Layout, ManageUsersPage). PR [#1952](https://github.com/octobercomms/claude/pull/1952) |
+| 8 | Fold Tighten and B-roll in. Delete the wizard. Unlock | Yes | **Done.** TightenPanel: `POST /compositions/:id/tighten` calls `planCuts()` from `shared/silenceCut.mjs`, returns silence/filler proposals; panel shows checkboxes per cut, apply rebuilds timeline items (split+remove). BrollPanel: `POST /compositions/:id/broll-plan` calls `planBroll()` from `shared/brollPlan.mjs`, returns cutaway moments; per-moment asset picker, `sourceToTimeline()` maps source time to timeline, places clips on overlay track via `addSource`/`addItem`. Migration 237 sets `composition_editor = true` for all users. Nav: reel/edit tabs removed, compose becomes default "Video" tab. `MakeAReel.jsx` and `ClientEditPage.jsx` deleted. `composition_editor` flag removed from frontend (GlobalSearch, SectionPanel, MobileScreenNav, Layout, ManageUsersPage). PR [#1955](https://github.com/octobercomms/claude/pull/1955) |
 
 Steps 1 and 2 are where the six weeks is won or lost.
 
@@ -233,6 +235,8 @@ is inert; a future migration can drop it.
 The wizard (`MakeAReel.jsx`), the old single-track editor (`ClientEditPage.jsx`),
 the `reel` and `edit` nav tabs, and the `canCompose`/`composition_editor` gate
 from GlobalSearch, SectionPanel, MobileScreenNav, Layout, and ManageUsersPage.
-The five-pass render pipeline (`editProcessor.js`) remains as legacy for any
-compositions that were rendered before the rewrite; new renders use the
-single-graph approach from `compositionRender.mjs`.
+The old render pipeline (`editProcessor.js`), route (`routes/edit.js`), shared
+modules (`edl.mjs`, `edlPlay.mjs`, `overlays.mjs`), player (`EdlPlayer.jsx`),
+timeline (`Timeline.jsx`) and their tests are all deleted. `whisperWords` was
+extracted to `services/whisper.js` so the three consumers (captions, silence-cut,
+social-caption-render) no longer depend on the old processor.
