@@ -1,0 +1,117 @@
+.atwp-api-url {
+	margin: 16px 0;
+	padding: 12px 16px;
+	background: #f0f0f1;
+	border-left: 4px solid #2271b1;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.atwp-api-url code {
+	background: #fff;
+	padding: 4px 8px;
+	font-size: 13px;
+}
+
+.atwp-keys-table {
+	margin-top: 12px;
+}
+
+.atwp-keys-table th,
+.atwp-keys-table td {
+	padding: 10px 12px;
+}
+
+.atwp-keys-table code {
+	font-size: 12px;
+	background: #f0f0f1;
+	padding: 2px 6px;
+}
+
+.atwp-permission-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.atwp-permission-read {
+	background: #dff0d8;
+	color: #3c763d;
+}
+
+.atwp-permission-write {
+	background: #fcf8e3;
+	color: #8a6d3b;
+}
+
+.atwp-permission-admin {
+	background: #f2dede;
+	color: #a94442;
+}
+
+.atwp-generate-key-form {
+	margin-top: 20px;
+	padding: 16px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+}
+
+.atwp-generate-key-form h4 {
+	margin-top: 0;
+}
+
+.atwp-generate-key-form label {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: 600;
+}
+
+.atwp-generate-key-form input[type="text"],
+.atwp-generate-key-form select {
+	margin-top: 4px;
+	min-width: 300px;
+}
+
+.atwp-key-box {
+	margin-top: 16px;
+	padding: 16px;
+	background: #fff3cd;
+	border: 2px solid #ffc107;
+	border-radius: 4px;
+}
+
+.atwp-key-warning {
+	color: #856404;
+	font-weight: 600;
+	margin-top: 0;
+}
+
+.atwp-key-box code {
+	display: block;
+	padding: 10px 12px;
+	background: #fff;
+	border: 1px solid #ddd;
+	font-size: 14px;
+	font-family: monospace;
+	word-break: break-all;
+	margin: 8px 0;
+	user-select: all;
+}
+
+.atwp-copy-btn {
+	cursor: pointer;
+}
+
+.atwp-copy-btn.copied {
+	color: #3c763d;
+}
+
+.atwp-no-keys td {
+	color: #666;
+	font-style: italic;
+}
