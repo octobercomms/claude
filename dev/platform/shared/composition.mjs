@@ -257,6 +257,69 @@ export function updateItem(comp, trackId, itemId, updates) {
   };
 }
 
+export function splitItem(comp, trackId, itemId, splitTime) {
+  const track = comp.tracks.find(t => t.id === trackId);
+  if (!track) return { comp, id: null };
+  const item = track.items.find(i => i.id === itemId);
+  if (!item) return { comp, id: null };
+
+  const end = itemEnd(item);
+  if (splitTime <= item.at + EPS || splitTime >= end - EPS) return { comp, id: null };
+
+  const inPt = item.in || 0;
+  const splitOffset = secs(splitTime - item.at);
+  const secondId = nextId('i');
+
+  const first = { ...item, len: secs(splitOffset) };
+  const second = {
+    ...item,
+    id: secondId,
+    at: secs(splitTime),
+    len: secs(end - splitTime),
+    in: secs(inPt + splitOffset),
+  };
+  delete second.trans;
+
+  return {
+    comp: {
+      ...comp,
+      tracks: comp.tracks.map(t =>
+        t.id === trackId
+          ? { ...t, items: t.items.flatMap(i => i.id === itemId ? [first, second] : [i]) }
+          : t
+      ),
+    },
+    id: secondId,
+  };
+}
+
+export function moveItemToTrack(comp, fromTrackId, itemId, toTrackId) {
+  if (fromTrackId === toTrackId) return comp;
+  const fromTrack = comp.tracks.find(t => t.id === fromTrackId);
+  const toTrack = comp.tracks.find(t => t.id === toTrackId);
+  if (!fromTrack || !toTrack) return comp;
+
+  const item = fromTrack.items.find(i => i.id === itemId);
+  if (!item) return comp;
+
+  const src = comp.sources[item.source];
+  if (toTrack.kind === 'video' && src?.kind === 'audio') return comp;
+  if (toTrack.kind === 'audio' && (src?.kind === 'clip' || src?.kind === 'design')) return comp;
+
+  return {
+    ...comp,
+    tracks: comp.tracks.map(t => {
+      if (t.id === fromTrackId) {
+        return { ...t, items: t.items.filter(i => i.id !== itemId) };
+      }
+      if (t.id === toTrackId) {
+        return { ...t, items: [...t.items, item].sort((a, b) => a.at - b.at) };
+      }
+      return t;
+    }),
+  };
+}
+
 export function removeTrack(comp, trackId) {
   return { ...comp, tracks: comp.tracks.filter(t => t.id !== trackId) };
 }
@@ -341,4 +404,55 @@ export function topmostAt(comp, t) {
     }
   }
   return best;
+}
+
+// ── Timeline editing helpers ─────────────────────────────────────────
+
+/**
+ * Trim the start of an item. Moves `at` forward by `delta` seconds,
+ * adjusts `in` to match, and shortens `len`. Clamps so the item never
+ * inverts or goes negative.
+ */
+export function trimStart(comp, trackId, itemId, delta) {
+  return updateItemWith(comp, trackId, itemId, (item) => {
+    const d = Math.max(-item.at, Math.min(item.len - MIN_ITEM, delta));
+    return {
+      at: secs(item.at + d),
+      in: secs((item.in || 0) + d),
+      len: secs(item.len - d),
+    };
+  });
+}
+
+/**
+ * Trim the end of an item. Extends or shortens `len` by `delta` seconds.
+ * Clamps so len stays above MIN_ITEM. When the source has a known
+ * duration, clamps to available material.
+ */
+export function trimEnd(comp, trackId, itemId, delta, sourceDuration) {
+  return updateItemWith(comp, trackId, itemId, (item) => {
+    let newLen = secs(item.len + delta);
+    newLen = Math.max(MIN_ITEM, newLen);
+    if (sourceDuration != null) {
+      const inPt = item.in || 0;
+      newLen = Math.min(newLen, secs(sourceDuration - inPt));
+    }
+    return { len: newLen };
+  });
+}
+
+/**
+ * Move an item to a new absolute timeline position.
+ */
+export function moveItemTo(comp, trackId, itemId, newAt) {
+  return updateItem(comp, trackId, itemId, { at: Math.max(0, secs(newAt)) });
+}
+
+function updateItemWith(comp, trackId, itemId, fn) {
+  const track = comp.tracks.find(t => t.id === trackId);
+  if (!track) return comp;
+  const item = track.items.find(i => i.id === itemId);
+  if (!item) return comp;
+  const updates = fn(item);
+  return updateItem(comp, trackId, itemId, updates);
 }

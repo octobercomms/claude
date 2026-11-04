@@ -41,9 +41,9 @@ async function authenticate(req, res, next) {
   try {
     const where = payload.id ? 'id = $1' : 'username = $1';
     const value = payload.id || payload.username;
-    const { rows } = await pool.query(`SELECT id, username, role, can_use_visualise FROM users WHERE ${where}`, [value]);
+    const { rows } = await pool.query(`SELECT id, username, role, can_use_visualise, composition_editor FROM users WHERE ${where}`, [value]);
     if (!rows[0]) return res.status(401).json({ error: 'User no longer exists' });
-    req.user = { id: rows[0].id, username: rows[0].username, role: rows[0].role, can_use_visualise: rows[0].can_use_visualise };
+    req.user = { id: rows[0].id, username: rows[0].username, role: rows[0].role, can_use_visualise: rows[0].can_use_visualise, composition_editor: rows[0].composition_editor };
   } catch {
     return res.status(500).json({ error: 'Auth lookup failed' });
   }

@@ -10,6 +10,7 @@ import TranscribePage from './TranscribePage';
 import AudioPage from './AudioPage';
 import MakeAReel from './MakeAReel';
 import AssetLibrary from '../components/AssetLibrary';
+import CompositionEditorPage from './CompositionEditorPage';
 // Lazily loaded: the design editor pulls in Fabric.js, which is a large
 // dependency that nobody who never opens this tab should be made to download.
 // Reloads rather than showing a blank error when a deploy lands
@@ -36,9 +37,10 @@ export default function ClientVideoTab() {
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}).finally(() => setClientLoading(false)); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
   useEffect(() => {
-    if (readOnly && (tab === 'reel' || tab === 'edit' || tab === 'transcribe' || tab === 'design' || tab === 'audio')) setTab('record');
+    if (readOnly && (tab === 'reel' || tab === 'edit' || tab === 'transcribe' || tab === 'design' || tab === 'audio' || tab === 'compose')) setTab('record');
     if (tab === 'visualise' && !canVisualise) setTab('record');
-  }, [readOnly, canVisualise, tab, setTab]);
+    if (tab === 'compose' && !user?.composition_editor) setTab('edit');
+  }, [readOnly, canVisualise, tab, setTab, user?.composition_editor]);
 
   if (clientLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--s10)', color: 'var(--text-muted)' }}>Loading…</div>;
 
@@ -64,6 +66,7 @@ export default function ClientVideoTab() {
       {tab === 'visualise' && canVisualise && <ClientVisualisePage clientId={id} />}
       {tab === 'transcribe' && !readOnly && <TranscribePage clientId={id} />}
       {tab === 'audio' && !readOnly && <AudioPage clientId={id} />}
+      {tab === 'compose' && !readOnly && !!user?.composition_editor && <CompositionEditorPage clientId={id} />}
       {tab === 'library' && (
         <>
           <div className="card" style={{ marginTop: 'var(--s4)' }}>

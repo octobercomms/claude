@@ -39,7 +39,7 @@ import { OPEN_PARAM } from '../hooks/useOpenRecord';
 
 const DEBOUNCE_MS = 220;
 
-export default function GlobalSearch({ onClose, clientId = null, readOnly = false, canVisualise = false }) {
+export default function GlobalSearch({ onClose, clientId = null, readOnly = false, canVisualise = false, canCompose = false }) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [records, setRecords] = useState([]);
@@ -60,8 +60,8 @@ export default function GlobalSearch({ onClose, clientId = null, readOnly = fals
   // that for the Workspace link and a second reader of the same key is a
   // second convention to keep in step.
   const screens = useMemo(
-    () => allScreens({ readOnly, canVisualise }).filter(s => clientId || s.scope !== 'client'),
-    [readOnly, canVisualise, clientId],
+    () => allScreens({ readOnly, canVisualise, canCompose }).filter(s => clientId || s.scope !== 'client'),
+    [readOnly, canVisualise, canCompose, clientId],
   );
   const screenHits = useMemo(() => matchScreens(q, screens), [q, screens]);
 
