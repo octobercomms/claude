@@ -79,7 +79,7 @@ pillar-scoped enum (22 refs across 5 pillars). `queue.js` line shape extended
 with `{metric:ref}` / `{qualitative}`. Synthesis prompt requires a metric ref
 on every queue item. 46 tests across queue + metrics.
 
-**Phase 2 — read the numbers back.** ✅ Done (PR TBD).
+**Phase 2 — read the numbers back.** ✅ Done (PR #1947).
 `strategist/outcome.js`: daily cron at 03:30 that (a) captures baselines for
 newly raised items with a metric ref but no baseline yet, and (b) reads
 outcomes for completed items whose measurement window has elapsed. Reuses the
