@@ -208,7 +208,7 @@ kill the project are both invisible, so they go first.
 
 | | What | Visible? | Why here |
 |---|---|---|---|
-| 1 | The composition model and the mapping, in `shared/`, with unit tests and mutation testing | No | Everything reads it. Wrong here means everything after is wasted |
+| 1 | The composition model and the mapping, in `shared/`, with unit tests and mutation testing | No | **Done.** `shared/composition.mjs` (model), `shared/compositionMapping.mjs` (mapping). 53 unit tests + 30 mapping tests + 12 targeted mutations, all killed |
 | 2 | The render graph against the new model | No | "The renderer cannot do that" is the other way this dies. Find out before building a UI for it |
 | 3 | The compositor, proved to agree with the renderer on fixtures | Yes, locked | The agreement is the product. Prove it on fixtures before trusting it |
 | 4 | The timeline UI, with tracks | Yes, locked | Only worth building once 1 to 3 hold |
