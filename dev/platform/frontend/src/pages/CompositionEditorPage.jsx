@@ -4,6 +4,7 @@ import CompositionTimeline from '../components/video/CompositionTimeline';
 import {
   emptyComposition, addSource, addTrack, addItem, removeItem,
   updateItem, duration as compDuration,
+  rippleRemoveItem,
 } from '@shared/composition.mjs';
 import * as PB from '@shared/compositionPlayback.mjs';
 import ReelChecks from '../components/ReelChecks';
@@ -57,6 +58,7 @@ export default function CompositionEditorPage({ clientId }) {
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [ripple, setRipple] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
   const audioFileRef = useRef(null);
@@ -351,10 +353,13 @@ export default function CompositionEditorPage({ clientId }) {
 
   const handleRemoveItem = useCallback(() => {
     if (!selectedItem) return;
-    setComposition(prev => removeItem(prev, selectedItem.track.id, selectedItem.item.id));
+    setComposition(prev => ripple
+      ? rippleRemoveItem(prev, selectedItem.track.id, selectedItem.item.id)
+      : removeItem(prev, selectedItem.track.id, selectedItem.item.id)
+    );
     setSelectedId(null);
     setSelectedTrackId(null);
-  }, [selectedItem]);
+  }, [selectedItem, ripple]);
 
   const setSize = useCallback((w, h) => {
     setComposition(prev => ({ ...prev, size: { width: w, height: h } }));
@@ -582,6 +587,14 @@ export default function CompositionEditorPage({ clientId }) {
         return;
       }
 
+      if (e.key === 'r' || e.key === 'R') {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          setRipple(prev => !prev);
+          return;
+        }
+      }
+
       if (e.key === '?') {
         e.preventDefault();
         setShortcutsOpen(prev => !prev);
@@ -654,6 +667,7 @@ export default function CompositionEditorPage({ clientId }) {
               onDragStart={startBatch}
               onDragEnd={commitBatch}
               onDragCancel={discardBatch}
+              ripple={ripple}
             />
           </div>
         </div>
@@ -672,6 +686,17 @@ export default function CompositionEditorPage({ clientId }) {
                   disabled={!canRedo} onClick={redo}
                   style={{ fontSize: 'var(--fs-caption)', width: 26, height: 26, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                   &#x21aa;
+                </button>
+                <button type="button" className="btn-chip" title="Ripple edit: shift subsequent items when trimming or deleting"
+                  onClick={() => setRipple(v => !v)}
+                  style={{
+                    fontSize: 'var(--fs-caption)', padding: '0 8px', height: 26,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    borderColor: ripple ? 'var(--accent)' : undefined,
+                    fontWeight: ripple ? 700 : undefined,
+                    background: ripple ? 'var(--accent-soft)' : undefined,
+                  }}>
+                  Ripple
                 </button>
                 <ShortcutButton onClick={() => setShortcutsOpen(v => !v)} />
                 <button type="button" className="btn btn-secondary btn-sm"

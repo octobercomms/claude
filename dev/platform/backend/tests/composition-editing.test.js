@@ -270,4 +270,110 @@ describe('composition editing helpers', async () => {
       assert.ok(Math.abs(after - before) < 0.001);
     });
   });
+
+  describe('rippleRemoveItem', () => {
+    it('removes item and shifts subsequent items left', () => {
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const result = C.rippleRemoveItem(comp, t1, i1);
+      const items = result.tracks[0].items;
+      assert.strictEqual(items.length, 1);
+      const shifted = items.find(i => i.id === i2);
+      assert.strictEqual(shifted.at, 0);
+    });
+
+    it('shifts only items after the removed one', () => {
+      const { comp, t1, i1, i2, s1 } = makeComp(C);
+      const { comp: c2, id: i3 } = C.addItem(comp, t1, {
+        source: s1, at: 20, len: 5, in: 0,
+      });
+      const result = C.rippleRemoveItem(c2, t1, i2);
+      const items = result.tracks[0].items;
+      assert.strictEqual(items.length, 2);
+      const first = items.find(i => i.id === i1);
+      assert.strictEqual(first.at, 0);
+      const third = items.find(i => i.id === i3);
+      assert.strictEqual(third.at, 12);
+    });
+
+    it('does nothing for unknown track', () => {
+      const { comp, i1 } = makeComp(C);
+      const result = C.rippleRemoveItem(comp, 'bad', i1);
+      assert.deepStrictEqual(result, comp);
+    });
+
+    it('does nothing for unknown item', () => {
+      const { comp, t1 } = makeComp(C);
+      const result = C.rippleRemoveItem(comp, t1, 'bad');
+      assert.deepStrictEqual(result, comp);
+    });
+
+    it('does not affect items on other tracks', () => {
+      const { comp, t1, i1, s1 } = makeComp(C);
+      const { comp: c2, id: t2 } = C.addTrack(comp, 'video');
+      const { comp: c3, id: ot } = C.addItem(c2, t2, {
+        source: s1, at: 15, len: 5, in: 0,
+      });
+      const result = C.rippleRemoveItem(c3, t1, i1);
+      const otherItem = result.tracks.find(t => t.id === t2).items.find(i => i.id === ot);
+      assert.strictEqual(otherItem.at, 15);
+    });
+  });
+
+  describe('rippleTrimStart', () => {
+    it('trims start and shifts subsequent items', () => {
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const result = C.rippleTrimStart(comp, t1, i1, 3);
+      const items = result.tracks[0].items;
+      const first = items.find(i => i.id === i1);
+      assert.strictEqual(first.at, 3);
+      assert.strictEqual(first.len, 7);
+      assert.strictEqual(first.in, 5);
+      const second = items.find(i => i.id === i2);
+      assert.strictEqual(second.at, 13);
+    });
+
+    it('does nothing for unknown track', () => {
+      const { comp, i1 } = makeComp(C);
+      const result = C.rippleTrimStart(comp, 'bad', i1, 2);
+      assert.deepStrictEqual(result, comp);
+    });
+  });
+
+  describe('rippleTrimEnd', () => {
+    it('shortens item and shifts subsequent items left', () => {
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const result = C.rippleTrimEnd(comp, t1, i1, -4);
+      const items = result.tracks[0].items;
+      const first = items.find(i => i.id === i1);
+      assert.strictEqual(first.len, 6);
+      const second = items.find(i => i.id === i2);
+      assert.strictEqual(second.at, 6);
+    });
+
+    it('extends item and shifts subsequent items right', () => {
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const result = C.rippleTrimEnd(comp, t1, i1, 3);
+      const items = result.tracks[0].items;
+      const first = items.find(i => i.id === i1);
+      assert.strictEqual(first.len, 13);
+      const second = items.find(i => i.id === i2);
+      assert.strictEqual(second.at, 13);
+    });
+
+    it('clamps to source duration', () => {
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const result = C.rippleTrimEnd(comp, t1, i1, 100, 20);
+      const items = result.tracks[0].items;
+      const first = items.find(i => i.id === i1);
+      assert.strictEqual(first.len, 18);
+      const second = items.find(i => i.id === i2);
+      assert.strictEqual(second.at, 18);
+    });
+
+    it('does nothing for unknown track', () => {
+      const { comp, i1 } = makeComp(C);
+      const result = C.rippleTrimEnd(comp, 'bad', i1, 2);
+      assert.deepStrictEqual(result, comp);
+    });
+  });
 });

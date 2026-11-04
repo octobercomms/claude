@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as C from '@shared/composition.mjs';
+import { rippleRemoveItem, rippleTrimStart, rippleTrimEnd } from '@shared/composition.mjs';
 import * as PB from '@shared/compositionPlayback.mjs';
 import { useFilmstrips, thumbsForBlock, THUMB_HEIGHT } from '../../utils/filmstrip';
 import { useWaveforms } from '../../utils/waveform';
@@ -54,6 +55,7 @@ export default function CompositionTimeline({
   onDragStart,
   onDragEnd,
   onDragCancel,
+  ripple = false,
 }) {
   const scrollRef = useRef(null);
   const laneRef = useRef(null);
@@ -62,6 +64,7 @@ export default function CompositionTimeline({
   const [laneWidth, setLaneWidth] = useState(0);
   const [snapLine, setSnapLine] = useState(null);
   const [scrollLeftVal, setScrollLeftVal] = useState(0);
+  const [hoverTrackId, setHoverTrackId] = useState(null);
 
   const comp = composition;
   const total = useMemo(() => comp ? C.duration(comp) : 0, [comp]);
@@ -179,12 +182,14 @@ export default function CompositionTimeline({
     onSelect?.(item.id, trackId);
     onDragStart?.();
     frozen.current = scale;
+    setHoverTrackId(null);
     setDrag({
       mode,
       itemId: item.id,
       trackId,
       pointerId: e.pointerId,
       originX: e.clientX,
+      originY: e.clientY,
       baseComp: comp,
       baseAt: item.at,
       baseIn: item.in || 0,
@@ -250,13 +255,17 @@ export default function CompositionTimeline({
     }
 
     if (drag.mode === 'move') {
+      const targetTrack = trackFromY(e.clientY);
+      const targetTrackId = targetTrack?.id || drag.trackId;
+      setHoverTrackId(targetTrackId !== drag.trackId ? targetTrackId : null);
+
       const proposedAt = Math.max(0, drag.baseAt + dt);
       const snapStart = findSnap(
-        { trackId: drag.trackId, itemId: drag.itemId, edge: 'start', time: proposedAt },
+        { trackId: targetTrackId, itemId: drag.itemId, edge: 'start', time: proposedAt },
         drag.baseComp, snapOpts
       );
       const snapEnd = findSnap(
-        { trackId: drag.trackId, itemId: drag.itemId, edge: 'end', time: proposedAt + drag.baseLen },
+        { trackId: targetTrackId, itemId: drag.itemId, edge: 'end', time: proposedAt + drag.baseLen },
         drag.baseComp, snapOpts
       );
 
@@ -282,14 +291,22 @@ export default function CompositionTimeline({
       }
 
       setSnapLine(snappedTime);
-      commit(C.updateItem(drag.baseComp, drag.trackId, drag.itemId, { at: Math.max(0, finalAt) }));
+      let next = C.updateItem(drag.baseComp, drag.trackId, drag.itemId, { at: Math.max(0, finalAt) });
+      if (targetTrackId !== drag.trackId) {
+        next = C.moveItemToTrack(next, drag.trackId, drag.itemId, targetTrackId);
+      }
+      commit(next);
     }
   };
 
   const endDrag = (e) => {
     if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+    if (drag.mode === 'move' && hoverTrackId && hoverTrackId !== drag.trackId) {
+      onSelect?.(drag.itemId, hoverTrackId);
+    }
     frozen.current = null;
     setSnapLine(null);
+    setHoverTrackId(null);
     if (drag.mode !== 'scrub') onDragEnd?.();
     setDrag(null);
   };
@@ -299,6 +316,7 @@ export default function CompositionTimeline({
     if (drag.baseComp) commit(drag.baseComp);
     frozen.current = null;
     setSnapLine(null);
+    setHoverTrackId(null);
     onDragCancel?.();
     setDrag(null);
   }, [drag, commit, onDragCancel]);
@@ -350,7 +368,7 @@ export default function CompositionTimeline({
     if (e.key === 'Backspace' || e.key === 'Delete') {
       if (!id || !tId) return;
       e.preventDefault();
-      commit(C.removeItem(comp, tId, id));
+      commit(ripple ? rippleRemoveItem(comp, tId, id) : C.removeItem(comp, tId, id));
       onSelect?.(null, null);
       return;
     }
@@ -472,12 +490,16 @@ export default function CompositionTimeline({
             const track = tl.track;
             const ovs = C.overlaps(track);
 
+            const isDropTarget = drag?.mode === 'move' && hoverTrackId === track.id && hoverTrackId !== drag.trackId;
+
             return (
               <div key={track.id} data-testid={`track-${track.id}`} style={{
                 position: 'absolute',
                 top: tl.y, left: 0, right: 0,
                 height: tl.h,
                 borderBottom: '1px solid var(--card-border)',
+                background: isDropTarget ? 'var(--accent-soft)' : undefined,
+                transition: 'background 100ms ease',
               }}>
                 {/* Track label badge */}
                 <div style={{
@@ -573,14 +595,22 @@ export default function CompositionTimeline({
                           onPointerDown={(e) => startDrag(e, `trim-${edge}`, item, track.id)}
                           onPointerUp={endDrag}
                           title={edge === 'in' ? 'Drag to trim the start' : 'Drag to trim the end'}
+                          className="trim-handle"
                           style={{
                             position: 'absolute', top: 0, bottom: 0,
                             [edge === 'in' ? 'left' : 'right']: 0,
                             width: HANDLE_W, cursor: 'ew-resize',
                             background: isSel ? 'var(--accent)' : 'var(--card-border)',
                             touchAction: 'none',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            borderRadius: edge === 'in' ? 'var(--r-sm) 0 0 var(--r-sm)' : '0 var(--r-sm) var(--r-sm) 0',
                           }}
-                        />
+                        >
+                          <svg width="4" height="16" viewBox="0 0 4 16" style={{ opacity: 0.6 }}>
+                            <line x1="1" y1="2" x2="1" y2="14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                            <line x1="3" y1="2" x2="3" y2="14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                          </svg>
+                        </div>
                       ))}
 
                       {/* Waveform peaks */}
@@ -754,9 +784,14 @@ export default function CompositionTimeline({
       <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
         {readOnly
           ? 'Read-only: the composition is shown but cannot be changed here.'
-          : 'Drag items to move, drag edges to trim, click the ruler to scrub. '
+          : 'Drag items to move (across tracks too), drag edges to trim, click the ruler to scrub. '
             + 'With an item selected: arrows move (shift for 1s), alt-arrows trim the end, S splits at the playhead, delete removes.'}
       </div>
+
+      <style>{`
+        .trim-handle { opacity: 0.7; transition: opacity 100ms ease; }
+        .trim-handle:hover { opacity: 1; }
+      `}</style>
     </div>
   );
 }
