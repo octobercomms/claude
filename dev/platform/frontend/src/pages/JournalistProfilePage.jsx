@@ -2,10 +2,12 @@ import React from 'react';
 import { SECTIONS, slugForTab } from '../nav/sections';
 import { useParams, useNavigate } from 'react-router-dom';
 import JournalistProfileBody from '../components/JournalistProfileBody';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Full-page journalist card (deep-linkable route). The editable body is shared
 // with the in-place ProfileModal — see components/JournalistProfileBody.jsx.
 export default function JournalistProfilePage() {
+  useDocumentTitle('Journalist');
   const { id } = useParams();
   const nav = useNavigate();
   return (

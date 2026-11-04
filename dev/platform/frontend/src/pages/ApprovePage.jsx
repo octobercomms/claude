@@ -8,8 +8,10 @@ import AdPlatformPreview from '../components/AdPlatformPreview';
 import SocialPlatformPreview from '../components/SocialPlatformPreview';
 import usePersistedState from '../hooks/usePersistedState';
 import { useToast } from '../context/ToastContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 export default function ApprovePage() {
+  useDocumentTitle('Approve');
   const { token } = useParams();
   const toast = useToast();
   const [data, setData] = useState(null);

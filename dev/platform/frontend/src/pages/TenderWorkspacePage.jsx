@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Tender bid workspace — the persistent page behind "Start / Continue with
 // Claude". Chat that judges fit, plans the bid and produces the deliverables;
@@ -54,6 +55,7 @@ async function downloadBlob(path, fallbackName, toast) {
 }
 
 export default function TenderWorkspacePage() {
+  useDocumentTitle('Tender');
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -308,7 +310,7 @@ export default function TenderWorkspacePage() {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
+  h1: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
   h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
   h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s3) 0 var(--s1)' }} {...p} />,
   p: ({ node, ...p }) => <p style={{ margin: '0 0 var(--s3)', lineHeight: 1.55 }} {...p} />,
