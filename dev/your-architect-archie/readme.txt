@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.37
+Stable tag: 0.7.38
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,13 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.38 =
+* The A/B test now has an on/off switch in Archie → Settings ("Run the A/B test").
+  Untick it to pause: new visitors all get the normal flow and anyone mid-chat on
+  the gated variant is un-gated immediately, while the A/B Test report keeps the
+  data collected so far. Re-tick to resume. No plugin update needed to flip it, and
+  the report shows the current Running / Paused status.
 
 = 0.7.37 =
 * A/B test: "email first" vs the current browse-freely flow. Visitors are split

@@ -48,6 +48,7 @@ class YAA_Settings {
 			'smtp_user'             => '',         // SMTP login (often the from address or a relay login).
 			'smtp_pass'             => '',         // SMTP password / relay key (stored encrypted).
 			'delegate_tracking'     => 1,          // when a relay is on, let it track opens/clicks (via webhook) instead of injecting ours.
+			'ab_test_on'            => 1,          // run the email-first A/B test (off = everyone gets the normal flow).
 			'email_from'            => get_option( 'admin_email' ),
 			'email_from_name'       => 'Your Architect',
 			'portal_page_id'        => 0,

@@ -30,10 +30,18 @@ class YAA_Experiment {
 		add_action( 'admin_post_yaa_mark_converted', array( __CLASS__, 'act_converted' ) );
 	}
 
+	/** Whether the experiment is live. Off (a Settings toggle) = everyone gets Variant B. */
+	public static function running() {
+		return '0' !== (string) YAA_Settings::get( 'ab_test_on', 1 );
+	}
+
 	// ---- Variant assignment ----
 
 	/** Resolve (or assign, 50/50) the sticky variant from the visitor's cookie. */
 	public static function variant_cookie() {
+		if ( ! self::running() ) {
+			return 'B'; // test paused — no new split, everyone gets the normal flow.
+		}
 		$v = isset( $_COOKIE[ self::COOKIE ] ) ? strtoupper( sanitize_text_field( wp_unslash( $_COOKIE[ self::COOKIE ] ) ) ) : '';
 		if ( 'A' !== $v && 'B' !== $v ) {
 			$v = ( 0 === wp_rand( 0, 1 ) ) ? 'A' : 'B';
@@ -53,15 +61,18 @@ class YAA_Experiment {
 		if ( 'A' === $v || 'B' === $v ) {
 			return $v;
 		}
+		if ( ! self::running() ) {
+			return 'B'; // paused — new visitors aren't assigned, they just get the normal flow.
+		}
 		$v = self::variant_cookie();
 		$wpdb->update( $t, array( 'variant' => $v ), array( 'id' => (int) $project_id ), array( '%s' ), array( '%d' ) ); // phpcs:ignore WordPress.DB
 		YAA_Project::log_event( (int) $project_id, 'ab_assigned', array( 'variant' => $v ) );
 		return $v;
 	}
 
-	/** Variant A withholds the quote until there's an email on file. */
+	/** Variant A withholds the quote until there's an email on file. Paused = never gated. */
 	public static function gated( $project_id, $state ) {
-		return 'A' === self::variant( $project_id ) && empty( $state['email'] );
+		return self::running() && 'A' === self::variant( $project_id ) && empty( $state['email'] );
 	}
 
 	// ---- Funnel marks ----
@@ -231,6 +242,17 @@ class YAA_Experiment {
 			<h1><?php esc_html_e( 'A/B Test — email-first gate', 'your-architect-archie' ); ?></h1>
 			<p class="description" style="max-width:820px">
 				<?php esc_html_e( 'Variant A asks for an email before building any quote (a hard gate). Variant B is the current flow (browse freely, email asked later). The headline metric is "reached a quote" — the share of visitors who are actually shown a price. Submissions and conversions are shown too but, at low traffic, settle more slowly.', 'your-architect-archie' ); ?>
+			</p>
+			<?php $live = self::running(); $su = add_query_arg( 'page', 'yaa-settings', admin_url( 'admin.php' ) ); ?>
+			<p style="margin:10px 0">
+				<strong><?php esc_html_e( 'Status:', 'your-architect-archie' ); ?></strong>
+				<?php if ( $live ) : ?>
+					<span style="color:#0f7a3d;font-weight:600"><?php esc_html_e( 'Running', 'your-architect-archie' ); ?></span> — <?php esc_html_e( 'new visitors are being split 50/50.', 'your-architect-archie' ); ?>
+					<a href="<?php echo esc_url( $su ); ?>"><?php esc_html_e( 'Pause it in Settings', 'your-architect-archie' ); ?></a>
+				<?php else : ?>
+					<span style="color:#8a6d00;font-weight:600"><?php esc_html_e( 'Paused', 'your-architect-archie' ); ?></span> — <?php esc_html_e( 'everyone now gets the normal flow; the numbers below are the data collected so far.', 'your-architect-archie' ); ?>
+					<a href="<?php echo esc_url( $su ); ?>"><?php esc_html_e( 'Resume it in Settings', 'your-architect-archie' ); ?></a>
+				<?php endif; ?>
 			</p>
 
 			<table class="widefat striped" style="max-width:820px;margin-top:12px">
