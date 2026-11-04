@@ -45,8 +45,10 @@ export default function CompositionEditorPage({ clientId }) {
   const [dragOver, setDragOver] = useState(false);
   const [designs, setDesigns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
+  const audioFileRef = useRef(null);
   const saveTimerRef = useRef(null);
   const latestCompRef = useRef(null);
   const latestAssetsRef = useRef(null);
@@ -249,6 +251,71 @@ export default function CompositionEditorPage({ clientId }) {
     handleFiles(e.target.files);
     if (fileRef.current) fileRef.current.value = '';
   }, [handleFiles]);
+
+  // ── Audio upload ──────────────────────────────────────────────────
+
+  const handleAudioFiles = useCallback(async (files) => {
+    if (!files?.length) return;
+    const auds = Array.from(files).filter(f => f.type.startsWith('audio/'));
+    if (!auds.length) { toast('Choose audio files.', 'error'); return; }
+    if (!compId) { toast('Composition not ready yet.', 'error'); return; }
+
+    setUploadingAudio(true);
+    try {
+      for (const file of auds) {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`/api/compose/compositions/${compId}/audio`, {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || res.statusText);
+        }
+        const clip = await res.json();
+        const blobUrl = URL.createObjectURL(file);
+
+        setComposition(prev => {
+          let comp = prev;
+          let audioTrackId = comp.tracks.find(t => t.kind === 'audio')?.id;
+          if (!audioTrackId) {
+            const r = addTrack(comp, 'audio');
+            comp = r.comp;
+            audioTrackId = r.id;
+          }
+
+          const { comp: c2, id: sourceId } = addSource(comp, {
+            kind: 'audio', asset: clip.assetId, url: clip.url,
+            duration: clip.duration || 0, originalName: clip.originalName,
+          });
+          comp = c2;
+
+          const end = compDuration(comp);
+          const { comp: c3 } = addItem(comp, audioTrackId, {
+            at: 0, len: clip.duration || end || 10, source: sourceId,
+          });
+          comp = c3;
+
+          setSourceUrls(u => ({ ...u, [sourceId]: blobUrl }));
+          setSourceNames(n => ({ ...n, [sourceId]: clip.originalName || 'Audio' }));
+          setSourceAssets(a => ({ ...a, [sourceId]: clip.assetId }));
+          return comp;
+        });
+      }
+      toast(`${auds.length} audio file${auds.length > 1 ? 's' : ''} added.`, 'success');
+    } catch (err) {
+      toast(err.message || 'Audio upload failed.', 'error');
+    } finally {
+      setUploadingAudio(false);
+    }
+  }, [compId, toast]);
+
+  const onAudioFileChange = useCallback((e) => {
+    handleAudioFiles(e.target.files);
+    if (audioFileRef.current) audioFileRef.current.value = '';
+  }, [handleAudioFiles]);
 
   const onMeta = useCallback(({ sourceId, duration: dur, width, height }) => {
     if (!sourceId || !dur) return;
@@ -543,13 +610,19 @@ export default function CompositionEditorPage({ clientId }) {
               </button>
             </div>
 
-            {/* Add clip / design */}
+            {/* Add clip / design / audio */}
             <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
               <input ref={fileRef} type="file" accept="video/*" multiple
                 style={{ display: 'none' }} onChange={onFileChange} />
+              <input ref={audioFileRef} type="file" accept="audio/*" multiple
+                style={{ display: 'none' }} onChange={onAudioFileChange} />
               <button type="button" className="btn btn-primary btn-sm"
                 onClick={() => fileRef.current?.click()} disabled={uploading}>
                 {uploading ? 'Uploading...' : '+ Add clip'}
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm"
+                onClick={() => audioFileRef.current?.click()} disabled={uploadingAudio}>
+                {uploadingAudio ? 'Uploading...' : '+ Add music'}
               </button>
 
               {designs.length > 0 && (
@@ -660,6 +733,53 @@ export default function CompositionEditorPage({ clientId }) {
                     </>
                   )}
                 </div>
+
+                {/* Volume slider for any item */}
+                <div style={{ marginTop: 'var(--s3)' }}>
+                  <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                    Volume: {(selectedItem.item.gain ?? 1).toFixed(1)}
+                  </div>
+                  <input type="range" min="0" max="4" step="0.1"
+                    value={selectedItem.item.gain ?? 1}
+                    style={{ width: '100%', accentColor: 'var(--primary)' }}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setComposition(prev =>
+                        updateItem(prev, selectedItem.track.id, selectedItem.item.id,
+                          { gain: val })
+                      );
+                    }}
+                  />
+                </div>
+
+                {/* Ducking toggle for audio track items */}
+                {selectedItem.track.kind === 'audio' && (() => {
+                  const speechTrack = composition.tracks.find(t => t.kind === 'video');
+                  if (!speechTrack) return null;
+                  const isDucked = selectedItem.track.duckUnder === speechTrack.id;
+                  return (
+                    <label className="body-xs" style={{
+                      display: 'flex', alignItems: 'center', gap: 'var(--s1)',
+                      marginTop: 'var(--s2)', cursor: 'pointer',
+                    }}>
+                      <input type="checkbox" checked={isDucked}
+                        onChange={(e) => {
+                          const trackId = selectedItem.track.id;
+                          const newVal = e.target.checked ? speechTrack.id : undefined;
+                          setComposition(prev => ({
+                            ...prev,
+                            tracks: prev.tracks.map(t =>
+                              t.id === trackId
+                                ? { ...t, duckUnder: newVal }
+                                : t
+                            ),
+                          }));
+                        }}
+                      />
+                      Duck under speech
+                    </label>
+                  );
+                })()}
 
                 {hasTranscript && (
                   <div style={{
