@@ -33,6 +33,7 @@ const SHORTCUT_GROUPS = [
     note: 'Select an item on the timeline first',
     shortcuts: [
       { keys: ['S'], desc: 'Split item at playhead' },
+      { keys: ['R'], desc: 'Toggle ripple edit mode' },
       { keys: ['Delete'], desc: 'Remove selected item' },
       { keys: ['← / →'], desc: 'Nudge item by 0.1 s' },
       { keys: ['Shift', '← / →'], desc: 'Nudge item by 1 s' },

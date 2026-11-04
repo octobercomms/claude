@@ -464,3 +464,62 @@ function updateItemWith(comp, trackId, itemId, fn) {
   const updates = fn(item);
   return updateItem(comp, trackId, itemId, updates);
 }
+
+// ── Ripple editing ──────────────────────────────────────────────────
+
+function shiftAfter(comp, trackId, afterTime, delta) {
+  return {
+    ...comp,
+    tracks: comp.tracks.map(t => {
+      if (t.id !== trackId) return t;
+      return {
+        ...t,
+        items: t.items.map(i => {
+          if (i.at < afterTime + EPS) return i;
+          return { ...i, at: secs(Math.max(0, i.at + delta)) };
+        }).sort((a, b) => a.at - b.at),
+      };
+    }),
+  };
+}
+
+export function rippleRemoveItem(comp, trackId, itemId) {
+  const track = comp.tracks.find(t => t.id === trackId);
+  if (!track) return comp;
+  const item = track.items.find(i => i.id === itemId);
+  if (!item) return comp;
+  const gap = item.len;
+  const afterTime = item.at;
+  const removed = removeItem(comp, trackId, itemId);
+  return shiftAfter(removed, trackId, afterTime, -gap);
+}
+
+export function rippleTrimStart(comp, trackId, itemId, delta) {
+  const track = comp.tracks.find(t => t.id === trackId);
+  if (!track) return comp;
+  const item = track.items.find(i => i.id === itemId);
+  if (!item) return comp;
+  const d = Math.max(-item.at, Math.min(item.len - MIN_ITEM, delta));
+  const trimmed = updateItem(comp, trackId, itemId, {
+    at: secs(item.at + d),
+    in: secs((item.in || 0) + d),
+    len: secs(item.len - d),
+  });
+  return shiftAfter(trimmed, trackId, item.at + d, d);
+}
+
+export function rippleTrimEnd(comp, trackId, itemId, delta, sourceDuration) {
+  const track = comp.tracks.find(t => t.id === trackId);
+  if (!track) return comp;
+  const item = track.items.find(i => i.id === itemId);
+  if (!item) return comp;
+  let newLen = secs(item.len + delta);
+  newLen = Math.max(MIN_ITEM, newLen);
+  if (sourceDuration != null) {
+    const inPt = item.in || 0;
+    newLen = Math.min(newLen, secs(sourceDuration - inPt));
+  }
+  const actualDelta = newLen - item.len;
+  const trimmed = updateItem(comp, trackId, itemId, { len: newLen });
+  return shiftAfter(trimmed, trackId, item.at, actualDelta);
+}
