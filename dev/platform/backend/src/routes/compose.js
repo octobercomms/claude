@@ -110,7 +110,7 @@ function parseFraction(str) {
 
 function probeVideo(filePath) {
   return new Promise((resolve, reject) => {
-    const ff = spawn(FFMPEG.replace(/ffmpeg$/, 'ffprobe'), [
+    const ff = spawn(FFPROBE, [
       '-v', 'quiet', '-print_format', 'json',
       '-show_format', '-show_streams', filePath,
     ], { stdio: ['ignore', 'pipe', 'ignore'] });
