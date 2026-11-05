@@ -2,16 +2,35 @@
 
 **For:** Claude in Chrome, or whoever edits the UK Shopify admin.
 **Store:** UK only (www.falconenamelware.com).
-**What it does:** a sold-out Carafe shows a **Pre-order** button and "Pre-order. Expected to ship 11 to 14 December. Payment is taken today." before it goes in the basket. The order records the date, is tagged `preorder`, and is held so nobody ships it early.
+**What it does:** a sold-out Carafe shows a **Pre-order · Ships by 14 Dec** button with "Expected to ship 11 to 14 December. Payment is taken today." directly under it, before it goes in the basket. The order records the date, is tagged `preorder`, and is held so nobody ships it early.
 **What it does not do (until the full system is installed):** no automatic emails when the date changes, no automatic release when stock arrives (staff release the holds by hand), no partial holds (an order with other items is held as a whole; the product page says so).
 
 The data fields use the same names as the full system (`docs/falcon-back-in-stock/ARCHITECTURE.md`), so nothing here is redone later.
 
 ---
 
-## Step 1. Variant data fields (5 min)
+## How a product is switched on and off
 
-1. **Settings** > **Custom data** > **Variants** > **Add definition**. Create three:
+There is no tag. A colour (variant) is on pre-order when **all three** are true:
+
+1. it has no stock available to sell (0 or below; stock on a transfer or purchase order counts as incoming, not available, so that is fine),
+2. **Continue selling when out of stock** is ticked, and
+3. an **Expected date** is filled in, on the product (covers every colour) or on the colour itself.
+
+To switch **on**: tick Continue selling and fill in the Expected date. To switch **off**: untick Continue selling, or clear the date. When stock is received and available goes above 0, the colour goes back to a normal **Add to cart** on its own.
+
+If Continue selling is ticked but no date is filled in, the site shows **Notify me** and does not sell it.
+
+## Step 1. Data fields (5 min)
+
+1. **Settings** > **Custom data** > **Products** > **Add definition**. Create two:
+
+   | Name | Namespace and key | Type |
+   |---|---|---|
+   | Expected date | `falcon.expected_date` | **Date** |
+   | Pre-order note | `falcon.preorder_note` | **Single line text** |
+
+2. **Settings** > **Custom data** > **Variants** > **Add definition**. Create three (same keys, so a colour can override the product):
 
    | Name | Namespace and key | Type |
    |---|---|---|
@@ -23,14 +42,15 @@ The data fields use the same names as the full system (`docs/falcon-back-in-stoc
 
 ## Step 2. Set up the Carafe (5 min)
 
-For **each Carafe variant**: **Products** > Carafe > click the variant.
-
-1. **Inventory**: **Track quantity** on. Tick **Continue selling when out of stock**. Leave the quantity as it is (0 or below).
-2. **Metafields**:
+1. **Products** > Carafe. At the bottom of the product page, under **Metafields**:
    - **Expected date**: `14 December 2026`
    - **Pre-order note**: `Expected to ship 11 to 14 December.`
-   - **Pre-order limit**: the number of units coming in for this variant, less any already promised. When that many have sold below zero, the site switches the variant to **Notify me** automatically.
-3. **Save**.
+   **Save**.
+2. For **each colour**: click the variant.
+   - **Inventory**: **Track quantity** on. Tick **Continue selling when out of stock**. Leave available as it is (0 or below).
+   - **Metafields** > **Pre-order limit**: the number of units of this colour coming in, less any already promised. When that many have been pre-ordered, the site switches the colour to **Notify me** on its own.
+   - **Save**.
+   (Faster for many colours: select the variants in **Products** > **Bulk edit** and add the **Continue selling when out of stock** column.)
 
 Expected: nothing changes on the live site yet (the theme does not read these until Step 3 is published). The variant can now be bought, so do Steps 3 and 4 straight away.
 
@@ -41,13 +61,12 @@ Expected: nothing changes on the live site yet (the theme does not read these un
 3. Open **Templates** > `product.liquid` (the product template; it contains `class="c-product__btn"`).
 4. Find:
    ```html
-   <div class="c-product__btn">
+   <div class="c-klarna">
    ```
-   Directly **above** it, on its own line, paste:
+   Directly **above** it (so below the add-to-cart button, still inside the `<form action="/cart/add" ...>`), on its own line, paste:
    ```liquid
    {% render 'falcon-quick-preorder', product: product %}
    ```
-   This must be inside the `<form action="/cart/add" ...>` (it is, in the current template).
 5. Near the bottom, find this block inside `onVariantSelected`:
    ```js
    if (variant.available) {
@@ -57,7 +76,7 @@ Expected: nothing changes on the live site yet (the theme does not read these un
    ```js
    var poState = window.falconPreorder ? window.falconPreorder(variant) : 'normal'
    if (variant.available && poState !== 'blocked') {
-       $('.js-add-to-cart').show().removeAttr('disabled').val(poState === 'preorder' ? 'Pre-order' : 'Add to Cart')
+       $('.js-add-to-cart').show().removeAttr('disabled').val(poState === 'preorder' ? window.FalconPreorderData[variant.id].button : 'Add to Cart')
    ```
    Leave everything else in that block as it is (the `else` branch still shows the Notify me form).
 6. **Save**.
@@ -77,9 +96,9 @@ Tell the warehouse / 3PL today: orders tagged `preorder-carafe` are on hold and 
 ## Step 5. Test on the copy, then publish (15 min)
 
 1. On the copy theme, click **Preview**. Open the Carafe page.
-   - Expected: button reads **Pre-order**; the blue box above it reads "Pre-order. Expected to ship 11 to 14 December. Payment is taken today. ..."; quantity selector shows.
+   - Expected: button reads **Pre-order · Ships by 14 Dec**; the blue box directly under it reads "Expected to ship 11 to 14 December. Payment is taken today. ..."; quantity selector shows.
    - Switch to an in-stock product: normal **Add to cart**, no box.
-2. Click **Pre-order**. Open the cart.
+2. Click the **Pre-order** button. Open the cart.
    - Expected: the Carafe line shows **Pre-order: Expected to ship 11 to 14 December.**
    - **If the line does not show it**, the theme's add-to-cart script is dropping the extra fields. Stop and report; switch the Flow condition to the SKU version (Step 4.3) so orders are still held, and the product page message still informs the customer.
 3. Place one test order (use a 100% discount code limited to the Carafe, or a real card and refund it). Do not switch the store to test payments.
@@ -107,25 +126,29 @@ People already on the Carafe **Notify me** list are customers tagged `restock-<v
 ```liquid
 {%- comment -%}
   Falcon quick pre-order (UK store, interim). Render inside the add-to-cart
-  form, directly above <div class="c-product__btn">:
+  form, directly below the button (above <div class="c-klarna">):
     {% render 'falcon-quick-preorder', product: product %}
 
   A variant is on pre-order when ALL are true:
     - inventory tracked by Shopify, quantity 0 or below
     - "Continue selling when out of stock" ticked
-    - variant metafield falcon.expected_date set
-  Optional variant metafields:
-    - falcon.preorder_note  (text shown, e.g. "Expected to ship 11 to 14 December.")
-    - falcon.preorder_limit (max units sold below zero; when reached the variant
-                             shows Notify me instead)
+    - falcon.expected_date set on the variant, or on the product (covers
+      every variant that has no date of its own)
+  Optional:
+    - falcon.preorder_note  (variant or product; text under the button, e.g.
+                             "Expected to ship 11 to 14 December.")
+    - falcon.preorder_limit (variant only; max units sold below zero; when
+                             reached the variant shows Notify me instead)
+  The button reads "Pre-order · Ships by 14 Dec" from the expected date.
   Same metafield names as the full system (docs/falcon-back-in-stock/ARCHITECTURE.md),
   so nothing is redone when that is installed.
 
   The product template's variant script calls window.falconPreorder(variant),
-  which returns 'preorder', 'blocked' or 'normal'.
+  which returns 'preorder', 'blocked' or 'normal', and reads the button text
+  from window.FalconPreorderData[id].button.
 {%- endcomment -%}
 <div class="js-preorder-msg" style="display:none; margin:0 0 12px; padding:10px 12px; border:2px solid #243588; color:#243588; text-align:left; font-size:14px; line-height:1.4;">
-	<strong>Pre-order.</strong> <span class="js-preorder-text"></span> Payment is taken today. If you order other items at the same time, we'll send everything together when this arrives.
+	<span class="js-preorder-text"></span> Payment is taken today. Ordering other items too? We'll send everything together when this arrives, with one delivery charge.
 </div>
 <input type="hidden" class="js-preorder-date" name="properties[_preorder_date]" value="" disabled>
 <input type="hidden" class="js-preorder-label" name="properties[Pre-order]" value="" disabled>
@@ -133,18 +156,19 @@ People already on the Carafe **Notify me** list are customers tagged `restock-<v
 	window.FalconPreorderData = {
 	{%- for v in product.variants -%}
 		{%- assign po_state = 'normal' -%}
-		{%- assign po_date = v.metafields.falcon.expected_date.value -%}
+		{%- assign po_date = v.metafields.falcon.expected_date.value | default: product.metafields.falcon.expected_date.value -%}
 		{%- if v.inventory_management == 'shopify' and v.inventory_quantity <= 0 and v.inventory_policy == 'continue' and po_date != blank -%}
 			{%- assign po_state = 'preorder' -%}
 			{%- assign po_limit = v.metafields.falcon.preorder_limit.value | plus: 0 -%}
 			{%- assign po_sold = 0 | minus: v.inventory_quantity -%}
 			{%- if po_limit > 0 and po_sold >= po_limit -%}{%- assign po_state = 'blocked' -%}{%- endif -%}
 		{%- endif -%}
-		{%- assign po_text = v.metafields.falcon.preorder_note.value -%}
+		{%- assign po_text = v.metafields.falcon.preorder_note.value | default: product.metafields.falcon.preorder_note.value -%}
 		{%- if po_text == blank and po_date != blank -%}
 			{%- capture po_text -%}Expected to ship from {{ po_date | date: '%-d %B %Y' }}.{%- endcapture -%}
 		{%- endif -%}
-		"{{ v.id }}": { "state": {{ po_state | json }}, "date": {{ po_date | date: '%Y-%m-%d' | json }}, "text": {{ po_text | json }} }{% unless forloop.last %},{% endunless %}
+		{%- capture po_button -%}Pre-order · Ships by {{ po_date | date: '%-d %b' }}{%- endcapture -%}
+		"{{ v.id }}": { "state": {{ po_state | json }}, "date": {{ po_date | date: '%Y-%m-%d' | json }}, "text": {{ po_text | json }}, "button": {{ po_button | json }} }{% unless forloop.last %},{% endunless %}
 	{%- endfor -%}
 	};
 	window.falconPreorder = function (variant) {
@@ -164,7 +188,7 @@ People already on the Carafe **Notify me** list are customers tagged `restock-<v
 		jQuery(function () {
 			var id = jQuery('#product-select').val();
 			if (window.falconPreorder({ id: id }) === 'preorder') {
-				jQuery('.js-add-to-cart').val('Pre-order');
+				jQuery('.js-add-to-cart').val(window.FalconPreorderData[id].button);
 			}
 		});
 	})();
