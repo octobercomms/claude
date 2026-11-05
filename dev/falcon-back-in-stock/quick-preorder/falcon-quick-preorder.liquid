@@ -1,0 +1,64 @@
+{%- comment -%}
+  Falcon quick pre-order (UK store, interim). Render inside the add-to-cart
+  form, directly above <div class="c-product__btn">:
+    {% render 'falcon-quick-preorder', product: product %}
+
+  A variant is on pre-order when ALL are true:
+    - inventory tracked by Shopify, quantity 0 or below
+    - "Continue selling when out of stock" ticked
+    - variant metafield falcon.expected_date set
+  Optional variant metafields:
+    - falcon.preorder_note  (text shown, e.g. "Expected to ship 11 to 14 December.")
+    - falcon.preorder_limit (max units sold below zero; when reached the variant
+                             shows Notify me instead)
+  Same metafield names as the full system (docs/falcon-back-in-stock/ARCHITECTURE.md),
+  so nothing is redone when that is installed.
+
+  The product template's variant script calls window.falconPreorder(variant),
+  which returns 'preorder', 'blocked' or 'normal'.
+{%- endcomment -%}
+<div class="js-preorder-msg" style="display:none; margin:0 0 12px; padding:10px 12px; border:2px solid #243588; color:#243588; text-align:left; font-size:14px; line-height:1.4;">
+	<strong>Pre-order.</strong> <span class="js-preorder-text"></span> Payment is taken today. If you order other items at the same time, we'll send everything together when this arrives.
+</div>
+<input type="hidden" class="js-preorder-date" name="properties[_preorder_date]" value="" disabled>
+<input type="hidden" class="js-preorder-label" name="properties[Pre-order]" value="" disabled>
+<script>
+	window.FalconPreorderData = {
+	{%- for v in product.variants -%}
+		{%- assign po_state = 'normal' -%}
+		{%- assign po_date = v.metafields.falcon.expected_date.value -%}
+		{%- if v.inventory_management == 'shopify' and v.inventory_quantity <= 0 and v.inventory_policy == 'continue' and po_date != blank -%}
+			{%- assign po_state = 'preorder' -%}
+			{%- assign po_limit = v.metafields.falcon.preorder_limit.value | plus: 0 -%}
+			{%- assign po_sold = 0 | minus: v.inventory_quantity -%}
+			{%- if po_limit > 0 and po_sold >= po_limit -%}{%- assign po_state = 'blocked' -%}{%- endif -%}
+		{%- endif -%}
+		{%- assign po_text = v.metafields.falcon.preorder_note.value -%}
+		{%- if po_text == blank and po_date != blank -%}
+			{%- capture po_text -%}Expected to ship from {{ po_date | date: '%-d %B %Y' }}.{%- endcapture -%}
+		{%- endif -%}
+		"{{ v.id }}": { "state": {{ po_state | json }}, "date": {{ po_date | date: '%Y-%m-%d' | json }}, "text": {{ po_text | json }} }{% unless forloop.last %},{% endunless %}
+	{%- endfor -%}
+	};
+	window.falconPreorder = function (variant) {
+		var d = variant && window.FalconPreorderData[variant.id];
+		var state = d ? d.state : 'normal';
+		var on = state === 'preorder';
+		jQuery('.js-preorder-msg').toggle(on);
+		jQuery('.js-preorder-text').text(on ? d.text : '');
+		jQuery('.js-preorder-date').val(on ? d.date : '').prop('disabled', !on);
+		jQuery('.js-preorder-label').val(on ? d.text : '').prop('disabled', !on);
+		return state;
+	};
+	// Fallback in case the variant script does not fire on page load: set the
+	// state for the variant selected in the page. Waits for jQuery like the template.
+	(function poInit() {
+		if (!window.jQuery) { return setTimeout(poInit, 50); }
+		jQuery(function () {
+			var id = jQuery('#product-select').val();
+			if (window.falconPreorder({ id: id }) === 'preorder') {
+				jQuery('.js-add-to-cart').val('Pre-order');
+			}
+		});
+	})();
+</script>
