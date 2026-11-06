@@ -646,6 +646,20 @@ router.get('/usage/spend-controls', async (req, res) => {
   let cap = null, monthToDate = null, daily = 25, partial = false;
   try { cap = await budget.hardCapUsd(); } catch { partial = true; }
   try { monthToDate = await budget.monthlySpendUsd({ fresh: true }); } catch { partial = true; }
+  // The cost log can undercount when calls bypass costLog.js. The provider
+  // snapshots (Anthropic usage report) are the real bill, so take the higher
+  // of the two — same logic the Daily Spend chart uses for its legend total.
+  try {
+    const snaps = await usageTracking.currentSnapshots();
+    const snapshotTotal = (snaps || []).reduce((acc, r) => {
+      const s = r.snapshot;
+      if (!s) return acc;
+      if (s.cost_this_period != null && (s.currency || 'USD') === 'USD') return acc + Number(s.cost_this_period);
+      if (r.spend_this_month && (s.currency || 'USD') === 'USD') return acc + Number(r.spend_this_month);
+      return acc;
+    }, 0);
+    if (snapshotTotal > (monthToDate || 0)) monthToDate = snapshotTotal;
+  } catch { partial = true; }
   try {
     const dailyRaw = await getSetting('AI_DAILY_ALERT_USD');
     const d = parseFloat(dailyRaw != null ? dailyRaw : (process.env.AI_DAILY_ALERT_USD || ''));
@@ -679,10 +693,21 @@ router.put('/usage/spend-controls', async (req, res) => {
       const n = parseFloat(req.body.daily_alert_usd);
       await setKey('AI_DAILY_ALERT_USD', Number.isFinite(n) && n > 0 ? n : 25);
     }
-    const [cap, monthToDate] = await Promise.all([
+    let [cap, monthToDate] = await Promise.all([
       budget.hardCapUsd(),
       budget.monthlySpendUsd({ fresh: true }),
     ]);
+    try {
+      const snaps = await usageTracking.currentSnapshots();
+      const snapshotTotal = (snaps || []).reduce((acc, r) => {
+        const s = r.snapshot;
+        if (!s) return acc;
+        if (s.cost_this_period != null && (s.currency || 'USD') === 'USD') return acc + Number(s.cost_this_period);
+        if (r.spend_this_month && (s.currency || 'USD') === 'USD') return acc + Number(r.spend_this_month);
+        return acc;
+      }, 0);
+      if (snapshotTotal > (monthToDate || 0)) monthToDate = snapshotTotal;
+    } catch { /* snapshot read is best-effort */ }
     res.json({ monthly_cap_usd: cap, month_to_date_usd: monthToDate });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
