@@ -3550,21 +3550,9 @@ function linearTrend(points) {
 
 function DailySpendChart() {
   const [data, setData] = useState(null);
-  const [snapshotTotal, setSnapshotTotal] = useState(null);
 
   useEffect(() => {
     api.get('/settings/usage/cost-log?days=90').then(setData).catch(() => {});
-    api.get('/settings/usage').then(rows => {
-      if (!Array.isArray(rows)) return;
-      const total = rows.reduce((acc, r) => {
-        const s = r.snapshot;
-        if (!s) return acc;
-        if (s.cost_this_period != null && (s.currency || 'USD') === 'USD') return acc + Number(s.cost_this_period);
-        if (r.spend_this_month && (s.currency || 'USD') === 'USD') return acc + Number(r.spend_this_month);
-        return acc;
-      }, 0);
-      if (total > 0) setSnapshotTotal(total);
-    }).catch(() => {});
   }, []);
 
   if (!data?.daily?.length) return null;
@@ -3593,14 +3581,8 @@ function DailySpendChart() {
     chartData.push(point);
   }
 
-  const allValues = data.daily.map(r => r.cost_usd);
-  const trend = linearTrend(allValues);
-  const avg = allValues.reduce((s, v) => s + v, 0) / allValues.length;
-
-  const sorted = [...allValues].sort((a, b) => a - b);
-  const p90 = sorted[Math.floor(sorted.length * 0.9)] || 1;
-  const ceiling = Math.max(Math.ceil(p90 / 5) * 5, 5);
-  const outliers = allValues.filter(v => v > ceiling).length;
+  const rawValues = data.daily.map(r => r.cost_usd);
+  const trend = linearTrend(rawValues);
 
   const monthLabel = (key) => {
     const [y, m] = key.split('-');
@@ -3608,16 +3590,21 @@ function DailySpendChart() {
   };
 
   const monthTotal = (mk) => {
-    const tracked = Object.values(byMonth[mk]).reduce((s, v) => s + v, 0);
-    if (mk === thisMonthKey && snapshotTotal != null && snapshotTotal > tracked) return snapshotTotal;
-    return tracked;
+    return Object.values(byMonth[mk]).reduce((s, v) => s + v, 0);
   };
+
+  const allValues = chartData.flatMap(pt => monthKeys.map(mk => pt[mk]).filter(v => v != null));
+  const avg = allValues.length ? allValues.reduce((s, v) => s + v, 0) / allValues.length : 0;
+  const sorted = [...allValues].sort((a, b) => a - b);
+  const p90 = sorted[Math.floor(sorted.length * 0.9)] || 1;
+  const ceiling = Math.max(Math.ceil(p90 / 5) * 5, 5);
+  const outliers = allValues.filter(v => v > ceiling).length;
 
   return (
     <div className="card" style={{ marginBottom: 'var(--s4)' }}>
       <h2 className="caption" style={{ marginBottom: 'var(--s1)' }}>Daily spend</h2>
       <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
-        Each line is a calendar month, overlaid on day of month. Dashed line is the {allValues.length}-day average (${avg.toFixed(2)}/day).
+        Each line is a calendar month, overlaid on day of month. Dashed line is the {rawValues.length}-day average (${avg.toFixed(2)}/day).
         {trend && trend.slope > 0.01 && <span style={{ color: 'var(--warning)' }}> Trending up.</span>}
         {trend && trend.slope < -0.01 && <span style={{ color: 'var(--positive)' }}> Trending down.</span>}
         {outliers > 0 && <span> Y-axis capped at ${ceiling}; {outliers} day{outliers > 1 ? 's' : ''} above (hover for real value).</span>}
