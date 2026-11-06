@@ -3,9 +3,11 @@ import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 
 const STATUS_CHIPS = {
-  pending:  'chip chip-warning',
-  approved: 'chip chip-success',
-  skipped:  'chip chip-neutral',
+  pending:   'chip chip-warning',
+  confirmed: 'chip chip-success',
+  written:   'chip chip-accent',
+  skipped:   'chip',
+  error:     'chip chip-danger',
 };
 
 export default function ReconcilePanel() {
@@ -21,7 +23,7 @@ export default function ReconcilePanel() {
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      api.get(`/accounts/queue?status=${filter}&page=${page}&limit=25`),
+      api.get(`/accounts/queue?status=${filter}&offset=${(page - 1) * 25}&limit=25`),
       api.get('/accounts/dashboard'),
     ])
       .then(([q, d]) => {
@@ -58,6 +60,20 @@ export default function ReconcilePanel() {
       .catch(e => toast(e.message || 'Reject failed', 'error'));
   };
 
+  const autoConfirm = () => {
+    if (!window.confirm('Auto-confirm all rule-matched items with >= 95% confidence?')) return;
+    api.post('/accounts/queue/auto-confirm', { threshold: 0.95 })
+      .then(r => { toast(`Auto-confirmed ${r.confirmed || 0} items`, 'success'); load(); })
+      .catch(e => toast(e.message || 'Auto-confirm failed', 'error'));
+  };
+
+  const writeBack = () => {
+    if (!window.confirm('Write all confirmed items back to Xero? This creates real transactions.')) return;
+    api.post('/accounts/queue/write-back')
+      .then(r => { toast(`Wrote ${r.written || 0} items to Xero`, 'success'); load(); })
+      .catch(e => toast(e.message || 'Write-back failed', 'error'));
+  };
+
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
   const fmtAmount = (amt, cur) => {
     const n = Number(amt);
@@ -70,10 +86,11 @@ export default function ReconcilePanel() {
       {stats && (
         <div className="card" style={{ marginBottom: 'var(--s4)' }}>
           <div style={{ display: 'flex', gap: 'var(--s5)', flexWrap: 'wrap' }}>
-            <StatBox label="Pending review" value={stats.queue?.pending ?? 0} />
-            <StatBox label="Approved today" value={stats.queue?.approved_today ?? 0} />
+            <StatBox label="Pending review" value={stats.queue?.pending ?? 0} accent={stats.queue?.pending > 0} />
+            <StatBox label="Confirmed" value={stats.queue?.confirmed ?? 0} />
+            <StatBox label="Written to Xero" value={stats.queue?.written ?? 0} />
             <StatBox label="Missing invoices" value={stats.invoices?.missing ?? 0} accent={stats.invoices?.missing > 0} />
-            <StatBox label="Xero connected" value={stats.xero?.connected ? 'Yes' : 'No'} />
+            <StatBox label="Upcoming deadlines" value={stats.deadlines?.length ?? 0} />
           </div>
         </div>
       )}
@@ -88,9 +105,13 @@ export default function ReconcilePanel() {
               onChange={e => { setFilter(e.target.value); setPage(1); }}
             >
               <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="written">Written</option>
               <option value="skipped">Skipped</option>
+              <option value="all">All</option>
             </select>
+            <button className="btn btn-sm" onClick={autoConfirm}>Auto-confirm</button>
+            <button className="btn btn-sm" onClick={writeBack}>Write to Xero</button>
             <button className="btn btn-sm btn-primary" onClick={sync} disabled={syncing}>
               {syncing ? 'Syncing…' : 'Sync from Xero'}
             </button>

@@ -26,6 +26,12 @@ export default function RulesPanel() {
       .catch(e => toast(e.message || 'Save failed', 'error'));
   };
 
+  const create = (data) => {
+    api.post('/accounts/rules', data)
+      .then(() => { toast('Rule created', 'success'); setEditing(null); load(); })
+      .catch(e => toast(e.message || 'Create failed', 'error'));
+  };
+
   const remove = (id) => {
     if (!window.confirm('Delete this classification rule?')) return;
     api.delete(`/accounts/rules/${id}`)
@@ -69,11 +75,11 @@ export default function RulesPanel() {
             <tbody>
               {rules.map(rule => (
                 <tr key={rule.id}>
-                  <td className="body-sm" style={{ fontWeight: 600 }}>{rule.pattern}</td>
-                  <td><span className="chip chip-neutral">{MATCH_LABELS[rule.match_type] || rule.match_type}</span></td>
-                  <td className="body-sm">{rule.account_code || '—'}</td>
-                  <td className="body-sm">{rule.tax_type || '—'}</td>
-                  <td className="body-sm" style={{ fontVariantNumeric: 'tabular-nums' }}>{rule.hit_count ?? 0}</td>
+                  <td className="body-sm" style={{ fontWeight: 600 }}>{rule.payee_pattern}</td>
+                  <td><span className="chip">{MATCH_LABELS[rule.match_type] || rule.match_type}</span></td>
+                  <td className="body-sm">{rule.account_code}{rule.account_name ? ` (${rule.account_name})` : ''}</td>
+                  <td className="body-sm">{rule.tax_rate || '—'}</td>
+                  <td className="body-sm" style={{ fontVariantNumeric: 'tabular-nums' }}>{rule.times_confirmed ?? 0}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                       <button className="btn btn-sm" onClick={() => setEditing(editing === rule.id ? null : rule.id)}>Edit</button>
@@ -94,13 +100,14 @@ export default function RulesPanel() {
 
 function EditRow({ rule, onSave, onCancel }) {
   const [accountCode, setAccountCode] = useState(rule?.account_code || '');
-  const [taxType, setTaxType] = useState(rule?.tax_type || '');
+  const [accountName, setAccountName] = useState(rule?.account_name || '');
+  const [taxRate, setTaxRate] = useState(rule?.tax_rate || '');
   const [matchType, setMatchType] = useState(rule?.match_type || 'exact');
 
   if (!rule) return null;
   return (
     <div className="card" style={{ marginTop: 'var(--s3)', background: 'var(--surface-2)' }}>
-      <h3 className="caption" style={{ marginBottom: 'var(--s2)' }}>Edit rule: {rule.pattern}</h3>
+      <h3 className="caption" style={{ marginBottom: 'var(--s2)' }}>Edit rule: {rule.payee_pattern}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'var(--s3)' }}>
         <label className="body-sm">
           Match type
@@ -116,12 +123,16 @@ function EditRow({ rule, onSave, onCancel }) {
           <input className="input" value={accountCode} onChange={e => setAccountCode(e.target.value)} />
         </label>
         <label className="body-sm">
+          Account name
+          <input className="input" value={accountName} onChange={e => setAccountName(e.target.value)} />
+        </label>
+        <label className="body-sm">
           Tax rate
-          <input className="input" value={taxType} onChange={e => setTaxType(e.target.value)} />
+          <input className="input" value={taxRate} onChange={e => setTaxRate(e.target.value)} />
         </label>
       </div>
       <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
-        <button className="btn btn-sm btn-primary" onClick={() => onSave(rule.id, { match_type: matchType, account_code: accountCode, tax_type: taxType })}>Save</button>
+        <button className="btn btn-sm btn-primary" onClick={() => onSave(rule.id, { match_type: matchType, account_code: accountCode, account_name: accountName, tax_rate: taxRate })}>Save</button>
         <button className="btn btn-sm" onClick={onCancel}>Cancel</button>
       </div>
     </div>
