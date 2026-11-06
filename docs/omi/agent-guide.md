@@ -3854,3 +3854,60 @@ guard clauses until `grep` found them.
 
 If a harness mutates a path, that path goes in the backup. Check what the
 tree holds after a run, not only what the run printed.
+
+## 15. Accounts module
+
+The Accounts section lives under Settings > Accounts and handles automated
+bookkeeping for October Communications. It connects to Xero via OAuth2 for
+bank reconciliation and uses a two-tier classification system: a deterministic
+rules engine first, Claude AI for unknowns.
+
+### Architecture
+
+| Layer | Files |
+|-------|-------|
+| Migration | `backend/migrations/238_accounts_module.sql` (9 tables) |
+| Xero connector | `backend/src/connectors/xero.js` (OAuth2, encrypted tokens, rate-limit retry) |
+| Services | `backend/src/services/accounts/` (rules, classify, reconcile, invoices, deadlines, digest, vatPack, driveScanner) |
+| Routes | `backend/src/routes/accounts.js` |
+| Frontend | `frontend/src/components/accounts/AccountsPanels.jsx` |
+| Tests | `backend/tests/accounts-rules.test.js`, `accounts-vatPack.test.js`, `accounts-reconcile.test.js` |
+
+### Key tables
+
+- `xero_connections` stores encrypted OAuth tokens (one row per tenant)
+- `acct_rules` is the deterministic rules engine (payee pattern matching)
+- `acct_reconcile_queue` holds bank lines awaiting or completed review
+- `acct_confirmations` is the audit trail for every confirmed line
+- `acct_vat_exceptions` flags suspicious VAT treatments for review
+- `acct_invoice_matches` links Google Drive files to queue items
+- `acct_tax_deadlines` tracks VAT, CT600, PAYE filing dates
+- `acct_digests` stores weekly summary snapshots
+
+### Scheduler entries
+
+- Sunday 21:00: `pullAndClassify` + `autoConfirmHighConfidence` + Drive scan
+- Monday 07:30: `buildAndSend` (digest email)
+
+### Gotchas
+
+- The `line_ref` column on `acct_reconcile_queue` is `UNIQUE NOT NULL`. The
+  reconcile loop uses `ON CONFLICT (line_ref) DO NOTHING` to skip duplicates.
+- Xero tokens rotate on refresh. The connector handles this transparently via
+  `getValidToken()`. Never store raw tokens anywhere but `xero_connections`.
+- VAT exception detection runs on every `confirmItem` call, not on queue
+  insertion. It checks reverse charge mismatches, currency/rate
+  inconsistencies, and known overseas suppliers with wrong VAT treatment.
+- The `WRITE_BACK_ENABLED` env var must be `'true'` (string) for the
+  write-back-to-Xero route to do anything. It defaults to off.
+- Seed rules (30 entries for common October payees) can be loaded via POST
+  `/api/accounts/rules/seed` or the "Seed rules" button in the Rules tab.
+- The Drive scanner needs `ACCOUNTS_DRIVE_FOLDER_ID` or
+  `ACCOUNTS_DRIVE_FOLDER_URL` set, and the Google service account must have
+  Viewer access on the folder.
+- The frontend uses `useXeroRefData()` to populate account code and tax rate
+  dropdowns from live Xero data. Falls back to manual text input if Xero is
+  not connected.
+- The `toast` pattern in this codebase is `toast(message, type)` where type
+  is `'success'` (default), `'error'`, or `'warning'`. It is NOT an object
+  with `.error()` or `.success()` methods.
