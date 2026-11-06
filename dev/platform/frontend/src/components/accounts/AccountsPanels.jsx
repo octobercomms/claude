@@ -1505,3 +1505,161 @@ export function XeroPanel() {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// ReportsPanel — P&L and Trial Balance from Xero
+// ---------------------------------------------------------------------------
+
+function ukFinancialYearStart() {
+  const now = new Date();
+  const y = now.getMonth() < 3 || (now.getMonth() === 3 && now.getDate() < 6) ? now.getFullYear() - 1 : now.getFullYear();
+  return `${y}-04-06`;
+}
+
+function XeroReportTable({ report }) {
+  if (!report?.Reports?.length) return <div className="text-muted">No report data returned.</div>;
+  const rep = report.Reports[0];
+  if (!rep?.Rows?.length) return <div className="text-muted">Report has no rows.</div>;
+
+  return (
+    <div>
+      {rep.ReportTitles && (
+        <div className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
+          {rep.ReportTitles.join(' | ')}
+        </div>
+      )}
+      <table className="table">
+        <tbody>
+          {rep.Rows.map((row, ri) => {
+            if (row.RowType === 'Header') {
+              return (
+                <tr key={ri}>
+                  {(row.Cells || []).map((cell, ci) => (
+                    <th key={ci} style={ci > 0 ? { textAlign: 'right' } : {}}>{cell.Value || ''}</th>
+                  ))}
+                </tr>
+              );
+            }
+            if (row.RowType === 'Section') {
+              return (
+                <React.Fragment key={ri}>
+                  {row.Title && (
+                    <tr>
+                      <td colSpan={10} style={{ fontWeight: 600, paddingTop: 'var(--s3)', borderBottom: '1px solid var(--border)' }}>{row.Title}</td>
+                    </tr>
+                  )}
+                  {(row.Rows || []).map((subRow, si) => {
+                    const isSummary = subRow.RowType === 'SummaryRow';
+                    return (
+                      <tr key={`${ri}-${si}`} style={isSummary ? { fontWeight: 600, borderTop: '2px solid var(--border)' } : {}}>
+                        {(subRow.Cells || []).map((cell, ci) => (
+                          <td key={ci} style={{
+                            ...(ci > 0 ? { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } : {}),
+                            ...(isSummary ? { fontWeight: 600 } : {}),
+                          }}>
+                            {cell.Value || ''}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            }
+            if (row.RowType === 'SummaryRow') {
+              return (
+                <tr key={ri} style={{ fontWeight: 700, borderTop: '2px solid var(--border)' }}>
+                  {(row.Cells || []).map((cell, ci) => (
+                    <td key={ci} style={{
+                      ...(ci > 0 ? { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } : {}),
+                      fontWeight: 700,
+                    }}>
+                      {cell.Value || ''}
+                    </td>
+                  ))}
+                </tr>
+              );
+            }
+            return null;
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function ReportsPanel() {
+  const { toast } = useToast();
+  const today = new Date().toISOString().split('T')[0];
+  const [reportType, setReportType] = useState('pnl');
+  const [fromDate, setFromDate] = useState(ukFinancialYearStart());
+  const [toDate, setToDate] = useState(today);
+  const [balanceDate, setBalanceDate] = useState(today);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleFetch() {
+    setLoading(true);
+    setReport(null);
+    try {
+      if (reportType === 'pnl') {
+        const data = await api.get(`/accounts/xero/profit-and-loss?from=${fromDate}&to=${toDate}`);
+        setReport(data);
+      } else if (reportType === 'trial') {
+        const data = await api.get(`/accounts/xero/trial-balance?date=${balanceDate}`);
+        setReport(data);
+      } else if (reportType === 'balance') {
+        const data = await api.get(`/accounts/xero/balance-sheet?date=${balanceDate}`);
+        setReport(data);
+      }
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="h4">Financial reports</div>
+
+      <div className="card" style={{ padding: 'var(--s4)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+          <label className="body-sm">
+            Report
+            <select className="input" value={reportType} onChange={e => setReportType(e.target.value)} style={{ marginLeft: 'var(--s2)' }}>
+              <option value="pnl">Profit and Loss</option>
+              <option value="trial">Trial Balance</option>
+              <option value="balance">Balance Sheet</option>
+            </select>
+          </label>
+          {reportType === 'pnl' ? (
+            <>
+              <label className="body-sm">
+                From
+                <input type="date" className="input" value={fromDate} onChange={e => setFromDate(e.target.value)} style={{ marginLeft: 'var(--s2)' }} />
+              </label>
+              <label className="body-sm">
+                To
+                <input type="date" className="input" value={toDate} onChange={e => setToDate(e.target.value)} style={{ marginLeft: 'var(--s2)' }} />
+              </label>
+            </>
+          ) : (reportType === 'trial' || reportType === 'balance') ? (
+            <label className="body-sm">
+              As at
+              <input type="date" className="input" value={balanceDate} onChange={e => setBalanceDate(e.target.value)} style={{ marginLeft: 'var(--s2)' }} />
+            </label>
+          ) : null}
+          <button className="btn btn-primary" onClick={handleFetch} disabled={loading}>
+            {loading ? 'Loading...' : 'Fetch report'}
+          </button>
+        </div>
+      </div>
+
+      {report && <XeroReportTable report={report} />}
+
+      {!report && !loading && (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">Select a report type and date range, then click "Fetch report". Reports are pulled live from Xero.</div>
+        </div>
+      )}
+    </div>
+  );
+}

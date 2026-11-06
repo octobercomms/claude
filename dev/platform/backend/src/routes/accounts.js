@@ -545,4 +545,14 @@ router.get('/xero/profit-and-loss', async (req, res) => {
   }
 });
 
+router.get('/xero/balance-sheet', async (req, res) => {
+  try {
+    const token = await xero.getValidToken();
+    const report = await xero.getBalanceSheet(token, req.query.date);
+    res.json(report);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
