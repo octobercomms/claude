@@ -3871,6 +3871,7 @@ rules engine first, Claude AI for unknowns.
 | Services | `backend/src/services/accounts/` (rules, classify, reconcile, invoices, deadlines, digest, vatPack, driveScanner) |
 | Routes | `backend/src/routes/accounts.js` |
 | Frontend | `frontend/src/components/accounts/AccountsPanels.jsx` |
+| Settings page | `frontend/src/pages/SettingsPage.jsx` (overview tab + accounts section) |
 | Tests | `backend/tests/accounts-rules.test.js`, `accounts-vatPack.test.js`, `accounts-reconcile.test.js` |
 
 ### Key tables
@@ -3888,6 +3889,19 @@ rules engine first, Claude AI for unknowns.
 
 - Sunday 21:00: `pullAndClassify` + `autoConfirmHighConfidence` + Drive scan
 - Monday 07:30: `buildAndSend` (digest email)
+
+### Sub-tabs
+
+Overview (DashboardPanel), Reconcile, Rules, Invoices, Deadlines, VAT,
+Digests, Drive. Overview is the landing and shows queue stats, invoice match
+counts, and upcoming deadlines with urgency colouring. The route is
+`/accounts/:screen?` using the standard `useScreen` hook.
+
+### Settings whitelist
+
+`ACCOUNTS_DIGEST_EMAIL` and `ACCOUNTS_DRIVE_FOLDER_ID` are in SETTINGS_KEYS
+(`routes/settings.js`) and grouped in `settings/catalogue.js` so they appear
+in the Settings UI. The Xero group also includes `XERO_REDIRECT_URI`.
 
 ### Gotchas
 
