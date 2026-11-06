@@ -1,5 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { getSetting } = require('../utils/settings');
+const { recordClaudeCost } = require('./costLog');
 const pool = require('../db');
 
 const MODEL = 'claude-sonnet-4-6';
@@ -77,6 +78,7 @@ async function analyseTags(visibleClientIds) {
     system: require('./claude').cacheableSystem(system),
     messages: [{ role: 'user', content: prompt }],
   });
+  try { recordClaudeCost({ model: MODEL, response: resp, feature: 'tag_tidy' }); } catch {}
 
   const text = resp.content.find(b => b.type === 'text')?.text || '';
   const match = text.match(/\{[\s\S]*\}/);

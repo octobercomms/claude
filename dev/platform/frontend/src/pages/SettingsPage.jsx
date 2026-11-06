@@ -3593,14 +3593,8 @@ function DailySpendChart() {
     chartData.push(point);
   }
 
-  const allValues = data.daily.map(r => r.cost_usd);
-  const trend = linearTrend(allValues);
-  const avg = allValues.reduce((s, v) => s + v, 0) / allValues.length;
-
-  const sorted = [...allValues].sort((a, b) => a - b);
-  const p90 = sorted[Math.floor(sorted.length * 0.9)] || 1;
-  const ceiling = Math.max(Math.ceil(p90 / 5) * 5, 5);
-  const outliers = allValues.filter(v => v > ceiling).length;
+  const rawValues = data.daily.map(r => r.cost_usd);
+  const trend = linearTrend(rawValues);
 
   const monthLabel = (key) => {
     const [y, m] = key.split('-');
@@ -3613,11 +3607,34 @@ function DailySpendChart() {
     return tracked;
   };
 
+  // When the Anthropic usage report (snapshot) is higher than the cost-log
+  // total for the current month, the per-day bars undercount. Scale each
+  // day proportionally so the bars add up to the real number. The shape
+  // (which days were busier) stays the same; the amounts become honest.
+  const thisMonthTracked = byMonth[thisMonthKey]
+    ? Object.values(byMonth[thisMonthKey]).reduce((s, v) => s + v, 0) : 0;
+  const reconcileRatio = (thisMonthKey && snapshotTotal > 0 && thisMonthTracked > 0 && snapshotTotal > thisMonthTracked)
+    ? snapshotTotal / thisMonthTracked : 1;
+
+  const reconciledChartData = reconcileRatio > 1
+    ? chartData.map(pt => {
+        if (pt[thisMonthKey] == null) return pt;
+        return { ...pt, [thisMonthKey]: Math.round(pt[thisMonthKey] * reconcileRatio * 100) / 100 };
+      })
+    : chartData;
+
+  const allValues = reconciledChartData.flatMap(pt => monthKeys.map(mk => pt[mk]).filter(v => v != null));
+  const avg = allValues.length ? allValues.reduce((s, v) => s + v, 0) / allValues.length : 0;
+  const sorted = [...allValues].sort((a, b) => a - b);
+  const p90 = sorted[Math.floor(sorted.length * 0.9)] || 1;
+  const ceiling = Math.max(Math.ceil(p90 / 5) * 5, 5);
+  const outliers = allValues.filter(v => v > ceiling).length;
+
   return (
     <div className="card" style={{ marginBottom: 'var(--s4)' }}>
       <h2 className="caption" style={{ marginBottom: 'var(--s1)' }}>Daily spend</h2>
       <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
-        Each line is a calendar month, overlaid on day of month. Dashed line is the {allValues.length}-day average (${avg.toFixed(2)}/day).
+        Each line is a calendar month, overlaid on day of month. Dashed line is the {rawValues.length}-day average (${avg.toFixed(2)}/day).
         {trend && trend.slope > 0.01 && <span style={{ color: 'var(--warning)' }}> Trending up.</span>}
         {trend && trend.slope < -0.01 && <span style={{ color: 'var(--positive)' }}> Trending down.</span>}
         {outliers > 0 && <span> Y-axis capped at ${ceiling}; {outliers} day{outliers > 1 ? 's' : ''} above (hover for real value).</span>}
@@ -3634,7 +3651,7 @@ function DailySpendChart() {
         })}
       </div>
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={chartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
+        <LineChart data={reconciledChartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
           <XAxis dataKey="day" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => d} />
           <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} domain={[0, ceiling]} allowDataOverflow />
           <Tooltip
