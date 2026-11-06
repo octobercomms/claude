@@ -33,15 +33,16 @@ const PAGES = {
   owned:     { file: 'ClientSEOPage.jsx',    v: 'activeTab' },
   convert:   { file: 'ClientConvertPage.jsx', v: 'tab' },
   produce:   { file: 'ClientVideoTab.jsx',   v: 'tab' },
-  // Three sections, one page. Settings, Database and Biz dev are three paths
-  // over SettingsPage, which reads which one it is in from the path.
+  // Four sections, one page. Settings, Database, Biz dev and Accounts are
+  // four paths over SettingsPage, which reads which one it is in from the path.
   settings:  { file: 'SettingsPage.jsx',     v: 'tab' },
   database:  { file: 'SettingsPage.jsx',     v: 'tab' },
   bizdev:    { file: 'SettingsPage.jsx',     v: 'tab' },
+  accounts:  { file: 'SettingsPage.jsx',     v: 'tab' },
 };
 
 // The sections that live at the top level rather than under /clients/:id.
-const GLOBAL = new Set(['settings', 'database', 'bizdev']);
+const GLOBAL = new Set(['settings', 'database', 'bizdev', 'accounts']);
 
 test('every section is covered by this file, so nothing is silently skipped', () => {
   assert.deepEqual(Object.keys(PAGES).sort(), Object.keys(SECTIONS).sort());
@@ -210,10 +211,10 @@ test('the default screen has a row, so a bare section URL highlights something',
   }
 });
 
-test('the three SettingsPage sections together name exactly its screens', () => {
-  // Was settings alone. Database and Biz dev moved out into sections of their
-  // own, so the page's table is now the union of all three — and the union is
-  // what has to match, or a screen is either unreachable or orphaned.
+test('the four SettingsPage sections together name exactly its screens', () => {
+  // Was settings alone. Database, Biz dev and Accounts moved out into sections
+  // of their own, so the page's table is now the union of all four — and the
+  // union is what has to match, or a screen is either unreachable or orphaned.
   const src = page('SettingsPage.jsx');
   // Sliced to ALL_SUBS, not the old SECTION_GROUPS: that const was dead code
   // and is deleted, and indexOf on a missing marker returns -1, which slice

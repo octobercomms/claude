@@ -546,6 +546,36 @@ export const SECTIONS = {
       ] },
     ],
   },
+  accounts: {
+    key: 'accounts',
+    leaf: 'accounts',
+    title: 'Accounts',
+    scope: 'global',
+    base: () => '/accounts',
+    defaultTab: 'reconcile',
+    groups: [
+      { heading: null, rows: [
+        { tab: 'overview',   label: 'Overview' },
+        { tab: 'reconcile',  label: 'Reconcile' },
+        { tab: 'rules',      label: 'Rules' },
+        { tab: 'invoices',   label: 'Invoices' },
+      ] },
+      { heading: 'Tax', rows: [
+        { tab: 'deadlines',  label: 'Deadlines' },
+        { tab: 'vat',        label: 'VAT' },
+        { tab: 'fx',         label: 'FX tracker' },
+      ] },
+      { heading: 'Reports', rows: [
+        { tab: 'fin_reports', label: 'Financial reports', slug: 'financial-reports' },
+        { tab: 'audit',      label: 'Audit trail', slug: 'audit-trail' },
+        { tab: 'digests',    label: 'Weekly digest', slug: 'weekly-digest' },
+      ] },
+      { heading: 'Setup', rows: [
+        { tab: 'drive',      label: 'Google Drive' },
+        { tab: 'xero',       label: 'Xero' },
+      ] },
+    ],
+  },
 };
 
 // Which section a path is in. Derived from each section's own `leaf`, so a
@@ -556,7 +586,7 @@ export function sectionForPath(pathname) {
   // The global sections are not under /clients and have no client id. Keyed
   // off each section's own `leaf` so a path segment is still decided in one
   // place; the literal list is only the order to try them in.
-  for (const key of ['settings', 'database', 'bizdev']) {
+  for (const key of ['settings', 'database', 'bizdev', 'accounts']) {
     const leaf = SECTIONS[key].leaf;
     if (new RegExp(`^/${leaf}(/|$)`).test(pathname)) return SECTIONS[key];
   }

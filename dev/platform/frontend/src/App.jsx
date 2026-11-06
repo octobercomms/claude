@@ -135,6 +135,7 @@ export default function App() {
                 rendered keep working at their new addresses. */}
             <Route path="database/:screen?" element={<SettingsPage />} />
             <Route path="biz-dev/:screen?" element={<SettingsPage />} />
+            <Route path="accounts/:screen?" element={<SettingsPage />} />
 
             {/* Client screens outside the panel. `data` is the read-only
                 numbers page a client login lands on.

@@ -327,6 +327,35 @@ export const KEY_GROUPS = [
       { key: 'REPORT_FOOTER_LINE_3', label: 'Footer line 3', placeholder: '85 Great Portland Street, First Floor, London W1W 7LT · www.octobercomms.com', type: 'text' },
     ],
   },
+  {
+    title: 'Xero',
+    category: 'Accounts',
+    test: 'xero',
+    hint: 'OAuth2 app for the Accounts module. Register at developer.xero.com (web app type). The redirect URI must match your platform URL + /api/accounts/xero/callback exactly.',
+    keys: [
+      { key: 'XERO_CLIENT_ID', label: 'Xero Client ID', placeholder: 'From developer.xero.com > My Apps', type: 'text' },
+      { key: 'XERO_CLIENT_SECRET', label: 'Xero Client Secret', placeholder: 'From developer.xero.com > My Apps', type: 'password' },
+      { key: 'XERO_REDIRECT_URI', label: 'Xero Redirect URI', placeholder: 'https://your-domain.com/api/accounts/xero/callback', type: 'text' },
+    ],
+  },
+  {
+    title: 'Accounts Email',
+    category: 'Accounts',
+    test: 'accounts_email',
+    hint: 'Email recipient for weekly account digests. Falls back to ALERT_EMAIL if not set.',
+    keys: [
+      { key: 'ACCOUNTS_DIGEST_EMAIL', label: 'Digest recipient', placeholder: 'accounts@yourdomain.com', type: 'text' },
+    ],
+  },
+  {
+    title: 'Invoice Folder',
+    category: 'Accounts',
+    test: 'accounts_drive',
+    hint: 'Google Drive folder containing invoices and receipts. Share the folder with the platform service account. The scanner matches files to Xero transactions by amount, payee and date.',
+    keys: [
+      { key: 'ACCOUNTS_DRIVE_FOLDER_ID', label: 'Drive Folder ID', placeholder: 'Folder ID from the Google Drive URL', type: 'text' },
+    ],
+  },
 ];
 
 
@@ -343,6 +372,7 @@ export const CATEGORIES = [
   { title: 'Integrations', description: 'Handing data to something else on this stack.' },
   { title: 'Reports', description: 'What every report PDF prints at the bottom of the page.' },
   { title: 'Alerts', description: 'Who the platform tells when a connector fails or a token expires.' },
+  { title: 'Accounts', description: 'Xero credentials for the bookkeeping and reconciliation module.' },
 ];
 
 // Sub-tab → which CATEGORIES of provider-key groups it shows.
@@ -364,6 +394,7 @@ export const SUBTAB_CATS = {
   integrations: ['Integrations'],
   reports: ['Reports'],
   alerts: ['Alerts'],
+  xero: ['Accounts'],
 };
 
 // Does this label already say which provider it belongs to?

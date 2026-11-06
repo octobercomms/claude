@@ -22,6 +22,7 @@ import IntegrationsPage from './IntegrationsPage';
 import { roWrite } from '../utils/readOnly';
 import InboxesPanel from '../components/InboxesPanel';
 import { useAuth } from '../context/AuthContext';
+import { DashboardPanel, ReconcilePanel, RulesPanel, InvoicesPanel, DeadlinesPanel, VatPanel, DigestsPanel, DrivePanel, XeroPanel, ReportsPanel, FxPanel, AuditPanel } from '../components/accounts/AccountsPanels';
 
 // The catalogue these render lives in settings/catalogue.js, so the search
 // palette can find a credential by name.
@@ -104,6 +105,20 @@ const SECTIONS = [
     // The alert email: who the platform tells when a connector fails. It was
     // in "Other", filed next to a report footer.
     { k: 'alerts' },
+  ] },
+  { key: 'accounts', subs: [
+    { k: 'overview' },
+    { k: 'reconcile' },
+    { k: 'rules' },
+    { k: 'invoices' },
+    { k: 'deadlines' },
+    { k: 'vat' },
+    { k: 'fx' },
+    { k: 'fin_reports' },
+    { k: 'audit' },
+    { k: 'digests' },
+    { k: 'drive' },
+    { k: 'xero' },
   ] },
 ];
 const ALL_SUBS = SECTIONS.flatMap(s => s.subs.map(x => x.k));
@@ -369,6 +384,19 @@ export default function SettingsPage() {
       {tab === 'checker' && <CheckerBenchPage />}
 
       {tab === 'models' && <AiModelsPanel />}
+
+      {tab === 'overview' && <DashboardPanel />}
+      {tab === 'reconcile' && <ReconcilePanel />}
+      {tab === 'rules' && <RulesPanel />}
+      {tab === 'invoices' && <InvoicesPanel />}
+      {tab === 'deadlines' && <DeadlinesPanel />}
+      {tab === 'vat' && <VatPanel />}
+      {tab === 'fx' && <FxPanel />}
+      {tab === 'fin_reports' && <ReportsPanel />}
+      {tab === 'audit' && <AuditPanel />}
+      {tab === 'digests' && <DigestsPanel />}
+      {tab === 'drive' && <DrivePanel />}
+      {tab === 'xero' && <XeroPanel />}
 
       {SUBTAB_CATS[tab] && (<>
       {/* Provider keys for this section — one or more categories. */}

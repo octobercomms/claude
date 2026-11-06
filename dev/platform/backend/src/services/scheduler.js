@@ -974,6 +974,53 @@ cron.schedule('0 7 * * 1', async () => {
   }
 });
 
+// Accounts reconciliation: Sunday 21:00. Pulls unreconciled bank lines from
+// Xero, runs the rules engine, sends unknowns to Claude for classification,
+// then auto-confirms high-confidence rule matches (>= 95%). Weekly is enough
+// because the operator reviews the queue manually during the week; this is
+// the safety net that keeps it from growing unbounded. Also runs the Drive
+// invoice scanner after classification so new receipts match immediately.
+cron.schedule('0 21 * * 0', async () => {
+  try {
+    const budget = require('./budget');
+    if (await budget.taskCapReached('accounts')) {
+      console.warn('[Accounts] reconciliation skipped — monthly budget reached');
+      return;
+    }
+    const accounts = require('./accounts');
+    const r = await accounts.reconcile.pullAndClassify({});
+    console.log(`[Accounts] reconcile: ${r.queued} queued, ${r.ruleMatched} rule-matched, ${r.aiClassified} AI-classified`);
+    const confirmed = await accounts.reconcile.autoConfirmHighConfidence(0.95);
+    if (confirmed) console.log(`[Accounts] auto-confirmed ${confirmed} high-confidence items`);
+    try {
+      const scan = await accounts.driveScanner.scanAndMatch();
+      if (scan.scanned) console.log(`[Accounts] Drive scan: ${scan.scanned} files, ${scan.matched} matched, ${scan.missing} missing`);
+    } catch (driveErr) { console.warn('[Accounts] Drive scan skipped:', driveErr.message); }
+  } catch (e) { console.error('[Accounts] reconcile failed:', e.message); }
+});
+
+// Accounts weekly digest: Monday 07:30. Builds the digest and emails it.
+// Runs before the strategist briefing so any accounts issues surface in the
+// same Monday morning window.
+cron.schedule('30 7 * * 1', async () => {
+  try {
+    const accounts = require('./accounts');
+    const r = await accounts.digest.buildAndSend();
+    console.log(`[Accounts] weekly digest built: ${r.summary.reconciliation.confirmedThisWeek} confirmed, ${r.summary.invoices.missing} missing invoices, emailed: ${r.emailed}`);
+  } catch (e) { console.error('[Accounts] weekly digest failed:', e.message); }
+});
+
+// Tax deadline alerts: weekday mornings. Emails a reminder when a filing or
+// payment deadline falls within the next 14 days. Runs daily rather than
+// weekly so a deadline that lands mid-week still gets a heads-up.
+cron.schedule('15 8 * * 1-5', async () => {
+  try {
+    const accounts = require('./accounts');
+    const r = await accounts.deadlines.sendAlerts(14);
+    if (r.sent) console.log(`[Accounts] deadline alert: ${r.count} due, emailed ${r.to}`);
+  } catch (e) { console.error('[Accounts] deadline alert failed:', e.message); }
+}, { timezone: 'Europe/London' });
+
 // GTM Brain Phase 0 — weekly baseline snapshot of stale crucial items per
 // client. Runs after the strategist briefing so the snapshot reflects the
 // queue the briefing just wrote. Free (no LLM), fast (one query + inserts).

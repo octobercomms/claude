@@ -322,6 +322,11 @@ export default function Layout() {
               <NavLink to="/biz-dev" style={({ isActive }) => linkStyle(isActive)}>Biz dev</NavLink>
             </li>
           )}
+          {user?.role === 'admin' && (
+            <li>
+              <NavLink to="/accounts" style={({ isActive }) => linkStyle(isActive)}>Accounts</NavLink>
+            </li>
+          )}
           <li>
             <NavLink to="/guide" style={({ isActive }) => linkStyle(isActive)}>Guide</NavLink>
           </li>

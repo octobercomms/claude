@@ -1252,5 +1252,66 @@ async function sendPipelineAlert({ subject, headline, lines = [], suggestion, li
   return getTransporter().sendMail({ from: getSenderAddress(), to: pipelineAlertTo(), subject, html, text });
 }
 
+async function sendAccountsDigest({ summary }) {
+  if (!process.env.ALERT_EMAIL) return;
+  const to = process.env.ALERT_EMAIL.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+  if (!to.length) return;
+
+  const platformUrl = process.env.PLATFORM_URL || 'https://platform.octobercomms.com';
+  const recon = summary.reconciliation || {};
+  const inv = summary.invoices || {};
+  const dls = summary.deadlines || [];
+
+  const deadlineRows = dls.map(d => {
+    const colour = d.daysUntil <= 7 ? '#dc3545' : d.daysUntil <= 30 ? '#e8a317' : '#198754';
+    return `<tr><td style="padding:4px 8px">${d.type}</td><td style="padding:4px 8px">${d.label}</td><td style="padding:4px 8px">${d.dueDate}</td><td style="padding:4px 8px;color:${colour};font-weight:600">${d.daysUntil}d</td></tr>`;
+  }).join('');
+
+  const missingRows = (inv.missingList || []).slice(0, 10).map(m =>
+    `<tr><td style="padding:4px 8px">${m.payee || '—'}</td><td style="padding:4px 8px;text-align:right">${m.currency || 'GBP'} ${Number(m.amount || 0).toFixed(2)}</td><td style="padding:4px 8px">${m.date || '—'}</td></tr>`
+  ).join('');
+
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#111;max-width:620px">
+    <h2 style="margin:0 0 16px;font-size:18px">Accounts Weekly Digest</h2>
+    <p style="margin:0 0 8px;color:#555">${summary.period?.start || ''} to ${summary.period?.end || ''}</p>
+
+    <h3 style="margin:20px 0 8px;font-size:15px">Reconciliation</h3>
+    <table style="border-collapse:collapse;font-size:14px">
+      <tr><td style="padding:4px 8px;color:#555">Confirmed this week</td><td style="padding:4px 8px;font-weight:600">${recon.confirmedThisWeek || 0}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555">Pending review</td><td style="padding:4px 8px;font-weight:600">${recon.pending || 0}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555">Written to Xero</td><td style="padding:4px 8px;font-weight:600">${recon.totalWritten || 0}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555">Total in queue</td><td style="padding:4px 8px;font-weight:600">${recon.totalInQueue || 0}</td></tr>
+    </table>
+
+    <h3 style="margin:20px 0 8px;font-size:15px">Invoices</h3>
+    <table style="border-collapse:collapse;font-size:14px">
+      <tr><td style="padding:4px 8px;color:#555">Missing</td><td style="padding:4px 8px;font-weight:600;color:${inv.missing > 0 ? '#dc3545' : '#111'}">${inv.missing || 0}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555">Matched</td><td style="padding:4px 8px;font-weight:600">${inv.matched || 0}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555">Attached to Xero</td><td style="padding:4px 8px;font-weight:600">${inv.attached || 0}</td></tr>
+    </table>
+
+    ${missingRows ? `<h3 style="margin:20px 0 8px;font-size:15px">Missing Invoices (top 10)</h3>
+    <table style="border-collapse:collapse;font-size:14px;width:100%">
+      <tr style="background:#f5f5f5"><th style="padding:4px 8px;text-align:left">Payee</th><th style="padding:4px 8px;text-align:right">Amount</th><th style="padding:4px 8px;text-align:left">Date</th></tr>
+      ${missingRows}
+    </table>` : ''}
+
+    ${deadlineRows ? `<h3 style="margin:20px 0 8px;font-size:15px">Upcoming Deadlines</h3>
+    <table style="border-collapse:collapse;font-size:14px;width:100%">
+      <tr style="background:#f5f5f5"><th style="padding:4px 8px;text-align:left">Type</th><th style="padding:4px 8px;text-align:left">Period</th><th style="padding:4px 8px;text-align:left">Due</th><th style="padding:4px 8px;text-align:left">Days</th></tr>
+      ${deadlineRows}
+    </table>` : ''}
+
+    <p style="margin:24px 0 0;font-size:13px;color:#888"><a href="${platformUrl}/accounts" style="color:#555">Open Accounts</a></p>
+  </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to,
+    subject: `Accounts Digest: ${summary.period?.start || ''} to ${summary.period?.end || ''}`,
+    html,
+  });
+}
+
 module.exports = {
-  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert };
+  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert, sendAccountsDigest };
