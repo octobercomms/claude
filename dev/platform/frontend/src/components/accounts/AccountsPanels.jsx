@@ -6,6 +6,62 @@ import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
 import StatStrip from '../shells/StatStrip';
 
+function useXeroRefData() {
+  const [accounts, setAccounts] = useState([]);
+  const [taxRates, setTaxRates] = useState([]);
+  useEffect(() => {
+    api.get('/accounts/xero/chart-of-accounts').then(d => setAccounts(d.accounts || [])).catch(() => {});
+    api.get('/accounts/xero/tax-rates').then(d => setTaxRates(d.rates || [])).catch(() => {});
+  }, []);
+  return { accounts, taxRates };
+}
+
+function AccountCodeSelect({ value, onChange, accounts }) {
+  const [manual, setManual] = useState(false);
+  if (manual || !accounts.length) {
+    return (
+      <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+        <input className="input" value={value} onChange={e => onChange(e.target.value)} style={{ flex: 1 }} />
+        {accounts.length > 0 && <button type="button" className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => setManual(false)}>List</button>}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+      <select className="input" value={value} onChange={e => onChange(e.target.value)} style={{ flex: 1 }}>
+        <option value="">Select account...</option>
+        {accounts.filter(a => a.status === 'ACTIVE').map(a => (
+          <option key={a.code} value={a.code}>{a.code} - {a.name}</option>
+        ))}
+      </select>
+      <button type="button" className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => setManual(true)}>Type</button>
+    </div>
+  );
+}
+
+function TaxRateSelect({ value, onChange, taxRates }) {
+  const [manual, setManual] = useState(false);
+  if (manual || !taxRates.length) {
+    return (
+      <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+        <input className="input" value={value} onChange={e => onChange(e.target.value)} style={{ flex: 1 }} />
+        {taxRates.length > 0 && <button type="button" className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => setManual(false)}>List</button>}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+      <select className="input" value={value} onChange={e => onChange(e.target.value)} style={{ flex: 1 }}>
+        <option value="">Select tax rate...</option>
+        {taxRates.filter(r => r.status === 'ACTIVE').map(r => (
+          <option key={r.taxType} value={r.taxType}>{r.taxType} - {r.name} ({r.effectiveRate}%)</option>
+        ))}
+      </select>
+      <button type="button" className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => setManual(true)}>Type</button>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // ReconcilePanel — the main reconciliation queue
 // ---------------------------------------------------------------------------
@@ -13,6 +69,7 @@ import StatStrip from '../shells/StatStrip';
 export function ReconcilePanel() {
   const { readOnly } = useAuth();
   const { toast } = useToast();
+  const { accounts: xeroAccounts, taxRates: xeroTaxRates } = useXeroRefData();
   const [stats, setStats] = useState(null);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -219,22 +276,24 @@ export function ReconcilePanel() {
                   {editingId === item.id && (
                     <tr>
                       <td colSpan={9}>
-                        <div className="card" style={{ padding: 'var(--s3)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-                          <label style={{ fontSize: 'var(--fs-body-sm)' }}>
-                            Account code
-                            <input className="input" value={editCode} onChange={e => setEditCode(e.target.value)} style={{ width: 120, marginLeft: 'var(--s2)' }} />
-                          </label>
-                          <label style={{ fontSize: 'var(--fs-body-sm)' }}>
-                            Tax rate
-                            <input className="input" value={editTax} onChange={e => setEditTax(e.target.value)} style={{ width: 160, marginLeft: 'var(--s2)' }} />
-                          </label>
-                          {item.reasoning && (
-                            <span className="text-muted" style={{ fontSize: 'var(--fs-body-sm)', flex: 1 }}>{item.reasoning}</span>
-                          )}
-                          <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
-                            <button className="btn btn-primary" onClick={() => confirmApprove(item.id)}>Confirm</button>
-                            <button className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
+                        <div className="card" style={{ padding: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+                          <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                            <label style={{ fontSize: 'var(--fs-body-sm)', minWidth: 200, flex: 1 }}>
+                              Account code
+                              <AccountCodeSelect value={editCode} onChange={setEditCode} accounts={xeroAccounts} />
+                            </label>
+                            <label style={{ fontSize: 'var(--fs-body-sm)', minWidth: 200, flex: 1 }}>
+                              Tax rate
+                              <TaxRateSelect value={editTax} onChange={setEditTax} taxRates={xeroTaxRates} />
+                            </label>
+                            <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+                              <button className="btn btn-primary" onClick={() => confirmApprove(item.id)}>Confirm</button>
+                              <button className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
+                            </div>
                           </div>
+                          {item.ai_reasoning && (
+                            <div className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>{item.ai_reasoning}</div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -263,11 +322,13 @@ export function ReconcilePanel() {
 export function RulesPanel() {
   const { readOnly } = useAuth();
   const { toast } = useToast();
+  const { accounts: xeroAccounts, taxRates: xeroTaxRates } = useXeroRefData();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
+  const [seeding, setSeeding] = useState(false);
   const BLANK = { payee_pattern: '', match_type: 'contains', account_code: '', account_name: '', tax_rate: '', notes: '' };
 
   const load = useCallback(async () => {
@@ -321,6 +382,18 @@ export function RulesPanel() {
     });
   }
 
+  async function handleSeedRules() {
+    roWrite(readOnly, async () => {
+      setSeeding(true);
+      try {
+        const r = await api.post('/accounts/rules/seed');
+        toast(`Seeded ${r.seeded} common rules`);
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setSeeding(false); }
+    });
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       <div className="row between center">
@@ -332,7 +405,12 @@ export function RulesPanel() {
           onChange={e => setSearch(e.target.value)}
           style={{ width: 260 }}
         />
-        <button className="btn btn-primary" onClick={() => startEdit(null)}>Add rule</button>
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <button className="btn" onClick={handleSeedRules} disabled={seeding}>
+            {seeding ? 'Seeding...' : 'Seed common rules'}
+          </button>
+          <button className="btn btn-primary" onClick={() => startEdit(null)}>Add rule</button>
+        </div>
       </div>
 
       {editingId && (
@@ -354,7 +432,7 @@ export function RulesPanel() {
             </label>
             <label className="body-sm">
               Account code
-              <input className="input" value={form.account_code} onChange={e => setForm(f => ({ ...f, account_code: e.target.value }))} />
+              <AccountCodeSelect value={form.account_code} onChange={v => setForm(f => ({ ...f, account_code: v }))} accounts={xeroAccounts} />
             </label>
             <label className="body-sm">
               Account name
@@ -362,7 +440,7 @@ export function RulesPanel() {
             </label>
             <label className="body-sm">
               Tax rate
-              <input className="input" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} />
+              <TaxRateSelect value={form.tax_rate} onChange={v => setForm(f => ({ ...f, tax_rate: v }))} taxRates={xeroTaxRates} />
             </label>
             <label className="body-sm">
               Notes
@@ -425,24 +503,56 @@ export function RulesPanel() {
 // ---------------------------------------------------------------------------
 
 export function InvoicesPanel() {
+  const { readOnly } = useAuth();
   const { toast } = useToast();
   const [stats, setStats] = useState(null);
   const [missing, setMissing] = useState([]);
+  const [driveStatus, setDriveStatus] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [s, m] = await Promise.all([
-          api.get('/accounts/invoices/stats'),
-          api.get('/accounts/invoices/missing'),
-        ]);
-        setStats(s);
-        setMissing(m.invoices || []);
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setLoading(false); }
-    })();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [s, m, ds] = await Promise.all([
+        api.get('/accounts/invoices/stats'),
+        api.get('/accounts/invoices/missing'),
+        api.get('/accounts/drive/status').catch(() => null),
+      ]);
+      setStats(s);
+      setMissing(m.invoices || []);
+      setDriveStatus(ds);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
   }, [toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleScan() {
+    roWrite(readOnly, async () => {
+      setScanning(true);
+      try {
+        const r = await api.post('/accounts/drive/scan');
+        if (r.error) {
+          toast(r.error, 'warning');
+        } else {
+          toast(`Scanned ${r.scanned} files: ${r.matched} matched, ${r.missing} missing`);
+        }
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setScanning(false); }
+    });
+  }
+
+  async function handleAttach(matchId) {
+    roWrite(readOnly, async () => {
+      try {
+        await api.post(`/accounts/drive/attach/${matchId}`);
+        toast('Invoice attached to Xero');
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+    });
+  }
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
 
@@ -455,6 +565,33 @@ export function InvoicesPanel() {
           { label: 'Attached to Xero', value: stats.attached ?? 0 },
         ]} />
       )}
+
+      <div className="card" style={{ padding: 'var(--s4)' }}>
+        <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
+          <div className="h5">Google Drive invoice scanner</div>
+          <button className="btn btn-primary" onClick={handleScan} disabled={scanning || !driveStatus?.configured}>
+            {scanning ? 'Scanning...' : 'Scan Drive folder'}
+          </button>
+        </div>
+        {driveStatus?.configured ? (
+          <div className="body-sm text-muted">
+            Folder: {driveStatus.folderName || driveStatus.folderId}
+            {driveStatus.accessible === false && (
+              <span className="chip chip-danger" style={{ marginLeft: 'var(--s2)' }}>Not accessible</span>
+            )}
+            {driveStatus.accessible && (
+              <span className="chip chip-success" style={{ marginLeft: 'var(--s2)' }}>Connected</span>
+            )}
+          </div>
+        ) : (
+          <div className="body-sm text-muted">
+            Set <code>ACCOUNTS_DRIVE_FOLDER_ID</code> in Settings to point at your receipts/invoices folder in Google Drive.
+            {driveStatus?.serviceAccountEmail && (
+              <> Share the folder with <code>{driveStatus.serviceAccountEmail}</code></>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="h4">Missing invoices</div>
       {missing.length === 0 ? (
@@ -469,7 +606,8 @@ export function InvoicesPanel() {
               <th>Payee / Contact</th>
               <th style={{ textAlign: 'right' }}>Amount</th>
               <th>Currency</th>
-              <th>Reference</th>
+              <th>Drive match</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -481,7 +619,14 @@ export function InvoicesPanel() {
                   {Number(inv.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                 </td>
                 <td>{inv.currency || 'GBP'}</td>
-                <td className="text-muted">{inv.reference || '—'}</td>
+                <td className="text-muted">{inv.drive_file_name || '—'}</td>
+                <td style={{ textAlign: 'right' }}>
+                  {inv.drive_file_id && inv.status === 'matched' && (
+                    <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => handleAttach(inv.id)}>
+                      Attach to Xero
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -637,7 +782,7 @@ export function DeadlinesPanel() {
 }
 
 // ---------------------------------------------------------------------------
-// VatPanel — VAT exceptions list
+// VatPanel — VAT pack preparation + exceptions
 // ---------------------------------------------------------------------------
 
 export function VatPanel() {
@@ -647,17 +792,37 @@ export function VatPanel() {
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState(null);
   const [resolution, setResolution] = useState('');
+  const [quarters, setQuarters] = useState(null);
+  const [packResult, setPackResult] = useState(null);
+  const [buildingPack, setBuildingPack] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.get('/accounts/vat/exceptions');
-      setExceptions(data.exceptions || []);
+      const [excData, qData] = await Promise.all([
+        api.get('/accounts/vat/exceptions'),
+        api.get('/accounts/vat/quarters'),
+      ]);
+      setExceptions(excData.exceptions || []);
+      setQuarters(qData);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleBuildPack(year, quarter) {
+    roWrite(readOnly, async () => {
+      setBuildingPack(true);
+      try {
+        const r = await api.get(`/accounts/vat/pack/${year}/${quarter}`);
+        setPackResult(r);
+        toast(`VAT pack built: ${r.summary?.totalTransactions ?? 0} transactions, ${r.newExceptions ?? 0} new exceptions`);
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setBuildingPack(false); }
+    });
+  }
 
   async function handleResolve(id) {
     roWrite(readOnly, async () => {
@@ -675,6 +840,78 @@ export function VatPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      {quarters && (
+        <div className="card" style={{ padding: 'var(--s4)' }}>
+          <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
+            <div className="h4">VAT quarter-end pack</div>
+            <div className="row center" style={{ gap: 'var(--s2)' }}>
+              <button className="btn" onClick={() => handleBuildPack(quarters.previous.year, quarters.previous.q)} disabled={buildingPack}>
+                {buildingPack ? 'Building...' : `Build ${quarters.previous.label} ${quarters.previous.year}`}
+              </button>
+              <button className="btn btn-primary" onClick={() => handleBuildPack(quarters.current.year, quarters.current.q)} disabled={buildingPack}>
+                {buildingPack ? 'Building...' : `Build ${quarters.current.label} ${quarters.current.year}`}
+              </button>
+            </div>
+          </div>
+          <div className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
+            Scans all confirmed transactions for the quarter, groups them by VAT rate, flags exceptions, and checks for missing invoices.
+          </div>
+          {packResult?.summary && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--s3)' }}>
+              <div className="card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+                <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 600 }}>{packResult.summary.totalTransactions}</div>
+                <div className="body-sm text-muted">Transactions</div>
+              </div>
+              <div className="card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+                <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 600 }}>
+                  {packResult.summary.netPayable != null
+                    ? `£${Number(packResult.summary.netPayable).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`
+                    : '—'}
+                </div>
+                <div className="body-sm text-muted">Net VAT payable</div>
+              </div>
+              <div className="card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+                <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 600, color: packResult.summary.unresolvedExceptions > 0 ? 'var(--danger)' : undefined }}>
+                  {packResult.summary.unresolvedExceptions}
+                </div>
+                <div className="body-sm text-muted">Open exceptions</div>
+              </div>
+              <div className="card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+                <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 600, color: packResult.summary.missingInvoices > 0 ? 'var(--warning)' : undefined }}>
+                  {packResult.summary.missingInvoices}
+                </div>
+                <div className="body-sm text-muted">Missing invoices</div>
+              </div>
+            </div>
+          )}
+          {packResult?.summary?.byRate?.length > 0 && (
+            <div style={{ marginTop: 'var(--s3)' }}>
+              <div className="h5" style={{ marginBottom: 'var(--s2)' }}>Breakdown by VAT rate</div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Rate</th>
+                    <th style={{ textAlign: 'right' }}>Count</th>
+                    <th style={{ textAlign: 'right' }}>Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packResult.summary.byRate.map(r => (
+                    <tr key={r.rate}>
+                      <td style={{ fontWeight: 500 }}>{r.rate}</td>
+                      <td style={{ textAlign: 'right' }}>{r.count}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        £{Number(r.net).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="h4">VAT exceptions</div>
       {exceptions.length === 0 ? (
         <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
@@ -763,6 +1000,8 @@ export function DigestsPanel() {
 
   useEffect(() => { load(); }, [load]);
 
+  const [sending, setSending] = useState(null);
+
   async function handleBuild() {
     roWrite(readOnly, async () => {
       setBuilding(true);
@@ -775,15 +1014,52 @@ export function DigestsPanel() {
     });
   }
 
+  async function handleBuildAndSend() {
+    roWrite(readOnly, async () => {
+      setBuilding(true);
+      try {
+        const r = await api.post('/accounts/digests/build-and-send');
+        if (r.emailed) {
+          toast('Digest built and emailed');
+        } else {
+          toast(`Digest built, but email failed: ${r.emailError || 'unknown error'}`, 'warning');
+        }
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setBuilding(false); }
+    });
+  }
+
+  async function handleSendEmail(digestId) {
+    roWrite(readOnly, async () => {
+      setSending(digestId);
+      try {
+        const r = await api.post(`/accounts/digests/${digestId}/send`);
+        if (r.alreadySent) {
+          toast('Already sent', 'warning');
+        } else {
+          toast(`Digest emailed to ${r.to}`);
+        }
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setSending(null); }
+    });
+  }
+
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       <div className="row between center">
         <div className="h4">Weekly digests</div>
-        <button className="btn btn-primary" onClick={handleBuild} disabled={building}>
-          {building ? 'Building...' : 'Build now'}
-        </button>
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <button className="btn" onClick={handleBuild} disabled={building}>
+            {building ? 'Building...' : 'Build only'}
+          </button>
+          <button className="btn btn-primary" onClick={handleBuildAndSend} disabled={building}>
+            {building ? 'Building...' : 'Build and send'}
+          </button>
+        </div>
       </div>
 
       {digests.length === 0 ? (
@@ -806,6 +1082,16 @@ export function DigestsPanel() {
                     <span className="body-sm text-muted">{d.items_reconciled ?? 0} reconciled</span>
                     <span className="body-sm text-muted">{d.items_pending ?? 0} pending</span>
                     <span className="body-sm text-muted">{d.invoices_missing ?? 0} missing invoices</span>
+                    {!d.sent_at && (
+                      <button
+                        className="btn btn-ghost"
+                        style={{ fontSize: 'var(--fs-body-sm)' }}
+                        onClick={e => { e.stopPropagation(); handleSendEmail(d.id); }}
+                        disabled={sending === d.id}
+                      >
+                        {sending === d.id ? 'Sending...' : 'Send email'}
+                      </button>
+                    )}
                     <span style={{ fontSize: 'var(--fs-body-sm)' }}>{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
@@ -852,6 +1138,150 @@ export function DigestsPanel() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DrivePanel — Google Drive invoice/receipt scanner
+// ---------------------------------------------------------------------------
+
+export function DrivePanel() {
+  const { readOnly } = useAuth();
+  const { toast } = useToast();
+  const [status, setStatus] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/accounts/drive/status');
+      setStatus(data);
+      if (data.accessible) {
+        const fileData = await api.get('/accounts/drive/files');
+        setFiles(fileData.files || []);
+      }
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }, [toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleScan() {
+    roWrite(readOnly, async () => {
+      setScanning(true);
+      try {
+        const result = await api.post('/accounts/drive/scan');
+        setScanResult(result);
+        if (result.error) {
+          toast(result.error, 'warning');
+        } else {
+          toast(`Scanned ${result.scanned} files: ${result.matched} matched, ${result.missing} missing`);
+        }
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setScanning(false); }
+    });
+  }
+
+  if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="h4">Google Drive invoice scanner</div>
+
+      <div className="card" style={{ padding: 'var(--s4)' }}>
+        {status?.configured ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+            <div className="row center" style={{ gap: 'var(--s3)' }}>
+              {status.accessible
+                ? <span className="chip chip-success">Connected</span>
+                : <span className="chip chip-danger">Not accessible</span>
+              }
+              {status.folderName && <span style={{ fontWeight: 500 }}>{status.folderName}</span>}
+            </div>
+            {!status.accessible && status.error && (
+              <div className="body-sm" style={{ color: 'var(--danger)' }}>{status.error}</div>
+            )}
+            {status.serviceAccountEmail && (
+              <div className="body-sm text-muted">Service account: <code>{status.serviceAccountEmail}</code></div>
+            )}
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
+              <button className="btn btn-primary" onClick={handleScan} disabled={scanning || !status.accessible}>
+                {scanning ? 'Scanning...' : 'Scan and match'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+            <div className="row center" style={{ gap: 'var(--s2)' }}>
+              <span className="chip">Not configured</span>
+            </div>
+            <div className="body-sm text-muted">
+              {status?.message || 'Set ACCOUNTS_DRIVE_FOLDER_ID or ACCOUNTS_DRIVE_FOLDER_URL in Settings > Environment, then share the folder with the service account.'}
+            </div>
+            {status?.serviceAccountEmail && (
+              <div className="body-sm text-muted">Share the folder with: <code>{status.serviceAccountEmail}</code></div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {scanResult && !scanResult.error && (
+        <StatStrip items={[
+          { label: 'Scanned', value: scanResult.scanned },
+          { label: 'Matched', value: scanResult.matched },
+          { label: 'Missing', value: scanResult.missing },
+        ]} />
+      )}
+
+      {files.length > 0 && (
+        <>
+          <div className="h5">{files.length} invoice files in folder</div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Filename</th>
+                <th>Type</th>
+                <th style={{ textAlign: 'right' }}>Size</th>
+                <th>Modified</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.slice(0, 50).map(f => (
+                <tr key={f.id}>
+                  <td>
+                    {f.url ? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a> : f.name}
+                  </td>
+                  <td className="body-sm text-muted">{f.mimeType?.split('/').pop() || '—'}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {f.size != null ? `${Math.round(f.size / 1024)} KB` : '—'}
+                  </td>
+                  <td className="body-sm text-muted">
+                    {f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString('en-GB') : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {files.length > 50 && (
+            <div className="body-sm text-muted">Showing first 50 of {files.length} files</div>
+          )}
+        </>
+      )}
+
+      <div className="card" style={{ padding: 'var(--s4)' }}>
+        <div className="h5" style={{ marginBottom: 'var(--s2)' }}>Setup</div>
+        <div className="body-sm text-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+          <div>1. Create a Google Drive folder for invoices and receipts.</div>
+          <div>2. Share the folder with the platform's service account email (shown above when configured).</div>
+          <div>3. Copy the folder ID from the Drive URL and set it as ACCOUNTS_DRIVE_FOLDER_ID in Settings &gt; Environment.</div>
+          <div>4. Click "Scan and match" to find invoices that match reconcile queue items.</div>
+        </div>
+      </div>
     </div>
   );
 }
