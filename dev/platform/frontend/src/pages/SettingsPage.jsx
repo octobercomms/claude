@@ -3550,21 +3550,9 @@ function linearTrend(points) {
 
 function DailySpendChart() {
   const [data, setData] = useState(null);
-  const [snapshotTotal, setSnapshotTotal] = useState(null);
 
   useEffect(() => {
     api.get('/settings/usage/cost-log?days=90').then(setData).catch(() => {});
-    api.get('/settings/usage').then(rows => {
-      if (!Array.isArray(rows)) return;
-      const total = rows.reduce((acc, r) => {
-        const s = r.snapshot;
-        if (!s) return acc;
-        if (s.cost_this_period != null && (s.currency || 'USD') === 'USD') return acc + Number(s.cost_this_period);
-        if (r.spend_this_month && (s.currency || 'USD') === 'USD') return acc + Number(r.spend_this_month);
-        return acc;
-      }, 0);
-      if (total > 0) setSnapshotTotal(total);
-    }).catch(() => {});
   }, []);
 
   if (!data?.daily?.length) return null;
@@ -3602,28 +3590,10 @@ function DailySpendChart() {
   };
 
   const monthTotal = (mk) => {
-    const tracked = Object.values(byMonth[mk]).reduce((s, v) => s + v, 0);
-    if (mk === thisMonthKey && snapshotTotal != null && snapshotTotal > tracked) return snapshotTotal;
-    return tracked;
+    return Object.values(byMonth[mk]).reduce((s, v) => s + v, 0);
   };
 
-  // When the Anthropic usage report (snapshot) is higher than the cost-log
-  // total for the current month, the per-day bars undercount. Scale each
-  // day proportionally so the bars add up to the real number. The shape
-  // (which days were busier) stays the same; the amounts become honest.
-  const thisMonthTracked = byMonth[thisMonthKey]
-    ? Object.values(byMonth[thisMonthKey]).reduce((s, v) => s + v, 0) : 0;
-  const reconcileRatio = (thisMonthKey && snapshotTotal > 0 && thisMonthTracked > 0 && snapshotTotal > thisMonthTracked)
-    ? snapshotTotal / thisMonthTracked : 1;
-
-  const reconciledChartData = reconcileRatio > 1
-    ? chartData.map(pt => {
-        if (pt[thisMonthKey] == null) return pt;
-        return { ...pt, [thisMonthKey]: Math.round(pt[thisMonthKey] * reconcileRatio * 100) / 100 };
-      })
-    : chartData;
-
-  const allValues = reconciledChartData.flatMap(pt => monthKeys.map(mk => pt[mk]).filter(v => v != null));
+  const allValues = chartData.flatMap(pt => monthKeys.map(mk => pt[mk]).filter(v => v != null));
   const avg = allValues.length ? allValues.reduce((s, v) => s + v, 0) / allValues.length : 0;
   const sorted = [...allValues].sort((a, b) => a - b);
   const p90 = sorted[Math.floor(sorted.length * 0.9)] || 1;
@@ -3651,7 +3621,7 @@ function DailySpendChart() {
         })}
       </div>
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={reconciledChartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
+        <LineChart data={chartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
           <XAxis dataKey="day" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => d} />
           <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} domain={[0, ceiling]} allowDataOverflow />
           <Tooltip

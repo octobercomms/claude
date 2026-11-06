@@ -215,7 +215,7 @@ const POLLERS = [
       // error. Checking the rows on the way in costs nothing and cannot be
       // fooled by a query string.
       const baseParams = () => {
-        const p = new URLSearchParams({ starting_at, ending_at });
+        const p = new URLSearchParams({ starting_at, ending_at, bucket_width: '1d', limit: '31' });
         p.append('group_by[]', 'model');
         p.append('group_by[]', 'api_key_id');
         for (const id of scope.ids) p.append('api_key_ids[]', id);
@@ -502,12 +502,15 @@ async function runAllPollers() {
 // with the latest snapshot, plus a manual provider entry for ones the
 // platform can't auto-poll.
 async function currentSnapshots() {
+  const bounds = monthBounds();
   const { rows } = await pool.query(
     `SELECT DISTINCT ON (provider) provider, snapshot_at, period_start, period_end,
        cost_this_period, balance_remaining, currency, units_used, units_limit,
        unit_label, status, error_message, raw
      FROM usage_snapshots
-     ORDER BY provider, snapshot_at DESC`
+     WHERE period_start IS NULL OR period_start >= $1::date
+     ORDER BY provider, snapshot_at DESC`,
+    [bounds.period_start]
   );
   const byProvider = Object.fromEntries(rows.map(r => [r.provider, r]));
   // Compute inferred MTD spend per provider from snapshot diffs so the cards
@@ -516,7 +519,6 @@ async function currentSnapshots() {
   // remaining"), and the dashboard banner total looks like it disagrees with
   // the panel — when in fact the banner is summing the *spend* and the panel
   // is showing the *balance*.
-  const bounds = monthBounds();
   const diffs = await pool.query(
     `SELECT provider,
             (array_agg(balance_remaining::float ORDER BY snapshot_at ASC) FILTER (WHERE balance_remaining IS NOT NULL))[1] AS first_balance,
