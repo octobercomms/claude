@@ -6,6 +6,7 @@ const db = require('../../db');
 const deadlines = require('./deadlines');
 const reconcile = require('./reconcile');
 const invoices = require('./invoices');
+const { sendAccountsDigest } = require('../emailService');
 
 async function buildWeeklyDigest() {
   const now = new Date();
@@ -70,6 +71,14 @@ async function buildWeeklyDigest() {
     ]
   );
 
+  try {
+    await sendAccountsDigest({ summary });
+    await db.query('UPDATE acct_digests SET sent_at = now() WHERE id = $1', [rows[0].id]);
+    rows[0].sent_at = new Date().toISOString();
+  } catch (emailErr) {
+    console.warn('[Accounts] digest email failed:', emailErr.message);
+  }
+
   return { digest: rows[0], summary };
 }
 
@@ -89,4 +98,125 @@ async function getDigests(limit = 12) {
   return rows;
 }
 
-module.exports = { buildWeeklyDigest, markSent, getDigests };
+function formatDigestHtml(summary) {
+  const s = summary;
+  const deadlineRows = (s.deadlines || []).map(d => {
+    const urgency = d.daysUntil <= 7 ? '#d32f2f' : d.daysUntil <= 14 ? '#f57c00' : '#388e3c';
+    return `<tr>
+      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${d.type}</td>
+      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${d.label}</td>
+      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${d.dueDate}</td>
+      <td style="padding:6px 12px;border:1px solid #e0e0e0;color:${urgency};font-weight:600;">${d.daysUntil}d</td>
+    </tr>`;
+  }).join('');
+
+  const missingRows = (s.invoices?.missingList || []).slice(0, 10).map(m =>
+    `<tr>
+      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${m.payee}</td>
+      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${m.date || ''}</td>
+      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${m.currency || 'GBP'} ${m.amount}</td>
+    </tr>`
+  ).join('');
+
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
+      <h2 style="color:#1a1a1a;margin-bottom:4px;">Accounts Weekly Digest</h2>
+      <p style="color:#666;margin-top:0;">${s.period.start} to ${s.period.end}</p>
+
+      <h3 style="color:#1a1a1a;">Reconciliation</h3>
+      <table style="border-collapse:collapse;margin:12px 0;">
+        <tr><td style="padding:4px 16px 4px 0;color:#666;">Confirmed this week</td><td style="font-weight:600;">${s.reconciliation.confirmedThisWeek}</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#666;">Pending review</td><td style="font-weight:600;">${s.reconciliation.pending}</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#666;">Written to Xero</td><td style="font-weight:600;">${s.reconciliation.totalWritten}</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#666;">Total in queue</td><td style="font-weight:600;">${s.reconciliation.totalInQueue}</td></tr>
+      </table>
+
+      <h3 style="color:#1a1a1a;">Invoices</h3>
+      <table style="border-collapse:collapse;margin:12px 0;">
+        <tr><td style="padding:4px 16px 4px 0;color:#666;">Matched</td><td style="font-weight:600;">${s.invoices.matched}</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#666;">Attached to Xero</td><td style="font-weight:600;">${s.invoices.attached}</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#666;">Missing</td><td style="font-weight:600;color:${s.invoices.missing > 0 ? '#d32f2f' : '#388e3c'};">${s.invoices.missing}</td></tr>
+      </table>
+
+      ${missingRows ? `
+        <h4 style="color:#1a1a1a;">Top missing invoices</h4>
+        <table style="border-collapse:collapse;width:100%;margin:12px 0;">
+          <thead><tr style="background:#f5f5f5;">
+            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Payee</th>
+            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Date</th>
+            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Amount</th>
+          </tr></thead>
+          <tbody>${missingRows}</tbody>
+        </table>
+      ` : ''}
+
+      ${deadlineRows ? `
+        <h3 style="color:#1a1a1a;">Upcoming Deadlines</h3>
+        <table style="border-collapse:collapse;width:100%;margin:12px 0;">
+          <thead><tr style="background:#f5f5f5;">
+            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Type</th>
+            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Period</th>
+            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Due</th>
+            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Days</th>
+          </tr></thead>
+          <tbody>${deadlineRows}</tbody>
+        </table>
+      ` : ''}
+
+      <p style="color:#999;font-size:12px;margin-top:24px;">October Marketing Intelligence &mdash; Accounts Module</p>
+    </div>
+  `;
+}
+
+async function sendDigestEmail(digestId) {
+  const { rows } = await db.query('SELECT * FROM acct_digests WHERE id = $1', [digestId]);
+  if (!rows.length) throw new Error('Digest not found');
+
+  const digest = rows[0];
+  if (digest.sent_at) return { alreadySent: true };
+
+  const summary = typeof digest.summary === 'string' ? JSON.parse(digest.summary) : digest.summary;
+  const html = formatDigestHtml(summary);
+
+  const to = process.env.ACCOUNTS_DIGEST_EMAIL || process.env.ALERT_EMAIL;
+  if (!to) throw new Error('No recipient configured (set ACCOUNTS_DIGEST_EMAIL or ALERT_EMAIL)');
+
+  let getTransporter;
+  try {
+    const emailService = require('./../../services/emailService');
+    getTransporter = () => {
+      const { buildTransporter } = require('../../routes/settings');
+      return { sendMail: (msg) => buildTransporter().sendMail(msg) };
+    };
+  } catch {
+    throw new Error('Email service not available');
+  }
+
+  const sender = process.env.EMAIL_PROVIDER === 'ses'
+    ? (process.env.SES_FROM_EMAIL || process.env.GMAIL_USER)
+    : `"October Communications" <${process.env.GMAIL_USER}>`;
+
+  await getTransporter().sendMail({
+    from: sender,
+    to,
+    subject: `Accounts Digest: ${summary.period.start} to ${summary.period.end}`,
+    html,
+  });
+
+  await markSent(digestId);
+  return { sent: true, to };
+}
+
+// Build and send in one call (used by the scheduler).
+async function buildAndSend() {
+  const { digest, summary } = await buildWeeklyDigest();
+  try {
+    await sendDigestEmail(digest.id);
+    return { digest, summary, emailed: true };
+  } catch (err) {
+    console.warn('[accounts] Digest built but email failed:', err.message);
+    return { digest, summary, emailed: false, emailError: err.message };
+  }
+}
+
+module.exports = { buildWeeklyDigest, markSent, getDigests, sendDigestEmail, buildAndSend, formatDigestHtml };

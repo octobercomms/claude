@@ -4,6 +4,8 @@ const reconcile = require('./reconcile');
 const invoices = require('./invoices');
 const deadlines = require('./deadlines');
 const digest = require('./digest');
+const vatPack = require('./vatPack');
+const driveScanner = require('./driveScanner');
 
 module.exports = {
   rules,
@@ -12,4 +14,6 @@ module.exports = {
   invoices,
   deadlines,
   digest,
+  vatPack,
+  driveScanner,
 };

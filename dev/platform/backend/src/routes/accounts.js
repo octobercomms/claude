@@ -268,6 +268,15 @@ router.put('/rules/:id', async (req, res) => {
   }
 });
 
+router.post('/rules/seed', async (req, res) => {
+  try {
+    const count = await accounts.rules.seedRules();
+    res.json({ seeded: count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/rules/:id', async (req, res) => {
   try {
     const deleted = await accounts.rules.deleteRule(parseInt(req.params.id));
@@ -384,6 +393,100 @@ router.get('/digests', async (req, res) => {
 router.post('/digests/build', async (req, res) => {
   try {
     const result = await accounts.digest.buildWeeklyDigest();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/digests/:id/send', async (req, res) => {
+  try {
+    const result = await accounts.digest.sendDigestEmail(parseInt(req.params.id));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/digests/build-and-send', async (req, res) => {
+  try {
+    const result = await accounts.digest.buildAndSend();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- VAT pack ---
+
+router.get('/vat/quarters', (req, res) => {
+  const current = accounts.vatPack.getCurrentQuarter();
+  const previous = accounts.vatPack.getPreviousQuarter();
+  res.json({ current, previous });
+});
+
+router.get('/vat/pack/:year/:quarter', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    const quarter = parseInt(req.params.quarter);
+    if (!year || quarter < 1 || quarter > 4) {
+      return res.status(400).json({ error: 'Invalid year or quarter (1-4)' });
+    }
+    const result = await accounts.vatPack.buildVatPack(year, quarter);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/vat/report/:year/:quarter', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    const quarter = parseInt(req.params.quarter);
+    if (!year || quarter < 1 || quarter > 4) {
+      return res.status(400).json({ error: 'Invalid year or quarter (1-4)' });
+    }
+    const result = await accounts.vatPack.getVatReport(year, quarter);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Drive invoice scanner ---
+
+router.get('/drive/status', async (req, res) => {
+  try {
+    const status = await accounts.driveScanner.checkStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/drive/scan', async (req, res) => {
+  try {
+    const result = await accounts.driveScanner.scanAndMatch();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/drive/files', async (req, res) => {
+  try {
+    const folderId = accounts.driveScanner.getFolderId();
+    if (!folderId) return res.status(400).json({ error: 'No invoice folder configured' });
+    const files = await accounts.driveScanner.getAllInvoiceFiles(folderId);
+    res.json({ files, total: files.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/drive/attach/:matchId', async (req, res) => {
+  try {
+    const result = await accounts.driveScanner.attachMatchedInvoice(parseInt(req.params.matchId));
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

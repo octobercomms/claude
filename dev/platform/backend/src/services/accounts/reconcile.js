@@ -170,7 +170,54 @@ async function confirmItem(id, data) {
     });
   }
 
+  await checkVatExceptions(item, confirmedCode, confirmedRate);
+
   return { id, status: 'confirmed', accountCode: confirmedCode, taxRate: confirmedRate };
+}
+
+async function checkVatExceptions(item, accountCode, taxRate) {
+  const flags = [];
+  const amount = Math.abs(parseFloat(item.amount) || 0);
+  const payee = (item.payee || '').toLowerCase();
+  const currency = (item.currency || 'GBP').toUpperCase();
+
+  if (currency !== 'GBP' && taxRate && !['RRINPUT', 'NONE', 'ZERORATEDINPUT'].includes(taxRate)) {
+    flags.push('Non-GBP transaction with domestic VAT rate; should likely be reverse charge (RRINPUT) or NONE');
+  }
+
+  if (taxRate === 'RRINPUT' && currency === 'GBP') {
+    flags.push('Reverse charge applied to a GBP transaction; reverse charge is for overseas suppliers');
+  }
+
+  if (amount > 250 && taxRate === 'INPUT2' && !accountCode) {
+    flags.push('High-value purchase with standard VAT but no account code; verify invoice and recoverability');
+  }
+
+  const reverseChargePayees = ['meta', 'facebook', 'google', 'dataforseo', 'dropbox', 'slack', 'adobe', 'zoom', 'github', 'anthropic', 'openai', 'amazon web', 'aws', 'notion', 'canva', 'figma', 'vercel', 'linkedin', 'hetzner', 'brevo'];
+  if (reverseChargePayees.some(p => payee.includes(p)) && taxRate && taxRate !== 'RRINPUT' && taxRate !== 'NONE') {
+    flags.push(`${item.payee} is typically reverse charge (RRINPUT); currently set to ${taxRate}`);
+  }
+
+  if (amount > 1000 && taxRate === 'NONE' && !['2201', '2202', '2210', '7020'].includes(accountCode)) {
+    flags.push('High-value transaction with no VAT; confirm this is correct (e.g. wages, inter-account transfer)');
+  }
+
+  const currentQuarter = getCurrentVatPeriod();
+  for (const reason of flags) {
+    await db.query(
+      `INSERT INTO acct_vat_exceptions (period, line_ref, amount, currency, payee, flag_reason)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [currentQuarter, item.line_ref, item.amount, item.currency, item.payee, reason]
+    );
+  }
+}
+
+function getCurrentVatPeriod() {
+  const now = new Date();
+  const m = now.getMonth();
+  const y = now.getFullYear();
+  const qEnd = m < 3 ? `${y}-03` : m < 6 ? `${y}-06` : m < 9 ? `${y}-09` : `${y}-12`;
+  return `Q${Math.floor(m / 3) + 1} ${y} (to ${qEnd})`;
 }
 
 // Batch confirm all high-confidence rule-matched items.
