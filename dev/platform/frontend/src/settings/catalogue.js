@@ -335,6 +335,25 @@ export const KEY_GROUPS = [
     keys: [
       { key: 'XERO_CLIENT_ID', label: 'Xero Client ID', placeholder: 'From developer.xero.com > My Apps', type: 'text' },
       { key: 'XERO_CLIENT_SECRET', label: 'Xero Client Secret', placeholder: 'From developer.xero.com > My Apps', type: 'password' },
+      { key: 'XERO_REDIRECT_URI', label: 'Xero Redirect URI', placeholder: 'https://your-domain.com/api/accounts/xero/callback', type: 'text' },
+    ],
+  },
+  {
+    title: 'Accounts Email',
+    category: 'Accounts',
+    test: 'accounts_email',
+    hint: 'Email recipient for weekly account digests. Falls back to ALERT_EMAIL if not set.',
+    keys: [
+      { key: 'ACCOUNTS_DIGEST_EMAIL', label: 'Digest recipient', placeholder: 'accounts@yourdomain.com', type: 'text' },
+    ],
+  },
+  {
+    title: 'Invoice Folder',
+    category: 'Accounts',
+    test: 'accounts_drive',
+    hint: 'Google Drive folder containing invoices and receipts. Share the folder with the platform service account. The scanner matches files to Xero transactions by amount, payee and date.',
+    keys: [
+      { key: 'ACCOUNTS_DRIVE_FOLDER_ID', label: 'Drive Folder ID', placeholder: 'Folder ID from the Google Drive URL', type: 'text' },
     ],
   },
 ];
