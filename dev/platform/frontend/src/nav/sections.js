@@ -555,6 +555,7 @@ export const SECTIONS = {
     defaultTab: 'reconcile',
     groups: [
       { heading: null, rows: [
+        { tab: 'overview',   label: 'Overview' },
         { tab: 'reconcile',  label: 'Reconcile' },
         { tab: 'rules',      label: 'Rules' },
         { tab: 'invoices',   label: 'Invoices' },
@@ -562,11 +563,15 @@ export const SECTIONS = {
       { heading: 'Tax', rows: [
         { tab: 'deadlines',  label: 'Deadlines' },
         { tab: 'vat',        label: 'VAT' },
+        { tab: 'fx',         label: 'FX tracker' },
       ] },
       { heading: 'Reports', rows: [
+        { tab: 'fin_reports', label: 'Financial reports', slug: 'financial-reports' },
+        { tab: 'audit',      label: 'Audit trail', slug: 'audit-trail' },
         { tab: 'digests',    label: 'Weekly digest', slug: 'weekly-digest' },
       ] },
       { heading: 'Setup', rows: [
+        { tab: 'drive',      label: 'Google Drive' },
         { tab: 'xero',       label: 'Xero' },
       ] },
     ],

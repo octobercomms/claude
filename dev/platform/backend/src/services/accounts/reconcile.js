@@ -340,6 +340,83 @@ async function skipItem(id) {
   );
 }
 
+async function batchApprove(ids, data = {}) {
+  let confirmed = 0;
+  const errors = [];
+  for (const id of ids) {
+    try {
+      await confirmItem(id, data);
+      confirmed++;
+    } catch (e) {
+      errors.push({ id, error: e.message });
+    }
+  }
+  return { confirmed, errors };
+}
+
+async function batchSkip(ids) {
+  let skipped = 0;
+  for (const id of ids) {
+    await db.query(
+      `UPDATE acct_reconcile_queue SET status = 'skipped', updated_at = now()
+       WHERE id = $1 AND status = 'pending'`,
+      [id]
+    );
+    skipped++;
+  }
+  return { skipped };
+}
+
+async function getAuditTrail(opts = {}) {
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+
+  if (opts.lineRef) {
+    conditions.push(`c.line_ref = $${idx}`);
+    params.push(opts.lineRef);
+    idx++;
+  }
+  if (opts.source) {
+    conditions.push(`c.source = $${idx}`);
+    params.push(opts.source);
+    idx++;
+  }
+  if (opts.from) {
+    conditions.push(`c.confirmed_at >= $${idx}`);
+    params.push(opts.from);
+    idx++;
+  }
+  if (opts.to) {
+    conditions.push(`c.confirmed_at <= $${idx}`);
+    params.push(opts.to);
+    idx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(opts.limit || 100);
+  const limitIdx = idx++;
+  params.push(opts.offset || 0);
+  const offsetIdx = idx++;
+
+  const { rows } = await db.query(
+    `SELECT c.*, q.payee, q.description, q.amount, q.currency, q.line_date
+     FROM acct_confirmations c
+     LEFT JOIN acct_reconcile_queue q ON q.id = c.queue_item_id
+     ${where}
+     ORDER BY c.confirmed_at DESC
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    params
+  );
+
+  const { rows: countRows } = await db.query(
+    `SELECT count(*)::int as total FROM acct_confirmations c ${where}`,
+    params.slice(0, -2)
+  );
+
+  return { confirmations: rows, total: countRows[0]?.total || 0 };
+}
+
 module.exports = {
   pullAndClassify,
   confirmItem,
@@ -348,4 +425,7 @@ module.exports = {
   getQueueStats,
   getQueueItems,
   skipItem,
+  batchApprove,
+  batchSkip,
+  getAuditTrail,
 };

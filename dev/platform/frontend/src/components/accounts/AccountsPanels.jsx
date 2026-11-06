@@ -183,6 +183,8 @@ export function ReconcilePanel() {
   const [editingId, setEditingId] = useState(null);
   const [editCode, setEditCode] = useState('');
   const [editTax, setEditTax] = useState('');
+  const [selected, setSelected] = useState(new Set());
+  const [batchWorking, setBatchWorking] = useState(false);
   const LIMIT = 50;
 
   const load = useCallback(async () => {
@@ -269,6 +271,52 @@ export function ReconcilePanel() {
     });
   }
 
+  function toggleSelect(id) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    const pendingItems = items.filter(i => i.status === 'pending');
+    if (selected.size === pendingItems.length && pendingItems.length > 0) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(pendingItems.map(i => i.id)));
+    }
+  }
+
+  async function handleBatchApprove() {
+    if (!selected.size) return;
+    roWrite(readOnly, async () => {
+      setBatchWorking(true);
+      try {
+        const r = await api.post('/accounts/queue/batch-approve', { ids: [...selected] });
+        toast(`Batch approved ${r.confirmed ?? 0} items${r.errors?.length ? `, ${r.errors.length} errors` : ''}`);
+        setSelected(new Set());
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setBatchWorking(false); }
+    });
+  }
+
+  async function handleBatchSkip() {
+    if (!selected.size) return;
+    roWrite(readOnly, async () => {
+      setBatchWorking(true);
+      try {
+        const r = await api.post('/accounts/queue/batch-skip', { ids: [...selected] });
+        toast(`Batch skipped ${r.skipped ?? 0} items`);
+        setSelected(new Set());
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setBatchWorking(false); }
+    });
+  }
+
   function confidenceChip(conf) {
     const pct = Math.round((conf || 0) * 100);
     const cls = pct >= 95 ? 'chip-success' : pct >= 70 ? 'chip-warning' : 'chip-danger';
@@ -320,6 +368,20 @@ export function ReconcilePanel() {
           <button className="btn btn-primary" onClick={handleWriteBack} disabled={writingBack}>
             {writingBack ? 'Writing...' : 'Write back to Xero'}
           </button>
+          {selected.size > 0 && (
+            <>
+              <span className="chip chip-accent" style={{ fontVariantNumeric: 'tabular-nums' }}>{selected.size} selected</span>
+              <button className="btn" onClick={handleBatchApprove} disabled={batchWorking}>
+                {batchWorking ? 'Working...' : `Approve ${selected.size}`}
+              </button>
+              <button className="btn btn-ghost" onClick={handleBatchSkip} disabled={batchWorking}>
+                Skip {selected.size}
+              </button>
+              <button className="btn btn-ghost" style={{ color: 'var(--text-muted)' }} onClick={() => setSelected(new Set())}>
+                Clear
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -334,6 +396,15 @@ export function ReconcilePanel() {
           <table className="table">
             <thead>
               <tr>
+                {status === 'pending' && (
+                  <th style={{ width: 32 }}>
+                    <input
+                      type="checkbox"
+                      checked={selected.size > 0 && selected.size === items.filter(i => i.status === 'pending').length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                )}
                 <th>Date</th>
                 <th>Payee</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
@@ -349,6 +420,15 @@ export function ReconcilePanel() {
               {items.map(item => (
                 <React.Fragment key={item.id}>
                   <tr>
+                    {status === 'pending' && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                        />
+                      </td>
+                    )}
                     <td style={{ whiteSpace: 'nowrap' }}>{item.line_date?.slice(0, 10) || '—'}</td>
                     <td>{item.payee || item.description || '—'}</td>
                     <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
@@ -375,7 +455,7 @@ export function ReconcilePanel() {
                   </tr>
                   {editingId === item.id && (
                     <tr>
-                      <td colSpan={9}>
+                      <td colSpan={status === 'pending' ? 10 : 9}>
                         <div className="card" style={{ padding: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
                           <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                             <label style={{ fontSize: 'var(--fs-body-sm)', minWidth: 200, flex: 1 }}>
@@ -1659,6 +1739,320 @@ export function ReportsPanel() {
         <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
           <div className="text-muted">Select a report type and date range, then click "Fetch report". Reports are pulled live from Xero.</div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FxPanel — foreign currency gain/loss tracking
+// ---------------------------------------------------------------------------
+
+export function FxPanel() {
+  const { readOnly } = useAuth();
+  const { toast } = useToast();
+  const [events, setEvents] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [currency, setCurrency] = useState('');
+  const today = new Date().toISOString().split('T')[0];
+  const yearStart = `${new Date().getFullYear()}-01-01`;
+  const [fromDate, setFromDate] = useState(yearStart);
+  const [toDate, setToDate] = useState(today);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (currency) params.set('currency', currency);
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
+      const [evData, sumData] = await Promise.all([
+        api.get(`/accounts/fx/events?${params}`),
+        api.get(`/accounts/fx/summary?${params}`),
+      ]);
+      setEvents(evData.events || []);
+      setSummary(sumData);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }, [currency, fromDate, toDate, toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleScan() {
+    roWrite(readOnly, async () => {
+      setScanning(true);
+      try {
+        const r = await api.post('/accounts/fx/scan');
+        toast(`Scanned queue: ${r.recorded} FX events recorded from ${r.scanned} non-GBP transactions`);
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setScanning(false); }
+    });
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="row between center">
+        <div className="h4">FX gain/loss tracker</div>
+        <button className="btn btn-primary" onClick={handleScan} disabled={scanning}>
+          {scanning ? 'Scanning...' : 'Scan queue for FX'}
+        </button>
+      </div>
+
+      <div className="card" style={{ padding: 'var(--s4)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+          <label className="body-sm">
+            Currency
+            <select className="input" value={currency} onChange={e => setCurrency(e.target.value)} style={{ marginLeft: 'var(--s2)' }}>
+              <option value="">All</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="CAD">CAD</option>
+            </select>
+          </label>
+          <label className="body-sm">
+            From
+            <input type="date" className="input" value={fromDate} onChange={e => setFromDate(e.target.value)} style={{ marginLeft: 'var(--s2)' }} />
+          </label>
+          <label className="body-sm">
+            To
+            <input type="date" className="input" value={toDate} onChange={e => setToDate(e.target.value)} style={{ marginLeft: 'var(--s2)' }} />
+          </label>
+        </div>
+      </div>
+
+      {summary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--s3)' }}>
+          {summary.byCurrency?.map(row => (
+            <div key={row.currency} className="card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+              <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 600 }}>{row.currency}</div>
+              <div className="body-sm text-muted">{row.event_count} events</div>
+              <div style={{
+                fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+                color: Number(row.total_realised_gbp) >= 0 ? 'var(--success)' : 'var(--danger)',
+              }}>
+                {Number(row.total_realised_gbp) >= 0 ? '+' : ''}
+                {Number(row.total_realised_gbp).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}
+              </div>
+            </div>
+          ))}
+          {summary.totals && (
+            <div className="card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+              <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 600 }}>Total</div>
+              <div className="body-sm text-muted">{summary.totals.eventCount} events</div>
+              <div style={{
+                fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+                color: summary.totals.totalRealisedGbp >= 0 ? 'var(--success)' : 'var(--danger)',
+              }}>
+                {summary.totals.totalRealisedGbp >= 0 ? '+' : ''}
+                {summary.totals.totalRealisedGbp.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}
+              </div>
+              <div className="body-sm">
+                <span style={{ color: 'var(--success)' }}>
+                  Gains: {summary.totals.gainsGbp.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}
+                </span>
+                {' / '}
+                <span style={{ color: 'var(--danger)' }}>
+                  Losses: {summary.totals.lossesGbp.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>
+      ) : events.length === 0 ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">No FX events recorded. Click "Scan queue for FX" to detect non-GBP transactions from the reconciliation queue.</div>
+        </div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Currency</th>
+              <th>Invoice/Ref</th>
+              <th style={{ textAlign: 'right' }}>Raise rate</th>
+              <th style={{ textAlign: 'right' }}>Settle rate</th>
+              <th style={{ textAlign: 'right' }}>Realised (GBP)</th>
+              <th>Account</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map(ev => (
+              <tr key={ev.id}>
+                <td style={{ whiteSpace: 'nowrap' }}>{ev.created_at?.slice(0, 10)}</td>
+                <td>{ev.currency}</td>
+                <td className="body-sm">{ev.invoice_ref || ev.xero_txn_id || '—'}</td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {ev.raise_rate != null ? Number(ev.raise_rate).toFixed(4) : '—'}
+                </td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {ev.settle_rate != null ? Number(ev.settle_rate).toFixed(4) : '—'}
+                </td>
+                <td style={{
+                  textAlign: 'right',
+                  fontVariantNumeric: 'tabular-nums',
+                  fontWeight: 600,
+                  color: ev.realised_gbp != null
+                    ? (Number(ev.realised_gbp) >= 0 ? 'var(--success)' : 'var(--danger)')
+                    : undefined,
+                }}>
+                  {ev.realised_gbp != null
+                    ? `${Number(ev.realised_gbp) >= 0 ? '+' : ''}${Number(ev.realised_gbp).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`
+                    : '—'}
+                </td>
+                <td className="body-sm">{ev.account_code || '—'}</td>
+                <td className="body-sm text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {ev.notes || '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className="card" style={{ padding: 'var(--s4)' }}>
+        <div className="h5" style={{ marginBottom: 'var(--s2)' }}>How FX tracking works</div>
+        <div className="body-sm text-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+          <div>When a non-GBP transaction is confirmed in the reconciliation queue, it is flagged as an FX event.</div>
+          <div>If a raise rate and settle rate are available, the realised gain or loss in GBP is calculated automatically.</div>
+          <div>Events without rates (most bank transactions) are recorded for tracking. You can update rates manually when the invoice is settled.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AuditPanel — confirmation audit trail
+// ---------------------------------------------------------------------------
+
+export function AuditPanel() {
+  const { toast } = useToast();
+  const [confirmations, setConfirmations] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState('');
+  const [search, setSearch] = useState('');
+  const [offset, setOffset] = useState(0);
+  const LIMIT = 50;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: LIMIT, offset });
+      if (source) params.set('source', source);
+      if (search) params.set('lineRef', search);
+      const data = await api.get(`/accounts/audit-trail?${params}`);
+      setConfirmations(data.confirmations || []);
+      setTotal(data.total || 0);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }, [source, search, offset, toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const ruleCount = confirmations.filter(c => c.source === 'rule').length;
+  const aiCount = confirmations.filter(c => c.source === 'ai').length;
+  const manualCount = confirmations.filter(c => c.source === 'manual').length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="h4">Audit trail</div>
+
+      <StatStrip items={[
+        { label: 'Total confirmations', value: total },
+        { label: 'Rule-matched', value: ruleCount },
+        { label: 'AI-classified', value: aiCount },
+        { label: 'Manual', value: manualCount },
+      ]} />
+
+      <div className="row center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          className="input"
+          placeholder="Search by line ref..."
+          value={search}
+          onChange={e => { setSearch(e.target.value); setOffset(0); }}
+          style={{ width: 220 }}
+        />
+        <select className="input" value={source} onChange={e => { setSource(e.target.value); setOffset(0); }}>
+          <option value="">All sources</option>
+          <option value="rule">Rule</option>
+          <option value="ai">AI</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>
+      ) : confirmations.length === 0 ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">No confirmations recorded yet. Confirmations are created when reconciliation items are approved.</div>
+        </div>
+      ) : (
+        <>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Payee</th>
+                <th style={{ textAlign: 'right' }}>Amount</th>
+                <th>Proposed</th>
+                <th>Confirmed</th>
+                <th>Source</th>
+                <th>By</th>
+                <th>Reasoning</th>
+              </tr>
+            </thead>
+            <tbody>
+              {confirmations.map(c => {
+                const changed = c.proposed_code !== c.confirmed_code || c.proposed_rate !== c.confirmed_rate;
+                return (
+                  <tr key={c.id}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{c.confirmed_at?.slice(0, 10)}</td>
+                    <td>{c.payee || c.description || c.line_ref}</td>
+                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {c.amount != null ? Number(c.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'}
+                      {c.currency && c.currency !== 'GBP' && <span className="body-sm text-muted"> {c.currency}</span>}
+                    </td>
+                    <td className="body-sm text-muted">
+                      {c.proposed_code || '—'} / {c.proposed_rate || '—'}
+                    </td>
+                    <td style={{ fontWeight: changed ? 600 : 400 }}>
+                      {c.confirmed_code} / {c.confirmed_rate || '—'}
+                      {changed && <span className="chip chip-accent" style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)' }}>changed</span>}
+                    </td>
+                    <td>
+                      <span className={`chip ${c.source === 'rule' ? 'chip-success' : c.source === 'ai' ? 'chip-accent' : ''}`}>
+                        {c.source}
+                      </span>
+                    </td>
+                    <td className="body-sm">{c.confirmed_by || '—'}</td>
+                    <td className="body-sm text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {c.reasoning || '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {total > LIMIT && (
+            <div className="row center" style={{ gap: 'var(--s3)', justifyContent: 'center' }}>
+              <button className="btn btn-ghost" disabled={offset === 0} onClick={() => setOffset(o => Math.max(0, o - LIMIT))}>Previous</button>
+              <span className="body-sm text-muted">{offset + 1}–{Math.min(offset + LIMIT, total)} of {total}</span>
+              <button className="btn btn-ghost" disabled={offset + LIMIT >= total} onClick={() => setOffset(o => o + LIMIT)}>Next</button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

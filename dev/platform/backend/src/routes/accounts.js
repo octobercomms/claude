@@ -236,6 +236,35 @@ router.post('/queue/write-back', async (req, res) => {
   }
 });
 
+router.post('/queue/batch-approve', async (req, res) => {
+  try {
+    const { ids, accountCode, taxRate } = req.body;
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.status(400).json({ error: 'ids must be a non-empty array' });
+    }
+    const result = await accounts.reconcile.batchApprove(
+      ids.map(Number),
+      { accountCode, taxRate }
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/queue/batch-skip', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.status(400).json({ error: 'ids must be a non-empty array' });
+    }
+    const result = await accounts.reconcile.batchSkip(ids.map(Number));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Rules ---
 
 router.get('/rules', async (req, res) => {
@@ -550,6 +579,71 @@ router.get('/xero/balance-sheet', async (req, res) => {
     const token = await xero.getValidToken();
     const report = await xero.getBalanceSheet(token, req.query.date);
     res.json(report);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Audit trail ---
+
+router.get('/audit-trail', async (req, res) => {
+  try {
+    const result = await accounts.reconcile.getAuditTrail({
+      lineRef: req.query.lineRef || undefined,
+      source: req.query.source || undefined,
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+      limit: parseInt(req.query.limit) || 100,
+      offset: parseInt(req.query.offset) || 0,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- FX tracking ---
+
+router.get('/fx/events', async (req, res) => {
+  try {
+    const events = await accounts.fxTracker.getFxEvents({
+      currency: req.query.currency || undefined,
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+      limit: parseInt(req.query.limit) || 100,
+      offset: parseInt(req.query.offset) || 0,
+    });
+    res.json({ events });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/fx/summary', async (req, res) => {
+  try {
+    const summary = await accounts.fxTracker.getFxSummary({
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+    });
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/fx/scan', async (req, res) => {
+  try {
+    const result = await accounts.fxTracker.scanQueueForFx();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/fx/record', async (req, res) => {
+  try {
+    const event = await accounts.fxTracker.recordFxEvent(req.body);
+    res.json(event);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

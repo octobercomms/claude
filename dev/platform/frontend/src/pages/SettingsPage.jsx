@@ -22,7 +22,7 @@ import IntegrationsPage from './IntegrationsPage';
 import { roWrite } from '../utils/readOnly';
 import InboxesPanel from '../components/InboxesPanel';
 import { useAuth } from '../context/AuthContext';
-import { DashboardPanel, ReconcilePanel, RulesPanel, InvoicesPanel, DeadlinesPanel, VatPanel, DigestsPanel, DrivePanel, XeroPanel, ReportsPanel } from '../components/accounts/AccountsPanels';
+import { DashboardPanel, ReconcilePanel, RulesPanel, InvoicesPanel, DeadlinesPanel, VatPanel, DigestsPanel, DrivePanel, XeroPanel, ReportsPanel, FxPanel, AuditPanel } from '../components/accounts/AccountsPanels';
 
 // The catalogue these render lives in settings/catalogue.js, so the search
 // palette can find a credential by name.
@@ -113,7 +113,9 @@ const SECTIONS = [
     { k: 'invoices' },
     { k: 'deadlines' },
     { k: 'vat' },
-    { k: 'reports' },
+    { k: 'fx' },
+    { k: 'fin_reports' },
+    { k: 'audit' },
     { k: 'digests' },
     { k: 'drive' },
     { k: 'xero' },
@@ -389,7 +391,9 @@ export default function SettingsPage() {
       {tab === 'invoices' && <InvoicesPanel />}
       {tab === 'deadlines' && <DeadlinesPanel />}
       {tab === 'vat' && <VatPanel />}
-      {tab === 'reports' && <ReportsPanel />}
+      {tab === 'fx' && <FxPanel />}
+      {tab === 'fin_reports' && <ReportsPanel />}
+      {tab === 'audit' && <AuditPanel />}
       {tab === 'digests' && <DigestsPanel />}
       {tab === 'drive' && <DrivePanel />}
       {tab === 'xero' && <XeroPanel />}

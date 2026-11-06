@@ -6,6 +6,7 @@ const deadlines = require('./deadlines');
 const digest = require('./digest');
 const vatPack = require('./vatPack');
 const driveScanner = require('./driveScanner');
+const fxTracker = require('./fxTracker');
 
 module.exports = {
   rules,
@@ -16,4 +17,5 @@ module.exports = {
   digest,
   vatPack,
   driveScanner,
+  fxTracker,
 };
