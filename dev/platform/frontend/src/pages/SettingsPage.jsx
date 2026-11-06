@@ -36,7 +36,7 @@ import RecordTools from '../components/database/RecordTools';
 import DatabaseToolsPage from './ContactCleanupPage';
 import StatStrip from '../components/shells/StatStrip';
 import DangerConfirm from '../components/ui/DangerConfirm';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { usePrompt } from '../context/PromptContext';
 
 // The page's own list of settings screen keys, per section.
@@ -3536,6 +3536,38 @@ const MONTH_COLOURS = [
   'var(--text-subtle)',
 ];
 
+const PROVIDER_COLOURS = {
+  anthropic: '#D97706',
+  dataforseo: '#2563EB',
+  openai: '#10B981',
+  hunter: '#8B5CF6',
+  apify: '#EC4899',
+  serper: '#F59E0B',
+  heygen: '#06B6D4',
+  fal: '#EF4444',
+  replicate: '#6366F1',
+  ideogram: '#14B8A6',
+  adobe: '#DC2626',
+  arcads: '#7C3AED',
+  pangram: '#059669',
+};
+
+const PROVIDER_LABELS = {
+  anthropic: 'Anthropic',
+  dataforseo: 'DataForSEO',
+  openai: 'OpenAI',
+  hunter: 'Hunter',
+  apify: 'Apify',
+  serper: 'Serper',
+  heygen: 'HeyGen',
+  fal: 'Fal',
+  replicate: 'Replicate',
+  ideogram: 'Ideogram',
+  adobe: 'Adobe',
+  arcads: 'Arcads',
+  pangram: 'Pangram',
+};
+
 function linearTrend(points) {
   const n = points.length;
   if (n < 2) return null;
@@ -3550,6 +3582,7 @@ function linearTrend(points) {
 
 function DailySpendChart() {
   const [data, setData] = useState(null);
+  const [view, setView] = useState('month');
 
   useEffect(() => {
     api.get('/settings/usage/cost-log?days=90').then(setData).catch(() => {});
@@ -3600,49 +3633,148 @@ function DailySpendChart() {
   const ceiling = Math.max(Math.ceil(p90 / 5) * 5, 5);
   const outliers = allValues.filter(v => v > ceiling).length;
 
+  const providerRows = data.daily_by_provider || [];
+  const providers = [...new Set(providerRows.map(r => r.provider))].sort((a, b) => {
+    const totalA = providerRows.filter(r => r.provider === a).reduce((s, r) => s + r.cost_usd, 0);
+    const totalB = providerRows.filter(r => r.provider === b).reduce((s, r) => s + r.cost_usd, 0);
+    return totalB - totalA;
+  });
+
+  const providerChartData = [];
+  if (providers.length) {
+    const byDay = {};
+    for (const row of providerRows) {
+      const d = new Date(row.day);
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (mk !== thisMonthKey) continue;
+      const dayNum = d.getDate();
+      if (!byDay[dayNum]) byDay[dayNum] = { day: dayNum };
+      byDay[dayNum][row.provider] = Math.round((byDay[dayNum][row.provider] || 0) + row.cost_usd * 100) / 100;
+    }
+    const maxProvDay = Math.max(...Object.keys(byDay).map(Number), 0);
+    for (let d = 1; d <= maxProvDay; d++) {
+      providerChartData.push(byDay[d] || { day: d });
+    }
+  }
+
+  const providerTotal = (p) => providerRows
+    .filter(r => {
+      const d = new Date(r.day);
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return mk === thisMonthKey && r.provider === p;
+    })
+    .reduce((s, r) => s + r.cost_usd, 0);
+
+  const providerCeiling = (() => {
+    if (!providerChartData.length) return 5;
+    const totals = providerChartData.map(pt => providers.reduce((s, p) => s + (pt[p] || 0), 0));
+    const sp = [...totals].sort((a, b) => a - b);
+    const p = sp[Math.floor(sp.length * 0.9)] || 1;
+    return Math.max(Math.ceil(p / 5) * 5, 5);
+  })();
+
+  const toggleStyle = (active) => ({
+    padding: '2px 10px',
+    fontSize: 'var(--fs-caption)',
+    fontWeight: 600,
+    border: '1px solid var(--border)',
+    background: active ? 'var(--text-primary)' : 'transparent',
+    color: active ? 'var(--bg-primary)' : 'var(--text-secondary)',
+    cursor: 'pointer',
+    borderRadius: 0,
+  });
+
   return (
     <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-      <h2 className="caption" style={{ marginBottom: 'var(--s1)' }}>Daily spend</h2>
-      <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
-        Each line is a calendar month, overlaid on day of month. Dashed line is the {rawValues.length}-day average (${avg.toFixed(2)}/day).
-        {trend && trend.slope > 0.01 && <span style={{ color: 'var(--warning)' }}> Trending up.</span>}
-        {trend && trend.slope < -0.01 && <span style={{ color: 'var(--positive)' }}> Trending down.</span>}
-        {outliers > 0 && <span> Y-axis capped at ${ceiling}; {outliers} day{outliers > 1 ? 's' : ''} above (hover for real value).</span>}
-      </p>
-      <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
-        {monthKeys.map((mk, i) => {
-          const total = monthTotal(mk);
-          return (
-            <span key={mk} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
-              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: MONTH_COLOURS[i % MONTH_COLOURS.length], marginRight: 'var(--s1)', verticalAlign: 'middle' }} />
-              {monthLabel(mk)} ${total.toFixed(2)}
-            </span>
-          );
-        })}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s1)' }}>
+        <h2 className="caption">Daily spend</h2>
+        <div style={{ display: 'flex' }}>
+          <button style={{ ...toggleStyle(view === 'month'), borderRadius: '4px 0 0 4px' }} onClick={() => setView('month')}>By month</button>
+          <button style={{ ...toggleStyle(view === 'provider'), borderRadius: '0 4px 4px 0', borderLeft: 'none' }} onClick={() => setView('provider')}>By provider</button>
+        </div>
       </div>
-      <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={chartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
-          <XAxis dataKey="day" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => d} />
-          <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} domain={[0, ceiling]} allowDataOverflow />
-          <Tooltip
-            formatter={(v, name) => [`$${Number(v).toFixed(2)}`, monthLabel(name)]}
-            labelFormatter={d => `Day ${d}`}
-          />
-          <ReferenceLine y={avg} stroke="var(--text-subtle)" strokeDasharray="4 4" strokeWidth={1} />
-          {monthKeys.map((mk, i) => (
-            <Line
-              key={mk}
-              type="monotone"
-              dataKey={mk}
-              stroke={MONTH_COLOURS[i % MONTH_COLOURS.length]}
-              strokeWidth={mk === monthKeys[monthKeys.length - 1] ? 2 : 1.5}
-              strokeOpacity={mk === monthKeys[monthKeys.length - 1] ? 1 : 0.5}
-              dot={{ r: mk === monthKeys[monthKeys.length - 1] ? 2.5 : 1.5 }}
-              connectNulls={false}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+
+      {view === 'month' && (
+        <>
+          <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
+            Each line is a calendar month, overlaid on day of month. Dashed line is the {rawValues.length}-day average (${avg.toFixed(2)}/day).
+            {trend && trend.slope > 0.01 && <span style={{ color: 'var(--warning)' }}> Trending up.</span>}
+            {trend && trend.slope < -0.01 && <span style={{ color: 'var(--positive)' }}> Trending down.</span>}
+            {outliers > 0 && <span> Y-axis capped at ${ceiling}; {outliers} day{outliers > 1 ? 's' : ''} above (hover for real value).</span>}
+          </p>
+          <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
+            {monthKeys.map((mk, i) => {
+              const total = monthTotal(mk);
+              return (
+                <span key={mk} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
+                  <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: MONTH_COLOURS[i % MONTH_COLOURS.length], marginRight: 'var(--s1)', verticalAlign: 'middle' }} />
+                  {monthLabel(mk)} ${total.toFixed(2)}
+                </span>
+              );
+            })}
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={chartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
+              <XAxis dataKey="day" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => d} />
+              <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} domain={[0, ceiling]} allowDataOverflow />
+              <Tooltip
+                formatter={(v, name) => [`$${Number(v).toFixed(2)}`, monthLabel(name)]}
+                labelFormatter={d => `Day ${d}`}
+              />
+              <ReferenceLine y={avg} stroke="var(--text-subtle)" strokeDasharray="4 4" strokeWidth={1} />
+              {monthKeys.map((mk, i) => (
+                <Line
+                  key={mk}
+                  type="monotone"
+                  dataKey={mk}
+                  stroke={MONTH_COLOURS[i % MONTH_COLOURS.length]}
+                  strokeWidth={mk === monthKeys[monthKeys.length - 1] ? 2 : 1.5}
+                  strokeOpacity={mk === monthKeys[monthKeys.length - 1] ? 1 : 0.5}
+                  dot={{ r: mk === monthKeys[monthKeys.length - 1] ? 2.5 : 1.5 }}
+                  connectNulls={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </>
+      )}
+
+      {view === 'provider' && (
+        <>
+          <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
+            Stacked daily spend by provider for {monthLabel(thisMonthKey)}. Hover a bar for the breakdown.
+          </p>
+          <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
+            {providers.map(p => {
+              const total = providerTotal(p);
+              if (total < 0.01) return null;
+              return (
+                <span key={p} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
+                  <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: PROVIDER_COLOURS[p] || 'var(--text-subtle)', marginRight: 'var(--s1)', verticalAlign: 'middle' }} />
+                  {PROVIDER_LABELS[p] || p} ${total.toFixed(2)}
+                </span>
+              );
+            })}
+          </div>
+          {providerChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={providerChartData} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
+                <XAxis dataKey="day" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => d} />
+                <YAxis tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={v => `$${v}`} domain={[0, providerCeiling]} allowDataOverflow />
+                <Tooltip
+                  formatter={(v, name) => [`$${Number(v).toFixed(2)}`, PROVIDER_LABELS[name] || name]}
+                  labelFormatter={d => `Day ${d}`}
+                />
+                {providers.map(p => (
+                  <Bar key={p} dataKey={p} stackId="spend" fill={PROVIDER_COLOURS[p] || 'var(--text-subtle)'} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="body-sm text-muted">No provider data for this month yet.</p>
+          )}
+        </>
+      )}
     </div>
   );
 }

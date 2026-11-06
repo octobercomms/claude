@@ -593,7 +593,7 @@ router.get('/usage/feature-costs', async (req, res) => {
 router.get('/usage/cost-log', async (req, res) => {
   const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
   try {
-    const [byFeature, daily, recent] = await Promise.all([
+    const [byFeature, daily, recent, dailyByProvider] = await Promise.all([
       db.query(
         `SELECT provider, feature, SUM(cost_usd)::float AS cost_usd, COUNT(*)::int AS calls
            FROM api_cost_events
@@ -614,11 +614,18 @@ router.get('/usage/cost-log', async (req, res) => {
           WHERE ts >= NOW() - INTERVAL '7 days'
           ORDER BY ts DESC LIMIT 200`
       ),
+      db.query(
+        `SELECT date_trunc('day', ts) AS day, provider, SUM(cost_usd)::float AS cost_usd
+           FROM api_cost_events
+          WHERE ts >= NOW() - ($1::int || ' days')::interval
+          GROUP BY day, provider ORDER BY day ASC`, [days]
+      ),
     ]);
     res.json({
       window_days: days,
       by_feature: byFeature.rows,
       daily: daily.rows,
+      daily_by_provider: dailyByProvider.rows,
       recent: recent.rows,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
