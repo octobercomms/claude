@@ -327,6 +327,16 @@ export const KEY_GROUPS = [
       { key: 'REPORT_FOOTER_LINE_3', label: 'Footer line 3', placeholder: '85 Great Portland Street, First Floor, London W1W 7LT · www.octobercomms.com', type: 'text' },
     ],
   },
+  {
+    title: 'Xero',
+    category: 'Accounts',
+    test: 'xero',
+    hint: 'OAuth2 app for the Accounts module. Register at developer.xero.com (web app type). The redirect URI must match your platform URL + /api/accounts/xero/callback exactly.',
+    keys: [
+      { key: 'XERO_CLIENT_ID', label: 'Xero Client ID', placeholder: 'From developer.xero.com > My Apps', type: 'text' },
+      { key: 'XERO_CLIENT_SECRET', label: 'Xero Client Secret', placeholder: 'From developer.xero.com > My Apps', type: 'password' },
+    ],
+  },
 ];
 
 
@@ -343,6 +353,7 @@ export const CATEGORIES = [
   { title: 'Integrations', description: 'Handing data to something else on this stack.' },
   { title: 'Reports', description: 'What every report PDF prints at the bottom of the page.' },
   { title: 'Alerts', description: 'Who the platform tells when a connector fails or a token expires.' },
+  { title: 'Accounts', description: 'Xero credentials for the bookkeeping and reconciliation module.' },
 ];
 
 // Sub-tab → which CATEGORIES of provider-key groups it shows.
@@ -364,6 +375,7 @@ export const SUBTAB_CATS = {
   integrations: ['Integrations'],
   reports: ['Reports'],
   alerts: ['Alerts'],
+  xero: ['Accounts'],
 };
 
 // Does this label already say which provider it belongs to?
