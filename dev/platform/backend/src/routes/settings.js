@@ -132,6 +132,10 @@ const SETTINGS_KEYS = [
   // Editable report footer — three lines printed on every PDF page beneath
   // the "Page X of Y" line. Leave blank to use the built-in defaults.
   'REPORT_FOOTER_LINE_1', 'REPORT_FOOTER_LINE_2', 'REPORT_FOOTER_LINE_3',
+  // Xero — OAuth2 app for the Accounts module. Registered at
+  // developer.xero.com. The redirect URI must match PLATFORM_URL + the
+  // callback path exactly.
+  'XERO_CLIENT_ID', 'XERO_CLIENT_SECRET', 'XERO_REDIRECT_URI',
 ];
 
 router.use(authenticate);
