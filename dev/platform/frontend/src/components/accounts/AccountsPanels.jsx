@@ -63,6 +63,106 @@ function TaxRateSelect({ value, onChange, taxRates }) {
 }
 
 // ---------------------------------------------------------------------------
+// DashboardPanel — accounts overview
+// ---------------------------------------------------------------------------
+
+export function DashboardPanel() {
+  const { toast } = useToast();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const d = await api.get('/accounts/dashboard');
+        setData(d);
+      } catch (e) { toast(e.message, 'error'); }
+      finally { setLoading(false); }
+    })();
+  }, [toast]);
+
+  if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
+  if (!data) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Unable to load dashboard.</div>;
+
+  const q = data.queue || {};
+  const inv = data.invoices || {};
+  const deadlines = data.deadlines || [];
+  const urgentDeadlines = deadlines.filter(d => {
+    const days = Math.ceil((new Date(d.due_date) - new Date()) / (1000 * 60 * 60 * 24));
+    return days <= 30 && d.status !== 'filed' && d.status !== 'paid';
+  });
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="h4">Accounts overview</div>
+
+      <StatStrip items={[
+        { label: 'Pending review', value: q.pending || 0 },
+        { label: 'Confirmed', value: q.confirmed || 0 },
+        { label: 'Written to Xero', value: q.written || 0 },
+        { label: 'Errors', value: q.error || 0, color: (q.error || 0) > 0 ? 'var(--danger)' : undefined },
+      ]} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--s4)' }}>
+        <div className="card" style={{ padding: 'var(--s4)' }}>
+          <div className="h5" style={{ marginBottom: 'var(--s3)' }}>Reconciliation</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+            <div className="row between">
+              <span className="text-muted">Total in queue</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{q.total || 0}</span>
+            </div>
+            <div className="row between">
+              <span className="text-muted">Pending</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: (q.pending || 0) > 0 ? 'var(--warning)' : undefined }}>{q.pending || 0}</span>
+            </div>
+            <div className="row between">
+              <span className="text-muted">Skipped</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{q.skipped || 0}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 'var(--s4)' }}>
+          <div className="h5" style={{ marginBottom: 'var(--s3)' }}>Invoices</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+            <div className="row between">
+              <span className="text-muted">Matched</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{inv.matched || 0}</span>
+            </div>
+            <div className="row between">
+              <span className="text-muted">Attached to Xero</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{inv.attached || 0}</span>
+            </div>
+            <div className="row between">
+              <span className="text-muted">Missing</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: (inv.missing || 0) > 0 ? 'var(--danger)' : undefined }}>{inv.missing || 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {urgentDeadlines.length > 0 && (
+          <div className="card" style={{ padding: 'var(--s4)' }}>
+            <div className="h5" style={{ marginBottom: 'var(--s3)' }}>Upcoming deadlines</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+              {urgentDeadlines.slice(0, 5).map((d, i) => {
+                const days = Math.ceil((new Date(d.due_date) - new Date()) / (1000 * 60 * 60 * 24));
+                const urgency = days <= 7 ? 'var(--danger)' : days <= 14 ? 'var(--warning)' : undefined;
+                return (
+                  <div key={i} className="row between">
+                    <span className="text-muted">{d.tax_type} {d.period_label}</span>
+                    <span style={{ fontWeight: 600, color: urgency }}>{days}d</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ReconcilePanel — the main reconciliation queue
 // ---------------------------------------------------------------------------
 

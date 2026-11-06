@@ -136,6 +136,8 @@ const SETTINGS_KEYS = [
   // developer.xero.com. The redirect URI must match PLATFORM_URL + the
   // callback path exactly.
   'XERO_CLIENT_ID', 'XERO_CLIENT_SECRET', 'XERO_REDIRECT_URI',
+  // Accounts module: digest email recipient and Google Drive invoice folder.
+  'ACCOUNTS_DIGEST_EMAIL', 'ACCOUNTS_DRIVE_FOLDER_ID',
 ];
 
 router.use(authenticate);
