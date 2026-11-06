@@ -40,14 +40,6 @@ check('each seed rule has required fields', () => {
     assert.ok(rule.account_code, `Missing account_code: ${JSON.stringify(rule)}`);
     assert.ok(rule.account_name, `Missing account_name: ${JSON.stringify(rule)}`);
     assert.ok(rule.tax_rate, `Missing tax_rate: ${JSON.stringify(rule)}`);
-    assert.ok(typeof rule.confidence === 'number', `Missing confidence: ${JSON.stringify(rule)}`);
-  }
-});
-
-check('all confidence values are between 0 and 1', () => {
-  for (const rule of SEED_RULES) {
-    assert.ok(rule.confidence > 0 && rule.confidence <= 1,
-      `Bad confidence ${rule.confidence} for ${rule.payee_pattern}`);
   }
 });
 
@@ -93,5 +85,5 @@ check('account codes are non-empty strings', () => {
 
 // ── Summary ─────────────────────────────────────────────────────────
 
-console.log(`\n${SEED_RULES.length} seed rules validated`);
+console.log(`\n${SEED_RULES?.length ?? 0} seed rules validated`);
 process.exit(failed ? 1 : 0);

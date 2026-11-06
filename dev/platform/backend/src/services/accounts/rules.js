@@ -212,4 +212,5 @@ module.exports = {
   confirmRule,
   promoteToRule,
   seedRules,
+  SEED_RULES,
 };

@@ -153,6 +153,7 @@ async function getMissingInvoices() {
 
 module.exports = {
   matchInvoicesToQueue,
+  findBestMatch,
   attachToXero,
   getInvoiceStats,
   getMissingInvoices,
