@@ -982,6 +982,11 @@ cron.schedule('0 7 * * 1', async () => {
 // invoice scanner after classification so new receipts match immediately.
 cron.schedule('0 21 * * 0', async () => {
   try {
+    const budget = require('./budget');
+    if (await budget.taskCapReached('accounts')) {
+      console.warn('[Accounts] reconciliation skipped — monthly budget reached');
+      return;
+    }
     const accounts = require('./accounts');
     const r = await accounts.reconcile.pullAndClassify({});
     console.log(`[Accounts] reconcile: ${r.queued} queued, ${r.ruleMatched} rule-matched, ${r.aiClassified} AI-classified`);
@@ -1004,6 +1009,17 @@ cron.schedule('30 7 * * 1', async () => {
     console.log(`[Accounts] weekly digest built: ${r.summary.reconciliation.confirmedThisWeek} confirmed, ${r.summary.invoices.missing} missing invoices, emailed: ${r.emailed}`);
   } catch (e) { console.error('[Accounts] weekly digest failed:', e.message); }
 });
+
+// Tax deadline alerts: weekday mornings. Emails a reminder when a filing or
+// payment deadline falls within the next 14 days. Runs daily rather than
+// weekly so a deadline that lands mid-week still gets a heads-up.
+cron.schedule('15 8 * * 1-5', async () => {
+  try {
+    const accounts = require('./accounts');
+    const r = await accounts.deadlines.sendAlerts(14);
+    if (r.sent) console.log(`[Accounts] deadline alert: ${r.count} due, emailed ${r.to}`);
+  } catch (e) { console.error('[Accounts] deadline alert failed:', e.message); }
+}, { timezone: 'Europe/London' });
 
 // GTM Brain Phase 0 — weekly baseline snapshot of stale crucial items per
 // client. Runs after the strategist briefing so the snapshot reflects the

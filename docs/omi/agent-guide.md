@@ -3866,13 +3866,13 @@ rules engine first, Claude AI for unknowns.
 
 | Layer | Files |
 |-------|-------|
-| Migration | `backend/migrations/238_accounts_module.sql` (9 tables) |
+| Migration | `backend/migrations/238_accounts_module.sql` (9 tables), `239_accounts_task_budget.sql` |
 | Xero connector | `backend/src/connectors/xero.js` (OAuth2, encrypted tokens, rate-limit retry) |
-| Services | `backend/src/services/accounts/` (rules, classify, reconcile, invoices, deadlines, digest, vatPack, driveScanner) |
+| Services | `backend/src/services/accounts/` (rules, classify, reconcile, invoices, deadlines, digest, vatPack, driveScanner, fxTracker) |
 | Routes | `backend/src/routes/accounts.js` |
 | Frontend | `frontend/src/components/accounts/AccountsPanels.jsx` |
 | Settings page | `frontend/src/pages/SettingsPage.jsx` (overview tab + accounts section) |
-| Tests | `backend/tests/accounts-rules.test.js`, `accounts-vatPack.test.js`, `accounts-reconcile.test.js` |
+| Tests | `backend/tests/accounts-rules.test.js`, `accounts-vatPack.test.js`, `accounts-reconcile.test.js`, `accounts-fx.test.js` |
 
 ### Key tables
 
@@ -3883,19 +3883,41 @@ rules engine first, Claude AI for unknowns.
 - `acct_vat_exceptions` flags suspicious VAT treatments for review
 - `acct_invoice_matches` links Google Drive files to queue items
 - `acct_tax_deadlines` tracks VAT, CT600, PAYE filing dates
+- `acct_fx_events` tracks FX gain/loss on non-GBP invoices
 - `acct_digests` stores weekly summary snapshots
 
 ### Scheduler entries
 
-- Sunday 21:00: `pullAndClassify` + `autoConfirmHighConfidence` + Drive scan
+- Sunday 21:00: `pullAndClassify` + `autoConfirmHighConfidence` + Drive scan (budget-gated via `accounts` task)
 - Monday 07:30: `buildAndSend` (digest email)
+- Weekdays 08:15 (Europe/London): `deadlines.sendAlerts(14)` emails upcoming tax filings
 
 ### Sub-tabs
 
-Overview (DashboardPanel), Reconcile, Rules, Invoices, Deadlines, VAT,
-Digests, Drive. Overview is the landing and shows queue stats, invoice match
-counts, and upcoming deadlines with urgency colouring. The route is
+Overview, Reconcile, Rules, Invoices, Deadlines, VAT, FX tracker,
+Financial reports (`fin_reports` key, slug `financial-reports`), Audit trail,
+Digests, Drive, Xero. The default landing is Reconcile. The route is
 `/accounts/:screen?` using the standard `useScreen` hook.
+
+The `fin_reports` tab key exists because `reports` is already used by the
+tools section under Settings. Using the same key would render both panels
+when visiting either screen. The slug stays `financial-reports` for clean URLs.
+
+Batch operations on the reconcile queue: select pending items with
+checkboxes, then approve or skip them in bulk. The batch-approve endpoint
+(`POST /queue/batch-approve`) loops over IDs calling `confirmItem`
+individually, returning confirmed count and any per-item errors.
+
+The FX tracker calculates realised GBP gain/loss using:
+`realisedGbp = (1/settleRate - 1/raiseRate) * |amount|`
+It scans the reconcile queue for non-GBP confirmed items and records events
+in `acct_fx_events`. The panel shows per-currency summaries and a filterable
+event table.
+
+The audit trail panel queries `acct_confirmations` joined with queue items.
+It supports line-ref search, source filtering (rule/ai/manual), date range,
+and pagination. A "changed" chip flags items where the confirmed code differs
+from the AI/rule proposal.
 
 ### Settings whitelist
 
@@ -3925,3 +3947,12 @@ in the Settings UI. The Xero group also includes `XERO_REDIRECT_URI`.
 - The `toast` pattern in this codebase is `toast(message, type)` where type
   is `'success'` (default), `'error'`, or `'warning'`. It is NOT an object
   with `.error()` or `.success()` methods.
+- `classify.js` calls the Anthropic SDK directly (for web_search tool). It is
+  classified as `GATED_BY_CALLER` in `budget-gating.test.js`, with the gate in
+  `scheduler.js` (the `accounts` task budget). If you add another direct-SDK
+  caller to the accounts module, add it to budget-gating.test.js or CI breaks.
+- CSV export endpoints (`/queue/export.csv`, `/audit-trail/export.csv`) return
+  up to 10,000 rows. They share the same auth middleware as the rest of the
+  accounts routes (admin-only).
+- Deadline alerts send to `ACCOUNTS_DIGEST_EMAIL` or `ALERT_EMAIL`. If neither
+  is set, the alert silently skips rather than throwing.

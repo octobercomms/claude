@@ -121,10 +121,43 @@ async function updateDeadline(id, data) {
   return rows[0] || null;
 }
 
+async function sendAlerts(daysAhead = 14) {
+  const upcoming = await getUpcoming(daysAhead);
+  if (!upcoming.length) return { sent: false, reason: 'nothing due' };
+
+  const to = process.env.ACCOUNTS_DIGEST_EMAIL || process.env.ALERT_EMAIL;
+  if (!to) return { sent: false, reason: 'no recipient configured' };
+
+  const lines = upcoming.map((d) => {
+    const days = Math.ceil((new Date(d.due_date) - new Date()) / 86400000);
+    const urgency = days <= 3 ? '!!' : days <= 7 ? '!' : '';
+    return `<tr><td>${urgency} ${d.tax_type}</td><td>${d.period_label}</td>`
+      + `<td>${d.due_date.toISOString().split('T')[0]}</td><td>${days} days</td>`
+      + `<td>${d.status}</td></tr>`;
+  });
+
+  const html = `<h2>Tax deadline alert</h2>
+<p>${upcoming.length} deadline${upcoming.length > 1 ? 's' : ''} due within ${daysAhead} days:</p>
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">
+<tr><th>Type</th><th>Period</th><th>Due</th><th>Remaining</th><th>Status</th></tr>
+${lines.join('\n')}
+</table>
+<p style="color:#666;font-size:12px">Sent by OMI Accounts. Update status at /accounts/deadlines.</p>`;
+
+  const { buildTransporter } = require('../../routes/settings');
+  const sender = process.env.EMAIL_PROVIDER === 'ses'
+    ? (process.env.SES_FROM_EMAIL || process.env.GMAIL_USER)
+    : `"October Communications" <${process.env.GMAIL_USER}>`;
+
+  await buildTransporter().sendMail({ from: sender, to, subject: `Tax deadlines: ${upcoming.length} due within ${daysAhead} days`, html });
+  return { sent: true, to, count: upcoming.length };
+}
+
 module.exports = {
   generateDeadlines,
   seedDeadlines,
   getUpcoming,
   getAll,
   updateDeadline,
+  sendAlerts,
 };

@@ -649,4 +649,75 @@ router.post('/fx/record', async (req, res) => {
   }
 });
 
+// --- CSV exports ---
+
+function toCsv(rows, columns) {
+  if (!rows.length) return '';
+  const cols = columns || Object.keys(rows[0]);
+  const escape = (v) => {
+    if (v == null) return '';
+    const s = String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = cols.map(escape).join(',');
+  const body = rows.map((r) => cols.map((c) => escape(r[c])).join(',')).join('\n');
+  return header + '\n' + body;
+}
+
+router.get('/queue/export.csv', async (req, res) => {
+  try {
+    const items = await accounts.reconcile.getQueueItems({
+      status: req.query.status !== 'all' ? req.query.status : undefined,
+      bankAccount: req.query.bankAccount || undefined,
+      limit: 10000,
+      offset: 0,
+    });
+    const csv = toCsv(items, [
+      'id', 'xero_line_id', 'date', 'description', 'amount', 'currency',
+      'bank_account', 'contact_name', 'status', 'account_code', 'account_name',
+      'tax_type', 'confidence', 'source', 'approved_by', 'approved_at',
+    ]);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="reconcile-queue.csv"');
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/audit-trail/export.csv', async (req, res) => {
+  try {
+    const result = await accounts.reconcile.getAuditTrail({
+      lineRef: req.query.lineRef || undefined,
+      source: req.query.source || undefined,
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+      limit: 10000,
+      offset: 0,
+    });
+    const csv = toCsv(result.rows || result, [
+      'id', 'line_ref', 'action', 'account_code', 'account_name', 'tax_type',
+      'confidence', 'source', 'changed', 'user_name', 'created_at', 'notes',
+    ]);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="audit-trail.csv"');
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Deadline alerts (manual trigger) ---
+
+router.post('/deadlines/send-alerts', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 14;
+    const result = await accounts.deadlines.sendAlerts(days);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

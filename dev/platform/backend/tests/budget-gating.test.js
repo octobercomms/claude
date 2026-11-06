@@ -53,6 +53,11 @@ const GATED_BY_CALLER = {
   // aiVisibility before it) — and the costliest kind of wrong, because a
   // guard that classifies wrongly reads as assurance.
   'services/outreachAi.js': 'services/outreachReplies.js',
+  // classify runs on the Sunday 21:00 reconciliation cron (scheduler →
+  // reconcile.pullAndClassify → classify.classifyBatch) and also from the
+  // reconcile panel when a user clicks Classify. Gate in the scheduler so
+  // the human path stays open.
+  'services/accounts/classify.js': 'services/scheduler.js',
 };
 
 // Interactive paths: a person clicks and waits, so the work is bounded by the

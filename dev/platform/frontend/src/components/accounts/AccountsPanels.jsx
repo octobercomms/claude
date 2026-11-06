@@ -368,6 +368,12 @@ export function ReconcilePanel() {
           <button className="btn btn-primary" onClick={handleWriteBack} disabled={writingBack}>
             {writingBack ? 'Writing...' : 'Write back to Xero'}
           </button>
+          <a
+            href={`/api/accounts/queue/export.csv?status=${status}`}
+            className="btn btn-ghost"
+            download
+            style={{ textDecoration: 'none' }}
+          >Export CSV</a>
           {selected.size > 0 && (
             <>
               <span className="chip chip-accent" style={{ fontVariantNumeric: 'tabular-nums' }}>{selected.size} selected</span>
@@ -1990,6 +1996,12 @@ export function AuditPanel() {
           <option value="ai">AI</option>
           <option value="manual">Manual</option>
         </select>
+        <a
+          href={`/api/accounts/audit-trail/export.csv${source ? `?source=${source}` : ''}`}
+          className="btn btn-ghost"
+          download
+          style={{ textDecoration: 'none' }}
+        >Export CSV</a>
       </div>
 
       {loading ? (
