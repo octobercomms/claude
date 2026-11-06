@@ -48,10 +48,12 @@ router.get('/xero/callback', async (req, res) => {
     }
     if (!code) return res.status(400).json({ error: 'No authorization code' });
 
-    // Validate state.
-    if (router._xeroStates && state) {
-      router._xeroStates.delete(state);
+    // Validate state to prevent CSRF.
+    if (!state || !router._xeroStates || !router._xeroStates.has(state)) {
+      const frontendUrl = process.env.PLATFORM_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/accounts?tab=xero&error=${encodeURIComponent('Invalid OAuth state')}`);
     }
+    router._xeroStates.delete(state);
 
     const axios = require('axios');
     const { encrypt } = require('../utils/encryption');

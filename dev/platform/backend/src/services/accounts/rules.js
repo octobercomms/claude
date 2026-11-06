@@ -9,6 +9,10 @@
 
 const db = require('../../db');
 
+function escapeLike(str) {
+  return str.replace(/[%_\\]/g, '\\$&');
+}
+
 async function findMatch(payee, currency) {
   if (!payee) return null;
   const normalised = payee.trim().toLowerCase();
@@ -23,20 +27,22 @@ async function findMatch(payee, currency) {
   );
   if (exact.length) return exact[0];
 
-  // starts_with matches.
+  // starts_with matches: escaped payee_pattern used as LIKE prefix.
   const { rows: starts } = await db.query(
     `SELECT * FROM acct_rules
-     WHERE match_type = 'starts_with' AND $1 LIKE lower(payee_pattern) || '%'
+     WHERE match_type = 'starts_with'
+       AND $1 LIKE replace(replace(replace(lower(payee_pattern), '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%' ESCAPE '\\'
        AND (currency IS NULL OR currency = $2)
      ORDER BY times_confirmed DESC LIMIT 1`,
     [normalised, currency || 'GBP']
   );
   if (starts.length) return starts[0];
 
-  // Contains matches.
+  // Contains matches: escaped payee_pattern used as LIKE substring.
   const { rows: contains } = await db.query(
     `SELECT * FROM acct_rules
-     WHERE match_type = 'contains' AND $1 LIKE '%' || lower(payee_pattern) || '%'
+     WHERE match_type = 'contains'
+       AND $1 LIKE '%' || replace(replace(replace(lower(payee_pattern), '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%' ESCAPE '\\'
        AND (currency IS NULL OR currency = $2)
      ORDER BY times_confirmed DESC LIMIT 1`,
     [normalised, currency || 'GBP']
@@ -52,11 +58,11 @@ async function createRule(data) {
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
-      data.payeePattern,
-      data.matchType || 'contains',
-      data.accountCode,
-      data.accountName || null,
-      data.taxRate || null,
+      data.payee_pattern || data.payeePattern,
+      data.match_type || data.matchType || 'contains',
+      data.account_code || data.accountCode,
+      data.account_name || data.accountName || null,
+      data.tax_rate || data.taxRate || null,
       data.currency || null,
       data.confidence || 1.0,
       data.notes || null,
@@ -70,17 +76,18 @@ async function updateRule(id, data) {
   const values = [];
   let idx = 1;
 
-  for (const [key, col] of [
-    ['payeePattern', 'payee_pattern'],
-    ['matchType', 'match_type'],
-    ['accountCode', 'account_code'],
-    ['accountName', 'account_name'],
-    ['taxRate', 'tax_rate'],
-    ['currency', 'currency'],
-    ['confidence', 'confidence'],
-    ['notes', 'notes'],
+  for (const [keys, col] of [
+    [['payee_pattern', 'payeePattern'], 'payee_pattern'],
+    [['match_type', 'matchType'], 'match_type'],
+    [['account_code', 'accountCode'], 'account_code'],
+    [['account_name', 'accountName'], 'account_name'],
+    [['tax_rate', 'taxRate'], 'tax_rate'],
+    [['currency'], 'currency'],
+    [['confidence'], 'confidence'],
+    [['notes'], 'notes'],
   ]) {
-    if (data[key] !== undefined) {
+    const key = keys.find(k => data[k] !== undefined);
+    if (key) {
       fields.push(`${col} = $${idx}`);
       values.push(data[key]);
       idx++;
@@ -107,8 +114,9 @@ async function listRules(opts = {}) {
   let where = '';
   const params = [];
   if (opts.search) {
-    params.push(`%${opts.search.toLowerCase()}%`);
-    where = `WHERE lower(payee_pattern) LIKE $1 OR lower(account_name) LIKE $1`;
+    const escaped = escapeLike(opts.search.toLowerCase());
+    params.push(`%${escaped}%`);
+    where = `WHERE lower(payee_pattern) LIKE $1 ESCAPE '\\' OR lower(account_name) LIKE $1 ESCAPE '\\'`;
   }
   const { rows } = await db.query(
     `SELECT * FROM acct_rules ${where} ORDER BY times_confirmed DESC, last_seen DESC NULLS LAST`,

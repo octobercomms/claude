@@ -1,9 +1,10 @@
 -- Accounts module: Xero integration, reconciliation, rules engine, VAT + year-end packs.
 -- Single-tenant internal tool for October's own books.
--- All tables prefixed acct_ to avoid collisions with existing OMI schema.
+-- All module tables prefixed acct_ to avoid collisions with existing OMI schema,
+-- except xero_connections which is shared with the Xero connector.
 
 -- Xero OAuth connection (one org, rotating tokens encrypted at rest).
-CREATE TABLE IF NOT EXISTS acct_xero_connection (
+CREATE TABLE IF NOT EXISTS xero_connections (
   id            serial PRIMARY KEY,
   tenant_id     text UNIQUE NOT NULL,
   tenant_name   text NOT NULL,
@@ -36,31 +37,11 @@ CREATE TABLE IF NOT EXISTS acct_rules (
 );
 CREATE INDEX IF NOT EXISTS acct_rules_payee_idx ON acct_rules (lower(payee_pattern));
 
--- Audit trail: every confirmation, whether from a rule or from AI.
-CREATE TABLE IF NOT EXISTS acct_confirmations (
-  id             bigserial PRIMARY KEY,
-  queue_item_id  bigint REFERENCES acct_reconcile_queue(id),
-  line_ref       text NOT NULL,
-  bank_account   text,
-  proposed_code  text,
-  proposed_rate  text,
-  confirmed_code text NOT NULL,
-  confirmed_rate text,
-  confirmed_name text,
-  reasoning      text,
-  source         text NOT NULL DEFAULT 'rule'
-    CHECK (source IN ('rule', 'ai', 'manual')),
-  rule_id        bigint REFERENCES acct_rules(id),
-  confirmed_by   text DEFAULT 'daniel',
-  confirmed_at   timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS acct_confirmations_line_idx ON acct_confirmations (line_ref);
-
 -- Reconciliation work queue. Populated by the poller, reviewed in the UI.
+-- Must be created before acct_confirmations which references it.
 CREATE TABLE IF NOT EXISTS acct_reconcile_queue (
   id              bigserial PRIMARY KEY,
-  xero_txn_id     text UNIQUE NOT NULL,
-  line_ref        text,
+  line_ref        text UNIQUE NOT NULL,
   bank_account    text,
   bank_account_id text,
   line_date       date,
@@ -85,6 +66,28 @@ CREATE TABLE IF NOT EXISTS acct_reconcile_queue (
 );
 CREATE INDEX IF NOT EXISTS acct_queue_status_idx ON acct_reconcile_queue (status);
 CREATE INDEX IF NOT EXISTS acct_queue_date_idx ON acct_reconcile_queue (line_date DESC);
+CREATE INDEX IF NOT EXISTS acct_queue_payee_idx ON acct_reconcile_queue (lower(payee));
+
+-- Audit trail: every confirmation, whether from a rule or from AI.
+CREATE TABLE IF NOT EXISTS acct_confirmations (
+  id             bigserial PRIMARY KEY,
+  queue_item_id  bigint REFERENCES acct_reconcile_queue(id),
+  line_ref       text NOT NULL,
+  bank_account   text,
+  proposed_code  text,
+  proposed_rate  text,
+  confirmed_code text NOT NULL,
+  confirmed_rate text,
+  confirmed_name text,
+  reasoning      text,
+  source         text NOT NULL DEFAULT 'rule'
+    CHECK (source IN ('rule', 'ai', 'manual')),
+  rule_id        bigint REFERENCES acct_rules(id),
+  confirmed_by   text DEFAULT 'daniel',
+  confirmed_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS acct_confirmations_line_idx ON acct_confirmations (line_ref);
+CREATE INDEX IF NOT EXISTS acct_confirmations_queue_idx ON acct_confirmations (queue_item_id);
 
 -- VAT-pack exception flags raised for review before quarter filing.
 CREATE TABLE IF NOT EXISTS acct_vat_exceptions (
@@ -100,6 +103,7 @@ CREATE TABLE IF NOT EXISTS acct_vat_exceptions (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS acct_vat_period_idx ON acct_vat_exceptions (period);
+CREATE INDEX IF NOT EXISTS acct_vat_resolved_idx ON acct_vat_exceptions (resolved_at);
 
 -- FX gain/loss tracking on foreign-currency settlement.
 CREATE TABLE IF NOT EXISTS acct_fx_events (
@@ -114,6 +118,7 @@ CREATE TABLE IF NOT EXISTS acct_fx_events (
   notes          text,
   created_at     timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS acct_fx_txn_idx ON acct_fx_events (xero_txn_id);
 
 -- Invoice matching: links Google Drive files to Xero transactions.
 CREATE TABLE IF NOT EXISTS acct_invoice_matches (
@@ -148,10 +153,11 @@ CREATE TABLE IF NOT EXISTS acct_tax_deadlines (
   filing_date  date,
   payment_date date,
   status       text NOT NULL DEFAULT 'upcoming'
-    CHECK (status IN ('upcoming', 'preparing', 'ready', 'filed', 'paid', 'overdue')),
+    CHECK (status IN ('upcoming', 'in_progress', 'preparing', 'ready', 'filed', 'paid', 'overdue')),
   notes        text,
   created_at   timestamptz NOT NULL DEFAULT now(),
-  updated_at   timestamptz NOT NULL DEFAULT now()
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tax_type, period_label)
 );
 CREATE INDEX IF NOT EXISTS acct_deadlines_due_idx ON acct_tax_deadlines (due_date);
 
@@ -165,5 +171,6 @@ CREATE TABLE IF NOT EXISTS acct_digests (
   items_pending    int DEFAULT 0,
   invoices_missing int DEFAULT 0,
   sent_at      timestamptz,
-  created_at   timestamptz NOT NULL DEFAULT now()
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (period_start, period_end)
 );

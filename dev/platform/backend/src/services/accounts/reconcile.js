@@ -21,9 +21,9 @@ async function pullAndClassify(opts = {}) {
     console.warn('[Accounts] Could not fetch chart of accounts:', e.message);
   }
 
-  let totalNew = 0;
-  let totalRuleMatched = 0;
-  let totalAiClassified = 0;
+  let queued = 0;
+  let ruleMatched = 0;
+  let aiClassified = 0;
 
   for (const account of bankAccounts) {
     let page = 1;
@@ -58,11 +58,11 @@ async function pullAndClassify(opts = {}) {
             confidence: rule.confidence,
             matchSource: 'rule',
           });
-          totalRuleMatched++;
+          ruleMatched++;
         } else {
           needsClassification.push(line);
         }
-        totalNew++;
+        queued++;
       }
 
       // Classify the unknown lines with Claude.
@@ -81,7 +81,7 @@ async function pullAndClassify(opts = {}) {
             matchSource: 'ai',
             aiReasoning: cls.reasoning,
           });
-          totalAiClassified++;
+          aiClassified++;
         }
       }
 
@@ -90,7 +90,7 @@ async function pullAndClassify(opts = {}) {
     }
   }
 
-  return { totalNew, totalRuleMatched, totalAiClassified };
+  return { queued, ruleMatched, aiClassified };
 }
 
 async function insertQueueItem(line, suggestion) {
@@ -141,10 +141,11 @@ async function confirmItem(id, data) {
   // Record the confirmation for audit.
   await db.query(
     `INSERT INTO acct_confirmations
-       (line_ref, bank_account, proposed_code, proposed_rate, confirmed_code,
-        confirmed_rate, reasoning, source, rule_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       (queue_item_id, line_ref, bank_account, proposed_code, proposed_rate,
+        confirmed_code, confirmed_rate, reasoning, source, rule_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
+      item.id,
       item.line_ref,
       item.bank_account,
       item.suggested_code,
@@ -262,20 +263,24 @@ async function getQueueItems(opts = {}) {
     idx++;
   }
   if (opts.search) {
-    conditions.push(`(lower(payee) LIKE $${idx} OR lower(description) LIKE $${idx})`);
-    params.push(`%${opts.search.toLowerCase()}%`);
+    const escaped = opts.search.toLowerCase().replace(/[%_\\]/g, '\\$&');
+    conditions.push(`(lower(payee) LIKE $${idx} ESCAPE '\\' OR lower(description) LIKE $${idx} ESCAPE '\\')`);
+    params.push(`%${escaped}%`);
     idx++;
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const limit = opts.limit || 100;
-  const offset = opts.offset || 0;
+
+  params.push(opts.limit || 100);
+  const limitIdx = idx++;
+  params.push(opts.offset || 0);
+  const offsetIdx = idx++;
 
   const { rows } = await db.query(
     `SELECT * FROM acct_reconcile_queue ${where}
      ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'confirmed' THEN 1 ELSE 2 END,
               confidence ASC NULLS FIRST, line_date DESC
-     LIMIT ${limit} OFFSET ${offset}`,
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
     params
   );
   return rows;

@@ -84,8 +84,8 @@ export function ReconcilePanel() {
 
   function startApprove(item) {
     setEditingId(item.id);
-    setEditCode(item.suggested_account_code || '');
-    setEditTax(item.suggested_tax_rate || '');
+    setEditCode(item.suggested_code || '');
+    setEditTax(item.suggested_rate || '');
   }
 
   async function confirmApprove(id) {
@@ -199,9 +199,9 @@ export function ReconcilePanel() {
                     </td>
                     <td>{item.currency || 'GBP'}</td>
                     <td>
-                      <span className="body-sm">{item.suggested_account_code || '—'}</span>
-                      {item.suggested_account_name && (
-                        <div className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>{item.suggested_account_name}</div>
+                      <span className="body-sm">{item.suggested_code || '—'}</span>
+                      {item.suggested_name && (
+                        <div className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>{item.suggested_name}</div>
                       )}
                     </td>
                     <td>{confidenceChip(item.confidence)}</td>
@@ -610,7 +610,10 @@ export function DeadlinesPanel() {
                           <select className="input" value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ marginLeft: 'var(--s2)' }}>
                             <option value="upcoming">Upcoming</option>
                             <option value="in_progress">In progress</option>
+                            <option value="preparing">Preparing</option>
+                            <option value="ready">Ready to file</option>
                             <option value="filed">Filed</option>
+                            <option value="paid">Paid</option>
                             <option value="overdue">Overdue</option>
                           </select>
                         </label>
@@ -682,8 +685,8 @@ export function VatPanel() {
           <thead>
             <tr>
               <th>Period</th>
-              <th>Type</th>
-              <th>Description</th>
+              <th>Reason</th>
+              <th>Payee</th>
               <th style={{ textAlign: 'right' }}>Amount</th>
               <th>Status</th>
               <th style={{ textAlign: 'right' }}>Actions</th>
@@ -694,8 +697,8 @@ export function VatPanel() {
               <React.Fragment key={ex.id}>
                 <tr>
                   <td>{ex.period || '—'}</td>
-                  <td>{ex.exception_type || '—'}</td>
-                  <td>{ex.description || '—'}</td>
+                  <td>{ex.flag_reason || '—'}</td>
+                  <td>{ex.payee || '—'}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {ex.amount != null ? Number(ex.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'}
                   </td>
