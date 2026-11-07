@@ -465,14 +465,24 @@ export default function SettingsPage() {
                                 {fieldSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ set</span>}
                               </label>
                               <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
-                                <input
-                                  type={visibleKeys[key] ? 'text' : type}
-                                  className="input" style={{ flex: 1 }}
-                                  value={values[key] === '••••••••' ? '' : (values[key] || '')}
-                                  placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
-                                  onChange={e => handleChange(key, e.target.value)}
-                                  autoComplete="new-password"
-                                />
+                                {type === 'textarea' ? (
+                                  <textarea
+                                    className="input" rows={4} style={{ flex: 1, fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--fs-caption)' }}
+                                    value={values[key] === '••••••••' ? '' : (values[key] || '')}
+                                    placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
+                                    onChange={e => handleChange(key, e.target.value)}
+                                    autoComplete="off"
+                                  />
+                                ) : (
+                                  <input
+                                    type={visibleKeys[key] ? 'text' : type}
+                                    className="input" style={{ flex: 1 }}
+                                    value={values[key] === '••••••••' ? '' : (values[key] || '')}
+                                    placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
+                                    onChange={e => handleChange(key, e.target.value)}
+                                    autoComplete="new-password"
+                                  />
+                                )}
                                 {type === 'password' && (
                                   <button
                                     type="button"

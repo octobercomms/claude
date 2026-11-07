@@ -25,7 +25,7 @@ const SECTIONS = [
     title: 'Before you start (admin, once)',
     summary: 'Three platform-wide keys to set in Settings.',
     body: [
-      'Set these once in **[Settings → Platform keys](/settings)**; every client then reuses them:',
+      'Set these once in **[Settings → Integrations](/settings/integrations)**; every client then reuses them:',
       '**`GOOGLE_SERVICE_ACCOUNT_JSON`** — paste the full service-account key file (JSON). This powers the durable service-account auth for GA4 / Search Console / Merchant Center.',
       '**`GOOGLE_ADS_MANAGER_REFRESH_TOKEN`** — a one-time OAuth refresh token for your Google Ads **manager (MCC)** account. Powers the durable Ads path. (`GOOGLE_ADS_MCC_ID` should already be set.)',
       '**`OMI_FORWARD_SECRET`** — a shared secret the Shopify app signs its forwarded webhooks with. Generate any long random string and set the **same value** in the Shopify app\'s environment.',

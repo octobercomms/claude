@@ -70,7 +70,7 @@ This track connects a Drive folder so OMI can scan for invoices and receipts and
 
 The Drive scanner uses the same Google service account as the platform's GA4, Search Console and Merchant Center integrations.
 
-1. Go to https://platform.octobercomms.com/settings and navigate to the **Integrations** section.
+1. Go to https://platform.octobercomms.com/settings/integrations (the **Platform** section at the top).
 2. Find `GOOGLE_SERVICE_ACCOUNT_JSON`.
 3. If it is empty, paste the full JSON key for the platform service account. If it is already set (from the GA4/Search Console setup), skip to B2.
 
