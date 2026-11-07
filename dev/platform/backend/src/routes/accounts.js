@@ -146,6 +146,89 @@ router.post('/xero/disconnect', async (req, res) => {
   }
 });
 
+// --- Sync diagnostics (step-by-step, returns where it stalls) ---
+
+router.get('/sync/diagnose', async (req, res) => {
+  const steps = [];
+  const t0 = Date.now();
+
+  function step(name, ms) {
+    steps.push({ step: name, ms, ok: true });
+  }
+  function fail(name, ms, error) {
+    steps.push({ step: name, ms, ok: false, error });
+  }
+
+  // Step 1: get token
+  let token;
+  try {
+    const s = Date.now();
+    token = await xero.getValidToken();
+    step('getValidToken', Date.now() - s);
+  } catch (err) {
+    fail('getValidToken', Date.now() - t0, err.message);
+    return res.json({ steps, totalMs: Date.now() - t0, stalledAt: 'getValidToken' });
+  }
+
+  // Step 2: get bank accounts
+  let bankAccounts;
+  try {
+    const s = Date.now();
+    bankAccounts = await xero.getBankAccounts(token);
+    step('getBankAccounts', Date.now() - s);
+    steps[steps.length - 1].count = bankAccounts.length;
+    steps[steps.length - 1].accounts = bankAccounts.map(a => ({ name: a.name, id: a.accountId }));
+  } catch (err) {
+    fail('getBankAccounts', Date.now() - t0, err.message);
+    return res.json({ steps, totalMs: Date.now() - t0, stalledAt: 'getBankAccounts' });
+  }
+
+  // Step 3: get chart of accounts
+  try {
+    const s = Date.now();
+    const coa = await xero.getChartOfAccounts(token);
+    step('getChartOfAccounts', Date.now() - s);
+    steps[steps.length - 1].count = (coa || []).length;
+  } catch (err) {
+    fail('getChartOfAccounts', Date.now() - t0, err.message);
+    steps[steps.length - 1].note = 'non-fatal, sync continues without chart';
+  }
+
+  // Step 4: get bank statement lines (page 1 only, per account)
+  for (const account of bankAccounts) {
+    try {
+      const s = Date.now();
+      const lines = await xero.getBankStatementLines(token, account.accountId, { page: 1 });
+      step(`getBankStatementLines(${account.name})`, Date.now() - s);
+      steps[steps.length - 1].count = lines.length;
+    } catch (err) {
+      fail(`getBankStatementLines(${account.name})`, Date.now() - t0, err.message);
+    }
+  }
+
+  // Step 5: DB connectivity check
+  try {
+    const s = Date.now();
+    const { rows } = await db.query('SELECT count(*)::int as total FROM acct_reconcile_queue');
+    step('dbQuery(queue count)', Date.now() - s);
+    steps[steps.length - 1].queueTotal = rows[0]?.total || 0;
+  } catch (err) {
+    fail('dbQuery(queue count)', Date.now() - t0, err.message);
+  }
+
+  // Step 6: rules engine check
+  try {
+    const s = Date.now();
+    const rules = await accounts.rules.listRules();
+    step('listRules', Date.now() - s);
+    steps[steps.length - 1].count = rules.length;
+  } catch (err) {
+    fail('listRules', Date.now() - t0, err.message);
+  }
+
+  res.json({ steps, totalMs: Date.now() - t0, stalledAt: null });
+});
+
 // --- Sync (manual trigger) ---
 
 const SYNC_TIMEOUT_MS = 90_000;
