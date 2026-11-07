@@ -1,10 +1,35 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
 import StatStrip from '../shells/StatStrip';
+
+function checkVatWarnings(item, accountCode, taxRate) {
+  const warnings = [];
+  const amount = Math.abs(parseFloat(item.amount) || 0);
+  const payee = (item.payee || '').toLowerCase();
+  const currency = (item.currency || 'GBP').toUpperCase();
+
+  if (currency !== 'GBP' && taxRate && !['RRINPUT', 'NONE', 'ZERORATEDINPUT'].includes(taxRate)) {
+    warnings.push('Non-GBP transaction with domestic VAT rate; should be reverse charge (RRINPUT) or NONE');
+  }
+  if (taxRate === 'RRINPUT' && currency === 'GBP') {
+    warnings.push('Reverse charge on a GBP transaction; reverse charge is for overseas suppliers');
+  }
+  if (amount > 250 && taxRate === 'INPUT2' && !accountCode) {
+    warnings.push('High-value purchase with standard VAT but no account code');
+  }
+  const rcPayees = ['meta', 'facebook', 'google', 'dataforseo', 'dropbox', 'slack', 'adobe', 'zoom', 'github', 'anthropic', 'openai', 'amazon web', 'aws', 'notion', 'canva', 'figma', 'vercel', 'linkedin', 'hetzner', 'brevo'];
+  if (rcPayees.some(p => payee.includes(p)) && taxRate && taxRate !== 'RRINPUT' && taxRate !== 'NONE') {
+    warnings.push(`${item.payee} is typically reverse charge (RRINPUT); currently ${taxRate}`);
+  }
+  if (amount > 1000 && taxRate === 'NONE' && !['2201', '2202', '2210', '7020'].includes(accountCode)) {
+    warnings.push('High-value with no VAT; confirm this is correct');
+  }
+  return warnings;
+}
 
 function useXeroRefData() {
   const [accounts, setAccounts] = useState([]);
@@ -185,6 +210,9 @@ export function ReconcilePanel() {
   const [editTax, setEditTax] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [batchWorking, setBatchWorking] = useState(false);
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const [vatWarnings, setVatWarnings] = useState({});
+  const tableRef = useRef(null);
   const LIMIT = 50;
 
   const load = useCallback(async () => {
@@ -204,6 +232,63 @@ export function ReconcilePanel() {
   }, [status, search, offset, toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Reset focused index when items change
+  useEffect(() => { setFocusedIdx(0); }, [items]);
+
+  // Keyboard navigation for the reconcile queue
+  useEffect(() => {
+    if (status !== 'pending') return;
+    function handleKeyDown(e) {
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+
+      const pendingItems = items.filter(i => i.status === 'pending');
+      if (!pendingItems.length) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedIdx(prev => Math.min(prev + 1, pendingItems.length - 1));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedIdx(prev => Math.max(prev - 1, 0));
+          break;
+        case 'Enter': {
+          e.preventDefault();
+          const item = pendingItems[focusedIdx];
+          if (item && editingId !== item.id) {
+            startApprove(item);
+          } else if (item && editingId === item.id) {
+            confirmApprove(item.id);
+          }
+          break;
+        }
+        case 's': {
+          e.preventDefault();
+          const item = pendingItems[focusedIdx];
+          if (item) handleReject(item.id);
+          break;
+        }
+        case 'e': {
+          e.preventDefault();
+          const item = pendingItems[focusedIdx];
+          if (item) startApprove(item);
+          break;
+        }
+        case 'Escape':
+          e.preventDefault();
+          setEditingId(null);
+          setVatWarnings({});
+          break;
+        default:
+          break;
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [status, items, focusedIdx, editingId, editCode, editTax]);
 
   async function handleSync() {
     roWrite(readOnly, async () => {
@@ -247,7 +332,15 @@ export function ReconcilePanel() {
     setEditTax(item.suggested_rate || '');
   }
 
-  async function confirmApprove(id) {
+  async function confirmApprove(id, force) {
+    const item = items.find(i => i.id === id);
+    if (item && !force) {
+      const warnings = checkVatWarnings(item, editCode, editTax);
+      if (warnings.length) {
+        setVatWarnings(prev => ({ ...prev, [id]: warnings }));
+        return;
+      }
+    }
     roWrite(readOnly, async () => {
       try {
         await api.post(`/accounts/queue/${id}/approve`, {
@@ -256,6 +349,7 @@ export function ReconcilePanel() {
         });
         toast('Approved');
         setEditingId(null);
+        setVatWarnings(prev => { const n = { ...prev }; delete n[id]; return n; });
         load();
       } catch (e) { toast(e.message, 'error'); }
     });
@@ -391,6 +485,16 @@ export function ReconcilePanel() {
         </div>
       </div>
 
+      {status === 'pending' && items.length > 0 && (
+        <div className="text-muted" style={{ fontSize: 'var(--fs-body-sm)', display: 'flex', gap: 'var(--s3)' }}>
+          <span><kbd style={{ padding: '1px 5px', border: '1px solid var(--border)', borderRadius: 3, fontSize: '0.85em' }}>&uarr;&darr;</kbd> Navigate</span>
+          <span><kbd style={{ padding: '1px 5px', border: '1px solid var(--border)', borderRadius: 3, fontSize: '0.85em' }}>Enter</kbd> Approve</span>
+          <span><kbd style={{ padding: '1px 5px', border: '1px solid var(--border)', borderRadius: 3, fontSize: '0.85em' }}>S</kbd> Skip</span>
+          <span><kbd style={{ padding: '1px 5px', border: '1px solid var(--border)', borderRadius: 3, fontSize: '0.85em' }}>E</kbd> Edit</span>
+          <span><kbd style={{ padding: '1px 5px', border: '1px solid var(--border)', borderRadius: 3, fontSize: '0.85em' }}>Esc</kbd> Cancel</span>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>
       ) : items.length === 0 ? (
@@ -423,9 +527,16 @@ export function ReconcilePanel() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {items.map((item, idx) => {
+                const pendingItems = items.filter(i => i.status === 'pending');
+                const pendingIdx = pendingItems.indexOf(item);
+                const isFocused = status === 'pending' && pendingIdx === focusedIdx;
+                return (
                 <React.Fragment key={item.id}>
-                  <tr>
+                  <tr
+                    style={isFocused ? { outline: '2px solid var(--blue-500, #3b82f6)', outlineOffset: '-2px', background: 'var(--surface-hover, rgba(59,130,246,0.06))' } : undefined}
+                    onClick={() => { if (pendingIdx >= 0) setFocusedIdx(pendingIdx); }}
+                  >
                     {status === 'pending' && (
                       <td>
                         <input
@@ -466,17 +577,29 @@ export function ReconcilePanel() {
                           <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                             <label style={{ fontSize: 'var(--fs-body-sm)', minWidth: 200, flex: 1 }}>
                               Account code
-                              <AccountCodeSelect value={editCode} onChange={setEditCode} accounts={xeroAccounts} />
+                              <AccountCodeSelect value={editCode} onChange={v => { setEditCode(v); setVatWarnings(prev => { const n = { ...prev }; delete n[item.id]; return n; }); }} accounts={xeroAccounts} />
                             </label>
                             <label style={{ fontSize: 'var(--fs-body-sm)', minWidth: 200, flex: 1 }}>
                               Tax rate
-                              <TaxRateSelect value={editTax} onChange={setEditTax} taxRates={xeroTaxRates} />
+                              <TaxRateSelect value={editTax} onChange={v => { setEditTax(v); setVatWarnings(prev => { const n = { ...prev }; delete n[item.id]; return n; }); }} taxRates={xeroTaxRates} />
                             </label>
                             <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                              <button className="btn btn-primary" onClick={() => confirmApprove(item.id)}>Confirm</button>
-                              <button className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
+                              {vatWarnings[item.id] ? (
+                                <button className="btn" style={{ background: 'var(--amber-600, #d97706)', color: '#fff' }} onClick={() => confirmApprove(item.id, true)}>Confirm anyway</button>
+                              ) : (
+                                <button className="btn btn-primary" onClick={() => confirmApprove(item.id)}>Confirm</button>
+                              )}
+                              <button className="btn btn-ghost" onClick={() => { setEditingId(null); setVatWarnings(prev => { const n = { ...prev }; delete n[item.id]; return n; }); }}>Cancel</button>
                             </div>
                           </div>
+                          {vatWarnings[item.id] && (
+                            <div style={{ background: 'var(--amber-50, #fffbeb)', border: '1px solid var(--amber-300, #fcd34d)', borderRadius: 'var(--radius, 6px)', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body-sm)' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--amber-800, #92400e)', marginBottom: 'var(--s1)' }}>VAT warning</div>
+                              <ul style={{ margin: 0, paddingLeft: 'var(--s4)', color: 'var(--amber-700, #b45309)' }}>
+                                {vatWarnings[item.id].map((w, i) => <li key={i}>{w}</li>)}
+                              </ul>
+                            </div>
+                          )}
                           {item.ai_reasoning && (
                             <div className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>{item.ai_reasoning}</div>
                           )}
@@ -485,7 +608,7 @@ export function ReconcilePanel() {
                     </tr>
                   )}
                 </React.Fragment>
-              ))}
+              );})}
             </tbody>
           </table>
           {total > LIMIT && (
