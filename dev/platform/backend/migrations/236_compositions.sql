@@ -4,7 +4,7 @@
 -- source_assets maps sourceId -> asset row id so the render can find files on disk.
 CREATE TABLE IF NOT EXISTS compositions (
   id            SERIAL PRIMARY KEY,
-  client_id     INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  client_id     UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
   created_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
   title         TEXT NOT NULL DEFAULT 'Untitled',
   data          JSONB NOT NULL DEFAULT '{}'::jsonb,
