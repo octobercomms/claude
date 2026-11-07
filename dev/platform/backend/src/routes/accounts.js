@@ -141,6 +141,7 @@ router.post('/xero/disconnect', async (req, res) => {
 const SYNC_TIMEOUT_MS = 90_000;
 
 router.post('/sync', async (req, res) => {
+  console.log('[accounts] POST /sync received');
   const timer = setTimeout(() => {
     if (!res.headersSent) {
       console.error('[accounts] Sync timed out after 90s');
@@ -153,10 +154,11 @@ router.post('/sync', async (req, res) => {
       since: req.body.since || undefined,
     });
     clearTimeout(timer);
+    console.log('[accounts] Sync succeeded:', JSON.stringify(result));
     if (!res.headersSent) res.json(result);
   } catch (err) {
     clearTimeout(timer);
-    console.error('[accounts] Sync error:', err.message);
+    console.error('[accounts] Sync error:', err.message, err.stack);
     if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
