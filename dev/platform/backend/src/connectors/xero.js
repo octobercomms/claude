@@ -21,7 +21,9 @@ const SCOPES = [
   'offline_access',
   'accounting.settings.read',
   'accounting.contacts.read',
-  'accounting.reports.read',
+  'accounting.reports.trialbalance.read',
+  'accounting.reports.profitandloss.read',
+  'accounting.reports.balancesheet.read',
   'accounting.banktransactions',
   'accounting.attachments',
 ].join(' ');
