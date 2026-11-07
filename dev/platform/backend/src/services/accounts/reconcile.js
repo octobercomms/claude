@@ -39,13 +39,15 @@ async function pullAndClassify(opts = {}) {
 
       const needsClassification = [];
 
+      const lineRefs = lines.map(l => l.lineRef);
+      const { rows: existingRows } = await db.query(
+        'SELECT line_ref FROM acct_reconcile_queue WHERE line_ref = ANY($1)',
+        [lineRefs]
+      );
+      const existingRefs = new Set(existingRows.map(r => r.line_ref));
+
       for (const line of lines) {
-        // Skip lines already in the queue.
-        const { rows: existing } = await db.query(
-          'SELECT id FROM acct_reconcile_queue WHERE line_ref = $1',
-          [line.lineRef]
-        );
-        if (existing.length) continue;
+        if (existingRefs.has(line.lineRef)) continue;
 
         // Try the rules engine first.
         const rule = await rules.findMatch(line.payee || line.description, line.currency);

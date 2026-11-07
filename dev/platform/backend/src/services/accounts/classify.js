@@ -51,6 +51,11 @@ Flag as low confidence (< 0.5) anything that is:
 
 Respond as JSON only: { "accountCode": "XXXX", "accountName": "string", "taxRate": "string", "confidence": 0.X, "reasoning": "string" }`;
 
+const BATCH_SYSTEM = SYSTEM.replace(
+  'Respond as JSON only: { "accountCode"',
+  'When given multiple numbered lines, respond with a JSON array containing one object per line, in the same order. Each object: { "accountCode"'
+);
+
 async function classifyLine(line, chartOfAccounts) {
   const client = getClient();
   const coaContext = chartOfAccounts
@@ -94,23 +99,81 @@ Type: ${line.type || 'Unknown'}${coaContext}`;
   }
 }
 
-// Batch classify multiple lines. Calls are sequential to respect rate limits.
+const BATCH_SIZE = 5;
+
+async function classifyBatchLines(lines, chartOfAccounts) {
+  const client = getClient();
+  const coaContext = chartOfAccounts
+    ? `\n\nAvailable account codes:\n${chartOfAccounts.map(a => `${a.code} - ${a.name} (${a.type})`).join('\n')}`
+    : '';
+
+  const lineDescriptions = lines.map((line, i) =>
+    `${i + 1}. Payee: ${line.payee || line.description || 'Unknown'} | Amount: ${line.currency || 'GBP'} ${line.amount} | Date: ${line.date || 'Unknown'} | Ref: ${line.reference || 'None'} | Bank: ${line.bankAccount || 'Unknown'} | Type: ${line.type || 'Unknown'}`
+  ).join('\n');
+
+  const userMsg = `Classify these ${lines.length} bank lines:\n${lineDescriptions}${coaContext}\n\nRespond with a JSON array of ${lines.length} objects, one per line, in the same order.`;
+
+  const res = await client.messages.create({
+    model: MODEL,
+    max_tokens: 300 * lines.length,
+    system: BATCH_SYSTEM,
+    messages: [{ role: 'user', content: userMsg }],
+  });
+
+  recordClaudeCost({
+    feature: 'accounts_classify_batch',
+    model: MODEL,
+    inputTokens: res.usage.input_tokens,
+    outputTokens: res.usage.output_tokens,
+  }).catch(() => {});
+
+  const text = res.content[0].text.trim();
+  try {
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed) && parsed.length === lines.length) {
+      return parsed;
+    }
+  } catch { /* fall through to individual classification */ }
+
+  return null;
+}
+
 async function classifyBatch(lines, chartOfAccounts) {
   const results = [];
-  for (const line of lines) {
+
+  for (let i = 0; i < lines.length; i += BATCH_SIZE) {
+    const chunk = lines.slice(i, i + BATCH_SIZE);
+
+    let batchResults = null;
     try {
-      const result = await classifyLine(line, chartOfAccounts);
-      results.push({ lineRef: line.lineRef, ...result });
+      batchResults = await classifyBatchLines(chunk, chartOfAccounts);
     } catch (err) {
-      results.push({
-        lineRef: line.lineRef,
-        accountCode: null,
-        taxRate: 'NONE',
-        confidence: 0,
-        reasoning: `Classification error: ${err.message}`,
-      });
+      console.warn('[Accounts] Batch classification failed, falling back to individual:', err.message);
+    }
+
+    if (batchResults) {
+      for (let j = 0; j < chunk.length; j++) {
+        results.push({ lineRef: chunk[j].lineRef, ...batchResults[j] });
+      }
+    } else {
+      for (const line of chunk) {
+        try {
+          const result = await classifyLine(line, chartOfAccounts);
+          results.push({ lineRef: line.lineRef, ...result });
+        } catch (err) {
+          results.push({
+            lineRef: line.lineRef,
+            accountCode: null,
+            taxRate: 'NONE',
+            confidence: 0,
+            reasoning: `Classification error: ${err.message}`,
+          });
+        }
+      }
     }
   }
+
   return results;
 }
 
