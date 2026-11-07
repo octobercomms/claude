@@ -75,16 +75,20 @@ function getDefaultYearEnd() {
 async function seedDeadlines(yearEnd) {
   const deadlines = generateDeadlines(yearEnd);
   let inserted = 0;
+  let updated = 0;
   for (const d of deadlines) {
-    const { rowCount } = await db.query(
+    const { rows } = await db.query(
       `INSERT INTO acct_tax_deadlines (tax_type, period_label, due_date)
        VALUES ($1, $2, $3)
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT (tax_type, period_label) DO UPDATE
+         SET due_date = EXCLUDED.due_date, updated_at = now()
+       RETURNING (xmax = 0) AS is_insert`,
       [d.taxType, d.periodLabel, d.dueDate]
     );
-    if (rowCount) inserted++;
+    if (rows[0]?.is_insert) inserted++;
+    else updated++;
   }
-  return inserted;
+  return { inserted, updated, total: deadlines.length };
 }
 
 async function seedForYear(calendarYear) {
@@ -103,9 +107,26 @@ async function getUpcoming(days = 90) {
   return rows;
 }
 
+async function ensureSeeded() {
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const nextYear = thisYear + 1;
+  for (const y of [thisYear, nextYear]) {
+    const label = `VAT Q1 ${y}`;
+    const { rows } = await db.query(
+      'SELECT 1 FROM acct_tax_deadlines WHERE period_label = $1 LIMIT 1',
+      [label]
+    );
+    if (!rows.length) {
+      await seedForYear(y);
+    }
+  }
+}
+
 async function getAll() {
+  await ensureSeeded();
   const { rows } = await db.query(
-    'SELECT * FROM acct_tax_deadlines ORDER BY due_date DESC'
+    'SELECT * FROM acct_tax_deadlines ORDER BY due_date ASC'
   );
   return rows;
 }

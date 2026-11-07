@@ -853,7 +853,11 @@ export function DeadlinesPanel() {
       setSeeding(true);
       try {
         const r = await api.post('/accounts/deadlines/seed', { year: seedYear });
-        toast(`Seeded ${r.seeded} deadlines for ${seedYear}`);
+        if (r.inserted > 0) {
+          toast(`Added ${r.inserted} deadlines for ${seedYear}${r.updated ? `, ${r.updated} updated` : ''}`);
+        } else {
+          toast(`All ${r.total} deadlines for ${seedYear} already up to date`);
+        }
         load();
       } catch (e) { toast(e.message, 'error'); }
       finally { setSeeding(false); }

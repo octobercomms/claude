@@ -402,10 +402,10 @@ router.put('/deadlines/:id', async (req, res) => {
 router.post('/deadlines/seed', async (req, res) => {
   try {
     const { year } = req.body;
-    const count = year
+    const result = year
       ? await accounts.deadlines.seedForYear(parseInt(year, 10))
       : await accounts.deadlines.seedDeadlines();
-    res.json({ seeded: count });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
