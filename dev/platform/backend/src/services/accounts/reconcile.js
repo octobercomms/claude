@@ -11,12 +11,22 @@ const rules = require('./rules');
 const { classifyBatch } = require('./classify');
 
 async function pullAndClassify(opts = {}) {
+  const t0 = Date.now();
+  console.log('[Accounts] Sync started', opts.since ? `(since ${opts.since})` : '(full)');
+
+  console.log('[Accounts] Fetching valid token...');
   const token = await xero.getValidToken();
+  console.log('[Accounts] Token OK (%dms)', Date.now() - t0);
+
+  console.log('[Accounts] Fetching bank accounts...');
   const bankAccounts = await xero.getBankAccounts(token);
+  console.log('[Accounts] Found %d bank account(s) (%dms)', bankAccounts.length, Date.now() - t0);
 
   let chartOfAccounts = null;
   try {
+    console.log('[Accounts] Fetching chart of accounts...');
     chartOfAccounts = await xero.getChartOfAccounts(token);
+    console.log('[Accounts] Chart of accounts: %d codes (%dms)', (chartOfAccounts || []).length, Date.now() - t0);
   } catch (e) {
     console.warn('[Accounts] Could not fetch chart of accounts:', e.message);
   }
@@ -26,14 +36,17 @@ async function pullAndClassify(opts = {}) {
   let aiClassified = 0;
 
   for (const account of bankAccounts) {
+    console.log('[Accounts] Processing bank account %s (%s)', account.name, account.accountId);
     let page = 1;
     let hasMore = true;
 
     while (hasMore) {
+      console.log('[Accounts] Fetching page %d for %s...', page, account.name);
       const lines = await xero.getBankStatementLines(token, account.accountId, {
         since: opts.since,
         page,
       });
+      console.log('[Accounts] Page %d: %d lines (%dms)', page, lines.length, Date.now() - t0);
 
       if (!lines.length) { hasMore = false; break; }
 
@@ -45,11 +58,10 @@ async function pullAndClassify(opts = {}) {
         [lineRefs]
       );
       const existingRefs = new Set(existingRows.map(r => r.line_ref));
+      const newLines = lines.filter(l => !existingRefs.has(l.lineRef));
+      console.log('[Accounts] %d already queued, %d new', existingRefs.size, newLines.length);
 
-      for (const line of lines) {
-        if (existingRefs.has(line.lineRef)) continue;
-
-        // Try the rules engine first.
+      for (const line of newLines) {
         const rule = await rules.findMatch(line.payee || line.description, line.currency);
 
         if (rule && rule.confidence >= 0.8) {
@@ -67,9 +79,12 @@ async function pullAndClassify(opts = {}) {
         queued++;
       }
 
-      // Classify the unknown lines with Claude.
+      console.log('[Accounts] Rules matched %d, need classification %d', ruleMatched, needsClassification.length);
+
       if (needsClassification.length) {
+        console.log('[Accounts] Sending %d lines to AI classification...', needsClassification.length);
         const classifications = await classifyBatch(needsClassification, chartOfAccounts);
+        console.log('[Accounts] AI classification returned (%dms)', Date.now() - t0);
 
         for (let i = 0; i < needsClassification.length; i++) {
           const line = needsClassification[i];
@@ -90,8 +105,10 @@ async function pullAndClassify(opts = {}) {
       if (lines.length < 100) hasMore = false;
       else page++;
     }
+    console.log('[Accounts] Finished bank account %s', account.name);
   }
 
+  console.log('[Accounts] Sync complete: %d queued, %d rule-matched, %d AI-classified (%dms)', queued, ruleMatched, aiClassified, Date.now() - t0);
   return { queued, ruleMatched, aiClassified };
 }
 
