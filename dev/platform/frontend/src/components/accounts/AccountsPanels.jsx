@@ -203,6 +203,7 @@ export function ReconcilePanel() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
   const [autoConfirming, setAutoConfirming] = useState(false);
   const [writingBack, setWritingBack] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -295,12 +296,32 @@ export function ReconcilePanel() {
 
   async function handleSync() {
     setSyncing(true);
+    setSyncError(null);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90_000);
     try {
-      const r = await api.post('/accounts/sync');
+      const res = await fetch('/api/accounts/sync', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      const r = await res.json();
       toast(`Synced: ${r.queued ?? 0} queued, ${r.ruleMatched ?? 0} rule-matched, ${r.aiClassified ?? 0} AI-classified`);
       load();
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setSyncing(false); }
+    } catch (e) {
+      clearTimeout(timer);
+      const msg = e.name === 'AbortError'
+        ? 'Sync timed out. Xero may be slow to respond; try again in a minute.'
+        : e.message;
+      setSyncError(msg);
+      toast(msg, 'error');
+    } finally { setSyncing(false); }
   }
 
   async function handleAutoConfirm() {
@@ -442,8 +463,8 @@ export function ReconcilePanel() {
           </select>
         </div>
         <div className="row center" style={{ gap: 'var(--s2)' }}>
-          <button className="btn" {...roWrite(readOnly, { onClick: handleSync, disabled: syncing })}>
-            {syncing ? 'Syncing...' : 'Sync now'}
+          <button className="btn" {...roWrite(readOnly, { onClick: handleSync, disabled: syncing })} style={syncError ? { borderColor: 'var(--red)' } : undefined}>
+            {syncing ? 'Syncing…' : syncError ? 'Sync failed – retry' : 'Sync now'}
           </button>
           <button className="btn" {...roWrite(readOnly, { onClick: handleAutoConfirm, disabled: autoConfirming })}>
             {autoConfirming ? 'Confirming...' : 'Auto-confirm'}
