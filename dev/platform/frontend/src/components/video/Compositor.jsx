@@ -405,12 +405,33 @@ const Compositor = React.forwardRef(function Compositor({
     if (m.current.raf) cancelAnimationFrame(m.current.raf);
     m.current.playing = false;
     for (const [, el] of m.current.elements) {
-      if (el._isImage) continue;
-      el.pause();
-      if (!el._isAudio) { el.removeAttribute('src'); el.load(); }
+      if (!el._isImage) {
+        el.pause();
+        el.removeAttribute('src');
+        el.load();
+      }
+      if (el.__omiSource) { try { el.__omiSource.disconnect(); } catch {} }
+      if (el.__omiGain) { try { el.__omiGain.disconnect(); } catch {} }
     }
     m.current.elements.clear();
   }, []);
+
+  // Prune stale elements when sources change (prevents memory leaks in long sessions).
+  useEffect(() => {
+    const st = m.current;
+    const liveSources = composition?.sources || {};
+    for (const [sourceId, el] of st.elements) {
+      if (liveSources[sourceId]) continue;
+      if (!el._isImage) {
+        el.pause();
+        el.removeAttribute('src');
+        el.load();
+      }
+      if (el.__omiSource) { try { el.__omiSource.disconnect(); } catch {} }
+      if (el.__omiGain) { try { el.__omiGain.disconnect(); } catch {} }
+      st.elements.delete(sourceId);
+    }
+  }, [composition?.sources]);
 
   // Stop when composition changes
   useEffect(() => { stopPlayback(); }, [composition]); // eslint-disable-line react-hooks/exhaustive-deps
