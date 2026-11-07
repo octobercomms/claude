@@ -294,39 +294,33 @@ export function ReconcilePanel() {
   }, [status, items, focusedIdx, editingId, editCode, editTax]);
 
   async function handleSync() {
-    roWrite(readOnly, async () => {
-      setSyncing(true);
-      try {
-        const r = await api.post('/accounts/sync');
-        toast(`Synced: ${r.queued ?? 0} queued, ${r.ruleMatched ?? 0} rule-matched, ${r.aiClassified ?? 0} AI-classified`);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setSyncing(false); }
-    });
+    setSyncing(true);
+    try {
+      const r = await api.post('/accounts/sync');
+      toast(`Synced: ${r.queued ?? 0} queued, ${r.ruleMatched ?? 0} rule-matched, ${r.aiClassified ?? 0} AI-classified`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSyncing(false); }
   }
 
   async function handleAutoConfirm() {
-    roWrite(readOnly, async () => {
-      setAutoConfirming(true);
-      try {
-        const r = await api.post('/accounts/queue/auto-confirm', { threshold: 0.95 });
-        toast(`Auto-confirmed ${r.confirmed ?? 0} high-confidence items`);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setAutoConfirming(false); }
-    });
+    setAutoConfirming(true);
+    try {
+      const r = await api.post('/accounts/queue/auto-confirm', { threshold: 0.95 });
+      toast(`Auto-confirmed ${r.confirmed ?? 0} high-confidence items`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setAutoConfirming(false); }
   }
 
   async function handleWriteBack() {
-    roWrite(readOnly, async () => {
-      setWritingBack(true);
-      try {
-        const r = await api.post('/accounts/queue/write-back');
-        toast(`Written back: ${r.written ?? 0} items to Xero`);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setWritingBack(false); }
-    });
+    setWritingBack(true);
+    try {
+      const r = await api.post('/accounts/queue/write-back');
+      toast(`Written back: ${r.written ?? 0} items to Xero`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setWritingBack(false); }
   }
 
   function startApprove(item) {
@@ -344,28 +338,24 @@ export function ReconcilePanel() {
         return;
       }
     }
-    roWrite(readOnly, async () => {
-      try {
-        await api.post(`/accounts/queue/${id}/approve`, {
-          accountCode: editCode,
-          taxRate: editTax,
-        });
-        toast('Approved');
-        setEditingId(null);
-        setVatWarnings(prev => { const n = { ...prev }; delete n[id]; return n; });
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    try {
+      await api.post(`/accounts/queue/${id}/approve`, {
+        accountCode: editCode,
+        taxRate: editTax,
+      });
+      toast('Approved');
+      setEditingId(null);
+      setVatWarnings(prev => { const n = { ...prev }; delete n[id]; return n; });
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleReject(id) {
-    roWrite(readOnly, async () => {
-      try {
-        await api.post(`/accounts/queue/${id}/reject`);
-        toast('Skipped');
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    try {
+      await api.post(`/accounts/queue/${id}/reject`);
+      toast('Skipped');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   function toggleSelect(id) {
@@ -388,30 +378,26 @@ export function ReconcilePanel() {
 
   async function handleBatchApprove() {
     if (!selected.size) return;
-    roWrite(readOnly, async () => {
-      setBatchWorking(true);
-      try {
-        const r = await api.post('/accounts/queue/batch-approve', { ids: [...selected] });
-        toast(`Batch approved ${r.confirmed ?? 0} items${r.errors?.length ? `, ${r.errors.length} errors` : ''}`);
-        setSelected(new Set());
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setBatchWorking(false); }
-    });
+    setBatchWorking(true);
+    try {
+      const r = await api.post('/accounts/queue/batch-approve', { ids: [...selected] });
+      toast(`Batch approved ${r.confirmed ?? 0} items${r.errors?.length ? `, ${r.errors.length} errors` : ''}`);
+      setSelected(new Set());
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBatchWorking(false); }
   }
 
   async function handleBatchSkip() {
     if (!selected.size) return;
-    roWrite(readOnly, async () => {
-      setBatchWorking(true);
-      try {
-        const r = await api.post('/accounts/queue/batch-skip', { ids: [...selected] });
-        toast(`Batch skipped ${r.skipped ?? 0} items`);
-        setSelected(new Set());
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setBatchWorking(false); }
-    });
+    setBatchWorking(true);
+    try {
+      const r = await api.post('/accounts/queue/batch-skip', { ids: [...selected] });
+      toast(`Batch skipped ${r.skipped ?? 0} items`);
+      setSelected(new Set());
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBatchWorking(false); }
   }
 
   function confidenceChip(conf) {
@@ -456,13 +442,13 @@ export function ReconcilePanel() {
           </select>
         </div>
         <div className="row center" style={{ gap: 'var(--s2)' }}>
-          <button className="btn" onClick={handleSync} disabled={syncing}>
+          <button className="btn" {...roWrite(readOnly, { onClick: handleSync, disabled: syncing })}>
             {syncing ? 'Syncing...' : 'Sync now'}
           </button>
-          <button className="btn" onClick={handleAutoConfirm} disabled={autoConfirming}>
+          <button className="btn" {...roWrite(readOnly, { onClick: handleAutoConfirm, disabled: autoConfirming })}>
             {autoConfirming ? 'Confirming...' : 'Auto-confirm'}
           </button>
-          <button className="btn btn-primary" onClick={handleWriteBack} disabled={writingBack}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleWriteBack, disabled: writingBack })}>
             {writingBack ? 'Writing...' : 'Write back to Xero'}
           </button>
           <a
@@ -474,10 +460,10 @@ export function ReconcilePanel() {
           {selected.size > 0 && (
             <>
               <span className="chip chip-accent" style={{ fontVariantNumeric: 'tabular-nums' }}>{selected.size} selected</span>
-              <button className="btn" onClick={handleBatchApprove} disabled={batchWorking}>
+              <button className="btn" {...roWrite(readOnly, { onClick: handleBatchApprove, disabled: batchWorking })}>
                 {batchWorking ? 'Working...' : `Approve ${selected.size}`}
               </button>
-              <button className="btn btn-ghost" onClick={handleBatchSkip} disabled={batchWorking}>
+              <button className="btn btn-ghost" {...roWrite(readOnly, { onClick: handleBatchSkip, disabled: batchWorking })}>
                 Skip {selected.size}
               </button>
               <button className="btn btn-ghost" style={{ color: 'var(--text-muted)' }} onClick={() => setSelected(new Set())}>
@@ -572,7 +558,7 @@ export function ReconcilePanel() {
                       {item.status === 'pending' && (
                         <>
                           <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => startApprove(item)}>Approve</button>
-                          <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)', color: 'var(--text-muted)' }} onClick={() => handleReject(item.id)}>Skip</button>
+                          <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)', color: 'var(--text-muted)' }} {...roWrite(readOnly, { onClick: () => handleReject(item.id) })}>Skip</button>
                         </>
                       )}
                     </td>
@@ -592,9 +578,9 @@ export function ReconcilePanel() {
                             </label>
                             <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                               {vatWarnings[item.id] ? (
-                                <button className="btn" style={{ background: 'var(--amber-600, #d97706)', color: '#fff' }} onClick={() => confirmApprove(item.id, true)}>Confirm anyway</button>
+                                <button className="btn" style={{ background: 'var(--amber-600, #d97706)', color: '#fff' }} {...roWrite(readOnly, { onClick: () => confirmApprove(item.id, true) })}>Confirm anyway</button>
                               ) : (
-                                <button className="btn btn-primary" onClick={() => confirmApprove(item.id)}>Confirm</button>
+                                <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => confirmApprove(item.id) })}>Confirm</button>
                               )}
                               <button className="btn btn-ghost" onClick={() => { setEditingId(null); setVatWarnings(prev => { const n = { ...prev }; delete n[item.id]; return n; }); }}>Cancel</button>
                             </div>
@@ -672,42 +658,36 @@ export function RulesPanel() {
   }
 
   async function handleSave() {
-    roWrite(readOnly, async () => {
-      try {
-        if (editingId === 'new') {
-          await api.post('/accounts/rules', form);
-          toast('Rule created');
-        } else {
-          await api.put(`/accounts/rules/${editingId}`, form);
-          toast('Rule updated');
-        }
-        setEditingId(null);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    try {
+      if (editingId === 'new') {
+        await api.post('/accounts/rules', form);
+        toast('Rule created');
+      } else {
+        await api.put(`/accounts/rules/${editingId}`, form);
+        toast('Rule updated');
+      }
+      setEditingId(null);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleDelete(id) {
     if (!window.confirm('Delete this rule?')) return;
-    roWrite(readOnly, async () => {
-      try {
-        await api.delete(`/accounts/rules/${id}`);
-        toast('Rule deleted');
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    try {
+      await api.delete(`/accounts/rules/${id}`);
+      toast('Rule deleted');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleSeedRules() {
-    roWrite(readOnly, async () => {
-      setSeeding(true);
-      try {
-        const r = await api.post('/accounts/rules/seed');
-        toast(`Seeded ${r.seeded} common rules`);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setSeeding(false); }
-    });
+    setSeeding(true);
+    try {
+      const r = await api.post('/accounts/rules/seed');
+      toast(`Seeded ${r.seeded} common rules`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSeeding(false); }
   }
 
   return (
@@ -722,7 +702,7 @@ export function RulesPanel() {
           style={{ width: 260 }}
         />
         <div className="row center" style={{ gap: 'var(--s2)' }}>
-          <button className="btn" onClick={handleSeedRules} disabled={seeding}>
+          <button className="btn" {...roWrite(readOnly, { onClick: handleSeedRules, disabled: seeding })}>
             {seeding ? 'Seeding...' : 'Seed common rules'}
           </button>
           <button className="btn btn-primary" onClick={() => startEdit(null)}>Add rule</button>
@@ -764,7 +744,7 @@ export function RulesPanel() {
             </label>
           </div>
           <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
-            <button className="btn btn-primary" onClick={handleSave}>Save</button>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleSave })}>Save</button>
             <button className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
           </div>
         </div>
@@ -803,7 +783,7 @@ export function RulesPanel() {
                 <td style={{ whiteSpace: 'nowrap' }}>{rule.last_seen ? new Date(rule.last_seen).toLocaleDateString('en-GB') : '—'}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => startEdit(rule)}>Edit</button>
-                  <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)', color: 'var(--danger)' }} onClick={() => handleDelete(rule.id)}>Delete</button>
+                  <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)', color: 'var(--danger)' }} {...roWrite(readOnly, { onClick: () => handleDelete(rule.id) })}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -845,29 +825,25 @@ export function InvoicesPanel() {
   useEffect(() => { load(); }, [load]);
 
   async function handleScan() {
-    roWrite(readOnly, async () => {
-      setScanning(true);
-      try {
-        const r = await api.post('/accounts/drive/scan');
-        if (r.error) {
-          toast(r.error, 'warning');
-        } else {
-          toast(`Scanned ${r.scanned} files: ${r.matched} matched, ${r.missing} missing`);
-        }
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setScanning(false); }
-    });
+    setScanning(true);
+    try {
+      const r = await api.post('/accounts/drive/scan');
+      if (r.error) {
+        toast(r.error, 'warning');
+      } else {
+        toast(`Scanned ${r.scanned} files: ${r.matched} matched, ${r.missing} missing`);
+      }
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setScanning(false); }
   }
 
   async function handleAttach(matchId) {
-    roWrite(readOnly, async () => {
-      try {
-        await api.post(`/accounts/drive/attach/${matchId}`);
-        toast('Invoice attached to Xero');
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    try {
+      await api.post(`/accounts/drive/attach/${matchId}`);
+      toast('Invoice attached to Xero');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
@@ -885,7 +861,7 @@ export function InvoicesPanel() {
       <div className="card" style={{ padding: 'var(--s4)' }}>
         <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
           <div className="h5">Google Drive invoice scanner</div>
-          <button className="btn btn-primary" onClick={handleScan} disabled={scanning || !driveStatus?.configured}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleScan, disabled: scanning || !driveStatus?.configured })}>
             {scanning ? 'Scanning...' : 'Scan Drive folder'}
           </button>
         </div>
@@ -938,7 +914,7 @@ export function InvoicesPanel() {
                 <td className="text-muted">{inv.drive_file_name || '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   {inv.drive_file_id && inv.status === 'matched' && (
-                    <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => handleAttach(inv.id)}>
+                    <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} {...roWrite(readOnly, { onClick: () => handleAttach(inv.id) })}>
                       Attach to Xero
                     </button>
                   )}
@@ -979,19 +955,17 @@ export function DeadlinesPanel() {
   useEffect(() => { load(); }, [load]);
 
   async function handleSeed() {
-    roWrite(readOnly, async () => {
-      setSeeding(true);
-      try {
-        const r = await api.post('/accounts/deadlines/seed', { year: seedYear });
-        if (r.inserted > 0) {
-          toast(`Added ${r.inserted} deadlines for ${seedYear}${r.updated ? `, ${r.updated} updated` : ''}`);
-        } else {
-          toast(`All ${r.total} deadlines for ${seedYear} already up to date`);
-        }
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setSeeding(false); }
-    });
+    setSeeding(true);
+    try {
+      const r = await api.post('/accounts/deadlines/seed', { year: seedYear });
+      if (r.inserted > 0) {
+        toast(`Added ${r.inserted} deadlines for ${seedYear}${r.updated ? `, ${r.updated} updated` : ''}`);
+      } else {
+        toast(`All ${r.total} deadlines for ${seedYear} already up to date`);
+      }
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSeeding(false); }
   }
 
   function startEdit(d) {
@@ -1001,14 +975,12 @@ export function DeadlinesPanel() {
   }
 
   async function handleUpdate(id) {
-    roWrite(readOnly, async () => {
-      try {
-        await api.put(`/accounts/deadlines/${id}`, { status: editStatus, notes: editNotes });
-        toast('Deadline updated');
-        setEditingId(null);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    try {
+      await api.put(`/accounts/deadlines/${id}`, { status: editStatus, notes: editNotes });
+      toast('Deadline updated');
+      setEditingId(null);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   function urgencyClass(dueDate) {
@@ -1038,7 +1010,7 @@ export function DeadlinesPanel() {
               return <option key={y} value={y}>{y}</option>;
             })}
           </select>
-          <button className="btn" onClick={handleSeed} disabled={seeding}>
+          <button className="btn" {...roWrite(readOnly, { onClick: handleSeed, disabled: seeding })}>
             {seeding ? 'Seeding...' : 'Seed deadlines'}
           </button>
         </div>
@@ -1095,7 +1067,7 @@ export function DeadlinesPanel() {
                           Notes
                           <input className="input" value={editNotes} onChange={e => setEditNotes(e.target.value)} style={{ marginLeft: 'var(--s2)', width: '100%' }} />
                         </label>
-                        <button className="btn btn-primary" onClick={() => handleUpdate(d.id)}>Save</button>
+                        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => handleUpdate(d.id) })}>Save</button>
                         <button className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
                       </div>
                     </td>
@@ -1141,28 +1113,24 @@ export function VatPanel() {
   useEffect(() => { load(); }, [load]);
 
   async function handleBuildPack(year, quarter) {
-    roWrite(readOnly, async () => {
-      setBuildingPack(true);
-      try {
-        const r = await api.get(`/accounts/vat/pack/${year}/${quarter}`);
-        setPackResult(r);
-        toast(`VAT pack built: ${r.summary?.totalTransactions ?? 0} transactions, ${r.newExceptions ?? 0} new exceptions`);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setBuildingPack(false); }
-    });
+    setBuildingPack(true);
+    try {
+      const r = await api.get(`/accounts/vat/pack/${year}/${quarter}`);
+      setPackResult(r);
+      toast(`VAT pack built: ${r.summary?.totalTransactions ?? 0} transactions, ${r.newExceptions ?? 0} new exceptions`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBuildingPack(false); }
   }
 
   async function handleResolve(id) {
-    roWrite(readOnly, async () => {
-      try {
-        await api.post(`/accounts/vat/exceptions/${id}/resolve`, { resolution });
-        toast('Exception resolved');
-        setResolvingId(null);
-        setResolution('');
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    try {
+      await api.post(`/accounts/vat/exceptions/${id}/resolve`, { resolution });
+      toast('Exception resolved');
+      setResolvingId(null);
+      setResolution('');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
@@ -1174,10 +1142,10 @@ export function VatPanel() {
           <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
             <div className="h4">VAT quarter-end pack</div>
             <div className="row center" style={{ gap: 'var(--s2)' }}>
-              <button className="btn" onClick={() => handleBuildPack(quarters.previous.year, quarters.previous.q)} disabled={buildingPack}>
+              <button className="btn" {...roWrite(readOnly, { onClick: () => handleBuildPack(quarters.previous.year, quarters.previous.q), disabled: buildingPack })}>
                 {buildingPack ? 'Building...' : `Build ${quarters.previous.label} ${quarters.previous.year}`}
               </button>
-              <button className="btn btn-primary" onClick={() => handleBuildPack(quarters.current.year, quarters.current.q)} disabled={buildingPack}>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => handleBuildPack(quarters.current.year, quarters.current.q), disabled: buildingPack })}>
                 {buildingPack ? 'Building...' : `Build ${quarters.current.label} ${quarters.current.year}`}
               </button>
             </div>
@@ -1291,7 +1259,7 @@ export function VatPanel() {
                           onChange={e => setResolution(e.target.value)}
                           style={{ flex: 1 }}
                         />
-                        <button className="btn btn-primary" onClick={() => handleResolve(ex.id)}>Confirm</button>
+                        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => handleResolve(ex.id) })}>Confirm</button>
                         <button className="btn btn-ghost" onClick={() => setResolvingId(null)}>Cancel</button>
                       </div>
                     </td>
@@ -1332,47 +1300,41 @@ export function DigestsPanel() {
   const [sending, setSending] = useState(null);
 
   async function handleBuild() {
-    roWrite(readOnly, async () => {
-      setBuilding(true);
-      try {
-        await api.post('/accounts/digests/build');
-        toast('Digest built');
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setBuilding(false); }
-    });
+    setBuilding(true);
+    try {
+      await api.post('/accounts/digests/build');
+      toast('Digest built');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBuilding(false); }
   }
 
   async function handleBuildAndSend() {
-    roWrite(readOnly, async () => {
-      setBuilding(true);
-      try {
-        const r = await api.post('/accounts/digests/build-and-send');
-        if (r.emailed) {
-          toast('Digest built and emailed');
-        } else {
-          toast(`Digest built, but email failed: ${r.emailError || 'unknown error'}`, 'warning');
-        }
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setBuilding(false); }
-    });
+    setBuilding(true);
+    try {
+      const r = await api.post('/accounts/digests/build-and-send');
+      if (r.emailed) {
+        toast('Digest built and emailed');
+      } else {
+        toast(`Digest built, but email failed: ${r.emailError || 'unknown error'}`, 'warning');
+      }
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBuilding(false); }
   }
 
   async function handleSendEmail(digestId) {
-    roWrite(readOnly, async () => {
-      setSending(digestId);
-      try {
-        const r = await api.post(`/accounts/digests/${digestId}/send`);
-        if (r.alreadySent) {
-          toast('Already sent', 'warning');
-        } else {
-          toast(`Digest emailed to ${r.to}`);
-        }
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setSending(null); }
-    });
+    setSending(digestId);
+    try {
+      const r = await api.post(`/accounts/digests/${digestId}/send`);
+      if (r.alreadySent) {
+        toast('Already sent', 'warning');
+      } else {
+        toast(`Digest emailed to ${r.to}`);
+      }
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSending(null); }
   }
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
@@ -1382,10 +1344,10 @@ export function DigestsPanel() {
       <div className="row between center">
         <div className="h4">Weekly digests</div>
         <div className="row center" style={{ gap: 'var(--s2)' }}>
-          <button className="btn" onClick={handleBuild} disabled={building}>
+          <button className="btn" {...roWrite(readOnly, { onClick: handleBuild, disabled: building })}>
             {building ? 'Building...' : 'Build only'}
           </button>
-          <button className="btn btn-primary" onClick={handleBuildAndSend} disabled={building}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleBuildAndSend, disabled: building })}>
             {building ? 'Building...' : 'Build and send'}
           </button>
         </div>
@@ -1415,8 +1377,7 @@ export function DigestsPanel() {
                       <button
                         className="btn btn-ghost"
                         style={{ fontSize: 'var(--fs-body-sm)' }}
-                        onClick={e => { e.stopPropagation(); handleSendEmail(d.id); }}
-                        disabled={sending === d.id}
+                        {...roWrite(readOnly, { onClick: e => { e.stopPropagation(); handleSendEmail(d.id); }, disabled: sending === d.id })}
                       >
                         {sending === d.id ? 'Sending...' : 'Send email'}
                       </button>
@@ -1531,20 +1492,18 @@ export function DrivePanel() {
   }
 
   async function handleScan() {
-    roWrite(readOnly, async () => {
-      setScanning(true);
-      try {
-        const result = await api.post('/accounts/drive/scan');
-        setScanResult(result);
-        if (result.error) {
-          toast(result.error, 'warning');
-        } else {
-          toast(`Scanned ${result.scanned} files: ${result.matched} matched, ${result.missing} missing`);
-        }
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setScanning(false); }
-    });
+    setScanning(true);
+    try {
+      const result = await api.post('/accounts/drive/scan');
+      setScanResult(result);
+      if (result.error) {
+        toast(result.error, 'warning');
+      } else {
+        toast(`Scanned ${result.scanned} files: ${result.matched} matched, ${result.missing} missing`);
+      }
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setScanning(false); }
   }
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
@@ -1614,7 +1573,7 @@ export function DrivePanel() {
               <div className="body-sm" style={{ color: 'var(--danger)' }}>{status.error}</div>
             )}
             <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
-              <button className="btn btn-primary" onClick={handleScan} disabled={scanning || !status.accessible}>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleScan, disabled: scanning || !status.accessible })}>
                 {scanning ? 'Scanning...' : 'Scan and match'}
               </button>
             </div>
@@ -1723,27 +1682,23 @@ export function XeroPanel() {
   }, [location.search, toast]);
 
   async function handleConnect() {
-    roWrite(readOnly, async () => {
-      setConnecting(true);
-      try {
-        const data = await api.get('/accounts/xero/auth-url');
-        if (data.url) window.location.href = data.url;
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setConnecting(false); }
-    });
+    setConnecting(true);
+    try {
+      const data = await api.get('/accounts/xero/auth-url');
+      if (data.url) window.location.href = data.url;
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setConnecting(false); }
   }
 
   async function handleDisconnect() {
     if (!window.confirm('Disconnect from Xero? This removes stored tokens. You can reconnect at any time.')) return;
-    roWrite(readOnly, async () => {
-      setDisconnecting(true);
-      try {
-        await api.post('/accounts/xero/disconnect');
-        toast('Disconnected from Xero');
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setDisconnecting(false); }
-    });
+    setDisconnecting(true);
+    try {
+      await api.post('/accounts/xero/disconnect');
+      toast('Disconnected from Xero');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setDisconnecting(false); }
   }
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
@@ -1771,10 +1726,10 @@ export function XeroPanel() {
               <div className="body-sm text-muted">Scopes: {status.scopes}</div>
             )}
             <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
-              <button className="btn" onClick={handleConnect} disabled={connecting}>
+              <button className="btn" {...roWrite(readOnly, { onClick: handleConnect, disabled: connecting })}>
                 {connecting ? 'Redirecting...' : 'Reconnect'}
               </button>
-              <button className="btn btn-danger" onClick={handleDisconnect} disabled={disconnecting}>
+              <button className="btn btn-danger" {...roWrite(readOnly, { onClick: handleDisconnect, disabled: disconnecting })}>
                 {disconnecting ? 'Disconnecting...' : 'Disconnect'}
               </button>
             </div>
@@ -1792,7 +1747,7 @@ export function XeroPanel() {
             <div className="body-sm text-muted">
               Connect your Xero account to enable automated reconciliation.
             </div>
-            <button className="btn btn-primary" onClick={handleConnect} disabled={connecting || status?.credentialsConfigured === false} style={{ alignSelf: 'flex-start' }}>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleConnect, disabled: connecting || status?.credentialsConfigured === false })} style={{ alignSelf: 'flex-start' }}>
               {connecting ? 'Redirecting...' : 'Connect to Xero'}
             </button>
           </div>
@@ -2007,22 +1962,20 @@ export function FxPanel() {
   useEffect(() => { load(); }, [load]);
 
   async function handleScan() {
-    roWrite(readOnly, async () => {
-      setScanning(true);
-      try {
-        const r = await api.post('/accounts/fx/scan');
-        toast(`Scanned queue: ${r.recorded} FX events recorded from ${r.scanned} non-GBP transactions`);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      finally { setScanning(false); }
-    });
+    setScanning(true);
+    try {
+      const r = await api.post('/accounts/fx/scan');
+      toast(`Scanned queue: ${r.recorded} FX events recorded from ${r.scanned} non-GBP transactions`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setScanning(false); }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       <div className="row between center">
         <div className="h4">FX gain/loss tracker</div>
-        <button className="btn btn-primary" onClick={handleScan} disabled={scanning}>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleScan, disabled: scanning })}>
           {scanning ? 'Scanning...' : 'Scan queue for FX'}
         </button>
       </div>
