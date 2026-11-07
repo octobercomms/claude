@@ -22,6 +22,65 @@ const SIZE_PRESETS = [
   { w: 1080, h: 1080, label: '1:1' },
 ];
 
+function parseTimecode(str, fps) {
+  str = str.trim();
+  let m = str.match(/^(\d+):(\d+):(\d+):(\d+)$/);
+  if (m) return parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseInt(m[3]) + parseInt(m[4]) / (fps || 30);
+  m = str.match(/^(\d+):(\d+):(\d+)(?:\.(\d+))?$/);
+  if (m) return parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3] + (m[4] ? '.' + m[4] : ''));
+  const n = parseFloat(str);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function TimecodeInput({ value, fps, onChange, label }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+
+  function startEdit() {
+    setText(PB.timecode(value, fps));
+    setEditing(true);
+  }
+
+  function commit() {
+    setEditing(false);
+    const parsed = parseTimecode(text, fps);
+    if (parsed != null && parsed !== value) onChange(parsed);
+  }
+
+  if (editing) {
+    return (
+      <input
+        type="text"
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+        autoFocus
+        style={{
+          width: 96, padding: '1px 4px', fontSize: 'var(--fs-caption)',
+          fontFamily: 'var(--font-mono, monospace)', background: 'var(--surface-sunken)',
+          border: '1px solid var(--card-border)', borderRadius: 'var(--r-sm)',
+          color: 'var(--text)', fontVariantNumeric: 'tabular-nums',
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      onClick={startEdit}
+      title={`Click to edit ${label}`}
+      style={{
+        cursor: 'pointer', padding: '1px 4px', borderRadius: 'var(--r-sm)',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-raised)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      {PB.timecode(value, fps)}
+    </span>
+  );
+}
+
 const FPS_OPTIONS = [24, 25, 30, 60];
 
 const AUTOSAVE_MS = 1500;
@@ -66,6 +125,8 @@ export default function CompositionEditorPage({ clientId }) {
   const latestCompRef = useRef(null);
   const latestAssetsRef = useRef(null);
   const latestTransRef = useRef(null);
+  const selectedItemRef = useRef(null);
+  const playheadRef = useRef(0);
 
   const total = compDuration(composition);
   const fps = composition.fps || 30;
@@ -76,6 +137,7 @@ export default function CompositionEditorPage({ clientId }) {
   latestCompRef.current = composition;
   latestAssetsRef.current = sourceAssets;
   latestTransRef.current = transcripts;
+  playheadRef.current = playhead;
 
   // ── Initialise: load compositions list, templates ─────────────────
 
@@ -190,6 +252,8 @@ export default function CompositionEditorPage({ clientId }) {
     }
     return null;
   }, [selectedId, composition.tracks]);
+
+  selectedItemRef.current = selectedItem;
 
   const selectedSource = selectedItem
     ? composition.sources[selectedItem.item.source] : null;
@@ -510,6 +574,21 @@ export default function CompositionEditorPage({ clientId }) {
   const selectedSourceId = selectedItem?.item?.source;
   const hasTranscript = selectedSourceId && transcripts[selectedSourceId]?.length > 0;
 
+  const firstClipSourceId = useMemo(() =>
+    Object.keys(composition.sources).find(k => composition.sources[k].kind === 'clip'),
+    [composition.sources]
+  );
+  const effectiveClipSourceId = (selectedSourceId && composition.sources[selectedSourceId]?.kind === 'clip')
+    ? selectedSourceId : firstClipSourceId;
+  const effectiveHasTranscript = effectiveClipSourceId && transcripts[effectiveClipSourceId]?.length > 0;
+  const effectiveTrackId = useMemo(() => {
+    if (!effectiveClipSourceId) return null;
+    for (const track of composition.tracks) {
+      if (track.items.some(i => i.source === effectiveClipSourceId)) return track.id;
+    }
+    return null;
+  }, [effectiveClipSourceId, composition.tracks]);
+
   const allTimings = useMemo(() => {
     const words = [];
     for (const [sourceId, wList] of Object.entries(transcripts)) {
@@ -591,6 +670,47 @@ export default function CompositionEditorPage({ clientId }) {
         if (!e.ctrlKey && !e.metaKey) {
           e.preventDefault();
           setRipple(prev => !prev);
+          return;
+        }
+      }
+
+      // Trim shortcuts: [ ] for in/out points, , . for frame nudge
+      const sel = selectedItemRef.current;
+      if (sel && !e.ctrlKey && !e.metaKey) {
+        const frameDur = 1 / (composition.fps || 30);
+
+        if (e.key === '[') {
+          e.preventDefault();
+          const ph = playheadRef.current;
+          const item = sel.item;
+          if (ph > item.at && ph < item.at + item.len) {
+            const delta = ph - item.at;
+            const updates = { at: ph, len: item.len - delta };
+            if (item.sourceStart != null) updates.sourceStart = (item.sourceStart || 0) + delta;
+            if (item.in != null) updates.in = (item.in || 0) + delta;
+            setComposition(prev => updateItem(prev, sel.track.id, item.id, updates));
+          }
+          return;
+        }
+        if (e.key === ']') {
+          e.preventDefault();
+          const ph = playheadRef.current;
+          const item = sel.item;
+          if (ph > item.at && ph < item.at + item.len) {
+            setComposition(prev => updateItem(prev, sel.track.id, item.id, { len: ph - item.at }));
+          }
+          return;
+        }
+        if (e.key === ',') {
+          e.preventDefault();
+          setComposition(prev => updateItem(prev, sel.track.id, sel.item.id,
+            { at: Math.max(0, sel.item.at - frameDur) }));
+          return;
+        }
+        if (e.key === '.') {
+          e.preventDefault();
+          setComposition(prev => updateItem(prev, sel.track.id, sel.item.id,
+            { at: sel.item.at + frameDur }));
           return;
         }
       }
@@ -768,14 +888,28 @@ export default function CompositionEditorPage({ clientId }) {
                   <tbody>
                     <tr>
                       <td className="text-subtle" style={{ paddingRight: 'var(--s2)' }}>At</td>
-                      <td style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {PB.timecode(selectedItem.item.at, fps)}
+                      <td>
+                        <TimecodeInput value={selectedItem.item.at} fps={fps} label="start time"
+                          onChange={(v) => {
+                            setComposition(prev =>
+                              updateItem(prev, selectedItem.track.id, selectedItem.item.id, { at: v })
+                            );
+                          }}
+                        />
                       </td>
                     </tr>
                     <tr>
                       <td className="text-subtle" style={{ paddingRight: 'var(--s2)' }}>Length</td>
-                      <td style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {PB.timecode(selectedItem.item.len, fps)}
+                      <td>
+                        <TimecodeInput value={selectedItem.item.len} fps={fps} label="duration"
+                          onChange={(v) => {
+                            if (v > 0) {
+                              setComposition(prev =>
+                                updateItem(prev, selectedItem.track.id, selectedItem.item.id, { len: v })
+                              );
+                            }
+                          }}
+                        />
                       </td>
                     </tr>
                   </tbody>
@@ -891,26 +1025,27 @@ export default function CompositionEditorPage({ clientId }) {
                   </div>
                 )}
 
-                {hasTranscript && selectedSource?.kind === 'clip' && (
-                  <TightenPanel
-                    compId={compId}
-                    sourceId={selectedSourceId}
-                    composition={composition}
-                    onCompositionChange={setComposition}
-                    trackId={selectedItem.track.id}
-                  />
-                )}
-
-                {hasTranscript && selectedSource?.kind === 'clip' && (
-                  <BrollPanel
-                    compId={compId}
-                    sourceId={selectedSourceId}
-                    clientId={clientId}
-                    composition={composition}
-                    onCompositionChange={setComposition}
-                  />
-                )}
               </div>
+            )}
+
+            {/* Tighten and B-roll: use selected clip or auto-detect first clip */}
+            {effectiveHasTranscript && effectiveTrackId && (
+              <>
+                <TightenPanel
+                  compId={compId}
+                  sourceId={effectiveClipSourceId}
+                  composition={composition}
+                  onCompositionChange={setComposition}
+                  trackId={effectiveTrackId}
+                />
+                <BrollPanel
+                  compId={compId}
+                  sourceId={effectiveClipSourceId}
+                  clientId={clientId}
+                  composition={composition}
+                  onCompositionChange={setComposition}
+                />
+              </>
             )}
 
             {/* Composition settings */}
