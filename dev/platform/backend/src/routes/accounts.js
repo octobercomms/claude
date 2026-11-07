@@ -195,12 +195,27 @@ router.get('/sync/diagnose', async (req, res) => {
   }
 
   // Step 4: get bank statement lines (page 1 only, per account)
+  // Call both the raw Xero endpoint and the filtered function so we can
+  // distinguish "Xero returned nothing" from "our filter dropped everything".
   for (const account of bankAccounts) {
     try {
       const s = Date.now();
       const lines = await xero.getBankStatementLines(token, account.accountId, { page: 1 });
-      step(`getBankStatementLines(${account.name})`, Date.now() - s);
-      steps[steps.length - 1].count = lines.length;
+      const ms = Date.now() - s;
+      step(`getBankStatementLines(${account.name})`, ms);
+      steps[steps.length - 1].accountId = account.accountId;
+      steps[steps.length - 1].filtered = lines.length;
+
+      // Now fetch raw to see what Xero actually returned before client filter
+      const s2 = Date.now();
+      const rawLines = await xero.getBankStatementLinesRaw(token, account.accountId, { page: 1 });
+      steps[steps.length - 1].rawFromXero = rawLines.total;
+      steps[steps.length - 1].rawReconciled = rawLines.reconciled;
+      steps[steps.length - 1].rawUnreconciled = rawLines.unreconciled;
+      steps[steps.length - 1].rawMs = Date.now() - s2;
+      if (rawLines.sample) {
+        steps[steps.length - 1].sample = rawLines.sample;
+      }
     } catch (err) {
       fail(`getBankStatementLines(${account.name})`, Date.now() - t0, err.message);
     }

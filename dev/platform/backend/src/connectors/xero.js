@@ -265,6 +265,59 @@ async function getBankStatementLines(token, bankAccountId, opts = {}) {
     }));
 }
 
+// Diagnostic variant: returns raw counts and a sample without filtering.
+async function getBankStatementLinesRaw(token, bankAccountId, opts = {}) {
+  const whereClauses = [
+    'Status=="AUTHORISED"',
+    `BankAccount.AccountID==guid("${bankAccountId}")`,
+  ];
+
+  const data = await xeroGet(
+    `/BankTransactions`,
+    token,
+    {
+      where: whereClauses.join(' AND '),
+      page: opts.page || 1,
+      order: 'Date DESC',
+    }
+  );
+
+  const all = data.BankTransactions || [];
+  const reconciled = all.filter(tx => tx.IsReconciled === true).length;
+  const unreconciled = all.filter(tx => tx.IsReconciled !== true).length;
+
+  const result = { total: all.length, reconciled, unreconciled };
+
+  // Include a sample of up to 3 unreconciled, or 3 reconciled if none unreconciled
+  const samples = all.filter(tx => tx.IsReconciled !== true).slice(0, 3);
+  if (!samples.length && all.length) {
+    const recSamples = all.slice(0, 3);
+    result.sample = recSamples.map(tx => ({
+      id: tx.BankTransactionID,
+      isReconciled: tx.IsReconciled,
+      status: tx.Status,
+      date: tx.Date,
+      total: tx.Total,
+      type: tx.Type,
+      contact: tx.Contact ? tx.Contact.Name : null,
+    }));
+    result.sampleType = 'reconciled (no unreconciled found)';
+  } else if (samples.length) {
+    result.sample = samples.map(tx => ({
+      id: tx.BankTransactionID,
+      isReconciled: tx.IsReconciled,
+      status: tx.Status,
+      date: tx.Date,
+      total: tx.Total,
+      type: tx.Type,
+      contact: tx.Contact ? tx.Contact.Name : null,
+    }));
+    result.sampleType = 'unreconciled';
+  }
+
+  return result;
+}
+
 async function getChartOfAccounts(token) {
   const data = await xeroGet('/Accounts', token);
   return (data.Accounts || []).map(a => ({
@@ -372,6 +425,7 @@ module.exports = {
   getValidToken,
   getBankAccounts,
   getBankStatementLines,
+  getBankStatementLinesRaw,
   getChartOfAccounts,
   getTaxRates,
   getContacts,
