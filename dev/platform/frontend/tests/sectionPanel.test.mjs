@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SECTIONS, tabsOf, slugsOf, slugOf, tabForSlug, slugForTab } from '../src/nav/sections.js';
+import { SECTIONS, tabsOf, slugsOf, slugOf, tabForSlug, slugForTab, SLUG_ALIASES } from '../src/nav/sections.js';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const read = (rel) => readFileSync(path.join(SRC, rel), 'utf8');
@@ -279,6 +279,20 @@ test('no slug names a different row in the same section', () => {
   assert.deepEqual(found.sort(), KNOWN.sort(),
     'a slug now names a different row\'s tab. Either rename one, or add it here '
     + 'with a note on why the collision is safe.');
+});
+
+test('/settings/connections resolves to integrations, not to the default tab', () => {
+  const settings = SECTIONS.settings;
+  assert.equal(tabForSlug(settings, 'connections'), 'integrations',
+    '/settings/connections must land on the Integrations tab');
+});
+
+test('every SLUG_ALIASES target is a real tab in at least one section', () => {
+  const allTabs = new Set(Object.values(SECTIONS).flatMap(s => tabsOf(s)));
+  const dangling = Object.entries(SLUG_ALIASES)
+    .filter(([, tab]) => !allTabs.has(tab))
+    .map(([slug, tab]) => `${slug} -> ${tab}`);
+  assert.deepEqual(dangling, [], 'an alias targets a tab that does not exist');
 });
 
 // The tab a slug resolves to, within one section.
