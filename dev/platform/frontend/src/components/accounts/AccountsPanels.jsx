@@ -212,18 +212,21 @@ export function ReconcilePanel() {
   const [batchWorking, setBatchWorking] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState(0);
   const [vatWarnings, setVatWarnings] = useState({});
+  const [xeroConnected, setXeroConnected] = useState(null);
   const tableRef = useRef(null);
   const LIMIT = 50;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ status, limit: LIMIT, offset });
-      if (search) params.set('search', search);
-      const data = await api.get(`/accounts/queue?${params}`);
-      setItems(data.items || []);
-      setTotal(data.total || 0);
-      setStats(data.stats || null);
+      const [queueData, xeroStatus] = await Promise.all([
+        api.get(`/accounts/queue?${new URLSearchParams({ status, limit: LIMIT, offset, ...(search ? { search } : {}) })}`),
+        api.get('/accounts/xero/status'),
+      ]);
+      setItems(queueData.items || []);
+      setTotal(queueData.total || 0);
+      setStats(queueData.stats || null);
+      setXeroConnected(!!xeroStatus.connected);
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -499,7 +502,11 @@ export function ReconcilePanel() {
         <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>
       ) : items.length === 0 ? (
         <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
-          <div className="text-muted">No items in the queue{status !== 'all' ? ` with status "${status}"` : ''}.</div>
+          {xeroConnected === false ? (
+            <div className="text-muted">Xero is not connected. Go to the Xero tab to connect, then sync bank transactions.</div>
+          ) : (
+            <div className="text-muted">No items in the queue{status !== 'all' ? ` with status "${status}"` : ''}.</div>
+          )}
         </div>
       ) : (
         <>
@@ -1476,13 +1483,22 @@ export function DrivePanel() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [folderUrl, setFolderUrl] = useState('');
+  const [folderConfig, setFolderConfig] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.get('/accounts/drive/status');
-      setStatus(data);
-      if (data.accessible) {
+      const [driveStatus, folder] = await Promise.all([
+        api.get('/accounts/drive/status'),
+        api.get('/accounts/drive-folder'),
+      ]);
+      setStatus(driveStatus);
+      setFolderConfig(folder);
+      if (folder.folderId) setFolderUrl(folder.folderId);
+      if (driveStatus.accessible) {
         const fileData = await api.get('/accounts/drive/files');
         setFiles(fileData.files || []);
       }
@@ -1491,6 +1507,28 @@ export function DrivePanel() {
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleSaveFolder() {
+    if (!folderUrl.trim()) return;
+    setSaving(true);
+    try {
+      const result = await api.put('/accounts/drive-folder', { url: folderUrl.trim() });
+      toast('Drive folder saved', 'success');
+      setFolderUrl(result.folderId || folderUrl);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSaving(false); }
+  }
+
+  function handleCopyEmail() {
+    const email = folderConfig?.serviceAccountEmail || status?.serviceAccountEmail;
+    if (email) {
+      navigator.clipboard.writeText(email).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }
 
   async function handleScan() {
     roWrite(readOnly, async () => {
@@ -1511,12 +1549,59 @@ export function DrivePanel() {
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
 
+  const serviceEmail = folderConfig?.serviceAccountEmail || status?.serviceAccountEmail;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       <div className="h4">Google Drive invoice scanner</div>
 
-      <div className="card" style={{ padding: 'var(--s4)' }}>
-        {status?.configured ? (
+      {!serviceEmail ? (
+        <div className="card" style={{ padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+          <div className="h5">Google service account required</div>
+          <div className="body-sm" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+            <div>
+              The Drive scanner needs a Google service account key before it can access any folder.
+              This is the same service account used for GA4, Search Console and Merchant Center on the Integrations page.
+            </div>
+            <div>
+              Paste <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> in <strong>Settings &gt; Integrations</strong>, then return here.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+          <div className="h5">Invoice folder</div>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+            <input
+              type="text"
+              className="input"
+              placeholder="Paste Google Drive folder URL or folder ID"
+              value={folderUrl}
+              onChange={e => setFolderUrl(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveFolder(); }}
+              style={{ flex: 1 }}
+            />
+            <button className="btn btn-primary" onClick={handleSaveFolder} disabled={saving || !folderUrl.trim()}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+          <div className="body-sm text-muted">
+            Paste the full URL from your browser, e.g. https://drive.google.com/drive/folders/1abc...
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s1)' }}>
+            <div className="body-sm text-muted">
+              Share the folder with: <code>{serviceEmail}</code>
+            </div>
+            <button className="btn btn-sm" onClick={handleCopyEmail} style={{ whiteSpace: 'nowrap' }}>
+              {copied ? 'Copied' : 'Copy email'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {status?.configured && (
+        <div className="card" style={{ padding: 'var(--s4)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
             <div className="row center" style={{ gap: 'var(--s3)' }}>
               {status.accessible
@@ -1528,29 +1613,14 @@ export function DrivePanel() {
             {!status.accessible && status.error && (
               <div className="body-sm" style={{ color: 'var(--danger)' }}>{status.error}</div>
             )}
-            {status.serviceAccountEmail && (
-              <div className="body-sm text-muted">Service account: <code>{status.serviceAccountEmail}</code></div>
-            )}
             <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
               <button className="btn btn-primary" onClick={handleScan} disabled={scanning || !status.accessible}>
                 {scanning ? 'Scanning...' : 'Scan and match'}
               </button>
             </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
-            <div className="row center" style={{ gap: 'var(--s2)' }}>
-              <span className="chip">Not configured</span>
-            </div>
-            <div className="body-sm text-muted">
-              {status?.message || 'Set ACCOUNTS_DRIVE_FOLDER_ID or ACCOUNTS_DRIVE_FOLDER_URL in Settings > Environment, then share the folder with the service account.'}
-            </div>
-            {status?.serviceAccountEmail && (
-              <div className="body-sm text-muted">Share the folder with: <code>{status.serviceAccountEmail}</code></div>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {scanResult && !scanResult.error && (
         <StatStrip items={[
@@ -1598,10 +1668,11 @@ export function DrivePanel() {
       <div className="card" style={{ padding: 'var(--s4)' }}>
         <div className="h5" style={{ marginBottom: 'var(--s2)' }}>Setup</div>
         <div className="body-sm text-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-          <div>1. Create a Google Drive folder for invoices and receipts.</div>
-          <div>2. Share the folder with the platform's service account email (shown above when configured).</div>
-          <div>3. Copy the folder ID from the Drive URL and set it as ACCOUNTS_DRIVE_FOLDER_ID in Settings &gt; Environment.</div>
-          <div>4. Click "Scan and match" to find invoices that match reconcile queue items.</div>
+          <div>1. Add <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> in Settings &gt; Integrations (the same service account used for GA4, Search Console and Merchant Center).</div>
+          <div>2. Create a Google Drive folder for invoices and receipts.</div>
+          <div>3. Copy the service account email shown above and share the folder with it as <strong>Editor</strong>.</div>
+          <div>4. Paste the folder URL above and click Save.</div>
+          <div>5. Click "Scan and match" to find invoices that match reconcile queue items.</div>
         </div>
       </div>
     </div>
@@ -1718,9 +1789,9 @@ export function XeroPanel() {
       <div className="card" style={{ padding: 'var(--s4)' }}>
         <div className="h5" style={{ marginBottom: 'var(--s2)' }}>Setup</div>
         <div className="body-sm text-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-          <div>1. Create a Xero app at developer.xero.com and note the client ID and secret.</div>
+          <div>1. Create a Xero app at developer.xero.com (web app type) and note the client ID and secret.</div>
           <div>2. Set the redirect URI to your platform URL + <code>/api/accounts/xero/callback</code></div>
-          <div>3. Add the client ID, secret and redirect URI in Settings under Connections.</div>
+          <div>3. Scroll down and paste the client ID, secret and redirect URI into the fields below, then save.</div>
           <div>4. Click "Connect to Xero" above to authorise.</div>
         </div>
       </div>
