@@ -120,6 +120,7 @@ router.get('/xero/callback', async (req, res) => {
 router.get('/xero/status', async (req, res) => {
   try {
     const status = await xero.getConnectionStatus();
+    status.credentialsConfigured = !!(process.env.XERO_CLIENT_ID && process.env.XERO_CLIENT_SECRET && process.env.XERO_REDIRECT_URI);
     res.json(status);
   } catch (err) {
     res.status(500).json({ error: err.message });

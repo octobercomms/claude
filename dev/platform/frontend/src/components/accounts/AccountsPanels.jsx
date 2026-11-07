@@ -1784,10 +1784,15 @@ export function XeroPanel() {
             <div className="row center" style={{ gap: 'var(--s2)' }}>
               <span className="chip">Not connected</span>
             </div>
+            {status?.credentialsConfigured === false && (
+              <div className="callout callout-warning">
+                Xero credentials are not saved yet. Scroll down and fill in the client ID, secret and redirect URI, then click Save before connecting.
+              </div>
+            )}
             <div className="body-sm text-muted">
-              Connect your Xero account to enable automated reconciliation. You will need your Xero client ID and secret configured in Settings first.
+              Connect your Xero account to enable automated reconciliation.
             </div>
-            <button className="btn btn-primary" onClick={handleConnect} disabled={connecting} style={{ alignSelf: 'flex-start' }}>
+            <button className="btn btn-primary" onClick={handleConnect} disabled={connecting || status?.credentialsConfigured === false} style={{ alignSelf: 'flex-start' }}>
               {connecting ? 'Redirecting...' : 'Connect to Xero'}
             </button>
           </div>
@@ -1797,10 +1802,10 @@ export function XeroPanel() {
       <div className="card" style={{ padding: 'var(--s4)' }}>
         <div className="h5" style={{ marginBottom: 'var(--s2)' }}>Setup</div>
         <div className="body-sm text-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-          <div>1. Create a Xero app at developer.xero.com (web app type) and note the client ID and secret.</div>
-          <div>2. Set the redirect URI to your platform URL + <code>/api/accounts/xero/callback</code></div>
-          <div>3. Scroll down and paste the client ID, secret and redirect URI into the fields below, then save.</div>
-          <div>4. Click "Connect to Xero" above to authorise.</div>
+          <div>1. Create a Xero app at <a href="https://apps.developer.xero.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>developer.xero.com</a> (web app type) and note the client ID and secret.</div>
+          <div>2. Set the redirect URI in the Xero app to your platform URL + <code>/api/accounts/xero/callback</code></div>
+          <div>3. Scroll down and paste the client ID, secret and redirect URI into the credential fields below, then click Save.</div>
+          <div>4. Once saved, click "Connect to Xero" above to authorise.</div>
         </div>
       </div>
     </div>
