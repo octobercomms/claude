@@ -22,7 +22,7 @@ const SCOPES = [
   'accounting.settings.read',
   'accounting.contacts.read',
   'accounting.reports.read',
-  'accounting.transactions',
+  'accounting.banktransactions',
   'accounting.attachments',
 ].join(' ');
 
