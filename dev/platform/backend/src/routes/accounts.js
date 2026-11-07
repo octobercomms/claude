@@ -485,6 +485,53 @@ router.get('/vat/report/:year/:quarter', async (req, res) => {
   }
 });
 
+// --- Drive folder config (inline paste-the-URL) ---
+
+router.get('/drive-folder', async (req, res) => {
+  try {
+    const { getServiceAccountEmail } = require('../services/googleAuth');
+    const folderId = accounts.driveScanner.getFolderId();
+    res.json({
+      folderId: folderId || null,
+      serviceAccountEmail: getServiceAccountEmail() || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/drive-folder', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url || !String(url).trim()) {
+      return res.status(400).json({ error: 'url is required' });
+    }
+    const input = String(url).trim();
+    const folderIdRe = /\/folders\/([a-zA-Z0-9_-]+)/;
+    let folderId;
+    if (/^[a-zA-Z0-9_-]{20,}$/.test(input)) {
+      folderId = input;
+    } else {
+      const m = input.match(folderIdRe);
+      if (!m) return res.status(400).json({ error: 'Could not parse a folder ID from that URL' });
+      folderId = m[1];
+    }
+
+    const { encrypt } = require('../utils/encryption');
+    await db.query(
+      `INSERT INTO platform_settings (key, value, updated_at)
+       VALUES ('ACCOUNTS_DRIVE_FOLDER_ID', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(encrypt(folderId))]
+    );
+    process.env.ACCOUNTS_DRIVE_FOLDER_ID = folderId;
+
+    res.json({ folderId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Drive invoice scanner ---
 
 router.get('/drive/status', async (req, res) => {
