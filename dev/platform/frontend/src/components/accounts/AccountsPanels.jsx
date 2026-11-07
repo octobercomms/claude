@@ -1600,7 +1600,7 @@ export function DrivePanel() {
         </div>
       )}
 
-      {status?.configured && (
+      {serviceEmail && status?.configured && (
         <div className="card" style={{ padding: 'var(--s4)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
             <div className="row center" style={{ gap: 'var(--s3)' }}>
@@ -1622,7 +1622,7 @@ export function DrivePanel() {
         </div>
       )}
 
-      {scanResult && !scanResult.error && (
+      {serviceEmail && scanResult && !scanResult.error && (
         <StatStrip items={[
           { label: 'Scanned', value: scanResult.scanned },
           { label: 'Matched', value: scanResult.matched },
@@ -1630,7 +1630,7 @@ export function DrivePanel() {
         ]} />
       )}
 
-      {files.length > 0 && (
+      {serviceEmail && files.length > 0 && (
         <>
           <div className="h5">{files.length} invoice files in folder</div>
           <table className="table">
@@ -1668,11 +1668,19 @@ export function DrivePanel() {
       <div className="card" style={{ padding: 'var(--s4)' }}>
         <div className="h5" style={{ marginBottom: 'var(--s2)' }}>Setup</div>
         <div className="body-sm text-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-          <div>1. Add <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> in Settings &gt; Integrations (the same service account used for GA4, Search Console and Merchant Center).</div>
-          <div>2. Create a Google Drive folder for invoices and receipts.</div>
-          <div>3. Copy the service account email shown above and share the folder with it as <strong>Editor</strong>.</div>
-          <div>4. Paste the folder URL above and click Save.</div>
-          <div>5. Click "Scan and match" to find invoices that match reconcile queue items.</div>
+          {!serviceEmail ? (
+            <>
+              <div>1. Add <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> in Settings &gt; Integrations (the same service account used for GA4, Search Console and Merchant Center).</div>
+              <div>2. Return here. The remaining steps appear once the key is configured.</div>
+            </>
+          ) : (
+            <>
+              <div>1. Create a Google Drive folder for invoices and receipts.</div>
+              <div>2. Copy the service account email shown above and share the folder with it as <strong>Editor</strong>.</div>
+              <div>3. Paste the folder URL into the input above and click Save.</div>
+              <div>4. Click "Scan and match" to find invoices that match reconcile queue items.</div>
+            </>
+          )}
         </div>
       </div>
     </div>

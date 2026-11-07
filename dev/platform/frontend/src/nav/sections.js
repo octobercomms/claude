@@ -640,20 +640,20 @@ export function slugOf(row) {
   return row.slug || row.tab.replace(/_/g, '-');
 }
 
+// Explicit slug aliases for heading names or legacy URLs that have no row of
+// their own. Each maps a URL slug to the tab key it should resolve to.
+export const SLUG_ALIASES = {
+  connections: 'integrations',
+};
+
 // slug -> the key the page compares against. Unknown slugs answer null so the
 // caller can fall back to the section's default rather than render nothing.
-// A heading name also resolves to its first row, so /settings/connections
-// lands on AI rather than falling through to the default.
 export function tabForSlug(section, slug) {
   if (!section) return null;
+  const resolved = SLUG_ALIASES[slug] || slug;
   for (const g of section.groups) {
-    const row = g.rows.find(r => slugOf(r) === slug);
+    const row = g.rows.find(r => slugOf(r) === resolved);
     if (row) return row.tab;
-  }
-  for (const g of section.groups) {
-    if (g.heading && g.heading.toLowerCase().replace(/\s+/g, '-') === slug && g.rows.length) {
-      return g.rows[0].tab;
-    }
   }
   return null;
 }
