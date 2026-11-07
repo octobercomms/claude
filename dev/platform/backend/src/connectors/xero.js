@@ -48,7 +48,18 @@ async function getValidToken() {
     return { accessToken: decrypt(conn.access_token), tenantId: conn.tenant_id };
   }
 
-  return refreshToken(conn);
+  console.log('[Xero] Access token expired (was %s), refreshing...', expiresAt.toISOString());
+  try {
+    const token = await refreshToken(conn);
+    console.log('[Xero] Token refreshed successfully');
+    return token;
+  } catch (err) {
+    console.error('[Xero] Token refresh failed:', err.message);
+    if (err.response) {
+      console.error('[Xero] Xero responded %d: %s', err.response.status, JSON.stringify(err.response.data));
+    }
+    throw new Error(`Xero token refresh failed: ${err.message}. Reconnect via Settings > Accounts > Xero.`);
+  }
 }
 
 async function refreshToken(conn) {
@@ -60,6 +71,9 @@ async function refreshToken(conn) {
 
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   const currentRefresh = decrypt(conn.refresh_token);
+  if (!currentRefresh) {
+    throw new Error('Could not decrypt stored refresh token. The encryption key may have changed since the connection was made.');
+  }
 
   const res = await axios.post(
     TOKEN_URL,
@@ -77,6 +91,9 @@ async function refreshToken(conn) {
   );
 
   const { access_token, refresh_token, expires_in } = res.data;
+  if (!access_token || !refresh_token) {
+    throw new Error('Xero returned empty tokens in refresh response');
+  }
 
   await db.query(
     `UPDATE xero_connections
@@ -93,6 +110,56 @@ async function refreshToken(conn) {
   );
 
   return { accessToken: access_token, tenantId: conn.tenant_id };
+}
+
+async function testConnection() {
+  const conn = await getConnection();
+  if (!conn) return { ok: false, error: 'No Xero connection stored' };
+
+  const now = new Date();
+  const expiresAt = new Date(conn.expires_at);
+  const expired = now.getTime() >= expiresAt.getTime();
+  const status = {
+    tenantName: conn.tenant_name,
+    tenantId: conn.tenant_id,
+    expiresAt: conn.expires_at,
+    expired,
+    hasClientId: !!process.env.XERO_CLIENT_ID,
+    hasClientSecret: !!process.env.XERO_CLIENT_SECRET,
+  };
+
+  try {
+    const decryptedRefresh = decrypt(conn.refresh_token);
+    status.refreshTokenDecrypts = !!decryptedRefresh;
+  } catch (err) {
+    status.refreshTokenDecrypts = false;
+    status.decryptError = err.message;
+  }
+
+  if (!expired) {
+    try {
+      const decryptedAccess = decrypt(conn.access_token);
+      status.accessTokenDecrypts = !!decryptedAccess;
+    } catch (err) {
+      status.accessTokenDecrypts = false;
+      status.decryptError = err.message;
+    }
+  }
+
+  if (expired && status.refreshTokenDecrypts && status.hasClientId && status.hasClientSecret) {
+    try {
+      await getValidToken();
+      status.refreshed = true;
+      const updated = await getConnection();
+      status.newExpiresAt = updated.expires_at;
+    } catch (err) {
+      status.refreshed = false;
+      status.refreshError = err.message;
+    }
+  }
+
+  status.ok = !expired || status.refreshed === true;
+  return status;
 }
 
 function headers(accessToken, tenantId) {
@@ -313,4 +380,5 @@ module.exports = {
   getProfitAndLoss,
   getBalanceSheet,
   getConnectionStatus,
+  testConnection,
 };
