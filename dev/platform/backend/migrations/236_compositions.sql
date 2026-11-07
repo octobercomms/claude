@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS compositions (
   id            SERIAL PRIMARY KEY,
   client_id     UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  created_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
   title         TEXT NOT NULL DEFAULT 'Untitled',
   data          JSONB NOT NULL DEFAULT '{}'::jsonb,
   source_assets JSONB NOT NULL DEFAULT '{}'::jsonb,
