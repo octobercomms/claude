@@ -12,6 +12,7 @@ const { FFMPEG, FFPROBE } = require('../services/ffmpegBin');
 const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('../services/costLog');
 const { whisperWords } = require('../services/whisper');
+const db = require('../db');
 
 const { pathToFileURL } = require('url');
 const multer = require('multer');
@@ -374,16 +375,55 @@ async function renderMod() {
   return _renderMod;
 }
 
-/** In-memory render state, keyed by composition id. */
-const renderJobs = new Map();
-
-/**
- * Parse an ffmpeg `time=HH:MM:SS.ms` progress stamp into seconds.
- */
 function parseFFmpegTime(str) {
   const m = str.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
   if (!m) return null;
   return parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3]);
+}
+
+// ── Render queue: one ffmpeg at a time, state persisted to DB ──────
+
+let _activeRender = null;
+const _renderQueue = [];
+
+async function getRenderJob(compositionId) {
+  const { rows } = await db.query(
+    `SELECT * FROM composition_renders WHERE composition_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [compositionId]
+  );
+  return rows[0] || null;
+}
+
+async function createRenderJob(compositionId) {
+  const { rows } = await db.query(
+    `INSERT INTO composition_renders (composition_id, status) VALUES ($1, 'queued') RETURNING *`,
+    [compositionId]
+  );
+  return rows[0];
+}
+
+async function updateRenderJob(id, updates) {
+  const sets = [];
+  const vals = [];
+  let i = 1;
+  for (const [k, v] of Object.entries(updates)) {
+    sets.push(`${k} = $${i}`);
+    vals.push(v);
+    i++;
+  }
+  sets.push('updated_at = now()');
+  vals.push(id);
+  await db.query(
+    `UPDATE composition_renders SET ${sets.join(', ')} WHERE id = $${i}`,
+    vals
+  );
+}
+
+function processQueue() {
+  if (_activeRender || !_renderQueue.length) return;
+  const next = _renderQueue.shift();
+  _activeRender = next.jobId;
+  next.start();
 }
 
 router.post('/compositions/:id/render', loadComposition, async (req, res) => {
@@ -397,7 +437,6 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
       return res.status(400).json({ error: 'Composition has no timeline data.' });
     }
 
-    // Resolve source asset paths
     const sourceAssets = comp.source_assets || {};
     const sourcePaths = {};
     for (const [sourceId, assetId] of Object.entries(sourceAssets)) {
@@ -407,7 +446,6 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
       if (fp) sourcePaths[sourceId] = fp;
     }
 
-    // Build the render graph
     const rm = await renderMod();
     const graph = rm.renderGraph(data, { sourcePaths });
 
@@ -415,7 +453,6 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
       return res.status(400).json({ error: 'No resolvable sources in the composition.' });
     }
 
-    // Resolve input paths in order
     const resolvedPaths = [];
     for (const inp of graph.inputs) {
       const p = sourcePaths[inp.sourceId];
@@ -425,101 +462,125 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
       resolvedPaths.push(p);
     }
 
-    // Prepare output path
     const outDir = path.join(UPLOAD_ROOT, String(clientId));
     fs.mkdirSync(outDir, { recursive: true });
     const timestamp = Date.now();
     const outputPath = path.join(outDir, `render-${compId}-${timestamp}.mp4`);
-
-    // Build ffmpeg args
     const args = rm.ffmpegArgs(graph, resolvedPaths, outputPath);
 
-    // Mark the job as rendering
-    renderJobs.set(compId, { status: 'rendering', progress: 0, outputPath, error: null });
+    const job = await createRenderJob(compId);
 
-    // Spawn ffmpeg in the background
-    const ff = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    let stderr = '';
+    function startRender() {
+      updateRenderJob(job.id, { status: 'rendering', started_at: new Date().toISOString(), output_path: outputPath }).catch(() => {});
 
-    ff.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-      // Parse latest time= from ffmpeg stderr for progress
-      const lines = stderr.split('\r');
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const t = parseFFmpegTime(lines[i]);
-        if (t != null && graph.duration > 0) {
-          const pct = Math.min(100, Math.round((t / graph.duration) * 100));
-          const job = renderJobs.get(compId);
-          if (job && job.status === 'rendering') job.progress = pct;
-          break;
+      const ff = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+      let stderr = '';
+      let lastProgressWrite = 0;
+
+      ff.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+        const lines = stderr.split('\r');
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const t = parseFFmpegTime(lines[i]);
+          if (t != null && graph.duration > 0) {
+            const pct = Math.min(100, Math.round((t / graph.duration) * 100));
+            const now = Date.now();
+            if (now - lastProgressWrite > 5000) {
+              lastProgressWrite = now;
+              updateRenderJob(job.id, { progress: pct }).catch(() => {});
+            }
+            break;
+          }
         }
-      }
-    });
-
-    ff.on('error', (err) => {
-      console.error('[compose] render spawn error:', err.message);
-      renderJobs.set(compId, { status: 'failed', progress: 0, outputPath: null, error: err.message });
-    });
-
-    ff.on('close', async (code) => {
-      if (code !== 0) {
-        // Extract the last few lines of stderr for the error message
-        const tail = stderr.split('\n').slice(-5).join('\n').trim();
-        console.error(`[compose] render failed (exit ${code}):`, tail);
-        renderJobs.set(compId, { status: 'failed', progress: 0, outputPath: null, error: tail || `ffmpeg exited ${code}` });
-        return;
-      }
-
-      // Record the output as an asset
-      const outputFilename = path.basename(outputPath);
-      const stat = fs.statSync(outputPath);
-      assets.record({
-        client_id: clientId,
-        source: 'scene_render',
-        source_id: `render-${compId}-${timestamp}`,
-        title: (comp.title || 'Composition') + ' (render)',
-        url: `/api/brand/file/${clientId}/${outputFilename}`,
-        mime: 'video/mp4',
-        bytes: stat.size,
-        created_by: req.user?.id || null,
-        duration_s: graph.duration || null,
-        metadata: { composition_id: compId, rendered_at: new Date().toISOString() },
-      }).catch(() => {});
-
-      renderJobs.set(compId, {
-        status: 'done',
-        progress: 100,
-        outputPath,
-        outputUrl: `/api/brand/file/${clientId}/${outputFilename}`,
-        error: null,
       });
-    });
 
-    res.json({ status: 'rendering' });
+      ff.on('error', (err) => {
+        console.error('[compose] render spawn error:', err.message);
+        updateRenderJob(job.id, { status: 'failed', error: err.message, finished_at: new Date().toISOString() }).catch(() => {});
+        _activeRender = null;
+        processQueue();
+      });
+
+      ff.on('close', async (code) => {
+        if (code !== 0) {
+          const tail = stderr.split('\n').slice(-5).join('\n').trim();
+          console.error(`[compose] render failed (exit ${code}):`, tail);
+          await updateRenderJob(job.id, { status: 'failed', error: tail || `ffmpeg exited ${code}`, finished_at: new Date().toISOString() }).catch(() => {});
+          _activeRender = null;
+          processQueue();
+          return;
+        }
+
+        const outputFilename = path.basename(outputPath);
+        const stat = fs.statSync(outputPath);
+        const outputUrl = `/api/brand/file/${clientId}/${outputFilename}`;
+
+        assets.record({
+          client_id: clientId,
+          source: 'scene_render',
+          source_id: `render-${compId}-${timestamp}`,
+          title: (comp.title || 'Composition') + ' (render)',
+          url: outputUrl,
+          mime: 'video/mp4',
+          bytes: stat.size,
+          created_by: req.user?.id || null,
+          duration_s: graph.duration || null,
+          metadata: { composition_id: compId, rendered_at: new Date().toISOString() },
+        }).catch(() => {});
+
+        await updateRenderJob(job.id, {
+          status: 'done', progress: 100,
+          output_path: outputPath, output_url: outputUrl,
+          finished_at: new Date().toISOString(),
+        }).catch(() => {});
+
+        _activeRender = null;
+        processQueue();
+      });
+    }
+
+    if (_activeRender) {
+      _renderQueue.push({ jobId: job.id, start: startRender });
+      res.json({ status: 'queued', position: _renderQueue.length });
+    } else {
+      _activeRender = job.id;
+      startRender();
+      res.json({ status: 'rendering' });
+    }
   } catch (err) {
     console.error('[compose] render start failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/compositions/:id/render-status', loadComposition, (req, res) => {
-  const job = renderJobs.get(req.composition.id);
-  if (!job) return res.json({ status: 'none' });
-  const out = { status: job.status, progress: job.progress };
-  if (job.status === 'done' && job.outputUrl) out.outputUrl = job.outputUrl;
-  if (job.status === 'failed' && job.error) out.error = job.error;
-  res.json(out);
+router.get('/compositions/:id/render-status', loadComposition, async (req, res) => {
+  try {
+    const compId = req.composition.id;
+    const job = await getRenderJob(compId);
+    if (!job) return res.json({ status: 'none' });
+
+    const out = { status: job.status, progress: job.progress };
+    if (job.status === 'queued') {
+      const pos = _renderQueue.findIndex(q => q.jobId === job.id);
+      if (pos >= 0) out.position = pos + 1;
+    }
+    if (job.status === 'done' && job.output_url) out.outputUrl = job.output_url;
+    if (job.status === 'failed' && job.error) out.error = job.error;
+    res.json(out);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/compositions/:id/render-download', loadComposition, (req, res) => {
-  const job = renderJobs.get(req.composition.id);
-  if (!job || job.status !== 'done' || !job.outputPath) {
-    return res.status(404).json({ error: 'No completed render available.' });
-  }
-  if (!fs.existsSync(job.outputPath)) {
-    return res.status(404).json({ error: 'Rendered file no longer on disk.' });
-  }
-  res.download(job.outputPath);
+router.get('/compositions/:id/render-download', loadComposition, async (req, res) => {
+  try {
+    const job = await getRenderJob(req.composition.id);
+    if (!job || job.status !== 'done' || !job.output_path) {
+      return res.status(404).json({ error: 'No completed render available.' });
+    }
+    if (!fs.existsSync(job.output_path)) {
+      return res.status(404).json({ error: 'Rendered file no longer on disk.' });
+    }
+    res.download(job.output_path);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Design pages available as composition sources ─────────────────
@@ -550,5 +611,3 @@ router.get('/caption-templates', (req, res) => {
 });
 
 module.exports = router;
-module.exports._renderJobs = renderJobs;
-module.exports._parseFFmpegTime = parseFFmpegTime;
