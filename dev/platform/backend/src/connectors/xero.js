@@ -230,38 +230,40 @@ async function getBankAccounts(token) {
 }
 
 async function getBankStatementLines(token, bankAccountId, opts = {}) {
-  const params = {};
-  if (opts.since) params.where = `Date >= DateTime(${formatXeroDate(opts.since)})`;
-  if (opts.page) params.page = opts.page;
+  const whereClauses = [
+    'IsReconciled==false',
+    'Status=="AUTHORISED"',
+    `BankAccount.AccountID==guid("${bankAccountId}")`,
+  ];
+  if (opts.since) {
+    whereClauses.push(`Date >= DateTime(${formatXeroDate(opts.since)})`);
+  }
 
   const data = await xeroGet(
     `/BankTransactions`,
     token,
     {
-      ...params,
-      where: [
-        'IsReconciled==false',
-        `BankAccount.AccountID=guid("${bankAccountId}")`,
-        opts.since ? `Date >= DateTime(${formatXeroDate(opts.since)})` : null,
-      ].filter(Boolean).join(' AND '),
+      where: whereClauses.join(' AND '),
       page: opts.page || 1,
       order: 'Date DESC',
     }
   );
 
-  return (data.BankTransactions || []).map(tx => ({
-    lineRef: tx.BankTransactionID,
-    date: tx.Date,
-    amount: tx.Total,
-    currency: tx.CurrencyCode,
-    description: tx.Contact ? tx.Contact.Name : (tx.Reference || ''),
-    payee: tx.Contact ? tx.Contact.Name : '',
-    reference: tx.Reference || '',
-    bankAccountId: bankAccountId,
-    type: tx.Type,
-    lineItems: tx.LineItems || [],
-    raw: tx,
-  }));
+  return (data.BankTransactions || [])
+    .filter(tx => tx.IsReconciled !== true)
+    .map(tx => ({
+      lineRef: tx.BankTransactionID,
+      date: tx.Date,
+      amount: tx.Total,
+      currency: tx.CurrencyCode,
+      description: tx.Contact ? tx.Contact.Name : (tx.Reference || ''),
+      payee: tx.Contact ? tx.Contact.Name : '',
+      reference: tx.Reference || '',
+      bankAccountId: bankAccountId,
+      type: tx.Type,
+      lineItems: tx.LineItems || [],
+      raw: tx,
+    }));
 }
 
 async function getChartOfAccounts(token) {
