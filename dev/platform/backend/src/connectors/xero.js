@@ -231,7 +231,6 @@ async function getBankAccounts(token) {
 
 async function getBankStatementLines(token, bankAccountId, opts = {}) {
   const whereClauses = [
-    'IsReconciled==false',
     'Status=="AUTHORISED"',
     `BankAccount.AccountID==guid("${bankAccountId}")`,
   ];
