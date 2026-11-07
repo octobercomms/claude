@@ -293,6 +293,30 @@ export const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Google Service Account',
+    category: 'Platform',
+    hint: 'The platform-wide service account key. Powers durable (never-expiring) auth for GA4, Search Console, Merchant Center and the Accounts Drive scanner. Download the JSON key file from console.cloud.google.com (IAM > Service Accounts > Keys) and paste its full contents here.',
+    keys: [
+      { key: 'GOOGLE_SERVICE_ACCOUNT_JSON', label: 'Service Account Key (JSON)', placeholder: '{"type":"service_account","project_id":"…","private_key":"…", …}', type: 'textarea' },
+    ],
+  },
+  {
+    title: 'Google Ads Manager Auth',
+    category: 'Platform',
+    hint: 'A one-time OAuth refresh token for your Google Ads manager (MCC) account. Powers the durable Ads auth path (Google Ads cannot use the service account). Obtain it by authorising the MCC account once; the platform refreshes it automatically.',
+    keys: [
+      { key: 'GOOGLE_ADS_MANAGER_REFRESH_TOKEN', label: 'MCC Refresh Token', placeholder: '1//0e… (from the one-time OAuth flow)', type: 'password' },
+    ],
+  },
+  {
+    title: 'Shopify Forward Secret',
+    category: 'Platform',
+    hint: 'Shared HMAC secret the Shopify app signs its forwarded webhooks with. Generate any long random string and set the same value in the Shopify app\'s environment. Without it the platform rejects inbound Shopify webhooks.',
+    keys: [
+      { key: 'OMI_FORWARD_SECRET', label: 'Forward Secret', placeholder: 'A long random string, same in the Shopify app env', type: 'password' },
+    ],
+  },
+  {
     title: 'n8n Integration',
     category: 'Integrations',
     hint: 'Set your n8n instance URL to enable webhook-triggered data pulls.',
@@ -361,6 +385,7 @@ export const KEY_GROUPS = [
 
 // Top-level categories displayed as collapsible cards in a responsive grid.
 export const CATEGORIES = [
+  { title: 'Platform', description: 'Shared keys that multiple connectors depend on: the Google service account, the Ads MCC token and the Shopify webhook secret.' },
   { title: 'AI', description: 'The models OMI sends text to — Claude, DeepSeek, and OpenAI for transcription.' },
   { title: 'Generation', description: 'The services that make something: images, video, avatar reels and voiceover.' },
   { title: 'Email', description: 'Email transport for reports and outreach — Gmail or Amazon SES.', hasTestEmail: true },
@@ -391,7 +416,7 @@ export const SUBTAB_CATS = {
   seo: ['SEO'],
   outreach: ['Outreach'],
   scraping: ['Scraping'],
-  integrations: ['Integrations'],
+  integrations: ['Platform', 'Integrations'],
   reports: ['Reports'],
   alerts: ['Alerts'],
   xero: ['Accounts'],
