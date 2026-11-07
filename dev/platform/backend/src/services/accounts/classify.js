@@ -9,7 +9,7 @@ const { recordClaudeCost } = require('../costLog');
 const MODEL = 'claude-sonnet-4-6';
 
 function getClient() {
-  return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY, timeout: 60_000 });
 }
 
 const SYSTEM = `You are a UK bookkeeper classifying bank statement lines for a UK limited company (VAT registered, accruals basis). The company is a marketing agency (October Communications) that operates in GBP, USD, EUR and CAD.

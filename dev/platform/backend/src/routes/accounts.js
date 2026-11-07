@@ -138,15 +138,26 @@ router.post('/xero/disconnect', async (req, res) => {
 
 // --- Sync (manual trigger) ---
 
+const SYNC_TIMEOUT_MS = 90_000;
+
 router.post('/sync', async (req, res) => {
+  const timer = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('[accounts] Sync timed out after 90s');
+      res.status(504).json({ error: 'Sync timed out. Xero or the classification service may be slow to respond. Try again in a minute.' });
+    }
+  }, SYNC_TIMEOUT_MS);
+
   try {
     const result = await accounts.reconcile.pullAndClassify({
       since: req.body.since || undefined,
     });
-    res.json(result);
+    clearTimeout(timer);
+    if (!res.headersSent) res.json(result);
   } catch (err) {
+    clearTimeout(timer);
     console.error('[accounts] Sync error:', err.message);
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 

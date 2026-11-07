@@ -72,6 +72,7 @@ async function refreshToken(conn) {
         Authorization: `Basic ${basic}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
+      timeout: XERO_TIMEOUT_MS,
     }
   );
 
@@ -102,6 +103,8 @@ function headers(accessToken, tenantId) {
   };
 }
 
+const XERO_TIMEOUT_MS = 30_000;
+
 // Rate-limit aware request. Xero allows 60 calls/minute on most endpoints.
 // On 429, wait and retry once.
 async function xeroGet(path, token, params = {}) {
@@ -110,6 +113,7 @@ async function xeroGet(path, token, params = {}) {
     const res = await axios.get(`${API}${path}`, {
       headers: headers(accessToken, tenantId),
       params,
+      timeout: XERO_TIMEOUT_MS,
     });
     return res.data;
   } catch (err) {
@@ -119,6 +123,7 @@ async function xeroGet(path, token, params = {}) {
       const res = await axios.get(`${API}${path}`, {
         headers: headers(accessToken, tenantId),
         params,
+        timeout: XERO_TIMEOUT_MS,
       });
       return res.data;
     }
@@ -130,6 +135,7 @@ async function xeroPost(path, token, body) {
   const { accessToken, tenantId } = token;
   const res = await axios.post(`${API}${path}`, body, {
     headers: { ...headers(accessToken, tenantId), 'Content-Type': 'application/json' },
+    timeout: XERO_TIMEOUT_MS,
   });
   return res.data;
 }
@@ -137,7 +143,7 @@ async function xeroPost(path, token, body) {
 async function xeroPut(path, token, body, contentType = 'application/json') {
   const { accessToken, tenantId } = token;
   const hdrs = { ...headers(accessToken, tenantId), 'Content-Type': contentType };
-  const res = await axios.put(`${API}${path}`, body, { headers: hdrs });
+  const res = await axios.put(`${API}${path}`, body, { headers: hdrs, timeout: XERO_TIMEOUT_MS });
   return res.data;
 }
 
