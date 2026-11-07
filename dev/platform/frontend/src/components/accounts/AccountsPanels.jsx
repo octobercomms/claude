@@ -832,6 +832,7 @@ export function DeadlinesPanel() {
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [seedYear, setSeedYear] = useState(new Date().getFullYear());
   const [editingId, setEditingId] = useState(null);
   const [editStatus, setEditStatus] = useState('');
   const [editNotes, setEditNotes] = useState('');
@@ -851,8 +852,8 @@ export function DeadlinesPanel() {
     roWrite(readOnly, async () => {
       setSeeding(true);
       try {
-        const r = await api.post('/accounts/deadlines/seed');
-        toast(`Seeded ${r.seeded} deadlines`);
+        const r = await api.post('/accounts/deadlines/seed', { year: seedYear });
+        toast(`Seeded ${r.seeded} deadlines for ${seedYear}`);
         load();
       } catch (e) { toast(e.message, 'error'); }
       finally { setSeeding(false); }
@@ -896,14 +897,22 @@ export function DeadlinesPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       <div className="row between center">
         <div className="h4">Tax deadlines</div>
-        <button className="btn" onClick={handleSeed} disabled={seeding}>
-          {seeding ? 'Seeding...' : 'Seed UK deadlines'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+          <select className="input" value={seedYear} onChange={e => setSeedYear(Number(e.target.value))} style={{ width: 90 }}>
+            {[...Array(5)].map((_, i) => {
+              const y = new Date().getFullYear() - 1 + i;
+              return <option key={y} value={y}>{y}</option>;
+            })}
+          </select>
+          <button className="btn" onClick={handleSeed} disabled={seeding}>
+            {seeding ? 'Seeding...' : 'Seed deadlines'}
+          </button>
+        </div>
       </div>
 
       {deadlines.length === 0 ? (
         <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
-          <div className="text-muted">No deadlines set. Use "Seed UK deadlines" to populate the standard VAT, CT600 and PAYE dates.</div>
+          <div className="text-muted">No deadlines set. Use "Seed deadlines" to populate VAT, CT600, PAYE and pension contribution dates for a given year.</div>
         </div>
       ) : (
         <table className="table">

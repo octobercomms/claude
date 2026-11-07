@@ -3866,7 +3866,7 @@ rules engine first, Claude AI for unknowns.
 
 | Layer | Files |
 |-------|-------|
-| Migration | `backend/migrations/238_accounts_module.sql` (9 tables), `239_accounts_task_budget.sql` |
+| Migration | `backend/migrations/238_accounts_module.sql` (9 tables), `239_accounts_task_budget.sql`, `240_pension_deadlines.sql` |
 | Xero connector | `backend/src/connectors/xero.js` (OAuth2, encrypted tokens, rate-limit retry) |
 | Services | `backend/src/services/accounts/` (rules, classify, reconcile, invoices, deadlines, digest, vatPack, driveScanner, fxTracker) |
 | Routes | `backend/src/routes/accounts.js` |
@@ -3882,7 +3882,7 @@ rules engine first, Claude AI for unknowns.
 - `acct_confirmations` is the audit trail for every confirmed line
 - `acct_vat_exceptions` flags suspicious VAT treatments for review
 - `acct_invoice_matches` links Google Drive files to queue items
-- `acct_tax_deadlines` tracks VAT, CT600, PAYE filing dates
+- `acct_tax_deadlines` tracks VAT, CT600, PAYE, PENSION filing dates
 - `acct_fx_events` tracks FX gain/loss on non-GBP invoices
 - `acct_digests` stores weekly summary snapshots
 
@@ -3956,3 +3956,13 @@ in the Settings UI. The Xero group also includes `XERO_REDIRECT_URI`.
   accounts routes (admin-only).
 - Deadline alerts send to `ACCOUNTS_DIGEST_EMAIL` or `ALERT_EMAIL`. If neither
   is set, the alert silently skips rather than throwing.
+- Migration 240 adds `PENSION` to the `acct_tax_deadlines.tax_type` CHECK
+  constraint. The seed function generates 12 monthly pension deadlines (22nd
+  of the following month, same as PAYE) alongside VAT, CT600, and PAYE.
+- The seed route accepts an optional `{ year }` body param to seed deadlines
+  for a specific calendar year. The frontend year selector defaults to the
+  current year.
+- NEST Pensions has an employer API but it is designed for payroll software
+  (contribution submissions, worker enrolment). Direct integration would mean
+  building a mini payroll connector. For now, OMI tracks NEST deadlines only.
+  Revisit if automated contribution submission becomes worthwhile.

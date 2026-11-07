@@ -51,6 +51,18 @@ function generateDeadlines(yearEnd) {
     });
   }
 
+  // Workplace pension (NEST): monthly contributions due by 22nd of
+  // the following month for electronic payment (same schedule as PAYE).
+  for (let m = 0; m < 12; m++) {
+    const monthStart = new Date(year, m, 1);
+    const due = new Date(year, m + 1, 22);
+    deadlines.push({
+      taxType: 'PENSION',
+      periodLabel: `Pension ${monthStart.toLocaleString('en-GB', { month: 'short', year: 'numeric' })}`,
+      dueDate: due.toISOString().split('T')[0],
+    });
+  }
+
   return deadlines;
 }
 
@@ -73,6 +85,11 @@ async function seedDeadlines(yearEnd) {
     if (rowCount) inserted++;
   }
   return inserted;
+}
+
+async function seedForYear(calendarYear) {
+  const ye = new Date(calendarYear, 2, 31);
+  return seedDeadlines(ye);
 }
 
 async function getUpcoming(days = 90) {
@@ -156,6 +173,7 @@ ${lines.join('\n')}
 module.exports = {
   generateDeadlines,
   seedDeadlines,
+  seedForYear,
   getUpcoming,
   getAll,
   updateDeadline,
