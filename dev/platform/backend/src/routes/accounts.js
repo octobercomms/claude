@@ -127,6 +127,16 @@ router.get('/xero/status', async (req, res) => {
   }
 });
 
+router.get('/xero/test', async (req, res) => {
+  try {
+    const result = await xero.testConnection();
+    res.json(result);
+  } catch (err) {
+    console.error('[accounts] Xero test error:', err.message, err.stack);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/xero/disconnect', async (req, res) => {
   try {
     await db.query('DELETE FROM xero_connections');
