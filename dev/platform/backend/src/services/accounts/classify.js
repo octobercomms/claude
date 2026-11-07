@@ -121,7 +121,7 @@ async function classifyBatchLines(lines, chartOfAccounts) {
   });
 
   recordClaudeCost({
-    feature: 'accounts_classify_batch',
+    feature: 'accounts_classify',
     model: MODEL,
     inputTokens: res.usage.input_tokens,
     outputTokens: res.usage.output_tokens,
