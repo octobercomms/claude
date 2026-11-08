@@ -267,6 +267,10 @@ jobs:
         run: node tests/reel-checks.test.js
       - name: Guard — a tightened edit keeps no sliver too short to watch
         run: node tests/silence-cut.test.js
+      # Word timings alone cannot tell dead air from a cough, a door or room
+      # tone, and cutting one of those removes a sound the viewer heard.
+      - name: Guard — a gap is only cut when the audio agrees it is empty
+        run: node tests/silence-cut-audio.test.js
       - name: Guard — the reel checks are never scored on a mixture of rule sets
         run: node tests/reel-outcomes.test.js
       - name: Guard — every scene template renders as long as it promised
