@@ -607,9 +607,40 @@ four sit under it.
 
 Two of these change what gets built. Do not guess at them.
 
-### 1. The image-to-video question (decide before step 2)
+### 1. The image-to-video question — ANSWERED 8 November: Path B
 
-The cost model for thirty videos is dominated almost entirely by fal
+**Deterministic camera moves. No new pixels invented. No hosted
+image-to-video in the batch.** Daniel's call, and it settles more than the
+cost line:
+
+- **No third-party generative API in the critical path** of an unattended
+  fortnightly run. That was the real argument, not the money.
+- **A fortnight of thirty videos costs about £2** rather than £29 to £67,
+  so the spend question stops being a question.
+- **Nothing in the batch can fail at a vendor.** A camera move renders in the
+  same `filter_complex` as everything else, in under a second, identically
+  every time.
+- **It makes the transform fields load-bearing rather than cosmetic.** A
+  deterministic move IS an animated `scale` and `pos`, so step 2 is now the
+  thing the whole batch's motion rests on, not a nicety shared with the
+  mockup's inspector. Build it accordingly.
+- **The geometry argument is why this is the right answer for these
+  clients.** Image-to-video models are trained mostly on people and general
+  scenes; on an interior or a façade the common failure is a bowed window
+  frame or a drifting reveal line. On a photograph of a person nobody
+  notices. On architecture the eye knows what straight looks like, so it
+  reads as cheap in exactly the register the clients pay for.
+
+`services/stillsReel.js` keeps its six motion presets as the vocabulary for
+the deterministic moves (push-in, drift, reveal, orbit, rise, subtle). Its
+fal price table and i2v call path are no longer needed by this plan; leave
+them until something else wants them rather than deleting a working
+integration on the way past.
+
+The material below is kept as the record of what the decision was made
+against, not as an open question.
+
+The cost model for thirty videos was dominated almost entirely by fal
 image-to-video: $36 to $81 USD of a $37 to $85 total, at $0.20 to $0.45 per
 animated still.
 
