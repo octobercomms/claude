@@ -67,6 +67,14 @@ async function matchInvoicesToQueue(driveFiles) {
   return { matched, missing };
 }
 
+function extractSupplierFromPath(folderPath) {
+  if (!folderPath) return null;
+  const parts = folderPath.split('/');
+  if (parts.length < 2) return null;
+  const name = parts[1].trim();
+  return name.length >= 2 ? name.toLowerCase() : null;
+}
+
 function findBestMatch(queueItem, driveFiles) {
   const payee = (queueItem.payee || '').toLowerCase();
   const amount = Math.abs(parseFloat(queueItem.amount) || 0);
@@ -78,6 +86,13 @@ function findBestMatch(queueItem, driveFiles) {
   for (const file of driveFiles) {
     const name = (file.name || '').toLowerCase();
     let score = 0;
+
+    // Folder path names the supplier. A file in "2024-2025/Adobe" matching
+    // a payee containing "adobe" is a strong prior before any filename parsing.
+    const folderSupplier = extractSupplierFromPath(file.folderPath);
+    if (folderSupplier && payee.includes(folderSupplier)) {
+      score += 0.4;
+    }
 
     // Amount in filename is a strong signal.
     if (name.includes(amountStr) || name.includes(amount.toFixed(0))) {
