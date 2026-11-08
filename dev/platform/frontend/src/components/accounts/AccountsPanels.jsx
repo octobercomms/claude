@@ -2319,7 +2319,7 @@ export function SuppliersPanel() {
       usual_currency: supplier.usual_currency || 'GBP',
       expected_cadence: supplier.expected_cadence || '',
       invoice_source: supplier.invoice_source || 'unknown',
-      auto_code: supplier.auto_code !== false,
+      auto_code: supplier.auto_code === true,
       notes: supplier.notes || '',
     } : { ...BLANK });
   }
