@@ -296,6 +296,23 @@ const server = app.listen(PORT, async () => {
   }
   require('./services/scheduler');
   require('./services/users').seedAdminIfMissing().catch(err => console.error('Admin seed failed:', err.message));
+
+  // Pick the render queue back up.
+  //
+  // A restart is the common case rather than the rare one: pm2 restarts this
+  // process at 1GB and a deploy restarts it deliberately. Renders this
+  // instance was holding are at 'rendering' with a claim naming a process
+  // that no longer exists, and anything queued behind them is waiting for a
+  // drainer that died. Before this, that was the end of them — the queue was
+  // an array of closures in routes/compose.js, so nothing could resume a
+  // render and nothing ever selected a 'queued' row. A deploy mid-batch
+  // abandoned the rest of the batch while its rows went on reading 'queued'.
+  //
+  // `start` hands back this worker's own claims at once rather than waiting
+  // out the lease, begins reaping rows whose runner died without reporting,
+  // and drains whatever is waiting.
+  require('./services/compositionRenderRunner').start()
+    .catch(err => console.error('[render] could not start the render queue:', err.message));
 });
 
 module.exports = server;

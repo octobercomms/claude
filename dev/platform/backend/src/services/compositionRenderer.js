@@ -40,15 +40,35 @@ async function captionCompiler() {
 // ── Asset resolution ─────────────────────────────────────────────────
 
 /**
- * Resolve an asset's URL to a file path on disk, matching the pattern
- * used throughout compose.js. Returns null when the file cannot be found.
+ * Resolve an asset's URL to a file path on disk. Null when it cannot be.
+ *
+ * `([^/]+)` for the client segment, not `(\d+)`. **A client id is a UUID**, so
+ * the digits-only pattern this used matched nothing a real asset has ever
+ * carried, and `assetFilePath` returned null for every asset in the system.
+ * Every composition render therefore answered `Source "sX" has no file on
+ * disk.` — the editor's Export has never resolved a single file. Nothing
+ * caught it because the render guards all work on the graph, which is built
+ * from paths rather than from assets, and the pixel tests hand the graph file
+ * paths directly.
+ *
+ * TWO traversal guards, because they catch different things and each one
+ * alone leaves the other open. The original checked only UPLOAD_ROOT, which
+ * lets a filename climb out of one client's folder and into another's work.
+ * Checking only the client folder — which is what
+ * `generatedMedia.localPathFor` and `adResize.diskPathForOutput` do — lets the
+ * CLIENT segment climb instead: `/api/brand/file/../x` resolves a base
+ * outside uploads entirely, and `x` sits happily inside it. Swapping one for
+ * the other is a trade, not a fix, so both are here.
  */
 function assetFilePath(asset) {
-  if (!asset?.url) return null;
-  const m = asset.url.match(/^\/api\/brand\/file\/(\d+)\/(.+)$/);
+  const m = String(asset?.url || '').match(/^\/api\/brand\/file\/([^/]+)\/([^/]+)$/);
   if (!m) return null;
-  const filePath = path.join(UPLOAD_ROOT, m[1], m[2]);
-  if (!filePath.startsWith(UPLOAD_ROOT + path.sep)) return null;
+  const base = path.join(UPLOAD_ROOT, m[1]);
+  // The client segment stays inside uploads.
+  if (!base.startsWith(UPLOAD_ROOT + path.sep)) return null;
+  const filePath = path.join(base, m[2]);
+  // And the filename stays inside that client's folder.
+  if (!filePath.startsWith(base + path.sep)) return null;
   return fs.existsSync(filePath) ? filePath : null;
 }
 

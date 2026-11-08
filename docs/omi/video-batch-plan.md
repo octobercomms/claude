@@ -734,6 +734,46 @@ Steps 2 and 4 are where this is won or lost.
 > Revised order: **step 8 (the durable queue and the worker) becomes step 5**,
 > and the batch runner follows it. The pure part of the runner does not have
 > to wait, and has not: `shared/compositionBatch.mjs` is built and tested.
+>
+> **Built, 8 November, the durable half.** Migration 248 adds `claimed_at`,
+> `claimed_by` and `attempts` to `composition_renders` with two partial
+> indexes; `services/compositionRenderQueue.js` owns the claim
+> (`FOR UPDATE SKIP LOCKED`, the same statement `video_jobs` uses), the
+> reaper, the attempt ceiling and the startup release;
+> `services/compositionRenderRunner.js` derives a render from a composition id
+> alone, which is what makes one resumable at all. Proved against a real
+> Postgres in `composition-render-queue.db.test.js`, including two overlapping
+> transactions racing for one row and a thirty-item batch interrupted at item
+> twelve, where nineteen still run on the next instance.
+>
+> **Still one ffmpeg at a time, on the app box.** That is honest rather than
+> fixed: thirty renders take thirty renders' worth of wall clock. What changed
+> is that they no longer vanish. Moving the encode to the worker box is its
+> own piece of work, because that box has no shared disk and pulls its inputs
+> over HTTPS, so it is a file-transfer project rather than a flag — and
+> `update.sh` has no worker step at all, which is the deployment hole already
+> recorded in the traps.
+>
+> **The editor's Export has never worked, and this is why.** `assetFilePath`
+> matched `(\d+)` for the client segment of an asset URL, and a client id is a
+> UUID, so it returned null for every asset in the system and every
+> composition render answered `Source "sX" has no file on disk.` Its unit test
+> passed on a fixture of `/api/brand/file/7/…`, a shape no real asset has
+> ever carried. Two further resolution faults sat behind it: the route read
+> the `source_assets` column alone and ignored each source's own `asset`, so a
+> template-built composition could not resolve either, and the library row was
+> keyed on `Date.now()` so two renders in one millisecond collapsed onto one
+> row. All three are fixed and covered end to end in
+> `composition-render-e2e.db.test.js`, which goes from asset rows to a pixel
+> in the output.
+>
+> One thing deliberately left: `generatedMedia.localPathFor` and
+> `adResize.diskPathForOutput` resolve the same URL shape with only the
+> client-folder traversal guard, so a client segment of `..` escapes the
+> uploads directory there. Their inputs are URLs this server wrote from a
+> client id rather than anything a user types, so the reachable risk is nil,
+> but it is three copies of one function and the composition one now has both
+> guards. Worth consolidating into one helper.
 
 **The analyser was at step 9 and that was phasing with better words.** This
 document argues that pointing the analyser at ten reference reels is a better

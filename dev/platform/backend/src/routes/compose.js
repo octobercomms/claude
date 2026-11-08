@@ -16,11 +16,13 @@ const { whisperWords } = require('../services/whisper');
 // loop rather than calling renderComposition, and because the only code that
 // compiled caption ASS lived on that other path, every caption the editor
 // produced was silently dropped from the output.
-const { buildCaptionAss } = require('../services/compositionRenderer');
+// One copy of assetFilePath, in the renderer service. There were two
+// identical ones, here and there, which is how the route and the service
+// drifted apart over caption handling in the first place.
+const { assetFilePath } = require('../services/compositionRenderer');
 // The audio measurement half of the silence plan. The arithmetic is pure and
 // lives in shared/silenceCut.mjs; this is the part that needs a file.
 const silenceService = require('../services/silenceCut');
-const db = require('../db');
 
 const { pathToFileURL } = require('url');
 const multer = require('multer');
@@ -269,14 +271,6 @@ function extractAudio(inPath) {
   });
 }
 
-function assetFilePath(asset) {
-  if (!asset?.url) return null;
-  const m = asset.url.match(/^\/api\/brand\/file\/(\d+)\/(.+)$/);
-  if (!m) return null;
-  const filePath = path.join(UPLOAD_ROOT, m[1], m[2]);
-  if (!filePath.startsWith(UPLOAD_ROOT + path.sep)) return null;
-  return fs.existsSync(filePath) ? filePath : null;
-}
 
 router.post('/compositions/:id/transcribe', loadComposition, async (req, res) => {
   const { sourceId } = req.body || {};
@@ -433,235 +427,72 @@ router.post('/compositions/:id/broll-plan', loadComposition, async (req, res) =>
 
 // ── Render: start a background ffmpeg encode ────────────────────────
 
-const RENDER_PATH = path.join(__dirname, '..', '..', '..', 'shared', 'compositionRender.mjs');
-let _renderMod = null;
-async function renderMod() {
-  if (!_renderMod) _renderMod = await import(pathToFileURL(RENDER_PATH).href);
-  return _renderMod;
-}
+const renderQueue = require('../services/compositionRenderQueue');
+const runner = require('../services/compositionRenderRunner');
 
-function parseFFmpegTime(str) {
-  const m = str.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
-  if (!m) return null;
-  return parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3]);
-}
 
-// ── Render queue: one ffmpeg at a time, state persisted to DB ──────
 
-let _activeRender = null;
-const _renderQueue = [];
-
-async function getRenderJob(compositionId) {
-  const { rows } = await db.query(
-    `SELECT * FROM composition_renders WHERE composition_id = $1 ORDER BY created_at DESC LIMIT 1`,
-    [compositionId]
-  );
-  return rows[0] || null;
-}
-
-async function createRenderJob(compositionId) {
-  const { rows } = await db.query(
-    `INSERT INTO composition_renders (composition_id, status) VALUES ($1, 'queued') RETURNING *`,
-    [compositionId]
-  );
-  return rows[0];
-}
-
-async function updateRenderJob(id, updates) {
-  const sets = [];
-  const vals = [];
-  let i = 1;
-  for (const [k, v] of Object.entries(updates)) {
-    sets.push(`${k} = $${i}`);
-    vals.push(v);
-    i++;
-  }
-  sets.push('updated_at = now()');
-  vals.push(id);
-  await db.query(
-    `UPDATE composition_renders SET ${sets.join(', ')} WHERE id = $${i}`,
-    vals
-  );
-}
-
-function processQueue() {
-  if (_activeRender || !_renderQueue.length) return;
-  const next = _renderQueue.shift();
-  _activeRender = next.jobId;
-  next.start();
-}
+// ── Render: enqueue, and let the runner do it ───────────────────────
+//
+// What was here was two module-level variables holding start closures. See
+// services/compositionRenderQueue.js for the four faults that caused and
+// services/compositionRenderRunner.js for why a render is now derived from a
+// composition id rather than captured from a request.
 
 router.post('/compositions/:id/render', loadComposition, async (req, res) => {
+  const comp = req.composition;
   try {
-    const comp = req.composition;
-    const compId = comp.id;
-    const clientId = comp.client_id;
-    const data = comp.data;
-
-    if (!data || !data.tracks || !data.sources) {
-      return res.status(400).json({ error: 'Composition has no timeline data.' });
-    }
-
-    const sourceAssets = comp.source_assets || {};
-    const sourcePaths = {};
-    // Which sources are photographs rather than footage. The asset row knows
-    // (`kind` is 'image' for anything with an image/* mime), and the render
-    // path has to: a still has no audio stream, and its input needs looping
-    // or it contributes one frame. A composition built in the editor from a
-    // library photograph carries no `still` flag of its own, so this is where
-    // it is learned — otherwise the only compositions that could render a
-    // photograph would be the ones a template built.
-    const stillSources = new Set();
-    for (const [sourceId, assetId] of Object.entries(sourceAssets)) {
-      const asset = await assets.get(assetId);
-      if (!asset) continue;
-      const fp = assetFilePath(asset);
-      if (fp) sourcePaths[sourceId] = fp;
-      if (asset.kind === 'image') stillSources.add(sourceId);
-    }
-    for (const [sourceId, src] of Object.entries(data.sources || {})) {
-      if (src?.kind === 'clip' && src.still === true) stillSources.add(sourceId);
-    }
-
-    // Captions are compiled to an ASS file and handed to the graph as a
-    // subtitles filter. An unresolvable caption fails the request here,
-    // before a job exists, rather than producing a caption-free video that
-    // reports success.
-    let captionAssPath = null;
+    // A pre-flight, so somebody pressing Export gets told now rather than
+    // being queued and failing later. It is the real preparation, discarded
+    // immediately: the runner does it again at render time, because after a
+    // restart there is no request to have done it in.
+    let prepared;
     try {
-      captionAssPath = await buildCaptionAss(data, compId, comp.transcripts || {});
+      prepared = await runner.prepare(comp.id);
     } catch (err) {
-      return res.status(400).json({ error: err.message });
+      // Recorded as well as answered. The route used to return 400 with no
+      // row behind it, which is fine for one interactive export and the worst
+      // possible shape for a batch: the failed items simply did not exist, so
+      // a runner watching the table saw twenty-six rows and no record of what
+      // happened to the other four.
+      const row = await renderQueue.recordPreflightFailure(comp.id, err.message)
+        .catch(() => null);
+      return res.status(400).json({ error: err.message, renderId: row?.id || null });
     }
+    runner.discard(prepared);
 
-    const rm = await renderMod();
-    const graph = rm.renderGraph(data, { sourcePaths, captionAssPath, stillSources });
+    const job = await renderQueue.enqueue(comp.id);
+    const position = await renderQueue.positionOf(job.id);
 
-    if (!graph.inputs.length) {
-      return res.status(400).json({ error: 'No resolvable sources in the composition.' });
-    }
-
-    const resolvedPaths = [];
-    for (const inp of graph.inputs) {
-      const p = sourcePaths[inp.sourceId];
-      if (!p) {
-        return res.status(400).json({ error: `Source "${inp.sourceId}" has no file on disk.` });
-      }
-      resolvedPaths.push(p);
-    }
-
-    const outDir = path.join(UPLOAD_ROOT, String(clientId));
-    fs.mkdirSync(outDir, { recursive: true });
-    const timestamp = Date.now();
-    const outputPath = path.join(outDir, `render-${compId}-${timestamp}.mp4`);
-    const args = rm.ffmpegArgs(graph, resolvedPaths, outputPath);
-
-    const job = await createRenderJob(compId);
-
-    function startRender() {
-      updateRenderJob(job.id, { status: 'rendering', started_at: new Date().toISOString(), output_path: outputPath }).catch(() => {});
-
-      const ff = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-
-      // The compiled ASS lives in the temp directory and is only needed for
-      // the life of this process. Attached to the process rather than to each
-      // of the three exit paths, so a path added later cannot leak it: a
-      // batch of thirty renders would otherwise leave thirty files behind.
-      if (captionAssPath) {
-        const release = () => { fs.promises.unlink(captionAssPath).catch(() => {}); };
-        ff.once('close', release);
-        ff.once('error', release);
-      }
-
-      let stderr = '';
-      let lastProgressWrite = 0;
-
-      ff.stderr.on('data', (chunk) => {
-        stderr += chunk.toString();
-        const lines = stderr.split('\r');
-        for (let i = lines.length - 1; i >= 0; i--) {
-          const t = parseFFmpegTime(lines[i]);
-          if (t != null && graph.duration > 0) {
-            const pct = Math.min(100, Math.round((t / graph.duration) * 100));
-            const now = Date.now();
-            if (now - lastProgressWrite > 5000) {
-              lastProgressWrite = now;
-              updateRenderJob(job.id, { progress: pct }).catch(() => {});
-            }
-            break;
-          }
-        }
-      });
-
-      ff.on('error', (err) => {
-        console.error('[compose] render spawn error:', err.message);
-        updateRenderJob(job.id, { status: 'failed', error: err.message, finished_at: new Date().toISOString() }).catch(() => {});
-        _activeRender = null;
-        processQueue();
-      });
-
-      ff.on('close', async (code) => {
-        if (code !== 0) {
-          const tail = stderr.split('\n').slice(-5).join('\n').trim();
-          console.error(`[compose] render failed (exit ${code}):`, tail);
-          await updateRenderJob(job.id, { status: 'failed', error: tail || `ffmpeg exited ${code}`, finished_at: new Date().toISOString() }).catch(() => {});
-          _activeRender = null;
-          processQueue();
-          return;
-        }
-
-        const outputFilename = path.basename(outputPath);
-        const stat = fs.statSync(outputPath);
-        const outputUrl = `/api/brand/file/${clientId}/${outputFilename}`;
-
-        assets.record({
-          client_id: clientId,
-          source: 'scene_render',
-          source_id: `render-${compId}-${timestamp}`,
-          title: (comp.title || 'Composition') + ' (render)',
-          url: outputUrl,
-          mime: 'video/mp4',
-          bytes: stat.size,
-          created_by: req.user?.id || null,
-          duration_s: graph.duration || null,
-          metadata: { composition_id: compId, rendered_at: new Date().toISOString() },
-        }).catch(() => {});
-
-        await updateRenderJob(job.id, {
-          status: 'done', progress: 100,
-          output_path: outputPath, output_url: outputUrl,
-          finished_at: new Date().toISOString(),
-        }).catch(() => {});
-
-        _activeRender = null;
-        processQueue();
-      });
-    }
-
-    if (_activeRender) {
-      _renderQueue.push({ jobId: job.id, start: startRender });
-      res.json({ status: 'queued', position: _renderQueue.length });
-    } else {
-      _activeRender = job.id;
-      startRender();
-      res.json({ status: 'rendering' });
-    }
+    // Reply first, then start. The request is not kept alive by the render.
+    res.json({
+      renderId: job.id,
+      status: position === 1 ? 'rendering' : 'queued',
+      position,
+    });
+    runner.kick();
   } catch (err) {
     console.error('[compose] render start failed:', err.message);
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 
 router.get('/compositions/:id/render-status', loadComposition, async (req, res) => {
   try {
-    const compId = req.composition.id;
-    const job = await getRenderJob(compId);
-    if (!job) return res.json({ status: 'none' });
+    // `renderId` reads one attempt by its own id, which is what a batch
+    // watches. Without it this returns the newest, which made an earlier
+    // attempt unobservable the moment a re-run existed.
+    const job = req.query.renderId
+      ? await renderQueue.get(Number(req.query.renderId))
+      : await renderQueue.latestFor(req.composition.id);
+    if (!job || job.composition_id !== req.composition.id) {
+      return res.json({ status: 'none' });
+    }
 
-    const out = { status: job.status, progress: job.progress };
+    const out = { renderId: job.id, status: job.status, progress: job.progress };
     if (job.status === 'queued') {
-      const pos = _renderQueue.findIndex(q => q.jobId === job.id);
-      if (pos >= 0) out.position = pos + 1;
+      const pos = await renderQueue.positionOf(job.id);
+      if (pos != null) out.position = pos;
     }
     if (job.status === 'done' && job.output_url) out.outputUrl = job.output_url;
     if (job.status === 'failed' && job.error) out.error = job.error;
@@ -671,8 +502,11 @@ router.get('/compositions/:id/render-status', loadComposition, async (req, res) 
 
 router.get('/compositions/:id/render-download', loadComposition, async (req, res) => {
   try {
-    const job = await getRenderJob(req.composition.id);
-    if (!job || job.status !== 'done' || !job.output_path) {
+    const job = req.query.renderId
+      ? await renderQueue.get(Number(req.query.renderId))
+      : await renderQueue.latestFor(req.composition.id);
+    if (!job || job.composition_id !== req.composition.id
+        || job.status !== 'done' || !job.output_path) {
       return res.status(404).json({ error: 'No completed render available.' });
     }
     if (!fs.existsSync(job.output_path)) {
