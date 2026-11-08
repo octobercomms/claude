@@ -77,8 +77,9 @@ async function brainAuth(req, res, next) {
 router.get('/lookup', brainAuth, async (req, res) => {
   try {
     const payee = req.query.payee;
+    const lineText = req.query.lineText || null;
     if (!payee) return res.status(400).json({ error: 'payee query parameter required' });
-    const result = await accounts.suppliers.fuzzyLookup(payee);
+    const result = await accounts.suppliers.fuzzyLookup(payee, lineText);
     if (!result) return res.json({ found: false });
     const supplier = result.supplier;
     res.json({
@@ -88,12 +89,17 @@ router.get('/lookup', brainAuth, async (req, res) => {
       supplier: {
         id: supplier.id,
         displayName: supplier.display_name,
+        type: supplier.type || 'expense',
         accountCode: supplier.account_code,
         accountName: supplier.account_name,
         vatTreatment: supplier.vat_treatment,
         isReverseCharge: supplier.is_reverse_charge,
         confidenceCounter: supplier.confidence_counter,
         autoCode: supplier.auto_code,
+        destinationBankAccountId: supplier.destination_bank_account_id || null,
+        destinationBankAccountName: supplier.destination_bank_account_name || null,
+        codingId: supplier.coding_id || null,
+        codingTrigger: supplier.coding_trigger || null,
       },
     });
   } catch (err) {
@@ -103,13 +109,26 @@ router.get('/lookup', brainAuth, async (req, res) => {
 
 router.put('/correct', brainAuth, async (req, res) => {
   try {
-    const { supplierId, accountCode, vatTreatment, notes } = req.body;
+    const { supplierId, codingId, type, accountCode, accountName,
+            vatTreatment, destinationBankAccountId, destinationBankAccountName,
+            createCoding, triggerPatterns, notes } = req.body;
     if (!supplierId) return res.status(400).json({ error: 'supplierId required' });
     const supplier = await accounts.suppliers.correctSupplier(supplierId, {
-      accountCode, vatTreatment, notes,
+      codingId, type, accountCode, accountName, vatTreatment,
+      destinationBankAccountId, destinationBankAccountName,
+      createCoding, triggerPatterns, notes,
     });
     if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
     res.json(supplier);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/bank-accounts', brainAuth, async (req, res) => {
+  try {
+    const accounts_ = await accounts.suppliers.getBankAccountsList();
+    res.json({ accounts: accounts_ });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

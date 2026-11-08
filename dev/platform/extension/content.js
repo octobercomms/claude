@@ -12,8 +12,9 @@
   const LOOKUP_CACHE = new Map();
   const PROCESSED_ATTR = 'data-omi-brain';
   const DEBOUNCE_MS = 300;
-  const DIAG = true; // diagnostic mode: set false once selectors are confirmed
+  const DIAG = true;
   let config = null;
+  let bankAccountsCache = null;
 
   async function getConfig() {
     if (config) return config;
@@ -29,10 +30,10 @@
     return null;
   }
 
-  // Listen for config changes (user saves in popup while page is open).
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.omiServerUrl || changes.omiToken) {
       config = null;
+      bankAccountsCache = null;
       LOOKUP_CACHE.clear();
       removeAllAdvice();
       scanPage();
@@ -58,11 +59,13 @@
     });
   }
 
-  async function lookupPayee(payee, cfg) {
-    const key = payee.toLowerCase().trim();
-    if (LOOKUP_CACHE.has(key)) return LOOKUP_CACHE.get(key);
+  async function lookupPayee(payee, lineText, cfg) {
+    const cacheKey = (payee + '||' + (lineText || '')).toLowerCase().trim();
+    if (LOOKUP_CACHE.has(cacheKey)) return LOOKUP_CACHE.get(cacheKey);
 
-    const url = `${cfg.serverUrl}/api/accounts/brain/lookup?payee=${encodeURIComponent(key)}`;
+    let url = `${cfg.serverUrl}/api/accounts/brain/lookup?payee=${encodeURIComponent(payee)}`;
+    if (lineText) url += `&lineText=${encodeURIComponent(lineText)}`;
+
     const res = await sendToBackground({
       type: 'brain-fetch',
       url,
@@ -75,15 +78,29 @@
 
     if (res.status === 401) {
       const result = { error: 'auth', message: 'Extension token expired or revoked. Reconnect in the OMI extension popup.' };
-      LOOKUP_CACHE.set(key, result);
+      LOOKUP_CACHE.set(cacheKey, result);
       return result;
     }
     if (!res.ok) {
       return { error: 'server', message: `OMI returned ${res.status}` };
     }
 
-    LOOKUP_CACHE.set(key, res.data);
+    LOOKUP_CACHE.set(cacheKey, res.data);
     return res.data;
+  }
+
+  async function fetchBankAccounts(cfg) {
+    if (bankAccountsCache) return bankAccountsCache;
+    const res = await sendToBackground({
+      type: 'brain-fetch',
+      url: `${cfg.serverUrl}/api/accounts/brain/bank-accounts`,
+      headers: { Authorization: `Bearer ${cfg.token}` },
+    });
+    if (res.ok && res.data && res.data.accounts) {
+      bankAccountsCache = res.data.accounts;
+      return bankAccountsCache;
+    }
+    return [];
   }
 
   function confidenceLabel(counter) {
@@ -132,22 +149,40 @@
     const conf = s.confidenceCounter || 0;
     el.classList.add(confidenceClass(conf));
 
-    const vatLabel = formatVat(s.vatTreatment);
-    const rcBadge = s.isReverseCharge ? ' <strong style="color:#b45309">[RC]</strong>' : '';
-
-    el.innerHTML = `
-      <svg class="omi-brain-icon" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.75a.75.75 0 011.5 0v4.5a.75.75 0 01-1.5 0v-4.5zm.75 7.25a1 1 0 110-2 1 1 0 010 2z"/>
-      </svg>
-      <div class="omi-brain-content">
-        <div class="omi-brain-label">${escapeHtml(s.displayName)}</div>
-        <div class="omi-brain-detail">
-          <span><strong>${escapeHtml(s.accountCode || '?')}</strong> ${escapeHtml(s.accountName || '')}</span>
-          <span>VAT: ${vatLabel}${rcBadge}</span>
+    if (s.type === 'transfer') {
+      el.innerHTML = `
+        <svg class="omi-brain-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 8a.75.75 0 01.75-.75h8.69L9.22 5.03a.75.75 0 011.06-1.06l3.5 3.5a.75.75 0 010 1.06l-3.5 3.5a.75.75 0 01-1.06-1.06l2.22-2.22H2.75A.75.75 0 012 8z"/>
+        </svg>
+        <div class="omi-brain-content">
+          <div class="omi-brain-label">${escapeHtml(s.displayName)}</div>
+          <div class="omi-brain-detail">
+            <span><strong>Transfer to ${escapeHtml(s.destinationBankAccountName || '?')}</strong></span>
+          </div>
+          <div class="omi-brain-confidence">${confidenceLabel(conf)} (${conf} confirmed)</div>
         </div>
-        <div class="omi-brain-confidence">${confidenceLabel(conf)} (${conf} confirmed)</div>
-      </div>
-      <button class="omi-brain-correct-btn" data-supplier-id="${s.id}" title="Correct this coding">Correct</button>`;
+        <button class="omi-brain-correct-btn" data-supplier-id="${s.id}" title="Correct this coding">Correct</button>`;
+    } else {
+      const vatLabel = formatVat(s.vatTreatment);
+      const rcBadge = s.isReverseCharge ? ' <strong style="color:#b45309">[RC]</strong>' : '';
+      const codingNote = s.codingTrigger
+        ? `<span class="omi-brain-coding-trigger">(matched: ${escapeHtml(s.codingTrigger)})</span>`
+        : '';
+
+      el.innerHTML = `
+        <svg class="omi-brain-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.75a.75.75 0 011.5 0v4.5a.75.75 0 01-1.5 0v-4.5zm.75 7.25a1 1 0 110-2 1 1 0 010 2z"/>
+        </svg>
+        <div class="omi-brain-content">
+          <div class="omi-brain-label">${escapeHtml(s.displayName)} ${codingNote}</div>
+          <div class="omi-brain-detail">
+            <span><strong>${escapeHtml(s.accountCode || '?')}</strong> ${escapeHtml(s.accountName || '')}</span>
+            <span>VAT: ${vatLabel}${rcBadge}</span>
+          </div>
+          <div class="omi-brain-confidence">${confidenceLabel(conf)} (${conf} confirmed)</div>
+        </div>
+        <button class="omi-brain-correct-btn" data-supplier-id="${s.id}" title="Correct this coding">Correct</button>`;
+    }
 
     const btn = el.querySelector('.omi-brain-correct-btn');
     btn.addEventListener('click', (e) => {
@@ -161,35 +196,90 @@
   function showCorrectionForm(adviceEl, supplier) {
     if (adviceEl.querySelector('.omi-brain-correct-form')) return;
 
+    const isTransfer = supplier.type === 'transfer';
     const form = document.createElement('form');
     form.className = 'omi-brain-correct-form';
+
     form.innerHTML = `
-      <input type="text" name="accountCode" placeholder="Account code" value="${escapeHtml(supplier.accountCode || '')}" style="width:80px" required>
-      <select name="vatTreatment">
-        <option value="">VAT treatment</option>
-        <option value="INPUT2"${supplier.vatTreatment === 'INPUT2' ? ' selected' : ''}>INPUT2 (20%)</option>
-        <option value="ZERORATEDINPUT"${supplier.vatTreatment === 'ZERORATEDINPUT' ? ' selected' : ''}>Zero-rated</option>
-        <option value="EXEMPTINPUT"${supplier.vatTreatment === 'EXEMPTINPUT' ? ' selected' : ''}>Exempt</option>
-        <option value="NONE"${supplier.vatTreatment === 'NONE' ? ' selected' : ''}>No VAT</option>
-        <option value="RRINPUT"${supplier.vatTreatment === 'RRINPUT' ? ' selected' : ''}>Reverse charge</option>
-        <option value="RRINPUT2"${supplier.vatTreatment === 'RRINPUT2' ? ' selected' : ''}>Reverse charge (20%)</option>
-        <option value="REVERSECHARGES"${supplier.vatTreatment === 'REVERSECHARGES' ? ' selected' : ''}>Reverse charges</option>
-      </select>
+      <div class="omi-brain-form-row">
+        <select name="type" class="omi-brain-type-select">
+          <option value="expense"${!isTransfer ? ' selected' : ''}>Expense</option>
+          <option value="transfer"${isTransfer ? ' selected' : ''}>Transfer</option>
+        </select>
+      </div>
+      <div class="omi-brain-expense-fields"${isTransfer ? ' style="display:none"' : ''}>
+        <input type="text" name="accountCode" placeholder="Account code" value="${escapeHtml(supplier.accountCode || '')}" style="width:80px">
+        <select name="vatTreatment">
+          <option value="">VAT treatment</option>
+          <option value="INPUT2"${supplier.vatTreatment === 'INPUT2' ? ' selected' : ''}>INPUT2 (20%)</option>
+          <option value="ZERORATEDINPUT"${supplier.vatTreatment === 'ZERORATEDINPUT' ? ' selected' : ''}>Zero-rated</option>
+          <option value="EXEMPTINPUT"${supplier.vatTreatment === 'EXEMPTINPUT' ? ' selected' : ''}>Exempt</option>
+          <option value="NONE"${supplier.vatTreatment === 'NONE' ? ' selected' : ''}>No VAT</option>
+          <option value="RRINPUT"${supplier.vatTreatment === 'RRINPUT' ? ' selected' : ''}>Reverse charge</option>
+          <option value="RRINPUT2"${supplier.vatTreatment === 'RRINPUT2' ? ' selected' : ''}>Reverse charge (20%)</option>
+          <option value="REVERSECHARGES"${supplier.vatTreatment === 'REVERSECHARGES' ? ' selected' : ''}>Reverse charges</option>
+        </select>
+      </div>
+      <div class="omi-brain-transfer-fields"${!isTransfer ? ' style="display:none"' : ''}>
+        <select name="destinationBankAccountId" class="omi-brain-bank-select">
+          <option value="">Loading bank accounts...</option>
+        </select>
+      </div>
       <input type="text" name="notes" placeholder="Notes (optional)" style="flex:1;min-width:100px">
       <button type="submit">Save</button>
       <button type="button" class="cancel">Cancel</button>`;
+
+    const typeSelect = form.querySelector('.omi-brain-type-select');
+    const expenseFields = form.querySelector('.omi-brain-expense-fields');
+    const transferFields = form.querySelector('.omi-brain-transfer-fields');
+
+    typeSelect.addEventListener('change', () => {
+      const isT = typeSelect.value === 'transfer';
+      expenseFields.style.display = isT ? 'none' : '';
+      transferFields.style.display = isT ? '' : 'none';
+    });
+
+    // Load bank accounts for the transfer picker.
+    (async () => {
+      const cfg = await getConfig();
+      if (!cfg) return;
+      const accounts = await fetchBankAccounts(cfg);
+      const bankSelect = form.querySelector('.omi-brain-bank-select');
+      bankSelect.innerHTML = '<option value="">Select bank account</option>';
+      for (const a of accounts) {
+        const opt = document.createElement('option');
+        opt.value = a.xero_account_id;
+        opt.textContent = `${a.name} (${a.currency})`;
+        opt.dataset.name = a.name;
+        if (supplier.destinationBankAccountId === a.xero_account_id) opt.selected = true;
+        bankSelect.appendChild(opt);
+      }
+    })();
 
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
+      const type = fd.get('type');
+      const bankSelect = form.querySelector('.omi-brain-bank-select');
+      const selectedOption = bankSelect.options[bankSelect.selectedIndex];
+
       const body = {
         supplierId: supplier.id,
-        accountCode: fd.get('accountCode'),
-        vatTreatment: fd.get('vatTreatment') || undefined,
-        notes: fd.get('notes') || undefined,
+        type,
+        codingId: supplier.codingId || undefined,
       };
+
+      if (type === 'expense') {
+        body.accountCode = fd.get('accountCode');
+        body.vatTreatment = fd.get('vatTreatment') || undefined;
+      } else {
+        body.destinationBankAccountId = fd.get('destinationBankAccountId') || undefined;
+        body.destinationBankAccountName = selectedOption ? selectedOption.dataset.name : undefined;
+      }
+
+      body.notes = fd.get('notes') || undefined;
 
       const cfg = await getConfig();
       if (!cfg) return;
@@ -216,10 +306,7 @@
           return;
         }
 
-        // Clear cache and re-scan this row.
-        const payee = supplier.displayName.toLowerCase().trim();
-        LOOKUP_CACHE.delete(payee);
-
+        LOOKUP_CACHE.clear();
         form.innerHTML = '<span style="color:#16a34a">Corrected. Refreshing...</span>';
         setTimeout(() => {
           const parent = adviceEl.parentElement;
@@ -259,17 +346,8 @@
   }
 
   // --- DOM discovery ---
-  // Xero's reconcile UI is a SPA. The actual page URL is
-  // go.xero.com/app/<orgCode>/manage-bank-accounts and the reconcile view
-  // loads as a client-side tab. DOM class names vary across Xero versions.
-  //
-  // Strategy: find the statement lines container, then individual rows.
-  // Each row has: date, payee/description text, spent/received amount.
-
   function findBankLineRows() {
-    // Gather all candidates from multiple known and generic selectors.
     const selectors = [
-      // Known Xero reconcile selectors (various versions).
       '.bank-rec-line',
       '.xrb-line',
       '[class*="StatementLine"]',
@@ -277,10 +355,8 @@
       '[class*="statement-line"]',
       '[class*="reconcile-line"]',
       '[class*="bank-statement"]',
-      // Older table-based layout.
       'tr.xrb-line',
       'tr[class*="rec-line"]',
-      // Generic: Xero uses data attributes on interactive elements.
       '[data-automationid*="statement"]',
       '[data-automationid*="bankLine"]',
       '[data-automationid*="reconcil"]',
@@ -302,8 +378,17 @@
     return [];
   }
 
-  function extractPayeeFromRow(row) {
-    // Try specific selectors Xero has used.
+  function extractLineInfo(row) {
+    // Extract full line text, payee, and direction (spent/received).
+    const fullText = row.textContent || '';
+
+    // Detect direction from the row text.
+    const isReceived = /received/i.test(fullText) && !/spent/i.test(fullText);
+    const isSpent = /spent/i.test(fullText);
+    // Default to spent if neither keyword found (safety).
+    const direction = isReceived ? 'received' : 'spent';
+
+    // Extract payee name.
     const payeeSelectors = [
       '.xrb-payee', '.xrb-line__payee', '[class*="payee"]',
       '.xrb-narrative', '.xrb-line__narrative', '[class*="narrative"]',
@@ -312,46 +397,62 @@
       '[data-automationid*="payee"]', '[data-automationid*="description"]',
       '[data-testid*="payee"]', '[data-testid*="description"]',
     ];
+
+    let payee = null;
     for (const sel of payeeSelectors) {
       try {
         const el = row.querySelector(sel);
         if (el) {
           const text = el.textContent.trim();
-          if (text.length >= 2) return text;
+          if (text.length >= 2) { payee = text; break; }
         }
       } catch { /* invalid selector */ }
     }
 
-    // Fallback: scan for text nodes that look like payee names.
-    const cells = row.querySelectorAll('td, div, span');
-    for (const cell of cells) {
-      if (cell.children.length > 3) continue; // skip containers
-      const text = cell.textContent.trim();
-      if (text.length >= 3 && text.length < 120 && !/^[\d.,\-+$£€]+$/.test(text) && !/^\d{1,2}\s\w{3}\s\d{4}$/.test(text)) {
-        return text;
+    if (!payee) {
+      const cells = row.querySelectorAll('td, div, span');
+      for (const cell of cells) {
+        if (cell.children.length > 3) continue;
+        const text = cell.textContent.trim();
+        if (text.length >= 3 && text.length < 120 && !/^[\d.,\-+$£€]+$/.test(text) && !/^\d{1,2}\s\w{3}\s\d{4}$/.test(text)) {
+          payee = text;
+          break;
+        }
       }
     }
-    return null;
+
+    return {
+      payee,
+      lineText: fullText.replace(/\s+/g, ' ').trim().slice(0, 500),
+      direction,
+    };
   }
 
   async function processRow(row, cfg) {
     if (row.getAttribute(PROCESSED_ATTR)) return;
     row.setAttribute(PROCESSED_ATTR, 'pending');
 
-    const payee = extractPayeeFromRow(row);
-    if (!payee) {
+    const info = extractLineInfo(row);
+
+    if (!info.payee) {
       row.setAttribute(PROCESSED_ATTR, 'no-payee');
       diagLog(`Row skipped (no payee extracted): ${row.className || row.tagName}`);
       return;
     }
 
-    diagLog(`Looking up payee: "${payee}"`);
-    const result = await lookupPayee(payee, cfg);
+    // Suppress suggestions on received lines.
+    if (info.direction === 'received') {
+      row.setAttribute(PROCESSED_ATTR, 'received');
+      diagLog(`Row skipped (received line): "${info.payee}"`);
+      return;
+    }
+
+    diagLog(`Looking up payee: "${info.payee}" (lineText: ${info.lineText.slice(0, 80)}...)`);
+    const result = await lookupPayee(info.payee, info.lineText, cfg);
     row.setAttribute(PROCESSED_ATTR, 'done');
 
-    const advice = createAdviceElement(payee, result);
+    const advice = createAdviceElement(info.payee, result);
 
-    // Insert the advisory element after the row content.
     const target = row.querySelector('[class*="details"], [class*="content"], [class*="info"]') || row;
     target.appendChild(advice);
   }
@@ -382,7 +483,11 @@
 
     if (rows.length) {
       const done = document.querySelectorAll(`[${PROCESSED_ATTR}="done"]`).length;
-      updateBanner(`${done} of ${rows.length} lines processed.`, 'ok');
+      const received = document.querySelectorAll(`[${PROCESSED_ATTR}="received"]`).length;
+      const msg = received
+        ? `${done} of ${rows.length} lines processed (${received} received lines skipped).`
+        : `${done} of ${rows.length} lines processed.`;
+      updateBanner(msg, 'ok');
     }
   }
 
@@ -424,7 +529,6 @@
     console.log('[OMI Brain]', msg);
   }
 
-  // Expose a diagnostic dump for console inspection.
   function diagDump() {
     const info = {
       url: location.href,
@@ -438,11 +542,9 @@
   }
 
   function domSnapshot() {
-    // Capture a summary of the page's structure to help identify the right selectors.
     const body = document.body;
     if (!body) return 'no body';
 
-    // Find elements with financial-looking content (amounts, "Spent", "Received", etc.)
     const markers = [];
     const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null);
     let count = 0;
@@ -450,7 +552,6 @@
       count++;
       const text = walker.currentNode.textContent.trim();
       if (!text) continue;
-      // Look for reconcile-related keywords
       if (/\b(Spent|Received|Reconcile|Statement|Bank|Payee|Match|Create|Transfer)\b/i.test(text)) {
         const el = walker.currentNode.parentElement;
         if (el) {
@@ -466,11 +567,8 @@
     return markers.slice(0, 30);
   }
 
-  // Make diagnostic accessible from the console.
   window.__omiBrainDiag = diagDump;
 
-  // Watch for DOM changes: Xero's reconcile page is a SPA that loads bank lines
-  // dynamically. We observe mutations and re-scan when new content appears.
   const observer = new MutationObserver((mutations) => {
     let hasNewContent = false;
     for (const m of mutations) {

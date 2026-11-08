@@ -140,3 +140,33 @@
   color: #475569;
   border: 1px solid #cbd5e1;
 }
+
+/* Form row for type toggle */
+
+.omi-brain-form-row {
+  width: 100%;
+}
+
+.omi-brain-type-select {
+  min-width: 100px;
+}
+
+.omi-brain-expense-fields,
+.omi-brain-transfer-fields {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.omi-brain-bank-select {
+  min-width: 180px;
+}
+
+/* Coding trigger badge */
+
+.omi-brain-coding-trigger {
+  font-size: 11px;
+  color: #6366f1;
+  font-weight: 400;
+  margin-left: 4px;
+}
