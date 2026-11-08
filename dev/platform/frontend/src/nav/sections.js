@@ -559,16 +559,11 @@ export const SECTIONS = {
         { tab: 'reconcile',  label: 'Reconcile' },
         { tab: 'rules',      label: 'Rules' },
         { tab: 'invoices',   label: 'Invoices' },
+        { tab: 'digests',    label: 'Weekly digest', slug: 'weekly-digest' },
       ] },
       { heading: 'Tax', rows: [
         { tab: 'deadlines',  label: 'Deadlines' },
         { tab: 'vat',        label: 'VAT' },
-        { tab: 'fx',         label: 'FX tracker' },
-      ] },
-      { heading: 'Reports', rows: [
-        { tab: 'fin_reports', label: 'Financial reports', slug: 'financial-reports' },
-        { tab: 'audit',      label: 'Audit trail', slug: 'audit-trail' },
-        { tab: 'digests',    label: 'Weekly digest', slug: 'weekly-digest' },
       ] },
       { heading: 'Setup', rows: [
         { tab: 'drive',      label: 'Google Drive' },

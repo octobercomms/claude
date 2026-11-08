@@ -479,6 +479,18 @@ router.get('/invoices/missing', async (req, res) => {
   }
 });
 
+router.get('/invoices/all', async (req, res) => {
+  try {
+    const invoices = await accounts.invoices.getAllInvoices({
+      quarter: req.query.quarter || null,
+      status: req.query.status || null,
+    });
+    res.json({ invoices });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- VAT exceptions ---
 
 router.get('/vat/exceptions', async (req, res) => {

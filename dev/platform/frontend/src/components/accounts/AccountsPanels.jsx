@@ -439,6 +439,10 @@ export function ReconcilePanel() {
         ]} />
       )}
 
+      <div style={{ padding: 'var(--s3)', fontSize: 'var(--fs-body-sm)', color: 'var(--text-muted)', background: 'var(--surface-alt, var(--surface))', borderRadius: 'var(--radius, 6px)', borderLeft: '3px solid var(--text-muted)' }}>
+        OMI pre-codes bank transactions so Xero can match them automatically. Unreconciled statement lines are not available via the Xero API; check your Xero dashboard for the full reconciliation view.
+      </div>
+
       <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div className="row center" style={{ gap: 'var(--s2)' }}>
           <input
@@ -839,25 +843,34 @@ export function InvoicesPanel() {
   const { toast } = useToast();
   const [stats, setStats] = useState(null);
   const [missing, setMissing] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]);
   const [driveStatus, setDriveStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [attachingAll, setAttachingAll] = useState(false);
+  const [quarter, setQuarter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, m, ds] = await Promise.all([
+      const params = new URLSearchParams();
+      if (quarter) params.set('quarter', quarter);
+      if (statusFilter) params.set('status', statusFilter);
+      const qs = params.toString();
+      const [s, m, ds, all] = await Promise.all([
         api.get('/accounts/invoices/stats'),
         api.get('/accounts/invoices/missing'),
         api.get('/accounts/drive/status').catch(() => null),
+        api.get(`/accounts/invoices/all${qs ? `?${qs}` : ''}`),
       ]);
       setStats(s);
       setMissing(m.invoices || []);
       setDriveStatus(ds);
+      setAllInvoices(all.invoices || []);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
-  }, [toast]);
+  }, [toast, quarter, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -975,6 +988,157 @@ export function InvoicesPanel() {
             ))}
           </tbody>
         </table>
+      )}
+
+      <div className="row between center" style={{ marginTop: 'var(--s3)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+        <div className="h4" style={{ margin: 0 }}>All invoices</div>
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <select value={quarter} onChange={e => setQuarter(e.target.value)} className="input" style={{ minWidth: 140 }}>
+            <option value="">All quarters</option>
+            {(() => {
+              const now = new Date();
+              const opts = [];
+              for (let i = 0; i < 8; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i * 3, 1);
+                const q = Math.floor(d.getMonth() / 3) + 1;
+                const label = `${d.getFullYear()}-Q${q}`;
+                if (!opts.includes(label)) opts.push(label);
+              }
+              return opts.map(o => <option key={o} value={o}>{o}</option>);
+            })()}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input" style={{ minWidth: 120 }}>
+            <option value="">All statuses</option>
+            <option value="matched">Matched</option>
+            <option value="attached">Attached</option>
+            <option value="missing">Missing</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+      </div>
+
+      {allInvoices.length === 0 ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">No invoices found{quarter || statusFilter ? ' for this filter' : ''}.</div>
+        </div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Payee / Contact</th>
+              <th style={{ textAlign: 'right' }}>Amount</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Drive file</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allInvoices.map((inv, i) => (
+              <tr key={inv.id || i}>
+                <td style={{ whiteSpace: 'nowrap' }}>{inv.invoice_date?.slice(0, 10) || '—'}</td>
+                <td>{inv.xero_contact || '—'}</td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {Number(inv.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </td>
+                <td>{inv.currency || 'GBP'}</td>
+                <td>
+                  <span className={`chip ${inv.status === 'attached' ? 'chip-success' : inv.status === 'missing' ? 'chip-danger' : inv.status === 'matched' ? 'chip-warning' : 'chip-muted'}`}>
+                    {inv.status}
+                  </span>
+                </td>
+                <td className="text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {inv.drive_file_name || '—'}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  {inv.drive_file_id && inv.status === 'matched' && (
+                    <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} {...roWrite(readOnly, { onClick: () => handleAttach(inv.id) })}>
+                      Attach
+                    </button>
+                  )}
+                  {inv.attached_to_xero && (
+                    <span className="body-sm text-muted">In Xero</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
+        <div className="h4" style={{ margin: 0 }}>All invoices</div>
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <select value={quarter} onChange={e => setQuarter(e.target.value)} style={{ fontSize: 'var(--fs-body-sm)' }}>
+            <option value="">All quarters</option>
+            {(() => {
+              const now = new Date();
+              const opts = [];
+              for (let y = now.getFullYear(); y >= now.getFullYear() - 1; y--) {
+                for (let q = 4; q >= 1; q--) {
+                  opts.push(<option key={`${y}-Q${q}`} value={`${y}-Q${q}`}>{y} Q{q}</option>);
+                }
+              }
+              return opts;
+            })()}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 'var(--fs-body-sm)' }}>
+            <option value="">All statuses</option>
+            <option value="matched">Matched</option>
+            <option value="attached">Attached to Xero</option>
+            <option value="missing">Missing</option>
+            <option value="pending">Pending</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+      </div>
+
+      {allInvoices.length === 0 ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">{quarter || statusFilter ? 'No invoices match the selected filters.' : 'No invoice records yet.'}</div>
+        </div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Payee / Contact</th>
+              <th style={{ textAlign: 'right' }}>Amount</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allInvoices.map((inv, i) => {
+              const statusChip = {
+                attached: { className: 'chip chip-success', label: 'Attached' },
+                matched: { className: 'chip chip-info', label: 'Matched' },
+                missing: { className: 'chip chip-danger', label: 'Missing' },
+                pending: { className: 'chip', label: 'Pending' },
+                manual: { className: 'chip', label: 'Manual' },
+              }[inv.status] || { className: 'chip', label: inv.status };
+              return (
+                <tr key={inv.id || i}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{inv.invoice_date?.slice(0, 10) || '—'}</td>
+                  <td>{inv.xero_contact || '—'}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {Number(inv.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td>{inv.currency || 'GBP'}</td>
+                  <td><span className={statusChip.className}>{statusChip.label}</span></td>
+                  <td className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
+                    {inv.drive_file_name ? 'Drive' : inv.email_message_id ? 'Email' : inv.xero_txn_id ? 'Xero' : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {allInvoices.length > 0 && (
+        <div className="body-sm text-muted">{allInvoices.length} invoice{allInvoices.length !== 1 ? 's' : ''}</div>
       )}
     </div>
   );
