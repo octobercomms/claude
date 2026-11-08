@@ -108,7 +108,12 @@ export function audioAt(comp, t) {
     for (const item of track.items) {
       const src = comp.sources[item.source];
       if (!src) continue;
-      const hasAudio = src.kind === 'clip' || src.kind === 'audio';
+      // A still is a photograph and has no audio stream, so the preview must
+      // not open an audio element for it. This has to match the render's own
+      // rule exactly: the preview and the render agreeing is the guarantee
+      // the whole composition model is built on, and a preview that plays
+      // audio the output does not have is that guarantee broken.
+      const hasAudio = (src.kind === 'clip' && src.still !== true) || src.kind === 'audio';
       if (!hasAudio) continue;
 
       const end = itemEnd(item);

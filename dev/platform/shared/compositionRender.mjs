@@ -60,7 +60,20 @@ export function renderGraph(comp, opts = {}) {
   const {
     sourcePaths = {},     // { [sourceId]: diskPath }
     captionAssPath = null, // disk path to the compiled .ass file
+    // Source ids that are photographs rather than footage. Two ways in,
+    // because the fact arrives from two genuinely different places: a
+    // template knows at bind time and writes `still: true` on the source,
+    // while a composition built in the editor from a library photograph
+    // learns it at render time from the asset row's `kind`. One rule either
+    // way: no audio stream, and the input needs looping.
+    stillSources = null,
   } = opts;
+
+  const stills = stillSources instanceof Set
+    ? stillSources
+    : new Set(Array.isArray(stillSources) ? stillSources : []);
+  const isStill = (sourceId) => stills.has(sourceId)
+    || comp.sources?.[sourceId]?.still === true;
 
   const W = comp.size?.width || 1080;
   const H = comp.size?.height || 1920;
@@ -75,8 +88,31 @@ export function renderGraph(comp, opts = {}) {
     for (const item of track.items) {
       const src = comp.sources[item.source];
       if (!src) continue;
+      // CAPTIONS ARE NOT AN INPUT. They are a `subtitles` filter fed by a
+      // compiled ASS file, which arrives as `captionAssPath` and is applied
+      // once to the composited video. A caption item is on a track so the
+      // editor can show the operator where the words are; it is not footage.
+      //
+      // Treating it as one broke captioned renders two ways at once, and
+      // both were invisible to every graph-level test because the graph read
+      // fine. The route resolves a disk path for each input from
+      // `source_assets`, a captions source has no asset, so it answered 400
+      // "Source … has no file on disk" and no captioned composition could
+      // render at all. And had a path existed, the caption item was also
+      // scaled and overlaid as a picture layer while the same words were
+      // burned by the subtitles filter, so they would have appeared twice.
+      if (src.kind === 'captions') continue;
       const idx = inputs.length;
-      inputs.push({ sourceId: item.source, kind: src.kind, itemId: item.id });
+      inputs.push({
+        sourceId: item.source,
+        kind: src.kind,
+        itemId: item.id,
+        // A still needs `-loop 1 -t <len>` on its input or it contributes one
+        // frame. The length has to travel with the input, because only the
+        // item knows how long this photograph is held.
+        still: src.kind === 'clip' && isStill(item.source),
+        dur: secs((item.in || 0) + item.len),
+      });
       inputIndex.set(item.id, idx);
     }
   }
@@ -281,8 +317,16 @@ export function renderGraph(comp, opts = {}) {
       const src = comp.sources[item.source];
       if (!src) continue;
 
-      // Audio comes from clip sources (their audio stream) and audio sources
-      const hasAudio = src.kind === 'clip' || src.kind === 'audio';
+      // Audio comes from clip sources (their audio stream) and audio sources.
+      //
+      // A STILL HAS NO AUDIO STREAM. Emitting `[n:a]atrim=...` for one makes
+      // ffmpeg refuse the whole filter_complex with "matches no streams", so
+      // a composition holding a single photograph produced no video at all.
+      // Nothing caught it because every guard here reads the graph string,
+      // and the string was correct; it referenced a stream that did not
+      // exist. That is the stills montage, which is the headline template of
+      // the batch build.
+      const hasAudio = (src.kind === 'clip' && !isStill(item.source)) || src.kind === 'audio';
       if (!hasAudio) continue;
 
       const inPt = item.in || 0;
@@ -445,9 +489,17 @@ export function ffmpegArgs(result, resolvedPaths, outPath, opts = {}) {
   } = opts;
 
   const args = ['-y'];
-  for (const p of resolvedPaths) {
+  resolvedPaths.forEach((p, i) => {
+    // A photograph is one frame. Without `-loop 1` the input ends after that
+    // frame, the trim downstream asks for three seconds of it and gets
+    // nothing, and the still flashes rather than holds. `-t` bounds the loop
+    // so ffmpeg does not generate frames forever.
+    const inp = result.inputs?.[i];
+    if (inp?.still && Number.isFinite(inp.dur) && inp.dur > 0) {
+      args.push('-loop', '1', '-t', inp.dur.toFixed(6));
+    }
     args.push('-i', p);
-  }
+  });
 
   if (result.graph) {
     args.push('-filter_complex', result.graph);

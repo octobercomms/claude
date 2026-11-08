@@ -57,6 +57,17 @@ function validateSource(id, src) {
     if (src.duration != null && (typeof src.duration !== 'number' || src.duration <= 0)) {
       return `source "${id}": clip duration must be positive`;
     }
+    // A PHOTOGRAPH, not footage. Two things follow from it and the render
+    // path got both wrong by assuming every clip was a video file: a still
+    // has no audio stream, so emitting `[n:a]` for it makes ffmpeg refuse
+    // the entire filter_complex; and a single-frame input needs `-loop 1`
+    // or it contributes one frame rather than a held image.
+    //
+    // Default-false, so every composition written before this keeps its
+    // behaviour and only a source that says it is a still is treated as one.
+    if (src.still != null && typeof src.still !== 'boolean') {
+      return `source "${id}": still must be true or false`;
+    }
   }
   if (src.kind === 'audio') {
     if (!src.asset && !src.url) return `source "${id}": audio needs asset or url`;

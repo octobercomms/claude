@@ -247,6 +247,18 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the pixel assertions would not run'; exit 1; }
           node tests/composition-render-pixels.test.js
+      # The same argument one level up: a template that validates and binds is
+      # not a template that renders. Three faults made "upload photographs and
+      # brief it" impossible and every one of them left the graph string
+      # correct — a caption source became an ffmpeg input with no disk path, a
+      # still was asked for an audio stream it does not have, and a one-frame
+      # input was never looped. This binds the shipped templates and samples
+      # the frames, including the burned type.
+      - name: Guard — the shipped templates render real pictures and real type
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the template pixel assertions would not run'; exit 1; }
+          node tests/template-render-pixels.test.js
       - name: Guard — an MP4 export cannot run away with its own size
         run: node tests/recording-export.test.js
       # The one step that drives ffmpeg the way the box does: a real remux with
@@ -386,6 +398,8 @@ jobs:
         run: node tests/compositor-agreement.test.js
       - name: Guard — templates, variation and binding
         run: node tests/composition-template.test.js
+      - name: Guard — the batch pre-flight
+        run: node tests/composition-batch.test.js
       - name: Guard — composition CRUD and persistence
         run: node tests/compositions.test.js
       - name: Guard — the compose routes
