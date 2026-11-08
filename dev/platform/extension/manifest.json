@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OMI Xero Brain",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Shows supplier coding suggestions from the OMI supplier brain on the Xero reconciliation page.",
   "permissions": ["storage"],
   "host_permissions": ["https://go.xero.com/*", "https://*/*"],

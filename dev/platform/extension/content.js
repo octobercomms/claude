@@ -119,6 +119,7 @@
   function createAdviceElement(payee, result) {
     const el = document.createElement('div');
     el.className = 'omi-brain-advice';
+    el.setAttribute(OMI_INJECTED, '1');
 
     if (result.error) {
       el.classList.add('omi-brain-advice--error');
@@ -346,6 +347,17 @@
   }
 
   // --- DOM discovery ---
+  const OMI_INJECTED = 'data-omi-injected';
+
+  function isOmiElement(el) {
+    return el.closest && (el.closest('.omi-brain-advice') || el.closest('#omi-brain-diag') || el.hasAttribute(OMI_INJECTED));
+  }
+
+  function isStatementLine(el) {
+    const text = el.textContent || '';
+    return /\d/.test(text) && (/(spent|received)/i.test(text) || /[\d.,]+\s*$/.test(text.trim()));
+  }
+
   function findBankLineRows() {
     const selectors = [
       '.bank-rec-line',
@@ -369,8 +381,11 @@
       try {
         const rows = document.querySelectorAll(sel);
         if (rows.length) {
-          diagLog(`Found ${rows.length} rows via: ${sel}`);
-          return Array.from(rows);
+          const filtered = Array.from(rows).filter(r => !isOmiElement(r) && isStatementLine(r));
+          if (filtered.length) {
+            diagLog(`Found ${filtered.length} rows via: ${sel} (${rows.length} raw, ${rows.length - filtered.length} excluded)`);
+            return filtered;
+          }
         }
       } catch { /* invalid selector */ }
     }
@@ -378,17 +393,18 @@
     return [];
   }
 
-  function extractLineInfo(row) {
-    // Extract full line text, payee, and direction (spent/received).
-    const fullText = row.textContent || '';
+  function getCleanText(el) {
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('.omi-brain-advice, [data-omi-injected]').forEach(n => n.remove());
+    return clone.textContent || '';
+  }
 
-    // Detect direction from the row text.
+  function extractLineInfo(row) {
+    const fullText = getCleanText(row);
+
     const isReceived = /received/i.test(fullText) && !/spent/i.test(fullText);
-    const isSpent = /spent/i.test(fullText);
-    // Default to spent if neither keyword found (safety).
     const direction = isReceived ? 'received' : 'spent';
 
-    // Extract payee name.
     const payeeSelectors = [
       '.xrb-payee', '.xrb-line__payee', '[class*="payee"]',
       '.xrb-narrative', '.xrb-line__narrative', '[class*="narrative"]',
@@ -402,7 +418,7 @@
     for (const sel of payeeSelectors) {
       try {
         const el = row.querySelector(sel);
-        if (el) {
+        if (el && !isOmiElement(el)) {
           const text = el.textContent.trim();
           if (text.length >= 2) { payee = text; break; }
         }
@@ -412,6 +428,7 @@
     if (!payee) {
       const cells = row.querySelectorAll('td, div, span');
       for (const cell of cells) {
+        if (isOmiElement(cell)) continue;
         if (cell.children.length > 3) continue;
         const text = cell.textContent.trim();
         if (text.length >= 3 && text.length < 120 && !/^[\d.,\-+$£€]+$/.test(text) && !/^\d{1,2}\s\w{3}\s\d{4}$/.test(text)) {
@@ -503,6 +520,7 @@
     if (bannerEl && document.body.contains(bannerEl)) return bannerEl;
     bannerEl = document.createElement('div');
     bannerEl.id = 'omi-brain-diag';
+    bannerEl.setAttribute(OMI_INJECTED, '1');
     bannerEl.style.cssText = `
       position: fixed; bottom: 8px; right: 8px; z-index: 999999;
       background: #1e293b; color: #e2e8f0; font-family: monospace;
@@ -572,10 +590,13 @@
   const observer = new MutationObserver((mutations) => {
     let hasNewContent = false;
     for (const m of mutations) {
-      if (m.addedNodes.length) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType === 1 && (node.hasAttribute && node.hasAttribute(OMI_INJECTED))) continue;
+        if (node.nodeType === 1 && (node.classList && node.classList.contains('omi-brain-advice'))) continue;
         hasNewContent = true;
         break;
       }
+      if (hasNewContent) break;
     }
     if (hasNewContent) debouncedScan();
   });
