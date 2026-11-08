@@ -572,6 +572,7 @@ export const SECTIONS = {
       ] },
       { heading: 'Setup', rows: [
         { tab: 'drive',      label: 'Google Drive' },
+        { tab: 'suppliers',  label: 'Supplier brain' },
         { tab: 'xero',       label: 'Xero' },
       ] },
     ],
