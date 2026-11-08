@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "OMI Xero Brain",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Shows supplier coding suggestions from the OMI supplier brain on the Xero reconciliation page.",
   "permissions": ["storage"],
-  "host_permissions": ["https://go.xero.com/*"],
+  "host_permissions": ["https://go.xero.com/*", "https://*/*"],
   "content_scripts": [
     {
       "matches": ["https://go.xero.com/Bank/BankRec.aspx*", "https://go.xero.com/bankreconciliation/*"],
