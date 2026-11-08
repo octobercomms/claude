@@ -146,6 +146,52 @@ the simplest thing the browser and ffmpeg both read. Verify our pinned ffmpeg
 8.1 build handles alpha overlay from WebM in a single `filter_complex` pass
 before committing to it. A PNG sequence always works and costs disk.
 
+### The ffmpeg construction for an animated transform, verified
+
+Measured rather than reasoned about, because the obvious approach does not
+work and fails in a way that looks like something else.
+
+**`scale` alone cannot animate.** It needs `eval=frame`, and then the item's
+own frame size changes per frame, which x264 will not encode and `xfade`
+will not accept as an input.
+
+**What works, in one pass, with an `xfade` downstream:**
+
+```
+color=c=black:s=WxH:r=FPS:d=LEN,format=yuva420p[canvas]
+[item]scale=w='<expr in t>':h=-2:eval=frame,format=yuva420p[scaled]
+[canvas][scaled]overlay=x='<expr>':y='<expr>':eval=frame,format=yuv420p,fps=FPS[out]
+```
+
+The flatten onto a fixed-size canvas is the load-bearing part: it is what
+hands a constant-dimension stream downstream.
+
+Measured on a 100x100 source scaled 1.0x to 2.0x over 4s, sampling the
+output and counting the subject's pixels: side 101 at t=0.04, 150 at t=2.0,
+198 at t=3.9, against 101, 150 and 197.5 predicted by `animAt`. Linear, and
+matching the shared model exactly. Two such items then `xfade`d produced a
+320x240, 6.96s output, so the construction composes with the existing
+transition chain.
+
+**`rotate` needs a constant output box.** It animates with `a='<expr in t>'`
+and takes `fillcolor=none`, but `ow`/`oh` are init-only, so a time-varying
+output size fails to configure. Size the box for the maximum angle or the
+corners clip.
+
+**Agreement is at parameter level, not pixel level, and the test must say
+so.** `overlay` x/y are integer pixels and `scale` dimensions are integer
+and even, while the browser's `drawImage` is sub-pixel. So the agreement
+test compares one exported pure function (`itemTransformAt`) on both sides
+with a stated tolerance, rather than comparing frames. Rotation resampling
+(ffmpeg bilinear against canvas) can never match pixel for pixel; declare
+that parameter-level only. Avoid `zoompan`: its integer x/y stepping is
+visibly jittery on a slow move, which is the only kind this uses.
+
+**Version caveat.** Verified on ffmpeg 6.1.1 in a cloud session. The box
+runs a pinned 8.1 build via `FFMPEG_PATH`, and every filter and option used
+here is long-standing, but the render test that covers this should run where
+ffmpeg is installed rather than being asserted about a string.
+
 ### 2. Transform fields on items
 
 Items carry `fit`, `gain`, `opacity` and `trans` and nothing else
