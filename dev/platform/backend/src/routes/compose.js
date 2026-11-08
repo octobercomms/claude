@@ -477,11 +477,23 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
 
     const sourceAssets = comp.source_assets || {};
     const sourcePaths = {};
+    // Which sources are photographs rather than footage. The asset row knows
+    // (`kind` is 'image' for anything with an image/* mime), and the render
+    // path has to: a still has no audio stream, and its input needs looping
+    // or it contributes one frame. A composition built in the editor from a
+    // library photograph carries no `still` flag of its own, so this is where
+    // it is learned — otherwise the only compositions that could render a
+    // photograph would be the ones a template built.
+    const stillSources = new Set();
     for (const [sourceId, assetId] of Object.entries(sourceAssets)) {
       const asset = await assets.get(assetId);
       if (!asset) continue;
       const fp = assetFilePath(asset);
       if (fp) sourcePaths[sourceId] = fp;
+      if (asset.kind === 'image') stillSources.add(sourceId);
+    }
+    for (const [sourceId, src] of Object.entries(data.sources || {})) {
+      if (src?.kind === 'clip' && src.still === true) stillSources.add(sourceId);
     }
 
     // Captions are compiled to an ASS file and handed to the graph as a
@@ -496,7 +508,7 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
     }
 
     const rm = await renderMod();
-    const graph = rm.renderGraph(data, { sourcePaths, captionAssPath });
+    const graph = rm.renderGraph(data, { sourcePaths, captionAssPath, stillSources });
 
     if (!graph.inputs.length) {
       return res.status(400).json({ error: 'No resolvable sources in the composition.' });

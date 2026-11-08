@@ -335,6 +335,32 @@ POST /compositions/batch
 text already exist, which is why this is the preferred driver) or a list of
 asset ids with a free-text brief.
 
+> **CORRECTED 8 November, after reading the code.** A `social_batches` id
+> cannot drive a thirty-item run, so it is **not** the primary driver. The
+> batch row itself is a brief header: `client_id`, `brief`, `exemplars`,
+> `trends`, `created_at`, `is_example`, and nothing per-frame. The content is
+> in its child `social_posts` rows, and `generateBatch` hard-caps those at
+> nine (`Math.max(1, Math.min(9, …))`, with the Claude tool's `minItems` and
+> `maxItems` both set to that number). So one social batch is at most nine
+> videos, and two weeks of content is several batches.
+>
+> **The asset-ids-plus-brief driver is therefore the primary one**, and a
+> `social_batches` id is a convenience for runs of nine or fewer that reuses
+> an existing brief. Two further corrections to the same assumption:
+>
+> - `storyboard` frames guarantee only `frame` and `shot`. `on_screen_text`
+>   is optional, and style codes are deliberately omitted for every non-reel
+>   kind, so a carousel's storyboard has no style at all. A runner reading
+>   `on_screen_text` for its text slots will find it missing on a good
+>   fraction of real posts.
+> - **A live defect found on the way past:** the refine chat in the frontend
+>   rewrites `storyboard` as an array of plain STRINGS and PUTs it back into
+>   the same JSONB column, destroying every frame field. Any post a client has
+>   been through refine with has no `on_screen_text`, no `style` and no
+>   `duration_sec` left, and `resolveFrame` in the existing Remotion path then
+>   falls back to the shot description or a hardcoded `octobercomms.com`.
+>   Recorded in the fix-first list; not fixed in PR 8 or 9.
+
 What it does, per item:
 
 1. Bind the template's slots to the item's content, producing a Composition.
@@ -365,6 +391,29 @@ Three things that follow, and all three have bitten this codebase before:
   approving a batch is exactly a phone job, so the sheet should be phone-enabled
   and "open in editor" has to degrade honestly rather than navigate to a screen
   phones are not offered.
+
+> **CORRECTED 8 November: the cited precedent does not exist as code.**
+> `ListDetail` and `StatStrip` are real components in
+> `frontend/src/components/shells/`, with small layout-only signatures, so
+> those two parts of the specification stand. The L-numbers are a naming
+> convention and nothing is exported as "L5".
+>
+> But the contacts list in `ClientOutreachPage` is **not** a component and
+> uses **no** dedicated CSS classes. It is a `card` div with `padding: 0` and
+> per-row inline styles; the only class on a row is `chip chip-neutral` for
+> the status. There is no reusable compact selectable row, no selected-row
+> class, and no thumbnail-row class to adopt. So "reuse the contacts list
+> shape" is a visual instruction, not a code one, and the sheet either writes
+> inline styles the way that page does or adds real classes. The nearest
+> actual precedents are `.approve-thumb` (a 64px media tile) and
+> `.search-row.is-cursor` / `.avatar-thumb.sel` for selected state.
+>
+> Two nav facts for the same work: Produce has **7 rows** in 2 groups today,
+> and `sectionPanel.test.mjs` imposes only a floor of 2, no ceiling. A render
+> branch must be line-initial and exactly `{tab === 'key' &&` — single quotes,
+> spaces around `===`, lowercase and underscores only — because
+> `routeTargets.test.mjs` checks both directions and `produce` has no
+> `DISPATCHED_ELSEWHERE` exemption.
 
 Nothing leaves for Drive or Instagram until approved.
 
@@ -482,6 +531,29 @@ Two rules:
 **Register a `video_batch` task budget before the first run.** Migration 185
 set up the framework and it resets monthly, so a runaway batch stops itself
 without taking chat, reports and press pitching down with it.
+
+> **CORRECTED 8 November: the cap as built cannot stop a batch.**
+> `assertUnderTaskCap(task)` in `backend/src/services/budget.js` is a
+> point-in-time gate, not a reservation: it throws 429 only once
+> month-to-date spend has **already reached** the cap. A thirty-item run
+> passes it with one cent of headroom and then bills all thirty. And there is
+> no `video_batch` row anywhere in the repo — the name exists only as a JSDoc
+> example in `FeatureCost.jsx` — while `assertUnderTaskCap` returns silently
+> for a task with no row. So today the cap is a no-op twice over.
+>
+> Three things follow, and none of them is "call the existing function":
+>
+> 1. **The pre-flight must project**, comparing estimated total against
+>    `remaining_usd` itself. No backend code does this. `planBatch` in
+>    `shared/compositionBatch.mjs` now does, including the two rules that
+>    matter: no budget never reads as unaffordable, and spending exactly the
+>    last of an allowance is within it rather than over it.
+> 2. **A migration must seed the `video_batch` row**, or the cap is silent.
+> 3. **The runner calls `assertUnderTaskCap('video_batch')` per item**, before
+>    billing, with `recordApiCost()` plus `noteTaskSpend()` to keep the 30s
+>    cache honest inside the loop. Per item rather than once up front, because
+>    the point is to stop partway through a run that is overspending, which a
+>    single check at the start cannot do.
 
 ---
 
@@ -637,6 +709,32 @@ the model changes and the template model.
 
 Steps 2 and 4 are where this is won or lost.
 
+> **RE-SEQUENCED 8 November: step 8 must come before step 5.** The render
+> "queue" is not a queue. It is two module-level variables in
+> `routes/compose.js` (`_activeRender`, `_renderQueue`) and a `processQueue()`
+> that runs **exactly one ffmpeg per Node process** and loses every pending
+> item on restart, leaving its `composition_renders` rows at `'queued'`
+> forever with nobody to run them. Nothing drains that table: there is no
+> worker and no cron.
+>
+> So a batch runner built on it would enqueue thirty renders into an array,
+> encode them one at a time on the app box, and silently abandon the
+> remainder the next time the process restarted. That is not a fixable detail
+> of the runner; it is the runner's foundation.
+>
+> The repo already has the right pattern and it is proven in production:
+> `video_jobs` (migration 090) is claimed with `FOR UPDATE SKIP LOCKED` over
+> `POST /api/video/worker/claim` behind `X-Worker-Token`, and drained by
+> `dev/platform/worker/index.js` on its own box. `edit_jobs` (migration 128,
+> extended by 228) is the only queue here that already models per-item
+> percentage progress, which is what the review sheet needs — though its
+> drainer and route have both been deleted, so `claimNext`, `complete`, `fail`
+> and `setProgress` are live code with no caller.
+>
+> Revised order: **step 8 (the durable queue and the worker) becomes step 5**,
+> and the batch runner follows it. The pure part of the runner does not have
+> to wait, and has not: `shared/compositionBatch.mjs` is built and tested.
+
 **The analyser was at step 9 and that was phasing with better words.** This
 document argues that pointing the analyser at ten reference reels is a better
 answer to "I want ten templates" than writing eight by hand, and then
@@ -690,6 +788,22 @@ four sit under it.
    three places a source has to be registered (the `client_assets` CHECK
    constraint, `SOURCES` in `services/assets.js`, and `SOURCE_LABEL` in
    `AssetLibrary.jsx`) and give composition output a retention rule.
+5. **The refine chat destroys a post's storyboard.** The frontend's refine
+   round-trip rewrites `social_posts.storyboard` as an array of plain STRINGS
+   and PUTs it back into the same JSONB column, so every frame field goes:
+   `on_screen_text`, `style`, `duration_sec`, `voiceover`. The existing
+   Remotion path then falls back to the shot description or a hardcoded
+   `octobercomms.com` in `resolveFrame`. Any post a client has been through
+   refine with is already in this state. **Found 8 November, not fixed**, and
+   it has to be fixed before a batch reads storyboards for its text slots.
+6. **`compositions` has nowhere to record which batch or template made it.**
+   Two migrations created the composition tables (236, 241) and nothing has
+   altered either since; there is no metadata column at all, and
+   `compositions.create({clientId, createdBy, title, data})` writes exactly
+   four columns and cannot set `source_assets` or `transcripts`, so a batch
+   has to create then update. A migration is needed before a review sheet can
+   group thirty items, and `edit_jobs` (migration 228) is the model to copy
+   for per-item `progress` and `stage`.
 
 ---
 

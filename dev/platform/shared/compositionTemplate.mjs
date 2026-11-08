@@ -455,7 +455,11 @@ export function bindTemplate(template, content = {}, opts = {}) {
     for (let i = 0; i < used.length; i += 1) {
       const spec = used[i];
       const at = times[i].at;
-      const made = addSource(comp, spec);
+      // A `still` slot holds a photograph, and the render path has to know:
+      // a still has no audio stream and its input needs looping. The slot
+      // already says so, so the source carries it rather than the renderer
+      // guessing from a file extension.
+      const made = addSource(comp, slot.kind === 'still' ? { ...spec, still: true } : spec);
       comp = made.comp;
 
       const isAudio = spec.kind === 'audio';
