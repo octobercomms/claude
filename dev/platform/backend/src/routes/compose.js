@@ -301,15 +301,42 @@ router.post('/compositions/:id/transcribe', loadComposition, async (req, res) =>
     audioPath = await extractAudio(filePath);
     const words = await whisperWords(audioPath, apiKey);
 
-    const durationS = words.length ? words[words.length - 1].end : 0;
-    recordApiCost({
-      clientId: comp.client_id, provider: 'openai', model: 'whisper-1',
-      purpose: 'composition-transcribe',
-      cost: Math.max(0.01, (durationS / 60) * WHISPER_PER_MIN),
-    }).catch(() => {});
-
+    // Saved BEFORE the cost is logged, which is the order that matters.
+    //
+    // It used to be the other way round, and the cost call was wrong twice:
+    // `recordApiCost` takes `{ provider, feature, costUsd }` and returns
+    // nothing, and this passed `purpose` and `cost` and then called `.catch()`
+    // on the undefined it returned. So OpenAI was called and billed, the next
+    // line threw `Cannot read properties of undefined (reading 'catch')`, the
+    // words were discarded, and the route answered 500. Every click of
+    // Transcribe paid for a transcript nobody received, and clicking again
+    // paid again.
+    //
+    // Two orderings follow from that. The words are persisted first, because
+    // they are what was paid for and nothing about bookkeeping should be able
+    // to lose them. And the cost is recorded last, fire and forget, because
+    // `recordApiCost` already swallows its own failures and returns no promise
+    // to wait on.
     const transcripts = { ...(comp.transcripts || {}), [sourceId]: words };
     await compositions.update(comp.id, { transcripts });
+
+    const durationS = words.length ? words[words.length - 1].end : 0;
+    recordApiCost({
+      provider: 'openai',
+      // The feature name the `video_batch` task budget sums over. Without a
+      // `feature` the call returned early and wrote nothing, so composition
+      // transcription has never appeared in the cost log, the cost chip or
+      // any budget.
+      feature: 'composition_transcribe',
+      costUsd: Math.max(0.01, (durationS / 60) * WHISPER_PER_MIN),
+      clientId: comp.client_id,
+      meta: {
+        model: 'whisper-1',
+        composition_id: comp.id,
+        source: sourceId,
+        duration_s: Math.round(durationS),
+      },
+    });
 
     res.json({ sourceId, words });
   } catch (err) {

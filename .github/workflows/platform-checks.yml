@@ -414,6 +414,14 @@ jobs:
         run: node tests/composition-playback-mutations.test.js
       - name: Mutations — timeline editing
         run: node tests/composition-timeline-mutations.test.js
+      # Spend that is recorded wrong is spend nothing can cap. The fault this
+      # guards called OpenAI, threw on the next line, discarded the transcript
+      # it had just paid for, and recorded no cost — so every click of
+      # Transcribe charged again. It reads every recordApiCost call in the
+      # backend, because the fault is in the wiring and no unit test of either
+      # side can see it.
+      - name: Guard — every cost call records something a budget can see
+        run: node tests/cost-log-callers.test.js
       - name: Syntax check every service and route
         run: |
           set -e
