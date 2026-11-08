@@ -1,5 +1,21 @@
 # Recorder polish roadmap — learning from Recordly (clean-room)
 
+> **Its reference list points at deleted files.** `services/editProcessor.js`
+> and `routes/edit.js` went in the November 2026 rewrite, so the "existing
+> ffmpeg edit pipeline" this plan proposes building on does not exist. The
+> render path is now `shared/compositionRender.mjs` (one filter graph, one
+> encode) driven by `backend/src/routes/compose.js`.
+>
+> The recorder half is untouched and still accurate:
+> `pages/RecordingsPage.jsx` is the capture surface, and
+> `services/recordingRemux.js` and `recordingExport.js` still do the work.
+> One live defect to know about: the page's **"Send to Edit" button posts to
+> the deleted `/api/edit` route and does nothing**. Recordings have no path
+> into the composition editor yet.
+>
+> The proposal itself stands; re-cost it against the composition model before
+> building any of it.
+
 Status: proposal · Scope: OMI in-app screen recorder (`dev/platform`)
 Author: strategy note for the video/recorder workstream
 

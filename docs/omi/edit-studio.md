@@ -1,5 +1,23 @@
 # Edit studio — guided video editor
 
+> **HISTORICAL, as of the November 2026 rewrite. Everything below is
+> deleted code.** The wizard this describes (`pages/MakeAReel.jsx`,
+> `pages/ClientEditPage.jsx`, `services/editProcessor.js`,
+> `routes/edit.js`, the `edit_jobs` queue) was removed when the composition
+> editor became the sole video editor. No `/api/edit` is mounted, so every
+> endpoint named here answers 404.
+>
+> Read it for the reasoning and the costs, never as a map of the tree. For
+> what exists now: `editor-composition-model.md` for the model,
+> `video-batch-plan.md` for what is being built on it.
+>
+> Two things here are still live and worth knowing: **Stills → Reel** is
+> unreachable rather than removed (`services/stillsReel.js` survives with its
+> six motion presets and fal price table, which `video-batch-plan.md` reuses
+> as the vocabulary for deterministic camera moves), and the **privacy point**
+> that drove the whole thing — footage is rendered on October's own box and
+> never uploaded to a third party — still holds for the composition editor.
+
 _Phase 1 shipped 2026-07-21. Follows the OpenCut evaluation
 (`opencut-evaluation.md`): build the three jobs an AM actually uses as a guided,
 server-side tool now; a full timeline editor (embed) can come later._
