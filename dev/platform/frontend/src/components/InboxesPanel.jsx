@@ -119,6 +119,15 @@ export default function InboxesPanel() {
     finally { setBusy(null); }
   }
 
+  async function scanInbox(row) {
+    setBusy(row.id);
+    try {
+      const r = await api.post(`/accounts/email/scan-inbox/${row.id}`);
+      toast(r.matched != null ? `${row.label}: found ${r.matched} invoice matches` : `${row.label}: scanned`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(null); }
+  }
+
   async function remove(row) {
     // Removing a mailbox stops its replies and opt-outs being seen, which is
     // the failure this panel exists to prevent. Make it deliberate.
@@ -194,6 +203,9 @@ export default function InboxesPanel() {
                 {r.has_oauth && (
                   <button className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => disconnectGoogle(r)}>Use a password</button>
                 )}
+                {r.scan_invoices && (
+                  <button className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => scanInbox(r)}>Read now</button>
+                )}
                 <button className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => testSaved(r)}>Test</button>
                 <button className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => remove(r)}>Remove</button>
               </span>
@@ -222,6 +234,13 @@ export default function InboxesPanel() {
               >
                 <input type="checkbox" checked={r.known_senders_only} disabled={busy === r.id || !r.scan_ooo} onChange={() => patch(r, { known_senders_only: !r.known_senders_only })} />
                 Known senders only
+              </label>
+              <label
+                style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}
+                title="Scan incoming emails for PDF/image attachments and match them to transactions in the reconcile queue."
+              >
+                <input type="checkbox" checked={r.scan_invoices} disabled={busy === r.id} onChange={() => patch(r, { scan_invoices: !r.scan_invoices })} />
+                Invoice scanning
               </label>
               <span style={{ color: 'var(--text-subtle)', marginLeft: 'auto' }}>
                 {r.matched || 0} replies · {r.unsubscribed || 0} opt-outs · {r.ooo_queued || 0} contact updates

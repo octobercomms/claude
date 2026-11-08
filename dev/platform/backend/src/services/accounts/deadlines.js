@@ -96,6 +96,19 @@ async function seedForYear(calendarYear) {
   return seedDeadlines(ye);
 }
 
+function addEffectiveStatus(rows) {
+  const now = new Date();
+  return rows.map(r => {
+    const due = new Date(r.due_date);
+    const daysUntil = Math.ceil((due - now) / 86400000);
+    let effectiveStatus = r.status;
+    if (r.status === 'upcoming' && due < now) {
+      effectiveStatus = 'overdue';
+    }
+    return { ...r, effective_status: effectiveStatus, days_until: daysUntil };
+  });
+}
+
 async function getUpcoming(days = 90) {
   const { rows } = await db.query(
     `SELECT * FROM acct_tax_deadlines
@@ -104,7 +117,7 @@ async function getUpcoming(days = 90) {
      ORDER BY due_date`,
     [String(days)]
   );
-  return rows;
+  return addEffectiveStatus(rows);
 }
 
 async function ensureSeeded() {
@@ -128,7 +141,18 @@ async function getAll() {
   const { rows } = await db.query(
     'SELECT * FROM acct_tax_deadlines ORDER BY due_date ASC'
   );
-  return rows;
+  return addEffectiveStatus(rows);
+}
+
+async function bulkMarkFiled(beforeDate) {
+  const { rows } = await db.query(
+    `UPDATE acct_tax_deadlines
+     SET status = 'filed', filing_date = COALESCE(filing_date, due_date), updated_at = now()
+     WHERE due_date < $1 AND status NOT IN ('filed', 'paid')
+     RETURNING *`,
+    [beforeDate]
+  );
+  return { updated: rows.length, rows: addEffectiveStatus(rows) };
 }
 
 async function updateDeadline(id, data) {
@@ -191,6 +215,67 @@ ${lines.join('\n')}
   return { sent: true, to, count: upcoming.length };
 }
 
+// Infer filed status from confirmed payments in the reconcile queue.
+// Matches deadline types to supplier patterns and account codes already
+// in the brain: HMRC (820/VAT), NEST (482/Pension), PAYE (Daniel Nelson).
+const DEADLINE_PAYMENT_MAP = {
+  VAT: { payeePatterns: ['hmrc', 'hm revenue'], accountCodes: ['820'] },
+  PENSION: { payeePatterns: ['nest'], accountCodes: ['482'] },
+  PAYE: { payeePatterns: ['hmrc', 'hm revenue', 'paye'], accountCodes: ['810', '820'] },
+  CT600: { payeePatterns: ['hmrc', 'hm revenue'], accountCodes: ['820'] },
+};
+
+async function inferFiledFromPayments() {
+  const { rows: unfiled } = await db.query(
+    `SELECT * FROM acct_tax_deadlines WHERE status NOT IN ('filed', 'paid') ORDER BY due_date`
+  );
+  if (!unfiled.length) return { checked: 0, inferred: 0 };
+
+  let inferred = 0;
+  for (const d of unfiled) {
+    const mapping = DEADLINE_PAYMENT_MAP[d.tax_type];
+    if (!mapping) continue;
+
+    const dueDate = new Date(d.due_date);
+    // Window: 60 days before due date to 14 days after (covers early and late payments).
+    const windowStart = new Date(dueDate);
+    windowStart.setDate(windowStart.getDate() - 60);
+    const windowEnd = new Date(dueDate);
+    windowEnd.setDate(windowEnd.getDate() + 14);
+
+    const payeeLike = mapping.payeePatterns.map((_, i) => `lower(q.payee) LIKE $${i + 4}`).join(' OR ');
+    const params = [
+      windowStart.toISOString(),
+      windowEnd.toISOString(),
+      mapping.accountCodes,
+      ...mapping.payeePatterns.map(p => `%${p}%`),
+    ];
+
+    const { rows: payments } = await db.query(
+      `SELECT q.line_date, q.amount, q.payee
+       FROM acct_reconcile_queue q
+       WHERE q.status IN ('confirmed', 'written')
+         AND q.line_date >= $1 AND q.line_date <= $2
+         AND (q.account_code = ANY($3) OR (${payeeLike}))
+       ORDER BY q.line_date DESC
+       LIMIT 1`,
+      params
+    );
+
+    if (payments.length) {
+      await db.query(
+        `UPDATE acct_tax_deadlines
+         SET status = 'filed', filing_date = $1, payment_amount = $2, updated_at = now()
+         WHERE id = $3 AND status NOT IN ('filed', 'paid')`,
+        [payments[0].line_date, Math.abs(payments[0].amount), d.id]
+      );
+      inferred++;
+    }
+  }
+
+  return { checked: unfiled.length, inferred };
+}
+
 module.exports = {
   generateDeadlines,
   seedDeadlines,
@@ -198,5 +283,7 @@ module.exports = {
   getUpcoming,
   getAll,
   updateDeadline,
+  bulkMarkFiled,
+  inferFiledFromPayments,
   sendAlerts,
 };

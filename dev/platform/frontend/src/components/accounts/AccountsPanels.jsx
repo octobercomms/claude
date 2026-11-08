@@ -6,27 +6,22 @@ import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
 import StatStrip from '../shells/StatStrip';
 
+const RC_RATES = new Set(['RRINPUT', 'RRINPUT2', 'REVERSECHARGES']);
+
 function checkVatWarnings(item, accountCode, taxRate) {
   const warnings = [];
-  const amount = Math.abs(parseFloat(item.amount) || 0);
   const payee = (item.payee || '').toLowerCase();
   const currency = (item.currency || 'GBP').toUpperCase();
 
-  if (currency !== 'GBP' && taxRate && !['RRINPUT', 'NONE', 'ZERORATEDINPUT'].includes(taxRate)) {
-    warnings.push('Non-GBP transaction with domestic VAT rate; should be reverse charge (RRINPUT) or NONE');
+  if (currency !== 'GBP' && taxRate && !RC_RATES.has(taxRate) && taxRate !== 'NONE' && taxRate !== 'ZERORATEDINPUT') {
+    warnings.push('Non-GBP transaction with domestic VAT rate; should be reverse charge or NONE');
   }
-  if (taxRate === 'RRINPUT' && currency === 'GBP') {
+  if (RC_RATES.has(taxRate) && currency === 'GBP') {
     warnings.push('Reverse charge on a GBP transaction; reverse charge is for overseas suppliers');
   }
-  if (amount > 250 && taxRate === 'INPUT2' && !accountCode) {
-    warnings.push('High-value purchase with standard VAT but no account code');
-  }
   const rcPayees = ['meta', 'facebook', 'google', 'dataforseo', 'dropbox', 'slack', 'adobe', 'zoom', 'github', 'anthropic', 'openai', 'amazon web', 'aws', 'notion', 'canva', 'figma', 'vercel', 'linkedin', 'hetzner', 'brevo'];
-  if (rcPayees.some(p => payee.includes(p)) && taxRate && taxRate !== 'RRINPUT' && taxRate !== 'NONE') {
-    warnings.push(`${item.payee} is typically reverse charge (RRINPUT); currently ${taxRate}`);
-  }
-  if (amount > 1000 && taxRate === 'NONE' && !['2201', '2202', '2210', '7020'].includes(accountCode)) {
-    warnings.push('High-value with no VAT; confirm this is correct');
+  if (rcPayees.some(p => payee.includes(p)) && taxRate && !RC_RATES.has(taxRate) && taxRate !== 'NONE') {
+    warnings.push(`${item.payee} is typically reverse charge; currently ${taxRate}`);
   }
   return warnings;
 }
@@ -114,7 +109,8 @@ export function DashboardPanel() {
   const deadlines = data.deadlines || [];
   const urgentDeadlines = deadlines.filter(d => {
     const days = Math.ceil((new Date(d.due_date) - new Date()) / (1000 * 60 * 60 * 24));
-    return days <= 30 && d.status !== 'filed' && d.status !== 'paid';
+    const status = d.effective_status || d.status;
+    return days <= 30 && status !== 'filed' && status !== 'paid';
   });
 
   return (
@@ -443,6 +439,10 @@ export function ReconcilePanel() {
         ]} />
       )}
 
+      <div style={{ padding: 'var(--s3)', fontSize: 'var(--fs-body-sm)', color: 'var(--text-muted)', background: 'var(--surface-alt, var(--surface))', borderRadius: 'var(--radius, 6px)', borderLeft: '3px solid var(--text-muted)' }}>
+        OMI pre-codes bank transactions so Xero can match them automatically. Unreconciled statement lines are not available via the Xero API; check your Xero dashboard for the full reconciliation view.
+      </div>
+
       <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div className="row center" style={{ gap: 'var(--s2)' }}>
           <input
@@ -701,18 +701,34 @@ export function RulesPanel() {
     } catch (e) { toast(e.message, 'error'); }
   }
 
+  const [purging, setPurging] = useState(false);
+
   async function handleSeedRules() {
     setSeeding(true);
     try {
       const r = await api.post('/accounts/rules/seed');
-      toast(`Seeded ${r.seeded} common rules`);
+      toast(`Seeded ${r.inserted} rules from supplier brain${r.skipped ? `, ${r.skipped} already existed` : ''}`);
       load();
     } catch (e) { toast(e.message, 'error'); }
     finally { setSeeding(false); }
   }
 
+  async function handlePurgeInvalid() {
+    if (!window.confirm('Delete all rules whose account code does not exist in the Xero chart of accounts?')) return;
+    setPurging(true);
+    try {
+      const r = await api.post('/accounts/rules/purge-invalid');
+      toast(`Removed ${r.deleted} invalid rules`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPurging(false); }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="card" style={{ padding: 'var(--s3)', fontSize: 'var(--fs-body-sm)', color: 'var(--text-muted)' }}>
+        Rules are the fallback for transactions the supplier brain does not recognise. The brain (177 suppliers from your Xero history) is checked first; rules only fire on tier 3 unknowns. "Seed from brain" copies auto-coding suppliers into rules. "Purge invalid" removes rules whose account codes are not in your Xero chart.
+      </div>
       <div className="row between center">
         <input
           type="text"
@@ -723,8 +739,11 @@ export function RulesPanel() {
           style={{ width: 260 }}
         />
         <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <button className="btn" style={{ color: 'var(--danger)' }} {...roWrite(readOnly, { onClick: handlePurgeInvalid, disabled: purging })}>
+            {purging ? 'Purging...' : 'Purge invalid'}
+          </button>
           <button className="btn" {...roWrite(readOnly, { onClick: handleSeedRules, disabled: seeding })}>
-            {seeding ? 'Seeding...' : 'Seed common rules'}
+            {seeding ? 'Seeding...' : 'Seed from brain'}
           </button>
           <button className="btn btn-primary" onClick={() => startEdit(null)}>Add rule</button>
         </div>
@@ -824,24 +843,34 @@ export function InvoicesPanel() {
   const { toast } = useToast();
   const [stats, setStats] = useState(null);
   const [missing, setMissing] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]);
   const [driveStatus, setDriveStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [attachingAll, setAttachingAll] = useState(false);
+  const [quarter, setQuarter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, m, ds] = await Promise.all([
+      const params = new URLSearchParams();
+      if (quarter) params.set('quarter', quarter);
+      if (statusFilter) params.set('status', statusFilter);
+      const qs = params.toString();
+      const [s, m, ds, all] = await Promise.all([
         api.get('/accounts/invoices/stats'),
         api.get('/accounts/invoices/missing'),
         api.get('/accounts/drive/status').catch(() => null),
+        api.get(`/accounts/invoices/all${qs ? `?${qs}` : ''}`),
       ]);
       setStats(s);
       setMissing(m.invoices || []);
       setDriveStatus(ds);
+      setAllInvoices(all.invoices || []);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
-  }, [toast]);
+  }, [toast, quarter, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -867,6 +896,16 @@ export function InvoicesPanel() {
     } catch (e) { toast(e.message, 'error'); }
   }
 
+  async function handleAttachAll() {
+    setAttachingAll(true);
+    try {
+      const r = await api.post('/accounts/drive/attach-all');
+      toast(`Attached ${r.attached} invoices to Xero${r.errors?.length ? `, ${r.errors.length} errors` : ''}`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setAttachingAll(false); }
+  }
+
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
 
   return (
@@ -882,9 +921,14 @@ export function InvoicesPanel() {
       <div className="card" style={{ padding: 'var(--s4)' }}>
         <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
           <div className="h5">Google Drive invoice scanner</div>
-          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleScan, disabled: scanning || !driveStatus?.configured })}>
-            {scanning ? 'Scanning...' : 'Scan Drive folder'}
-          </button>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleScan, disabled: scanning || !driveStatus?.configured })}>
+              {scanning ? 'Scanning...' : 'Scan Drive folder'}
+            </button>
+            <button className="btn" {...roWrite(readOnly, { onClick: handleAttachAll, disabled: attachingAll || !stats?.matched })}>
+              {attachingAll ? 'Attaching...' : 'Attach all to Xero'}
+            </button>
+          </div>
         </div>
         {driveStatus?.configured ? (
           <div className="body-sm text-muted">
@@ -945,6 +989,157 @@ export function InvoicesPanel() {
           </tbody>
         </table>
       )}
+
+      <div className="row between center" style={{ marginTop: 'var(--s3)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+        <div className="h4" style={{ margin: 0 }}>All invoices</div>
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <select value={quarter} onChange={e => setQuarter(e.target.value)} className="input" style={{ minWidth: 140 }}>
+            <option value="">All quarters</option>
+            {(() => {
+              const now = new Date();
+              const opts = [];
+              for (let i = 0; i < 8; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i * 3, 1);
+                const q = Math.floor(d.getMonth() / 3) + 1;
+                const label = `${d.getFullYear()}-Q${q}`;
+                if (!opts.includes(label)) opts.push(label);
+              }
+              return opts.map(o => <option key={o} value={o}>{o}</option>);
+            })()}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input" style={{ minWidth: 120 }}>
+            <option value="">All statuses</option>
+            <option value="matched">Matched</option>
+            <option value="attached">Attached</option>
+            <option value="missing">Missing</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+      </div>
+
+      {allInvoices.length === 0 ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">No invoices found{quarter || statusFilter ? ' for this filter' : ''}.</div>
+        </div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Payee / Contact</th>
+              <th style={{ textAlign: 'right' }}>Amount</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Drive file</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allInvoices.map((inv, i) => (
+              <tr key={inv.id || i}>
+                <td style={{ whiteSpace: 'nowrap' }}>{inv.invoice_date?.slice(0, 10) || '—'}</td>
+                <td>{inv.xero_contact || '—'}</td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {Number(inv.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </td>
+                <td>{inv.currency || 'GBP'}</td>
+                <td>
+                  <span className={`chip ${inv.status === 'attached' ? 'chip-success' : inv.status === 'missing' ? 'chip-danger' : inv.status === 'matched' ? 'chip-warning' : 'chip-muted'}`}>
+                    {inv.status}
+                  </span>
+                </td>
+                <td className="text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {inv.drive_file_name || '—'}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  {inv.drive_file_id && inv.status === 'matched' && (
+                    <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} {...roWrite(readOnly, { onClick: () => handleAttach(inv.id) })}>
+                      Attach
+                    </button>
+                  )}
+                  {inv.attached_to_xero && (
+                    <span className="body-sm text-muted">In Xero</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
+        <div className="h4" style={{ margin: 0 }}>All invoices</div>
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <select value={quarter} onChange={e => setQuarter(e.target.value)} style={{ fontSize: 'var(--fs-body-sm)' }}>
+            <option value="">All quarters</option>
+            {(() => {
+              const now = new Date();
+              const opts = [];
+              for (let y = now.getFullYear(); y >= now.getFullYear() - 1; y--) {
+                for (let q = 4; q >= 1; q--) {
+                  opts.push(<option key={`${y}-Q${q}`} value={`${y}-Q${q}`}>{y} Q{q}</option>);
+                }
+              }
+              return opts;
+            })()}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ fontSize: 'var(--fs-body-sm)' }}>
+            <option value="">All statuses</option>
+            <option value="matched">Matched</option>
+            <option value="attached">Attached to Xero</option>
+            <option value="missing">Missing</option>
+            <option value="pending">Pending</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+      </div>
+
+      {allInvoices.length === 0 ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">{quarter || statusFilter ? 'No invoices match the selected filters.' : 'No invoice records yet.'}</div>
+        </div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Payee / Contact</th>
+              <th style={{ textAlign: 'right' }}>Amount</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allInvoices.map((inv, i) => {
+              const statusChip = {
+                attached: { className: 'chip chip-success', label: 'Attached' },
+                matched: { className: 'chip chip-info', label: 'Matched' },
+                missing: { className: 'chip chip-danger', label: 'Missing' },
+                pending: { className: 'chip', label: 'Pending' },
+                manual: { className: 'chip', label: 'Manual' },
+              }[inv.status] || { className: 'chip', label: inv.status };
+              return (
+                <tr key={inv.id || i}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{inv.invoice_date?.slice(0, 10) || '—'}</td>
+                  <td>{inv.xero_contact || '—'}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {Number(inv.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td>{inv.currency || 'GBP'}</td>
+                  <td><span className={statusChip.className}>{statusChip.label}</span></td>
+                  <td className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
+                    {inv.drive_file_name ? 'Drive' : inv.email_message_id ? 'Email' : inv.xero_txn_id ? 'Xero' : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {allInvoices.length > 0 && (
+        <div className="body-sm text-muted">{allInvoices.length} invoice{allInvoices.length !== 1 ? 's' : ''}</div>
+      )}
     </div>
   );
 }
@@ -963,6 +1158,9 @@ export function DeadlinesPanel() {
   const [editingId, setEditingId] = useState(null);
   const [editStatus, setEditStatus] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [inferring, setInferring] = useState(false);
+  const [bulkDate, setBulkDate] = useState('');
+  const [bulkFiling, setBulkFiling] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -991,8 +1189,29 @@ export function DeadlinesPanel() {
 
   function startEdit(d) {
     setEditingId(d.id);
-    setEditStatus(d.status || 'upcoming');
+    setEditStatus(d.effective_status || d.status || 'upcoming');
     setEditNotes(d.notes || '');
+  }
+
+  async function handleInfer() {
+    setInferring(true);
+    try {
+      const r = await api.post('/accounts/deadlines/infer-filed');
+      toast(`Checked ${r.checked} deadlines, ${r.inferred} updated from payments`);
+      if (r.inferred > 0) load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setInferring(false); }
+  }
+
+  async function handleBulkFile() {
+    setBulkFiling(true);
+    try {
+      const r = await api.post('/accounts/deadlines/bulk-file', { beforeDate: bulkDate });
+      toast(`${r.updated} deadline${r.updated !== 1 ? 's' : ''} marked as filed`);
+      setBulkDate('');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBulkFiling(false); }
   }
 
   async function handleUpdate(id) {
@@ -1034,7 +1253,19 @@ export function DeadlinesPanel() {
           <button className="btn" {...roWrite(readOnly, { onClick: handleSeed, disabled: seeding })}>
             {seeding ? 'Seeding...' : 'Seed deadlines'}
           </button>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleInfer, disabled: inferring })}>
+            {inferring ? 'Checking...' : 'Infer from payments'}
+          </button>
         </div>
+      </div>
+
+      <div className="card" style={{ padding: 'var(--s3)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+        <span className="body-sm text-muted">Mark all deadlines before</span>
+        <input type="date" className="input" value={bulkDate} onChange={e => setBulkDate(e.target.value)} style={{ width: 160 }} />
+        <span className="body-sm text-muted">as filed</span>
+        <button className="btn" {...roWrite(readOnly, { onClick: handleBulkFile, disabled: !bulkDate || bulkFiling })}>
+          {bulkFiling ? 'Filing...' : 'Mark filed'}
+        </button>
       </div>
 
       {deadlines.length === 0 ? (
@@ -1050,6 +1281,7 @@ export function DeadlinesPanel() {
               <th>Due date</th>
               <th>Urgency</th>
               <th>Status</th>
+              <th style={{ textAlign: 'right' }}>Payment</th>
               <th>Notes</th>
               <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
@@ -1062,7 +1294,8 @@ export function DeadlinesPanel() {
                   <td>{d.period_label || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{d.due_date?.slice(0, 10)}</td>
                   <td><span className={`chip ${urgencyClass(d.due_date)}`}>{daysLabel(d.due_date)}</span></td>
-                  <td><span className={`chip ${d.status === 'filed' ? 'chip-success' : d.status === 'overdue' ? 'chip-danger' : ''}`}>{d.status}</span></td>
+                  <td><span className={`chip ${(d.effective_status || d.status) === 'filed' || (d.effective_status || d.status) === 'paid' ? 'chip-success' : (d.effective_status || d.status) === 'overdue' ? 'chip-danger' : ''}`}>{d.effective_status || d.status}</span></td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 'var(--fs-body-sm)' }}>{d.payment_amount ? Number(d.payment_amount).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : ''}</td>
                   <td className="text-muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.notes || '—'}</td>
                   <td style={{ textAlign: 'right' }}>
                     <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => startEdit(d)}>Edit</button>
@@ -1070,7 +1303,7 @@ export function DeadlinesPanel() {
                 </tr>
                 {editingId === d.id && (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <div className="card" style={{ padding: 'var(--s3)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                         <label className="body-sm">
                           Status
@@ -1227,6 +1460,74 @@ export function VatPanel() {
               </table>
             </div>
           )}
+
+          {packResult?.summary?.brainFlags?.length > 0 && (
+            <div style={{ marginTop: 'var(--s3)' }}>
+              <div className="h5" style={{ marginBottom: 'var(--s2)', color: 'var(--warning)' }}>
+                Brain inconsistencies ({packResult.summary.brainFlags.length})
+              </div>
+              <div className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>
+                These transactions have a different VAT treatment from what the supplier brain expects. Worth reviewing before the quarter closes.
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Supplier</th>
+                    <th>Date</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th>Applied rate</th>
+                    <th>Brain expects</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packResult.summary.brainFlags.map((f, i) => (
+                    <tr key={f.lineRef || i}>
+                      <td>{f.supplier || f.payee}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{typeof f.date === 'string' ? f.date.slice(0, 10) : '—'}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {f.currency !== 'GBP' ? `${f.currency} ` : '£'}{Number(f.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td><span className="chip chip-danger">{f.txnRate}</span></td>
+                      <td><span className="chip chip-success">{f.brainRate}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {packResult?.summary?.missingInvoiceList?.length > 0 && (
+            <div style={{ marginTop: 'var(--s3)' }}>
+              <div className="h5" style={{ marginBottom: 'var(--s2)', color: 'var(--danger)' }}>
+                Missing invoices ({packResult.summary.missingInvoices})
+              </div>
+              <div className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>
+                Transactions over £50 in this quarter without a matched invoice.
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Payee</th>
+                    <th>Date</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th>Currency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packResult.summary.missingInvoiceList.map((m, i) => (
+                    <tr key={m.lineRef || i}>
+                      <td>{m.payee || '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{typeof m.date === 'string' ? m.date.slice(0, 10) : '—'}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {Number(m.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td>{m.currency || 'GBP'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1376,7 +1677,7 @@ export function DigestsPanel() {
 
       {digests.length === 0 ? (
         <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
-          <div className="text-muted">No digests yet. The first one is built automatically on Monday mornings, or you can trigger one manually.</div>
+          <div className="text-muted">No digests yet. The first one is built automatically on Friday mornings, or you can trigger one manually.</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
@@ -1422,14 +1723,37 @@ export function DigestsPanel() {
                         <div>Attached: {summary.invoices?.attached ?? 0}</div>
                       </div>
                     </div>
+                    {summary.suppliers && (
+                      <div style={{ marginTop: 'var(--s3)' }}>
+                        <div className="h5">Supplier brain</div>
+                        <div>Total: {summary.suppliers.total ?? 0} | Auto-coding: {summary.suppliers.autoCoding ?? 0} | Learning: {summary.suppliers.learning ?? 0}</div>
+                        {summary.suppliers.autoCodedThisWeek?.length > 0 && (
+                          <div style={{ marginTop: 'var(--s2)' }}>
+                            <div className="text-muted">Auto-coded this week:</div>
+                            {summary.suppliers.autoCodedThisWeek.map((a, i) => (
+                              <div key={i} className="text-muted">{a.display_name}: {a.count} transactions</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {summary.overdueDeadlines > 0 && (
+                      <div style={{ marginTop: 'var(--s3)', padding: 'var(--s2) var(--s3)', background: 'var(--warning-soft)', borderLeft: '3px solid var(--warning)', borderRadius: 'var(--r-sm)' }}>
+                        <strong style={{ color: 'var(--warning)' }}>{summary.overdueDeadlines} overdue deadline{summary.overdueDeadlines > 1 ? 's' : ''}</strong>
+                        <span className="text-muted"> require attention.</span>
+                      </div>
+                    )}
                     {summary.deadlines?.length > 0 && (
                       <div style={{ marginTop: 'var(--s3)' }}>
                         <div className="h5">Upcoming deadlines</div>
-                        {summary.deadlines.map((dl, i) => (
-                          <div key={i} className="text-muted">
-                            {dl.type} ({dl.label}): {dl.dueDate?.slice(0, 10)} — {dl.daysUntil}d away — {dl.status}
-                          </div>
-                        ))}
+                        {summary.deadlines.map((dl, i) => {
+                          const color = dl.status === 'overdue' ? 'var(--danger)' : dl.daysUntil <= 7 ? 'var(--danger)' : dl.daysUntil <= 14 ? 'var(--warning)' : undefined;
+                          return (
+                            <div key={i} className="text-muted" style={{ color }}>
+                              {dl.type} ({dl.label}): {dl.dueDate?.slice(0, 10)} {dl.daysUntil < 0 ? `${Math.abs(dl.daysUntil)}d overdue` : `${dl.daysUntil}d`} {dl.status}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     {summary.invoices?.missingList?.length > 0 && (
@@ -1547,11 +1871,23 @@ export function DrivePanel() {
   async function handleToggleSubfolder(folderId, included) {
     try {
       await api.put(`/accounts/drive/subfolders/${folderId}`, { included });
+      // Cascade: also update children in local state
+      const parent = subfolders.find(s => s.drive_folder_id === folderId);
       setSubfolders(prev => prev.map(s =>
-        s.drive_folder_id === folderId ? { ...s, included } : s
+        s.drive_folder_id === folderId ? { ...s, included } :
+        (parent && s.parent_id === folderId) ? { ...s, included } :
+        s
       ));
     } catch (e) { toast(e.message, 'error'); }
   }
+
+  async function handleToggleAllSubfolders(included) {
+    try {
+      const result = await api.put('/accounts/drive/subfolders', { included });
+      setSubfolders(result.subfolders || []);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
 
@@ -1639,9 +1975,15 @@ export function DrivePanel() {
           </div>
           {subfolders.length > 0 ? (
             <>
-              <div className="body-sm text-muted">
-                {subfolders.filter(s => s.included).length} of {subfolders.length} included in scan
-                {' '}({subfolders.filter(s => s.included).reduce((sum, s) => sum + (s.file_count || 0), 0)} files)
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="body-sm text-muted">
+                  {subfolders.filter(s => s.included).length} of {subfolders.length} included in scan
+                  {' '}({subfolders.filter(s => s.included).reduce((sum, s) => sum + (s.file_count || 0), 0)} files)
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+                  <button className="btn btn-sm" onClick={() => handleToggleAllSubfolders(true)}>Select all</button>
+                  <button className="btn btn-sm" onClick={() => handleToggleAllSubfolders(false)}>Deselect all</button>
+                </div>
               </div>
               <table className="table">
                 <thead>
@@ -1653,29 +1995,47 @@ export function DrivePanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {subfolders.map(sf => (
-                    <tr key={sf.drive_folder_id} style={{ opacity: sf.included ? 1 : 0.5 }}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={sf.included}
-                          onChange={e => handleToggleSubfolder(sf.drive_folder_id, e.target.checked)}
-                        />
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 500 }}>{sf.name}</span>
-                        {sf.path !== sf.name && (
-                          <span className="body-sm text-muted" style={{ marginLeft: 'var(--s1)' }}>{sf.path}</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {sf.file_count != null ? sf.file_count : '—'}
-                      </td>
-                      <td className="body-sm text-muted">
-                        {sf.last_scanned_at ? new Date(sf.last_scanned_at).toLocaleDateString('en-GB') : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const isTopLevel = sf => !sf.path.includes('/');
+                    const topFolders = subfolders.filter(isTopLevel);
+                    const childrenOf = id => subfolders.filter(sf => sf.parent_id === id);
+                    const rows = [];
+                    for (const parent of topFolders) {
+                      rows.push({ ...parent, _isParent: true });
+                      for (const child of childrenOf(parent.drive_folder_id)) {
+                        rows.push({ ...child, _isChild: true });
+                      }
+                    }
+                    return rows.map(sf => (
+                      <tr key={sf.drive_folder_id} style={{ opacity: sf.included ? 1 : 0.5 }}>
+                        <td style={{ paddingLeft: sf._isChild ? 'var(--s4)' : undefined }}>
+                          <input
+                            type="checkbox"
+                            checked={sf.included}
+                            onChange={e => handleToggleSubfolder(sf.drive_folder_id, e.target.checked)}
+                          />
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: sf._isParent ? 600 : 400 }}>{sf.name}</span>
+                          {sf._isParent && (() => {
+                            const kids = childrenOf(sf.drive_folder_id);
+                            const included = kids.filter(c => c.included).length;
+                            return kids.length > 0 ? (
+                              <span className="body-sm text-muted" style={{ marginLeft: 'var(--s2)' }}>
+                                {included}/{kids.length} suppliers
+                              </span>
+                            ) : null;
+                          })()}
+                        </td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          {sf.file_count != null ? sf.file_count : '—'}
+                        </td>
+                        <td className="body-sm text-muted">
+                          {sf.last_scanned_at ? new Date(sf.last_scanned_at).toLocaleDateString('en-GB') : '—'}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </>
@@ -2319,7 +2679,7 @@ export function SuppliersPanel() {
       usual_currency: supplier.usual_currency || 'GBP',
       expected_cadence: supplier.expected_cadence || '',
       invoice_source: supplier.invoice_source || 'unknown',
-      auto_code: supplier.auto_code !== false,
+      auto_code: supplier.auto_code === true,
       notes: supplier.notes || '',
     } : { ...BLANK });
   }

@@ -8,6 +8,7 @@ const vatPack = require('./vatPack');
 const driveScanner = require('./driveScanner');
 const fxTracker = require('./fxTracker');
 const suppliers = require('./suppliers');
+const emailScanner = require('./emailScanner');
 
 module.exports = {
   rules,
@@ -20,4 +21,5 @@ module.exports = {
   driveScanner,
   fxTracker,
   suppliers,
+  emailScanner,
 };

@@ -996,13 +996,22 @@ cron.schedule('0 21 * * 0', async () => {
       const scan = await accounts.driveScanner.scanAndMatch();
       if (scan.scanned) console.log(`[Accounts] Drive scan: ${scan.scanned} files, ${scan.matched} matched, ${scan.missing} missing`);
     } catch (driveErr) { console.warn('[Accounts] Drive scan skipped:', driveErr.message); }
+    try {
+      const emailScan = await accounts.emailScanner.scanInboxesForInvoices();
+      if (emailScan.scannedMailboxes) console.log(`[Accounts] Email scan: ${emailScan.scannedMailboxes} mailboxes, ${emailScan.attachmentsFound} attachments, ${emailScan.matched} matched`);
+    } catch (emailErr) { console.warn('[Accounts] Email scan skipped:', emailErr.message); }
+    try {
+      const inferred = await accounts.deadlines.inferFiledFromPayments();
+      if (inferred.inferred) console.log(`[Accounts] Deadline inference: ${inferred.inferred} of ${inferred.checked} marked as filed`);
+    } catch (dlErr) { console.warn('[Accounts] Deadline inference skipped:', dlErr.message); }
   } catch (e) { console.error('[Accounts] reconcile failed:', e.message); }
 });
 
-// Accounts weekly digest: Monday 07:30. Builds the digest and emails it.
-// Runs before the strategist briefing so any accounts issues surface in the
-// same Monday morning window.
-cron.schedule('30 7 * * 1', async () => {
+// Accounts weekly digest: Friday 07:30. Builds the digest and emails it.
+// Lands at the end of the working week so anything flagged can be triaged
+// before the weekend. Previously Monday; moved so the Sunday reconciliation
+// results are fresh in the digest.
+cron.schedule('30 7 * * 5', async () => {
   try {
     const accounts = require('./accounts');
     const r = await accounts.digest.buildAndSend();

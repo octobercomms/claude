@@ -17,7 +17,7 @@ const { getSetting } = require('../utils/settings');
 
 // Columns safe to hand to the UI. password_enc never leaves this module.
 const PUBLIC_COLUMNS = `id, label, host, port, username, active, poll_replies,
-  scan_ooo, known_senders_only, last_run_at, last_ok_at, last_match_at,
+  scan_ooo, known_senders_only, scan_invoices, last_run_at, last_ok_at, last_match_at,
   last_error, scanned, matched, unsubscribed, ooo_queued, created_at, updated_at,
   auth_type, oauth_email, oauth_connected_at,
   (password_enc IS NOT NULL) AS has_password,
@@ -230,7 +230,7 @@ async function update(id, input = {}) {
     push('password_enc', JSON.stringify(encrypt(String(input.password))));
     push('auth_type', 'password');
   }
-  for (const flag of ['active', 'poll_replies', 'scan_ooo', 'known_senders_only']) {
+  for (const flag of ['active', 'poll_replies', 'scan_ooo', 'known_senders_only', 'scan_invoices']) {
     if (input[flag] !== undefined) push(flag, Boolean(input[flag]));
   }
   if (!sets.length) { const e = new Error('Nothing to change.'); e.status = 400; throw e; }

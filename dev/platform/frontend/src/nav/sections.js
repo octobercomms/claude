@@ -559,16 +559,11 @@ export const SECTIONS = {
         { tab: 'reconcile',  label: 'Reconcile' },
         { tab: 'rules',      label: 'Rules' },
         { tab: 'invoices',   label: 'Invoices' },
+        { tab: 'digests',    label: 'Weekly digest', slug: 'weekly-digest' },
       ] },
       { heading: 'Tax', rows: [
         { tab: 'deadlines',  label: 'Deadlines' },
         { tab: 'vat',        label: 'VAT' },
-        { tab: 'fx',         label: 'FX tracker' },
-      ] },
-      { heading: 'Reports', rows: [
-        { tab: 'fin_reports', label: 'Financial reports', slug: 'financial-reports' },
-        { tab: 'audit',      label: 'Audit trail', slug: 'audit-trail' },
-        { tab: 'digests',    label: 'Weekly digest', slug: 'weekly-digest' },
       ] },
       { heading: 'Setup', rows: [
         { tab: 'drive',      label: 'Google Drive' },
@@ -645,6 +640,7 @@ export function slugOf(row) {
 // their own. Each maps a URL slug to the tab key it should resolve to.
 export const SLUG_ALIASES = {
   connections: 'integrations',
+  digest: 'digests',
 };
 
 // slug -> the key the page compares against. Unknown slugs answer null so the
@@ -653,7 +649,7 @@ export function tabForSlug(section, slug) {
   if (!section) return null;
   const resolved = SLUG_ALIASES[slug] || slug;
   for (const g of section.groups) {
-    const row = g.rows.find(r => slugOf(r) === resolved);
+    const row = g.rows.find(r => slugOf(r) === resolved || r.tab === resolved);
     if (row) return row.tab;
   }
   return null;

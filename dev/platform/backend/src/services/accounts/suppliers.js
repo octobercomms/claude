@@ -36,6 +36,8 @@ function isReverseCharge(vatTreatment) {
   return REVERSE_CHARGE_CODES.has(vatTreatment.toUpperCase());
 }
 
+const AUTO_CODE_CONFIDENCE_THRESHOLD = parseInt(process.env.ACCOUNTS_AUTO_CODE_THRESHOLD, 10) || 5;
+
 function inferCadence(dates) {
   if (dates.length < 4) return 'ad_hoc';
 
@@ -449,14 +451,15 @@ async function bootstrapFromXero() {
     const usualCurrency = currencies.length === 1 ? currencies[0] : 'GBP';
 
     const cadence = inferCadence(entry.dates);
+    const confidenceCount = topCoding[1];
 
     await db.query(
       `INSERT INTO acct_suppliers
          (display_name, xero_contact_id, match_patterns, account_code, account_name,
           vat_treatment, is_reverse_charge, usual_currency, expected_cadence,
           confidence_counter, last_amount, amount_min, amount_max,
-          last_seen, auto_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          last_seen, auto_code, invoice_source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT DO NOTHING`,
       [
         entry.displayName,
@@ -468,12 +471,13 @@ async function bootstrapFromXero() {
         isReverseCharge(rate),
         usualCurrency,
         cadence,
-        Math.round(consistency * entry.codings.length),
+        confidenceCount,
         amounts.length ? amounts[amounts.length - 1] : null,
         amountMin,
         amountMax,
         entry.dates.length ? entry.dates.sort((a, b) => b - a)[0] : null,
-        consistency >= 0.8,
+        confidenceCount >= AUTO_CODE_CONFIDENCE_THRESHOLD,
+        'drive',
       ]
     );
     created++;
@@ -561,9 +565,9 @@ async function seedFromDriveFolders(supplierMap) {
 // ---------------------------------------------------------------------------
 
 async function cleanup() {
-  const results = { patternsStripped: 0, reverseChargeFixed: 0, cadenceReset: 0, junkDeleted: 0 };
+  const results = { patternsStripped: 0, reverseChargeFixed: 0, cadenceReset: 0, junkDeleted: 0, autoCodeFixed: 0, invoiceSourceFixed: 0 };
 
-  const { rows: all } = await db.query('SELECT id, display_name, match_patterns, vat_treatment, is_reverse_charge, expected_cadence FROM acct_suppliers');
+  const { rows: all } = await db.query('SELECT id, display_name, match_patterns, vat_treatment, is_reverse_charge, expected_cadence, confidence_counter, auto_code, invoice_source FROM acct_suppliers');
 
   for (const row of all) {
     if (!isValidSupplierName(row.display_name)) {
@@ -603,6 +607,21 @@ async function cleanup() {
       values.push('ad_hoc');
       idx++;
       results.cadenceReset++;
+    }
+
+    const shouldAutoCode = (row.confidence_counter || 0) >= AUTO_CODE_CONFIDENCE_THRESHOLD;
+    if (row.auto_code !== shouldAutoCode) {
+      updates.push(`auto_code = $${idx}`);
+      values.push(shouldAutoCode);
+      idx++;
+      results.autoCodeFixed++;
+    }
+
+    if (!row.invoice_source || row.invoice_source === 'unknown') {
+      updates.push(`invoice_source = $${idx}`);
+      values.push('drive');
+      idx++;
+      results.invoiceSourceFixed++;
     }
 
     if (updates.length) {
@@ -675,4 +694,5 @@ module.exports = {
   cleanup,
   getStats,
   getAutoCodedSummary,
+  AUTO_CODE_CONFIDENCE_THRESHOLD,
 };

@@ -168,10 +168,48 @@ async function getMissingInvoices() {
   return rows;
 }
 
+async function getAllInvoices(opts = {}) {
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+
+  if (opts.quarter) {
+    // quarter format: "2026-Q3" meaning Jul-Sep 2026
+    const m = opts.quarter.match(/^(\d{4})-Q([1-4])$/);
+    if (m) {
+      const year = parseInt(m[1]);
+      const q = parseInt(m[2]);
+      const startMonth = (q - 1) * 3; // 0-based: Q1=0, Q2=3, Q3=6, Q4=9
+      const start = new Date(year, startMonth, 1);
+      const end = new Date(year, startMonth + 3, 1);
+      conditions.push(`invoice_date >= $${idx}`);
+      params.push(start.toISOString().split('T')[0]);
+      idx++;
+      conditions.push(`invoice_date < $${idx}`);
+      params.push(end.toISOString().split('T')[0]);
+      idx++;
+    }
+  }
+
+  if (opts.status) {
+    conditions.push(`status = $${idx}`);
+    params.push(opts.status);
+    idx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows } = await db.query(
+    `SELECT * FROM acct_invoice_matches ${where} ORDER BY invoice_date DESC, id DESC`,
+    params
+  );
+  return rows;
+}
+
 module.exports = {
   matchInvoicesToQueue,
   findBestMatch,
   attachToXero,
   getInvoiceStats,
   getMissingInvoices,
+  getAllInvoices,
 };
