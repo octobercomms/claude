@@ -1,0 +1,108 @@
+{
+  "id": "hook-cta",
+  "name": "Hook, problem, solution, CTA",
+  "description": "Four structural beats over stills with phrase captions and a held end card, cut to the 15-second paid slot.",
+  "bestFor": "Paid placement, where the first second is bought and the last two have to carry an offer. Not the default for organic.",
+  "register": "editorial",
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "slots": [
+    {
+      "id": "hook",
+      "kind": "still",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 2.2,
+        "max": 3
+      },
+      "motion": "push-in",
+      "trans": null,
+      "track": 0
+    },
+    {
+      "id": "problem",
+      "kind": "still",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 2,
+        "max": 2.8
+      },
+      "motion": "drift",
+      "trans": "fade",
+      "track": 0
+    },
+    {
+      "id": "solution",
+      "kind": "still",
+      "min": 2,
+      "max": 3,
+      "len": {
+        "min": 2.2,
+        "max": 3
+      },
+      "motion": "reveal",
+      "trans": "fade",
+      "track": 0
+    },
+    {
+      "id": "cta",
+      "kind": "design",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 2,
+        "max": 2
+      },
+      "motion": null,
+      "trans": null,
+      "track": 0
+    },
+    {
+      "id": "lines",
+      "kind": "text",
+      "min": 4,
+      "max": 6,
+      "len": {
+        "min": 2,
+        "max": 3
+      },
+      "motion": null,
+      "trans": "fade",
+      "track": 1
+    },
+    {
+      "id": "bed",
+      "kind": "audio",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 9.4,
+        "max": 20.8
+      },
+      "motion": null,
+      "trans": null,
+      "track": 2
+    }
+  ],
+  "caption": {
+    "preset": "institution"
+  },
+  "variation": {
+    "motion": [
+      "push-in",
+      "reveal",
+      "rise",
+      "drift"
+    ],
+    "trans": [
+      "fade",
+      "wipeleft"
+    ],
+    "lenJitter": 0.12
+  }
+}

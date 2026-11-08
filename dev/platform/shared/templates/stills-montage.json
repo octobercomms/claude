@@ -1,0 +1,78 @@
+{
+  "id": "stills-montage",
+  "name": "Stills montage",
+  "description": "Six to eight photographs carried by deterministic camera moves, two to four short phrase titles and a music bed. No filmed footage, no generated frames, no vendor in the render path.",
+  "bestFor": "A completed project, a collection or a material study where the photography is the product and nobody is on camera.",
+  "register": "editorial",
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "slots": [
+    {
+      "id": "stills",
+      "kind": "still",
+      "min": 6,
+      "max": 8,
+      "len": {
+        "min": 2.6,
+        "max": 3.8
+      },
+      "motion": "push-in",
+      "trans": "fade",
+      "track": 0
+    },
+    {
+      "id": "titles",
+      "kind": "text",
+      "min": 2,
+      "max": 4,
+      "len": {
+        "min": 2.2,
+        "max": 3.0
+      },
+      "trans": "fade",
+      "track": 1,
+      "alignTo": "stills"
+    },
+    {
+      "id": "endcard",
+      "kind": "design",
+      "min": 0,
+      "max": 1,
+      "len": {
+        "min": 1.8,
+        "max": 2.4
+      },
+      "trans": "fade",
+      "track": 0
+    },
+    {
+      "id": "music",
+      "kind": "audio",
+      "min": 1,
+      "max": 1,
+      "len": null,
+      "track": 3
+    }
+  ],
+  "caption": {
+    "preset": "gallery-quiet"
+  },
+  "variation": {
+    "motion": [
+      "push-in",
+      "drift",
+      "subtle",
+      "reveal",
+      "rise"
+    ],
+    "trans": [
+      "fade",
+      "fade",
+      "fadeblack"
+    ],
+    "lenJitter": 0.15
+  }
+}

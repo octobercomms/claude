@@ -278,6 +278,50 @@ Eight, shipped with the code so Daniel never builds one by hand:
 | `carousel-to-reel` | Existing `social_posts.storyboard` frames animated |
 | `coverage-roundup` | Headlines and logos, match-cut treatment |
 
+**Built, 8 November.** `shared/templates/*.json`, loaded and validated by
+`backend/src/services/compositionTemplates.js`, served at
+`GET /api/compose/templates` (summaries) and `?full=1` (whole, for binding).
+All eight bind to a valid Composition at minimum and maximum fill; the suite
+is `backend/tests/composition-template.test.js`, 113 assertions.
+
+Four things the authoring surfaced, each of which changed the model:
+
+1. **A template carries only fields the binder reads.** The first drafts
+   declared `motionAmplitude`, `transLen`, `fit`, `anchor`, `fade`, `audio`,
+   `margins` and a `duration` target. Nothing read any of them. A JSON file
+   that states a constraint nothing enforces is worse than not having it,
+   because the next person reads the file and believes it, so the shipped
+   eight are stripped to the read set and a test fails on any field outside
+   it. `motionAmplitude` turned out already satisfied: `MOTIONS` caps travel
+   at 12% scale and 3.5% position, tighter than the 10%/4% the author asked
+   for, and a pre-capped vocabulary is a better guarantee than a per-slot
+   knob.
+2. **`alignTo`.** Every slot ran on its own clock, so a walkthrough's five
+   2.4s section labels finished by 15s while the footage ran to 25s and four
+   of them sat over the wrong shot. A text slot now names the slot it
+   annotates and takes its times, clamped to its own length so a label
+   appears and leaves rather than running the whole shot. Drift is 0.000s.
+3. **One caption source per composition.** The renderer took
+   `captionSources[0]` and dropped the rest without a word, in the one
+   function whose own comment forbids exactly that. Nothing produced two
+   until templates did. It now throws, `validateTemplate` refuses a template
+   that would produce two, and `caption.from` makes a template with both
+   on-screen type and a clip say which the preset styles. Guessing from slot
+   kinds got it wrong: a walkthrough's clips are b-roll, not somebody
+   speaking.
+4. **A `null` in a transition rotation is a hard cut**, and it is the only
+   way to ask for a cut between two unrelated mastheads and a fade where two
+   shots of one spread sit together. `variant.trans || slot.trans` read it as
+   "no opinion" and substituted the slot's fade, so `coverage-roundup`'s
+   `[null, 'fade']` faded everything. The variant now carries `hasTrans`
+   alongside `trans`, three states rather than two.
+
+Two ideas from the authoring that are **not** built and are worth doing:
+`audio: { bed: true, duck: true }` (ducking the music bed under the voice,
+which every one of the eight asked for) and a `caption.fallbackPreset` driven
+by a luma probe under the text band, which is the honest answer to white type
+on an architect's white plaster wall. Both belong with the QC gate.
+
 ---
 
 ## The batch runner
@@ -750,6 +794,49 @@ pattern that does not scale past three.
 | Approval | A review sheet with per-item approve, reject and open-in-editor. Nothing reaches Drive or Instagram unapproved |
 | One template per batch or per item | Per batch. Per item needs a picker on every row and buys little |
 | Loudness target | Pick one and state it. The existing pipeline normalises to −16 LUFS; the QC set we are borrowing from targets −14 |
+
+### 4. Where the template picker lives — DECIDED 8 November, reversible
+
+Three proposals were written independently and judged through two lenses. The
+lenses split, which is the useful part:
+
+| Proposal | Operator-speed lens | Design-system lens |
+|---|---|---|
+| A field in the batch form | **1st** | 2nd |
+| A `Templates` row in Produce | 2nd | **1st** |
+| A picker inside the editor | 3rd | 3rd |
+
+Both lenses ranked the editor picker last, for the same reason: it hangs on
+`!hasSources`, so it is shut the moment a clip lands, and it sits on the one
+screen an unattended batch never opens.
+
+The split is a real disagreement about category. Operator-speed says the batch
+form has to exist anyway, so a field there costs no navigation and carries the
+same editorial payload as a gallery when the rows show `bestFor`, a shape line
+and a register. Design-system says the house already decided this with
+`{ tab: 'hooks', label: 'Hook vault' }` in `sections.js`: a library of
+creative primitives chosen *before* the artefact exists is a row, and the 31
+caption presets are not the precedent because `+ Captions` modifies a
+composition that already exists.
+
+**Taken: the field in the batch form, built as a shared `TemplatePicker`
+component.** It is the cheapest thing to be wrong about. The batch form is
+required for the runner regardless, both judges grafted the shared component,
+and if the browse turns out to be wanted, the row renders the same component
+with no second implementation. Expanded on first visit so the first run *is*
+the gallery.
+
+Deliberately not budgeted: eight looping previews. Destination's own author
+named this as its weakest point. Previews need eight sample renders, R2
+storage with a retention rule composition output still lacks, and a re-render
+on every template JSON change. A static poster frame per row is the first
+increment; motion is a decision with a cost attached, not a detail.
+
+One correction the judging turned up, now fixed in `agent-guide.md`: the
+both-ways door check is `frontend/tests/routeTargets.test.mjs`, not
+`tests/lib/tabDoors.mjs`, which no longer exists. A `Templates` row would
+need a literal `{tab === 'templates' &&` branch in `ClientVideoTab.jsx` or it
+fails CI as a row that opens a blank screen.
 
 ---
 

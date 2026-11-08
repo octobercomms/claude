@@ -1,0 +1,96 @@
+{
+  "id": "project-reveal",
+  "name": "Project reveal",
+  "description": "An exterior or a before, then the interior or the after, each held long enough to read, with two or three details and one still title.",
+  "bestFor": "A single completed project for an architecture practice or a design-led brand, from four to six photographs.",
+  "register": "editorial",
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "slots": [
+    {
+      "id": "opening",
+      "kind": "still",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 3.2,
+        "max": 4.2
+      },
+      "motion": "subtle",
+      "trans": "fadeblack",
+      "track": 0
+    },
+    {
+      "id": "reveal",
+      "kind": "still",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 3.6,
+        "max": 4.6
+      },
+      "motion": "push-in",
+      "trans": "fade",
+      "track": 0
+    },
+    {
+      "id": "detail",
+      "kind": "still",
+      "min": 2,
+      "max": 4,
+      "len": {
+        "min": 2.8,
+        "max": 3.8
+      },
+      "motion": "drift",
+      "trans": "fade",
+      "track": 0
+    },
+    {
+      "id": "title",
+      "kind": "text",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 2.6,
+        "max": 3.4
+      },
+      "motion": null,
+      "trans": "fade",
+      "track": 1
+    },
+    {
+      "id": "music",
+      "kind": "audio",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 14,
+        "max": 26
+      },
+      "motion": null,
+      "trans": "fade",
+      "track": 2
+    }
+  ],
+  "caption": {
+    "preset": "gallery-quiet"
+  },
+  "variation": {
+    "motion": [
+      "push-in",
+      "reveal",
+      "drift",
+      "rise",
+      "subtle"
+    ],
+    "trans": [
+      "fade",
+      "fadeblack"
+    ],
+    "lenJitter": 0.12
+  }
+}
