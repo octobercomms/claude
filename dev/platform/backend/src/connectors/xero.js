@@ -252,7 +252,7 @@ async function getBankStatementLines(token, bankAccountId, opts = {}) {
     .filter(tx => tx.IsReconciled !== true)
     .map(tx => ({
       lineRef: tx.BankTransactionID,
-      date: tx.Date,
+      date: parseXeroDate(tx.Date),
       amount: tx.Total,
       currency: tx.CurrencyCode,
       description: tx.Contact ? tx.Contact.Name : (tx.Reference || ''),
@@ -296,7 +296,7 @@ async function getBankStatementLinesRaw(token, bankAccountId, opts = {}) {
       id: tx.BankTransactionID,
       isReconciled: tx.IsReconciled,
       status: tx.Status,
-      date: tx.Date,
+      date: parseXeroDate(tx.Date),
       total: tx.Total,
       type: tx.Type,
       contact: tx.Contact ? tx.Contact.Name : null,
@@ -307,7 +307,7 @@ async function getBankStatementLinesRaw(token, bankAccountId, opts = {}) {
       id: tx.BankTransactionID,
       isReconciled: tx.IsReconciled,
       status: tx.Status,
-      date: tx.Date,
+      date: parseXeroDate(tx.Date),
       total: tx.Total,
       type: tx.Type,
       contact: tx.Contact ? tx.Contact.Name : null,
@@ -349,7 +349,7 @@ async function getAllBankTransactions(token, opts = {}) {
       }));
       results.push({
         transactionId: tx.BankTransactionID,
-        date: tx.Date,
+        date: parseXeroDate(tx.Date),
         amount: tx.Total,
         currency: tx.CurrencyCode,
         type: tx.Type,
@@ -462,6 +462,14 @@ async function getConnectionStatus() {
   };
 }
 
+function parseXeroDate(raw) {
+  if (!raw) return null;
+  const m = String(raw).match(/\/Date\((\d+)([+-]\d{4})?\)\//);
+  if (m) return new Date(parseInt(m[1], 10)).toISOString();
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function formatXeroDate(d) {
   const dt = new Date(d);
   return `${dt.getFullYear()},${dt.getMonth() + 1},${dt.getDate()}`;
@@ -487,5 +495,6 @@ module.exports = {
   getProfitAndLoss,
   getBalanceSheet,
   getConnectionStatus,
+  parseXeroDate,
   testConnection,
 };

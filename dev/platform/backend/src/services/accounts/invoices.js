@@ -34,8 +34,9 @@ async function matchInvoicesToQueue(driveFiles) {
       await db.query(
         `INSERT INTO acct_invoice_matches
            (line_ref, xero_contact, invoice_date, amount, currency,
-            drive_file_id, drive_file_name, drive_file_url, match_confidence, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'matched')
+            drive_file_id, drive_file_name, drive_file_url, match_confidence, status,
+            drive_folder_path)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'matched', $10)
          ON CONFLICT DO NOTHING`,
         [
           item.line_ref,
@@ -47,6 +48,7 @@ async function matchInvoicesToQueue(driveFiles) {
           match.name,
           match.url || null,
           match.confidence,
+          match.folderPath || null,
         ]
       );
       matched++;

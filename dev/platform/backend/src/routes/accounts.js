@@ -694,6 +694,37 @@ router.post('/drive/attach/:matchId', async (req, res) => {
   }
 });
 
+router.get('/drive/subfolders', async (req, res) => {
+  try {
+    const subfolders = await accounts.driveScanner.getSubfolders();
+    res.json({ subfolders });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/drive/discover', async (req, res) => {
+  try {
+    const folderId = accounts.driveScanner.getFolderId();
+    if (!folderId) return res.status(400).json({ error: 'No invoice folder configured' });
+    const subfolders = await accounts.driveScanner.discoverSubfolders(folderId);
+    res.json({ subfolders });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/drive/subfolders/:folderId', async (req, res) => {
+  try {
+    const { included } = req.body;
+    if (typeof included !== 'boolean') return res.status(400).json({ error: 'included must be a boolean' });
+    const result = await accounts.driveScanner.toggleSubfolder(req.params.folderId, included);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Xero data proxies ---
 
 router.get('/xero/bank-accounts', async (req, res) => {
