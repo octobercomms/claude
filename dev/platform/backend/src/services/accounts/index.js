@@ -9,6 +9,7 @@ const driveScanner = require('./driveScanner');
 const fxTracker = require('./fxTracker');
 const suppliers = require('./suppliers');
 const emailScanner = require('./emailScanner');
+const precode = require('./precode');
 
 module.exports = {
   rules,
@@ -22,4 +23,5 @@ module.exports = {
   fxTracker,
   suppliers,
   emailScanner,
+  precode,
 };
