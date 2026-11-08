@@ -220,6 +220,11 @@ async function purgeInvalidRules() {
   return { deleted: toDelete.length };
 }
 
+async function deleteAllRules() {
+  const { rowCount } = await db.query('DELETE FROM acct_rules');
+  return { deleted: rowCount };
+}
+
 async function validateRule(accountCode, taxRate) {
   const xero = require('../../connectors/xero');
   const errors = [];
@@ -255,5 +260,6 @@ module.exports = {
   promoteToRule,
   seedRules,
   purgeInvalidRules,
+  deleteAllRules,
   validateRule,
 };
