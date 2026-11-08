@@ -7,12 +7,12 @@ const router = express.Router();
 const extensionAuth = require('../middleware/extensionAuth');
 const accounts = require('../services/accounts');
 
-// CORS for chrome-extension:// origins. The main app CORS is pinned to
-// PLATFORM_URL, which blocks extension requests. This middleware lets
-// any chrome-extension:// origin through on brain routes only.
+// CORS for extension requests. MV3 content scripts send the page origin
+// (go.xero.com), not chrome-extension://, so both must be allowed. Token
+// auth on every route means allowing these origins is safe.
 router.use((req, res, next) => {
   const origin = req.headers.origin || '';
-  if (origin.startsWith('chrome-extension://')) {
+  if (origin.startsWith('chrome-extension://') || origin === 'https://go.xero.com') {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
