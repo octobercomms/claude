@@ -46,32 +46,44 @@
     });
   }
 
+  function sendToBackground(msg) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(msg, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ error: 'network', message: chrome.runtime.lastError.message });
+          return;
+        }
+        resolve(response);
+      });
+    });
+  }
+
   async function lookupPayee(payee, cfg) {
     const key = payee.toLowerCase().trim();
     if (LOOKUP_CACHE.has(key)) return LOOKUP_CACHE.get(key);
 
-    try {
-      const url = `${cfg.serverUrl}/api/accounts/brain/lookup?payee=${encodeURIComponent(key)}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${cfg.token}` },
-      });
+    const url = `${cfg.serverUrl}/api/accounts/brain/lookup?payee=${encodeURIComponent(key)}`;
+    const res = await sendToBackground({
+      type: 'brain-fetch',
+      url,
+      headers: { Authorization: `Bearer ${cfg.token}` },
+    });
 
-      if (res.status === 401) {
-        const result = { error: 'auth', message: 'Extension token expired or revoked. Reconnect in the OMI extension popup.' };
-        LOOKUP_CACHE.set(key, result);
-        return result;
-      }
-      if (!res.ok) {
-        const result = { error: 'server', message: `OMI returned ${res.status}` };
-        return result;
-      }
-
-      const data = await res.json();
-      LOOKUP_CACHE.set(key, data);
-      return data;
-    } catch (err) {
-      return { error: 'network', message: `Cannot reach OMI: ${err.message}` };
+    if (res.error) {
+      return { error: res.error, message: res.message || 'Cannot reach OMI' };
     }
+
+    if (res.status === 401) {
+      const result = { error: 'auth', message: 'Extension token expired or revoked. Reconnect in the OMI extension popup.' };
+      LOOKUP_CACHE.set(key, result);
+      return result;
+    }
+    if (!res.ok) {
+      return { error: 'server', message: `OMI returned ${res.status}` };
+    }
+
+    LOOKUP_CACHE.set(key, res.data);
+    return res.data;
   }
 
   function confidenceLabel(counter) {
@@ -183,18 +195,24 @@
       if (!cfg) return;
 
       try {
-        const res = await fetch(`${cfg.serverUrl}/api/accounts/brain/correct`, {
+        const res = await sendToBackground({
+          type: 'brain-fetch',
+          url: `${cfg.serverUrl}/api/accounts/brain/correct`,
           method: 'PUT',
           headers: {
             Authorization: `Bearer ${cfg.token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(body),
+          body,
         });
 
+        if (res.error) {
+          form.innerHTML = `<span style="color:#dc2626">Failed: ${escapeHtml(res.message)}</span>`;
+          return;
+        }
         if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-          form.innerHTML = `<span style="color:#dc2626">Failed: ${escapeHtml(err.error)}</span>`;
+          const errMsg = (res.data && res.data.error) || 'Unknown error';
+          form.innerHTML = `<span style="color:#dc2626">Failed: ${escapeHtml(errMsg)}</span>`;
           return;
         }
 
@@ -212,8 +230,8 @@
           }
           scanPage();
         }, 800);
-      } catch (err) {
-        form.innerHTML = `<span style="color:#dc2626">Network error: ${escapeHtml(err.message)}</span>`;
+      } catch {
+        form.innerHTML = `<span style="color:#dc2626">Network error</span>`;
       }
     });
 
