@@ -17,6 +17,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1109.0",
     "@remotion/bundler": "^4.0.0",
     "@remotion/renderer": "^4.0.0",
+    "archiver": "^8.0.0",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.0.0",

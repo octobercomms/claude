@@ -10,7 +10,7 @@ const suppliers = require('./suppliers');
 const precode = require('./precode');
 const { sendAccountsDigest } = require('../emailService');
 
-async function buildWeeklyDigest() {
+async function previewDigest() {
   const now = new Date();
   const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 7);
@@ -30,14 +30,12 @@ async function buildWeeklyDigest() {
     precodedThisWeek = await precode.getRecentPrecodes(weekAgo.toISOString());
   } catch { /* table may not exist yet */ }
 
-  // Items reconciled this week.
   const { rows: recentConfirmed } = await db.query(
     `SELECT count(*)::int as count FROM acct_confirmations
      WHERE confirmed_at >= $1`,
     [weekAgo.toISOString()]
   );
 
-  // Overdue deadlines: past due date and not filed.
   const overdueDeadlines = upcomingDeadlines.filter(d =>
     d.effective_status === 'overdue'
   );
@@ -94,7 +92,12 @@ async function buildWeeklyDigest() {
     },
   };
 
-  // Store the digest.
+  return { summary, periodStart, periodEnd };
+}
+
+async function buildWeeklyDigest() {
+  const { summary, periodStart, periodEnd } = await previewDigest();
+
   const { rows } = await db.query(
     `INSERT INTO acct_digests
        (period_start, period_end, summary, items_reconciled, items_pending, invoices_missing)
@@ -369,4 +372,4 @@ async function buildAndSend() {
   }
 }
 
-module.exports = { buildWeeklyDigest, markSent, getDigests, sendDigestEmail, buildAndSend, formatDigestHtml };
+module.exports = { previewDigest, buildWeeklyDigest, markSent, getDigests, sendDigestEmail, buildAndSend, formatDigestHtml };
