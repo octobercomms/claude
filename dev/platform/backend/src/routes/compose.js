@@ -660,6 +660,50 @@ router.post('/batch-items/:id/retry', loadBatchItem, async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// ── Analyse a reference video into a template proposal ──────────────
+//
+// "Is there a way to upload someones video to be analysed and build a
+// template from it?" Yes, and it is a better answer to "I want ten templates"
+// than writing ten by hand.
+//
+// What comes back is a PROPOSAL, with a confidence and a reason per field,
+// which an operator confirms. It proposes only from OUR vocabulary — the six
+// motions, the three template transitions, and (once the vision half exists)
+// one of the shipped caption presets, matched rather than generated. Reading a
+// competitor's pacing is ordinary competitive analysis; cloning a distinctive
+// look closely enough to be mistaken for them is not what this is for, and
+// proposing from our own set is what keeps it on that side.
+
+router.post('/clients/:clientId/analyse-reference',
+  requireClientAccess({ paramNames: ['clientId'] }),
+  async (req, res) => {
+    try {
+      const { assetId } = req.body || {};
+      if (!assetId) return res.status(400).json({ error: 'assetId is required' });
+
+      const asset = await assets.get(assetId);
+      if (!asset) return res.status(404).json({ error: 'Asset not found' });
+      // Scoped to the client whose library it is, not merely to a logged-in
+      // user: an asset id is guessable and a reference is somebody's footage.
+      if (String(asset.client_id) !== String(req.params.clientId)) {
+        return res.status(404).json({ error: 'Asset not found' });
+      }
+
+      const file = assetFilePath(asset);
+      if (!file) return res.status(400).json({ error: 'That asset has no file on disk.' });
+
+      const analyser = require('../services/referenceAnalyse');
+      const out = await analyser.analyse(file, {
+        id: `ref-${assetId}`,
+        name: `From ${asset.title || 'a reference'}`,
+      });
+      res.json(out);
+    } catch (err) {
+      console.error('[compose] analyse-reference failed:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
 // ── Video templates (the eight shipped shapes) ──────────────────────
 
 /**
