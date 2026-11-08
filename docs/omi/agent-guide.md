@@ -3859,19 +3859,23 @@ tree holds after a run, not only what the run printed.
 
 The Accounts section lives under Settings > Accounts and handles automated
 bookkeeping for October Communications. It connects to Xero via OAuth2 for
-bank reconciliation and uses a two-tier classification system: a deterministic
-rules engine first, Claude AI for unknowns.
+bank reconciliation and uses a three-tier classification system: a
+deterministic rules engine first, the supplier brain for known payees, and
+Claude AI for unknowns. The end goal is that most bank lines arrive
+pre-coded in Xero before Daniel opens it; the Friday digest reports what
+was done and what still needs a human eye.
 
 ### Architecture
 
 | Layer | Files |
 |-------|-------|
-| Migration | `backend/migrations/238_accounts_module.sql` (9 tables), `239_accounts_task_budget.sql`, `240_pension_deadlines.sql` |
+| Migrations | `238_accounts_module.sql` (9 tables), `239_accounts_task_budget.sql`, `240_pension_deadlines.sql`, `242_supplier_brain.sql`, `243_supplier_brain_queue_link.sql`, `244_drive_subfolders.sql`, `245_inbox_invoice_scan.sql`, `246_extension_tokens.sql`, `247_supplier_codings_and_transfers.sql` |
 | Xero connector | `backend/src/connectors/xero.js` (OAuth2, encrypted tokens, rate-limit retry) |
-| Services | `backend/src/services/accounts/` (rules, classify, reconcile, invoices, deadlines, digest, vatPack, driveScanner, fxTracker) |
+| Services | `backend/src/services/accounts/` (rules, classify, reconcile, invoices, deadlines, digest, vatPack, driveScanner, emailScanner, fxTracker, suppliers, precode) |
 | Routes | `backend/src/routes/accounts.js` |
 | Frontend | `frontend/src/components/accounts/AccountsPanels.jsx` |
 | Settings page | `frontend/src/pages/SettingsPage.jsx` (overview tab + accounts section) |
+| Chrome extension | `extension/` (manifest.json, background.js, content.js, popup.html/js) |
 | Tests | `backend/tests/accounts-rules.test.js`, `accounts-vatPack.test.js`, `accounts-reconcile.test.js`, `accounts-fx.test.js` |
 
 ### Key tables
@@ -3885,19 +3889,95 @@ rules engine first, Claude AI for unknowns.
 - `acct_tax_deadlines` tracks VAT, CT600, PAYE, PENSION filing dates
 - `acct_fx_events` tracks FX gain/loss on non-GBP invoices
 - `acct_digests` stores weekly summary snapshots
+- `acct_suppliers` the supplier brain (migration 242). Stores display name,
+  match patterns (text array, because Wise renders payees inconsistently),
+  account code, VAT treatment, confidence counter, cadence and amount range.
+  Also has `type` (`expense` or `transfer`) and destination bank account
+  fields (migration 247) for inter-account transfers.
+- `acct_supplier_codings` per-supplier alternative codings (migration 247).
+  Handles suppliers like "Daniel Nelson" who need different codes depending
+  on context (dividends vs PAYE). Each coding row has its own trigger
+  patterns, confidence counter, and auto_code flag.
+- `acct_bank_accounts` bank account reference populated from Xero (migration
+  247). Used by the pre-coding service to find the primary GBP account.
+
+### The supplier brain
+
+`services/accounts/suppliers.js` is the persistent memory for known payees.
+When reconciliation confirms a line, the brain records or updates the
+supplier: match pattern, account code, VAT treatment, amount range, and
+increments the `confidence_counter`. The three tiers:
+
+| Tier | Trigger | Outcome |
+|------|---------|---------|
+| Auto-code | Pattern matched, same code, amount in range | Confirmed automatically |
+| Flag | Pattern matched but deviation (amount, currency, cadence) | Queued with a suggestion for human review |
+| Unknown | No match | Goes to Daniel; the answer creates the supplier record |
+
+The `confidence_counter` increments on every confirmed coding and is the
+gate for pre-coding eligibility (threshold = 5). It never decrements; a
+wrong coding resets it to 0 via the UI.
+
+Multi-coding support (migration 247): a supplier can have multiple coding
+rows in `acct_supplier_codings`, each with optional trigger patterns that
+disambiguate from the full statement line text. The supplier row's own
+`account_code`/`vat_treatment` remain the default.
+
+### Pre-coding
+
+`services/accounts/precode.js` writes spend-money transactions to Xero
+*before* the bank feed arrives, so those lines show up pre-matched for
+one-click reconciliation. Only suppliers with `confidence_counter >= 5`
+qualify (env var `AUTO_CODE_CONFIDENCE_THRESHOLD`, default 5).
+
+Key functions:
+- `getEligibleSuppliers()` returns suppliers above the threshold
+- `createSpendTransaction(supplier, bankAccountId)` writes one spend-money
+  line to Xero using the supplier's default coding
+- `runPrecodePass(bankAccountId)` processes all eligible suppliers
+- `previewPrecodePass()` dry-run showing what would be written
+- `getPrecodeStats()` dashboard summary
+- `getRecentPrecodes(since)` used by the digest to report what was written
+
+The scheduler runs this on Wednesday 20:00 so transactions settle before
+the Friday digest reports on them. Uses the first GBP bank account;
+skips silently if Xero is not connected or no suppliers qualify. Budget-
+gated via the `accounts` task cap.
+
+### Chrome extension
+
+`extension/` (v1.0.5) is a read-only advisory tool that shows OMI's
+coding suggestion when viewing a Xero bank transaction. It reads from the
+OMI API and displays a badge; it never writes to Xero.
+
+**Strictly read-only**: the extension must not modify Xero data in any
+way. This is a compliance requirement under the Xero Developer Platform
+Terms. The content script (`content.js`) performs a DOM scan to extract the
+transaction reference, queries the OMI backend, and renders an overlay.
+
+Downloaded via `GET /api/accounts/extension/download` (returns the
+extension directory as a zip). Tokens stored in `acct_extension_tokens`
+(migration 246).
 
 ### Scheduler entries
 
-- Sunday 21:00: `pullAndClassify` + `autoConfirmHighConfidence` + Drive scan (budget-gated via `accounts` task)
-- Monday 07:30: `buildAndSend` (digest email)
-- Weekdays 08:15 (Europe/London): `deadlines.sendAlerts(14)` emails upcoming tax filings
+| Day | Time (UK) | Job | Entry point |
+|-----|-----------|-----|-------------|
+| Wednesday | 20:00 | Pre-coding: writes spend-money transactions for suppliers with 5+ confirmed codings | `precode.runPrecodePass(primaryBankAccountId)` |
+| Friday | 07:30 | Weekly digest email | `digest.buildAndSend()` |
+| Sunday | 21:00 | Reconciliation: pull + classify + auto-confirm + Drive scan + email scan + deadline inference | `reconcile.pullAndClassify` + `reconcile.autoConfirmHighConfidence(0.95)` |
+| Weekdays | 08:15 | Tax deadline alerts (14-day lookahead) | `deadlines.sendAlerts(14)` |
+
+All four jobs are budget-gated via the `accounts` task in the budget
+system. The digest was previously on Monday 07:30; it moved to Friday so
+the Sunday reconciliation results are fresh when it lands.
 
 ### Sub-tabs
 
-Overview, Reconcile, Rules, Invoices, Deadlines, VAT, FX tracker,
-Financial reports (`fin_reports` key, slug `financial-reports`), Audit trail,
-Digests, Drive, Xero. The default landing is Reconcile. The route is
-`/accounts/:screen?` using the standard `useScreen` hook.
+Overview, Reconcile, Rules, Suppliers, Invoices, Deadlines, VAT,
+FX tracker, Financial reports (`fin_reports` key, slug `financial-reports`),
+Audit trail, Digests, Drive, Xero. The default landing is Reconcile. The
+route is `/accounts/:screen?` using the standard `useScreen` hook.
 
 The `fin_reports` tab key exists because `reports` is already used by the
 tools section under Settings. Using the same key would render both panels
@@ -3925,6 +4005,42 @@ from the AI/rule proposal.
 (`routes/settings.js`) and grouped in `settings/catalogue.js` so they appear
 in the Settings UI. The Xero group also includes `XERO_REDIRECT_URI`.
 
+### Production environment
+
+The production box runs both OMI apps under pm2:
+
+| pm2 app | Port | Repo path |
+|---------|------|-----------|
+| `october-platform` (id 0) | 3001 | `/opt/october-source/dev/platform/backend` |
+| `october-mi-shopify` (id 1) | 3002 | `/opt/october-source/dev/platform/...` |
+
+The public URL is `platform.octobercomms.com` (NOT `omi.octobercomms.com`).
+Nginx proxies to port 3001.
+
+Environment variables are loaded from `.env` via dotenv at startup, not
+stored in pm2's environment config. The database connection uses individual
+vars (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`), not a
+single `DATABASE_URL`. There is a legacy `DATABASE_URL="file:./prisma/prod.db"`
+in `.env` from Prisma days; the app ignores it (see `src/db.js`).
+
+The digest email sends to `ALERT_EMAIL` (set to `hello@octobercomms.com`
+on production) or `ACCOUNTS_DIGEST_EMAIL` if set.
+
+To deploy: `cd /opt/october-source && git pull origin main`, run any new
+migration with `psql -h localhost -U octoberplatform -d octoberplatform < dev/platform/backend/migrations/NNN_name.sql`,
+then `pm2 restart october-platform`.
+
+### Scope freeze (as of 8 November 2026)
+
+The Accounts module is in a deliberate scope freeze. Leave it alone until
+the Friday reconciliation cycle has run end-to-end and Daniel has reviewed
+the results. The measure of success is whether the Friday reconcile is
+quicker than it was before the automation. Do not add features, refactor,
+or fix cosmetic issues until the freeze lifts.
+
+The rules table should exist only as a manual override layer. Do NOT reseed
+rules.
+
 ### Gotchas
 
 - The `line_ref` column on `acct_reconcile_queue` is `UNIQUE NOT NULL`. The
@@ -3938,6 +4054,7 @@ in the Settings UI. The Xero group also includes `XERO_REDIRECT_URI`.
   write-back-to-Xero route to do anything. It defaults to off.
 - Seed rules (30 entries for common October payees) can be loaded via POST
   `/api/accounts/rules/seed` or the "Seed rules" button in the Rules tab.
+  But the rules table should stay as a manual override. Do not reseed.
 - The Drive scanner needs `ACCOUNTS_DRIVE_FOLDER_ID` or
   `ACCOUNTS_DRIVE_FOLDER_URL` set, and the Google service account must have
   Viewer access on the folder.
@@ -3966,3 +4083,9 @@ in the Settings UI. The Xero group also includes `XERO_REDIRECT_URI`.
   (contribution submissions, worker enrolment). Direct integration would mean
   building a mini payroll connector. For now, OMI tracks NEST deadlines only.
   Revisit if automated contribution submission becomes worthwhile.
+- Pre-coding only runs for suppliers with `confidence_counter >= 5`. The
+  threshold is set via `AUTO_CODE_CONFIDENCE_THRESHOLD` env var (default 5).
+  Do not lower it without explicit sign-off.
+- The Chrome extension is strictly read-only. It must never write to Xero.
+  Xero Developer Platform Terms require this. If someone asks for write
+  capability, the answer is no.
