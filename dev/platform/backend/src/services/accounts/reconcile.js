@@ -8,6 +8,7 @@
 const db = require('../../db');
 const xero = require('../../connectors/xero');
 const rules = require('./rules');
+const suppliers = require('./suppliers');
 const { classifyBatch } = require('./classify');
 
 async function pullAndClassify(opts = {}) {
@@ -33,6 +34,8 @@ async function pullAndClassify(opts = {}) {
 
   let queued = 0;
   let ruleMatched = 0;
+  let supplierMatched = 0;
+  let supplierFlagged = 0;
   let aiClassified = 0;
 
   for (const account of bankAccounts) {
@@ -62,7 +65,43 @@ async function pullAndClassify(opts = {}) {
       console.log('[Accounts] %d already queued, %d new', existingRefs.size, newLines.length);
 
       for (const line of newLines) {
-        const rule = await rules.findMatch(line.payee || line.description, line.currency);
+        const payeeText = line.payee || line.description;
+
+        // Supplier brain checked first: it learns from corrections.
+        const supplierResult = await suppliers.findSupplier(payeeText, line.currency);
+        const tier = suppliers.assessTier(supplierResult, line.amount, line.currency);
+
+        if (tier.tier === 1) {
+          await insertQueueItem(line, {
+            suggestedCode: tier.supplier.account_code,
+            suggestedName: tier.supplier.account_name,
+            suggestedRate: tier.supplier.vat_treatment,
+            confidence: 1.0,
+            matchSource: 'supplier_t1',
+            supplierId: tier.supplier.id,
+          });
+          supplierMatched++;
+          queued++;
+          continue;
+        }
+
+        if (tier.tier === 2) {
+          await insertQueueItem(line, {
+            suggestedCode: tier.supplier.account_code,
+            suggestedName: tier.supplier.account_name,
+            suggestedRate: tier.supplier.vat_treatment,
+            confidence: 0.7,
+            matchSource: 'supplier_t2',
+            supplierId: tier.supplier.id,
+            aiReasoning: tier.flags.join('; '),
+          });
+          supplierFlagged++;
+          queued++;
+          continue;
+        }
+
+        // Tier 3: no supplier match. Fall back to rules engine.
+        const rule = await rules.findMatch(payeeText, line.currency);
 
         if (rule && rule.confidence >= 0.8) {
           await insertQueueItem(line, {
@@ -79,7 +118,8 @@ async function pullAndClassify(opts = {}) {
         queued++;
       }
 
-      console.log('[Accounts] Rules matched %d, need classification %d', ruleMatched, needsClassification.length);
+      console.log('[Accounts] Supplier T1 %d, T2 %d, rules %d, need classification %d',
+        supplierMatched, supplierFlagged, ruleMatched, needsClassification.length);
 
       if (needsClassification.length) {
         console.log('[Accounts] Sending %d lines to AI classification...', needsClassification.length);
@@ -108,8 +148,9 @@ async function pullAndClassify(opts = {}) {
     console.log('[Accounts] Finished bank account %s', account.name);
   }
 
-  console.log('[Accounts] Sync complete: %d queued, %d rule-matched, %d AI-classified (%dms)', queued, ruleMatched, aiClassified, Date.now() - t0);
-  return { queued, ruleMatched, aiClassified };
+  console.log('[Accounts] Sync complete: %d queued (%d supplier-auto, %d supplier-flagged, %d rule, %d AI) (%dms)',
+    queued, supplierMatched, supplierFlagged, ruleMatched, aiClassified, Date.now() - t0);
+  return { queued, ruleMatched, supplierMatched, supplierFlagged, aiClassified };
 }
 
 async function insertQueueItem(line, suggestion) {
@@ -117,8 +158,9 @@ async function insertQueueItem(line, suggestion) {
     `INSERT INTO acct_reconcile_queue
        (line_ref, bank_account, bank_account_id, line_date, amount, currency,
         payee, description, reference, suggested_code, suggested_name,
-        suggested_rate, confidence, match_source, ai_reasoning, xero_line_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        suggested_rate, confidence, match_source, ai_reasoning, xero_line_data,
+        supplier_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
      ON CONFLICT (line_ref) DO NOTHING`,
     [
       line.lineRef,
@@ -137,6 +179,7 @@ async function insertQueueItem(line, suggestion) {
       suggestion.matchSource || null,
       suggestion.aiReasoning || null,
       line.raw ? JSON.stringify(line.raw) : null,
+      suggestion.supplierId || null,
     ]
   );
 }
@@ -189,6 +232,29 @@ async function confirmItem(id, data) {
     });
   }
 
+  // Supplier brain: correction flows back. If the coding changed, overwrite
+  // the brain record and reset confidence. If it matched, bump confidence.
+  if (item.supplier_id) {
+    const wasCorrection = confirmedCode !== item.suggested_code ||
+                          confirmedRate !== item.suggested_rate;
+    if (wasCorrection) {
+      await suppliers.correctSupplier(item.supplier_id, {
+        accountCode: confirmedCode,
+        accountName: data.accountName || item.suggested_name,
+        vatTreatment: confirmedRate,
+      });
+    } else {
+      await suppliers.confirmTransaction(item.supplier_id, item.amount);
+    }
+  } else if (item.payee) {
+    // No supplier match existed. Try to find or create a supplier record
+    // so the brain learns from every confirmation.
+    const existing = await suppliers.findSupplier(item.payee, item.currency);
+    if (existing) {
+      await suppliers.confirmTransaction(existing.id, item.amount);
+    }
+  }
+
   await checkVatExceptions(item, confirmedCode, confirmedRate);
 
   return { id, status: 'confirmed', accountCode: confirmedCode, taxRate: confirmedRate };
@@ -239,11 +305,13 @@ function getCurrentVatPeriod() {
   return `Q${Math.floor(m / 3) + 1} ${y} (to ${qEnd})`;
 }
 
-// Batch confirm all high-confidence rule-matched items.
+// Batch confirm all high-confidence items (rule-matched and supplier tier 1).
 async function autoConfirmHighConfidence(threshold = 0.95) {
   const { rows } = await db.query(
     `SELECT id FROM acct_reconcile_queue
-     WHERE status = 'pending' AND match_source = 'rule' AND confidence >= $1`,
+     WHERE status = 'pending'
+       AND (match_source = 'rule' OR match_source = 'supplier_t1')
+       AND confidence >= $1`,
     [threshold]
   );
   let count = 0;

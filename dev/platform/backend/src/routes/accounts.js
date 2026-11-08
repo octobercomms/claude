@@ -892,4 +892,87 @@ router.post('/deadlines/send-alerts', async (req, res) => {
   }
 });
 
+// --- Supplier brain ---
+
+router.get('/suppliers', async (req, res) => {
+  try {
+    const result = await accounts.suppliers.list({
+      search: req.query.search || undefined,
+      sort: req.query.sort || undefined,
+      limit: parseInt(req.query.limit) || 200,
+      offset: parseInt(req.query.offset) || 0,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/suppliers/stats', async (req, res) => {
+  try {
+    const stats = await accounts.suppliers.getStats();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/suppliers/:id', async (req, res) => {
+  try {
+    const supplier = await accounts.suppliers.getById(req.params.id);
+    if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
+    res.json(supplier);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/suppliers', async (req, res) => {
+  try {
+    const supplier = await accounts.suppliers.create(req.body);
+    res.status(201).json(supplier);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/suppliers/:id', async (req, res) => {
+  try {
+    const supplier = await accounts.suppliers.update(req.params.id, req.body);
+    if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
+    res.json(supplier);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/suppliers/:id', async (req, res) => {
+  try {
+    const deleted = await accounts.suppliers.remove(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Supplier not found' });
+    res.json({ deleted: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/suppliers/:id/correct', async (req, res) => {
+  try {
+    const supplier = await accounts.suppliers.correctSupplier(req.params.id, req.body);
+    if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
+    res.json(supplier);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/suppliers/bootstrap', async (req, res) => {
+  try {
+    const result = await accounts.suppliers.bootstrapFromXero();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

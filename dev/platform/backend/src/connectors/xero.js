@@ -318,6 +318,57 @@ async function getBankStatementLinesRaw(token, bankAccountId, opts = {}) {
   return result;
 }
 
+// Fetch all bank transactions across all accounts with full coding data.
+// Used by the supplier brain bootstrap to derive account codes, tax rates
+// and cadence from real history. Paginates automatically (100 per page).
+async function getAllBankTransactions(token, opts = {}) {
+  const results = [];
+  let page = 1;
+  let hasMore = true;
+
+  const whereClauses = ['Status=="AUTHORISED"'];
+  if (opts.since) {
+    whereClauses.push(`Date >= DateTime(${formatXeroDate(opts.since)})`);
+  }
+
+  while (hasMore) {
+    const data = await xeroGet('/BankTransactions', token, {
+      where: whereClauses.join(' AND '),
+      page,
+      order: 'Date DESC',
+    });
+
+    const txns = data.BankTransactions || [];
+    for (const tx of txns) {
+      if (!tx.Contact) continue;
+      const lineItems = (tx.LineItems || []).map(li => ({
+        accountCode: li.AccountCode,
+        taxType: li.TaxType,
+        description: li.Description,
+        amount: li.LineAmount,
+      }));
+      results.push({
+        transactionId: tx.BankTransactionID,
+        date: tx.Date,
+        amount: tx.Total,
+        currency: tx.CurrencyCode,
+        type: tx.Type,
+        isReconciled: tx.IsReconciled,
+        contactId: tx.Contact.ContactID,
+        contactName: tx.Contact.Name,
+        bankAccountId: tx.BankAccount?.AccountID || null,
+        reference: tx.Reference || '',
+        lineItems,
+      });
+    }
+
+    if (txns.length < 100) hasMore = false;
+    else page++;
+  }
+
+  return results;
+}
+
 async function getChartOfAccounts(token) {
   const data = await xeroGet('/Accounts', token);
   return (data.Accounts || []).map(a => ({
@@ -426,6 +477,7 @@ module.exports = {
   getBankAccounts,
   getBankStatementLines,
   getBankStatementLinesRaw,
+  getAllBankTransactions,
   getChartOfAccounts,
   getTaxRates,
   getContacts,

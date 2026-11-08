@@ -1647,18 +1647,46 @@ export function DrivePanel() {
 
       <div className="card" style={{ padding: 'var(--s4)' }}>
         <div className="h5" style={{ marginBottom: 'var(--s2)' }}>Setup</div>
-        <div className="body-sm text-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+        <div className="body-sm" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
           {!serviceEmail ? (
             <>
-              <div>1. Add <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> in Settings &gt; Integrations (the same service account used for GA4, Search Console and Merchant Center).</div>
-              <div>2. Return here. The remaining steps appear once the key is configured.</div>
+              <div style={{ marginBottom: 'var(--s2)' }}>
+                The Drive scanner needs a Google service account key. A service account is a non-human Google identity that
+                lets OMI access Drive folders you share with it, without needing anyone to log in.
+              </div>
+              <div style={{ fontWeight: 500 }}>Check whether you already have one</div>
+              <div className="text-muted">
+                OMI uses the same service account for GA4, Search Console and Merchant Center. If those integrations are
+                already working, the key is already saved and this panel should show the service account email. If it does
+                not, the key may not be set on this server.
+              </div>
+              <div style={{ fontWeight: 500, marginTop: 'var(--s2)' }}>If you need to generate a new key</div>
+              <ol style={{ margin: 0, paddingLeft: 'var(--s4)', color: 'var(--text-muted)' }}>
+                <li>
+                  Go to{' '}
+                  <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
+                    console.cloud.google.com &gt; IAM &gt; Service Accounts
+                  </a>. Use the same Google Cloud project that OMI already uses.
+                </li>
+                <li>Click the existing service account (or create one if there is none).</li>
+                <li>Go to the <strong>Keys</strong> tab, click <strong>Add Key &gt; Create new key</strong>, choose <strong>JSON</strong>, and download the file.</li>
+                <li>Set the full contents of that JSON file as the <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> environment variable on the server.</li>
+                <li>Restart the backend. Return here and the service account email will appear.</li>
+              </ol>
             </>
           ) : (
             <>
-              <div>1. Create a Google Drive folder for invoices and receipts.</div>
-              <div>2. Copy the service account email shown above and share the folder with it as <strong>Editor</strong>.</div>
-              <div>3. Paste the folder URL into the input above and click Save.</div>
-              <div>4. Click "Scan and match" to find invoices that match reconcile queue items.</div>
+              <div style={{ fontWeight: 500 }}>Connect a Drive folder</div>
+              <ol style={{ margin: 0, paddingLeft: 'var(--s4)', color: 'var(--text-muted)' }}>
+                <li>Create a folder in Google Drive for invoices and receipts (or use an existing one).</li>
+                <li>
+                  Share the folder with the service account email shown above. Click "Copy email", open the folder in Drive,
+                  click <strong>Share</strong>, paste the email, and set the permission to <strong>Editor</strong>.
+                  Editor is required so OMI can read the files.
+                </li>
+                <li>Copy the folder URL from your browser and paste it into the input above, then click Save.</li>
+                <li>Click "Scan and match" to find invoices that match reconcile queue items.</li>
+              </ol>
             </>
           )}
         </div>
@@ -2127,6 +2155,292 @@ export function FxPanel() {
           <div>Events without rates (most bank transactions) are recorded for tracking. You can update rates manually when the invoice is settled.</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AuditPanel — confirmation audit trail
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// SuppliersPanel — supplier brain: view, edit and bootstrap suppliers
+// ---------------------------------------------------------------------------
+
+export function SuppliersPanel() {
+  const { readOnly } = useAuth();
+  const { toast } = useToast();
+  const { accounts: xeroAccounts, taxRates: xeroTaxRates } = useXeroRefData();
+  const [suppliers, setSuppliers] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({});
+  const [bootstrapping, setBootstrapping] = useState(false);
+
+  const BLANK = {
+    display_name: '', match_patterns: '', account_code: '', account_name: '',
+    vat_treatment: 'NONE', usual_currency: 'GBP', expected_cadence: '',
+    invoice_source: 'unknown', auto_code: true, notes: '',
+  };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = search ? `?search=${encodeURIComponent(search)}` : '';
+      const data = await api.get(`/accounts/suppliers${params}`);
+      setSuppliers(data.suppliers || []);
+      setTotal(data.total || 0);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }, [search, toast]);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const s = await api.get('/accounts/suppliers/stats');
+      setStats(s);
+    } catch {}
+  }, []);
+
+  useEffect(() => { load(); loadStats(); }, [load, loadStats]);
+
+  function startEdit(supplier) {
+    setEditingId(supplier?.id || 'new');
+    setForm(supplier ? {
+      display_name: supplier.display_name,
+      match_patterns: (supplier.match_patterns || []).join(', '),
+      account_code: supplier.account_code || '',
+      account_name: supplier.account_name || '',
+      vat_treatment: supplier.vat_treatment || 'NONE',
+      usual_currency: supplier.usual_currency || 'GBP',
+      expected_cadence: supplier.expected_cadence || '',
+      invoice_source: supplier.invoice_source || 'unknown',
+      auto_code: supplier.auto_code !== false,
+      notes: supplier.notes || '',
+    } : { ...BLANK });
+  }
+
+  async function handleSave() {
+    const patterns = form.match_patterns
+      .split(',')
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+
+    const payload = {
+      displayName: form.display_name,
+      matchPatterns: patterns,
+      accountCode: form.account_code,
+      accountName: form.account_name,
+      vatTreatment: form.vat_treatment,
+      usualCurrency: form.usual_currency,
+      expectedCadence: form.expected_cadence || null,
+      invoiceSource: form.invoice_source,
+      autoCode: form.auto_code,
+      notes: form.notes,
+    };
+
+    try {
+      if (editingId === 'new') {
+        await api.post('/accounts/suppliers', payload);
+        toast('Supplier created');
+      } else {
+        await api.put(`/accounts/suppliers/${editingId}`, payload);
+        toast('Supplier updated');
+      }
+      setEditingId(null);
+      load();
+      loadStats();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm('Delete this supplier?')) return;
+    try {
+      await api.delete(`/accounts/suppliers/${id}`);
+      toast('Supplier deleted');
+      load();
+      loadStats();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function handleBootstrap() {
+    setBootstrapping(true);
+    try {
+      const r = await api.post('/accounts/suppliers/bootstrap');
+      toast(`Bootstrap complete: ${r.created} suppliers created from ${r.contactsFound} Xero contacts`);
+      load();
+      loadStats();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBootstrapping(false); }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      {stats && (
+        <StatStrip items={[
+          { label: 'Total suppliers', value: stats.total },
+          { label: 'Settled (10+ confirmations)', value: stats.settled },
+          { label: 'Learning (<3)', value: stats.learning },
+          { label: 'Auto-coding', value: stats.auto_coding },
+          { label: 'Reverse charge', value: stats.reverse_charge },
+        ]} />
+      )}
+
+      <div className="row between center">
+        <input
+          type="text"
+          className="input"
+          placeholder="Search suppliers..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ width: 260 }}
+        />
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <button
+            className="btn"
+            {...roWrite(readOnly, { onClick: handleBootstrap, disabled: bootstrapping })}
+          >
+            {bootstrapping ? 'Bootstrapping...' : 'Bootstrap from Xero'}
+          </button>
+          <button className="btn btn-primary" onClick={() => startEdit(null)}>Add supplier</button>
+        </div>
+      </div>
+
+      {editingId && (
+        <div className="card" style={{ padding: 'var(--s4)' }}>
+          <div className="h4" style={{ marginBottom: 'var(--s3)' }}>{editingId === 'new' ? 'New supplier' : 'Edit supplier'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
+            <label className="body-sm">
+              Display name
+              <input className="input" value={form.display_name} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))} />
+            </label>
+            <label className="body-sm">
+              Match patterns (comma-separated)
+              <input className="input" value={form.match_patterns} onChange={e => setForm(f => ({ ...f, match_patterns: e.target.value }))} placeholder="adobe, adobe systems, adobe creative" />
+            </label>
+            <label className="body-sm">
+              Account code
+              <AccountCodeSelect value={form.account_code} onChange={v => setForm(f => ({ ...f, account_code: v }))} accounts={xeroAccounts} />
+            </label>
+            <label className="body-sm">
+              Account name
+              <input className="input" value={form.account_name} onChange={e => setForm(f => ({ ...f, account_name: e.target.value }))} />
+            </label>
+            <label className="body-sm">
+              VAT treatment
+              <TaxRateSelect value={form.vat_treatment} onChange={v => setForm(f => ({ ...f, vat_treatment: v }))} taxRates={xeroTaxRates} />
+            </label>
+            <label className="body-sm">
+              Currency
+              <select className="input" value={form.usual_currency} onChange={e => setForm(f => ({ ...f, usual_currency: e.target.value }))}>
+                <option value="GBP">GBP</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="CAD">CAD</option>
+              </select>
+            </label>
+            <label className="body-sm">
+              Expected cadence
+              <select className="input" value={form.expected_cadence} onChange={e => setForm(f => ({ ...f, expected_cadence: e.target.value }))}>
+                <option value="">Unknown</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+                <option value="ad_hoc">Ad hoc</option>
+              </select>
+            </label>
+            <label className="body-sm">
+              Invoice source
+              <select className="input" value={form.invoice_source} onChange={e => setForm(f => ({ ...f, invoice_source: e.target.value }))}>
+                <option value="unknown">Unknown</option>
+                <option value="email">Email</option>
+                <option value="drive">Google Drive</option>
+                <option value="xero">Xero</option>
+                <option value="portal">Supplier portal</option>
+                <option value="none">None expected</option>
+              </select>
+            </label>
+            <label className="body-sm" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+              <input type="checkbox" checked={form.auto_code} onChange={e => setForm(f => ({ ...f, auto_code: e.target.checked }))} />
+              Auto-code transactions
+            </label>
+            <label className="body-sm">
+              Notes
+              <input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            </label>
+          </div>
+          <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: handleSave })}>Save</button>
+            <button className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>
+      ) : suppliers.length === 0 ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">No suppliers yet. Use "Bootstrap from Xero" to seed from your transaction history, or add suppliers manually.</div>
+        </div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Supplier</th>
+              <th>Patterns</th>
+              <th>Account</th>
+              <th>VAT</th>
+              <th>Currency</th>
+              <th>Cadence</th>
+              <th>Confidence</th>
+              <th>Last seen</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {suppliers.map(s => (
+              <tr key={s.id}>
+                <td style={{ fontWeight: 500 }}>
+                  {s.display_name}
+                  {!s.auto_code && <span className="chip" style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)' }}>manual</span>}
+                </td>
+                <td className="body-sm text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {(s.match_patterns || []).join(', ')}
+                </td>
+                <td>
+                  {s.account_code}
+                  {s.account_name && <div className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>{s.account_name}</div>}
+                </td>
+                <td>
+                  <span className={`chip ${s.is_reverse_charge ? 'chip-accent' : ''}`}>
+                    {s.vat_treatment || 'NONE'}
+                  </span>
+                </td>
+                <td>{s.usual_currency || 'GBP'}</td>
+                <td className="body-sm">{s.expected_cadence || '—'}</td>
+                <td style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {s.confidence_counter || 0}x
+                  {s.amount_min != null && s.amount_max != null && (
+                    <div className="text-muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
+                      {Number(s.amount_min).toFixed(0)}–{Number(s.amount_max).toFixed(0)}
+                    </div>
+                  )}
+                </td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {s.last_seen ? new Date(s.last_seen).toLocaleDateString('en-GB') : '—'}
+                </td>
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)' }} onClick={() => startEdit(s)}>Edit</button>
+                  <button className="btn btn-ghost" style={{ fontSize: 'var(--fs-body-sm)', color: 'var(--danger)' }} {...roWrite(readOnly, { onClick: () => handleDelete(s.id) })}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
