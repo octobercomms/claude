@@ -1469,6 +1469,8 @@ export function DrivePanel() {
   const [folderConfig, setFolderConfig] = useState(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [subfolders, setSubfolders] = useState([]);
+  const [discovering, setDiscovering] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1481,8 +1483,12 @@ export function DrivePanel() {
       setFolderConfig(folder);
       if (folder.folderId) setFolderUrl(folder.folderId);
       if (driveStatus.accessible) {
-        const fileData = await api.get('/accounts/drive/files');
+        const [fileData, subData] = await Promise.all([
+          api.get('/accounts/drive/files'),
+          api.get('/accounts/drive/subfolders').catch(() => ({ subfolders: [] })),
+        ]);
         setFiles(fileData.files || []);
+        setSubfolders(subData.subfolders || []);
       }
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
@@ -1525,6 +1531,26 @@ export function DrivePanel() {
       load();
     } catch (e) { toast(e.message, 'error'); }
     finally { setScanning(false); }
+  }
+
+  async function handleDiscover() {
+    setDiscovering(true);
+    try {
+      const result = await api.post('/accounts/drive/discover');
+      setSubfolders(result.subfolders || []);
+      toast(`Found ${(result.subfolders || []).length} subfolders`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setDiscovering(false); }
+  }
+
+  async function handleToggleSubfolder(folderId, included) {
+    try {
+      await api.put(`/accounts/drive/subfolders/${folderId}`, { included });
+      setSubfolders(prev => prev.map(s =>
+        s.drive_folder_id === folderId ? { ...s, included } : s
+      ));
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
@@ -1603,6 +1629,65 @@ export function DrivePanel() {
         </div>
       )}
 
+      {serviceEmail && status?.accessible && (
+        <div className="card" style={{ padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="h5">Subfolders</div>
+            <button className="btn btn-sm" onClick={handleDiscover} disabled={discovering}>
+              {discovering ? 'Scanning...' : subfolders.length ? 'Refresh' : 'Discover subfolders'}
+            </button>
+          </div>
+          {subfolders.length > 0 ? (
+            <>
+              <div className="body-sm text-muted">
+                {subfolders.filter(s => s.included).length} of {subfolders.length} included in scan
+                {' '}({subfolders.filter(s => s.included).reduce((sum, s) => sum + (s.file_count || 0), 0)} files)
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}>Scan</th>
+                    <th>Folder</th>
+                    <th style={{ textAlign: 'right' }}>Files</th>
+                    <th>Last scanned</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subfolders.map(sf => (
+                    <tr key={sf.drive_folder_id} style={{ opacity: sf.included ? 1 : 0.5 }}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={sf.included}
+                          onChange={e => handleToggleSubfolder(sf.drive_folder_id, e.target.checked)}
+                        />
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 500 }}>{sf.name}</span>
+                        {sf.path !== sf.name && (
+                          <span className="body-sm text-muted" style={{ marginLeft: 'var(--s1)' }}>{sf.path}</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {sf.file_count != null ? sf.file_count : '—'}
+                      </td>
+                      <td className="body-sm text-muted">
+                        {sf.last_scanned_at ? new Date(sf.last_scanned_at).toLocaleDateString('en-GB') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <div className="body-sm text-muted">
+              Click "Discover subfolders" to find year folders and other subfolders in your invoices folder.
+              You can then choose which ones to include in the weekly scan.
+            </div>
+          )}
+        </div>
+      )}
+
       {serviceEmail && scanResult && !scanResult.error && (
         <StatStrip items={[
           { label: 'Scanned', value: scanResult.scanned },
@@ -1613,11 +1698,12 @@ export function DrivePanel() {
 
       {serviceEmail && files.length > 0 && (
         <>
-          <div className="h5">{files.length} invoice files in folder</div>
+          <div className="h5">{files.length} invoice files across included folders</div>
           <table className="table">
             <thead>
               <tr>
                 <th>Filename</th>
+                <th>Folder</th>
                 <th>Type</th>
                 <th style={{ textAlign: 'right' }}>Size</th>
                 <th>Modified</th>
@@ -1629,6 +1715,7 @@ export function DrivePanel() {
                   <td>
                     {f.url ? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a> : f.name}
                   </td>
+                  <td className="body-sm text-muted">{f.folderPath || 'Root'}</td>
                   <td className="body-sm text-muted">{f.mimeType?.split('/').pop() || '—'}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {f.size != null ? `${Math.round(f.size / 1024)} KB` : '—'}
