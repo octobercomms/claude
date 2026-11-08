@@ -3078,9 +3078,24 @@ export function ExtensionPanel() {
       <div className="card" style={{ padding: 'var(--s4)', marginTop: 'var(--s3)' }}>
         <div className="body-sm" style={{ fontWeight: 600, marginBottom: 'var(--s2)' }}>Extension setup</div>
         <ol className="body-sm" style={{ margin: 0, paddingLeft: 'var(--s5)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-          <li>Install the Chrome extension from <code>dev/platform/extension/</code> (load unpacked in chrome://extensions)</li>
-          <li>Click the extension icon and enter the server URL (your OMI backend, e.g. <code>https://your-domain.com</code>)</li>
-          <li>Paste the token generated above into the Token field</li>
+          <li>
+            <strong>Download the extension</strong> and unzip it to a folder on your computer.
+            <div style={{ marginTop: 'var(--s2)' }}>
+              <button className="btn btn-secondary" onClick={() => {
+                const a = document.createElement('a');
+                a.href = '/api/accounts/extension/download';
+                a.click();
+              }}>
+                Download extension (.zip)
+              </button>
+            </div>
+          </li>
+          <li>Open Chrome and go to <code>chrome://extensions</code></li>
+          <li>Turn on <strong>Developer mode</strong> using the toggle in the top-right corner</li>
+          <li>Click <strong>Load unpacked</strong> (top left) and select the unzipped folder</li>
+          <li>Click the extension's puzzle-piece icon in Chrome's toolbar, then click <strong>Xero Brain</strong> to open its settings</li>
+          <li>Enter the server URL: <code>{window.location.origin}</code></li>
+          <li>Paste the token generated above into the Token field and click Save</li>
           <li>Open Xero's bank reconciliation page; the extension will show coding suggestions beside each transaction</li>
         </ol>
       </div>
