@@ -55,16 +55,41 @@ up constantly.
 
 ### Video and audio live in R2, not on the box (30 Oct 2026)
 
-`MEDIA_STORE=r2`. Recordings, transcripts and client assets are in the
-Cloudflare R2 bucket `omi-recordings`; the box holds a duplicate of everything
-from before the switch, which `media-to-r2.js --commit --prune-verified` will
-free when someone decides it is time.
+`MEDIA_STORE=r2`. Recordings and transcripts are in the Cloudflare R2 bucket
+`omi-recordings`; the box holds a duplicate of everything from before the
+switch, which `media-to-r2.js --commit --prune-verified` will free when someone
+decides it is time.
 
 What this changes for you:
 
-- `services/mediaStore.js` has two drivers behind one interface. Write against
-  the interface, never against a path on disk. The playback route hands out
-  short-lived signed URLs; nothing serves bytes from the filesystem any more.
+- `services/mediaStore.js` has two drivers behind one interface, and it covers
+  recordings, transcripts and recorder audio. Write those against the
+  interface, never against a path on disk. **Both drivers stay live at the call
+  site**: `routes/recordings.js` redirects to a short-lived signed URL when the
+  r2 driver gives it one and streams the bytes itself when it does not, so a
+  change that assumes only the signed path breaks local disk.
+- **Client assets are NOT in R2, whatever the bucket name suggests.** This
+  section used to say they were. Brand uploads, composition clips and
+  composition renders all live on local disk under
+  `backend/uploads/<client_id>/`, served straight off it by
+  `routes/brandAssets.js` and `routes/compose.js`. `services/assets.js` is only
+  the index: it writes a `/api/brand/file/<clientId>/<filename>` URL into
+  `client_assets` and never moves bytes. The composition editor, now the only
+  video editor, does not use mediaStore at all, and
+  `services/compositionRenderer.js` turns that URL back into an `uploads/` path
+  for ffmpeg. So do not go hunting for the mediaStore call to hang a new
+  composition source or output off: there is not one, and adding one means
+  moving the whole `/api/brand/file` contract with it.
+- **`media-store-status.js` does not cover those files**, and that is a
+  reporting gap rather than a deletion risk. It counts
+  `client_assets.storage_key`, which only recordings ever set, so every
+  composition upload and render reads as zero there. The prune is safe from
+  them for a reason worth knowing rather than assuming: `collectKeys` builds
+  its list from the `storage_key` columns only, and the script deletes a disk
+  copy solely when R2 has that key back at matching byte length. A file with no
+  `storage_key` never enters the list, so `--prune-verified` cannot touch it.
+  `tests/media-to-r2.test.js` drives that ordering against a store that lies
+  about what it wrote, which is why it is a tested guarantee and not a hope.
 - `backend/scripts/` holds five scripts for this. All of them load the
   backend's own `.env` from `__dirname`, so they work from anywhere on the box.
   `media-store-status.js` is the one to run first when anything about media
@@ -2134,16 +2159,45 @@ Three phases:
    Background material, all older than the decision and none of it binding:
    `client-strategy.md`, `redesign-brief.md`, `sales-pipeline.md`.
 
-   **The video editor rewrite is complete.** All 8 steps of
-   `editor-composition-model.md` shipped on PR #1952 (steps 1-7) and
-   PR #1955 (step 8: tighten, b-roll, old editor deletion, unlock).
-   Polish: PR #1957 added undo/redo, snap-to-edge, minimap, export
-   modal, keyboard shortcuts, and seven other independent components;
-   PR #1958 wired them into the editor page. Interaction: PR #1959
-   added ripple edit mode, cross-track drag, and redesigned resize
-   handles. The composition editor is the sole video editor for all
-   users. The wizard (`MakeAReel.jsx`) and the old single-track editor
-   (`ClientEditPage.jsx`) are deleted.
+   **The video editor rewrite is complete, but the record of it does not end
+   at PR #1959.** All 8 steps of `editor-composition-model.md` shipped on
+   PR #1952 (steps 1-7) and PR #1955 (step 8: tighten, b-roll, old editor
+   deletion, unlock). Polish: PR #1957 added undo/redo, snap-to-edge,
+   minimap, export modal, keyboard shortcuts and seven other components;
+   PR #1958 wired them in. PR #1959 added ripple edit mode, cross-track
+   drag and redesigned resize handles. Then the 7 November work closed the
+   two render-resilience faults `video-editor-review.md` raised: render
+   state lives in the `composition_renders` table (migration 241) rather
+   than an in-memory Map, so a pm2 restart no longer loses a job, and
+   `routes/compose.js` runs one ffmpeg at a time through a queue. The same
+   work added click-to-edit timecodes, `[` `]` for in/out, `,` `.` for
+   frame nudge, and auto-selection of the first clip source so Tighten and
+   B-roll work without an explicit selection.
+
+   **"Parked" means no new editor FEATURES were planned, not that the code
+   is frozen.** As of 8 November, PRs #2005 to #2008 fixed five faults in
+   the shipped editor and put its test suite into CI for the first time
+   (338 of 385 assertions had never run on a runner). The faults were: an
+   orphan filter output that made any track with a transition and a gap
+   fail to render at all; two clips with a hard cut rendering as black; a
+   higher track hiding the base track; captions never reaching the output;
+   and Export encoding the previous cut when clicked inside the autosave
+   window. Every one produced plausible output and a success message,
+   because every guard that existed read the `filter_complex` string rather
+   than the frames. There are pixel-level guards now. The shared model also
+   grew `fx` sources and animatable transform values.
+
+   The follow-on build is scoped in `docs/omi/video-batch-plan.md` (agreed
+   with Daniel 8 November): templates, a batch runner, a reference
+   analyser, cost labels and a QC gate, in eleven steps.
+
+   **The trap is reading "complete" as "nothing has moved since", then
+   rebuilding what is already there.** The DB-backed render state, the
+   render queue and the cost chip (`components/FeatureCost.jsx`) all exist.
+   Before touching the editor, run `git log` over `shared/composition*.mjs`
+   and `backend/src/routes/compose.js` rather than trusting the PR list
+   here, and keep this paragraph current when you do: it was last refreshed
+   at #1959 and stayed wrong through everything after it.
 
 ### The Costs panel reported the whole Anthropic account (31 Oct 2026)
 
@@ -2630,16 +2684,37 @@ holds the default, the publisher's filter and the screen's wording. Earned's
 Measure group, its Reports row and `PrBacklinkRoi` are gone;
 `PrBacklinkTotal` puts three tiles at the top of Coverage.
 
-### The video timeline, as it stands while the editor rewrite is in progress
+### The video timeline, and which of its rules outlived the old editor
 
-**The rewrite is in progress** (see §7 and `editor-composition-model.md`).
-What follows describes the timeline that is live today and the rules its
-code holds you to. The current editor keeps working, untouched, until the
-rewrite reaches step 8.
+**The rewrite is FINISHED, so nothing below is a map of the tree.** This
+section said "in progress" and described the old editor as live for a week
+after it was deleted, which is the exact failure the rule at the foot of §10
+exists to prevent.
+
+The composition editor is the sole video editor:
+`pages/CompositionEditorPage.jsx`, `components/video/CompositionTimeline.jsx`,
+`shared/composition.mjs` and its siblings, `backend/src/routes/compose.js`.
+`shared/edl.mjs`, `edlPlay.mjs`, `overlays.mjs`, `Timeline.jsx`,
+`EdlPlayer.jsx`, `pages/MakeAReel.jsx`, `pages/ClientEditPage.jsx`,
+`services/editProcessor.js` and `routes/edit.js` were all deleted (see §7).
+
+**Two of the rules below are now the opposite of the truth.** The five-pass
+render is one filter graph and one encode (`shared/compositionRender.mjs`), and
+video tracks stack and composite in order (`shared/composition.mjs`), so "one
+video track, on purpose" was a constraint of a renderer that no longer exists.
+
+What still holds is the browser-side work the new editor inherited whole,
+`utils/filmstrip.js` and `utils/waveform.js`, and the epsilon rule, which moved
+into `EPS` and `MIN_ITEM` in `shared/composition.mjs`.
+
+Read the rest as the reasoning that earned each rule, never as a file list. The
+trap is grepping for a module named here, finding nothing, and concluding the
+tree is broken or that something needs rebuilding, when the module was
+deliberately removed and its job is done elsewhere.
 
 `docs/omi/video-timeline-spec.md`, whose section 7 is the build log. Daniel
 chose **option C, build it**, and said to go straight at the timeline with no
-interim fix. The surface and the model are in.
+interim fix.
 
 **The preview is on the `<video>` element, not WebCodecs.** This section used
 to say WebCodecs was chosen, and it was, twice — then a probe on 31 October
@@ -3051,14 +3126,22 @@ claiming that a `.db` test protects anything.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
-- **Produce's caption templates are DATA, not components.** The 27 presets in
-  `shared/captions/presets.json` are ported from Capite (MIT, notice kept in
-  the file) and compiled to ASS by `shared/captions/compile.mjs`, which both
-  the backend renderer and the editor preview import so they cannot drift. A
-  28th template is one JSON row, as long as its `animationType` is one of the
-  engines the compiler implements. Do not add a template as a React
-  composition: that is the `StyleA/C/G.jsx` pattern and it does not scale past
-  three.
+- **Produce's caption templates are DATA, not components.**
+  `shared/captions/presets.json` holds **31** styles: 27 ported from Capite
+  (MIT, notice kept in the file) and four `measured` ones October derived from
+  real reels, which Capite never had. They are compiled to ASS by
+  `shared/captions/compile.mjs`, which both the backend renderer and the editor
+  preview import so they cannot drift. A 32nd template is one JSON row, as long
+  as its `animationType` is one of the eight engines the compiler implements
+  (`highlight`, `box`, `karaoke`, `scale`, `pop`, `bounce`, `glow`, `none`); an
+  unknown type is not an error, it silently renders as `highlight`. **When a
+  test counts templates, count the ported subset and never the total:**
+  `tests/captions.test.js` filters `category !== 'measured'` and fixes
+  `ported.length === 27` on purpose, because the library grows every time a reel
+  is measured and an assertion on the total would break on every addition. That
+  is also why this entry said 27 for weeks while the file held 31. Do not add a
+  template as a React composition: that is the `StyleA/C/G.jsx` pattern and it
+  does not scale past three.
 - **The reel checks are advisory and say so on screen.** Seven deterministic
   checks from October's growth plan, in `shared/reelChecks.mjs`. Two things
   about them that took a correction to get right: a check that can only pass by
@@ -3094,49 +3177,82 @@ claiming that a `.db` test protects anything.
   `assets.record` NEVER throws at its caller: a render that discarded a
   finished video because the library was briefly unreachable would be far worse
   than one missing row.
-- **`ClientVideoPage.jsx` has been deleted** (noted 2 Nov; this entry used to
-  say it was dead code still sitting in the tree). It was an older studio page
-  no route reached, and the two features mounted on it — the reel checks and
-  `CaptionTemplates` — were therefore never visible in the product. Both now
-  live on `ClientEditPage.jsx`, which is the Produce tab's Edit panel. The
-  lesson is the one worth keeping: before adding a panel anywhere, check that
-  something imports the page you are adding it to.
-- **Produce's edit pipeline has two caption paths, and the template one is the
-  fork to watch.** With `ops.caption_template` set, `editProcessor.render`
-  takes word-level Whisper and `captions.burn`, the same compiler Shared uses,
-  so a template cannot mean one thing in Produce and another in Shared. With no
-  template it keeps the old segment SRT and its size and position controls,
-  which the screen hides while a template is chosen because a template that let
-  its size be overridden would stop meaning the same thing on every account.
-  The failure mode is not a bad burn, it is the pipeline quietly staying on the
-  old path, which looks like a successful render; `tests/edit-captions.test.js`
-  compares frame hashes to catch exactly that.
+- **`ClientVideoPage.jsx` and `ClientEditPage.jsx` have both been deleted**
+  (ClientVideoPage noted 2 Nov, ClientEditPage in the November rewrite). Of the
+  two features that used to be mounted on them, only one landed: the reel checks
+  are on `CompositionEditorPage.jsx`, which `ClientVideoTab` renders for the
+  `compose` tab, labelled **Video** in Produce. There is no Edit panel any more,
+  and `grep -rn ClientEditPage` returns nothing at all, so a line sending you to
+  that file sends you nowhere. `components/CaptionTemplates.jsx` is the one that
+  did not land: nothing imports it, so editing it changes nothing a user can
+  see. CompositionEditorPage fetches `GET /compose/caption-templates` itself and
+  renders its own caption select, which is where a template change belongs. The
+  lesson is the one worth keeping, and this entry is now its second
+  demonstration: before adding or editing a panel, check that something imports
+  the file you are touching. A component with no importer is dead however good
+  it looks, and `routeDoors.test.mjs` catches unreachable **routes** only, never
+  unreferenced components, so nothing in CI will tell you.
+- **Produce's captions are a composition source kind now, not a render op.**
+  `ops.caption_template`, `editProcessor.render` and `tests/edit-captions.test.js`
+  all went with the wizard, so there is no longer a template path and a
+  segment-SRT path to choose between. A caption is a source with
+  `kind: 'captions'` whose `transcript` names the clip source whose words to
+  use, and `compositionRenderer.buildCaptionAss` is the only thing that compiles
+  one. Read `captions.burn` as the social caption render and the example reel,
+  not as the composition path.
+  **Both halves of this were broken until 8 November and the symptom was
+  silence.** The render route called `renderGraph` without a `captionAssPath`,
+  so the subtitles filter was never added; and `buildCaptionAss` only accepted a
+  literal word array, so the editor's source-id reference resolved to nothing.
+  A captioned export returned clean video and reported success. Fixed, and
+  guarded by pixel assertions plus a source-reading guard on the route, because
+  every guard that existed read the filter string and the string was correct
+  both times.
 - **The caption format is chosen from the rendered frame, not the requested
   aspect.** An "original" request declares no aspect at all, and a preset
   measured against a 1080x1920 canvas sits wrong on a square one. libass scales
   the ASS canvas to the video, so the aspect ratio is what must match and the
   pixel size need not.
-- **`require('./captions')` at the top of `editProcessor` is a cycle.** captions
-  reaches back for `whisperWords`, so a top-level require leaves a half-built
-  module whose functions are all `undefined` and fails at the call rather than
-  at load. Require it inside the function, as the rest of the file does with
-  its services.
-- **Every finished edit is indexed in the library, from `editJobs.complete`.**
-  One call site rather than one per branch of the renderer, stills reels
-  included, so no path produces a video and forgets to say so. The job is
-  marked done first and the library write is wrapped there as well as inside
-  `assets.record`: the guarantee that an index row cannot cost a two-minute
-  render is made locally rather than inherited from another file's promise.
-  `source` is `edit_job`, and that value has to be added in **three** places or
-  it fails in a different way at each: the `client_assets` CHECK constraint,
-  the `SOURCES` whitelist in `services/assets.js`, and `SOURCE_LABEL` in
-  `AssetLibrary.jsx`.
-- **The seven-day retention sweep does NOT cover edits.** It deletes
-  `video-clips/` and `video-outputs/`, which belong to the Video Studio
-  (`video_projects`). Edit-pipeline outputs live in `uploads/<client>/edit/`
-  and nothing deletes them on a schedule; the only deletion is
-  `editJobs.remove`, when someone deletes the job. The Video Studio's own UI
-  line about files going after seven days describes that store, not this one.
+- **Caption modules can be required at the top of a file.** This entry used to
+  warn that `require('./captions')` inside `editProcessor` was a cycle, which
+  was true of that deleted file and is now the opposite of the advice you want.
+  `services/captions.js` pulls in nothing but node builtins and `ffmpegBin`, and
+  `whisperWords` sits in `services/whisper.js`, which imports only `fs`, so
+  there is no cycle to dodge: `routes/compose.js` takes `whisperWords` at the
+  top, and four other callers take `captions` at the top. Do not carry the
+  old habit into the composition pipeline, where it only hides the dependency.
+- **Every finished composition render is indexed in the library, from the
+  ffmpeg `close` handler in `routes/compose.js`.** One call site, so no render
+  finishes and forgets to say so. The write is fired without `await` and with
+  its own `.catch`, just before the job is marked done: an index row must never
+  cost a render that has already succeeded. Two traps in how it is recorded.
+  `source` is **`scene_render`**, not `edit_job`, so composition renders land in
+  the Library labelled "Scene template" beside the real scene renders; and
+  `source_id` carries a timestamp, so every re-render of one composition adds
+  another row rather than replacing the last. `editJobs.complete` still exists
+  and still writes `edit_job`, but **nothing in the product calls it** —
+  `editProcessor.js` and `routes/edit.js` are deleted and no `/api/edit` is
+  mounted, so only `tests/edit-assets.db.test.js` drives it, which is why it
+  keeps passing. Fix indexing there and the product will not change. The
+  three-places rule is still real for any **new** `source` value: the
+  `client_assets` CHECK constraint, the `SOURCES` whitelist in
+  `services/assets.js`, and `SOURCE_LABEL` in `AssetLibrary.jsx`. Both values in
+  play are already in all three, which is why the rewrite needed no migration
+  and why the wrong label went unnoticed.
+- **The seven-day retention sweep does NOT cover composition renders, and
+  nothing else does either.** `videoCleanup.runCleanup` deletes `video-clips/`
+  and `video-outputs/`, which belong to the Video Studio (`video_projects`). The
+  composition editor writes its renders into the brand uploads root instead, as
+  `uploads/<client_id>/render-<compId>-<timestamp>.mp4`, and nothing deletes
+  them on a schedule or on demand: `DELETE /compose/compositions/:id` removes
+  the row and nothing else, so the mp4 stays on disk and its `scene_render` row
+  stays live. `archiveBySource` is called for `video_project` and `edit_job`
+  only, so that row is reached by nothing but the nightly `sweepMissingFiles`,
+  and only once the file has gone, which nothing makes happen. **A fortnightly
+  batch would fill the box**, which is why `video-batch-plan.md` carries this as
+  a fix-first item. Do not go looking for `uploads/<client>/edit/` or
+  `editJobs.remove`: that was the old pipeline's store and its only deletion,
+  and both are unreachable now.
 - **A library row is a claim that a file exists, and three things now keep it
   honest.** `client_assets` has no foreign key to any producing table
   (`source_id` is text, because they disagree about key types), so nothing
@@ -3248,21 +3364,40 @@ claiming that a `.db` test protects anything.
   (`CompositionEditorPage.jsx`) is the sole video editor, reached via the
   "Video" tab under Produce. Tighten and B-roll are panels in the clip
   inspector, not separate wizard steps.
-- **Rendering with chosen settings goes through `reopen`, not `render`.**
-  `POST /edit/clients/:id/edit/:id/render` queues a draft with the ops it was
-  *created* with, which for a fresh upload is `{}`. `reopen` copies the
-  footage into a new job carrying the ops you pass and queues that. The
-  walkthrough also needs `from-asset` to start from the library, which is the
-  same shape as `from-recording`: the editor only works on files in its own
-  directory, so anything from elsewhere is copied in.
-- **Stub Whisper at the network boundary, not on the export.**
-  `editProcessor.render` calls `whisperWords` through its closure, so patching
-  `module.exports.whisperWords` in a `-r` stub does nothing and the real
-  request goes out. Wrapping `globalThis.fetch` and intercepting
-  `openai.com/v1/audio/transcriptions` leaves every line of the pipeline
-  running for real; the multipart body's `response_format` says whether to
-  answer with words or an SRT. The `deps` argument on `render` is for tests,
-  not for the running server.
+- **Rendering uses the composition as it is SAVED IN THE ROW, so flush the
+  autosave before handing work to the backend.** `POST
+  /compose/compositions/:id/render` reads `data` and `source_assets` out of the
+  database and takes only format, resolution and quality from the body: the
+  timeline in the browser is never sent. The editor autosaves 1500ms after a
+  change, so a render started inside that window encodes the previous cut and
+  reports success, which is a file that looks right and is of the wrong edit.
+  Export flushes now via `flushSave`, and `transcribeSource`,
+  `switchComposition` and `createNew` already awaited a save; a frontend guard
+  pins all four, because the fault is entirely in whether two things are joined
+  up and no unit test of either half can see it. Sources are referenced by asset
+  id and resolved in place out of `uploads/<client_id>/`, never copied into an
+  editor directory, so deleting an asset breaks every composition that used it
+  rather than leaving an orphan. Footage gets in by upload or from the design
+  list, and that is all: the old `/api/edit` API with its `render`, `reopen`,
+  `from-recording` and draft/ops model went with `routes/edit.js`, and
+  `services/editJobs.js` still exports `reopen` with nothing routed to it, so
+  reaching for it is wasted effort. **The "Send to Edit" button on Recordings
+  still posts to that deleted route and is dead**; recordings have no path into
+  the composition editor yet.
+- **Stub Whisper at the network boundary, not on the export.** The one place
+  every transcription leaves the box is the `fetch` to
+  `api.openai.com/v1/audio/transcriptions` in `services/whisper.js`. Wrap
+  `globalThis.fetch` in a `-r` stub and intercept that URL: every line of the
+  pipeline then runs for real, and `verbose_json` with word granularity is the
+  only shape asked for, so the stub need only answer with a `words` array of
+  `{ word, start, end }`. **Do not patch `module.exports.whisperWords`
+  instead.** `routes/compose.js` destructures it at module scope, so that route
+  holds its own copy of the binding and a later patch never reaches it, while
+  `captions.js`, `silenceCut.js` and `socialCaptionRender.js` all re-require
+  inside the function and would pick the patch up. That split is the trap: the
+  run looks stubbed, because some callers were, and the real request still went
+  out from the editor route. There is no `deps` test seam in the composition
+  pipeline; the one that lived on `editProcessor.render` went with that file.
 - **B-roll planning proposes moments, never footage.** `shared/brollPlan.mjs`
   reads the transcript and says where a cutaway belongs and why; the operator
   picks the clip. Nothing in OMI knows what is inside a b-roll file, so a

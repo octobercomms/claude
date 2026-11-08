@@ -1,5 +1,19 @@
 # A video timeline in OMI: what it is, what it costs, what it replaces
 
+> **HISTORICAL. The timeline this specifies was built and then replaced.**
+> `shared/edl.mjs`, `edlPlay.mjs`, `overlays.mjs`, `Timeline.jsx` and
+> `EdlPlayer.jsx` were all deleted in the November 2026 rewrite. The single
+> video track this spec treats as a hard constraint is gone: tracks stack and
+> composite in order now, and the multi-pass render is one filter graph and
+> one encode.
+>
+> Kept for the costing, the option analysis and section 7's build log, which
+> is where the frame-accuracy probe and the filmstrip and waveform findings
+> live — and those two modules (`utils/filmstrip.js`, `utils/waveform.js`)
+> the new editor inherited whole, so their traps still bite.
+>
+> For the current model read `editor-composition-model.md`.
+
 Written 31 October 2026, against review item 7.2 ("Edit, and the CapCut
 question"). Scoped first, then decided: **option C, build the timeline**, with
 **WebCodecs** for the preview. Section 7 records what has been built and what
