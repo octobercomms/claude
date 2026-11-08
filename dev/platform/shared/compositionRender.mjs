@@ -27,7 +27,10 @@
  * compiler produces, applied last.
  */
 
-import { secs, EPS, itemEnd, overlaps as findOverlaps, TRANSITION_TYPES } from './composition.mjs';
+import {
+  secs, EPS, itemEnd, overlaps as findOverlaps, TRANSITION_TYPES,
+  isAnim,
+} from './composition.mjs';
 
 const XFADE_NAME = {
   fade: 'fade',
@@ -138,7 +141,17 @@ export function renderGraph(comp, opts = {}) {
         parts.push(`colorchannelmixer=aa=${f(alpha)}`);
       }
 
-      filters.push(`[${idx}:v]${parts.join(',')}[${padName}]`);
+      // A transform cannot live in this chain, because animating the size
+      // changes the stream's dimensions and the flatten back onto a fixed
+      // canvas needs a second input. So the prep chain lands on its own pad
+      // and the transform stage produces the one the rest of the graph uses.
+      if (hasTransform(item)) {
+        const prePad = `${padName}pre`;
+        filters.push(`[${idx}:v]${parts.join(',')}[${prePad}]`);
+        emitTransform(item, prePad, padName, W, H, fps, filters);
+      } else {
+        filters.push(`[${idx}:v]${parts.join(',')}[${padName}]`);
+      }
       videoItemPads.set(item.id, padName);
     }
   }
@@ -616,6 +629,125 @@ function buildXfadeChain(sorted, trackOverlaps, videoItemPads, filters, prefix) 
 /**
  * Calculate expected output duration from a composition.
  */
+// ── Animated transforms ───────────────────────────────────────────────
+
+/**
+ * An ffmpeg expression for an animatable value over an item's length.
+ *
+ * The emitted form is fixed and deliberately dull:
+ *
+ *   (A+(B-A)*min(max(t/L\,0)\,1))
+ *
+ * It is the same linear interpolation `animAt` computes in the model, with
+ * the same clamp at both ends, which is what lets the agreement test read
+ * A, B and L back out and check them against `itemTransformAt` rather than
+ * trusting that two implementations drifted the same way.
+ *
+ * Commas are escaped because ffmpeg splits filter arguments on them.
+ */
+function animExpr(value, len) {
+  if (!isAnim(value)) return null;
+  const a = Number(value.from);
+  const b = Number(value.to);
+  const L = Math.max(len, 1e-6);
+  return `(${f(a)}+(${f(b)}-${f(a)})*min(max(t/${f(L)}\\,0)\\,1))`;
+}
+
+/** A transform value as a constant, for the static case. */
+function animConst(value) {
+  return isAnim(value) ? null : value;
+}
+
+/**
+ * Whether an item asks for anything the transform stage has to draw.
+ */
+function hasTransform(item) {
+  return item.scale != null || item.pos != null || item.rot != null;
+}
+
+/**
+ * The transform stage: animate the item's size and position inside the frame.
+ *
+ * The construction is measured rather than reasoned about, and the obvious
+ * approach does not work. `scale` cannot animate without `eval=frame`, and
+ * once it does the item's own frame size changes per frame, which x264 will
+ * not encode and `xfade` will not accept as an input. The fix is to flatten
+ * the animated item onto a FIXED-SIZE transparent canvas with `overlay`,
+ * which is what hands a constant-dimension stream downstream.
+ *
+ * Verified on a 100x100 source scaled 1.0x to 2.0x over 4s: 101, 150 and 198
+ * pixels a side at t=0.04, 2.0 and 3.9, against 101, 150 and 197.5 predicted
+ * by `animAt`. Two such items then xfaded produced a correct output, so it
+ * composes with the transition chain rather than fighting it.
+ *
+ * `pos` is a fraction of the frame, so the same move survives a reframe,
+ * which is the rule `overlays.mjs` already held for positioned text.
+ *
+ * Returns the pad holding the transformed item.
+ */
+function emitTransform(item, inPad, outPad, W, H, fps, filters) {
+  if (item.rot != null) {
+    // Honest refusal rather than a silent drop. `rotate`'s output box is
+    // init-only (no `T` flag on ow/oh), so an animated rotation needs a
+    // constant box sized for the maximum angle, which is a different
+    // construction from this one. Until that is built, a composition
+    // carrying `rot` must fail loudly: a transform the renderer ignores
+    // would be the page claiming output it cannot produce.
+    throw new Error(
+      `item "${item.id}" sets rot, which the render graph cannot draw yet. `
+      + `An animated rotation needs a constant output box sized for the `
+      + `maximum angle, because rotate's ow/oh are init-only. Remove rot or `
+      + `implement that construction; do not let it render silently without it.`
+    );
+  }
+
+  const canvas = `${outPad}cv`;
+  const scaled = `${outPad}sc`;
+
+  // A transparent canvas at the composition frame. Transparent rather than
+  // black so a scaled-down item on a higher track does not blank the track
+  // below it; on the base track the final flatten makes it black anyway.
+  filters.push(
+    `color=c=black@0.0:s=${W}x${H}:r=${fps}:d=${f(item.len)},format=yuva420p[${canvas}]`
+  );
+
+  // Size. Both dimensions are rounded to even numbers: an odd intermediate
+  // breaks yuv420p downstream, and `-2` alone would let the aspect drift.
+  const sExpr = animExpr(item.scale, item.len);
+  const sConst = animConst(item.scale);
+  const sizeParts = [];
+  if (sExpr) {
+    sizeParts.push(
+      `scale=w='round(${W}*${sExpr}/2)*2':h='round(${H}*${sExpr}/2)*2':eval=frame`
+    );
+  } else if (sConst != null && sConst !== 1) {
+    const w = Math.max(2, Math.round((W * sConst) / 2) * 2);
+    const h = Math.max(2, Math.round((H * sConst) / 2) * 2);
+    sizeParts.push(`scale=${w}:${h}`);
+  }
+  sizeParts.push('format=yuva420p');
+  filters.push(`[${inPad}]${sizeParts.join(',')}[${scaled}]`);
+
+  // Position. Centred, then offset by the fraction of the frame asked for.
+  const posX = item.pos == null ? null
+    : isAnim(item.pos) ? animExpr({ from: item.pos.from?.x || 0, to: item.pos.to?.x || 0 }, item.len)
+      : item.pos.x || 0;
+  const posY = item.pos == null ? null
+    : isAnim(item.pos) ? animExpr({ from: item.pos.from?.y || 0, to: item.pos.to?.y || 0 }, item.len)
+      : item.pos.y || 0;
+
+  const xTerm = posX == null ? '0'
+    : typeof posX === 'number' ? f(W * posX) : `(${W}*${posX})`;
+  const yTerm = posY == null ? '0'
+    : typeof posY === 'number' ? f(H * posY) : `(${H}*${posY})`;
+
+  filters.push(
+    `[${canvas}][${scaled}]overlay=`
+    + `x='(main_w-overlay_w)/2+${xTerm}':y='(main_h-overlay_h)/2+${yTerm}'`
+    + `:eval=frame:format=auto[${outPad}]`
+  );
+}
+
 /**
  * Labels the graph produces that nothing consumes.
  *

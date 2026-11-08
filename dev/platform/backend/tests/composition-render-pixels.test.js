@@ -358,3 +358,93 @@ describe('a composition with captions', () => {
     );
   });
 });
+
+// ── An animated transform actually moves ─────────────────────────────
+//
+// The agreement test checks the numbers in the expression. This checks that
+// ffmpeg does something with them, which is a different question: `scale`
+// silently refuses to animate without `eval=frame`, and the whole stage is
+// built around flattening onto a fixed canvas because animating the size
+// changes the stream's dimensions and x264 will not encode that.
+//
+// Path B depends on this. A deterministic camera move over a still IS an
+// animated scale and pos, chosen over a hosted image-to-video call so the
+// batch has no vendor in its critical path, so if this does not move then
+// the batch has no motion at all.
+
+/** How many pixels of the frame are the subject colour. */
+function subjectPixels(file, seconds) {
+  const raw = execFileSync(FFMPEG, [
+    '-loglevel', 'error', '-ss', String(seconds), '-i', file,
+    '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-',
+  ], { maxBuffer: 64 * 1024 * 1024 });
+  let n = 0;
+  for (let i = 0; i < raw.length; i += 3) {
+    if (raw[i] > 150 && raw[i + 1] < 80 && raw[i + 2] < 80) n++;
+  }
+  return n;
+}
+
+describe('an animated scale', () => {
+  it('grows the subject across the item, matching the model', () => {
+    const red = makeClip('zoom.mp4', '0xff0000', 5);
+    const comp = {
+      version: 1, size: { width: W, height: H }, fps: FPS,
+      sources: { a: { kind: 'clip', url: 'a.mp4', duration: 5, width: W, height: H, fps: FPS } },
+      tracks: [{
+        id: 't0', kind: 'video', items: [
+          // Start at half the frame and grow to fill it.
+          { id: 'i1', at: 0, len: 4, source: 'a', in: 0, scale: { from: 0.5, to: 1.0 } },
+        ],
+      }],
+    };
+    const out = render(comp, { a: red });
+
+    const early = subjectPixels(out, 0.1);
+    const mid = subjectPixels(out, 2.0);
+    const late = subjectPixels(out, 3.9);
+
+    assert.ok(
+      early > 0,
+      'the subject is on screen at the start; 0 means the transform stage '
+      + 'swallowed it rather than scaling it'
+    );
+    assert.ok(
+      mid > early * 1.3,
+      `the subject must grow. early=${early} mid=${mid}. If these are equal, `
+      + 'scale is not animating: it needs eval=frame, and without it ffmpeg '
+      + 'holds the first value for the whole item without complaining.'
+    );
+    assert.ok(late > mid, `and keep growing. mid=${mid} late=${late}`);
+
+    // Against the model: area goes as scale squared, so 0.5 -> 1.0 is a
+    // fourfold change in covered pixels across the item.
+    const ratio = late / early;
+    assert.ok(
+      ratio > 2.5 && ratio < 5.5,
+      `the growth should be roughly fourfold (area goes as scale squared, `
+      + `0.5 to 1.0), got ${ratio.toFixed(2)}x`
+    );
+  });
+
+  it('keeps the output frame a constant size', () => {
+    // The reason for the flatten onto a fixed canvas. Without it the stream
+    // changes dimensions per frame, which x264 refuses and xfade cannot take.
+    const red = makeClip('zoom2.mp4', '0xff0000', 5);
+    const comp = {
+      version: 1, size: { width: W, height: H }, fps: FPS,
+      sources: { a: { kind: 'clip', url: 'a.mp4', duration: 5, width: W, height: H, fps: FPS } },
+      tracks: [{
+        id: 't0', kind: 'video', items: [
+          { id: 'i1', at: 0, len: 3, source: 'a', in: 0, scale: { from: 0.4, to: 1.6 } },
+        ],
+      }],
+    };
+    const out = render(comp, { a: red });
+    const probe = execFileSync(FFMPEG.replace(/ffmpeg$/, 'ffprobe'), [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height', '-of', 'csv=p=0', out,
+    ]).toString().trim();
+    assert.equal(probe, `${W},${H}`, 'the encoded stream is the composition frame');
+  });
+});

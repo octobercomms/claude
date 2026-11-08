@@ -14,7 +14,10 @@
  * Pure. No I/O, no DOM, no side effects.
  */
 
-import { secs, EPS, itemEnd, overlaps as findOverlaps, topmostAt, duration } from './composition.mjs';
+import {
+  secs, EPS, itemEnd, overlaps as findOverlaps, topmostAt, duration,
+  itemTransformAt,
+} from './composition.mjs';
 
 /**
  * The scene at a timeline time: every active layer, bottom to top.
@@ -73,6 +76,18 @@ export function sceneAt(comp, t) {
         sourceTime: Math.max(0, sourceTime),
         opacity,
         sourceId: item.source,
+        // Where and how big to draw it, from the SAME function the render
+        // graph derives its filter expressions from. Two implementations of
+        // one description drift, which is the whole reason this module and
+        // compositionRender.mjs both read the model rather than each other.
+        //
+        // scale is a multiplier of the frame, pos is a fraction of it, both
+        // already interpolated for this moment. The compositor multiplies
+        // out to pixels; the renderer puts the same arithmetic in an ffmpeg
+        // expression. Agreement is asserted at this level and not on pixels,
+        // because overlay x/y are integer pixels and scale dimensions are
+        // integer and even, while canvas drawImage is sub-pixel.
+        transform: itemTransformAt(item, t),
       });
     }
   }
