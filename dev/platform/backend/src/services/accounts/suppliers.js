@@ -431,6 +431,70 @@ async function findSupplierByPatterns(patterns) {
   return null;
 }
 
+async function findSupplierByFolderName(folderName) {
+  if (!folderName) return null;
+  const normalised = folderName.trim().toLowerCase();
+
+  const { rows } = await db.query(
+    `SELECT * FROM acct_suppliers
+     WHERE EXISTS (
+       SELECT 1 FROM unnest(match_patterns) AS p
+       WHERE lower(p) = $1
+     )
+     ORDER BY confidence_counter DESC
+     LIMIT 1`,
+    [normalised]
+  );
+  if (rows.length) return rows[0];
+
+  const { rows: fuzzy } = await db.query(
+    `SELECT * FROM acct_suppliers
+     WHERE lower(display_name) = $1
+     ORDER BY confidence_counter DESC
+     LIMIT 1`,
+    [normalised]
+  );
+  return fuzzy[0] || null;
+}
+
+async function seedFromDriveFolders(supplierMap) {
+  let created = 0;
+  let matched = 0;
+  let skipped = 0;
+
+  for (const [folderName, files] of Object.entries(supplierMap)) {
+    const existing = await findSupplierByFolderName(folderName);
+    if (existing) {
+      const patterns = existing.match_patterns || [];
+      const lower = folderName.trim().toLowerCase();
+      if (!patterns.some(p => p.toLowerCase() === lower)) {
+        await db.query(
+          `UPDATE acct_suppliers
+           SET match_patterns = array_append(match_patterns, $2), updated_at = NOW()
+           WHERE id = $1`,
+          [existing.id, folderName.trim()]
+        );
+      }
+      matched++;
+      continue;
+    }
+
+    const pattern = folderName.trim();
+    if (pattern.length < 2) { skipped++; continue; }
+
+    await db.query(
+      `INSERT INTO acct_suppliers
+         (display_name, match_patterns, invoice_source, confidence_counter, auto_code)
+       VALUES ($1, $2, 'drive_folder', 0, false)
+       ON CONFLICT DO NOTHING`,
+      [pattern, [pattern.toLowerCase()]]
+    );
+    created++;
+  }
+
+  return { created, matched, skipped };
+}
+
 // ---------------------------------------------------------------------------
 // Stats for the dashboard
 // ---------------------------------------------------------------------------
@@ -474,6 +538,7 @@ async function getAutoCodedSummary(since) {
 
 module.exports = {
   findSupplier,
+  findSupplierByFolderName,
   assessTier,
   confirmTransaction,
   correctSupplier,
@@ -483,6 +548,7 @@ module.exports = {
   update,
   remove,
   bootstrapFromXero,
+  seedFromDriveFolders,
   getStats,
   getAutoCodedSummary,
 };

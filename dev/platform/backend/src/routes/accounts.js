@@ -725,6 +725,19 @@ router.put('/drive/subfolders/:folderId', async (req, res) => {
   }
 });
 
+router.post('/drive/seed-suppliers', async (req, res) => {
+  try {
+    const folderId = accounts.driveScanner.getFolderId();
+    if (!folderId) return res.status(400).json({ error: 'No invoice folder configured' });
+    const files = await accounts.driveScanner.getAllInvoiceFiles(folderId);
+    const supplierMap = accounts.driveScanner.extractSupplierMap(files);
+    const result = await accounts.suppliers.seedFromDriveFolders(supplierMap);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Xero data proxies ---
 
 router.get('/xero/bank-accounts', async (req, res) => {

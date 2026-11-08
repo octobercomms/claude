@@ -2274,6 +2274,7 @@ export function SuppliersPanel() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
   const [bootstrapping, setBootstrapping] = useState(false);
+  const [seedingDrive, setSeedingDrive] = useState(false);
 
   const BLANK = {
     display_name: '', match_patterns: '', account_code: '', account_name: '',
@@ -2371,6 +2372,17 @@ export function SuppliersPanel() {
     finally { setBootstrapping(false); }
   }
 
+  async function handleSeedFromDrive() {
+    setSeedingDrive(true);
+    try {
+      const r = await api.post('/accounts/drive/seed-suppliers');
+      toast(`Drive seed: ${r.created} new, ${r.matched} enriched, ${r.skipped} skipped`);
+      load();
+      loadStats();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSeedingDrive(false); }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       {stats && (
@@ -2393,6 +2405,12 @@ export function SuppliersPanel() {
           style={{ width: 260 }}
         />
         <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <button
+            className="btn"
+            {...roWrite(readOnly, { onClick: handleSeedFromDrive, disabled: seedingDrive })}
+          >
+            {seedingDrive ? 'Seeding...' : 'Seed from Drive'}
+          </button>
           <button
             className="btn"
             {...roWrite(readOnly, { onClick: handleBootstrap, disabled: bootstrapping })}

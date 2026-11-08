@@ -65,6 +65,30 @@ async function listChildFolders(parentId, token) {
   return all;
 }
 
+const YEAR_FOLDER_RE = /^\d{4}-\d{4}$/;
+
+function pickDefaultIncluded(topLevelFolders, allFolders) {
+  const yearFolders = topLevelFolders
+    .filter(f => YEAR_FOLDER_RE.test(f.name))
+    .sort((a, b) => b.name.localeCompare(a.name));
+
+  if (yearFolders.length < 3) return new Set(allFolders.map(f => f.id));
+
+  const recent = new Set(yearFolders.slice(0, 2).map(f => f.id));
+
+  function collectDescendants(parentId) {
+    for (const f of allFolders) {
+      if (f.parentId === parentId && !recent.has(f.id)) {
+        recent.add(f.id);
+        collectDescendants(f.id);
+      }
+    }
+  }
+
+  for (const id of [...recent]) collectDescendants(id);
+  return recent;
+}
+
 async function discoverSubfolders(rootFolderId) {
   const token = await getToken();
   const found = [];
@@ -80,13 +104,17 @@ async function discoverSubfolders(rootFolderId) {
 
   await walk(rootFolderId, '');
 
+  const topLevel = found.filter(f => f.parentId === rootFolderId);
+  const defaultIncluded = pickDefaultIncluded(topLevel, found);
+
   for (const f of found) {
+    const included = defaultIncluded.has(f.id);
     await db.query(
-      `INSERT INTO acct_drive_subfolders (drive_folder_id, parent_id, name, path)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO acct_drive_subfolders (drive_folder_id, parent_id, name, path, included)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (drive_folder_id) DO UPDATE
          SET name = EXCLUDED.name, path = EXCLUDED.path, parent_id = EXCLUDED.parent_id, updated_at = NOW()`,
-      [f.id, f.parentId, f.name, f.path]
+      [f.id, f.parentId, f.name, f.path, included]
     );
   }
 
@@ -201,7 +229,7 @@ async function getAllInvoiceFiles(folderId) {
       const cnt = counts[sf.path] || 0;
       await db.query(
         'UPDATE acct_drive_subfolders SET file_count = $1, last_scanned_at = NOW() WHERE drive_folder_id = $2',
-        [cnt, sf.id]
+        [cnt, sf.drive_folder_id]
       );
     }
 
@@ -211,6 +239,31 @@ async function getAllInvoiceFiles(folderId) {
   // No subfolders discovered yet: flat listing for backward compat.
   const files = await listAllFilesInFolder(folderId);
   return files.map(f => ({ ...f, folderPath: null }));
+}
+
+// ---------------------------------------------------------------------------
+// Folder-path supplier extraction
+// ---------------------------------------------------------------------------
+// Structure: "YearFolder/SupplierName" — the second segment is the supplier.
+
+function extractSupplierFromPath(folderPath) {
+  if (!folderPath) return null;
+  const parts = folderPath.split('/');
+  if (parts.length < 2) return null;
+  const name = parts[1].trim();
+  return name.length >= 2 ? name : null;
+}
+
+function extractSupplierMap(files) {
+  const map = {};
+  for (const f of files) {
+    const supplier = extractSupplierFromPath(f.folderPath);
+    if (supplier) {
+      if (!map[supplier]) map[supplier] = [];
+      map[supplier].push(f);
+    }
+  }
+  return map;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,12 +299,21 @@ async function scanAndMatch() {
   }
 
   const files = await getAllInvoiceFiles(folderId);
+
+  const supplierMap = extractSupplierMap(files);
+  let suppliersSeeded = null;
+  if (Object.keys(supplierMap).length > 0) {
+    const suppliers = require('./suppliers');
+    suppliersSeeded = await suppliers.seedFromDriveFolders(supplierMap);
+  }
+
   const result = await invoices.matchInvoicesToQueue(files);
 
   return {
     scanned: files.length,
     matched: result.matched,
     missing: result.missing,
+    suppliersSeeded,
     folderId,
   };
 }
@@ -349,4 +411,6 @@ module.exports = {
   getSubfolders,
   getIncludedFolders,
   toggleSubfolder,
+  extractSupplierFromPath,
+  extractSupplierMap,
 };
