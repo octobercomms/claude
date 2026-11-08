@@ -346,6 +346,45 @@ jobs:
         run: node tests/composition-render-route.test.js
       - name: Guard — the render service resolves assets and parses ffmpeg progress
         run: node tests/composition-render-service.test.js
+      # The composition editor is the sole video editor for every user, and
+      # until now only the two guards above ran on a runner. The fifteen
+      # below — the model, the source-to-timeline mapping, the render graph,
+      # the browser playback model, the editing helpers, the agreement tests
+      # that are the whole preview-matches-render guarantee, and four
+      # mutation harnesses — existed from PRs #1952 to #1959 and were never
+      # executed by CI. 338 of the suite's 385 assertions had never run.
+      # That is the pangram.test.js lesson at fifteen times the scale:
+      # adding a test file is half the job, and this is the other half.
+      - name: Guard — the composition model
+        run: node tests/composition.test.js
+      - name: Guard — animatable transforms, and a split that divides them
+        run: node tests/composition-transforms.test.js
+      - name: Guard — source-to-timeline word mapping
+        run: node tests/composition-mapping.test.js
+      - name: Guard — the single-pass render graph
+        run: node tests/composition-render.test.js
+      - name: Guard — the browser playback model
+        run: node tests/composition-playback.test.js
+      - name: Guard — timeline editing helpers and ripple
+        run: node tests/composition-editing.test.js
+      - name: Guard — the timeline surface
+        run: node tests/composition-timeline.test.js
+      - name: Guard — preview and render agree on fixtures
+        run: node tests/compositor-agreement.test.js
+      - name: Guard — composition CRUD and persistence
+        run: node tests/compositions.test.js
+      - name: Guard — the compose routes
+        run: node tests/compose.test.js
+      - name: Guard — design pages as graphics in time
+        run: node tests/compose-design.test.js
+      - name: Mutations — model and mapping
+        run: node tests/composition-mutations.test.js
+      - name: Mutations — the render graph
+        run: node tests/composition-render-mutations.test.js
+      - name: Mutations — the playback model
+        run: node tests/composition-playback-mutations.test.js
+      - name: Mutations — timeline editing
+        run: node tests/composition-timeline-mutations.test.js
       - name: Syntax check every service and route
         run: |
           set -e

@@ -178,7 +178,7 @@ describe('validate', () => {
     comp = t.comp;
     const i = addItem(comp, t.id, { at: 0, len: 5, source: s.id });
     comp = i.comp;
-    assert.ok(validate(comp).some(e => /video\/design source on an audio track/.test(e)));
+    assert.ok(validate(comp).some(e => /clip source on an audio track/.test(e)));
   });
 
   it('validates duckUnder referencing a real track', () => {
