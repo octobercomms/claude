@@ -383,6 +383,20 @@ export const SECTIONS = {
         { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly },
         { tab: 'audio',      label: 'Audio',       when: agencyOnly },
       ] },
+      // Batch. Two rows, not one: briefing a run and working through what it
+      // produced are different sittings, often days apart, and a single
+      // screen holding both would mean scrolling past a form to approve a
+      // video. No step numbers — a batch is a set, not a sequence.
+      //
+      // Review is deliberately phone-enabled (no `phone: false`), because
+      // approving thirty videos is exactly a phone job. Batch is not: it is a
+      // form with an asset library in it. `when: agencyOnly` hides both rows
+      // from a read-only client, and ClientVideoTab also guards the typed URL,
+      // because a `when` only hides the row.
+      { heading: 'Batch', rows: [
+        { tab: 'batch',        label: 'Batch',  when: agencyOnly, phone: false },
+        { tab: 'batch_review', label: 'Review', slug: 'batch-review', when: agencyOnly },
+      ] },
       { heading: null, rows: [{ tab: 'library', label: 'Library' }] },
     ],
   },

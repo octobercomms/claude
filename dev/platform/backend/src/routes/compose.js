@@ -427,6 +427,8 @@ router.post('/compositions/:id/broll-plan', loadComposition, async (req, res) =>
 
 // ── Render: start a background ffmpeg encode ────────────────────────
 
+const db = require('../db');
+const batches = require('../services/compositionBatches');
 const renderQueue = require('../services/compositionRenderQueue');
 const runner = require('../services/compositionRenderRunner');
 
@@ -541,6 +543,121 @@ router.get('/caption-templates', (req, res) => {
     const captions = require('../services/captions');
     res.json(captions.templates());
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Batches: one template, many items, one review sheet ─────────────
+//
+// The pre-flight is a separate call from the run, deliberately. An operator
+// about to commit thirty videos should see what will happen — how many can
+// run, what the four that cannot are missing, what it costs against the
+// month's remaining budget — and be able to change their mind. A single
+// endpoint that planned and ran in one step would make that impossible.
+
+async function loadBatch(req, res, next) {
+  try {
+    const row = await batches.get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    assertClientAccess(req, row.client_id);
+    req.batch = row;
+    next();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+}
+
+async function loadBatchItem(req, res, next) {
+  try {
+    const { rows } = await db.query(
+      `SELECT i.id, b.client_id
+         FROM composition_batch_items i
+         JOIN composition_batches b ON b.id = i.batch_id
+        WHERE i.id = $1`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    assertClientAccess(req, rows[0].client_id);
+    req.batchItemId = rows[0].id;
+    next();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+}
+
+/** What a run would do. Changes nothing. */
+router.post('/clients/:clientId/batches/plan',
+  requireClientAccess({ paramNames: ['clientId'] }),
+  async (req, res) => {
+    try {
+      const { templateId, items, perItemUsd } = req.body || {};
+      if (!Array.isArray(items)) return res.status(400).json({ error: 'items must be an array' });
+      res.json(await batches.plan({
+        templateId,
+        items,
+        perItemUsd: perItemUsd == null ? null : Number(perItemUsd),
+      }));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+/** Run it. Returns once everything is enqueued, not once it has rendered. */
+router.post('/clients/:clientId/batches',
+  requireClientAccess({ paramNames: ['clientId'] }),
+  async (req, res) => {
+    try {
+      const { templateId, items, seed, brief, perItemUsd } = req.body || {};
+      if (!Array.isArray(items) || !items.length) {
+        return res.status(400).json({ error: 'items must be a non-empty array' });
+      }
+      // A ceiling on one call. Not a limit on how much work somebody can do,
+      // but a run this size is a mistake rather than an intention, and
+      // thirty-odd is already an afternoon of encoding on this box.
+      if (items.length > 100) {
+        return res.status(400).json({
+          error: `A batch takes up to 100 items; this one has ${items.length}. `
+            + 'Split it, or the queue is occupied for a day.',
+        });
+      }
+      const out = await batches.run({
+        clientId: req.params.clientId,
+        createdBy: req.user?.id || null,
+        templateId,
+        items,
+        seed: seed == null ? '' : String(seed),
+        brief: brief == null ? null : String(brief),
+        perItemUsd: perItemUsd == null ? null : Number(perItemUsd),
+      });
+      res.status(201).json(out);
+    } catch (err) {
+      console.error('[compose] batch run failed:', err.message);
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+router.get('/clients/:clientId/batches',
+  requireClientAccess({ paramNames: ['clientId'] }),
+  async (req, res) => {
+    try {
+      res.json(await batches.list(req.params.clientId, { limit: req.query.limit }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+/** The review sheet: the batch, its items with live render state, the roll-up. */
+router.get('/batches/:id', loadBatch, (req, res) => res.json(req.batch));
+
+router.post('/batch-items/:id/verdict', loadBatchItem, async (req, res) => {
+  try {
+    const { verdict, note } = req.body || {};
+    const row = await batches.setVerdict(req.batchItemId, {
+      verdict,
+      note: note == null ? null : String(note),
+      by: req.user?.id || null,
+    });
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    res.json(row);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/batch-items/:id/retry', loadBatchItem, async (req, res) => {
+  try {
+    const row = await batches.retryItem(req.batchItemId);
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    res.json(row);
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ── Video templates (the eight shipped shapes) ──────────────────────

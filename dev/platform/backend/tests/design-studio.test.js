@@ -519,9 +519,17 @@ const sections = codeOnly(fs.readFileSync(
 check('the Produce panel hides Design from a client login',
   /\{ tab: 'design',\s+label: 'Design',\s+when: agencyOnly \}/.test(sections),
   'the row is offered to a read-only login');
+// Two shapes, because the gate is the claim and the phrasing is not. The
+// page used a chain of `tab === 'x' ||` and now uses a list with `.includes`,
+// which says the same thing for six tabs instead of four without a line that
+// runs off the screen. A guard that only matched the chain failed on the
+// rewrite while the gate it protects was untouched — the same trap as pinning
+// an error message instead of the decision behind it.
+const sentAway = /readOnly && \([^)]*tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab)
+  || /tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab)
+  || /readOnly && \[[^\]]*'design'[^\]]*\]\.includes\(tab\)\) setTab\('record'\)/.test(tab);
 check('and a client who types ?tab=design is sent away',
-  /readOnly && \([^)]*tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab)
-    || /tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab),
+  sentAway,
   'hiding the row is not a gate — the tab is still reachable by URL');
 check('and the editor refuses to render for them regardless',
   /\{tab === 'design' && !readOnly &&/.test(tab),
