@@ -489,6 +489,49 @@ brand's look closely enough that their own audience would mistake it is not
 what this is for, and proposing from our own preset set rather than cloning is
 what keeps it on the right side.
 
+> **Built, 8 November: the measurable half.** `shared/referenceAnalysis.mjs`
+> proposes; `backend/src/services/referenceAnalyse.js` measures;
+> `POST /api/compose/clients/:clientId/analyse-reference` runs it on an asset.
+>
+> **It cost far less than planned, because the QC gate already measures most
+> of it.** Probing, the per-shot motion figure and the frame's own detail, and
+> loudness all come from `services/renderQc.js` rather than a second
+> implementation. The only new measurement is scene detection:
+> `select='gt(scene,0.3)',showinfo` and read `pts_time` out of the log. On a
+> file built with cuts at 2s and 4s it returns exactly `[2, 4]`.
+>
+> **Every field carries a confidence and a reason**, and the ones it cannot
+> read come back `null` WITH the reason rather than as a plausible invention.
+> The template it drafts is valid against `validateTemplate`, so it can be
+> checked before anybody is shown it, and a field it could not read is left
+> OUT of the draft — a template that states a constraint nothing measured is
+> the same lie the first eight templates were stripped of.
+>
+> Three limits it states rather than papers over:
+>
+> - **One delta per shot cannot tell a push from a drift.** Both move a
+>   similar quantity of pixels. So it proposes `subtle`, the gentlest of the
+>   six, says that is what it is doing, and leaves the choice to the operator.
+>   Claiming to read a specific preset off one scalar would be the invention
+>   this module exists not to make.
+> - **A flat shot is unreadable for movement, not still.** Zooming a solid
+>   colour changes no pixels, so a zero delta there means "cannot tell".
+>   Reading it as still would propose a cut-only template off a reference full
+>   of movement. The same `detail_floor` the QC gate uses, found the same way:
+>   on a real file, where two solid-colour shots came back at detail 0.16.
+> - **The length range is the interquartile range, not the extremes.** A
+>   reference almost always has one long establishing shot and one two-frame
+>   flash; proposing min-to-max off those is a template with no rhythm at all.
+>   A mutation sweep caught the test for this passing on a bound that the
+>   11-second tail satisfied exactly.
+>
+> **Still to do: the judgement half.** Caption treatment matched to one of the
+> 31 shipped presets (sampled frames, OCR, vision) and the structural
+> archetype from the transcript. `captionFor` returns a null with its reason
+> today and the test pins that, so the gap is visible rather than implied. The
+> rule for when it lands is already decided and does not move: the answer must
+> be one of the shipped presets, MATCHED, never generated.
+
 ---
 
 ## Cost visibility

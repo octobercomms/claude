@@ -422,6 +422,14 @@ jobs:
       # is the first frame's running figure rather than the file's.
       - name: Guard — the QC verdict, and what it tells the operator
         run: node tests/render-qc.test.js
+      # Proposing a template from somebody else's video. Nearly every
+      # assertion is about what it REFUSES to claim: no rhythm from one shot,
+      # no movement read off a flat picture, no caption treatment guessed, and
+      # nothing proposed outside our own motion vocabulary. A confident wrong
+      # proposal is the failure mode, because somebody runs thirty videos
+      # through it.
+      - name: Guard — a reference proposal says what it could not read
+        run: node tests/reference-analysis.test.js
       - name: Guard — composition CRUD and persistence
         run: node tests/compositions.test.js
       - name: Guard — the compose routes
