@@ -330,7 +330,10 @@ async function bootstrapFromXero() {
 
     entry.amounts.push(Math.abs(parseFloat(tx.amount) || 0));
     if (tx.currency) entry.currencies.add(tx.currency.toUpperCase());
-    if (tx.date) entry.dates.push(new Date(tx.date));
+    if (tx.date) {
+      const d = new Date(tx.date);
+      if (!isNaN(d.getTime())) entry.dates.push(d);
+    }
   }
 
   console.log('[Suppliers] %d unique contacts found (%dms)', contactMap.size, Date.now() - t0);
