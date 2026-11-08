@@ -402,6 +402,12 @@ router.get('/rules', async (req, res) => {
 
 router.post('/rules', async (req, res) => {
   try {
+    const code = req.body.account_code || req.body.accountCode;
+    const rate = req.body.tax_rate || req.body.taxRate;
+    if (code || rate) {
+      const v = await accounts.rules.validateRule(code, rate);
+      if (!v.valid) return res.status(400).json({ error: 'Invalid rule', details: v.errors });
+    }
     const rule = await accounts.rules.createRule(req.body);
     res.json(rule);
   } catch (err) {
@@ -411,6 +417,12 @@ router.post('/rules', async (req, res) => {
 
 router.put('/rules/:id', async (req, res) => {
   try {
+    const code = req.body.account_code || req.body.accountCode;
+    const rate = req.body.tax_rate || req.body.taxRate;
+    if (code || rate) {
+      const v = await accounts.rules.validateRule(code, rate);
+      if (!v.valid) return res.status(400).json({ error: 'Invalid rule', details: v.errors });
+    }
     const rule = await accounts.rules.updateRule(parseInt(req.params.id), req.body);
     if (!rule) return res.status(404).json({ error: 'Rule not found' });
     res.json(rule);
@@ -421,8 +433,17 @@ router.put('/rules/:id', async (req, res) => {
 
 router.post('/rules/seed', async (req, res) => {
   try {
-    const count = await accounts.rules.seedRules();
-    res.json({ seeded: count });
+    const result = await accounts.rules.seedRules();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/rules/purge-invalid', async (req, res) => {
+  try {
+    const result = await accounts.rules.purgeInvalidRules();
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -516,6 +537,26 @@ router.put('/deadlines/:id', async (req, res) => {
     );
     if (!updated) return res.status(404).json({ error: 'Deadline not found' });
     res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/deadlines/infer-filed', async (req, res) => {
+  try {
+    const result = await accounts.deadlines.inferFiledFromPayments();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/deadlines/bulk-file', async (req, res) => {
+  try {
+    const { beforeDate } = req.body;
+    if (!beforeDate) return res.status(400).json({ error: 'beforeDate is required (YYYY-MM-DD)' });
+    const result = await accounts.deadlines.bulkMarkFiled(beforeDate);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -689,6 +730,28 @@ router.post('/drive/attach/:matchId', async (req, res) => {
   try {
     const result = await accounts.driveScanner.attachMatchedInvoice(parseInt(req.params.matchId));
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/drive/attach-all', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id FROM acct_invoice_matches WHERE status = 'matched' AND drive_file_id IS NOT NULL`
+    );
+    if (!rows.length) return res.json({ attached: 0, errors: [] });
+
+    const results = { attached: 0, errors: [] };
+    for (const row of rows) {
+      try {
+        await accounts.driveScanner.attachMatchedInvoice(row.id);
+        results.attached++;
+      } catch (err) {
+        results.errors.push({ matchId: row.id, error: err.message });
+      }
+    }
+    res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1035,6 +1098,26 @@ router.post('/suppliers/bootstrap', async (req, res) => {
 router.post('/suppliers/cleanup', async (req, res) => {
   try {
     const result = await accounts.suppliers.cleanup();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Email invoice scanner ---
+
+router.post('/email/scan', async (req, res) => {
+  try {
+    const result = await accounts.emailScanner.scanInboxesForInvoices();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/email/scan-inbox/:inboxId', async (req, res) => {
+  try {
+    const result = await accounts.emailScanner.scanSingleInbox(parseInt(req.params.inboxId));
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

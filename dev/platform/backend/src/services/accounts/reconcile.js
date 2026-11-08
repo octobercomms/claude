@@ -260,31 +260,25 @@ async function confirmItem(id, data) {
   return { id, status: 'confirmed', accountCode: confirmedCode, taxRate: confirmedRate };
 }
 
+const REVERSE_CHARGE_RATES = new Set(['RRINPUT', 'RRINPUT2', 'REVERSECHARGES']);
+
 async function checkVatExceptions(item, accountCode, taxRate) {
   const flags = [];
   const amount = Math.abs(parseFloat(item.amount) || 0);
   const payee = (item.payee || '').toLowerCase();
   const currency = (item.currency || 'GBP').toUpperCase();
 
-  if (currency !== 'GBP' && taxRate && !['RRINPUT', 'NONE', 'ZERORATEDINPUT'].includes(taxRate)) {
-    flags.push('Non-GBP transaction with domestic VAT rate; should likely be reverse charge (RRINPUT) or NONE');
+  if (currency !== 'GBP' && taxRate && !REVERSE_CHARGE_RATES.has(taxRate) && taxRate !== 'NONE' && taxRate !== 'ZERORATEDINPUT') {
+    flags.push('Non-GBP transaction with domestic VAT rate; should likely be reverse charge or NONE');
   }
 
-  if (taxRate === 'RRINPUT' && currency === 'GBP') {
+  if (REVERSE_CHARGE_RATES.has(taxRate) && currency === 'GBP') {
     flags.push('Reverse charge applied to a GBP transaction; reverse charge is for overseas suppliers');
   }
 
-  if (amount > 250 && taxRate === 'INPUT2' && !accountCode) {
-    flags.push('High-value purchase with standard VAT but no account code; verify invoice and recoverability');
-  }
-
   const reverseChargePayees = ['meta', 'facebook', 'google', 'dataforseo', 'dropbox', 'slack', 'adobe', 'zoom', 'github', 'anthropic', 'openai', 'amazon web', 'aws', 'notion', 'canva', 'figma', 'vercel', 'linkedin', 'hetzner', 'brevo'];
-  if (reverseChargePayees.some(p => payee.includes(p)) && taxRate && taxRate !== 'RRINPUT' && taxRate !== 'NONE') {
-    flags.push(`${item.payee} is typically reverse charge (RRINPUT); currently set to ${taxRate}`);
-  }
-
-  if (amount > 1000 && taxRate === 'NONE' && !['2201', '2202', '2210', '7020'].includes(accountCode)) {
-    flags.push('High-value transaction with no VAT; confirm this is correct (e.g. wages, inter-account transfer)');
+  if (reverseChargePayees.some(p => payee.includes(p)) && taxRate && !REVERSE_CHARGE_RATES.has(taxRate) && taxRate !== 'NONE') {
+    flags.push(`${item.payee} is typically reverse charge; currently set to ${taxRate}`);
   }
 
   const currentQuarter = getCurrentVatPeriod();
