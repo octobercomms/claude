@@ -9,6 +9,8 @@ import TranscribePage from './TranscribePage';
 import AudioPage from './AudioPage';
 import AssetLibrary from '../components/AssetLibrary';
 import CompositionEditorPage from './CompositionEditorPage';
+import VideoBatchPage from './VideoBatchPage';
+import VideoBatchReviewPage from './VideoBatchReviewPage';
 const ClientDesignPage = lazyChunk('ClientDesignPage', () => import('./ClientDesignPage'));
 import { useScreen } from '../hooks/useScreen';
 import { useAuth } from '../context/AuthContext';
@@ -25,7 +27,7 @@ export default function ClientVideoTab() {
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}).finally(() => setClientLoading(false)); }, [id]);
   useEffect(() => {
-    if (readOnly && (tab === 'transcribe' || tab === 'design' || tab === 'audio' || tab === 'compose')) setTab('record');
+    if (readOnly && ['transcribe', 'design', 'audio', 'compose', 'batch', 'batch_review'].includes(tab)) setTab('record');
     if (tab === 'visualise' && !canVisualise) setTab('record');
   }, [readOnly, canVisualise, tab, setTab]);
 
@@ -50,6 +52,10 @@ export default function ClientVideoTab() {
       {tab === 'visualise' && canVisualise && <ClientVisualisePage clientId={id} />}
       {tab === 'transcribe' && !readOnly && <TranscribePage clientId={id} />}
       {tab === 'audio' && !readOnly && <AudioPage clientId={id} />}
+      {tab === 'batch' && !readOnly && <VideoBatchPage clientId={id} />}
+      {tab === 'batch_review' && !readOnly && (
+        <VideoBatchReviewPage clientId={id} onOpenInEditor={() => setTab('compose')} />
+      )}
       {tab === 'library' && (
         <div className="card" style={{ marginTop: 'var(--s4)' }}>
           <AssetLibrary clientId={id} title="Everything made for this client" />

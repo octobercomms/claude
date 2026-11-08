@@ -42,7 +42,61 @@ describe('compositions service', () => {
     const result = await compositions.list(10);
     assert.deepEqual(result, rows);
     assert.ok(lastQuery.sql.includes('WHERE client_id'));
-    assert.deepEqual(lastQuery.params, [10]);
+    // The limit is a parameter, not interpolated into the SQL.
+    assert.deepEqual(lastQuery.params, [10, 100]);
+  });
+
+  it('list can narrow to one batch', async () => {
+    fakePool._result = { rows: [] };
+    await compositions.list(10, { batchId: 7 });
+    assert.ok(lastQuery.sql.includes('batch_id = $2'));
+    assert.deepEqual(lastQuery.params, [10, 7, 100]);
+  });
+
+  it('list can leave a batch\'s items out of the editor\'s picker', async () => {
+    // The list is capped, so a thirty-item batch would otherwise push a
+    // third of somebody's hand-built work out of the only list there is.
+    fakePool._result = { rows: [] };
+    await compositions.list(10, { excludeBatched: true });
+    assert.ok(lastQuery.sql.includes('batch_id IS NULL'));
+    assert.deepEqual(lastQuery.params, [10, 100]);
+  });
+
+  it('list clamps a silly limit rather than passing it through', async () => {
+    fakePool._result = { rows: [] };
+    await compositions.list(10, { limit: 99999 });
+    assert.equal(lastQuery.params[1], 500);
+    await compositions.list(10, { limit: 0 });
+    assert.equal(lastQuery.params[1], 100, 'zero is not a limit, it is a missing one');
+    await compositions.list(10, { limit: -5 });
+    assert.equal(lastQuery.params[1], 1);
+  });
+
+  it('create writes the batch and template it came from', async () => {
+    // A new column that is not in COLS is silently absent from every
+    // RETURNING, so a caller that wrote it reads back a row that appears not
+    // to have it. These two were added by migration 249.
+    fakePool._result = { rows: [{ id: 3 }] };
+    await compositions.create({
+      clientId: 10, title: 'Item 3', data: { version: 1 }, batchId: 42, templateId: 'stills-montage',
+    });
+    assert.ok(lastQuery.sql.includes('batch_id'));
+    assert.ok(lastQuery.sql.includes('template_id'));
+    assert.ok(lastQuery.sql.includes('RETURNING'));
+    assert.ok(/RETURNING[\s\S]*batch_id/.test(lastQuery.sql), 'and reads them back');
+    assert.equal(lastQuery.params[6], 42);
+    assert.equal(lastQuery.params[7], 'stills-montage');
+  });
+
+  it('create maps assets in the same statement, not a follow-up update', async () => {
+    // A batch writing thirty would otherwise need two round trips per item,
+    // with a window in which a composition exists and has no assets.
+    fakePool._result = { rows: [{ id: 4 }] };
+    await compositions.create({
+      clientId: 10, data: { version: 1 }, sourceAssets: { s1: 'a1' },
+    });
+    assert.ok(lastQuery.sql.includes('source_assets'));
+    assert.equal(lastQuery.params[4], JSON.stringify({ s1: 'a1' }));
   });
 
   it('get returns a single row or null', async () => {

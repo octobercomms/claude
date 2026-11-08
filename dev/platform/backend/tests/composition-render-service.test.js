@@ -230,12 +230,65 @@ describe('compositionRenderer', () => {
   // ── Asset resolution ─────────────────────────────────────────────
 
   describe('assetFilePath', () => {
-    it('resolves a standard /api/brand/file/ URL to a disk path', () => {
+    // A CLIENT ID IS A UUID. These tests used to resolve
+    // '/api/brand/file/7/my-clip.mp4', and passed, while the function's
+    // pattern was `(\d+)` for the client segment — so it matched that
+    // fixture and matched nothing a real asset has ever carried. It returned
+    // null for every asset in the system, every composition render answered
+    // `Source "sX" has no file on disk.`, and the editor's Export could never
+    // have worked. The fixture was the bug's hiding place, which is why the
+    // UUID case is first now.
+    const UUID = '44444444-4444-4444-8444-444444444444';
+
+    it('resolves a real client id, which is a UUID', () => {
+      const cleanup = loadService();
+      try {
+        const { assetFilePath } = compositionRenderer;
+        const p = assetFilePath({ url: `/api/brand/file/${UUID}/my-clip.mp4` });
+        assert.equal(p, path.join(UPLOAD_ROOT, UUID, 'my-clip.mp4'));
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('resolves a numeric segment too, since the pattern is opaque', () => {
       const cleanup = loadService();
       try {
         const { assetFilePath } = compositionRenderer;
         const p = assetFilePath({ url: '/api/brand/file/7/my-clip.mp4' });
         assert.equal(p, path.join(UPLOAD_ROOT, '7', 'my-clip.mp4'));
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('refuses a path that climbs out of the client\'s own folder', () => {
+      // The guard used to check UPLOAD_ROOT rather than the client folder, so
+      // a path that escaped one client and landed inside another passed it.
+      // That is the one direction that matters: these files are one client's
+      // work and another client's render must not be able to read them.
+      // EVERY path exists, so a refusal has to come from the guard rather
+       // than from the file simply not being there. With the default
+       // override only paths inside uploads exist, which means an escaped
+       // path returns null for the wrong reason and the guard is untested:
+       // removing it left this passing.
+      const cleanup = loadService({ existsOverride: () => true });
+      try {
+        const { assetFilePath } = compositionRenderer;
+        for (const url of [
+          // The filename climbing out of the client's folder.
+          `/api/brand/file/${UUID}/../other/secret.mp4`,
+          `/api/brand/file/${UUID}/..`,
+          `/api/brand/file/${UUID}/sub/dir/clip.mp4`,
+          // And the CLIENT segment climbing out of uploads, which the
+          // client-folder check alone does NOT catch: the base lands outside
+          // uploads and the filename then sits happily inside it. Two guards,
+          // because swapping one for the other is a trade rather than a fix.
+          '/api/brand/file/../x',
+          '/api/brand/file/../../etc/passwd',
+        ]) {
+          assert.equal(assetFilePath({ url }), null, `resolved "${url}"`);
+        }
       } finally {
         cleanup();
       }

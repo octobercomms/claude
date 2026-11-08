@@ -400,6 +400,21 @@ jobs:
         run: node tests/composition-template.test.js
       - name: Guard — the batch pre-flight
         run: node tests/composition-batch.test.js
+      # The render queue was two module-level variables holding closures, so a
+      # deploy mid-batch abandoned the rest of it while the rows went on
+      # reading 'queued' with nothing that could run them. Its behaviour under
+      # real concurrency is proved in composition-render-queue.db.test.js,
+      # which needs a Postgres; this pins the single words of SQL that make it
+      # correct, because a word is easy to delete.
+      - name: Guard — the render queue's SQL decisions
+        run: node tests/composition-render-queue.test.js
+      # A batch runs unattended, so its bookkeeping decisions are the ones an
+      # operator acts on without checking: which word describes an item, which
+      # number means "needs looking at", and that a verdict cannot be put on
+      # something that never rendered. The real thirty-item run is proved in
+      # composition-batches.db.test.js, which needs a Postgres.
+      - name: Guard — a batch's bookkeeping
+        run: node tests/composition-batches.test.js
       - name: Guard — composition CRUD and persistence
         run: node tests/compositions.test.js
       - name: Guard — the compose routes

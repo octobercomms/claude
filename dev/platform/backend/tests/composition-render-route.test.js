@@ -281,39 +281,49 @@ describe('render graph for route integration', async () => {
   });
 });
 
-// ── The route must actually wire captions ────────────────────────────
+// ── Captions must actually be wired into the graph ───────────────────
 //
-// This reads the route's own source, which is blunt, and it is the only
-// thing that fails when somebody drops the caption path again. The fault it
-// guards: the shipped route called renderGraph with sourcePaths alone, so
-// the subtitles filter was never added and every caption the editor
-// produced was silently absent from the output while the render reported
-// success. The only code that compiled caption ASS hung off
-// renderComposition, which nothing but its own test ever called.
+// This reads the source, which is blunt, and it is the only thing that fails
+// when somebody drops the caption path again. The fault it guards: the
+// shipped route called renderGraph with sourcePaths alone, so the subtitles
+// filter was never added and every caption the editor produced was silently
+// absent from the output while the render reported success. The only code
+// that compiled caption ASS hung off renderComposition, which nothing but its
+// own test ever called.
+//
+// It reads the RUNNER now, not the route. The wiring moved there because a
+// render has to be rebuildable from a composition id alone: the route used to
+// build everything during the request and capture it in a closure, so nothing
+// could resume a render after a restart. The decision is unchanged and so are
+// these assertions; only the file holding it moved.
 //
 // Same shape as tests/strategist-weekly.test.js, which reads the cron's
-// source for the same reason: the behaviour is a wiring decision, and no
-// unit test of either side can see whether the two were joined up.
+// source for the same reason: the behaviour is a wiring decision, and no unit
+// test of either side can see whether the two were joined up.
 
-describe('the render route wires captions into the graph', () => {
+describe('the render path wires captions into the graph', () => {
   const fs = require('fs');
   const path = require('path');
-  const src = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'routes', 'compose.js'),
-    'utf8'
+  const runner = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'services', 'compositionRenderRunner.js'), 'utf8'
+  );
+  const route = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'routes', 'compose.js'), 'utf8'
   );
 
   it('compiles caption ASS before building the graph', () => {
-    assert.match(
-      src, /buildCaptionAss\(/,
-      'the route must compile caption ASS; without it a captioned '
-      + 'composition renders clean video and reports success'
+    const compile = runner.indexOf('buildCaptionAss(');
+    const graph = runner.indexOf('rm.renderGraph(');
+    assert.ok(
+      compile > 0, 'the render path must compile caption ASS; without it a '
+      + 'captioned composition renders clean video and reports success'
     );
+    assert.ok(compile < graph, 'and compile it before the graph is built');
   });
 
   it('passes captionAssPath to renderGraph, not sourcePaths alone', () => {
-    const call = src.match(/renderGraph\(\s*data\s*,\s*\{[^}]*\}/);
-    assert.ok(call, 'the route calls renderGraph with an options object');
+    const call = runner.match(/renderGraph\(\s*data\s*,\s*\{[^}]*\}/);
+    assert.ok(call, 'renderGraph is called with an options object');
     assert.match(
       call[0], /captionAssPath/,
       `renderGraph is called as "${call[0]}", which omits captionAssPath. `
@@ -323,16 +333,101 @@ describe('the render route wires captions into the graph', () => {
 
   it('takes the compiler from the renderer service rather than a second copy', () => {
     assert.match(
-      src, /require\('\.\.\/services\/compositionRenderer'\)/,
-      'one caption compiler, two callers. A second implementation here is '
-      + 'how the two paths drifted apart in the first place'
+      runner, /require\('\.\/compositionRenderer'\)/,
+      'one caption compiler, two callers. A second implementation is how the '
+      + 'route and the service drifted apart in the first place'
     );
   });
 
   it('releases the compiled ASS when the render process ends', () => {
     assert.match(
-      src, /ff\.once\('close', release\)/,
+      runner, /ff\.once\('close', release\)/,
       'a batch of thirty renders would otherwise leave thirty temp files'
+    );
+  });
+
+  it('compiles it at RENDER time, not when the render is enqueued', () => {
+    // The file exists from the moment it is compiled and is only unlinked
+    // when its ffmpeg process ends. Compiled during the HTTP request, a
+    // render then held a temp file for its entire wait in the queue and a
+    // restart leaked it: thirty captioned enqueues meant thirty files
+    // resident until the last render finished.
+    assert.ok(
+      !/buildCaptionAss\(/.test(route),
+      'the route must not compile caption ASS; it enqueues and the runner '
+      + 'compiles when it actually starts'
+    );
+  });
+
+  it('discards a pre-flight it is not going to run', () => {
+    // The route still prepares, so somebody pressing Export is told now
+    // rather than being queued and failing later. That preparation produces
+    // an ASS file which nothing will ever render, so it has to be removed.
+    assert.match(
+      route, /runner\.discard\(prepared\)/,
+      'a pre-flight that compiled an ASS file and dropped it would leak one '
+      + 'per export'
+    );
+  });
+});
+
+// ── The render must be rebuildable without a request ─────────────────
+
+describe('a render derives itself from a composition id', () => {
+  const fs = require('fs');
+  const path = require('path');
+  // Comments stripped, because every claim below is about what the CODE
+  // does and the comments necessarily quote the faults they describe. Two
+  // assertions in this file have already passed or failed on their own prose.
+  const code = (rel) => fs.readFileSync(path.join(__dirname, '..', 'src', rel), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  const runner = code('services/compositionRenderRunner.js');
+  const route = code('routes/compose.js');
+
+  it('keeps no queue in a module variable', () => {
+    // The fault: `let _activeRender = null; const _renderQueue = [];` holding
+    // start closures. Pending work died with the process while its rows went
+    // on reading 'queued' with nothing anywhere that could run them.
+    assert.ok(
+      !/_renderQueue|_activeRender|function processQueue/.test(route),
+      'the queue is a table, not an array. An array loses a batch on deploy'
+    );
+  });
+
+  it('never reads the request inside the render', () => {
+    // Each queued closure used to keep the Express `req` alive, because the
+    // ffmpeg exit handler read `req.user?.id`. Thirty queued renders retained
+    // thirty request contexts.
+    assert.ok(
+      !/\breq\b/.test(runner),
+      'the runner must not see a request; after a restart there is not one'
+    );
+  });
+
+  it('builds the SQL for the queue nowhere but the queue service', () => {
+    // updateRenderJob interpolated caller-supplied object keys straight into
+    // column positions, with no whitelist.
+    assert.ok(
+      !/composition_renders/.test(route),
+      'the route must not write the queue table directly'
+    );
+    assert.ok(
+      !/composition_renders/.test(runner),
+      'and neither must the runner; one place owns those statements'
+    );
+  });
+
+  it('resolves an asset from the source as well as the column', () => {
+    // The route read `source_assets` alone and ignored each source's own
+    // `asset`, while the service beside it had always done both. A
+    // composition built by a template carries the asset inside the source
+    // spec, because the binder mints its source ids at bind time and cannot
+    // pre-compute the column's keys — so every template-built composition
+    // answered `Source "sX" has no file on disk.`
+    assert.match(
+      runner, /sourceAssets\[sourceId\] \|\| src\.asset/,
+      'a template-built composition has its asset on the source, not in the column'
     );
   });
 });
