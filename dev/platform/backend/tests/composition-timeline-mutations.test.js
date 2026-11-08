@@ -73,8 +73,8 @@ mutation(
 
 mutation(
   'split first half keeps original length',
-  'const first = { ...item, len: secs(splitOffset) };',
-  'const first = { ...item, len: secs(item.len) };'
+  '    len: secs(splitOffset),',
+  '    len: secs(item.len),'
 );
 
 mutation(
@@ -99,7 +99,7 @@ mutation(
 
 mutation(
   'move skips kind check for audio on video track',
-  "if (toTrack.kind === 'audio' && (src?.kind === 'clip' || src?.kind === 'design')) return comp;",
+  "if (toTrack.kind === 'audio' && PICTURE_KINDS.includes(src?.kind)) return comp;",
   "// skip check"
 );
 

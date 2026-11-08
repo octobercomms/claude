@@ -352,7 +352,7 @@ describe('design source in composition', async () => {
       ),
     };
     const errors = C.validate(comp);
-    assert.ok(errors.some(e => e.includes('video/design source on an audio track')));
+    assert.ok(errors.some(e => e.includes('design source on an audio track')));
   });
 
   it('places a design item on a video track via addItem', () => {

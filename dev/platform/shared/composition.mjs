@@ -136,6 +136,128 @@ export function sliceAnim(v, p0, p1) {
   return { from: a, to: b };
 }
 
+// ── Transforms ────────────────────────────────────────────────────────
+
+/**
+ * The item fields that place and size the picture inside the frame.
+ *
+ * Chosen rather than inherited, and expressed as FRACTIONS of the frame
+ * rather than pixels, so the same move survives a reframe from 9:16 to 1:1.
+ * That rule is older than this model: `overlays.mjs` held it for positioned
+ * text for the same reason.
+ *
+ * These carry the batch build's motion. A deterministic camera move over a
+ * still, which is what the batch uses instead of a hosted image-to-video
+ * call, IS an animated `scale` and `pos`, so these are load-bearing rather
+ * than decoration.
+ */
+export const TRANSFORM_FIELDS = ['scale', 'pos', 'rot'];
+
+/** Free-text fields an agent or a template writes to explain a decision. */
+export const RATIONALE_FIELDS = ['reason', 'beat', 'quote'];
+
+const MAX_RATIONALE = 500;
+const SCALE_MIN = 0.01;
+const SCALE_MAX = 10;
+const POS_MIN = -2;
+const POS_MAX = 3;
+
+function finite(n) {
+  return typeof n === 'number' && Number.isFinite(n);
+}
+
+/**
+ * Validate a value that may be a scalar or a `{from, to}` pair.
+ *
+ * A HALF pair is rejected on purpose. `animAt` falls back to whichever end
+ * is present, so `{from: 1.2}` would read as a static 1.2 and silently
+ * discard the move somebody meant to write. Refusing it is the difference
+ * between a typo that fails loudly and a camera move that does nothing.
+ */
+function checkAnimatable(label, v, check) {
+  if (v == null) return null;
+  if (isAnim(v)) {
+    if (!('from' in v) || !('to' in v)) {
+      return `${label}: an animated value needs both from and to`;
+    }
+    return check(v.from, `${label}.from`) || check(v.to, `${label}.to`);
+  }
+  return check(v, label);
+}
+
+function checkScalar(min, max) {
+  return (n, label) => {
+    if (!finite(n)) return `${label} must be a finite number`;
+    if (n < min || n > max) return `${label} must be ${min}..${max}`;
+    return null;
+  };
+}
+
+function checkPoint(n, label) {
+  if (!n || typeof n !== 'object' || Array.isArray(n)) {
+    return `${label} must be an {x, y} point`;
+  }
+  for (const axis of ['x', 'y']) {
+    const a = n[axis];
+    if (a == null) continue;
+    if (!finite(a)) return `${label}.${axis} must be a finite number`;
+    if (a < POS_MIN || a > POS_MAX) return `${label}.${axis} must be ${POS_MIN}..${POS_MAX}`;
+  }
+  return null;
+}
+
+function validateTransforms(item) {
+  const errs = [
+    checkAnimatable('scale', item.scale, checkScalar(SCALE_MIN, SCALE_MAX)),
+    checkAnimatable('pos', item.pos, checkPoint),
+    checkAnimatable('rot', item.rot, checkScalar(-360, 360)),
+  ].filter(Boolean);
+  return errs.length ? `item "${item.id}": ${errs[0]}` : null;
+}
+
+function validateRationale(item) {
+  for (const f of RATIONALE_FIELDS) {
+    const v = item[f];
+    if (v == null) continue;
+    if (typeof v !== 'string') return `item "${item.id}": ${f} must be a string`;
+    if (v.length > MAX_RATIONALE) {
+      return `item "${item.id}": ${f} must be at most ${MAX_RATIONALE} characters`;
+    }
+  }
+  return null;
+}
+
+/**
+ * The transform fields of an item, re-timed to cover progress p0..p1 of it.
+ *
+ * Only the fields the item actually carries are returned, so spreading the
+ * result over a copy never introduces a field that was not there.
+ */
+export function sliceItemTransforms(item, p0, p1) {
+  const out = {};
+  for (const f of TRANSFORM_FIELDS) {
+    if (item[f] != null) out[f] = sliceAnim(item[f], p0, p1);
+  }
+  return out;
+}
+
+/**
+ * The transform an item has at a timeline time, as plain numbers.
+ *
+ * Both the renderer and the browser compositor read this, so the two cannot
+ * disagree about where a frame sits. That is the same reason the caption
+ * compiler lives in `shared/`: two implementations of one description drift.
+ */
+export function itemTransformAt(item, t) {
+  const len = item.len || 0;
+  const p = len > EPS ? (t - item.at) / len : 0;
+  return {
+    scale: item.scale != null ? animAt(item.scale, p) : 1,
+    pos: item.pos != null ? animAt(item.pos, p) : { x: 0, y: 0 },
+    rot: item.rot != null ? animAt(item.rot, p) : 0,
+  };
+}
+
 // ── Transition types ──────────────────────────────────────────────────
 
 export const TRANSITION_TYPES = ['fade', 'fadeblack', 'wipeleft', 'dissolve'];
@@ -160,8 +282,8 @@ function validateItem(item, sources, trackKind) {
   if (trackKind === 'video' && src.kind === 'audio') {
     return `item "${item.id}": audio source on a video track`;
   }
-  if (trackKind === 'audio' && (src.kind === 'clip' || src.kind === 'design')) {
-    return `item "${item.id}": video/design source on an audio track`;
+  if (trackKind === 'audio' && PICTURE_KINDS.includes(src.kind)) {
+    return `item "${item.id}": ${src.kind} source on an audio track`;
   }
   if (item.in != null && (typeof item.in !== 'number' || item.in < 0)) {
     return `item "${item.id}": in must be non-negative`;
@@ -180,7 +302,7 @@ function validateItem(item, sources, trackKind) {
       return `item "${item.id}": unknown transition type "${item.trans?.type}"`;
     }
   }
-  return null;
+  return validateTransforms(item) || validateRationale(item);
 }
 
 // ── Track validation ──────────────────────────────────────────────────
@@ -349,13 +471,26 @@ export function splitItem(comp, trackId, itemId, splitTime) {
   const splitOffset = secs(splitTime - item.at);
   const secondId = nextId('i');
 
-  const first = { ...item, len: secs(splitOffset) };
+  // A transform animates across the ITEM's length, so splitting one item
+  // into two has to divide the range at the same proportion. Without this
+  // both halves inherit the whole {from, to} and each performs the entire
+  // move, so the cut jumps and playing the two halves back to back no
+  // longer matches the single item they came from. That invariant is what
+  // makes a split safe, and it only breaks on this one editing path.
+  const p = item.len > EPS ? splitOffset / item.len : 0;
+
+  const first = {
+    ...item,
+    len: secs(splitOffset),
+    ...sliceItemTransforms(item, 0, p),
+  };
   const second = {
     ...item,
     id: secondId,
     at: secs(splitTime),
     len: secs(end - splitTime),
     in: secs(inPt + splitOffset),
+    ...sliceItemTransforms(item, p, 1),
   };
   delete second.trans;
 
@@ -383,7 +518,7 @@ export function moveItemToTrack(comp, fromTrackId, itemId, toTrackId) {
 
   const src = comp.sources[item.source];
   if (toTrack.kind === 'video' && src?.kind === 'audio') return comp;
-  if (toTrack.kind === 'audio' && (src?.kind === 'clip' || src?.kind === 'design')) return comp;
+  if (toTrack.kind === 'audio' && PICTURE_KINDS.includes(src?.kind)) return comp;
 
   return {
     ...comp,
