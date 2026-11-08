@@ -1189,6 +1189,15 @@ router.get('/precode/stats', async (req, res) => {
   }
 });
 
+router.get('/precode/preview', async (req, res) => {
+  try {
+    const result = await accounts.precode.previewPrecodePass();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/precode/run', async (req, res) => {
   try {
     const bankAccountId = req.body.bankAccountId;
