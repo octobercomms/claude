@@ -2277,6 +2277,7 @@ export function SuppliersPanel() {
   const [seedingDrive, setSeedingDrive] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [vatFilter, setVatFilter] = useState('');
+  const [expandedPatterns, setExpandedPatterns] = useState(new Set());
 
   const BLANK = {
     display_name: '', match_patterns: '', account_code: '', account_name: '',
@@ -2565,8 +2566,35 @@ export function SuppliersPanel() {
                   {s.display_name}
                   {!s.auto_code && <span className="chip" style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)' }}>manual</span>}
                 </td>
-                <td className="body-sm text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {(s.match_patterns || []).join(', ')}
+                <td className="body-sm text-muted" style={{ maxWidth: 200 }}>
+                  {(() => {
+                    const patterns = s.match_patterns || [];
+                    const expanded = expandedPatterns.has(s.id);
+                    if (patterns.length <= 2 || expanded) {
+                      return (
+                        <span>
+                          {patterns.join(', ')}
+                          {expanded && patterns.length > 2 && (
+                            <button
+                              className="btn-link"
+                              style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)', color: 'var(--primary)' }}
+                              onClick={() => setExpandedPatterns(prev => { const n = new Set(prev); n.delete(s.id); return n; })}
+                            >collapse</button>
+                          )}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span>
+                        {patterns.slice(0, 2).join(', ')}
+                        <button
+                          className="btn-link"
+                          style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)', color: 'var(--primary)' }}
+                          onClick={() => setExpandedPatterns(prev => new Set([...prev, s.id]))}
+                        >+{patterns.length - 2} more</button>
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td>
                   {s.account_code}
