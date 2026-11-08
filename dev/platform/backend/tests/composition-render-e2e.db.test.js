@@ -111,6 +111,34 @@ const ok = (c, l) => { console.log(c ? '  ok   ' + l : '  FAIL ' + l); if (!c) f
     ok(raw[i] > 150 && raw[i+1] < 90, `the first photograph is on screen (rgb(${raw[i]},${raw[i+1]},${raw[i+2]}))`);
   }
 
+  // The QC gate ran, and its verdict is on the row.
+  //
+  // This is the only place the whole chain is exercised: a real file, measured
+  // by real ffmpeg, judged by the pure module, stored in the same statement
+  // that marks the render done. The verdict for this fixture is not asserted
+  // as `pass` — the bed is pure silence, so a silent tail is correctly
+  // flagged — but it must be one of the real levels and it must carry a
+  // sentence a person can read.
+  ok(after.qc_verdict != null, `a QC verdict was stored (${after.qc_verdict})`);
+  ok(
+    ['pass', 'look', 'fail', 'unmeasured'].includes(after.qc_verdict),
+    `and it is one of the levels, not "${after.qc_verdict}"`
+  );
+  ok(Number.isFinite(after.qc_rank), `with a rank to sort on (${after.qc_rank})`);
+  ok(
+    typeof after.qc?.says === 'string' && after.qc.says.length > 5,
+    `and a sentence: ${JSON.stringify(after.qc?.says)}`
+  );
+  ok(
+    (after.qc?.checks || []).some((c) => c.id === 'resolution' && c.level === 'pass'),
+    'the resolution check passed against the composition\'s own size'
+  );
+  ok(
+    (after.qc?.checks || []).some((c) => c.id === 'motion'),
+    'and the motion gate reported on the camera moves'
+  );
+  ok(!!after.qc?.fingerprint, 'and the thresholds it was judged by are recorded');
+
   const { rows: lib } = await pool.query(
     `SELECT source_id, url FROM client_assets WHERE client_id=$1 AND source='scene_render'`, [CLIENT]);
   ok(lib.length === 1, `the render is in the library once (${lib.length})`);

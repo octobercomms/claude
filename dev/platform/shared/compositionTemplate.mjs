@@ -114,6 +114,14 @@ function validateSlot(slot, i) {
   if (slot.track != null && (!Number.isInteger(slot.track) || slot.track < 0)) {
     return `${at}: track must be a non-negative integer`;
   }
+  // WHICH SLOT IS THE VOICE. The render ducks everything else under it, and
+  // it cannot be guessed from the kind: a talking head's voice is a clip, a
+  // walkthrough's is a recorded narration on an audio track while the clips
+  // are silent b-roll. Guessing by kind ducks a walkthrough's narration under
+  // its own room tone, which is backwards.
+  if (slot.voice != null && typeof slot.voice !== 'boolean') {
+    return `${at}: voice must be true or false`;
+  }
   return null;
 }
 
@@ -166,7 +174,30 @@ export function validateTemplate(t) {
         + ' and one composition can carry one caption source. Put the lines in one slot.'
       );
     }
-    // Which words the preset styles. A template with both on-screen type and
+    // Ducking: the music drops while the voice is talking.
+  //
+  // Every one of the eight templates asked for this in its first draft, and
+  // it was recorded as "not built" — wrongly. The render has implemented it
+  // all along, with sidechaincompress, triggered by `comp.ducking`. The only
+  // thing missing was the binder passing the request through. A template that
+  // asks for it must also name the voice, because a duck with nothing to duck
+  // under does nothing and a duck pointed at the wrong track is worse.
+  if (t.audio != null) {
+    if (typeof t.audio !== 'object' || Array.isArray(t.audio)) {
+      errors.push('audio must be an object');
+    } else if (t.audio.duck) {
+      const voices = (t.slots || []).filter((x) => x?.voice === true);
+      const music = (t.slots || []).filter((x) => x?.kind === 'audio' && x?.voice !== true);
+      if (!voices.length) {
+        errors.push('audio.duck needs a slot marked voice: true to duck under');
+      }
+      if (!music.length) {
+        errors.push('audio.duck needs an audio slot to duck; nothing else would change');
+      }
+    }
+  }
+
+  // Which words the preset styles. A template with both on-screen type and
     // a clip has two candidates and only one caption source to put them in,
     // and guessing from slot kinds gets it wrong: a walkthrough's clips are
     // b-roll, not somebody speaking. So the template says, and if it has a
@@ -459,7 +490,14 @@ export function bindTemplate(template, content = {}, opts = {}) {
       // a still has no audio stream and its input needs looping. The slot
       // already says so, so the source carries it rather than the renderer
       // guessing from a file extension.
-      const made = addSource(comp, slot.kind === 'still' ? { ...spec, still: true } : spec);
+      const extra = {};
+      if (slot.kind === 'still') extra.still = true;
+      // The voice travels on the source, because that is where the render
+      // looks. A slot marked `voice: false` says "this clip's audio is
+      // ambience", which is what makes a walkthrough duck the right way
+      // round.
+      if (slot.voice != null) extra.voice = slot.voice;
+      const made = addSource(comp, Object.keys(extra).length ? { ...spec, ...extra } : spec);
       comp = made.comp;
 
       const isAudio = spec.kind === 'audio';
@@ -550,6 +588,10 @@ export function bindTemplate(template, content = {}, opts = {}) {
       }
     }
   }
+
+  // The render reads `comp.ducking`. Set only when the template asked, so a
+  // composition that never wanted it is byte-identical to before.
+  if (template.audio?.duck) comp = { ...comp, ducking: true };
 
   const compErrs = validate(comp);
   if (compErrs.length) {

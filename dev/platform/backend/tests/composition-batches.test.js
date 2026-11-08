@@ -133,6 +133,13 @@ describe('the roll-up', () => {
       approved: 1,
       rejected: 1,
       pending: 1,
+      // No QC verdicts on these fixture rows, so nothing is suspect. The
+      // figures exist at zero rather than being absent: a roll-up that omits
+      // a number when it is zero reads as the check not having run.
+      qc_fail: 0,
+      qc_look: 0,
+      qc_clean: 0,
+      suspect: 0,
     });
   });
 
@@ -315,5 +322,80 @@ describe('the service', () => {
     const loopEnd = code.lastIndexOf('INSERT INTO composition_batch_items');
     const kick = code.indexOf('runner.kick()');
     assert.ok(kick > loopEnd, 'kicking mid-loop races the inserts and finds an empty queue');
+  });
+});
+
+// ── the QC verdict decides where to start ────────────────────────────
+
+describe('the QC roll-up', () => {
+  const summaryOf = async (rows) => {
+    fakePool._result = { rows };
+    return batches.summary(9);
+  };
+
+  it('counts only what is still awaiting a human', async () => {
+    // A video already approved does not need watching again, and a blocked
+    // item has no video at all. Counting either would send somebody to look
+    // at nothing.
+    const s = await summaryOf([
+      row({ id: 1, render_status: 'done', qc_verdict: 'fail' }),
+      row({ id: 2, render_status: 'done', qc_verdict: 'look' }),
+      row({ id: 3, render_status: 'done', qc_verdict: 'pass' }),
+      row({ id: 4, render_status: 'done', qc_verdict: 'fail', verdict: 'approved' }),
+      row({ id: 5, composition_id: null, render_id: null, render_status: null }),
+    ]);
+    assert.equal(s.qc_fail, 1);
+    assert.equal(s.qc_look, 1);
+    assert.equal(s.qc_clean, 1);
+    assert.equal(s.suspect, 2, 'broken plus worth-a-look is where to start');
+    assert.equal(s.pending, 3);
+  });
+
+  it('is all zero when nothing has been measured', async () => {
+    const s = await summaryOf([row({ render_status: 'done' })]);
+    assert.equal(s.suspect, 0);
+    assert.equal(s.qc_clean, 0, 'unmeasured is not clean');
+  });
+});
+
+describe('the sheet order', () => {
+  it('puts the most broken first, not the first submitted', async () => {
+    // The whole reason the gate exists. Thirty videos in submission order
+    // means watching thirty; worst-first means watching the two that are
+    // wrong.
+    fakePool._result = {
+      rows: [
+        row({ id: 1, idx: 0, render_status: 'done', qc_verdict: 'pass', qc_rank: 0 }),
+        row({ id: 2, idx: 1, render_status: 'done', qc_verdict: 'look', qc_rank: 101 }),
+        row({ id: 3, idx: 2, render_status: 'done', qc_verdict: 'fail', qc_rank: 202 }),
+        row({ id: 4, idx: 3, render_status: 'failed' }),
+        row({ id: 5, idx: 4, composition_id: null, render_id: null, render_status: null }),
+      ],
+    };
+    const order = (await batches.listItemsByRisk(9)).map((i) => i.id);
+    assert.deepEqual(
+      order, [4, 5, 3, 2, 1],
+      'a failed render, then one that never ran, then broken, look, clean'
+    );
+  });
+
+  it('is stable on the item index within a verdict, so it does not reshuffle', async () => {
+    // The sheet polls while a batch encodes. An order that changed between
+    // polls would move the row out from under the cursor.
+    fakePool._result = {
+      rows: [
+        row({ id: 7, idx: 3, render_status: 'done', qc_verdict: 'look', qc_rank: 101 }),
+        row({ id: 8, idx: 1, render_status: 'done', qc_verdict: 'look', qc_rank: 101 }),
+        row({ id: 9, idx: 2, render_status: 'done', qc_verdict: 'look', qc_rank: 101 }),
+      ],
+    };
+    assert.deepEqual((await batches.listItemsByRisk(9)).map((i) => i.idx), [1, 2, 3]);
+  });
+
+  it('reads the verdict off the render, not off the item', async () => {
+    fakePool._result = { rows: [] };
+    await batches.listItems(9);
+    const sql = calls[calls.length - 1].sql.replace(/\s+/g, ' ');
+    assert.match(sql, /r\.qc_verdict, r\.qc_rank, r\.qc/);
   });
 });

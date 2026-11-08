@@ -45,6 +45,21 @@ const VERDICT_CHIP = {
   pending: 'chip chip-neutral',
 };
 
+/**
+ * What the QC gate thought, as a word.
+ *
+ * Deliberately not the same vocabulary as the human verdict above: the
+ * machine has not approved anything, it has measured. "Broken" and "Look"
+ * say what to do next; "Clean" says only that nothing measurable is wrong,
+ * which is not the same as the video being any good.
+ */
+const QC_CHIP = {
+  fail: { label: 'Broken', cls: 'chip chip-danger' },
+  look: { label: 'Look', cls: 'chip chip-warning' },
+  pass: { label: 'Clean', cls: 'chip chip-neutral' },
+  unmeasured: { label: 'Unmeasured', cls: 'chip chip-outline' },
+};
+
 /** Is this a phone-width screen? Used only to hide a link phones cannot follow. */
 function useIsPhone() {
   const [phone, setPhone] = useState(
@@ -179,8 +194,18 @@ export default function VideoBatchReviewPage({ clientId, onOpenInEditor = null }
 
       {/* The roll-up. `Awaiting review` is the number that decides whether
           this screen is worth opening, so it is the featured tile. */}
+      {/* `Watch these first` is the featured tile rather than `Awaiting
+          review`, because the second number is the one that says "watch
+          thirty" and the first is the one that says "watch two". That is the
+          whole value of the QC gate. */}
       <StatStrip items={[
-        { label: 'Awaiting review', value: s.pending ?? '—', feature: true },
+        {
+          label: 'Watch these first',
+          value: s.suspect ?? '—',
+          sub: s.suspect ? `${s.qc_fail || 0} broken, ${s.qc_look || 0} worth a look` : 'nothing flagged',
+          feature: true,
+        },
+        { label: 'Awaiting review', value: s.pending ?? '—', sub: s.qc_clean ? `${s.qc_clean} measured clean` : null },
         { label: 'Approved', value: s.approved ?? '—' },
         { label: 'Still encoding', value: s.queued ?? '—' },
         { label: 'Needs content', value: s.blocked ?? '—' },
@@ -231,6 +256,11 @@ export default function VideoBatchReviewPage({ clientId, onOpenInEditor = null }
                     {it.state === 'rendering' && it.render_progress ? ` ${it.render_progress}%` : ''}
                   </span>
                 </span>
+                {it.verdict === 'pending' && it.qc_verdict && QC_CHIP[it.qc_verdict] && (
+                  <span className={QC_CHIP[it.qc_verdict].cls}>
+                    {QC_CHIP[it.qc_verdict].label}
+                  </span>
+                )}
                 {it.verdict !== 'pending' && (
                   <span className={VERDICT_CHIP[it.verdict]}>{it.verdict}</span>
                 )}
@@ -260,6 +290,32 @@ export default function VideoBatchReviewPage({ clientId, onOpenInEditor = null }
                     controls
                     style={{ width: '100%', maxWidth: 420, marginTop: 'var(--s3)', background: '#000' }}
                   />
+                )}
+
+                {/* What the machine measured, and where to look. The time is
+                    the point: "frozen for 3s at 8s" sends you to 8 seconds
+                    rather than making you watch the whole thing. */}
+                {current.qc && (
+                  <div style={{ marginTop: 'var(--s3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s2)' }}>
+                      {QC_CHIP[current.qc_verdict] && (
+                        <span className={QC_CHIP[current.qc_verdict].cls}>
+                          {QC_CHIP[current.qc_verdict].label}
+                        </span>
+                      )}
+                      <span>{current.qc.says}</span>
+                    </div>
+                    <ul style={{ marginTop: 'var(--s2)', color: 'var(--text-muted)' }}>
+                      {(current.qc.checks || [])
+                        .filter((c) => c.level === 'fail' || c.level === 'look')
+                        .map((c) => (
+                          <li key={c.id}>
+                            {c.says}
+                            {c.at != null && ` — at ${c.at}s`}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
                 )}
 
                 {/* The planner's own words about what this item needs. This is

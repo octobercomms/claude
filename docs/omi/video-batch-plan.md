@@ -322,6 +322,26 @@ which every one of the eight asked for) and a `caption.fallbackPreset` driven
 by a luma probe under the text band, which is the honest answer to white type
 on an architect's white plaster wall. Both belong with the QC gate.
 
+> **CORRECTED 8 November: ducking was already built, and is now wired.**
+> Saying it was "not built" was wrong. `shared/compositionRender.mjs` has
+> implemented it all along with `sidechaincompress`, triggered by
+> `comp.ducking` or a track's `duckUnder`. The only thing missing was the
+> binder passing a template's request through, which is one line.
+>
+> Wiring it turned up a real fault in how the render decides WHICH track is
+> the voice. It classified by source kind — a clip is speech, an audio source
+> is music — which is right for a talking head and backwards for a
+> walkthrough, where the voice is a recorded narration on an audio track and
+> the clips are silent b-roll with room tone. Ducking that composition by
+> kind lowers the narration under the ambience. A source may now say
+> `voice: true` or `voice: false`, with the kind-based guess as the default
+> only, and a template's slot carries it.
+>
+> `audio.duck` is on `talking-head`, where there is a voice and a bed to duck.
+> It is **not** on `walkthrough`: its only audio slot IS the narration, so
+> there is nothing else to lower, and `validateTemplate` now refuses a duck
+> with nothing to duck rather than letting it sit there doing nothing.
+
 ---
 
 ## The batch runner
@@ -580,6 +600,50 @@ grayscale frame differences inside each item's window and fail an item that
 should be moving and is not. This catches a camera move that silently did not
 apply and an image-to-video call that returned a still, which is the failure
 mode the fal dependency makes likely.
+
+> **Built, 8 November.** `shared/renderQc.mjs` judges; the ffmpeg that
+> produces the numbers is `backend/src/services/renderQc.js`, in two decode
+> passes rather than seven. The verdict is stored on the render row by
+> migration 250 and the review sheet orders by it, worst first, which is the
+> whole point: the operator's first click is the most broken video rather than
+> the first one submitted.
+>
+> **Three levels, not pass and fail.** `fail` is measurably broken, `look` is
+> suspicious but possibly intended, `pass` is nothing measurable wrong — which
+> is not the same as the edit being good, and the sentence says so. Nothing
+> blocks approval. That is the reelChecks lesson written down in that file: a
+> checklist that blocks gets switched off within a fortnight.
+>
+> **CORRECTED: the loudness target did not exist.** This section said "our
+> existing pipeline normalises to −16 LUFS EBU R128, so pick one". Nothing
+> normalises loudness anywhere. `loudnorm` appears in the repo exactly once,
+> in the list of filters `scripts/ffmpeg-check.js` verifies, and no service
+> uses it; the composition mixer runs `amix` with `normalize=0` on purpose so
+> volume does not change with track count. So loudness is **measured and
+> reported, never graded** — a loudness check with no loudness normalisation
+> fails almost everything for a reason the operator cannot act on. It becomes
+> a graded check the day the render normalises, which is worth doing: thirty
+> videos at wildly different levels is a real problem in a feed.
+>
+> **Two faults found by running the gate on real renders**, both of which
+> would have made it cry wolf:
+>
+> - a solid colour zoomed is pixel-for-pixel identical, so the motion measure
+>   correctly read zero and the gate failed a render that was perfect. A frame
+>   with no detail is now UNMEASURABLE rather than broken, and the same fact
+>   downgrades a freeze on a flat picture from `fail` to `look`. The detail
+>   figure comes free: it is the standard deviation of frames already in
+>   memory for the motion measure.
+> - `ebur128` logs a running figure per frame as well as a summary, so the
+>   first `I:` in its output is the first frame's. A sine measured at
+>   −21.8 LUFS was read as −70, which would have reported every video as
+>   54 LU too quiet.
+>
+> The `blackdetect`, `freezedetect` and `ebur128` filters are now in
+> `ffmpeg-check.js`'s inventory, along with the render graph's own
+> `sidechaincompress`, `amix`, `adelay`, `apad`, `atrim` and `tpad`. A filter
+> dropped between ffmpeg versions would otherwise fail inside an unattended
+> batch, where the only symptom is thirty videos with no verdict.
 
 ---
 

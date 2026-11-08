@@ -415,6 +415,13 @@ jobs:
       # composition-batches.db.test.js, which needs a Postgres.
       - name: Guard — a batch's bookkeeping
         run: node tests/composition-batches.test.js
+      # Thirty unattended renders are only useful if the sheet can say which
+      # two to watch first. These pin the verdict's decisions and the parsers
+      # that feed it — including two faults found by running the gate on real
+      # renders: a flat picture cannot show movement, and ebur128's first `I:`
+      # is the first frame's running figure rather than the file's.
+      - name: Guard — the QC verdict, and what it tells the operator
+        run: node tests/render-qc.test.js
       - name: Guard — composition CRUD and persistence
         run: node tests/compositions.test.js
       - name: Guard — the compose routes

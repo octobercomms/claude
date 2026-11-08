@@ -43,6 +43,7 @@ const compositions = require('./compositions');
 const assets = require('./assets');
 const queue = require('./compositionRenderQueue');
 const { buildCaptionAss, assetFilePath } = require('./compositionRenderer');
+const renderQc = require('./renderQc');
 // ONE ffmpeg for the whole backend. Reading FFMPEG_PATH here instead would
 // put a second answer to "which ffmpeg" in the tree, which is the exact state
 // services/ffmpegBin.js exists to have ended: pointing FFMPEG_PATH at a
@@ -246,6 +247,26 @@ async function renderOne(job) {
       try { bytes = fs.statSync(outputPath).size; } catch { /* reported below */ }
       const outputUrl = `/api/brand/file/${comp.client_id}/${path.basename(outputPath)}`;
 
+      // Measure it before calling it done.
+      //
+      // A batch of thirty is only useful if the review sheet can say which
+      // two to watch first; otherwise "a batch saved me an afternoon" becomes
+      // "a batch gave me thirty videos to watch". This is where the one
+      // measurement pass happens, on a file that is finished and about to be
+      // handed to a person.
+      //
+      // It never throws and never blocks the completion: `check` returns an
+      // 'unmeasured' verdict rather than failing, because the video exists
+      // either way and losing a good render over a QC pass would be the
+      // worst possible trade.
+      const qc = await renderQc.check(outputPath, comp.data)
+        .catch((err) => ({
+          verdict: 'unmeasured',
+          checks: [{ id: 'measure', level: 'skipped', says: err.message }],
+          says: `Could not be measured: ${err.message}`,
+          rank: -1,
+        }));
+
       // `source_id` keyed on the JOB id, not a timestamp. It was
       // `render-${compId}-${Date.now()}`, and assets.record upserts on
       // (source, source_id), so two renders of one composition started in the
@@ -264,11 +285,12 @@ async function renderOne(job) {
           composition_id: comp.id,
           render_id: job.id,
           rendered_at: new Date().toISOString(),
+          qc_verdict: qc?.verdict || null,
         },
       }).catch(() => {});
 
-      await queue.complete(job.id, { outputPath, outputUrl }).catch(() => {});
-      resolve({ ok: true, outputPath, outputUrl });
+      await queue.complete(job.id, { outputPath, outputUrl, qc }).catch(() => {});
+      resolve({ ok: true, outputPath, outputUrl, qc });
     });
   });
 }

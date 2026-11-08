@@ -68,9 +68,17 @@ function validateSource(id, src) {
     if (src.still != null && typeof src.still !== 'boolean') {
       return `source "${id}": still must be true or false`;
     }
+    if (src.voice != null && typeof src.voice !== 'boolean') {
+      return `source "${id}": voice must be true or false`;
+    }
   }
   if (src.kind === 'audio') {
     if (!src.asset && !src.url) return `source "${id}": audio needs asset or url`;
+    // `voice: true` on an audio source is a recorded narration: the thing
+    // everything else ducks under, rather than the thing that ducks.
+    if (src.voice != null && typeof src.voice !== 'boolean') {
+      return `source "${id}": voice must be true or false`;
+    }
     if (src.duration != null && (typeof src.duration !== 'number' || src.duration <= 0)) {
       return `source "${id}": audio duration must be positive`;
     }
