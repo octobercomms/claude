@@ -160,10 +160,22 @@ async function checkStatus() {
       params: { fields: 'id,name,mimeType', supportsAllDrives: true },
     });
 
+    let fileCount = null;
+    try {
+      const mimeFilter = INVOICE_MIME_TYPES.map(m => `mimeType = '${m}'`).join(' or ');
+      const q = `'${folderId}' in parents and trashed = false and (${mimeFilter})`;
+      const countRes = await axios.get(`${DRIVE_API}/files`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { q, fields: 'files(id)', pageSize: 1000, supportsAllDrives: true, includeItemsFromAllDrives: true },
+      });
+      fileCount = (countRes.data.files || []).length;
+    } catch (_) { /* file count is best-effort */ }
+
     return {
       configured: true,
       folderId,
       folderName: data.name,
+      fileCount,
       serviceAccountEmail: email,
       accessible: true,
     };

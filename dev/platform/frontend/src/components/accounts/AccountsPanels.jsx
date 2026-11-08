@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -1541,10 +1541,8 @@ export function DrivePanel() {
           <div className="body-sm" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
             <div>
               The Drive scanner needs a Google service account key before it can access any folder.
-              This is the same service account used for GA4, Search Console and Merchant Center on the Integrations page.
-            </div>
-            <div>
-              Paste <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> in <strong>Settings &gt; Integrations</strong>, then return here.
+              Paste the JSON key into the <strong>Service Account Key</strong> field on{' '}
+              <Link to="/settings/integrations">Settings &gt; Integrations</Link>, then return here.
             </div>
           </div>
         </div>
@@ -1589,6 +1587,9 @@ export function DrivePanel() {
                 : <span className="chip chip-danger">Not accessible</span>
               }
               {status.folderName && <span style={{ fontWeight: 500 }}>{status.folderName}</span>}
+              {status.fileCount != null && (
+                <span className="body-sm text-muted">{status.fileCount} invoice {status.fileCount === 1 ? 'file' : 'files'}</span>
+              )}
             </div>
             {!status.accessible && status.error && (
               <div className="body-sm" style={{ color: 'var(--danger)' }}>{status.error}</div>
@@ -1654,24 +1655,31 @@ export function DrivePanel() {
                 The Drive scanner needs a Google service account key. A service account is a non-human Google identity that
                 lets OMI access Drive folders you share with it, without needing anyone to log in.
               </div>
-              <div style={{ fontWeight: 500 }}>Check whether you already have one</div>
-              <div className="text-muted">
-                OMI uses the same service account for GA4, Search Console and Merchant Center. If those integrations are
-                already working, the key is already saved and this panel should show the service account email. If it does
-                not, the key may not be set on this server.
+              <div style={{ fontWeight: 500 }}>1. Get a service account key</div>
+              <div className="text-muted" style={{ marginBottom: 'var(--s1)' }}>
+                Check whether your Google Cloud project already has a service account. If it does, generate a new JSON key
+                for it. If it does not, create one first.
               </div>
-              <div style={{ fontWeight: 500, marginTop: 'var(--s2)' }}>If you need to generate a new key</div>
               <ol style={{ margin: 0, paddingLeft: 'var(--s4)', color: 'var(--text-muted)' }}>
                 <li>
-                  Go to{' '}
+                  Open{' '}
                   <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
                     console.cloud.google.com &gt; IAM &gt; Service Accounts
-                  </a>. Use the same Google Cloud project that OMI already uses.
+                  </a>.
                 </li>
-                <li>Click the existing service account (or create one if there is none).</li>
+                <li>
+                  If a service account is listed, click it. If the list is empty, click <strong>Create Service Account</strong>,
+                  give it a name (e.g. "october-marketing-intelligence"), and click <strong>Done</strong>.
+                </li>
                 <li>Go to the <strong>Keys</strong> tab, click <strong>Add Key &gt; Create new key</strong>, choose <strong>JSON</strong>, and download the file.</li>
-                <li>Set the full contents of that JSON file as the <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> environment variable on the server.</li>
-                <li>Restart the backend. Return here and the service account email will appear.</li>
+              </ol>
+              <div style={{ fontWeight: 500, marginTop: 'var(--s2)' }}>2. Paste the key into OMI</div>
+              <ol style={{ margin: 0, paddingLeft: 'var(--s4)', color: 'var(--text-muted)' }}>
+                <li>
+                  Go to <Link to="/settings/integrations" style={{ color: 'var(--accent)' }}>Settings &gt; Integrations</Link>.
+                </li>
+                <li>Paste the full contents of the downloaded JSON file into the <strong>Service Account Key</strong> field and save.</li>
+                <li>Return here. The service account email will appear and the folder input will unlock.</li>
               </ol>
             </>
           ) : (
