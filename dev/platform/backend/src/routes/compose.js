@@ -670,4 +670,22 @@ router.get('/caption-templates', (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Video templates (the eight shipped shapes) ──────────────────────
+
+/**
+ * Summaries for the picker. `?full=1` returns the whole templates, which is
+ * what the batch runner needs to bind against.
+ */
+router.get('/templates', (req, res) => {
+  try {
+    const templates = require('../services/compositionTemplates');
+    const payload = req.query.full ? templates.all() : templates.list();
+    const broken = templates.problems();
+    // Surfaced rather than hidden: a template file that stopped validating is
+    // a shape the operator can no longer use, and silence would read as the
+    // template never having existed.
+    res.json(broken.length ? { templates: payload, broken } : { templates: payload });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

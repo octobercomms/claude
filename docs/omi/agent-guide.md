@@ -1884,8 +1884,15 @@ What this means in practice:
   that action row, and the row holds two or three at most. That ceiling is what
   stops the junk-drawer problem: a section needing a fourth drawer has
   something in there that should be a page.
-- **`tests/lib/tabDoors.mjs` counts a panel row as a door**, which it is and a
-  better one than the in-page links it looks for.
+- **A panel row counts as a door**, which it is and a better one than an
+  in-page link. The check is `frontend/tests/routeTargets.test.mjs`, which
+  tests it BOTH ways: every panel row must have a render branch on the
+  section's page, and every `setTab('x')` must have a row. Its `RENDER_BRANCH`
+  regex matches a literal JSX `{tab === 'x' &&` at the start of a line, so a
+  row whose screen is rendered some other way (a lookup table, a ternary) fails
+  CI with "that row opens a blank screen". Rows carrying a `step` are exempt:
+  they drive Shared's numbered factory instead. (`tests/lib/tabDoors.mjs` was
+  the old name and no longer exists; this line named it until Nov 2026.)
 - **The nav rail is a section's only door, and no path scan can see the panel.**
   Panel rows are `<button>`s calling the section's setter, not links, so a
   check that greps for `to=` / `href=` / `navigate(` finds nothing in the

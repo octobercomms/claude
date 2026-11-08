@@ -1,0 +1,81 @@
+{
+  "id": "coverage-roundup",
+  "name": "Coverage roundup",
+  "description": "Press clippings and outlet marks cut against one word held in a fixed position.",
+  "bestFor": "A PR campaign's hits gathered into one short reel: a practice or brand showing where it was published.",
+  "register": "editorial",
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "slots": [
+    {
+      "id": "anchor",
+      "kind": "text",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 9,
+        "max": 24
+      },
+      "motion": null,
+      "trans": null,
+      "track": 2
+    },
+    {
+      "id": "clippings",
+      "kind": "still",
+      "min": 4,
+      "max": 7,
+      "len": {
+        "min": 2.0,
+        "max": 2.8
+      },
+      "motion": "subtle",
+      "trans": null,
+      "track": 0
+    },
+    {
+      "id": "logos",
+      "kind": "design",
+      "min": 4,
+      "max": 7,
+      "len": {
+        "min": 2.0,
+        "max": 2.8
+      },
+      "motion": null,
+      "trans": null,
+      "track": 1
+    },
+    {
+      "id": "endcard",
+      "kind": "design",
+      "min": 1,
+      "max": 1,
+      "len": {
+        "min": 1.8,
+        "max": 2.4
+      },
+      "motion": "subtle",
+      "trans": "fade",
+      "track": 0
+    }
+  ],
+  "caption": {
+    "preset": "institution"
+  },
+  "variation": {
+    "motion": [
+      "subtle",
+      "drift",
+      "push-in"
+    ],
+    "trans": [
+      null,
+      "fade"
+    ],
+    "lenJitter": 0.1
+  }
+}

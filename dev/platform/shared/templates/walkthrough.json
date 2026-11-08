@@ -1,0 +1,80 @@
+{
+  "id": "walkthrough",
+  "name": "Walkthrough",
+  "description": "Screen or site footage cut into three to five named sections, each carrying a lower third that says what is on screen.",
+  "bestFor": "A new website, a drawing set, a configurator or a process, where the viewer needs telling what they are looking at rather than being made to feel something.",
+  "register": "editorial",
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "slots": [
+    {
+      "id": "footage",
+      "kind": "clip",
+      "min": 3,
+      "max": 5,
+      "len": {
+        "min": 4,
+        "max": 7.5
+      },
+      "motion": "subtle",
+      "trans": "fade",
+      "track": 0
+    },
+    {
+      "id": "sectionLabels",
+      "kind": "text",
+      "min": 3,
+      "max": 5,
+      "len": {
+        "min": 2.4,
+        "max": 3.6
+      },
+      "trans": "fade",
+      "track": 1,
+      "alignTo": "footage"
+    },
+    {
+      "id": "narration",
+      "kind": "audio",
+      "min": 0,
+      "max": 1,
+      "len": {
+        "min": 12,
+        "max": 40
+      },
+      "track": 3
+    },
+    {
+      "id": "endCard",
+      "kind": "design",
+      "min": 0,
+      "max": 1,
+      "len": {
+        "min": 1.6,
+        "max": 2.4
+      },
+      "motion": "subtle",
+      "trans": "fadeblack",
+      "track": 0
+    }
+  ],
+  "caption": {
+    "preset": "institution",
+    "from": "sectionLabels"
+  },
+  "variation": {
+    "motion": [
+      "subtle",
+      "drift"
+    ],
+    "trans": [
+      "fade",
+      "fadeblack",
+      "wipeleft"
+    ],
+    "lenJitter": 0.2
+  }
+}

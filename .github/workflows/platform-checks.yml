@@ -384,6 +384,8 @@ jobs:
         run: node tests/composition-timeline.test.js
       - name: Guard — preview and render agree on fixtures
         run: node tests/compositor-agreement.test.js
+      - name: Guard — templates, variation and binding
+        run: node tests/composition-template.test.js
       - name: Guard — composition CRUD and persistence
         run: node tests/compositions.test.js
       - name: Guard — the compose routes

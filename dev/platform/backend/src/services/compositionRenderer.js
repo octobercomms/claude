@@ -101,6 +101,20 @@ async function buildCaptionAss(comp, compId, transcripts = {}) {
     .filter(([, src]) => src.kind === 'captions');
   if (!captionSources.length) return null;
 
+  // One ASS file, one style block, so a second caption source has nowhere to
+  // go. It used to be dropped here without a word: `captionSources[0]` and
+  // the rest discarded, which is the page lying about its output in the one
+  // function whose comment forbids exactly that. Nothing produced two until
+  // templates did, so say so instead of choosing one silently.
+  if (captionSources.length > 1) {
+    throw new Error(
+      `This composition has ${captionSources.length} caption sources `
+      + `(${captionSources.map(([id]) => id).join(', ')}) and the renderer burns `
+      + 'one ASS track, so only the first would appear. Put every line in one '
+      + 'caption source, or render the extra type as a design page.'
+    );
+  }
+
   const [capId, capSrc] = captionSources[0];
   const words = resolveTranscript(capSrc.transcript, transcripts);
   if (!Array.isArray(words) || !words.length) {
@@ -135,7 +149,11 @@ async function buildCaptionAss(comp, compId, transcripts = {}) {
     words,
     preset,
     format,
-    perLine: preset.wordsPerLine || 3,
+    // The source may override the preset's grouping. A template's on-screen
+    // type is written as whole lines ("Grade II listed, reimagined") in one
+    // cue each, and regrouping those into threes would break a title at
+    // whatever word fell third. Spoken captions keep the preset's value.
+    perLine: capSrc.perLine || preset.wordsPerLine || 3,
     marginV: Math.round(format.height * 0.17),
   });
 
