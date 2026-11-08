@@ -12,6 +12,11 @@ const { FFMPEG, FFPROBE } = require('../services/ffmpegBin');
 const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('../services/costLog');
 const { whisperWords } = require('../services/whisper');
+// One caption compiler, two callers. This route has its own queue and spawn
+// loop rather than calling renderComposition, and because the only code that
+// compiled caption ASS lived on that other path, every caption the editor
+// produced was silently dropped from the output.
+const { buildCaptionAss } = require('../services/compositionRenderer');
 const db = require('../db');
 
 const { pathToFileURL } = require('url');
@@ -446,8 +451,19 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
       if (fp) sourcePaths[sourceId] = fp;
     }
 
+    // Captions are compiled to an ASS file and handed to the graph as a
+    // subtitles filter. An unresolvable caption fails the request here,
+    // before a job exists, rather than producing a caption-free video that
+    // reports success.
+    let captionAssPath = null;
+    try {
+      captionAssPath = await buildCaptionAss(data, compId, comp.transcripts || {});
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
     const rm = await renderMod();
-    const graph = rm.renderGraph(data, { sourcePaths });
+    const graph = rm.renderGraph(data, { sourcePaths, captionAssPath });
 
     if (!graph.inputs.length) {
       return res.status(400).json({ error: 'No resolvable sources in the composition.' });
@@ -474,6 +490,17 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
       updateRenderJob(job.id, { status: 'rendering', started_at: new Date().toISOString(), output_path: outputPath }).catch(() => {});
 
       const ff = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+
+      // The compiled ASS lives in the temp directory and is only needed for
+      // the life of this process. Attached to the process rather than to each
+      // of the three exit paths, so a path added later cannot leak it: a
+      // batch of thirty renders would otherwise leave thirty files behind.
+      if (captionAssPath) {
+        const release = () => { fs.promises.unlink(captionAssPath).catch(() => {}); };
+        ff.once('close', release);
+        ff.once('error', release);
+      }
+
       let stderr = '';
       let lastProgressWrite = 0;
 
