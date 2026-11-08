@@ -154,16 +154,74 @@ async function getRecentPrecodes(since) {
 }
 
 async function getPrecodeStats() {
-  const { rows } = await db.query(
+  const { rows: logRows } = await db.query(
     `SELECT
        count(*)::int as total,
        count(*) FILTER (WHERE status = 'written')::int as written,
        count(*) FILTER (WHERE status = 'matched')::int as matched,
        count(*) FILTER (WHERE status = 'error')::int as errors,
-       coalesce(sum(amount) FILTER (WHERE status = 'written'), 0) as total_amount
+       coalesce(sum(amount) FILTER (WHERE status = 'written'), 0) as total_amount,
+       max(created_at) as last_run_at
      FROM acct_precode_log`
   );
-  return rows[0];
+  const stats = logRows[0];
+
+  const eligible = await getEligibleSuppliers();
+  const hasRun = stats.total > 0;
+
+  return {
+    ...stats,
+    state: hasRun
+      ? (stats.written > 0 ? 'has_writes' : 'ran_nothing_eligible')
+      : 'not_run',
+    eligible_now: eligible.length,
+  };
+}
+
+async function previewPrecodePass() {
+  const eligible = await getEligibleSuppliers();
+  if (!eligible.length) {
+    return { state: 'nothing_eligible', eligible: 0, preview: [] };
+  }
+
+  const preview = [];
+  for (const supplier of eligible) {
+    const amount = supplier.last_amount;
+    let invoice = null;
+    try {
+      invoice = await invoices.findLatestForSupplier(supplier.id);
+    } catch { /* no invoice is fine */ }
+
+    preview.push({
+      supplierId: supplier.id,
+      supplierName: supplier.display_name,
+      accountCode: supplier.account_code,
+      accountName: supplier.account_name || null,
+      vatTreatment: supplier.vat_treatment,
+      isReverseCharge: ['RRINPUT', 'RRINPUT2', 'REVERSECHARGES'].includes(supplier.vat_treatment),
+      amount: amount ? Math.abs(amount) : null,
+      currency: supplier.usual_currency || 'GBP',
+      confidenceCounter: supplier.confidence_counter,
+      hasAmount: !!amount,
+      wouldSkip: !amount,
+      skipReason: !amount ? 'no amount available' : null,
+      matchedInvoice: invoice ? {
+        id: invoice.id,
+        filename: invoice.file_path || invoice.original_filename || null,
+      } : null,
+    });
+  }
+
+  const wouldWrite = preview.filter(p => !p.wouldSkip).length;
+  const wouldSkip = preview.filter(p => p.wouldSkip).length;
+
+  return {
+    state: 'preview',
+    eligible: eligible.length,
+    wouldWrite,
+    wouldSkip,
+    preview,
+  };
 }
 
 async function runPrecodePass(bankAccountId) {
@@ -189,5 +247,6 @@ module.exports = {
   logPrecode,
   getRecentPrecodes,
   getPrecodeStats,
+  previewPrecodePass,
   runPrecodePass,
 };
