@@ -1639,11 +1639,23 @@ export function DrivePanel() {
   async function handleToggleSubfolder(folderId, included) {
     try {
       await api.put(`/accounts/drive/subfolders/${folderId}`, { included });
+      // Cascade: also update children in local state
+      const parent = subfolders.find(s => s.drive_folder_id === folderId);
       setSubfolders(prev => prev.map(s =>
-        s.drive_folder_id === folderId ? { ...s, included } : s
+        s.drive_folder_id === folderId ? { ...s, included } :
+        (parent && s.parent_id === folderId) ? { ...s, included } :
+        s
       ));
     } catch (e) { toast(e.message, 'error'); }
   }
+
+  async function handleToggleAllSubfolders(included) {
+    try {
+      const result = await api.put('/accounts/drive/subfolders', { included });
+      setSubfolders(result.subfolders || []);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
 
   if (loading) return <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>;
 
@@ -1731,9 +1743,15 @@ export function DrivePanel() {
           </div>
           {subfolders.length > 0 ? (
             <>
-              <div className="body-sm text-muted">
-                {subfolders.filter(s => s.included).length} of {subfolders.length} included in scan
-                {' '}({subfolders.filter(s => s.included).reduce((sum, s) => sum + (s.file_count || 0), 0)} files)
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="body-sm text-muted">
+                  {subfolders.filter(s => s.included).length} of {subfolders.length} included in scan
+                  {' '}({subfolders.filter(s => s.included).reduce((sum, s) => sum + (s.file_count || 0), 0)} files)
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+                  <button className="btn btn-sm" onClick={() => handleToggleAllSubfolders(true)}>Select all</button>
+                  <button className="btn btn-sm" onClick={() => handleToggleAllSubfolders(false)}>Deselect all</button>
+                </div>
               </div>
               <table className="table">
                 <thead>
@@ -1745,29 +1763,47 @@ export function DrivePanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {subfolders.map(sf => (
-                    <tr key={sf.drive_folder_id} style={{ opacity: sf.included ? 1 : 0.5 }}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={sf.included}
-                          onChange={e => handleToggleSubfolder(sf.drive_folder_id, e.target.checked)}
-                        />
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 500 }}>{sf.name}</span>
-                        {sf.path !== sf.name && (
-                          <span className="body-sm text-muted" style={{ marginLeft: 'var(--s1)' }}>{sf.path}</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {sf.file_count != null ? sf.file_count : '—'}
-                      </td>
-                      <td className="body-sm text-muted">
-                        {sf.last_scanned_at ? new Date(sf.last_scanned_at).toLocaleDateString('en-GB') : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const isTopLevel = sf => !sf.path.includes('/');
+                    const topFolders = subfolders.filter(isTopLevel);
+                    const childrenOf = id => subfolders.filter(sf => sf.parent_id === id);
+                    const rows = [];
+                    for (const parent of topFolders) {
+                      rows.push({ ...parent, _isParent: true });
+                      for (const child of childrenOf(parent.drive_folder_id)) {
+                        rows.push({ ...child, _isChild: true });
+                      }
+                    }
+                    return rows.map(sf => (
+                      <tr key={sf.drive_folder_id} style={{ opacity: sf.included ? 1 : 0.5 }}>
+                        <td style={{ paddingLeft: sf._isChild ? 'var(--s4)' : undefined }}>
+                          <input
+                            type="checkbox"
+                            checked={sf.included}
+                            onChange={e => handleToggleSubfolder(sf.drive_folder_id, e.target.checked)}
+                          />
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: sf._isParent ? 600 : 400 }}>{sf.name}</span>
+                          {sf._isParent && (() => {
+                            const kids = childrenOf(sf.drive_folder_id);
+                            const included = kids.filter(c => c.included).length;
+                            return kids.length > 0 ? (
+                              <span className="body-sm text-muted" style={{ marginLeft: 'var(--s2)' }}>
+                                {included}/{kids.length} suppliers
+                              </span>
+                            ) : null;
+                          })()}
+                        </td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          {sf.file_count != null ? sf.file_count : '—'}
+                        </td>
+                        <td className="body-sm text-muted">
+                          {sf.last_scanned_at ? new Date(sf.last_scanned_at).toLocaleDateString('en-GB') : '—'}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </>
@@ -2411,7 +2447,7 @@ export function SuppliersPanel() {
       usual_currency: supplier.usual_currency || 'GBP',
       expected_cadence: supplier.expected_cadence || '',
       invoice_source: supplier.invoice_source || 'unknown',
-      auto_code: supplier.auto_code !== false,
+      auto_code: supplier.auto_code === true,
       notes: supplier.notes || '',
     } : { ...BLANK });
   }

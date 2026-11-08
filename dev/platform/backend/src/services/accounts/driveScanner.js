@@ -119,14 +119,14 @@ async function discoverSubfolders(rootFolderId) {
   }
 
   const { rows } = await db.query(
-    'SELECT drive_folder_id, name, path, included, file_count, last_scanned_at FROM acct_drive_subfolders ORDER BY path'
+    'SELECT drive_folder_id, parent_id, name, path, included, file_count, last_scanned_at FROM acct_drive_subfolders ORDER BY path'
   );
   return rows;
 }
 
 async function getSubfolders() {
   const { rows } = await db.query(
-    'SELECT drive_folder_id, name, path, included, file_count, last_scanned_at FROM acct_drive_subfolders ORDER BY path'
+    'SELECT drive_folder_id, parent_id, name, path, included, file_count, last_scanned_at FROM acct_drive_subfolders ORDER BY path'
   );
   return rows;
 }
@@ -146,7 +146,22 @@ async function toggleSubfolder(driveFolderId, included) {
     [driveFolderId, included]
   );
   if (!rows.length) throw new Error('Subfolder not found');
+
+  await db.query(
+    `UPDATE acct_drive_subfolders SET included = $2, updated_at = NOW()
+     WHERE parent_id = $1`,
+    [driveFolderId, included]
+  );
+
   return rows[0];
+}
+
+async function toggleAllSubfolders(included) {
+  const { rowCount } = await db.query(
+    'UPDATE acct_drive_subfolders SET included = $1, updated_at = NOW()',
+    [included]
+  );
+  return { updated: rowCount };
 }
 
 // ---------------------------------------------------------------------------
@@ -411,6 +426,7 @@ module.exports = {
   getSubfolders,
   getIncludedFolders,
   toggleSubfolder,
+  toggleAllSubfolders,
   extractSupplierFromPath,
   extractSupplierMap,
 };
