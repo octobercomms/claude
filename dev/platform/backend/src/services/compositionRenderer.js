@@ -55,26 +55,75 @@ function assetFilePath(asset) {
 // ── Caption ASS generation ───────────────────────────────────────────
 
 /**
+ * A caption source's words, from either shape its `transcript` may hold.
+ *
+ * An array is the words themselves. A string is the id of the source whose
+ * words to use, looked up in the composition row's `transcripts` column.
+ */
+function resolveTranscript(transcript, transcripts) {
+  if (Array.isArray(transcript)) return transcript;
+  if (typeof transcript === 'string' && transcript) {
+    return (transcripts || {})[transcript] || null;
+  }
+  return null;
+}
+
+/** For an error message, so the reader can see which shape arrived. */
+function describeTranscript(transcript) {
+  if (Array.isArray(transcript)) return `an empty array`;
+  if (typeof transcript === 'string') return `a reference to source "${transcript}"`;
+  if (transcript == null) return 'absent';
+  return `a ${typeof transcript}`;
+}
+
+/**
  * If the composition has caption sources, compile the ASS string and
  * write it to a temp file. Returns the path, or null when there are no
  * captions.
+ *
+ * `transcripts` is the composition row's word map, keyed by source id.
+ *
+ * A caption source's `transcript` is EITHER a literal array of words OR the
+ * id of the clip source whose words to use. The editor writes the id
+ * (`CompositionEditorPage.addCaptions`) because the words live in their own
+ * column and a composition carrying two copies of them would drift. Only the
+ * array form was ever handled here, so every caption the editor produced
+ * resolved to nothing.
+ *
+ * NOTHING HERE MAY FAIL QUIETLY. A composition that asked for captions and
+ * renders without them is the page lying about its output, which is the
+ * fault the whole composition model exists to remove. So an unresolvable
+ * caption throws, and the caller surfaces it rather than shipping a clean
+ * video with a success message.
  */
-async function buildCaptionAss(comp, compId) {
+async function buildCaptionAss(comp, compId, transcripts = {}) {
   const captionSources = Object.entries(comp.sources || {})
     .filter(([, src]) => src.kind === 'captions');
   if (!captionSources.length) return null;
 
-  // Take the first caption source. It must have a transcript (words array).
-  const [, capSrc] = captionSources[0];
-  const words = capSrc.transcript;
-  if (!Array.isArray(words) || !words.length) return null;
+  const [capId, capSrc] = captionSources[0];
+  const words = resolveTranscript(capSrc.transcript, transcripts);
+  if (!Array.isArray(words) || !words.length) {
+    throw new Error(
+      `Caption source "${capId}" has no words to render. Its transcript is `
+      + `${describeTranscript(capSrc.transcript)}, and the composition's `
+      + `transcripts hold ${Object.keys(transcripts || {}).length} entries `
+      + `(${Object.keys(transcripts || {}).join(', ') || 'none'}). Transcribe `
+      + `the clip before rendering captions.`
+    );
+  }
 
   const compiler = await captionCompiler();
   const presets = JSON.parse(fs.readFileSync(CAPTIONS_PRESETS_PATH, 'utf8'));
 
   const templateId = capSrc.template || Object.keys(presets.styles)[0];
   const preset = presets.styles[templateId];
-  if (!preset) return null;
+  if (!preset) {
+    throw new Error(
+      `Caption template "${templateId}" is not in shared/captions/presets.json. `
+      + `Known templates: ${Object.keys(presets.styles).join(', ')}.`
+    );
+  }
 
   const formatId = capSrc.format || 'vertical';
   const format = presets.outputFormats[formatId] || presets.outputFormats.vertical || {
@@ -177,14 +226,15 @@ async function renderComposition(compositionId, options = {}) {
     sourcePaths[sourceId] = filePath;
   }
 
-  // 3. Handle captions: compile ASS if needed
-  let captionAssPath = null;
-  try {
-    captionAssPath = await buildCaptionAss(comp, compositionId);
-  } catch (err) {
-    // Captions are optional; log but do not fail the render
-    console.error('[compositionRenderer] caption compilation failed:', err.message);
-  }
+  // 3. Handle captions: compile ASS if needed.
+  //
+  // This used to catch and log, on the reasoning that captions are
+  // optional. They are not optional once somebody has asked for them: a
+  // render that drops them and reports success is indistinguishable from
+  // one that never had them, and that is how captions came to be silently
+  // absent from every composition render. A composition with no caption
+  // source still returns null here and renders as before.
+  const captionAssPath = await buildCaptionAss(comp, compositionId, row.transcripts || {});
 
   // 4. Build the ffmpeg filter graph
   const mod = await renderMod();
@@ -260,4 +310,15 @@ async function renderComposition(compositionId, options = {}) {
   return { outputPath, duration: totalDuration };
 }
 
-module.exports = { renderComposition, assetFilePath, parseProgress };
+// buildCaptionAss and resolveTranscript are exported because the shipped
+// render route in routes/compose.js has its own queue and spawn loop and
+// does not call renderComposition. That split is why captions never
+// reached the output: the only code that compiled them lived on a path
+// nothing called. One implementation, two callers, rather than two.
+module.exports = {
+  renderComposition,
+  assetFilePath,
+  parseProgress,
+  buildCaptionAss,
+  resolveTranscript,
+};

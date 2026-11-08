@@ -225,6 +225,29 @@ export default function CompositionEditorPage({ clientId }) {
     }, AUTOSAVE_MS);
   }, [compId, doSave]);
 
+  /**
+   * Save now, and cancel the pending autosave.
+   *
+   * ANYTHING THAT HANDS THE COMPOSITION TO THE BACKEND MUST CALL THIS
+   * FIRST. The render route reads `data` out of the database row and takes
+   * only format, resolution and quality from the request body: the timeline
+   * on screen is never sent. So a render started inside the 1500ms autosave
+   * window encodes the PREVIOUS cut and reports success, which is the
+   * worst shape of bug this editor can have, because the file looks fine
+   * and is of the wrong edit.
+   *
+   * `doSave` reads `latestCompRef`, so this always writes what is on screen
+   * now rather than whatever the pending timer had in mind.
+   */
+  const flushSave = useCallback(async (id) => {
+    if (!id) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    await doSave(id);
+  }, [doSave]);
+
   useEffect(() => {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, []);
@@ -820,7 +843,8 @@ export default function CompositionEditorPage({ clientId }) {
                 </button>
                 <ShortcutButton onClick={() => setShortcutsOpen(v => !v)} />
                 <button type="button" className="btn btn-secondary btn-sm"
-                  onClick={() => setExportOpen(true)} disabled={!compId || total <= 0}>
+                  onClick={async () => { await flushSave(compId); setExportOpen(true); }}
+                  disabled={!compId || total <= 0}>
                   Export
                 </button>
                 <button type="button" className="btn btn-secondary btn-sm"

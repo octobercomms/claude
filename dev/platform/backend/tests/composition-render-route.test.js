@@ -280,3 +280,59 @@ describe('render graph for route integration', async () => {
     }
   });
 });
+
+// ── The route must actually wire captions ────────────────────────────
+//
+// This reads the route's own source, which is blunt, and it is the only
+// thing that fails when somebody drops the caption path again. The fault it
+// guards: the shipped route called renderGraph with sourcePaths alone, so
+// the subtitles filter was never added and every caption the editor
+// produced was silently absent from the output while the render reported
+// success. The only code that compiled caption ASS hung off
+// renderComposition, which nothing but its own test ever called.
+//
+// Same shape as tests/strategist-weekly.test.js, which reads the cron's
+// source for the same reason: the behaviour is a wiring decision, and no
+// unit test of either side can see whether the two were joined up.
+
+describe('the render route wires captions into the graph', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'routes', 'compose.js'),
+    'utf8'
+  );
+
+  it('compiles caption ASS before building the graph', () => {
+    assert.match(
+      src, /buildCaptionAss\(/,
+      'the route must compile caption ASS; without it a captioned '
+      + 'composition renders clean video and reports success'
+    );
+  });
+
+  it('passes captionAssPath to renderGraph, not sourcePaths alone', () => {
+    const call = src.match(/renderGraph\(\s*data\s*,\s*\{[^}]*\}/);
+    assert.ok(call, 'the route calls renderGraph with an options object');
+    assert.match(
+      call[0], /captionAssPath/,
+      `renderGraph is called as "${call[0]}", which omits captionAssPath. `
+      + 'The subtitles filter is only added when the graph is given one.'
+    );
+  });
+
+  it('takes the compiler from the renderer service rather than a second copy', () => {
+    assert.match(
+      src, /require\('\.\.\/services\/compositionRenderer'\)/,
+      'one caption compiler, two callers. A second implementation here is '
+      + 'how the two paths drifted apart in the first place'
+    );
+  });
+
+  it('releases the compiled ASS when the render process ends', () => {
+    assert.match(
+      src, /ff\.once\('close', release\)/,
+      'a batch of thirty renders would otherwise leave thirty temp files'
+    );
+  });
+});

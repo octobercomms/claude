@@ -211,3 +211,150 @@ describe('a track with both a transition and a gap', () => {
     assert.ok(isGreen(p), `the footage should be visible, got ${show(p)}`);
   });
 });
+
+// ── Captions reach the output ────────────────────────────────────────
+//
+// Captions were silently absent from every composition render, for two
+// independent reasons, and nothing noticed because no guard looked at the
+// picture:
+//
+//   - The shipped render route called renderGraph without a captionAssPath.
+//     The only code that compiled one hung off renderComposition, which
+//     nothing but its own test ever called.
+//   - A caption source's `transcript` holds the ID of the clip source whose
+//     words to use (the words live in their own column, so a composition
+//     carrying a second copy would drift). buildCaptionAss only handled a
+//     literal array, so every caption the editor wrote resolved to nothing
+//     and returned null.
+//
+// A render that drops a caption somebody asked for and reports success is
+// the page lying about its output. So this asserts on pixels: with captions
+// the band where they sit changes, and without them it does not.
+
+const { buildCaptionAss, resolveTranscript } = require('../src/services/compositionRenderer');
+
+const WORDS = [
+  { word: 'MAPS', start: 0.2, end: 0.7 },
+  { word: 'SHOWED', start: 0.8, end: 1.4 },
+  { word: 'A', start: 1.5, end: 1.7 },
+  { word: 'CONTINENT', start: 1.8, end: 2.6 },
+];
+
+function captionComp(transcriptValue) {
+  return {
+    version: 1,
+    size: { width: W, height: H },
+    fps: FPS,
+    sources: {
+      a: { kind: 'clip', url: 'a.mp4', duration: 4, width: W, height: H, fps: FPS },
+      cap: { kind: 'captions', transcript: transcriptValue, template: 'hormozi' },
+    },
+    tracks: [{ id: 't0', kind: 'video', items: [{ id: 'i1', at: 0, len: 3, source: 'a', in: 0 }] }],
+  };
+}
+
+/** How many pixels in the lower band are not the flat background. */
+function litPixelsInCaptionBand(file, seconds) {
+  const raw = execFileSync(FFMPEG, [
+    '-loglevel', 'error', '-ss', String(seconds), '-i', file,
+    '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-',
+  ], { maxBuffer: 64 * 1024 * 1024 });
+  let lit = 0;
+  // The band captions sit in: marginV is 17% of the height from the bottom.
+  for (let y = Math.floor(H * 0.55); y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 3;
+      if (raw[i] > 90 || raw[i + 1] > 90 || raw[i + 2] > 90) lit++;
+    }
+  }
+  return lit;
+}
+
+describe('resolveTranscript', () => {
+  it('takes a literal array of words', () => {
+    assert.deepEqual(resolveTranscript(WORDS, {}), WORDS);
+  });
+
+  it('resolves a source id against the composition transcripts', () => {
+    assert.deepEqual(resolveTranscript('a', { a: WORDS }), WORDS);
+  });
+
+  it('is null for a reference to a source with no words', () => {
+    assert.equal(resolveTranscript('a', { b: WORDS }), null);
+  });
+
+  it('is null when absent', () => {
+    assert.equal(resolveTranscript(undefined, { a: WORDS }), null);
+    assert.equal(resolveTranscript(null, { a: WORDS }), null);
+  });
+});
+
+describe('buildCaptionAss', () => {
+  it('returns null when the composition has no caption source', async () => {
+    const comp = { sources: { a: { kind: 'clip' } }, size: { width: W, height: H } };
+    assert.equal(await buildCaptionAss(comp, 1, {}), null);
+  });
+
+  it('throws rather than silently rendering a caption-free video', async () => {
+    // This is the whole fault: it used to return null here, and the render
+    // went on to report success over a video with no captions on it.
+    await assert.rejects(
+      () => buildCaptionAss(captionComp('a'), 1, {}),
+      /no words to render/
+    );
+  });
+
+  it('names the shape that arrived, so the reader can see why', async () => {
+    await assert.rejects(
+      () => buildCaptionAss(captionComp('a'), 1, {}),
+      /reference to source "a"/
+    );
+  });
+
+  it('throws on an unknown template rather than rendering untemplated', async () => {
+    const comp = captionComp(WORDS);
+    comp.sources.cap.template = 'not-a-real-preset';
+    await assert.rejects(() => buildCaptionAss(comp, 1, {}), /not in shared\/captions\/presets.json/);
+  });
+
+  it('compiles when the transcript is a reference and the words are supplied', async () => {
+    const p = await buildCaptionAss(captionComp('a'), 1, { a: WORDS });
+    assert.ok(p && fs.existsSync(p), 'an ASS file was written');
+    const ass = fs.readFileSync(p, 'utf8');
+    assert.match(ass, /\[Script Info\]/);
+    assert.match(ass, /CONTINENT/i, 'the words reached the subtitle file');
+    fs.unlinkSync(p);
+  });
+});
+
+describe('a composition with captions', () => {
+  it('burns them into the picture', async () => {
+    const black = makeClip('dark.mp4', 'black', 4);
+
+    // Without captions, the band stays flat.
+    const plain = captionComp(WORDS);
+    delete plain.sources.cap;
+    const plainOut = render(plain, { a: black });
+    const before = litPixelsInCaptionBand(plainOut, 1.0);
+
+    // With captions, through the same chain the route now uses.
+    const comp = captionComp('a');
+    const assPath = await buildCaptionAss(comp, 1, { a: WORDS });
+    assert.ok(assPath, 'the caption ASS compiled');
+
+    const result = renderGraph(comp, { captionAssPath: assPath });
+    assert.ok(result.needsCaptions, 'the graph reports that it carries captions');
+    const resolved = result.inputs.map(() => black);
+    const out = path.join(dir, 'captioned.mp4');
+    execFileSync(FFMPEG, ffmpegArgs(result, resolved, out), { stdio: ['ignore', 'ignore', 'pipe'] });
+    const after = litPixelsInCaptionBand(out, 1.0);
+    fs.unlinkSync(assPath);
+
+    assert.ok(
+      after > before + 200,
+      `captions must change the picture. Without: ${before} lit pixels, `
+      + `with: ${after}. A render that drops a caption and reports success is `
+      + `the fault this guard exists for.`
+    );
+  });
+});
