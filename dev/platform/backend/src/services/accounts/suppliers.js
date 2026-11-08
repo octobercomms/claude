@@ -685,8 +685,17 @@ async function getAutoCodedSummary(since) {
 // requiring pg_trgm.
 // ---------------------------------------------------------------------------
 
+const CORP_SUFFIXES = /\b(plc|pbc|ltd|limited|llc|llp|inc|incorporated|corp|corporation|gmbh|ag|sa|sarl|bv|nv|pty|co|company)\b/gi;
+const TRAILING_REF = /\s+(?:\d{4,}|[A-Z]{2,4}\d{3,}|[A-Z]*\d[A-Z0-9]{4,})$/i;
+
 function normalise(s) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function normalisePayee(s) {
+  let cleaned = s.replace(TRAILING_REF, '');
+  cleaned = cleaned.replace(CORP_SUFFIXES, '');
+  return normalise(cleaned);
 }
 
 function levenshtein(a, b) {
@@ -709,7 +718,8 @@ function levenshtein(a, b) {
 function scoreMatch(payeeNorm, supplier) {
   const patterns = (supplier.match_patterns || []).map(normalise);
   const displayNorm = normalise(supplier.display_name || '');
-  const candidates = [...patterns, displayNorm].filter(Boolean);
+  const displayStripped = normalisePayee(supplier.display_name || '');
+  const candidates = [...new Set([...patterns, displayNorm, displayStripped].filter(Boolean))];
 
   let best = 0;
 
@@ -745,7 +755,7 @@ function scoreMatch(payeeNorm, supplier) {
 
 async function fuzzyLookup(payee) {
   if (!payee || !payee.trim()) return null;
-  const payeeNorm = normalise(payee);
+  const payeeNorm = normalisePayee(payee);
   if (!payeeNorm) return null;
 
   const exactMatch = await findSupplier(payee);

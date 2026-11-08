@@ -449,6 +449,15 @@ router.post('/rules/purge-invalid', async (req, res) => {
   }
 });
 
+router.post('/rules/delete-all', async (req, res) => {
+  try {
+    const result = await accounts.rules.deleteAllRules();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/rules/:id', async (req, res) => {
   try {
     const deleted = await accounts.rules.deleteRule(parseInt(req.params.id));

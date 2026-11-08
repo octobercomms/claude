@@ -8,8 +8,7 @@ const AUTO_CODE_THRESHOLD = parseInt(process.env.AUTO_CODE_CONFIDENCE_THRESHOLD,
 async function getEligibleSuppliers() {
   const { rows } = await db.query(
     `SELECT * FROM acct_suppliers
-     WHERE auto_code = true
-       AND confidence_counter >= $1
+     WHERE confidence_counter >= $1
        AND account_code IS NOT NULL
        AND vat_treatment IS NOT NULL
      ORDER BY display_name`,
