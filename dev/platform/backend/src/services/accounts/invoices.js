@@ -205,6 +205,26 @@ async function getAllInvoices(opts = {}) {
   return rows;
 }
 
+async function findLatestForSupplier(supplierIdOrName) {
+  let contactName = supplierIdOrName;
+  if (typeof supplierIdOrName === 'number' || /^\d+$/.test(supplierIdOrName)) {
+    const { rows: s } = await db.query(
+      'SELECT display_name FROM acct_suppliers WHERE id = $1',
+      [supplierIdOrName]
+    );
+    if (!s.length) return null;
+    contactName = s[0].display_name;
+  }
+  const { rows } = await db.query(
+    `SELECT * FROM acct_invoice_matches
+     WHERE lower(xero_contact) = lower($1) AND drive_file_id IS NOT NULL
+     ORDER BY invoice_date DESC NULLS LAST, id DESC
+     LIMIT 1`,
+    [contactName]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   matchInvoicesToQueue,
   findBestMatch,
@@ -212,4 +232,5 @@ module.exports = {
   getInvoiceStats,
   getMissingInvoices,
   getAllInvoices,
+  findLatestForSupplier,
 };

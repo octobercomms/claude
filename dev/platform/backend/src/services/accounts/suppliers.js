@@ -647,10 +647,10 @@ async function getStats() {
       count(*)::int AS total,
       count(*) FILTER (WHERE confidence_counter >= 10)::int AS settled,
       count(*) FILTER (WHERE confidence_counter < 3)::int AS learning,
-      count(*) FILTER (WHERE auto_code = true)::int AS auto_coding,
-      count(*) FILTER (WHERE is_reverse_charge = true)::int AS reverse_charge
+      count(*) FILTER (WHERE confidence_counter >= $1)::int AS auto_coding,
+      count(*) FILTER (WHERE upper(vat_treatment) IN ('RRINPUT', 'RRINPUT2', 'REVERSECHARGES'))::int AS reverse_charge
     FROM acct_suppliers
-  `);
+  `, [AUTO_CODE_CONFIDENCE_THRESHOLD]);
   return rows[0] || { total: 0, settled: 0, learning: 0, auto_coding: 0, reverse_charge: 0 };
 }
 
@@ -678,9 +678,111 @@ async function getAutoCodedSummary(since) {
   return rows;
 }
 
+// ---------------------------------------------------------------------------
+// Fuzzy lookup — for the Chrome extension and pre-coding.
+// Xero's payee text varies: "ANTHROPIC PBC", "Anthropic", "HETZNER ONLINE
+// GMBH" vs "Hetzner". This does trigram-style scoring in JS rather than
+// requiring pg_trgm.
+// ---------------------------------------------------------------------------
+
+function normalise(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function scoreMatch(payeeNorm, supplier) {
+  const patterns = (supplier.match_patterns || []).map(normalise);
+  const displayNorm = normalise(supplier.display_name || '');
+  const candidates = [...patterns, displayNorm].filter(Boolean);
+
+  let best = 0;
+
+  for (const candidate of candidates) {
+    if (payeeNorm === candidate) return 1.0;
+    if (payeeNorm.includes(candidate) || candidate.includes(payeeNorm)) {
+      const overlap = Math.min(payeeNorm.length, candidate.length) /
+                      Math.max(payeeNorm.length, candidate.length);
+      best = Math.max(best, 0.7 + overlap * 0.3);
+      continue;
+    }
+    const words = candidate.split(' ');
+    const payeeWords = payeeNorm.split(' ');
+    let wordHits = 0;
+    for (const w of words) {
+      if (w.length < 3) continue;
+      if (payeeWords.some(pw => pw === w || pw.includes(w) || w.includes(pw))) wordHits++;
+    }
+    if (words.filter(w => w.length >= 3).length > 0) {
+      const wordScore = wordHits / words.filter(w => w.length >= 3).length;
+      best = Math.max(best, wordScore * 0.7);
+    }
+    const maxLen = Math.max(payeeNorm.length, candidate.length);
+    if (maxLen <= 30) {
+      const dist = levenshtein(payeeNorm, candidate);
+      const levScore = 1 - dist / maxLen;
+      if (levScore > 0.5) best = Math.max(best, levScore * 0.6);
+    }
+  }
+
+  return best;
+}
+
+async function fuzzyLookup(payee) {
+  if (!payee || !payee.trim()) return null;
+  const payeeNorm = normalise(payee);
+  if (!payeeNorm) return null;
+
+  const exactMatch = await findSupplier(payee);
+  if (exactMatch) {
+    return {
+      supplier: exactMatch,
+      matchScore: 1.0,
+      matchType: 'exact',
+    };
+  }
+
+  const { rows } = await db.query('SELECT * FROM acct_suppliers ORDER BY confidence_counter DESC');
+
+  let bestScore = 0;
+  let bestSupplier = null;
+
+  for (const row of rows) {
+    const score = scoreMatch(payeeNorm, row);
+    if (score > bestScore) {
+      bestScore = score;
+      bestSupplier = row;
+    }
+  }
+
+  if (bestScore < 0.4 || !bestSupplier) return null;
+
+  return {
+    supplier: bestSupplier,
+    matchScore: Math.round(bestScore * 100) / 100,
+    matchType: bestScore >= 0.85 ? 'strong' : bestScore >= 0.6 ? 'likely' : 'weak',
+  };
+}
+
 module.exports = {
   findSupplier,
   findSupplierByFolderName,
+  fuzzyLookup,
   assessTier,
   confirmTransaction,
   correctSupplier,

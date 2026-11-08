@@ -7,6 +7,7 @@ const deadlines = require('./deadlines');
 const reconcile = require('./reconcile');
 const invoices = require('./invoices');
 const suppliers = require('./suppliers');
+const precode = require('./precode');
 const { sendAccountsDigest } = require('../emailService');
 
 async function buildWeeklyDigest() {
@@ -23,6 +24,11 @@ async function buildWeeklyDigest() {
   const missingInvoices = await invoices.getMissingInvoices();
   const supplierStats = await suppliers.getStats();
   const autoCodedThisWeek = await suppliers.getAutoCodedSummary(weekAgo);
+
+  let precodedThisWeek = [];
+  try {
+    precodedThisWeek = await precode.getRecentPrecodes(weekAgo.toISOString());
+  } catch { /* table may not exist yet */ }
 
   // Items reconciled this week.
   const { rows: recentConfirmed } = await db.query(
@@ -69,6 +75,23 @@ async function buildWeeklyDigest() {
       daysUntil: d.days_until != null ? d.days_until : Math.ceil((new Date(d.due_date) - now) / (1000 * 60 * 60 * 24)),
     })),
     overdueDeadlines: overdueDeadlines.length,
+    precoded: {
+      count: precodedThisWeek.length,
+      written: precodedThisWeek.filter(p => p.status === 'written').length,
+      errors: precodedThisWeek.filter(p => p.status === 'error').length,
+      totalAmount: precodedThisWeek
+        .filter(p => p.status === 'written')
+        .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
+      items: precodedThisWeek.filter(p => p.status === 'written').slice(0, 20).map(p => ({
+        supplier: p.supplier_name,
+        accountCode: p.account_code,
+        vatTreatment: p.vat_treatment,
+        amount: p.amount,
+        currency: p.currency,
+        date: p.created_at,
+        invoiceAttached: !!p.invoice_filename,
+      })),
+    },
   };
 
   // Store the digest.
@@ -235,6 +258,29 @@ function formatDigestHtml(summary) {
             </tr>
           </thead>
           <tbody>${missingRows}</tbody>
+        </table>
+      ` : ''}
+
+      ${s.precoded && s.precoded.count > 0 ? `
+        <h2 style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">Pre-coded Transactions</h2>
+        <p style="font-size:14px;color:#6b7280;margin:0 0 12px;">OMI wrote ${s.precoded.written} transaction${s.precoded.written !== 1 ? 's' : ''} to Xero this week (${s.precoded.currency || 'GBP'} ${Number(s.precoded.totalAmount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}).${s.precoded.errors > 0 ? ` ${s.precoded.errors} failed.` : ''} Each will appear in your Xero bank reconciliation for one-click matching.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;padding:8px 8px 8px 0;border-bottom:2px solid #e5e7eb;">Supplier</th>
+              <th style="text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;padding:8px 8px 8px 0;border-bottom:2px solid #e5e7eb;">Code</th>
+              <th style="text-align:right;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;padding:8px 0;border-bottom:2px solid #e5e7eb;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(s.precoded.items || []).map(p => `
+              <tr>
+                <td style="padding:8px 8px 8px 0;border-bottom:1px solid #e5e7eb;">${p.supplier}${p.invoiceAttached ? ' <span style="color:#16a34a;font-size:11px;">+ invoice</span>' : ''}</td>
+                <td style="padding:8px 8px 8px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;">${p.accountCode} / ${p.vatTreatment}</td>
+                <td style="padding:8px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-variant-numeric:tabular-nums;">${p.currency || 'GBP'} ${Number(p.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            `).join('')}
+          </tbody>
         </table>
       ` : ''}
 

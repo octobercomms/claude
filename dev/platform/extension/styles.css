@@ -1,0 +1,142 @@
+/* OMI Xero Brain: injected advisory panel on reconciliation rows. */
+
+.omi-brain-advice {
+  margin: 6px 0 4px;
+  padding: 8px 12px;
+  border-left: 3px solid #2563eb;
+  background: #eff6ff;
+  border-radius: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1e293b;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.omi-brain-advice--high {
+  border-left-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.omi-brain-advice--medium {
+  border-left-color: #ca8a04;
+  background: #fefce8;
+}
+
+.omi-brain-advice--low {
+  border-left-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.omi-brain-advice--error {
+  border-left-color: #dc2626;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.omi-brain-advice--not-found {
+  border-left-color: #94a3b8;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.omi-brain-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+.omi-brain-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.omi-brain-label {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.omi-brain-detail {
+  color: #475569;
+}
+
+.omi-brain-detail span {
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.omi-brain-confidence {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.omi-brain-correct-btn {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: -1px;
+}
+
+.omi-brain-correct-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* Correction form */
+
+.omi-brain-correct-form {
+  margin-top: 6px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.omi-brain-correct-form input,
+.omi-brain-correct-form select {
+  padding: 3px 6px;
+  font-size: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.omi-brain-correct-form input:focus,
+.omi-brain-correct-form select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.omi-brain-correct-form button {
+  padding: 3px 10px;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.omi-brain-correct-form button[type="submit"] {
+  background: #2563eb;
+  color: #fff;
+}
+
+.omi-brain-correct-form button[type="button"] {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}

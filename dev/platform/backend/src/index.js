@@ -229,6 +229,7 @@ app.use('/api/transcripts', require('./routes/transcripts'));
 app.use('/api/audio', require('./routes/audio'));
 app.use('/api/compose', require('./routes/compose'));
 app.use('/api/accounts', require('./routes/accounts'));
+app.use('/api/accounts/brain', require('./routes/brain'));
 app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));
 app.use('/api/waitlist', require('./routes/waitlist'));

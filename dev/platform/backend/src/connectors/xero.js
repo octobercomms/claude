@@ -497,4 +497,5 @@ module.exports = {
   getConnectionStatus,
   parseXeroDate,
   testConnection,
+  xeroPost,
 };

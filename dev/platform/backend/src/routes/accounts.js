@@ -1116,6 +1116,81 @@ router.post('/suppliers/cleanup', async (req, res) => {
   }
 });
 
+// --- Extension tokens (admin creates/revokes, extension uses them) ---
+
+const extensionAuth = require('../middleware/extensionAuth');
+
+router.get('/extension/tokens', async (req, res) => {
+  try {
+    const tokens = await extensionAuth.listTokens();
+    res.json({ tokens });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/extension/tokens', async (req, res) => {
+  try {
+    const result = await extensionAuth.createToken(req.body.label);
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/extension/tokens/:id', async (req, res) => {
+  try {
+    const revoked = await extensionAuth.revokeToken(parseInt(req.params.id));
+    if (!revoked) return res.status(404).json({ error: 'Token not found or already revoked' });
+    res.json({ revoked: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Brain lookup routes are in routes/brain.js (mounted separately to bypass JWT auth).
+
+// --- Pre-coding ---
+
+router.get('/precode/eligible', async (req, res) => {
+  try {
+    const suppliers = await accounts.precode.getEligibleSuppliers();
+    res.json({ suppliers, count: suppliers.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/precode/log', async (req, res) => {
+  try {
+    const since = req.query.since || undefined;
+    const log = await accounts.precode.getRecentPrecodes(since);
+    res.json({ log, count: log.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/precode/stats', async (req, res) => {
+  try {
+    const stats = await accounts.precode.getPrecodeStats();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/precode/run', async (req, res) => {
+  try {
+    const bankAccountId = req.body.bankAccountId;
+    if (!bankAccountId) return res.status(400).json({ error: 'bankAccountId required' });
+    const result = await accounts.precode.runPrecodePass(bankAccountId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Email invoice scanner ---
 
 router.post('/email/scan', async (req, res) => {

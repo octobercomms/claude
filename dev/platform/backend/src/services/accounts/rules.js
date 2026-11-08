@@ -154,16 +154,32 @@ async function promoteToRule(confirmation) {
 }
 
 async function seedRules() {
+  const xero = require('../../connectors/xero');
+  let validCodes;
+  try {
+    const token = await xero.getValidToken();
+    const chart = await xero.getChartOfAccounts(token);
+    validCodes = new Set(chart.map(a => a.code));
+  } catch {
+    return { inserted: 0, skipped: 0, invalidCodes: 0, total: 0, error: 'Xero not connected; cannot validate account codes' };
+  }
+
   const { rows: suppliers } = await db.query(
     `SELECT display_name, account_code, account_name, vat_treatment, match_patterns, currency
      FROM acct_suppliers
      WHERE auto_code = true AND account_code IS NOT NULL`
   );
-  if (!suppliers.length) return { inserted: 0, skipped: 0, total: 0 };
+  if (!suppliers.length) return { inserted: 0, skipped: 0, invalidCodes: 0, total: 0 };
 
   let inserted = 0;
   let skipped = 0;
+  let invalidCodes = 0;
   for (const s of suppliers) {
+    if (!validCodes.has(s.account_code)) {
+      invalidCodes++;
+      continue;
+    }
+
     const patterns = Array.isArray(s.match_patterns) ? s.match_patterns : [];
     const primary = patterns[0] || s.display_name?.toLowerCase();
     if (!primary) { skipped++; continue; }
@@ -180,7 +196,7 @@ async function seedRules() {
     );
     inserted++;
   }
-  return { inserted, skipped, total: suppliers.length };
+  return { inserted, skipped, invalidCodes, total: suppliers.length };
 }
 
 async function purgeInvalidRules() {
