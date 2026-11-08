@@ -1007,6 +1007,30 @@ cron.schedule('0 21 * * 0', async () => {
   } catch (e) { console.error('[Accounts] reconcile failed:', e.message); }
 });
 
+// Accounts pre-coding: Wednesday 20:00. Writes spend-money transactions in
+// Xero for suppliers with 5+ confirmed codings, so those lines arrive
+// pre-matched for one-click reconciliation. Runs mid-week so transactions
+// settle before the Friday digest reports on them. Uses the first GBP bank
+// account; skips silently if Xero is not connected or no suppliers qualify.
+cron.schedule('0 20 * * 3', async () => {
+  try {
+    const budget = require('./budget');
+    if (await budget.taskCapReached('accounts')) {
+      console.warn('[Accounts] pre-coding skipped — monthly budget reached');
+      return;
+    }
+    const xero = require('../connectors/xero');
+    const token = await xero.getValidToken();
+    if (!token) { console.warn('[Accounts] pre-coding skipped — no Xero token'); return; }
+    const bankAccounts = await xero.getBankAccounts(token);
+    const primary = bankAccounts.find(a => a.currency === 'GBP') || bankAccounts[0];
+    if (!primary) { console.warn('[Accounts] pre-coding skipped — no bank account found'); return; }
+    const accounts = require('./accounts');
+    const r = await accounts.precode.runPrecodePass(primary.accountId);
+    console.log(`[Accounts] pre-coded ${r.ran} supplier(s): ${r.results.filter(x => x.transaction).length} written, ${r.results.filter(x => x.error).length} errors, ${r.results.filter(x => x.skipped).length} skipped`);
+  } catch (e) { console.error('[Accounts] pre-coding failed:', e.message); }
+});
+
 // Accounts weekly digest: Friday 07:30. Builds the digest and emails it.
 // Lands at the end of the working week so anything flagged can be triaged
 // before the weekend. Previously Monday; moved so the Sunday reconciliation
