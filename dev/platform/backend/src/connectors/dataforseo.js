@@ -60,7 +60,13 @@ async function getClient() {
         try {
           require('../services/costLog').recordApiCost({
             provider: 'dataforseo',
-            feature: featureMap[seg] || `dfs_${seg}`,
+            // A fixed name for anything unmapped, not `dfs_${seg}`. An
+            // assembled feature name cannot be put in an ai_task_budgets
+            // `features` array by anybody reading this file, so spend on a
+            // DataForSEO endpoint nobody had mapped yet escaped every cap.
+            // `dfs_other` is one name a budget can list, and an endpoint
+            // worth its own line gets added to featureMap above.
+            feature: featureMap[seg] || 'dfs_other',
             costUsd: cost,
             meta: { endpoint: url.slice(0, 120) },
           });
