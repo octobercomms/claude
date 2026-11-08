@@ -238,6 +238,15 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the remux structure assertions would not run'; exit 1; }
           node tests/recording-remux.test.js
+      # Every other render guard asserts on the filter_complex STRING, which is
+      # how two faults that broke the most ordinary edits reached production:
+      # the graph read correctly and the video did not. This one renders real
+      # footage through the real module and samples the frames.
+      - name: Guard — the render graph produces the right pixels, not just the right string
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the pixel assertions would not run'; exit 1; }
+          node tests/composition-render-pixels.test.js
       - name: Guard — an MP4 export cannot run away with its own size
         run: node tests/recording-export.test.js
       # The one step that drives ffmpeg the way the box does: a real remux with
