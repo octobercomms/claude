@@ -394,7 +394,7 @@ export const SECTIONS = {
       // from a read-only client, and ClientVideoTab also guards the typed URL,
       // because a `when` only hides the row.
       { heading: 'Batch', rows: [
-        { tab: 'batch',        label: 'Batch',  when: agencyOnly, phone: false },
+        { tab: 'batch',        label: 'Brief',  slug: 'brief', when: agencyOnly, phone: false },
         { tab: 'batch_review', label: 'Review', slug: 'batch-review', when: agencyOnly },
       ] },
       { heading: null, rows: [{ tab: 'library', label: 'Library' }] },
