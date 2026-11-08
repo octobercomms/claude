@@ -725,6 +725,18 @@ router.put('/drive/subfolders/:folderId', async (req, res) => {
   }
 });
 
+router.put('/drive/subfolders', async (req, res) => {
+  try {
+    const { included } = req.body;
+    if (typeof included !== 'boolean') return res.status(400).json({ error: 'included must be a boolean' });
+    const result = await accounts.driveScanner.toggleAllSubfolders(included);
+    const subfolders = await accounts.driveScanner.getSubfolders();
+    res.json({ ...result, subfolders });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/drive/seed-suppliers', async (req, res) => {
   try {
     const folderId = accounts.driveScanner.getFolderId();
