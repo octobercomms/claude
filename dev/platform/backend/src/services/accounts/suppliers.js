@@ -2,6 +2,71 @@ const db = require('../../db');
 const xero = require('../../connectors/xero');
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const TX_PREFIX_RE = /^(card|transfer|direct[_-]debit|fee[_-]card)-\d+$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+const UUID_DATE_RE = /^[0-9a-f]{6,}-\d{6,}-\d+$/i;
+
+function isTransactionReference(pattern) {
+  const p = pattern.trim();
+  if (TX_PREFIX_RE.test(p)) return true;
+  if (UUID_RE.test(p)) return true;
+  if (UUID_DATE_RE.test(p)) return true;
+  if (p.length > 12 && !/[\s/]/.test(p) && /[a-z]/i.test(p) && /\d/.test(p)) return true;
+  if (p.length > 15 && /^\d+$/.test(p)) return true;
+  return false;
+}
+
+function filterPatterns(patterns) {
+  return patterns.filter(p => p.length >= 2 && !isTransactionReference(p));
+}
+
+function isValidSupplierName(name) {
+  if (!name || name.trim().length < 3) return false;
+  if (/^[\d*?]+$/.test(name.trim())) return false;
+  return true;
+}
+
+const REVERSE_CHARGE_CODES = new Set(['RRINPUT', 'RRINPUT2', 'REVERSECHARGES']);
+
+function isReverseCharge(vatTreatment) {
+  if (!vatTreatment) return false;
+  return REVERSE_CHARGE_CODES.has(vatTreatment.toUpperCase());
+}
+
+function inferCadence(dates) {
+  if (dates.length < 4) return 'ad_hoc';
+
+  const sorted = [...dates].sort((a, b) => a - b);
+  const gaps = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const days = (sorted[i] - sorted[i - 1]) / (1000 * 60 * 60 * 24);
+    if (days >= 5) gaps.push(days);
+  }
+
+  if (gaps.length < 3) return 'ad_hoc';
+
+  const buckets = { weekly: 0, monthly: 0, quarterly: 0, annual: 0 };
+  let other = 0;
+  for (const g of gaps) {
+    if (g >= 5 && g <= 10) buckets.weekly++;
+    else if (g > 10 && g <= 50) buckets.monthly++;
+    else if (g > 50 && g <= 150) buckets.quarterly++;
+    else if (g > 150 && g <= 400) buckets.annual++;
+    else other++;
+  }
+
+  const total = gaps.length;
+  const entries = Object.entries(buckets).sort((a, b) => b[1] - a[1]);
+  const [bestCadence, bestCount] = entries[0];
+
+  if (bestCount / total >= 0.5 && bestCount >= 3) return bestCadence;
+  return 'ad_hoc';
+}
+
+// ---------------------------------------------------------------------------
 // Pattern matching — find a supplier from a bank line description
 // ---------------------------------------------------------------------------
 
@@ -110,7 +175,7 @@ async function correctSupplier(supplierId, data) {
     values.push(data.vatTreatment);
     idx++;
     fields.push(`is_reverse_charge = $${idx}`);
-    values.push(data.vatTreatment === 'RRINPUT');
+    values.push(isReverseCharge(data.vatTreatment));
     idx++;
   }
 
@@ -141,10 +206,17 @@ async function list(opts = {}) {
     idx++;
   }
 
+  if (opts.vatTreatment) {
+    conditions.push(`vat_treatment = $${idx}`);
+    params.push(opts.vatTreatment);
+    idx++;
+  }
+
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const order = opts.sort === 'confidence' ? 'confidence_counter DESC' :
                 opts.sort === 'name' ? 'display_name ASC' :
                 opts.sort === 'last_seen' ? 'last_seen DESC NULLS LAST' :
+                opts.sort === 'vat' ? 'vat_treatment ASC, display_name ASC' :
                 'confidence_counter DESC';
 
   params.push(opts.limit || 200);
@@ -185,7 +257,7 @@ async function create(data) {
       data.accountCode || data.account_code,
       data.accountName || data.account_name || null,
       data.vatTreatment || data.vat_treatment || 'NONE',
-      (data.vatTreatment || data.vat_treatment) === 'RRINPUT',
+      isReverseCharge(data.vatTreatment || data.vat_treatment),
       data.usualCurrency || data.usual_currency || 'GBP',
       data.expectedCadence || data.expected_cadence || null,
       data.invoiceSource || data.invoice_source || 'unknown',
@@ -228,7 +300,7 @@ async function update(id, data) {
   if (data.vatTreatment !== undefined || data.vat_treatment !== undefined) {
     const vat = data.vatTreatment || data.vat_treatment;
     fields.push(`is_reverse_charge = $${idx}`);
-    values.push(vat === 'RRINPUT');
+    values.push(isReverseCharge(vat));
     idx++;
   }
 
@@ -342,9 +414,10 @@ async function bootstrapFromXero() {
   let skipped = 0;
 
   for (const [, entry] of contactMap) {
+    if (!isValidSupplierName(entry.displayName)) { skipped++; continue; }
     if (!entry.codings.length) { skipped++; continue; }
 
-    const patterns = [...entry.patterns].filter(p => p.length >= 3);
+    const patterns = filterPatterns([...entry.patterns]);
     if (!patterns.length) { skipped++; continue; }
 
     // Skip if supplier already exists for this Xero contact.
@@ -375,19 +448,7 @@ async function bootstrapFromXero() {
     const currencies = [...entry.currencies];
     const usualCurrency = currencies.length === 1 ? currencies[0] : 'GBP';
 
-    let cadence = 'ad_hoc';
-    if (entry.dates.length >= 3) {
-      const sorted = entry.dates.sort((a, b) => a - b);
-      const gaps = [];
-      for (let i = 1; i < sorted.length; i++) {
-        gaps.push((sorted[i] - sorted[i - 1]) / (1000 * 60 * 60 * 24));
-      }
-      const median = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)];
-      if (median <= 10) cadence = 'weekly';
-      else if (median <= 45) cadence = 'monthly';
-      else if (median <= 120) cadence = 'quarterly';
-      else if (median <= 400) cadence = 'annual';
-    }
+    const cadence = inferCadence(entry.dates);
 
     await db.query(
       `INSERT INTO acct_suppliers
@@ -404,7 +465,7 @@ async function bootstrapFromXero() {
         code,
         codeName,
         rate || 'NONE',
-        rate === 'RRINPUT',
+        isReverseCharge(rate),
         usualCurrency,
         cadence,
         Math.round(consistency * entry.codings.length),
@@ -496,6 +557,68 @@ async function seedFromDriveFolders(supplierMap) {
 }
 
 // ---------------------------------------------------------------------------
+// Cleanup — fix existing records seeded before quality filters
+// ---------------------------------------------------------------------------
+
+async function cleanup() {
+  const results = { patternsStripped: 0, reverseChargeFixed: 0, cadenceReset: 0, junkDeleted: 0 };
+
+  const { rows: all } = await db.query('SELECT id, display_name, match_patterns, vat_treatment, is_reverse_charge, expected_cadence FROM acct_suppliers');
+
+  for (const row of all) {
+    if (!isValidSupplierName(row.display_name)) {
+      await db.query('DELETE FROM acct_suppliers WHERE id = $1', [row.id]);
+      results.junkDeleted++;
+      continue;
+    }
+
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    const oldPatterns = row.match_patterns || [];
+    const cleaned = filterPatterns(oldPatterns);
+    if (cleaned.length !== oldPatterns.length) {
+      if (cleaned.length === 0) {
+        await db.query('DELETE FROM acct_suppliers WHERE id = $1', [row.id]);
+        results.junkDeleted++;
+        continue;
+      }
+      updates.push(`match_patterns = $${idx}`);
+      values.push(cleaned);
+      idx++;
+      results.patternsStripped++;
+    }
+
+    const shouldBeRC = isReverseCharge(row.vat_treatment);
+    if (row.is_reverse_charge !== shouldBeRC) {
+      updates.push(`is_reverse_charge = $${idx}`);
+      values.push(shouldBeRC);
+      idx++;
+      results.reverseChargeFixed++;
+    }
+
+    if (row.expected_cadence === 'weekly') {
+      updates.push(`expected_cadence = $${idx}`);
+      values.push('ad_hoc');
+      idx++;
+      results.cadenceReset++;
+    }
+
+    if (updates.length) {
+      updates.push('updated_at = now()');
+      values.push(row.id);
+      await db.query(
+        `UPDATE acct_suppliers SET ${updates.join(', ')} WHERE id = $${idx}`,
+        values
+      );
+    }
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // Stats for the dashboard
 // ---------------------------------------------------------------------------
 
@@ -549,6 +672,7 @@ module.exports = {
   remove,
   bootstrapFromXero,
   seedFromDriveFolders,
+  cleanup,
   getStats,
   getAutoCodedSummary,
 };

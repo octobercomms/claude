@@ -943,6 +943,7 @@ router.get('/suppliers', async (req, res) => {
     const result = await accounts.suppliers.list({
       search: req.query.search || undefined,
       sort: req.query.sort || undefined,
+      vatTreatment: req.query.vatTreatment || undefined,
       limit: parseInt(req.query.limit) || 200,
       offset: parseInt(req.query.offset) || 0,
     });
@@ -1013,6 +1014,15 @@ router.post('/suppliers/:id/correct', async (req, res) => {
 router.post('/suppliers/bootstrap', async (req, res) => {
   try {
     const result = await accounts.suppliers.bootstrapFromXero();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/suppliers/cleanup', async (req, res) => {
+  try {
+    const result = await accounts.suppliers.cleanup();
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

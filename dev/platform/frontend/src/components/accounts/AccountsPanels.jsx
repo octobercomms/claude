@@ -2275,6 +2275,8 @@ export function SuppliersPanel() {
   const [form, setForm] = useState({});
   const [bootstrapping, setBootstrapping] = useState(false);
   const [seedingDrive, setSeedingDrive] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [vatFilter, setVatFilter] = useState('');
 
   const BLANK = {
     display_name: '', match_patterns: '', account_code: '', account_name: '',
@@ -2285,13 +2287,16 @@ export function SuppliersPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = search ? `?search=${encodeURIComponent(search)}` : '';
-      const data = await api.get(`/accounts/suppliers${params}`);
+      const qp = new URLSearchParams();
+      if (search) qp.set('search', search);
+      if (vatFilter) qp.set('vatTreatment', vatFilter);
+      const qs = qp.toString();
+      const data = await api.get(`/accounts/suppliers${qs ? `?${qs}` : ''}`);
       setSuppliers(data.suppliers || []);
       setTotal(data.total || 0);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
-  }, [search, toast]);
+  }, [search, vatFilter, toast]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -2383,6 +2388,22 @@ export function SuppliersPanel() {
     finally { setSeedingDrive(false); }
   }
 
+  async function handleCleanup() {
+    setCleaning(true);
+    try {
+      const r = await api.post('/accounts/suppliers/cleanup');
+      const parts = [];
+      if (r.patternsStripped) parts.push(`${r.patternsStripped} pattern sets cleaned`);
+      if (r.reverseChargeFixed) parts.push(`${r.reverseChargeFixed} reverse charge flags fixed`);
+      if (r.cadenceReset) parts.push(`${r.cadenceReset} cadences reset`);
+      if (r.junkDeleted) parts.push(`${r.junkDeleted} junk records deleted`);
+      toast(parts.length ? `Cleanup: ${parts.join(', ')}` : 'No changes needed');
+      load();
+      loadStats();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setCleaning(false); }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       {stats && (
@@ -2396,15 +2417,39 @@ export function SuppliersPanel() {
       )}
 
       <div className="row between center">
-        <input
-          type="text"
-          className="input"
-          placeholder="Search suppliers..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ width: 260 }}
-        />
         <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <input
+            type="text"
+            className="input"
+            placeholder="Search suppliers..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: 220 }}
+          />
+          <select
+            className="input"
+            value={vatFilter}
+            onChange={e => setVatFilter(e.target.value)}
+            style={{ width: 180 }}
+          >
+            <option value="">All VAT treatments</option>
+            <option value="OUTPUT2">OUTPUT2 (Standard)</option>
+            <option value="INPUT2">INPUT2 (Standard)</option>
+            <option value="ZERORATEDINPUT">Zero rated</option>
+            <option value="EXEMPTINPUT">Exempt</option>
+            <option value="REVERSECHARGES">Reverse charge</option>
+            <option value="RRINPUT">RRINPUT</option>
+            <option value="RRINPUT2">RRINPUT2</option>
+            <option value="NONE">None</option>
+          </select>
+        </div>
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <button
+            className="btn"
+            {...roWrite(readOnly, { onClick: handleCleanup, disabled: cleaning })}
+          >
+            {cleaning ? 'Cleaning...' : 'Clean up'}
+          </button>
           <button
             className="btn"
             {...roWrite(readOnly, { onClick: handleSeedFromDrive, disabled: seedingDrive })}
