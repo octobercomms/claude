@@ -2927,6 +2927,286 @@ export function SuppliersPanel() {
 }
 
 // ---------------------------------------------------------------------------
+// ExtensionPanel — generate/revoke tokens for the Xero Brain Chrome extension
+// ---------------------------------------------------------------------------
+
+export function ExtensionPanel() {
+  const { toast } = useToast();
+  const [tokens, setTokens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newToken, setNewToken] = useState(null);
+  const [label, setLabel] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/accounts/extension/tokens');
+      setTokens(data.tokens || []);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }, [toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    setCreating(true);
+    try {
+      const data = await api.post('/accounts/extension/tokens', { label: label || undefined });
+      setNewToken(data.token);
+      setLabel('');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setCreating(false); }
+  };
+
+  const revoke = async (id) => {
+    try {
+      await api.delete(`/accounts/extension/tokens/${id}`);
+      toast('Token revoked');
+      if (newToken) setNewToken(null);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+
+  const copyToken = () => {
+    navigator.clipboard.writeText(newToken).then(
+      () => toast('Token copied to clipboard'),
+      () => toast('Copy failed; select and copy manually', 'error')
+    );
+  };
+
+  const activeTokens = tokens.filter(t => !t.revoked_at);
+  const revokedTokens = tokens.filter(t => t.revoked_at);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="h4">Chrome extension tokens</div>
+      <p className="body-sm text-muted" style={{ margin: 0 }}>
+        Generate a bearer token for the Xero Brain Chrome extension. The extension reads payee text
+        from Xero's reconciliation page and queries the supplier brain for coding suggestions.
+        Tokens are shown once on creation; store the value in the extension's settings.
+      </p>
+
+      {newToken && (
+        <div className="card" style={{ padding: 'var(--s4)', background: 'var(--surface-success, var(--green-50, #f0fdf4))', border: '1px solid var(--green-200, #bbf7d0)' }}>
+          <div className="body-sm" style={{ fontWeight: 600, marginBottom: 'var(--s2)' }}>New token created. Copy it now; it will not be shown again.</div>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+            <code style={{ flex: 1, wordBreak: 'break-all', padding: 'var(--s2)', background: 'var(--surface-secondary)', borderRadius: 4, fontSize: 'var(--fs-body-sm)' }}>
+              {newToken}
+            </code>
+            <button className="btn btn-primary" onClick={copyToken}>Copy</button>
+          </div>
+          <button className="btn btn-ghost" style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-body-sm)' }} onClick={() => setNewToken(null)}>Dismiss</button>
+        </div>
+      )}
+
+      <div className="row center" style={{ gap: 'var(--s3)' }}>
+        <input
+          type="text"
+          className="input"
+          placeholder="Token label (optional)"
+          value={label}
+          onChange={e => setLabel(e.target.value)}
+          style={{ width: 240 }}
+        />
+        <button className="btn btn-primary" disabled={creating} onClick={create}>
+          {creating ? 'Creating...' : 'Generate token'}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading...</div>
+      ) : activeTokens.length === 0 && !newToken ? (
+        <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+          <div className="text-muted">No active tokens. Generate one above to use the Chrome extension.</div>
+        </div>
+      ) : (
+        <>
+          {activeTokens.length > 0 && (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Created</th>
+                  <th>Last used</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeTokens.map(t => (
+                  <tr key={t.id}>
+                    <td className="body-sm">{t.label || 'Unnamed'}</td>
+                    <td className="body-sm text-muted">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
+                    <td className="body-sm text-muted">{t.last_used ? new Date(t.last_used).toLocaleDateString('en-GB') : 'Never'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn btn-ghost" style={{ color: 'var(--red-600, #dc2626)', fontSize: 'var(--fs-body-sm)' }} onClick={() => revoke(t.id)}>Revoke</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {revokedTokens.length > 0 && (
+            <details style={{ marginTop: 'var(--s2)' }}>
+              <summary className="body-sm text-muted" style={{ cursor: 'pointer' }}>
+                {revokedTokens.length} revoked token{revokedTokens.length !== 1 ? 's' : ''}
+              </summary>
+              <table className="table" style={{ marginTop: 'var(--s2)', opacity: 0.6 }}>
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Created</th>
+                    <th>Revoked</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revokedTokens.map(t => (
+                    <tr key={t.id}>
+                      <td className="body-sm">{t.label || 'Unnamed'}</td>
+                      <td className="body-sm text-muted">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
+                      <td className="body-sm text-muted">{new Date(t.revoked_at).toLocaleDateString('en-GB')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
+          )}
+        </>
+      )}
+
+      <div className="card" style={{ padding: 'var(--s4)', marginTop: 'var(--s3)' }}>
+        <div className="body-sm" style={{ fontWeight: 600, marginBottom: 'var(--s2)' }}>Extension setup</div>
+        <ol className="body-sm" style={{ margin: 0, paddingLeft: 'var(--s5)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+          <li>Install the Chrome extension from <code>dev/platform/extension/</code> (load unpacked in chrome://extensions)</li>
+          <li>Click the extension icon and enter the server URL (your OMI backend, e.g. <code>https://your-domain.com</code>)</li>
+          <li>Paste the token generated above into the Token field</li>
+          <li>Open Xero's bank reconciliation page; the extension will show coding suggestions beside each transaction</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PrecodePanel — preview and trigger pre-coded spend transactions
+// ---------------------------------------------------------------------------
+
+export function PrecodePanel() {
+  const { toast } = useToast();
+  const [stats, setStats] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [previewing, setPreviewing] = useState(false);
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/accounts/precode/stats');
+      setStats(data);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }, [toast]);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  const runPreview = async () => {
+    setPreviewing(true);
+    try {
+      const data = await api.get('/accounts/precode/preview');
+      setPreview(data);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPreviewing(false); }
+  };
+
+  const stateLabel = {
+    not_run: 'Never run',
+    ran_nothing_eligible: 'Last run found nothing eligible',
+    has_writes: 'Has written transactions',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+      <div className="h4">Pre-coding</div>
+      <p className="body-sm text-muted" style={{ margin: 0 }}>
+        Pre-coding creates spend-money transactions in Xero for suppliers whose coding has been
+        confirmed 5+ times. Each transaction is booked to the supplier's known account code with
+        the correct VAT treatment, and any matched invoice is attached.
+      </p>
+
+      {loading ? (
+        <div className="text-muted" style={{ padding: 'var(--s5)' }}>Loading stats...</div>
+      ) : stats && (
+        <StatStrip items={[
+          { label: 'Status', value: stateLabel[stats.state] || stats.state },
+          { label: 'Eligible now', value: stats.eligible_now ?? '?' },
+          { label: 'Written', value: stats.written ?? 0 },
+          { label: 'Matched', value: stats.matched ?? 0 },
+          { label: 'Errors', value: stats.errors ?? 0 },
+          { label: 'Total amount', value: stats.total_amount ? `${Number(stats.total_amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}` : '0.00' },
+        ]} />
+      )}
+
+      <div className="row center" style={{ gap: 'var(--s3)' }}>
+        <button className="btn btn-primary" disabled={previewing} onClick={runPreview}>
+          {previewing ? 'Loading preview...' : 'Preview next pass'}
+        </button>
+      </div>
+
+      {preview && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+          {preview.state === 'nothing_eligible' ? (
+            <div className="card" style={{ padding: 'var(--s5)', textAlign: 'center' }}>
+              <div className="text-muted">No suppliers are eligible for pre-coding. A supplier needs 5+ confirmed codings, a known account code, and a known VAT treatment.</div>
+            </div>
+          ) : (
+            <>
+              <StatStrip items={[
+                { label: 'Eligible', value: preview.eligible },
+                { label: 'Would write', value: preview.wouldWrite },
+                { label: 'Would skip', value: preview.wouldSkip },
+              ]} />
+
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Supplier</th>
+                    <th>Account</th>
+                    <th>VAT</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th>Currency</th>
+                    <th>Confidence</th>
+                    <th>Invoice</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.preview.map(p => (
+                    <tr key={p.supplierId} style={p.wouldSkip ? { opacity: 0.5 } : undefined}>
+                      <td className="body-sm">{p.supplierName}</td>
+                      <td className="body-sm">{p.accountCode}{p.accountName ? ` (${p.accountName})` : ''}</td>
+                      <td className="body-sm">
+                        {p.vatTreatment}
+                        {p.isReverseCharge && <span style={{ marginLeft: 4, color: 'var(--amber-600, #d97706)', fontSize: 'var(--fs-body-sm)' }}>RC</span>}
+                      </td>
+                      <td className="body-sm" style={{ textAlign: 'right' }}>{p.amount != null ? p.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'}</td>
+                      <td className="body-sm">{p.currency}</td>
+                      <td className="body-sm">{p.confidenceCounter}x</td>
+                      <td className="body-sm">{p.matchedInvoice ? 'Yes' : '—'}</td>
+                      <td className="body-sm">{p.wouldSkip ? <span style={{ color: 'var(--red-600, #dc2626)' }}>{p.skipReason}</span> : <span style={{ color: 'var(--green-600, #16a34a)' }}>Ready</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AuditPanel — confirmation audit trail
 // ---------------------------------------------------------------------------
 

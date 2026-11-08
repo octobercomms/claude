@@ -565,6 +565,10 @@ export const SECTIONS = {
         { tab: 'deadlines',  label: 'Deadlines' },
         { tab: 'vat',        label: 'VAT' },
       ] },
+      { heading: 'Automation', rows: [
+        { tab: 'precode',    label: 'Pre-coding' },
+        { tab: 'extension',  label: 'Extension' },
+      ] },
       { heading: 'Setup', rows: [
         { tab: 'drive',      label: 'Google Drive' },
         { tab: 'suppliers',  label: 'Supplier brain' },
