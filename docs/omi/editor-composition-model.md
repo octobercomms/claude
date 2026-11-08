@@ -251,8 +251,6 @@ is inert; a future migration can drop it.
 The wizard (`MakeAReel.jsx`), the old single-track editor (`ClientEditPage.jsx`),
 the `reel` and `edit` nav tabs, and the `canCompose`/`composition_editor` gate
 from GlobalSearch, SectionPanel, MobileScreenNav, Layout, and ManageUsersPage.
-The old render pipeline (`editProcessor.js`), route (`routes/edit.js`), shared
-modules (`edl.mjs`, `edlPlay.mjs`, `overlays.mjs`), player (`EdlPlayer.jsx`),
-timeline (`Timeline.jsx`) and their tests are all deleted. `whisperWords` was
-extracted to `services/whisper.js` so the three consumers (captions, silence-cut,
-social-caption-render) no longer depend on the old processor.
+The five-pass render pipeline (`editProcessor.js`) remains as legacy for any
+compositions that were rendered before the rewrite; new renders use the
+single-graph approach from `compositionRender.mjs`.
