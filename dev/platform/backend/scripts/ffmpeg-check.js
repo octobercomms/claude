@@ -222,7 +222,13 @@ check('the filters the video services build still exist', async (dir) => {
   // rather than anywhere a person is looking. Inventory taken from the graphs
   // in services/{scenes,exampleReel,brollRender,silenceCut,socialCaptionRender}.js.
   const needed = ['scale', 'setsar', 'crop', 'pad', 'fps', 'overlay', 'concat',
-    'zoompan', 'xfade', 'split', 'format', 'subtitles', 'silencedetect', 'loudnorm'];
+    'zoompan', 'xfade', 'split', 'format', 'subtitles', 'silencedetect', 'loudnorm',
+    // The render graph's own, beyond the list above.
+    'sidechaincompress', 'amix', 'adelay', 'apad', 'atrim', 'tpad',
+    // The QC gate (services/renderQc.js). A filter dropped between ffmpeg
+    // versions would otherwise fail inside an unattended batch, where the
+    // only symptom is thirty videos with no verdict.
+    'blackdetect', 'freezedetect', 'ebur128'];
   const list = await run(FFMPEG, ['-hide_banner', '-filters']);
   const have = new Set(list.split('\n')
     .map(l => (l.match(/^\s*\S+\s+(\S+)/) || [])[1]).filter(Boolean));

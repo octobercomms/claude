@@ -365,14 +365,25 @@ export function renderGraph(comp, opts = {}) {
   const hasDuckUnder = comp.tracks.some(t => t.duckUnder);
   const ducking = hasDuckUnder || comp.ducking || opts.ducking || null;
 
-  const speechPads = audioItemPads.filter(a => {
-    const src = comp.sources[a.item.source];
-    return src?.kind === 'clip';
-  });
-  const musicPads = audioItemPads.filter(a => {
-    const src = comp.sources[a.item.source];
-    return src?.kind === 'audio';
-  });
+  // WHICH TRACK IS THE VOICE is a fact about the source, not about its kind.
+  //
+  // Classifying by kind alone — clip is speech, audio is music — is right for
+  // a talking head and backwards for a walkthrough, where the voice is a
+  // recorded narration on an audio track and the clips are silent b-roll with
+  // room tone. Ducking that composition by kind would lower the narration
+  // under the ambience, which is the opposite of the point. So a source may
+  // say `voice: true` (this is the thing to duck everything else under) or
+  // `voice: false` (this is a clip, but its audio is ambience), and the
+  // kind-based guess is only the default.
+  const isVoice = (sourceId) => {
+    const src = comp.sources[sourceId];
+    if (!src) return false;
+    if (src.voice === true) return true;
+    if (src.voice === false) return false;
+    return src.kind === 'clip';
+  };
+  const speechPads = audioItemPads.filter(a => isVoice(a.item.source));
+  const musicPads = audioItemPads.filter(a => !isVoice(a.item.source));
 
   let audioOut = null;
 

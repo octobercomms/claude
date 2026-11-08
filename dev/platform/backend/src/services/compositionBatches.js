@@ -218,7 +218,8 @@ async function listItems(batchId) {
             c.title,
             r.status  AS render_status,
             r.progress AS render_progress,
-            r.output_url, r.error AS render_error
+            r.output_url, r.error AS render_error,
+            r.qc_verdict, r.qc_rank, r.qc
        FROM composition_batch_items i
        LEFT JOIN compositions        c ON c.id = i.composition_id
        LEFT JOIN composition_renders r ON r.id = i.render_id
@@ -238,10 +239,18 @@ async function listItems(batchId) {
   }));
 }
 
-/** The roll-up above the sheet: what happened, in six numbers. */
+/**
+ * The roll-up above the sheet.
+ *
+ * `suspect` is the figure that decides where to start: how many finished
+ * videos the QC gate thinks are broken or worth a look. Without it the only
+ * honest instruction is "watch all thirty", which is the afternoon the batch
+ * was supposed to save.
+ */
 async function summary(batchId) {
   const items = await listItems(batchId);
   const count = (f) => items.filter(f).length;
+  const awaiting = (i) => i.verdict === 'pending' && i.state === 'rendered';
   return {
     total: items.length,
     blocked: count((i) => i.state === 'blocked'),
@@ -250,8 +259,32 @@ async function summary(batchId) {
     failed: count((i) => i.state === 'failed'),
     approved: count((i) => i.verdict === 'approved'),
     rejected: count((i) => i.verdict === 'rejected'),
-    pending: count((i) => i.verdict === 'pending' && i.state === 'rendered'),
+    pending: count(awaiting),
+    // Of the ones still awaiting a human, how many the machine doubts.
+    qc_fail: count((i) => awaiting(i) && i.qc_verdict === 'fail'),
+    qc_look: count((i) => awaiting(i) && i.qc_verdict === 'look'),
+    qc_clean: count((i) => awaiting(i) && i.qc_verdict === 'pass'),
+    suspect: count((i) => awaiting(i) && (i.qc_verdict === 'fail' || i.qc_verdict === 'look')),
   };
+}
+
+/**
+ * The same items, worst first.
+ *
+ * The sheet's default order, and the whole reason the QC gate exists: the
+ * operator's first click should be the most broken video rather than the
+ * first one submitted. Within a verdict, the item index keeps it stable so
+ * the list does not reshuffle between polls.
+ */
+async function listItemsByRisk(batchId) {
+  const items = await listItems(batchId);
+  const rank = (i) => {
+    if (i.state === 'failed') return 400;
+    if (i.state === 'blocked') return 300;
+    if (Number.isFinite(i.qc_rank)) return Math.min(299, i.qc_rank);
+    return 0;
+  };
+  return items.slice().sort((a, b) => (rank(b) - rank(a)) || (a.idx - b.idx));
 }
 
 async function get(batchId) {
@@ -259,7 +292,12 @@ async function get(batchId) {
     `SELECT ${BATCH_COLS} FROM composition_batches WHERE id = $1`, [batchId]
   );
   if (!rows[0]) return null;
-  return { ...rows[0], items: await listItems(batchId), summary: await summary(batchId) };
+  // Worst first: that is the order the sheet is for.
+  return {
+    ...rows[0],
+    items: await listItemsByRisk(batchId),
+    summary: await summary(batchId),
+  };
 }
 
 async function list(clientId, { limit = 50 } = {}) {
@@ -355,6 +393,7 @@ module.exports = {
   get,
   list,
   listItems,
+  listItemsByRisk,
   summary,
   setVerdict,
   retryItem,

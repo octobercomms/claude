@@ -52,7 +52,7 @@ const MAX_ATTEMPTS = 3;
 
 const COLS = `id, composition_id, status, progress, output_path, output_url, error,
               started_at, finished_at, created_at, updated_at,
-              claimed_at, claimed_by, attempts`;
+              claimed_at, claimed_by, attempts, qc, qc_verdict, qc_rank`;
 
 /** Add a render to the queue. Returns the row, whose id is how it is watched. */
 async function enqueue(compositionId) {
@@ -150,18 +150,33 @@ async function setProgress(id, progress) {
   return rows[0] || null;
 }
 
-/** Finish a render. */
-async function complete(id, { outputPath = null, outputUrl = null } = {}) {
+/**
+ * Finish a render, with the QC report if one was taken.
+ *
+ * The report is stored in the same statement as the completion rather than in
+ * a follow-up update, so there is no window in which a render reads as done
+ * with no verdict — which is the state the review sheet would have to show as
+ * "finished, quality unknown" for no reason other than two round trips.
+ */
+async function complete(id, { outputPath = null, outputUrl = null, qc = null } = {}) {
   const { rows } = await pool.query(
     `UPDATE composition_renders SET
        status = 'done', progress = 100,
        output_path = COALESCE($2, output_path),
        output_url  = COALESCE($3, output_url),
+       qc         = COALESCE($4::jsonb, qc),
+       qc_verdict = COALESCE($5, qc_verdict),
+       qc_rank    = COALESCE($6, qc_rank),
        claimed_at = NULL, claimed_by = NULL,
        finished_at = now(), updated_at = now()
      WHERE id = $1
      RETURNING ${COLS}`,
-    [id, outputPath, outputUrl]
+    [
+      id, outputPath, outputUrl,
+      qc ? JSON.stringify(qc) : null,
+      qc?.verdict ?? null,
+      Number.isFinite(qc?.rank) ? qc.rank : null,
+    ]
   );
   return rows[0] || null;
 }

@@ -536,8 +536,8 @@ describe('the shipped templates', () => {
   // Only the fields the binder reads. A template declaring anything else is
   // claiming behaviour nothing implements, which is worse than not having it:
   // the next person reads the JSON and believes it.
-  const TOP = ['id', 'name', 'description', 'bestFor', 'register', 'size', 'fps', 'slots', 'caption', 'variation'];
-  const SLOT = ['id', 'kind', 'min', 'max', 'len', 'motion', 'trans', 'track', 'alignTo'];
+  const TOP = ['id', 'name', 'description', 'bestFor', 'register', 'size', 'fps', 'slots', 'caption', 'variation', 'audio'];
+  const SLOT = ['id', 'kind', 'min', 'max', 'len', 'motion', 'trans', 'track', 'alignTo', 'voice'];
 
   it('ships eight of them', () => {
     assert.equal(FILES.length, 8, `found ${FILES.join(', ')}`);
@@ -686,5 +686,110 @@ describe('the template loader', () => {
       assert.equal(t.slots, undefined, `${t.id} leaked its slots`);
       assert.equal(t.variation, undefined, `${t.id} leaked its variation`);
     }
+  });
+});
+
+// ── ducking ──────────────────────────────────────────────────────────
+
+describe('ducking the music under the voice', () => {
+  // Every one of the eight templates asked for this in its first draft, and
+  // it was recorded as "not built" — wrongly. The render has implemented it
+  // all along with sidechaincompress, triggered by `comp.ducking`; the only
+  // thing missing was the binder passing the request through.
+
+  const duckable = (over = {}) => ({
+    id: 'duck-fixture',
+    name: 'Duck fixture',
+    register: 'editorial',
+    size: { width: 1080, height: 1920 },
+    fps: 30,
+    slots: [
+      { id: 'speech', kind: 'clip', min: 1, max: 1, len: { min: 10, max: 10 }, track: 0, voice: true },
+      { id: 'bed', kind: 'audio', min: 1, max: 1, len: { min: 10, max: 10 }, track: 1 },
+    ],
+    variation: { lenJitter: 0 },
+    audio: { duck: true },
+    ...over,
+  });
+
+  const clip = { kind: 'clip', url: 'v.mp4', duration: 30, width: 1080, height: 1920, fps: 30 };
+  const audio = { kind: 'audio', url: 'm.mp3', duration: 60 };
+
+  it('sets the flag the render actually reads', () => {
+    const comp = bindTemplate(duckable(), { speech: clip, bed: audio }, { seed: 'd' });
+    assert.equal(comp.ducking, true);
+  });
+
+  it('leaves a template that did not ask for it untouched', () => {
+    // Not `ducking: false` — absent. A composition that never wanted ducking
+    // should be byte-identical to one written before this existed.
+    const comp = bindTemplate(duckable({ audio: undefined }), { speech: clip, bed: audio }, { seed: 'd' });
+    assert.equal('ducking' in comp, false);
+  });
+
+  it('marks which source is the VOICE, because the kind cannot say', () => {
+    // A talking head's voice is a clip; a walkthrough's is a recorded
+    // narration on an audio track while its clips are silent b-roll.
+    // Classifying by kind ducks the narration under the room tone.
+    const comp = bindTemplate(duckable(), { speech: clip, bed: audio }, { seed: 'd' });
+    const voices = Object.values(comp.sources).filter((x) => x.voice === true);
+    assert.equal(voices.length, 1);
+    assert.equal(voices[0].kind, 'clip');
+  });
+
+  it('marks other clip slots as ambience, not as a second voice', () => {
+    const t = duckable({
+      slots: [
+        { id: 'narration', kind: 'audio', min: 1, max: 1, len: { min: 10, max: 10 }, track: 2, voice: true },
+        { id: 'footage', kind: 'clip', min: 1, max: 1, len: { min: 10, max: 10 }, track: 0, voice: false },
+        { id: 'bed', kind: 'audio', min: 1, max: 1, len: { min: 10, max: 10 }, track: 1 },
+      ],
+    });
+    const comp = bindTemplate(t, { narration: audio, footage: clip, bed: audio }, { seed: 'd' });
+    const byVoice = Object.values(comp.sources).map((x) => x.voice);
+    assert.equal(byVoice.filter((v) => v === true).length, 1, 'one voice');
+    assert.equal(byVoice.filter((v) => v === false).length, 1, 'and the footage is ambience');
+  });
+
+  it('refuses a duck with no voice to duck under', () => {
+    const t = duckable();
+    delete t.slots[0].voice;
+    assert.match(validateTemplate(t).join(' '), /needs a slot marked voice: true/);
+  });
+
+  it('refuses a duck with nothing to duck', () => {
+    const t = duckable({
+      slots: [{ id: 'speech', kind: 'clip', min: 1, max: 1, len: { min: 10, max: 10 }, track: 0, voice: true }],
+    });
+    assert.match(validateTemplate(t).join(' '), /nothing else would change/);
+  });
+
+  it('refuses a non-boolean voice rather than reading it as truthy', () => {
+    const t = duckable();
+    t.slots[0].voice = 'yes';
+    assert.match(validateTemplate(t).join(' '), /voice must be true or false/);
+  });
+
+  it('actually reaches the filter graph', async () => {
+    // The end of the chain. A flag nothing acts on is the thing the eight
+    // templates were stripped of in the first place.
+    const { renderGraph } = require('../../shared/compositionRender.mjs');
+    const comp = bindTemplate(duckable(), { speech: clip, bed: audio }, { seed: 'd' });
+    const graph = renderGraph(comp, {}).graph;
+    assert.match(graph, /sidechaincompress/, 'the music is compressed against the voice');
+
+    const plain = bindTemplate(duckable({ audio: undefined }), { speech: clip, bed: audio }, { seed: 'd' });
+    assert.ok(
+      !/sidechaincompress/.test(renderGraph(plain, {}).graph),
+      'and a template that did not ask for it gets a plain mix'
+    );
+  });
+
+  it('is on talking-head, which is the template that needs it', () => {
+    const dir = path.join(__dirname, '..', '..', 'shared', 'templates');
+    const t = JSON.parse(fs.readFileSync(path.join(dir, 'talking-head.json'), 'utf8'));
+    assert.equal(t.audio?.duck, true);
+    assert.equal(t.slots.find((x) => x.id === 'speech').voice, true);
+    assert.deepEqual(validateTemplate(t), []);
   });
 });

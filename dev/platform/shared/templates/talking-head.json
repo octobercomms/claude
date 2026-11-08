@@ -21,7 +21,8 @@
       },
       "motion": "subtle",
       "trans": "fade",
-      "track": 0
+      "track": 0,
+      "voice": true
     },
     {
       "id": "lower-third",
@@ -63,5 +64,8 @@
       "fadeblack"
     ],
     "lenJitter": 0
+  },
+  "audio": {
+    "duck": true
   }
 }
