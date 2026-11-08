@@ -3,7 +3,8 @@
 // brain, and injects a read-only advisory element below each bank line.
 //
 // Compliance: strictly read-only. No clicks, no field population, no form
-// submission, no DOM mutation beyond injecting .omi-brain-advice elements.
+// submission, no DOM mutation beyond injecting .omi-brain-advice elements
+// and the diagnostic banner.
 
 (function () {
   'use strict';
@@ -11,6 +12,7 @@
   const LOOKUP_CACHE = new Map();
   const PROCESSED_ATTR = 'data-omi-brain';
   const DEBOUNCE_MS = 300;
+  const DIAG = true; // diagnostic mode: set false once selectors are confirmed
   let config = null;
 
   async function getConfig() {
@@ -61,7 +63,6 @@
       }
       if (!res.ok) {
         const result = { error: 'server', message: `OMI returned ${res.status}` };
-        // Don't cache server errors; they might be transient.
         return result;
       }
 
@@ -239,43 +240,76 @@
     return d.innerHTML;
   }
 
-  // Extract payee names from the Xero reconcile DOM.
-  // Xero's reconcile page has bank statement lines with contact/payee text.
-  // The selectors target the known DOM structure; if Xero changes their markup,
-  // the extension gracefully shows nothing rather than breaking.
-  function findBankLineRows() {
-    // Try the newer BankRec SPA structure.
-    const rows = document.querySelectorAll(
-      '.bank-rec-line, .xrb-line, [class*="StatementLine"], [class*="bankRecLine"]'
-    );
-    if (rows.length) return Array.from(rows);
+  // --- DOM discovery ---
+  // Xero's reconcile UI is a SPA. The actual page URL is
+  // go.xero.com/app/<orgCode>/manage-bank-accounts and the reconcile view
+  // loads as a client-side tab. DOM class names vary across Xero versions.
+  //
+  // Strategy: find the statement lines container, then individual rows.
+  // Each row has: date, payee/description text, spent/received amount.
 
-    // Fallback: the older BankRec.aspx table rows.
-    const tableRows = document.querySelectorAll('tr.xrb-line, tr[class*="rec-line"]');
-    return Array.from(tableRows);
+  function findBankLineRows() {
+    // Gather all candidates from multiple known and generic selectors.
+    const selectors = [
+      // Known Xero reconcile selectors (various versions).
+      '.bank-rec-line',
+      '.xrb-line',
+      '[class*="StatementLine"]',
+      '[class*="bankRecLine"]',
+      '[class*="statement-line"]',
+      '[class*="reconcile-line"]',
+      '[class*="bank-statement"]',
+      // Older table-based layout.
+      'tr.xrb-line',
+      'tr[class*="rec-line"]',
+      // Generic: Xero uses data attributes on interactive elements.
+      '[data-automationid*="statement"]',
+      '[data-automationid*="bankLine"]',
+      '[data-automationid*="reconcil"]',
+      '[data-testid*="statement"]',
+      '[data-testid*="bank-line"]',
+      '[data-testid*="reconcil"]',
+    ];
+
+    for (const sel of selectors) {
+      try {
+        const rows = document.querySelectorAll(sel);
+        if (rows.length) {
+          diagLog(`Found ${rows.length} rows via: ${sel}`);
+          return Array.from(rows);
+        }
+      } catch { /* invalid selector */ }
+    }
+
+    return [];
   }
 
   function extractPayeeFromRow(row) {
-    // Try multiple selectors that Xero has used for the payee/description field.
-    const selectors = [
+    // Try specific selectors Xero has used.
+    const payeeSelectors = [
       '.xrb-payee', '.xrb-line__payee', '[class*="payee"]',
       '.xrb-narrative', '.xrb-line__narrative', '[class*="narrative"]',
       '.xrb-desc', '.xrb-line__desc', '[class*="description"]',
+      '[class*="Payee"]', '[class*="Narrative"]', '[class*="Description"]',
+      '[data-automationid*="payee"]', '[data-automationid*="description"]',
+      '[data-testid*="payee"]', '[data-testid*="description"]',
     ];
-    for (const sel of selectors) {
-      const el = row.querySelector(sel);
-      if (el) {
-        const text = el.textContent.trim();
-        if (text.length >= 2) return text;
-      }
+    for (const sel of payeeSelectors) {
+      try {
+        const el = row.querySelector(sel);
+        if (el) {
+          const text = el.textContent.trim();
+          if (text.length >= 2) return text;
+        }
+      } catch { /* invalid selector */ }
     }
 
-    // Last resort: scan for any element that looks like a payee name.
-    // Xero statement lines typically have the payee in a prominent text node.
-    const cells = row.querySelectorAll('td, div[class*="cell"], span[class*="name"]');
+    // Fallback: scan for text nodes that look like payee names.
+    const cells = row.querySelectorAll('td, div, span');
     for (const cell of cells) {
+      if (cell.children.length > 3) continue; // skip containers
       const text = cell.textContent.trim();
-      if (text.length >= 3 && text.length < 100 && !/^[\d.,\-+$]+$/.test(text)) {
+      if (text.length >= 3 && text.length < 120 && !/^[\d.,\-+$£€]+$/.test(text) && !/^\d{1,2}\s\w{3}\s\d{4}$/.test(text)) {
         return text;
       }
     }
@@ -289,16 +323,18 @@
     const payee = extractPayeeFromRow(row);
     if (!payee) {
       row.setAttribute(PROCESSED_ATTR, 'no-payee');
+      diagLog(`Row skipped (no payee extracted): ${row.className || row.tagName}`);
       return;
     }
 
+    diagLog(`Looking up payee: "${payee}"`);
     const result = await lookupPayee(payee, cfg);
     row.setAttribute(PROCESSED_ATTR, 'done');
 
     const advice = createAdviceElement(payee, result);
 
-    // Insert the advisory element after the row content, not replacing anything.
-    const target = row.querySelector('.xrb-line__details, [class*="details"]') || row;
+    // Insert the advisory element after the row content.
+    const target = row.querySelector('[class*="details"], [class*="content"], [class*="info"]') || row;
     target.appendChild(advice);
   }
 
@@ -306,13 +342,29 @@
 
   async function scanPage() {
     const cfg = await getConfig();
-    if (!cfg) return;
+    if (!cfg) {
+      diagLog('No config (token/URL not set)');
+      updateBanner('Not configured. Set token in extension popup.', 'warn');
+      return;
+    }
 
     const rows = findBankLineRows();
+    updateBanner(
+      rows.length
+        ? `Found ${rows.length} statement line(s). Querying brain...`
+        : 'Reconcile view not detected. Waiting for DOM changes...',
+      rows.length ? 'ok' : 'wait'
+    );
+
     for (const row of rows) {
       if (!row.getAttribute(PROCESSED_ATTR)) {
         await processRow(row, cfg);
       }
+    }
+
+    if (rows.length) {
+      const done = document.querySelectorAll(`[${PROCESSED_ATTR}="done"]`).length;
+      updateBanner(`${done} of ${rows.length} lines processed.`, 'ok');
     }
   }
 
@@ -320,6 +372,84 @@
     clearTimeout(scanTimeout);
     scanTimeout = setTimeout(scanPage, DEBOUNCE_MS);
   }
+
+  // --- Diagnostic banner ---
+  let bannerEl = null;
+
+  function ensureBanner() {
+    if (bannerEl && document.body.contains(bannerEl)) return bannerEl;
+    bannerEl = document.createElement('div');
+    bannerEl.id = 'omi-brain-diag';
+    bannerEl.style.cssText = `
+      position: fixed; bottom: 8px; right: 8px; z-index: 999999;
+      background: #1e293b; color: #e2e8f0; font-family: monospace;
+      font-size: 11px; padding: 6px 12px; border-radius: 6px;
+      max-width: 420px; line-height: 1.4; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+      pointer-events: none;
+    `;
+    document.body.appendChild(bannerEl);
+    return bannerEl;
+  }
+
+  function updateBanner(msg, level) {
+    if (!DIAG) return;
+    const b = ensureBanner();
+    const colors = { ok: '#4ade80', warn: '#fbbf24', err: '#f87171', wait: '#94a3b8' };
+    const dot = `<span style="color:${colors[level] || colors.wait}">&#9679;</span>`;
+    b.innerHTML = `${dot} OMI Brain: ${escapeHtml(msg)}`;
+  }
+
+  const diagMessages = [];
+  function diagLog(msg) {
+    if (!DIAG) return;
+    diagMessages.push(msg);
+    console.log('[OMI Brain]', msg);
+  }
+
+  // Expose a diagnostic dump for console inspection.
+  function diagDump() {
+    const info = {
+      url: location.href,
+      configLoaded: !!config,
+      cacheSize: LOOKUP_CACHE.size,
+      messages: diagMessages.slice(-30),
+      domSnapshot: domSnapshot(),
+    };
+    console.log('[OMI Brain] Diagnostic dump:', JSON.stringify(info, null, 2));
+    return info;
+  }
+
+  function domSnapshot() {
+    // Capture a summary of the page's structure to help identify the right selectors.
+    const body = document.body;
+    if (!body) return 'no body';
+
+    // Find elements with financial-looking content (amounts, "Spent", "Received", etc.)
+    const markers = [];
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null);
+    let count = 0;
+    while (walker.nextNode() && count < 500) {
+      count++;
+      const text = walker.currentNode.textContent.trim();
+      if (!text) continue;
+      // Look for reconcile-related keywords
+      if (/\b(Spent|Received|Reconcile|Statement|Bank|Payee|Match|Create|Transfer)\b/i.test(text)) {
+        const el = walker.currentNode.parentElement;
+        if (el) {
+          markers.push({
+            text: text.slice(0, 80),
+            tag: el.tagName.toLowerCase(),
+            class: el.className ? String(el.className).slice(0, 120) : '',
+            parent: el.parentElement ? `${el.parentElement.tagName.toLowerCase()}.${String(el.parentElement.className).slice(0, 80)}` : '',
+          });
+        }
+      }
+    }
+    return markers.slice(0, 30);
+  }
+
+  // Make diagnostic accessible from the console.
+  window.__omiBrainDiag = diagDump;
 
   // Watch for DOM changes: Xero's reconcile page is a SPA that loads bank lines
   // dynamically. We observe mutations and re-scan when new content appears.
@@ -335,6 +465,8 @@
   });
 
   function init() {
+    diagLog(`Content script loaded on ${location.href}`);
+    updateBanner('Script loaded. Scanning page...', 'wait');
     observer.observe(document.body, { childList: true, subtree: true });
     scanPage();
   }
