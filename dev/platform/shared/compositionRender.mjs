@@ -174,20 +174,50 @@ export function renderGraph(comp, opts = {}) {
         filters, `vt${trackOutputs.length}`);
       trackOutputs.push(chainPad);
     } else {
-      // Multiple items, no overlaps: overlay each onto a blank canvas
-      // at its absolute time position
+      // Multiple items, no overlaps: place each at its absolute time on a
+      // transparent canvas.
+      //
+      // Two faults lived here and together they broke the most ordinary
+      // edit there is. Both were reproduced against real footage before
+      // this fix, and both are now covered by render tests that sample
+      // pixels rather than reading the graph string, because the graph
+      // string looked right in each case.
+      //
+      // 1. THE ITEMS WERE NEVER SHIFTED. Each item pad comes out of the
+      //    prep loop starting at PTS 0, and only the single-item branch and
+      //    the xfade branch shifted them. Here they were overlaid with
+      //    `enable='between(t,at,end)'`, gating on the CANVAS's clock. So
+      //    for an item at 3s the overlay input had already ended by the
+      //    time the window opened, `eof_action=pass` passed the canvas
+      //    through, and the item never appeared. Two clips with a hard cut
+      //    rendered the first clip and then black, while the audio side
+      //    shifted correctly with `adelay` and played over it.
+      //
+      // 2. THE CANVAS WAS OPAQUE. `color=c=black` has alpha 255, so a
+      //    track's output covered everything below it for its whole
+      //    duration, not just where its items sat. Any second video track
+      //    with two or more items hid the base track completely.
+      //
+      // The canvas is transparent now. On the base track the final flatten
+      // to yuv420p turns that into black, which is the same picture; on a
+      // higher track it is what lets the track below show through.
       const basePad = `vtblank${trackOutputs.length}`;
       filters.push(
-        `color=c=black:s=${W}x${H}:r=${fps}:d=${f(compDuration)},format=yuva420p[${basePad}]`
+        `color=c=black@0.0:s=${W}x${H}:r=${fps}:d=${f(compDuration)},format=yuva420p[${basePad}]`
       );
       let current = basePad;
       for (let i = 0; i < sorted.length; i++) {
         const item = sorted[i];
         const pad = videoItemPads.get(item.id);
         const end = secs(item.at + item.len);
+        const placedPad = `vt${trackOutputs.length}p${i}`;
         const outPad = `vt${trackOutputs.length}s${i}`;
+        // Carry alpha, then move the item to where it belongs in time.
         filters.push(
-          `[${current}][${pad}]overlay=`
+          `[${pad}]format=yuva420p,setpts=PTS+${f(item.at)}/TB[${placedPad}]`
+        );
+        filters.push(
+          `[${current}][${placedPad}]overlay=`
           + `enable='between(t,${f(item.at)},${f(end)})':eof_action=pass[${outPad}]`
         );
         current = outPad;
