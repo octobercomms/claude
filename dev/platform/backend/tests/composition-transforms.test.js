@@ -313,3 +313,113 @@ describe('fx sources', () => {
     assert.match(validate(b)[0], /fx params must be an object/);
   });
 });
+
+// ── The renderer and the model must agree ────────────────────────────
+//
+// The render graph puts the transform in an ffmpeg expression; the browser
+// compositor reads `itemTransformAt` and multiplies out to pixels. Two
+// implementations of one description drift, which is the whole reason both
+// derive from the model rather than from each other.
+//
+// Agreement is asserted at PARAMETER level, not on pixels, and that is a
+// deliberate limit worth stating: `overlay` x/y are integer pixels and
+// `scale` dimensions are integer and even, while canvas `drawImage` is
+// sub-pixel, so the two can never match pixel for pixel. What they can
+// match is the numbers they are each working from, and that is what a
+// transposed from/to, a wrong length or a missing clamp would break.
+//
+// The emitted form is fixed and dull on purpose — (A+(B-A)*min(max(t/L,0),1))
+// — precisely so a test can read A, B and L back out.
+
+const { renderGraph } = require('../../shared/compositionRender.mjs');
+
+/** Pull A, B and L out of an emitted animation expression. */
+function readAnimExpr(graph) {
+  const m = graph.match(
+    /\(([\d.eE+-]+)\+\(([\d.eE+-]+)-([\d.eE+-]+)\)\*min\(max\(t\/([\d.eE+-]+)/
+  );
+  if (!m) return null;
+  return { from: Number(m[1]), to: Number(m[2]), fromAgain: Number(m[3]), len: Number(m[4]) };
+}
+
+describe('the emitted expression encodes what the model computes', () => {
+  it('carries the same from, to and length', () => {
+    const { comp } = pushInComp(); // scale 1.0 -> 1.5 over a 10s item
+    const r = renderGraph(comp);
+    const parsed = readAnimExpr(r.graph);
+    assert.ok(parsed, `an animated scale expression is in the graph:\n${r.graph}`);
+    assert.equal(parsed.from, 1.0);
+    assert.equal(parsed.to, 1.5);
+    assert.equal(parsed.fromAgain, 1.0, 'the subtraction must use the same from');
+    assert.equal(parsed.len, 10, 'the length is the ITEM length, not the timeline');
+  });
+
+  it('evaluates to the same number as itemTransformAt at every sample', () => {
+    const { comp, trackId, itemId } = pushInComp();
+    const item = comp.tracks.find(t => t.id === trackId).items.find(i => i.id === itemId);
+    const parsed = readAnimExpr(renderGraph(comp).graph);
+
+    // The same arithmetic the ffmpeg expression performs, in JS.
+    const fromExpr = (t) =>
+      parsed.from + (parsed.to - parsed.from) * Math.min(Math.max(t / parsed.len, 0), 1);
+
+    for (const t of [0, 0.5, 2.5, 5, 7.5, 9.99, 10, 12]) {
+      // The expression's `t` is time within the item's own stream, which is
+      // what the model's progress is measured against too.
+      const expected = itemTransformAt(item, item.at + t).scale;
+      assert.ok(
+        Math.abs(fromExpr(t) - expected) < 1e-9,
+        `at t=${t} the graph says ${fromExpr(t)} and the model says ${expected}`
+      );
+    }
+  });
+
+  it('clamps at both ends, so an item never overshoots its move', () => {
+    const { comp } = pushInComp();
+    const g = renderGraph(comp).graph;
+    assert.match(g, /min\(max\(/, 'both clamps are present');
+  });
+
+  it('emits a plain scale for a static value, not an expression', () => {
+    const { comp } = pushInComp({ scale: 1.25 });
+    const g = renderGraph(comp).graph;
+    assert.equal(readAnimExpr(g), null, 'a constant needs no per-frame evaluation');
+    assert.match(g, /scale=\d+:\d+/, 'it is scaled once');
+  });
+
+  it('leaves an untransformed item out of the transform stage entirely', () => {
+    let comp = emptyComposition({ width: 1080, height: 1920, fps: 30 });
+    const s = addSource(comp, { kind: 'clip', asset: 'a.mp4', duration: 20 });
+    comp = s.comp;
+    const t = addTrack(comp, 'video');
+    comp = t.comp;
+    comp = addItem(comp, t.id, { at: 0, len: 5, source: s.id }).comp;
+    const g = renderGraph(comp).graph;
+    assert.equal(g.includes('black@0.0'), false, 'no transform canvas is emitted');
+    assert.equal(g.includes('eval=frame'), false, 'nothing is evaluated per frame');
+  });
+
+  it('refuses rot loudly rather than dropping it', () => {
+    // rotate's output box is init-only, so an animated rotation needs a
+    // constant box sized for the maximum angle. Until that exists, a
+    // composition carrying rot must fail: a transform the renderer ignores
+    // would be the page claiming output it cannot produce.
+    const { comp } = pushInComp({ rot: 10 });
+    assert.throws(() => renderGraph(comp), /cannot draw yet/);
+  });
+
+  it('produces a fully connected graph with a transform and a transition', () => {
+    const { graphOrphans } = require('../../shared/compositionRender.mjs');
+    let comp = emptyComposition({ width: 320, height: 240, fps: 25 });
+    const s = addSource(comp, { kind: 'clip', asset: 'a.mp4', duration: 20 });
+    comp = s.comp;
+    const t = addTrack(comp, 'video');
+    comp = t.comp;
+    comp = addItem(comp, t.id, { at: 0, len: 4, source: s.id, scale: { from: 1, to: 1.2 } }).comp;
+    comp = addItem(comp, t.id, {
+      at: 3, len: 4, source: s.id, trans: { type: 'fade' }, pos: { from: { x: 0, y: 0 }, to: { x: 0.1, y: 0 } },
+    }).comp;
+    const r = renderGraph(comp);
+    assert.deepEqual(graphOrphans(r.graph, [r.videoOut, r.audioOut]), []);
+  });
+});
