@@ -38,6 +38,177 @@ function isReverseCharge(vatTreatment) {
 
 const AUTO_CODE_CONFIDENCE_THRESHOLD = parseInt(process.env.ACCOUNTS_AUTO_CODE_THRESHOLD, 10) || 5;
 
+// ---------------------------------------------------------------------------
+// Bank accounts — reference table for transfer detection
+// ---------------------------------------------------------------------------
+
+async function syncBankAccounts() {
+  const token = await xero.getValidToken();
+  const accounts = await xero.getBankAccounts(token);
+  let upserted = 0;
+  for (const a of accounts) {
+    await db.query(
+      `INSERT INTO acct_bank_accounts (xero_account_id, name, code, currency, bank_type, updated_at)
+       VALUES ($1, $2, $3, $4, $5, now())
+       ON CONFLICT (xero_account_id)
+       DO UPDATE SET name = $2, code = $3, currency = $4, bank_type = $5, updated_at = now()`,
+      [a.accountId, a.name, a.code, a.currency, a.type]
+    );
+    upserted++;
+  }
+  return { upserted };
+}
+
+async function getBankAccountsList() {
+  const { rows } = await db.query(
+    'SELECT xero_account_id, name, code, currency, bank_type FROM acct_bank_accounts ORDER BY name'
+  );
+  return rows;
+}
+
+let _bankAccountCache = null;
+let _bankAccountCacheTime = 0;
+
+async function loadBankAccountNames() {
+  if (_bankAccountCache && Date.now() - _bankAccountCacheTime < 300000) return _bankAccountCache;
+  const { rows } = await db.query('SELECT xero_account_id, name FROM acct_bank_accounts');
+  _bankAccountCache = rows.map(r => ({
+    id: r.xero_account_id,
+    name: r.name,
+    nameNorm: normalise(r.name),
+  }));
+  _bankAccountCacheTime = Date.now();
+  return _bankAccountCache;
+}
+
+function matchBankAccount(contactName, bankAccounts) {
+  const norm = normalise(contactName);
+  for (const ba of bankAccounts) {
+    if (norm.includes(ba.nameNorm) || ba.nameNorm.includes(norm)) return ba;
+    const baWords = ba.nameNorm.split(' ').filter(w => w.length >= 3);
+    const contactWords = norm.split(' ').filter(w => w.length >= 3);
+    const hits = baWords.filter(w => contactWords.some(cw => cw.includes(w) || w.includes(cw)));
+    if (hits.length >= 1 && hits.length / baWords.length >= 0.5) return ba;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Supplier codings — multiple account code / transfer options per supplier
+// ---------------------------------------------------------------------------
+
+async function getCodingsForSupplier(supplierId) {
+  const { rows } = await db.query(
+    'SELECT * FROM acct_supplier_codings WHERE supplier_id = $1 ORDER BY confidence_counter DESC',
+    [supplierId]
+  );
+  return rows;
+}
+
+function findBestCoding(codings, lineText) {
+  if (!codings.length || !lineText) return null;
+  const textNorm = normalise(lineText);
+
+  let bestCoding = null;
+  let bestScore = 0;
+
+  for (const coding of codings) {
+    const patterns = coding.trigger_patterns || [];
+    if (!patterns.length) continue;
+
+    for (const pattern of patterns) {
+      const patNorm = normalise(pattern);
+      if (!patNorm) continue;
+      if (textNorm.includes(patNorm)) {
+        const score = patNorm.length;
+        if (score > bestScore) {
+          bestScore = score;
+          bestCoding = coding;
+          bestCoding._matched_pattern = pattern;
+        }
+      }
+    }
+  }
+
+  return bestCoding;
+}
+
+async function createCoding(data) {
+  const { rows } = await db.query(
+    `INSERT INTO acct_supplier_codings
+       (supplier_id, type, account_code, account_name, vat_treatment, is_reverse_charge,
+        destination_bank_account_id, destination_bank_account_name,
+        trigger_patterns, confidence_counter, auto_code, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     RETURNING *`,
+    [
+      data.supplierId,
+      data.type || 'expense',
+      data.accountCode || null,
+      data.accountName || null,
+      data.vatTreatment || 'NONE',
+      isReverseCharge(data.vatTreatment),
+      data.destinationBankAccountId || null,
+      data.destinationBankAccountName || null,
+      data.triggerPatterns || [],
+      data.confidenceCounter || 0,
+      data.autoCode !== undefined ? data.autoCode : true,
+      data.notes || null,
+    ]
+  );
+  return rows[0];
+}
+
+async function correctCoding(codingId, data) {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+
+  if (data.type !== undefined) {
+    fields.push(`type = $${idx}`);
+    values.push(data.type);
+    idx++;
+  }
+  if (data.accountCode !== undefined) {
+    fields.push(`account_code = $${idx}`);
+    values.push(data.accountCode);
+    idx++;
+  }
+  if (data.accountName !== undefined) {
+    fields.push(`account_name = $${idx}`);
+    values.push(data.accountName);
+    idx++;
+  }
+  if (data.vatTreatment !== undefined) {
+    fields.push(`vat_treatment = $${idx}`);
+    values.push(data.vatTreatment);
+    idx++;
+    fields.push(`is_reverse_charge = $${idx}`);
+    values.push(isReverseCharge(data.vatTreatment));
+    idx++;
+  }
+  if (data.destinationBankAccountId !== undefined) {
+    fields.push(`destination_bank_account_id = $${idx}`);
+    values.push(data.destinationBankAccountId);
+    idx++;
+  }
+  if (data.destinationBankAccountName !== undefined) {
+    fields.push(`destination_bank_account_name = $${idx}`);
+    values.push(data.destinationBankAccountName);
+    idx++;
+  }
+
+  fields.push('confidence_counter = 1');
+  fields.push('updated_at = now()');
+
+  values.push(codingId);
+  const { rows } = await db.query(
+    `UPDATE acct_supplier_codings SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+    values
+  );
+  return rows[0] || null;
+}
+
 function inferCadence(dates) {
   if (dates.length < 4) return 'ad_hoc';
 
@@ -158,10 +329,40 @@ async function confirmTransaction(supplierId, amount) {
 // ---------------------------------------------------------------------------
 
 async function correctSupplier(supplierId, data) {
+  // If a codingId is provided, correct that specific coding row.
+  if (data.codingId) {
+    const coding = await correctCoding(data.codingId, data);
+    if (coding) return { ...coding, supplier_id: supplierId, _correctedCoding: true };
+    return null;
+  }
+
+  // If the correction includes a new coding (type change or trigger-specific),
+  // create a coding row rather than overwriting the supplier default.
+  if (data.createCoding && data.triggerPatterns && data.triggerPatterns.length) {
+    const coding = await createCoding({
+      supplierId,
+      type: data.type || 'expense',
+      accountCode: data.accountCode,
+      accountName: data.accountName,
+      vatTreatment: data.vatTreatment,
+      destinationBankAccountId: data.destinationBankAccountId,
+      destinationBankAccountName: data.destinationBankAccountName,
+      triggerPatterns: data.triggerPatterns,
+      confidenceCounter: 1,
+      autoCode: false,
+    });
+    return { ...coding, _createdCoding: true };
+  }
+
   const fields = [];
   const values = [];
   let idx = 1;
 
+  if (data.type !== undefined) {
+    fields.push(`type = $${idx}`);
+    values.push(data.type);
+    idx++;
+  }
   if (data.accountCode !== undefined) {
     fields.push(`account_code = $${idx}`);
     values.push(data.accountCode);
@@ -178,6 +379,16 @@ async function correctSupplier(supplierId, data) {
     idx++;
     fields.push(`is_reverse_charge = $${idx}`);
     values.push(isReverseCharge(data.vatTreatment));
+    idx++;
+  }
+  if (data.destinationBankAccountId !== undefined) {
+    fields.push(`destination_bank_account_id = $${idx}`);
+    values.push(data.destinationBankAccountId);
+    idx++;
+  }
+  if (data.destinationBankAccountName !== undefined) {
+    fields.push(`destination_bank_account_name = $${idx}`);
+    values.push(data.destinationBankAccountName);
     idx++;
   }
 
@@ -245,21 +456,28 @@ async function getById(id) {
 }
 
 async function create(data) {
+  const type = data.type || 'expense';
   const { rows } = await db.query(
     `INSERT INTO acct_suppliers
-       (display_name, xero_contact_id, match_patterns, account_code, account_name,
-        vat_treatment, is_reverse_charge, usual_currency, expected_cadence,
+       (display_name, xero_contact_id, match_patterns,
+        type, account_code, account_name,
+        vat_treatment, is_reverse_charge,
+        destination_bank_account_id, destination_bank_account_name,
+        usual_currency, expected_cadence,
         invoice_source, confidence_counter, auto_code, notes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      RETURNING *`,
     [
       data.displayName || data.display_name,
       data.xeroContactId || data.xero_contact_id || null,
       data.matchPatterns || data.match_patterns || [],
-      data.accountCode || data.account_code,
-      data.accountName || data.account_name || null,
-      data.vatTreatment || data.vat_treatment || 'NONE',
-      isReverseCharge(data.vatTreatment || data.vat_treatment),
+      type,
+      type === 'transfer' ? null : (data.accountCode || data.account_code || null),
+      type === 'transfer' ? null : (data.accountName || data.account_name || null),
+      type === 'transfer' ? 'NONE' : (data.vatTreatment || data.vat_treatment || 'NONE'),
+      type === 'transfer' ? false : isReverseCharge(data.vatTreatment || data.vat_treatment),
+      data.destinationBankAccountId || data.destination_bank_account_id || null,
+      data.destinationBankAccountName || data.destination_bank_account_name || null,
       data.usualCurrency || data.usual_currency || 'GBP',
       data.expectedCadence || data.expected_cadence || null,
       data.invoiceSource || data.invoice_source || 'unknown',
@@ -280,9 +498,12 @@ async function update(id, data) {
     [['displayName', 'display_name'], 'display_name'],
     [['xeroContactId', 'xero_contact_id'], 'xero_contact_id'],
     [['matchPatterns', 'match_patterns'], 'match_patterns'],
+    [['type'], 'type'],
     [['accountCode', 'account_code'], 'account_code'],
     [['accountName', 'account_name'], 'account_name'],
     [['vatTreatment', 'vat_treatment'], 'vat_treatment'],
+    [['destinationBankAccountId', 'destination_bank_account_id'], 'destination_bank_account_id'],
+    [['destinationBankAccountName', 'destination_bank_account_name'], 'destination_bank_account_name'],
     [['usualCurrency', 'usual_currency'], 'usual_currency'],
     [['expectedCadence', 'expected_cadence'], 'expected_cadence'],
     [['invoiceSource', 'invoice_source'], 'invoice_source'],
@@ -336,15 +557,16 @@ async function bootstrapFromXero() {
 
   const token = await xero.getValidToken();
 
-  // getAllBankTransactions returns ALL transactions (reconciled included)
-  // with full line-item coding data. Reconciled transactions are the ones
-  // Daniel already coded, so their account codes and tax rates are ground
-  // truth for seeding the brain.
+  // Sync bank accounts first (needed for transfer detection).
+  console.log('[Suppliers] Syncing bank accounts...');
+  const bankSync = await syncBankAccounts();
+  console.log('[Suppliers] Bank accounts synced: %d', bankSync.upserted);
+  const bankAccounts = await loadBankAccountNames();
+
   console.log('[Suppliers] Fetching all bank transactions...');
   const txns = await xero.getAllBankTransactions(token);
   console.log('[Suppliers] Got %d transactions (%dms)', txns.length, Date.now() - t0);
 
-  // Also pull Contacts for proper display names.
   const xeroContacts = new Map();
   let contactPage = 1;
   let contactHasMore = true;
@@ -358,7 +580,6 @@ async function bootstrapFromXero() {
     else contactPage++;
   }
 
-  // Look up account names from chart of accounts.
   const chartLookup = {};
   try {
     const chart = await xero.getChartOfAccounts(token);
@@ -382,6 +603,8 @@ async function bootstrapFromXero() {
         amounts: [],
         currencies: new Set(),
         dates: [],
+        txTypes: [],
+        bankAccountIds: new Set(),
       });
     }
 
@@ -398,6 +621,8 @@ async function bootstrapFromXero() {
           code: li.accountCode,
           name: chartLookup[li.accountCode] || null,
           rate: li.taxType || null,
+          ref: tx.reference ? tx.reference.trim().toLowerCase() : null,
+          contactText: tx.contactName.trim().toLowerCase(),
         });
       }
     }
@@ -408,12 +633,16 @@ async function bootstrapFromXero() {
       const d = new Date(tx.date);
       if (!isNaN(d.getTime())) entry.dates.push(d);
     }
+    if (tx.Type) entry.txTypes.push(tx.Type);
+    if (tx.BankAccount?.AccountID) entry.bankAccountIds.add(tx.BankAccount.AccountID);
   }
 
   console.log('[Suppliers] %d unique contacts found (%dms)', contactMap.size, Date.now() - t0);
 
   let created = 0;
   let skipped = 0;
+  let transfers = 0;
+  let multiCoded = 0;
 
   for (const [, entry] of contactMap) {
     if (!isValidSupplierName(entry.displayName)) { skipped++; continue; }
@@ -422,7 +651,6 @@ async function bootstrapFromXero() {
     const patterns = filterPatterns([...entry.patterns]);
     if (!patterns.length) { skipped++; continue; }
 
-    // Skip if supplier already exists for this Xero contact.
     const { rows: existingContact } = await db.query(
       'SELECT id FROM acct_suppliers WHERE xero_contact_id = $1',
       [entry.xeroContactId]
@@ -432,43 +660,54 @@ async function bootstrapFromXero() {
     const existing = await findSupplierByPatterns(patterns);
     if (existing) { skipped++; continue; }
 
+    // Detect transfers: contact name matches a bank account name.
+    const matchedBank = matchBankAccount(entry.displayName, bankAccounts);
+    const isTransfer = !!matchedBank;
+
     const codeCounts = {};
     for (const c of entry.codings) {
       const k = `${c.code}||${c.rate || 'NONE'}`;
-      codeCounts[k] = (codeCounts[k] || 0) + 1;
+      if (!codeCounts[k]) codeCounts[k] = { count: 0, refs: new Set() };
+      codeCounts[k].count++;
+      if (c.ref) codeCounts[k].refs.add(c.ref);
     }
-    const topCoding = Object.entries(codeCounts).sort((a, b) => b[1] - a[1])[0];
-    const [code, rate] = topCoding[0].split('||');
-    const consistency = topCoding[1] / entry.codings.length;
 
+    const sortedCodings = Object.entries(codeCounts).sort((a, b) => b[1].count - a[1].count);
+    const topCoding = sortedCodings[0];
+    const [code, rate] = topCoding[0].split('||');
     const codeName = entry.codings.find(c => c.code === code)?.name || null;
 
     const amounts = entry.amounts.filter(a => a > 0);
     const amountMin = amounts.length ? Math.min(...amounts) : null;
     const amountMax = amounts.length ? Math.max(...amounts) : null;
-
     const currencies = [...entry.currencies];
     const usualCurrency = currencies.length === 1 ? currencies[0] : 'GBP';
-
     const cadence = inferCadence(entry.dates);
-    const confidenceCount = topCoding[1];
+    const confidenceCount = topCoding[1].count;
 
-    await db.query(
+    const { rows: [newSupplier] } = await db.query(
       `INSERT INTO acct_suppliers
-         (display_name, xero_contact_id, match_patterns, account_code, account_name,
-          vat_treatment, is_reverse_charge, usual_currency, expected_cadence,
+         (display_name, xero_contact_id, match_patterns,
+          type, account_code, account_name,
+          vat_treatment, is_reverse_charge,
+          destination_bank_account_id, destination_bank_account_name,
+          usual_currency, expected_cadence,
           confidence_counter, last_amount, amount_min, amount_max,
           last_seen, auto_code, invoice_source)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       ON CONFLICT DO NOTHING`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
       [
         entry.displayName,
         entry.xeroContactId,
         patterns,
-        code,
-        codeName,
-        rate || 'NONE',
-        isReverseCharge(rate),
+        isTransfer ? 'transfer' : 'expense',
+        isTransfer ? null : code,
+        isTransfer ? null : codeName,
+        isTransfer ? 'NONE' : (rate || 'NONE'),
+        isTransfer ? false : isReverseCharge(rate),
+        isTransfer ? matchedBank.id : null,
+        isTransfer ? matchedBank.name : null,
         usualCurrency,
         cadence,
         confidenceCount,
@@ -481,11 +720,58 @@ async function bootstrapFromXero() {
       ]
     );
     created++;
+    if (isTransfer) transfers++;
+
+    // Multi-coding: if multiple distinct codings with 2+ occurrences,
+    // create coding rows for the alternatives.
+    if (newSupplier && !isTransfer && sortedCodings.length > 1) {
+      for (let i = 1; i < sortedCodings.length; i++) {
+        const alt = sortedCodings[i];
+        if (alt[1].count < 2) continue;
+
+        const [altCode, altRate] = alt[0].split('||');
+        const altName = entry.codings.find(c => c.code === altCode)?.name || null;
+
+        // Find trigger patterns: words in the references for this coding
+        // that don't appear in the contact name.
+        const contactWords = new Set(normalise(entry.displayName).split(' ').filter(w => w.length >= 3));
+        const triggerPatterns = [];
+        for (const ref of alt[1].refs) {
+          const refWords = normalise(ref).split(' ').filter(w => w.length >= 3);
+          for (const w of refWords) {
+            if (!contactWords.has(w) && !triggerPatterns.includes(w)) {
+              triggerPatterns.push(w);
+            }
+          }
+        }
+
+        if (triggerPatterns.length) {
+          await db.query(
+            `INSERT INTO acct_supplier_codings
+               (supplier_id, type, account_code, account_name, vat_treatment,
+                is_reverse_charge, trigger_patterns, confidence_counter, auto_code)
+             VALUES ($1, 'expense', $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT DO NOTHING`,
+            [
+              newSupplier.id,
+              altCode,
+              altName,
+              altRate || 'NONE',
+              isReverseCharge(altRate),
+              triggerPatterns,
+              alt[1].count,
+              alt[1].count >= AUTO_CODE_CONFIDENCE_THRESHOLD,
+            ]
+          );
+          multiCoded++;
+        }
+      }
+    }
   }
 
-  console.log('[Suppliers] Bootstrap complete: %d created, %d skipped (%dms)',
-    created, skipped, Date.now() - t0);
-  return { created, skipped, contactsFound: contactMap.size };
+  console.log('[Suppliers] Bootstrap complete: %d created (%d transfers, %d multi-coded), %d skipped (%dms)',
+    created, transfers, multiCoded, skipped, Date.now() - t0);
+  return { created, skipped, transfers, multiCoded, contactsFound: contactMap.size };
 }
 
 async function findSupplierByPatterns(patterns) {
@@ -753,39 +1039,71 @@ function scoreMatch(payeeNorm, supplier) {
   return best;
 }
 
-async function fuzzyLookup(payee) {
+async function fuzzyLookup(payee, lineText) {
   if (!payee || !payee.trim()) return null;
   const payeeNorm = normalisePayee(payee);
   if (!payeeNorm) return null;
 
+  let matchedSupplier = null;
+  let matchScore = 0;
+  let matchType = 'none';
+
   const exactMatch = await findSupplier(payee);
   if (exactMatch) {
+    matchedSupplier = exactMatch;
+    matchScore = 1.0;
+    matchType = 'exact';
+  }
+
+  if (!matchedSupplier) {
+    const { rows } = await db.query('SELECT * FROM acct_suppliers ORDER BY confidence_counter DESC');
+    let bestScore = 0;
+    let bestSupplier = null;
+
+    for (const row of rows) {
+      const score = scoreMatch(payeeNorm, row);
+      if (score > bestScore) {
+        bestScore = score;
+        bestSupplier = row;
+      }
+    }
+
+    if (bestScore < 0.4 || !bestSupplier) return null;
+    matchedSupplier = bestSupplier;
+    matchScore = Math.round(bestScore * 100) / 100;
+    matchType = bestScore >= 0.85 ? 'strong' : bestScore >= 0.6 ? 'likely' : 'weak';
+  }
+
+  // Check for specific codings when full line text is provided.
+  const searchText = lineText || payee;
+  const codings = await getCodingsForSupplier(matchedSupplier.id);
+  const bestCoding = findBestCoding(codings, searchText);
+
+  if (bestCoding) {
     return {
-      supplier: exactMatch,
-      matchScore: 1.0,
-      matchType: 'exact',
+      supplier: {
+        ...matchedSupplier,
+        type: bestCoding.type,
+        account_code: bestCoding.account_code,
+        account_name: bestCoding.account_name,
+        vat_treatment: bestCoding.vat_treatment,
+        is_reverse_charge: bestCoding.is_reverse_charge,
+        destination_bank_account_id: bestCoding.destination_bank_account_id,
+        destination_bank_account_name: bestCoding.destination_bank_account_name,
+        confidence_counter: bestCoding.confidence_counter,
+        auto_code: bestCoding.auto_code,
+        coding_id: bestCoding.id,
+        coding_trigger: bestCoding._matched_pattern,
+      },
+      matchScore,
+      matchType,
     };
   }
 
-  const { rows } = await db.query('SELECT * FROM acct_suppliers ORDER BY confidence_counter DESC');
-
-  let bestScore = 0;
-  let bestSupplier = null;
-
-  for (const row of rows) {
-    const score = scoreMatch(payeeNorm, row);
-    if (score > bestScore) {
-      bestScore = score;
-      bestSupplier = row;
-    }
-  }
-
-  if (bestScore < 0.4 || !bestSupplier) return null;
-
   return {
-    supplier: bestSupplier,
-    matchScore: Math.round(bestScore * 100) / 100,
-    matchType: bestScore >= 0.85 ? 'strong' : bestScore >= 0.6 ? 'likely' : 'weak',
+    supplier: matchedSupplier,
+    matchScore,
+    matchType,
   };
 }
 
@@ -806,5 +1124,10 @@ module.exports = {
   cleanup,
   getStats,
   getAutoCodedSummary,
+  syncBankAccounts,
+  getBankAccountsList,
+  getCodingsForSupplier,
+  createCoding,
+  correctCoding,
   AUTO_CODE_CONFIDENCE_THRESHOLD,
 };
