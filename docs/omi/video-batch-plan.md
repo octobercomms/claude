@@ -28,13 +28,21 @@ that produces output the editor cannot open fails the brief, however fast it is.
 **The commercial case is hours, not money.** Thirty videos edited by hand at 45
 to 90 minutes each is 22 to 45 hours. Through this pipeline it is about two
 hours of unattended machine time plus two to three hours of review. The AI
-spend for thirty videos is between $3 and $81 USD depending on one decision
+spend for thirty videos is between $3 and $85 USD depending on one decision
 (see **The image-to-video question**), against a day rate in the hundreds of
-pounds. Build for throughput and reviewability, not for saving dollars.
+pounds.
 
-**Estimate: 31 to 48 sessions** for the whole scope below. That is larger than
-the composition editor rewrite, which was estimated at 25 to 35 and landed in
-that band. Daniel has seen the number and asked for the whole architecture
+**The headline is risk, not cost.** At 22 to 45 hours saved, the dollars are
+noise at either end of that range, so "£29 rather than £2" is the wrong thing
+to lead on and the weaker argument. What the image-to-video decision really
+buys is removing a third-party generative API from the critical path of an
+unattended fortnightly run. Build for throughput, reviewability and failure
+behaviour.
+
+**Estimate: 33 to 51 sessions** for the whole scope below, which is what the
+build-order table sums to. That is roughly 1.5x the composition editor
+rewrite, which was estimated at 25 to 35 and landed in that band, and it makes
+this the largest single thing OMI has built. Daniel has seen the number and asked for the whole architecture
 rather than a cut-down version, on the condition that nothing half-done is
 exposed to users. Build it the way the editor rewrite was built: in dependency
 order, behind the existing flag pattern, with each step complete before the
@@ -245,11 +253,30 @@ What it does, per item:
 3. Write it to `compositions` with the batch id and the template id on it.
 4. Enqueue a render.
 
-Then a **review sheet**: all N outputs on one screen as thumbnails with the
-QC verdict, the rationale fields, and three actions per row (approve, reject,
-open in editor). Nothing leaves for Drive or Instagram until approved. Thirty
-items arriving together is precisely when a per-item approval click is worth
-having.
+Then a **review sheet**, and it is **L5 ListDetail in its `sidebar` variant,
+not a grid**. Thirty items times a thumbnail, a verdict, a rationale and three
+buttons is about 120 controls with no reading order, and the rationale fields
+that model change 3 exists to produce would truncate to nothing. L5 is the
+shell for working a queue without losing your place, and its precedent is the
+contacts screen in `ClientOutreachPage`, which is the same job: a compact
+selectable list on the left (thumbnail at row height, name, a QC chip), the
+record on the right (full frame, the `reason`, `beat` and `quote` fields in
+full, approve, reject, open in editor). An **L3 StatStrip** above it carries
+the batch roll-up: rendered, failed, approved, spend against estimate. No new
+shell, and not StepRail, because a batch is a set rather than a sequence.
+
+Three things that follow, and all three have bitten this codebase before:
+
+- **The sheet is a row in `nav/sections.js` under Produce, not a modal.** Every
+  page needs a door, and `routeDoors.test.mjs` fails a page nothing links to.
+- **Reviewing thirty items is a keyboard task.** Approve, reject and next on
+  keys beats ninety clicks.
+- **Decide `phone` deliberately.** The Video row is `phone: false`, but
+  approving a batch is exactly a phone job, so the sheet should be phone-enabled
+  and "open in editor" has to degrade honestly rather than navigate to a screen
+  phones are not offered.
+
+Nothing leaves for Drive or Instagram until approved.
 
 **Per-item failure must not fail the batch.** A fal timeout, a 403 for billing,
 a missing asset: that item is marked and the rest continue. The old stills path
@@ -269,7 +296,7 @@ Daniel's ask: *"is there a way to upload someones video to be analysed and
 build a template from it? a claude video analyser?"*
 
 Yes, and it is the better answer to "I want ten templates" than writing ten by
-hand. Point it at ten reels, get ten template proposals for under a dollar.
+hand. Point it at ten reels, get ten template proposals for about a dollar.
 
 What is recoverable from a finished video:
 
@@ -318,11 +345,36 @@ places they drift, and a cost label nobody trusts is worse than no label. Put
 every unit price in `shared/pricing.mjs` and have both the estimate and the log
 read it.
 
-**Then a cost chip beside every spending button**, showing three things:
+**The cost chip already exists. Extend it, do not build a second one.**
+`components/FeatureCost.jsx` with `.feature-cost` in `index.css` is this
+component: one fetch for the whole app shared through context, a **median** of
+the last 30 days rather than a mean (its own comment explains why: one 4K
+upscale drags a mean above what the next click costs, and an estimate that
+overstates by 10x gets ignored), and it returns `null` rather than a figure
+when there is no history, which is the "a free action shows nothing, not a
+zero" rule already enforced in code. Note it is also the provider that caused
+the login flicker in the agent guide's §12, so it does not ask for data until
+there is somebody to ask for; keep that.
 
-1. The unit price.
-2. The computed total for the inputs currently on screen.
-3. What is left of that task's monthly budget.
+What it needs adding:
+
+1. The unit price. **Already there.**
+2. The computed total for the inputs currently on screen, which for a batch
+   needs a server estimate. Show the locally-known unit price immediately and
+   the total as plain text while it resolves, never a skeleton or a shimmer
+   next to a button somebody is about to press.
+3. What is left of that task's monthly budget, coloured only when the total
+   exceeds it. A permanently coloured chip is decoration.
+4. **A currency.** Every provider price here is USD and October works in USD,
+   GBP and EUR. `formatMoney(amount, currency)` already exists and the house
+   rule is that a wrong symbol is worse than no symbol, so the chip carries
+   its currency rather than implying one.
+
+**One chip per card, not per button.** Transcribe, captions, b-roll, visualise
+and the batch all spend, and five chips on one card is ambient noise that
+destroys the rule that a chip's presence means this one costs money. Put the
+chip on the action that commits the spend, and give a card holding more than
+two spending actions a single card-level total instead.
 
 After a run it shows actual against estimate, so the table corrects itself
 rather than quietly going stale.
@@ -486,14 +538,28 @@ the model changes and the template model.
 | 3 | One shared pricing table plus the cost chip | 2 to 3 | Before anything spends in bulk, not after |
 | 4 | Template model and the eight preloaded templates | 4 to 6 | The keystone. Bulk is meaningless without it |
 | 5 | The batch runner, fan-out, and the review sheet | 4 to 6 | The feature Daniel asked for |
-| 6 | The QC gate | 2 to 3 | Needed before a batch runs unwatched twice |
-| 7 | The worker renders the composition model | 3 to 5 | Moves thirty encodes off the app box |
-| 8 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor |
-| 9 | The reference analyser | 4 to 6 | Turns ten reference reels into ten templates |
+| 6 | The reference analyser | 4 to 6 | Turns ten reference reels into ten templates. Moved up: see below |
+| 7 | The QC gate | 2 to 3 | Needed before a batch runs unwatched twice |
+| 8 | The worker renders the composition model, **and `update.sh` learns to deploy it** | 3 to 5 | Moves thirty encodes off the app box. See the first trap |
+| 9 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor |
 | 10 | The FX library, three to six effects | 4 to 6 | Nothing depends on it, so it goes late |
 | 11 | Spotlight and segmentation | 3 to 5 | The only genuinely hard effect. Last, and optional |
 
 Steps 2 and 4 are where this is won or lost.
+
+**The analyser was at step 9 and that was phasing with better words.** This
+document argues that pointing the analyser at ten reference reels is a better
+answer to "I want ten templates" than writing eight by hand, and then
+scheduled the hand-written eight at step 4 and the analyser twenty-odd
+sessions later. It is one of Daniel's own asks, not a deferred nicety, so it
+now sits at step 6, directly after the batch runner it feeds templates to.
+Steps 10 and 11 genuinely are deferred features and nothing depends on them.
+
+**When each of his asks lands, stated plainly** so the order is a decision he
+can argue with rather than something buried in a table: preloaded templates at
+step 4, the batch itself at step 5, the analyser at step 6, cost labels at
+step 3, and editing a batch output in the editor from step 5 onward because
+the batch writes Compositions and the editor already opens those.
 
 ---
 
@@ -561,17 +627,41 @@ no generated parallax.
 
 **The test:** six real client stills rendered both ways, viewed side by side.
 About $1.50 and twenty minutes. The answer decides whether a fortnight of
-content costs roughly £35 or roughly £2, and whether the batch has a
-third-party dependency in its critical path at all.
+content costs about £29 to £67 or about £2 (converting $37 to $85 at 1.27,
+the rate stated because it moves and because the figures above are billed in
+USD), and whether the batch has a third-party dependency in its critical path
+at all. The second of those is the reason to run it.
 
 My recommendation, for whoever runs it: default to deterministic moves, make
 i2v a per-template option, and let the bake-off decide which templates earn it.
 
-### 2. Who the FX library is for (decide before step 10)
+### 2. Who the FX library is for — ANSWERED 8 November: both
 
-Daniel's own channel, or client work. If it is his, the tech-creator effects
-earn their place. If it is for architects and design-led brands, build the
-mechanism and ship three restrained effects rather than seven loud ones.
+Daniel's answer was "for me and clients", so the library serves two registers
+and the register is a property of the client, never of the effect author's
+taste.
+
+That is not a licence to ship seven loud effects. It means the FX library
+follows the caption presets' own pattern, which already solved this problem:
+`shared/captions/presets.json` carries 31 entries with a `category`, a
+`bestFor` line and an `acceptsAccent` flag, and the four `measured` presets
+exist precisely because the 27 ported creator ones were the wrong library for
+an institution. The guide states the rule it protects: a client's brand kit may
+change a caption's typeface, never its structure, because "a skin that could
+change size, weight or highlighting would make 'the Nordic one' mean something
+different on every account."
+
+So each FX entry carries a **register**: `creator` (glass panels, phone
+toggles, orbiting thumbnails, the checklist) or `editorial` (a spotlight, a
+match cut, a restrained lower third, a progress rule). A template names the
+register it draws from, and a client's default register is set once beside
+their caption preset. October's own channel draws from both; an architecture
+practice draws from `editorial` and never sees the rest.
+
+**Do not let the FX library become a ninth tab.** It is inspector sections
+plus shipped data, exactly as the caption templates are, and the guide is
+explicit that adding a template as a React composition is the `StyleA/C/G.jsx`
+pattern that does not scale past three.
 
 ### 3. Smaller calls, with recommendations
 
@@ -588,6 +678,17 @@ mechanism and ship three restrained effects rather than seven loud ones.
 
 ## Traps
 
+- **The deploy does not reach the video worker, so step 7 would ship nothing.**
+  `update.sh` installs and reloads the backend (`october-platform`), builds the
+  frontend, syncs nginx and handles the Shopify app (`october-mi-shopify`). It
+  has no step for `dev/platform/worker/`, which `docs/omi/video-worker.md` says
+  is started by hand on its own box with `pm2 start index.js --name
+  video-worker`. A merge touching `dev/platform/**` updates the source on the
+  box and the worker keeps running the old code until somebody connects to it.
+  Step 7 moves thirty encodes onto that worker, so **step 7 must add the worker
+  to `update.sh` or give it its own deploy job**, or it will appear to ship and
+  silently will not have. Everything else here (the shared templates JSON, the
+  migrations, the budget row) deploys cleanly through the existing path.
 - **Remotion is already a direct backend dependency** (`backend/package.json`,
   `remotion ^4.0.0`, plus `@remotion/bundler` and `@remotion/renderer`) and
   renders the StyleA, StyleC, StyleG and StoryboardReel templates. Remotion's
