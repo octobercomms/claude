@@ -43,8 +43,13 @@ const compositions = require('./compositions');
 const assets = require('./assets');
 const queue = require('./compositionRenderQueue');
 const { buildCaptionAss, assetFilePath } = require('./compositionRenderer');
-
-const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
+// ONE ffmpeg for the whole backend. Reading FFMPEG_PATH here instead would
+// put a second answer to "which ffmpeg" in the tree, which is the exact state
+// services/ffmpegBin.js exists to have ended: pointing FFMPEG_PATH at a
+// candidate build would then upgrade the editor's export and not a batch's,
+// and two versions in one request path fail only in the half nobody is
+// looking at. tests/ffmpeg-bin.test.js caught this import missing.
+const { FFMPEG } = require('./ffmpegBin');
 const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const RENDER_PATH = path.join(__dirname, '..', '..', '..', 'shared', 'compositionRender.mjs');
 
