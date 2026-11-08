@@ -5,6 +5,7 @@
 
 const db = require('../../db');
 const xero = require('../../connectors/xero');
+const suppliers = require('./suppliers');
 
 const VAT_QUARTERS = [
   { q: 1, start: '01-01', end: '03-31', label: 'Q1 Jan-Mar' },
@@ -101,6 +102,28 @@ async function buildVatPack(year, quarter) {
     [periodStart, periodEnd]
   );
 
+  // Brain consistency check: compare each transaction's VAT rate against
+  // what the supplier brain expects. A departure is a real signal.
+  const brainFlags = [];
+  for (const item of items) {
+    const txnRate = (item.suggested_rate || 'NONE').toUpperCase();
+    const supplier = await suppliers.findSupplier(item.payee, item.currency);
+    if (!supplier) continue;
+    const brainRate = (supplier.vat_treatment || 'NONE').toUpperCase();
+    if (txnRate !== brainRate) {
+      brainFlags.push({
+        payee: item.payee,
+        lineRef: item.line_ref,
+        date: item.line_date,
+        amount: item.amount,
+        currency: item.currency,
+        txnRate,
+        brainRate,
+        supplier: supplier.display_name,
+      });
+    }
+  }
+
   // Summary totals.
   const outputVat = (byRate['OUTPUT2']?.net || 0) * 0.2;
   const inputVat = (byRate['INPUT2']?.net || 0) * 0.2;
@@ -123,6 +146,14 @@ async function buildVatPack(year, quarter) {
     exceptions: exceptions.length,
     unresolvedExceptions: 0,
     missingInvoices: missingInvoices.length,
+    missingInvoiceList: missingInvoices.slice(0, 50).map(m => ({
+      payee: m.payee,
+      date: m.line_date,
+      amount: m.amount,
+      currency: m.currency,
+      lineRef: m.line_ref,
+    })),
+    brainFlags: brainFlags.slice(0, 50),
   };
 
   // Count unresolved exceptions for this period.

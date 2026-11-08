@@ -640,7 +640,7 @@ export function slugOf(row) {
 // their own. Each maps a URL slug to the tab key it should resolve to.
 export const SLUG_ALIASES = {
   connections: 'integrations',
-  digest: 'weekly-digest',
+  digest: 'digests',
 };
 
 // slug -> the key the page compares against. Unknown slugs answer null so the
@@ -649,7 +649,7 @@ export function tabForSlug(section, slug) {
   if (!section) return null;
   const resolved = SLUG_ALIASES[slug] || slug;
   for (const g of section.groups) {
-    const row = g.rows.find(r => slugOf(r) === resolved);
+    const row = g.rows.find(r => slugOf(r) === resolved || r.tab === resolved);
     if (row) return row.tab;
   }
   return null;

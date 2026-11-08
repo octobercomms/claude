@@ -1460,6 +1460,74 @@ export function VatPanel() {
               </table>
             </div>
           )}
+
+          {packResult?.summary?.brainFlags?.length > 0 && (
+            <div style={{ marginTop: 'var(--s3)' }}>
+              <div className="h5" style={{ marginBottom: 'var(--s2)', color: 'var(--warning)' }}>
+                Brain inconsistencies ({packResult.summary.brainFlags.length})
+              </div>
+              <div className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>
+                These transactions have a different VAT treatment from what the supplier brain expects. Worth reviewing before the quarter closes.
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Supplier</th>
+                    <th>Date</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th>Applied rate</th>
+                    <th>Brain expects</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packResult.summary.brainFlags.map((f, i) => (
+                    <tr key={f.lineRef || i}>
+                      <td>{f.supplier || f.payee}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{typeof f.date === 'string' ? f.date.slice(0, 10) : '—'}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {f.currency !== 'GBP' ? `${f.currency} ` : '£'}{Number(f.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td><span className="chip chip-danger">{f.txnRate}</span></td>
+                      <td><span className="chip chip-success">{f.brainRate}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {packResult?.summary?.missingInvoiceList?.length > 0 && (
+            <div style={{ marginTop: 'var(--s3)' }}>
+              <div className="h5" style={{ marginBottom: 'var(--s2)', color: 'var(--danger)' }}>
+                Missing invoices ({packResult.summary.missingInvoices})
+              </div>
+              <div className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>
+                Transactions over £50 in this quarter without a matched invoice.
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Payee</th>
+                    <th>Date</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th>Currency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packResult.summary.missingInvoiceList.map((m, i) => (
+                    <tr key={m.lineRef || i}>
+                      <td>{m.payee || '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{typeof m.date === 'string' ? m.date.slice(0, 10) : '—'}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {Number(m.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td>{m.currency || 'GBP'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

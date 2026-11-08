@@ -115,99 +115,159 @@ async function getDigests(limit = 12) {
 
 function formatDigestHtml(summary) {
   const s = summary;
-  const deadlineRows = (s.deadlines || []).map(d => {
-    const urgency = d.daysUntil <= 7 ? '#d32f2f' : d.daysUntil <= 14 ? '#f57c00' : '#388e3c';
+
+  // Deadlines: split into needing attention vs confirmed paid.
+  const deadlines = s.deadlines || [];
+  const needsAttention = deadlines.filter(d =>
+    d.status !== 'filed' && d.status !== 'paid' && d.daysUntil <= 30
+  );
+  const paidOrFiled = deadlines.filter(d =>
+    d.status === 'filed' || d.status === 'paid'
+  );
+  const upcoming = deadlines.filter(d =>
+    d.status !== 'filed' && d.status !== 'paid' && d.daysUntil > 30
+  );
+
+  function deadlineChip(d) {
+    if (d.status === 'filed' || d.status === 'paid') {
+      return `<span style="background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;">Paid</span>`;
+    }
+    if (d.status === 'overdue') {
+      return `<span style="background:#fef2f2;color:#dc2626;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;">Overdue</span>`;
+    }
+    if (d.daysUntil <= 14) {
+      return `<span style="background:#fffbeb;color:#d97706;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;">Due ${d.dueDate}</span>`;
+    }
+    return `<span style="background:#f3f4f6;color:#6b7280;font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;">${d.dueDate}</span>`;
+  }
+
+  function deadlineRow(d) {
     return `<tr>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${d.type}</td>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${d.label}</td>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${d.dueDate}</td>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;color:${urgency};font-weight:600;">${d.daysUntil}d</td>
+      <td style="padding:10px 8px 10px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="font-weight:600;font-size:14px;">${d.type}</div>
+        <div style="font-size:13px;color:#6b7280;">${d.label}</div>
+      </td>
+      <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;text-align:right;">${deadlineChip(d)}</td>
     </tr>`;
-  }).join('');
+  }
+
+  // Alert banner for deadlines needing attention.
+  let alertBanner = '';
+  if (needsAttention.length > 0) {
+    const overdue = needsAttention.filter(d => d.status === 'overdue');
+    const dueSoon = needsAttention.filter(d => d.status !== 'overdue');
+    const parts = [];
+    if (overdue.length) parts.push(`${overdue.length} overdue`);
+    if (dueSoon.length) parts.push(`${dueSoon.length} due within 30 days`);
+    alertBanner = `
+      <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;margin-bottom:20px;border-radius:0 4px 4px 0;">
+        <strong style="color:#dc2626;">${needsAttention.length} deadline${needsAttention.length > 1 ? 's need' : ' needs'} attention</strong>
+        <p style="margin:4px 0 0;font-size:14px;color:#6b7280;">${parts.join(', ')}. No matching payment found.</p>
+      </div>`;
+  } else if (deadlines.length > 0) {
+    alertBanner = `
+      <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:12px 16px;margin-bottom:20px;border-radius:0 4px 4px 0;">
+        <strong style="color:#16a34a;">All deadlines on track</strong>
+      </div>`;
+  }
 
   const missingRows = (s.invoices?.missingList || []).slice(0, 10).map(m =>
     `<tr>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${m.payee}</td>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${m.date || ''}</td>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;">${m.currency || 'GBP'} ${m.amount}</td>
+      <td style="padding:8px 8px 8px 0;border-bottom:1px solid #e5e7eb;">${m.payee}</td>
+      <td style="padding:8px 8px 8px 0;border-bottom:1px solid #e5e7eb;">${m.date || ''}</td>
+      <td style="padding:8px 0 8px 0;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;">${m.currency || 'GBP'} ${Number(m.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}</td>
     </tr>`
   ).join('');
 
   return `
-    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
-      <h2 style="color:#1a1a1a;margin-bottom:4px;">Accounts Weekly Digest</h2>
-      <p style="color:#666;margin-top:0;">${s.period.start} to ${s.period.end}</p>
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;padding:24px 0 40px;line-height:1.5;color:#1a1a1a;">
+      <div style="text-align:center;padding:20px 0 16px;border-bottom:2px solid #1a1a1a;margin-bottom:24px;">
+        <h1 style="font-size:20px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin:0 0 2px;">Accounts Weekly</h1>
+        <div style="font-size:13px;color:#6b7280;">${s.period.start} to ${s.period.end}</div>
+      </div>
 
-      <h3 style="color:#1a1a1a;">Reconciliation</h3>
-      <table style="border-collapse:collapse;margin:12px 0;">
-        <tr><td style="padding:4px 16px 4px 0;color:#666;">Confirmed this week</td><td style="font-weight:600;">${s.reconciliation.confirmedThisWeek}</td></tr>
-        <tr><td style="padding:4px 16px 4px 0;color:#666;">Pending review</td><td style="font-weight:600;">${s.reconciliation.pending}</td></tr>
-        <tr><td style="padding:4px 16px 4px 0;color:#666;">Written to Xero</td><td style="font-weight:600;">${s.reconciliation.totalWritten}</td></tr>
-        <tr><td style="padding:4px 16px 4px 0;color:#666;">Total in queue</td><td style="font-weight:600;">${s.reconciliation.totalInQueue}</td></tr>
+      ${alertBanner}
+
+      ${deadlines.length > 0 ? `
+        <h2 style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">Deadlines</h2>
+        <table style="width:100%;border-collapse:collapse;">
+          ${[...needsAttention, ...upcoming, ...paidOrFiled].map(deadlineRow).join('')}
+        </table>
+      ` : ''}
+
+      <h2 style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">Reconciliation</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="width:50%;padding:14px 16px;background:#f9fafb;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;">Confirmed this week</div>
+            <div style="font-size:22px;font-weight:700;color:#16a34a;">${s.reconciliation.confirmedThisWeek}</div>
+          </td>
+          <td style="width:8px;"></td>
+          <td style="width:50%;padding:14px 16px;background:#f9fafb;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;">Pending review</div>
+            <div style="font-size:22px;font-weight:700;${s.reconciliation.pending > 0 ? 'color:#d97706;' : ''}">${s.reconciliation.pending}</div>
+          </td>
+        </tr>
       </table>
 
-      <h3 style="color:#1a1a1a;">Invoices</h3>
-      <table style="border-collapse:collapse;margin:12px 0;">
-        <tr><td style="padding:4px 16px 4px 0;color:#666;">Matched</td><td style="font-weight:600;">${s.invoices.matched}</td></tr>
-        <tr><td style="padding:4px 16px 4px 0;color:#666;">Attached to Xero</td><td style="font-weight:600;">${s.invoices.attached}</td></tr>
-        <tr><td style="padding:4px 16px 4px 0;color:#666;">Missing</td><td style="font-weight:600;color:${s.invoices.missing > 0 ? '#d32f2f' : '#388e3c'};">${s.invoices.missing}</td></tr>
+      <h2 style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">Invoices</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="width:50%;padding:14px 16px;background:#f9fafb;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;">Matched</div>
+            <div style="font-size:22px;font-weight:700;color:#16a34a;">${s.invoices.matched}</div>
+          </td>
+          <td style="width:8px;"></td>
+          <td style="width:50%;padding:14px 16px;background:#f9fafb;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;">Missing</div>
+            <div style="font-size:22px;font-weight:700;${s.invoices.missing > 0 ? 'color:#dc2626;' : ''}">${s.invoices.missing}</div>
+          </td>
+        </tr>
       </table>
 
       ${missingRows ? `
-        <h4 style="color:#1a1a1a;">Top missing invoices</h4>
-        <table style="border-collapse:collapse;width:100%;margin:12px 0;">
-          <thead><tr style="background:#f5f5f5;">
-            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Payee</th>
-            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Date</th>
-            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Amount</th>
-          </tr></thead>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
+          <thead>
+            <tr>
+              <th style="text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;padding:8px 8px 8px 0;border-bottom:2px solid #e5e7eb;">Supplier</th>
+              <th style="text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;padding:8px 8px 8px 0;border-bottom:2px solid #e5e7eb;">Date</th>
+              <th style="text-align:right;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;padding:8px 0 8px 0;border-bottom:2px solid #e5e7eb;">Amount</th>
+            </tr>
+          </thead>
           <tbody>${missingRows}</tbody>
         </table>
       ` : ''}
 
       ${s.suppliers ? `
-        <h3 style="color:#1a1a1a;">Supplier Brain</h3>
-        <table style="border-collapse:collapse;margin:12px 0;">
-          <tr><td style="padding:4px 16px 4px 0;color:#666;">Total suppliers</td><td style="font-weight:600;">${s.suppliers.total}</td></tr>
-          <tr><td style="padding:4px 16px 4px 0;color:#666;">Auto-coding</td><td style="font-weight:600;">${s.suppliers.autoCoding}</td></tr>
-          <tr><td style="padding:4px 16px 4px 0;color:#666;">Still learning</td><td style="font-weight:600;">${s.suppliers.learning}</td></tr>
+        <h2 style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">Supplier Brain</h2>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="width:50%;padding:14px 16px;background:#f9fafb;border-radius:6px;">
+              <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;">Total suppliers</div>
+              <div style="font-size:22px;font-weight:700;">${s.suppliers.total}</div>
+            </td>
+            <td style="width:8px;"></td>
+            <td style="width:50%;padding:14px 16px;background:#f9fafb;border-radius:6px;">
+              <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.3px;">Auto-coding</div>
+              <div style="font-size:22px;font-weight:700;color:#16a34a;">${s.suppliers.autoCoding}</div>
+            </td>
+          </tr>
         </table>
         ${(s.suppliers.autoCodedThisWeek || []).length ? `
-          <h4 style="color:#1a1a1a;">Auto-coded this week</h4>
-          <table style="border-collapse:collapse;width:100%;margin:12px 0;">
-            <thead><tr style="background:#f5f5f5;">
-              <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Supplier</th>
-              <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Transactions</th>
-            </tr></thead>
-            <tbody>${(s.suppliers.autoCodedThisWeek || []).map(a =>
-              `<tr><td style="padding:6px 12px;border:1px solid #e0e0e0;">${a.display_name}</td>
-               <td style="padding:6px 12px;border:1px solid #e0e0e0;">${a.count}</td></tr>`
-            ).join('')}</tbody>
-          </table>
+          <p style="font-size:13px;color:#6b7280;margin:12px 0 8px;">Auto-coded this week:</p>
+          ${(s.suppliers.autoCodedThisWeek || []).map(a =>
+            `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;">
+              <span>${a.display_name}</span>
+              <span style="font-weight:600;color:#6b7280;font-variant-numeric:tabular-nums;">${a.count} txn${a.count !== 1 ? 's' : ''}</span>
+            </div>`
+          ).join('')}
         ` : ''}
       ` : ''}
 
-      ${s.overdueDeadlines ? `
-        <div style="background:#fff3e0;border-left:4px solid #f57c00;padding:12px 16px;margin:16px 0;">
-          <strong style="color:#e65100;">${s.overdueDeadlines} overdue deadline${s.overdueDeadlines > 1 ? 's' : ''}</strong>
-          <span style="color:#666;"> require attention.</span>
-        </div>
-      ` : ''}
-
-      ${deadlineRows ? `
-        <h3 style="color:#1a1a1a;">Upcoming Deadlines</h3>
-        <table style="border-collapse:collapse;width:100%;margin:12px 0;">
-          <thead><tr style="background:#f5f5f5;">
-            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Type</th>
-            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Period</th>
-            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Due</th>
-            <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Days</th>
-          </tr></thead>
-          <tbody>${deadlineRows}</tbody>
-        </table>
-      ` : ''}
-
-      <p style="color:#999;font-size:12px;margin-top:24px;">October Marketing Intelligence &mdash; Accounts Module</p>
+      <div style="text-align:center;padding:24px 0 0;margin-top:28px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">
+        October Marketing Intelligence<br>
+        Accounts Module
+      </div>
     </div>
   `;
 }
