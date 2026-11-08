@@ -17,6 +17,9 @@ const { whisperWords } = require('../services/whisper');
 // compiled caption ASS lived on that other path, every caption the editor
 // produced was silently dropped from the output.
 const { buildCaptionAss } = require('../services/compositionRenderer');
+// The audio measurement half of the silence plan. The arithmetic is pure and
+// lives in shared/silenceCut.mjs; this is the part that needs a file.
+const silenceService = require('../services/silenceCut');
 const db = require('../db');
 
 const { pathToFileURL } = require('url');
@@ -336,7 +339,37 @@ router.post('/compositions/:id/tighten', loadComposition, async (req, res) => {
     if (!words?.length) return res.status(400).json({ error: 'No transcript for that source. Transcribe first.' });
 
     const sc = await silenceMod();
-    const plan = sc.planCuts(words, options || {});
+
+    // Two things this route used to leave out, both of which made the plan
+    // quietly wrong rather than visibly broken.
+    //
+    // `media_s`: without the file's own length the plan truncates at the last
+    // word Whisper heard, so anything said after it is dropped and the edit
+    // looks successful. The clip's duration was probed on upload and is on
+    // the source, so this needs no disk read.
+    //
+    // `envelope`: word timings cannot tell dead air from a cough, a door or
+    // room tone. The measurement confirms a nominated gap is actually empty.
+    // It is best-effort by design: if the file cannot be measured the plan
+    // falls back to timings alone, which is what it always did, rather than
+    // failing the request.
+    const src = (comp.data?.sources || {})[sourceId];
+    let envelope = null;
+    try {
+      const assetId = (comp.source_assets || {})[sourceId];
+      const asset = assetId ? await assets.get(assetId) : null;
+      const filePath = asset ? assetFilePath(asset) : null;
+      if (filePath) envelope = await silenceService.measureEnvelope(filePath);
+    } catch (err) {
+      console.warn('[compose] tighten: could not measure audio, '
+        + `falling back to timings only: ${err.message}`);
+    }
+
+    const plan = sc.planCuts(words, {
+      media_s: src?.duration ?? null,
+      envelope,
+      ...(options || {}),
+    });
     res.json(plan);
   } catch (err) {
     console.error('[compose] tighten failed:', err.message);

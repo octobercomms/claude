@@ -31,6 +31,59 @@ function run(bin, args) {
   });
 }
 
+/**
+ * An RMS level envelope for a file, in dBFS, in the file's own timebase.
+ *
+ * `planCuts` uses this to confirm that a gap the word timings nominated is
+ * actually empty. Word timings alone cannot tell dead air from a cough, a
+ * door, a chair or room tone, and cutting one of those removes a sound the
+ * viewer heard.
+ *
+ * One decode, 50ms windows: `asetnsamples=800` at 16kHz. Measured at about
+ * three seconds for a ten-minute file, so it is affordable per request.
+ *
+ * Taking the whole envelope rather than running `silencedetect` per candidate
+ * threshold is deliberate. With the envelope in memory, the per-file
+ * threshold sweep and the quiet-fraction test are arithmetic; with
+ * `silencedetect` each threshold is another decode, and parallel instances
+ * collide on the same `lavfi.silence_start` metadata key.
+ *
+ * `hop` is read back from the reported `pts_time` rather than assumed from
+ * the filter arguments, so a resample that lands differently is visible
+ * instead of silently shifting every measurement against the word timings.
+ */
+async function measureEnvelope(file) {
+  const out = await run(FFMPEG, [
+    '-v', 'error', '-i', file, '-vn',
+    '-af', 'aresample=16000,asetnsamples=800,astats=metadata=1:reset=1,'
+      + 'ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-',
+    '-f', 'null', '-',
+  ]);
+
+  const times = [];
+  const dbs = [];
+  let pending = null;
+  for (const line of out.split('\n')) {
+    const t = line.match(/pts_time:([\d.]+)/);
+    if (t) { pending = Number(t[1]); continue; }
+    const v = line.match(/lavfi\.astats\.Overall\.RMS_level=(-?[\d.]+|-?inf)/);
+    if (v && pending != null) {
+      // A fully digital-silent window reports -inf. Treat it as the floor
+      // rather than dropping it: a dropped window is "no measurement", and
+      // the quiet test must be able to tell that from "measured, and empty".
+      const n = v[1] === '-inf' ? -120 : Number(v[1]);
+      if (Number.isFinite(n)) { times.push(pending); dbs.push(n); }
+      pending = null;
+    }
+  }
+
+  if (dbs.length < 2) return null;
+  // The median step, so one odd frame cannot set the hop for the whole file.
+  const steps = times.slice(1).map((t, i) => t - times[i]).filter((d) => d > 0).sort((a, b) => a - b);
+  const hop = steps.length ? steps[Math.floor(steps.length / 2)] : 0.05;
+  return { hop, dbs };
+}
+
 async function durationOf(file) {
   const out = await run(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration',
     '-of', 'csv=p=0', file]);
@@ -109,4 +162,4 @@ async function apply({ source, keep, outPath }) {
   };
 }
 
-module.exports = { propose, apply, wordsFor, durationOf };
+module.exports = { propose, apply, wordsFor, durationOf, measureEnvelope };

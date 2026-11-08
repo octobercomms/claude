@@ -34,6 +34,90 @@ export const FILLER_PHRASES = [
 
 const bare = (w) => String(w || '').toLowerCase().replace(/[^a-z']/g, '');
 
+// ── Audio energy ───────────────────────────────────────────────────────
+//
+// Word timings alone cannot tell dead air from a cough, a door, a chair or
+// room tone. This module worked from timings only, so any gap between two
+// words read as silence and was offered for removal, however loud it was.
+//
+// The honest design uses BOTH signals: the timings choose which gaps are
+// candidates, and the audio confirms each one is actually empty. Neither
+// alone is right. Volume alone is worse still: one measurement on a
+// 34-minute recording produced about 800 choppy cuts from volume thresholds
+// against 120 from transcript-driven ones.
+//
+// The envelope is OPTIONAL. Without it the behaviour is exactly what it was,
+// which keeps the browser caller working and makes this additive.
+//
+// An envelope is `{ hop, dbs }`: dbs[i] is the RMS level in dBFS of the
+// window starting at i * hop seconds, in the SOURCE clip's timebase, which
+// is the timebase the word timings are in.
+
+/** A percentile of the envelope, for working out what this file's speech sits at. */
+function percentile(sorted, p) {
+  if (!sorted.length) return null;
+  const i = Math.min(sorted.length - 1, Math.max(0, Math.round((p / 100) * (sorted.length - 1))));
+  return sorted[i];
+}
+
+/**
+ * The level below which this file's audio counts as silent.
+ *
+ * Swept from the file rather than fixed, because the right threshold is a
+ * property of the recording and not a constant. On one measured file, -40 dB
+ * found no silences at all, -30 dB found 13 and -25 dB found 21. A constant
+ * is therefore either deaf or trigger-happy depending on whose microphone it
+ * meets.
+ *
+ * The rule: find where this file's speech sits (a high percentile of the
+ * envelope) and put the floor a fixed margin below it. Clamped, because a
+ * file that is silent throughout would otherwise set a floor under everything
+ * and a very hot one would set it above the noise.
+ */
+export function pickSilenceDb(envelope, { quiet_margin_db: marginDb = 30 } = {}) {
+  const dbs = (envelope?.dbs || []).filter((d) => Number.isFinite(d));
+  if (!dbs.length) return null;
+  const sorted = [...dbs].sort((a, b) => a - b);
+  const speech = percentile(sorted, 90);
+  const floor = percentile(sorted, 10);
+  const raw = speech - marginDb;
+  const db = Math.max(-60, Math.min(-20, raw));
+  return {
+    db,
+    speech_db: speech,
+    floor_db: floor,
+    margin_db: marginDb,
+    clamped: db !== raw,
+    why: `speech sits near ${speech.toFixed(1)} dBFS, so silence is anything under `
+      + `${db.toFixed(1)} dBFS (${marginDb} dB below, ${db !== raw ? 'clamped' : 'unclamped'})`,
+  };
+}
+
+/**
+ * How much of a span is below a level, 0..1.
+ *
+ * Returns null when the envelope does not cover the span, so a caller can
+ * tell "I measured it and it is loud" from "I have no measurement", which
+ * are very different reasons not to cut something.
+ */
+export function quietFraction(envelope, from, to, db) {
+  const hop = envelope?.hop;
+  const dbs = envelope?.dbs;
+  if (!hop || !Array.isArray(dbs) || !dbs.length || !(to > from)) return null;
+  const first = Math.floor(from / hop);
+  const last = Math.ceil(to / hop) - 1;
+  if (last < 0 || first >= dbs.length) return null;
+  let quiet = 0;
+  let total = 0;
+  for (let i = Math.max(0, first); i <= Math.min(dbs.length - 1, last); i += 1) {
+    const v = dbs[i];
+    if (!Number.isFinite(v)) continue;
+    total += 1;
+    if (v <= db) quiet += 1;
+  }
+  return total ? quiet / total : null;
+}
+
 /**
  * @param {{word:string,start:number,end:number}[]} words Whisper's word array.
  * @param {object} opts
@@ -54,6 +138,12 @@ export function planCuts(words, opts = {}) {
     keep_first_s: keepFirstS = 1.0,
     media_s: mediaS = null,
     min_keep_s: minKeepS = 0.10,
+    // Optional audio evidence. Without it the plan is timings-only, exactly
+    // as before. With it, a candidate gap must also be measurably quiet.
+    envelope = null,
+    silent_db: silentDbOpt = null,
+    min_silent_frac: minSilentFrac = 0.85,
+    quiet_margin_db: quietMarginDb = 30,
   } = opts || {};
 
   const list = (Array.isArray(words) ? words : [])
@@ -114,11 +204,38 @@ export function planCuts(words, opts = {}) {
   }
 
   // --- silence ---------------------------------------------------------------
+  //
+  // Two signals, and both have to agree. The timings pick the candidates; the
+  // audio confirms each one is empty. A gap holding a cough, a door, a chair
+  // or room tone is a gap between words and is not dead air, and cutting it
+  // removes a sound the viewer heard.
+  const chosen = silentDbOpt != null
+    ? { db: silentDbOpt, why: `caller supplied ${silentDbOpt} dBFS` }
+    : pickSilenceDb(envelope, { quiet_margin_db: quietMarginDb });
+  const silentDb = chosen?.db ?? null;
+  const rejected = [];
+
   // A gap is measured between the words either side of it, so a filler already
   // marked for removal does not hide the silence around it.
   for (let i = 0; i < list.length - 1; i += 1) {
     const gap = list[i + 1].start - list[i].end;
     if (gap <= gapS) continue;
+
+    // With a measurement in hand, a loud gap is not offered at all. Without
+    // one, nothing changes: the timings are all the evidence there is.
+    if (envelope && silentDb != null) {
+      const frac = quietFraction(envelope, list[i].end, list[i + 1].start, silentDb);
+      if (frac != null && frac < minSilentFrac) {
+        rejected.push({
+          from: list[i].end,
+          to: list[i + 1].start,
+          quiet_frac: frac,
+          why: `only ${(frac * 100).toFixed(0)}% of this gap is under `
+            + `${silentDb.toFixed(1)} dBFS, so something is audible in it`,
+        });
+        continue;
+      }
+    }
     // Leave a little at each end. Cutting a pause to nothing is what makes an
     // edit sound machine-gunned, and it is the first thing anyone notices.
     // Clamped to the guard rather than skipped by it. A three-second pause
@@ -189,6 +306,14 @@ export function planCuts(words, opts = {}) {
     filler_s: +fillerS.toFixed(2),
     both_s: +bothS.toFixed(2),
     filler_words: fillerWords,
+    // What the audio evidence was, and what it refused. Both are null or
+    // empty on a timings-only plan, so an operator can tell "measured and
+    // kept" from "never measured", which is the difference between a
+    // judgement and a guess. `rejected` is also the pause report: it names
+    // every gap the timings wanted and the sound in it saved.
+    silence_db: chosen ? chosen.db : null,
+    silence_db_why: chosen ? chosen.why : null,
+    rejected_loud: rejected,
   };
 }
 
