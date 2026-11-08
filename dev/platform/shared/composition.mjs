@@ -35,7 +35,15 @@ export { secs, EPS };
 
 // ── Source kinds ───────────────────────────────────────────────────────
 
-const SOURCE_KINDS = ['clip', 'design', 'audio', 'captions'];
+const SOURCE_KINDS = ['clip', 'design', 'audio', 'captions', 'fx'];
+
+/**
+ * Source kinds that draw a picture, so they belong on a video track and
+ * never on an audio one. Named rather than listed at each call site,
+ * because the list has been written out in three places and a new kind
+ * added to two of them is a validation hole that only shows on one path.
+ */
+const PICTURE_KINDS = ['clip', 'design', 'fx'];
 
 function validateSource(id, src) {
   if (!src || typeof src !== 'object') {
@@ -62,7 +70,70 @@ function validateSource(id, src) {
   if (src.kind === 'captions') {
     if (!src.transcript) return `source "${id}": captions needs a transcript`;
   }
+  if (src.kind === 'fx') {
+    if (!src.effect || typeof src.effect !== 'string') {
+      return `source "${id}": fx needs an effect name`;
+    }
+    if (src.duration != null && (typeof src.duration !== 'number' || src.duration <= 0)) {
+      return `source "${id}": fx duration must be positive`;
+    }
+    if (src.params != null && (typeof src.params !== 'object' || Array.isArray(src.params))) {
+      return `source "${id}": fx params must be an object`;
+    }
+  }
   return null;
+}
+
+// ── Animatable values ─────────────────────────────────────────────────
+
+/**
+ * A transform value is either a plain number, held for the whole item, or
+ * `{ from, to }`, interpolated linearly across the item's own length.
+ *
+ * The animation is defined over the ITEM, not over the source material.
+ * So trimming an item re-times its move rather than clipping it, which is
+ * what you want from a camera move over a still: a shorter item performs
+ * the same move faster. The consequence to know about is that a split has
+ * to divide the range proportionally (see `sliceAnim`), or playing the two
+ * halves back to back would perform the whole move twice.
+ */
+export function isAnim(v) {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+    && ('from' in v || 'to' in v);
+}
+
+/** The value of an animatable at progress `p` through the item, 0..1. */
+export function animAt(v, p) {
+  if (!isAnim(v)) return v;
+  const t = p < 0 ? 0 : p > 1 ? 1 : p;
+  const from = v.from;
+  const to = v.to;
+  if (typeof from === 'number' && typeof to === 'number') {
+    return from + (to - from) * t;
+  }
+  // A positional pair: interpolate each axis.
+  if (from && to && typeof from === 'object' && typeof to === 'object') {
+    return {
+      x: (from.x || 0) + ((to.x || 0) - (from.x || 0)) * t,
+      y: (from.y || 0) + ((to.y || 0) - (from.y || 0)) * t,
+    };
+  }
+  return from != null ? from : to;
+}
+
+/**
+ * The sub-range of an animatable covering progress p0..p1 of the original.
+ * `sliceAnim({from:1,to:2}, 0, 0.5)` is `{from:1,to:1.5}`.
+ *
+ * This is what keeps a split honest. Without it both halves inherit the
+ * full range and the cut jumps, which is the class of fault that only
+ * appears on one of the editing paths.
+ */
+export function sliceAnim(v, p0, p1) {
+  if (!isAnim(v)) return v;
+  const a = animAt(v, p0);
+  const b = animAt(v, p1);
+  return { from: a, to: b };
 }
 
 // ── Transition types ──────────────────────────────────────────────────

@@ -24,6 +24,7 @@ const {
   renderGraph,
   ffmpegArgs,
   expectedDuration,
+  graphOrphans,
 } = require('../../shared/compositionRender.mjs');
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -627,6 +628,78 @@ describe('graph structure', () => {
     assert.ok(parts.length > 1, 'should have multiple filter stages');
     for (const part of parts) {
       assert.ok(part.length > 0, 'no empty filter stages');
+    }
+  });
+});
+
+// ── Orphan filter outputs ────────────────────────────────────────────
+//
+// ffmpeg refuses an ENTIRE filter_complex that contains an unconnected
+// output, so a produced-but-unconsumed pad is not untidiness: it is a
+// render that cannot run. One lived in buildXfadeChain's multi-run branch
+// (abandoned scaffolding for a canvas that was never wired up), which meant
+// any track carrying BOTH a transition and a gap could not render at all.
+// Nothing covered the multi-run path, so nothing caught it.
+//
+// These assert the class, not that one case, because a guard naming the
+// incident rather than the decision is a mistake this repo has made before.
+
+// Items at 0-4, 3-7 (a transition into the second) and 9-12 (after a gap).
+// Two runs, so the multi-run branch builds the track output.
+function transitionAndGapComp() {
+  let comp = emptyComposition({ width: 1080, height: 1920, fps: 30 });
+  const s = addSource(comp, { kind: 'clip', asset: 'a.mp4', duration: 20, width: 1080, height: 1920, fps: 30 });
+  comp = s.comp;
+  const t = addTrack(comp, 'video');
+  comp = t.comp;
+  comp = addItem(comp, t.id, { at: 0, len: 4, source: s.id, in: 0 }).comp;
+  comp = addItem(comp, t.id, { at: 3, len: 4, source: s.id, in: 0, trans: { type: 'fade' } }).comp;
+  comp = addItem(comp, t.id, { at: 9, len: 3, source: s.id, in: 0 }).comp;
+  return { comp, trackId: t.id, sourceId: s.id };
+}
+
+describe('orphan filter outputs', () => {
+  it('finds a pad that nothing consumes', () => {
+    const orphans = graphOrphans('[0:v]trim=0:1[a];color=c=black:s=2x2[dead];[a]null[out]', ['out']);
+    assert.deepEqual(orphans, ['dead']);
+  });
+
+  it('does not report a declared output as an orphan', () => {
+    const orphans = graphOrphans('[0:v]null[vout];[0:a]anull[aout]', ['vout', 'aout']);
+    assert.deepEqual(orphans, []);
+  });
+
+  it('a track with a transition and a gap renders a connected graph', () => {
+    const { comp } = transitionAndGapComp();
+    const r = renderGraph(comp);
+    assert.deepEqual(
+      graphOrphans(r.graph, [r.videoOut, r.audioOut]), [],
+      'every produced pad must be consumed or mapped out'
+    );
+  });
+
+  it('pads the base run by what is missing, not by the whole timeline', () => {
+    // Run 0 spans 0..7 (4 + 4 with a 1s overlap). The track ends at 12, so
+    // tpad must ADD 5s. stop_duration is additional padding, not a target:
+    // passing 12 here padded a 7s run to 19s against 12s of audio.
+    const { comp } = transitionAndGapComp();
+    const r = renderGraph(comp);
+    const m = r.graph.match(/tpad=stop_mode=clone:stop_duration=([0-9.]+)/);
+    assert.ok(m, 'the base run is held to the track length with tpad');
+    assert.equal(Number(m[1]).toFixed(3), '5.000');
+  });
+
+  it('no composition shape in this file produces an orphan', () => {
+    const shapes = {
+      'single clip': singleClipComp().comp,
+      'transition and gap': transitionAndGapComp().comp,
+    };
+    for (const [name, comp] of Object.entries(shapes)) {
+      const r = renderGraph(comp);
+      assert.deepEqual(
+        graphOrphans(r.graph, [r.videoOut, r.audioOut]), [],
+        `${name} must produce a fully connected graph`
+      );
     }
   });
 });

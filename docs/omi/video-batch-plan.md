@@ -1,0 +1,758 @@
+# Batch video: templates, the batch runner, and the reference analyser
+
+> **Status: scope, agreed with Daniel 8 November 2026. Not started.**
+>
+> Read **What already exists** before anything else. Roughly 60% of this build
+> is already in the repo, wired to the wrong front door or orphaned by the
+> step 8 deletions. The expensive mistake available here is building a fourth
+> video pipeline beside the three that exist.
+>
+> Read `editor-composition-model.md` first for the model this extends, and
+> `video-editor-review.md` for the open items on the editor itself.
+
+## The deal
+
+Daniel's words: *"i have 2 weeks worth of content i need to create. if i was
+able to upload images to projects and brief it, and then set it to run, and then
+move to the next project etc. so it could create a lot of content for me in a
+very short space of time."*
+
+And on quality: *"will it spit out and allow me to make some edits after? in
+case its not perfect, but got me 80% there."*
+
+That second sentence decides the architecture. The batch must write real
+Compositions, so every output opens in the composition editor with the same
+timeline, inspector, undo and re-export as something built by hand. Any design
+that produces output the editor cannot open fails the brief, however fast it is.
+
+**The commercial case is hours, not money.** Thirty videos edited by hand at 45
+to 90 minutes each is 22 to 45 hours. Through this pipeline it is about two
+hours of unattended machine time plus two to three hours of review. The AI
+spend for thirty videos is between $3 and $85 USD depending on one decision
+(see **The image-to-video question**), against a day rate in the hundreds of
+pounds.
+
+**The headline is risk, not cost.** At 22 to 45 hours saved, the dollars are
+noise at either end of that range, so "£29 rather than £2" is the wrong thing
+to lead on and the weaker argument. What the image-to-video decision really
+buys is removing a third-party generative API from the critical path of an
+unattended fortnightly run. Build for throughput, reviewability and failure
+behaviour.
+
+**Estimate: 33 to 51 sessions** for the whole scope below, which is what the
+build-order table sums to. That is roughly 1.5x the composition editor
+rewrite, which was estimated at 25 to 35 and landed in that band, and it makes
+this the largest single thing OMI has built. Daniel has seen the number and asked for the whole architecture
+rather than a cut-down version, on the condition that nothing half-done is
+exposed to users. Build it the way the editor rewrite was built: in dependency
+order, behind the existing flag pattern, with each step complete before the
+next.
+
+---
+
+## What already exists
+
+This table is the point of the document. Check each row before writing
+anything.
+
+| Capability | Where | State |
+|---|---|---|
+| **A brief producing N content items** | `social_batches` + `social_posts` (migration 024) | Live. `social_batches` holds one brief per generation run. Each `social_posts` row carries `storyboard` JSONB (an array of `{frame, shot, on_screen_text, voiceover}`), `image_urls`, `hook`, `caption`, `hashtags`, `visual_concept` |
+| **Unattended job queue with a worker contract** | `videoProjects.js`, `routes/videoWorker.js`, `dev/platform/worker/` | Live. `FOR UPDATE SKIP LOCKED` claims, `X-Worker-Token` auth, worker needs no DB or shared disk, scales by `WORKER_ID` |
+| **A QA grade loop** | `worker/stages/grade.js` | Live. Claude scores 0 to 100 from sampled frames plus transcript; under 85 loops back to roughcut, capped at 2 re-edits |
+| **Delivery to Drive, Instagram, email** | `videoProjects.js`, `worker/stages/export.js` | Live. Signed short-lived master URL for Meta's fetcher; Drive upload via the existing Google connector |
+| **Retention sweep** | `services/videoCleanup.js` | Live, 03:15 daily, `VIDEO_RETENTION_DAYS` default 7. **Covers `video-clips/` and `video-outputs/` only, not composition output** |
+| **Stills to motion via fal** | `services/stillsReel.js` | **Orphaned.** Six camera-motion presets, a price table, cost logging. Its route (`routes/edit.js`) was deleted in step 8 and nothing imports it |
+| **Single-pass render from a Composition** | `shared/compositionRender.mjs` | Live. One `filter_complex`, one encode |
+| **Word-level transcripts** | `services/whisper.js`, `compositionMapping.mjs` | Live. Word timings plus source-to-timeline mapping |
+| **Silence and filler removal** | `shared/silenceCut.mjs` | Live, and already transcript-driven rather than volume-driven. See **The silence fix** |
+| **AI b-roll placement** | `shared/brollPlan.mjs` | Live, wired into the editor's BrollPanel |
+| **31 caption presets as shipped data** | `shared/captions/presets.json` | Live. This is the pattern composition templates follow |
+| **Image generation** | Visualise tab, `services/visualise.js` | Live, fal-backed |
+| **Graphics with alpha** | `design` source kind, Design tab | Live, but **stills only**. The render graph uses `loop` + `trim` |
+| **Per-call cost logging** | `services/costLog.js`, `recordApiCost()` | Live, writes `api_cost_events` |
+| **Task budgets with monthly reset** | Migration 185, `docs/omi/ai-budgets.md` | Live. No `video_batch` task registered yet |
+| **HyperFrames, Remotion, GSAP, Anime.js, Lottie** | Skills in this environment; `backend/remotion/` | Available. Remotion 4.x is already a direct backend dependency |
+
+So the brief layer, the queue, the worker contract, the QA loop, the delivery
+routes, the image-to-motion step, the render graph, the word timings, the cost
+log and the budget framework all exist. What is missing is the template model,
+the batch fan-out, an animated alpha source, and the cost-visibility layer.
+
+---
+
+## The three render paths, and the one we converge on
+
+| Path | Model | Runs where | Unattended | Reachable from |
+|---|---|---|---|---|
+| Composition editor | `shared/composition*.mjs`, single-pass graph | App box, one at a time | No | Produce → Video |
+| Video Studio auto-edit | Stage-based, hard-coded in `worker/stages/` | Separate worker box | Yes, with QA loop | A post card in Shared → Social only |
+| Remotion storyboard reel | React components, `remotion/StoryboardReel.jsx` | App box | No | A post card in Shared → Social only |
+
+**Decision: the composition model is the only description of an edit. The
+worker becomes a generic composition renderer.**
+
+The worker imports `shared/compositionRender.mjs` and runs the graph it
+produces. Transcription, silence removal, image animation and b-roll placement
+become pre-processing steps that **mutate a Composition** rather than encode
+anything. The QA grade becomes an optional stage that reads the finished
+master. The editor stays the place a human fixes a bad one.
+
+**Rejected, having been considered:** routing bulk through the existing
+stage-based worker pipeline. It is faster to a working batch because the queue,
+the loop and the delivery already work, and it was attractive for that reason.
+It fails on the only requirement that matters: its output is not a Composition,
+so the editor cannot open it, so the 80%-then-fix property is lost and the
+two-editor split that step 8 deleted comes straight back. Everything useful in
+it (queue semantics, the worker contract, delivery routes, the retention sweep)
+transfers to the converged design anyway.
+
+**Also rejected:** rendering the batch on the app box permanently. Acceptable
+as an intermediate state if the worker move has to wait, because the code is a
+strict subset of the converged design and nothing is thrown away. Not the end
+state: thirty encodes competing with the app for CPU is not a thing to ship.
+
+The Remotion storyboard path stays where it is for now. It serves a different
+job (rendering a post's storyboard frames) and nothing here depends on it. Do
+not extend it.
+
+---
+
+## Model changes
+
+Four changes to `shared/composition.mjs` and its render and playback siblings.
+All four are additive, so an existing composition stays valid.
+
+### 1. An animated alpha source kind
+
+Today `design` sources are stills: `compositionRender.mjs` places them with
+`loop` + `trim`, and the Compositor draws them from an Image element pool.
+
+Add a source kind for a graphic that moves and carries alpha:
+
+```
+| { kind: 'fx', effect, params, duration, alpha: true }
+```
+
+`effect` names an entry in an FX library (below). The renderer resolves it to a
+transparent video or a PNG sequence and overlays it; the Compositor plays it as
+a video element with alpha.
+
+This one change is what makes the whole FX library possible, and the library
+then becomes data rather than code, the same way caption presets did.
+
+**Open question for whoever builds it:** WebM with alpha (VP9 `yuva420p`) is
+the simplest thing the browser and ffmpeg both read. Verify our pinned ffmpeg
+8.1 build handles alpha overlay from WebM in a single `filter_complex` pass
+before committing to it. A PNG sequence always works and costs disk.
+
+### 2. Transform fields on items
+
+Items carry `fit`, `gain`, `opacity` and `trans` and nothing else
+(`composition.mjs:98-109`). Add, all optional:
+
+- `scale` (a number, or a `{from, to}` pair for a move over the item's length)
+- `pos` (`{x, y}` as fractions of the frame, or a `{from, to}` pair)
+- `rot` (degrees)
+
+Fractions rather than pixels, so a composition survives a reframe, which is
+the rule `shared/overlays.mjs` already held for positioned text.
+
+Two things land on this one change: the OMI Studio mockup's Transform panel,
+and the cheap path to batch motion. A deterministic camera move over a still is
+a `scale` and `pos` animation, which costs nothing and never fails, against an
+image-to-video call that costs $0.20 to $0.45 and sometimes does. See **The
+image-to-video question**.
+
+### 3. A rationale slot on items
+
+Add optional `reason`, `beat` and `quote` to an item. The renderer ignores
+them.
+
+Thirty videos produced unattended are unreviewable without this. When an agent
+or a template decides a clip runs from 4.2s to 9.8s, the reason it chose that
+has to travel with the decision, or the review sheet is thirty black boxes.
+This pattern comes from `browser-use/video-use`, which carries exactly these
+three fields on every range, and it is the single cheapest thing on this list.
+
+### 4. The template model
+
+A template is a Composition with named slots in place of fixed sources, plus
+the rules for binding content into them.
+
+```
+Template {
+  id                      // 'stills-montage'
+  name, description, bestFor
+  size: { width, height }
+  fps
+  slots: [Slot]
+  caption: { preset }     // an id from shared/captions/presets.json
+  audio:   { bed, duck }
+  margins: { safe }
+  variation: { ... }      // see below
+}
+
+Slot {
+  id
+  kind:  'clip' | 'still' | 'design' | 'text' | 'audio'
+  min, max                // how many items fill this slot
+  len:   { min, max }     // per-item duration on the timeline
+  motion                  // a camera-move or fx preset id
+  trans                   // transition into each item
+  track                   // which track it lands on
+}
+```
+
+**Templates ship as data in `shared/compositions/templates/*.json`, not in a
+table.** This is the pattern migration 211 set for caption presets, and its
+comment states the reasoning: a template is only meaningful alongside the
+compiler that reads it, so the two ship together, and what belongs in the
+database is the operator's choice. Store a template id on the composition and
+nothing else.
+
+**Variation rules are part of the template, not polish.** Thirty videos with
+identical pacing and an identical push-in reads as filler and damages the feed
+it is posted to. A template holds a seeded rotation over motion presets,
+transition types and hook treatment, so item N of a batch differs from item 1
+in a way a viewer notices and an operator did not have to choose.
+
+### 5. Preloaded templates
+
+Eight, shipped with the code so Daniel never builds one by hand:
+
+| id | Shape |
+|---|---|
+| `talking-head` | One clip, tighten, captions, music bed under speech |
+| `stills-montage` | 6 to 8 stills, camera moves, on-screen text, music |
+| `project-reveal` | Before and after, slow push, minimal type. Architecture work |
+| `quote-series` | Text-led, Design pages, 10 to 15 seconds |
+| `walkthrough` | Screen or site footage, lower thirds |
+| `hook-cta` | Hook, problem, solution, CTA. Structural, for paid |
+| `carousel-to-reel` | Existing `social_posts.storyboard` frames animated |
+| `coverage-roundup` | Headlines and logos, match-cut treatment |
+
+---
+
+## The batch runner
+
+```
+POST /compositions/batch
+  { clientId, templateId, source, items[], options }
+```
+
+`source` is either a `social_batches` id (the brief and the per-frame on-screen
+text already exist, which is why this is the preferred driver) or a list of
+asset ids with a free-text brief.
+
+What it does, per item:
+
+1. Bind the template's slots to the item's content, producing a Composition.
+2. Validate it with `validateComposition()`. A template that produces an
+   invalid composition is a bug in the template, and the batch says which slot.
+3. Write it to `compositions` with the batch id and the template id on it.
+4. Enqueue a render.
+
+Then a **review sheet**, and it is **L5 ListDetail in its `sidebar` variant,
+not a grid**. Thirty items times a thumbnail, a verdict, a rationale and three
+buttons is about 120 controls with no reading order, and the rationale fields
+that model change 3 exists to produce would truncate to nothing. L5 is the
+shell for working a queue without losing your place, and its precedent is the
+contacts screen in `ClientOutreachPage`, which is the same job: a compact
+selectable list on the left (thumbnail at row height, name, a QC chip), the
+record on the right (full frame, the `reason`, `beat` and `quote` fields in
+full, approve, reject, open in editor). An **L3 StatStrip** above it carries
+the batch roll-up: rendered, failed, approved, spend against estimate. No new
+shell, and not StepRail, because a batch is a set rather than a sequence.
+
+Three things that follow, and all three have bitten this codebase before:
+
+- **The sheet is a row in `nav/sections.js` under Produce, not a modal.** Every
+  page needs a door, and `routeDoors.test.mjs` fails a page nothing links to.
+- **Reviewing thirty items is a keyboard task.** Approve, reject and next on
+  keys beats ninety clicks.
+- **Decide `phone` deliberately.** The Video row is `phone: false`, but
+  approving a batch is exactly a phone job, so the sheet should be phone-enabled
+  and "open in editor" has to degrade honestly rather than navigate to a screen
+  phones are not offered.
+
+Nothing leaves for Drive or Instagram until approved.
+
+**Per-item failure must not fail the batch.** A fal timeout, a 403 for billing,
+a missing asset: that item is marked and the rest continue. The old stills path
+passed fal errors straight through, which is the wrong behaviour for a
+thirty-item run.
+
+**Progress as a stream, not a poll.** The review is item-level, so the page
+needs per-item state. The existing render polls at two seconds, which the
+editor review already flags as the wrong model for one render and is clearly
+wrong for thirty.
+
+---
+
+## The reference analyser
+
+Daniel's ask: *"is there a way to upload someones video to be analysed and
+build a template from it? a claude video analyser?"*
+
+Yes, and it is the better answer to "I want ten templates" than writing ten by
+hand. Point it at ten reels, get ten template proposals for about a dollar.
+
+What is recoverable from a finished video:
+
+| Property | Method |
+|---|---|
+| Shot boundaries, cut rhythm, shot-length distribution | ffmpeg scene detection |
+| Frame size, fps, duration | ffprobe |
+| Loudness, true peak, how deeply music ducks under speech | ffmpeg loudness measurement; music level during speech against music level in gaps |
+| Caption treatment: position, size, case, colour, words per cue, cue duration | Sampled frames, Claude vision plus OCR, **matched to the nearest of our 31 presets** |
+| Moving stills or filmed footage, and how much motion | Median of pairwise grayscale frame differences sampled inside one shot |
+| Structure: hook, problem, solution, CTA, and where cuts land relative to words | Transcribe, then Claude labels the archetype |
+| Persistent overlay regions | Frame differencing across a shot |
+
+What is **not** recoverable: the exact fonts (a visual approximation at best),
+the source assets, the layering intent, anything behind the render.
+
+**The design decision that keeps this honest: match to an existing caption
+preset, never generate a new one.** A generated approximation of someone else's
+type is where this feature would start lying about what it will produce, which
+is the same fault the whole composition rewrite was built to remove. The output
+is a template **proposal** with a confidence note per field, which an operator
+confirms.
+
+Cost per reference: probing and scene detection are free, Whisper on 60 seconds
+is about $0.006, Claude vision on ten sampled frames is a few cents. Under
+$0.10 each.
+
+**One line on where the line is.** Reading pacing, cut rhythm and caption style
+off a competitor is ordinary competitive analysis. Reproducing a distinctive
+brand's look closely enough that their own audience would mistake it is not
+what this is for, and proposing from our own preset set rather than cloning is
+what keeps it on the right side.
+
+---
+
+## Cost visibility
+
+Daniel's ask: *"id like the cost of each action to be highlighted on any button
+im about to press, so i can keep an eye on rising costs."*
+
+**First, one shared pricing table.** Unit prices are currently spread across at
+least seven files: `stillsReel.js`, `usageTracking.js`, `costLog.js`,
+`claude.js`, `visualise.js`, `adResize.js` and `routes/chat.js`. If the number
+on the button and the number logged by `recordApiCost()` come from different
+places they drift, and a cost label nobody trusts is worse than no label. Put
+every unit price in `shared/pricing.mjs` and have both the estimate and the log
+read it.
+
+**The cost chip already exists. Extend it, do not build a second one.**
+`components/FeatureCost.jsx` with `.feature-cost` in `index.css` is this
+component: one fetch for the whole app shared through context, a **median** of
+the last 30 days rather than a mean (its own comment explains why: one 4K
+upscale drags a mean above what the next click costs, and an estimate that
+overstates by 10x gets ignored), and it returns `null` rather than a figure
+when there is no history, which is the "a free action shows nothing, not a
+zero" rule already enforced in code. Note it is also the provider that caused
+the login flicker in the agent guide's §12, so it does not ask for data until
+there is somebody to ask for; keep that.
+
+What it needs adding:
+
+1. The unit price. **Already there.**
+2. The computed total for the inputs currently on screen, which for a batch
+   needs a server estimate. Show the locally-known unit price immediately and
+   the total as plain text while it resolves, never a skeleton or a shimmer
+   next to a button somebody is about to press.
+3. What is left of that task's monthly budget, coloured only when the total
+   exceeds it. A permanently coloured chip is decoration.
+4. **A currency.** Every provider price here is USD and October works in USD,
+   GBP and EUR. `formatMoney(amount, currency)` already exists and the house
+   rule is that a wrong symbol is worse than no symbol, so the chip carries
+   its currency rather than implying one.
+
+**One chip per card, not per button.** Transcribe, captions, b-roll, visualise
+and the batch all spend, and five chips on one card is ambient noise that
+destroys the rule that a chip's presence means this one costs money. Put the
+chip on the action that commits the spend, and give a card holding more than
+two spending actions a single card-level total instead.
+
+After a run it shows actual against estimate, so the table corrects itself
+rather than quietly going stale.
+
+Two rules:
+
+- **A free action shows nothing, not a zero.** The chip's presence has to mean
+  "this one spends money", or it becomes decoration.
+- **A batch gets a pre-flight screen**: line items, a total, and a hard maximum
+  that refuses submission above it, with the worker rechecking the cap before
+  each paid step. This is the one genuinely good piece of operational
+  engineering in `digitalsamba/claude-code-video-toolkit` and it is the right
+  guard on a run that spends tens of dollars with nobody watching.
+
+**Register a `video_batch` task budget before the first run.** Migration 185
+set up the framework and it resets monthly, so a runaway batch stops itself
+without taking chat, reports and press pitching down with it.
+
+---
+
+## The QC gate
+
+Thirty unattended renders need a machine verdict before a human looks at them.
+The check set below comes from reading `notivn/AIEVv2`'s `qc.ts` and is entirely
+measurable with ffmpeg:
+
+- Resolution and fps against the composition's own `size` and `fps`.
+- Loudness against a target (their target is −14 LUFS; our existing pipeline
+  normalises to −16 LUFS EBU R128, so pick one and state it).
+- True peak above −0.5 dBTP.
+- **Black frames mid-video only.** Leading and trailing fades are legitimate,
+  so a naive black-frame check fails every correctly-faded video.
+- Freeze of two seconds or more.
+- Tail silence over 1.2 seconds.
+- Audio and video duration drift over 0.5 seconds.
+- A safe-area check that always passes but returns frames with obstructed
+  bands outlined, for a human or an agent to look at.
+
+Add one of our own: a **render-moved gate**. Take the median of pairwise
+grayscale frame differences inside each item's window and fail an item that
+should be moving and is not. This catches a camera move that silently did not
+apply and an image-to-video call that returned a still, which is the failure
+mode the fal dependency makes likely.
+
+---
+
+## The FX library
+
+Six of the seven effects in the social post Daniel sent reduce to one thing: an
+animated graphic with alpha, composited over the speaker, with its state driven
+by word timings. The animated alpha source kind above is the whole mechanism;
+the effects are then data.
+
+| Effect | Needs |
+|---|---|
+| Glass panels, iOS-style toggles, checklist, editing timeline, orbiting thumbnails | An animated alpha source. Authored in HyperFrames or Remotion, rendered to transparent video |
+| Checklist ticking as the speaker reaches each item; a match cut holding one word in place | Word timings driving overlay state. Already available |
+| Spotlight (background darkened, subject lit) | Subject segmentation per frame, or a vignette tracked to a face. **The only hard one of the seven** |
+
+**Do not chase the full list.** That aesthetic is tech-creator register, and
+October's clients are architects and design-led brands where glass widgets and
+phone toggles read as off-brand. Build the mechanism, ship three restrained
+effects, and let the register be a per-client choice. Daniel still owes an
+answer on whether the library serves his own channel or client work (see **Open
+decisions**).
+
+The post that prompted this is gated marketing ("follow me and comment FX").
+We have the HyperFrames kit installed already and do not need its setup guide,
+and a list of effect names is not evidence any of them render well.
+
+---
+
+## What to take from the five repos, and what not to
+
+Five repos were assessed on 8 November 2026. **No code from any of them enters
+this repository.** Three have licences we would not touch and the one with the
+best editorial thinking is non-commercial.
+
+| Repo | Licence | Verdict |
+|---|---|---|
+| `browser-use/video-use` | MIT, clean | Borrow ideas. Best designed of the five |
+| `notivn/AIEVv2` | Repo MIT, but vendored AGPL gateways, embedded Remotion above its free threshold, 86 audio files of unknown licence, a watermark remover that violates provider terms | Read it, depend on nothing |
+| `digitalsamba/claude-code-video-toolkit` | MIT, actively maintained | Borrow the job and spend protocol |
+| `appariciojunior/video-editor-skills` | **CC BY-NC 4.0, non-commercial only** | Blocked. Re-derive its numbers against our own fixtures, copy no prose |
+| `assafkip/claude-video-editor` | **MIT plus Commons Clause**, which forbids selling a product whose value derives substantially from the software | Blocked, and worse than AGPL for a hosted product. Mostly other people's work vendored in |
+
+What to take, in priority order:
+
+1. **The packed-transcript agent surface** (video-use). Pack word-level
+   transcripts into one compact phrase view as an agent's primary input, and
+   render filmstrip and waveform images only at decision points. "Read, don't
+   watch." We hold the word timings and the mapping module already.
+2. **Rationale fields on items** (video-use). Covered above as model change 3.
+3. **The QC check set** (AIEVv2). Covered above.
+4. **The spend protocol** (digitalsamba). Estimate, then a hard cap refusing
+   submission before spend, the worker rechecking before each paid step, resume
+   by job id, and a prune command.
+5. **The concurrent-edit protocol** (AIEVv2). Re-read the stored composition
+   immediately before writing, edit in place on exact keys, preserve
+   unrecognised keys at any depth, snapshot before and after. **We hit this the
+   moment an agent edits a composition the operator has open**, because the
+   editor autosaves on a 1.5 second debounce and would overwrite the agent
+   silently.
+6. **Hard rules worth adopting** (video-use): a 30ms audio fade on both edges
+   of every segment; `setpts=PTS-STARTPTS+T/TB` for overlays; subtitles written
+   on output-timeline offsets; snapping to word boundaries; 30 to 200ms padding
+   for ASR drift. Each is a real bug class.
+7. **A reimplemented motion check** (assafkip, method only). Covered above as
+   the render-moved gate.
+
+**Do not adopt video-use's rule that a single filtergraph is always wrong.**
+Their concern is double-encoding when overlays are added. Ours is xfade and
+overlay correctness in one pass, and the preview-to-render agreement tests
+prove our graph matches what the browser draws. Our architecture is the right
+one for our case.
+
+### The silence fix
+
+Both research threads landed on the same point from different repos, and it is
+a real defect in shipped code.
+
+`shared/silenceCut.mjs` works purely from Whisper word timings, with no audio
+check at all. So a gap holding a cough, a door, a chair or room tone reads as
+silence and gets proposed for removal.
+
+Evidence gathered: one repo validates a gap as a pause only when it is at least
+85% silent on the waveform. Another measured that at −30 dB, ffmpeg's
+`silencedetect` called 48.6 seconds of a file silent while only 18.2 seconds of
+that sat in a genuine inter-word gap. A third data point from the same source:
+on one file, −40 dB found no silences, −30 dB found 13 and −25 dB found 21, so
+the right threshold is a property of the file rather than a constant.
+
+**The correct design uses both signals: word timings choose the candidate gaps,
+audio energy confirms each one is actually empty.** Neither alone is right.
+
+Also worth re-deriving as our own defaults, measured against our own fixtures
+rather than copied:
+
+| Behaviour | Ours today | Worth testing |
+|---|---|---|
+| Air left in a shortened pause | `leave_s` 0.12, symmetric | Asymmetric, 40% before the cut and 60% after |
+| Padding around a cut | `pad_s` 0.04 both sides | 0.08 before, 0.12 after, snapped to the nearest silence edge |
+| Gap validation | None | A gap counts only if ≥85% silent |
+
+And two review artefacts worth copying as ideas: a transcript with cut words
+struck through as the human review surface, and a pause report showing cuts and
+seconds saved per candidate threshold **before** anything is committed.
+
+---
+
+## Build order
+
+By dependency, not by what demos. The two pieces everything else sits on are
+the model changes and the template model.
+
+| | What | Sessions | Why here |
+|---|---|---|---|
+| 0 | **Fix the broken edges** (below) | 1 | Everything below sits on this code |
+| 1 | The silence fix: threshold sweep plus audio cross-check in `silenceCut.mjs` | 1 to 2 | Self-contained, improves a shipped feature, and the batch depends on it being right |
+| 2 | Model changes: animated alpha source, transform fields, rationale fields | 3 to 5 | Nothing else is possible until the model holds them |
+| 3 | One shared pricing table plus the cost chip | 2 to 3 | Before anything spends in bulk, not after |
+| 4 | Template model and the eight preloaded templates | 4 to 6 | The keystone. Bulk is meaningless without it |
+| 5 | The batch runner, fan-out, and the review sheet | 4 to 6 | The feature Daniel asked for |
+| 6 | The reference analyser | 4 to 6 | Turns ten reference reels into ten templates. Moved up: see below |
+| 7 | The QC gate | 2 to 3 | Needed before a batch runs unwatched twice |
+| 8 | The worker renders the composition model, **and `update.sh` learns to deploy it** | 3 to 5 | Moves thirty encodes off the app box. See the first trap |
+| 9 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor |
+| 10 | The FX library, three to six effects | 4 to 6 | Nothing depends on it, so it goes late |
+| 11 | Spotlight and segmentation | 3 to 5 | The only genuinely hard effect. Last, and optional |
+
+Steps 2 and 4 are where this is won or lost.
+
+**The analyser was at step 9 and that was phasing with better words.** This
+document argues that pointing the analyser at ten reference reels is a better
+answer to "I want ten templates" than writing eight by hand, and then
+scheduled the hand-written eight at step 4 and the analyser twenty-odd
+sessions later. It is one of Daniel's own asks, not a deferred nicety, so it
+now sits at step 6, directly after the batch runner it feeds templates to.
+Steps 10 and 11 genuinely are deferred features and nothing depends on them.
+
+**When each of his asks lands, stated plainly** so the order is a decision he
+can argue with rather than something buried in a table: preloaded templates at
+step 4, the batch itself at step 5, the analyser at step 6, cost labels at
+step 3, and editing a batch output in the editor from step 5 onward because
+the batch writes Compositions and the editor already opens those.
+
+---
+
+## Fix these first
+
+Found while reviewing Produce on 8 November. All four predate this plan and all
+four sit under it.
+
+1. **"Send to Edit" on the Record tab is broken.**
+   `RecordingsPage.jsx:515` posts to `/edit/clients/:clientId/edit/from-recording`.
+   `routes/edit.js` was deleted in step 8 and `/api/edit` is mounted nowhere in
+   `index.js`. The button renders at `RecordingsPage.jsx:949` and fails with a
+   toast. The Record to Video handoff that `ClientVideoTab` wires through
+   `onSendToEdit` never completes.
+2. **Stills → Reel is gone from the product but documented as shipped.**
+   `components/edit/StillsReelPanel.jsx` is unimported dead code calling the
+   same deleted API. `services/stillsReel.js` is orphaned.
+   `services/editJobs.js` survives only because `socialCaptionRender.js:55`
+   borrows its `diskPathForUrl` helper. `edit-studio.md` still presents the
+   feature as live. Either restore the route or delete the remnants, and either
+   way **keep `stillsReel.js`'s motion presets and price table**, because this
+   plan needs both.
+3. **`agent-guide.md` is behind the code.** Its section 9 opens "The video
+   timeline, as it stands while the editor rewrite is in progress" and then
+   describes `edl.mjs`, `Timeline.jsx` and the five-pass render as live today.
+   All of it is deleted. Section 7 stops at PR #1959 and does not record the
+   7 November render queue, the render-state persistence (migration 241) or
+   `video-editor-review.md`. Four more docs are stale: `edit-studio.md`,
+   `video-timeline-spec.md`, `editor-replaces-basic-editing.md` and
+   `recorder-polish-roadmap.md`, which points at `editProcessor.js` and
+   `routes/edit.js` as reference reading.
+4. **Composition renders have no retention sweep and the wrong asset source.**
+   They land in `uploads/<client>/` and the 03:15 sweep covers `video-clips/`
+   and `video-outputs/` only. They record into the library as `scene_render`
+   (`compose.js:520`), a label meant for something else, so the Library cannot
+   tell them apart and `assets.archiveBySource` has nothing to target. Thirty a
+   fortnight makes both of these matter. Add a `composition` source to the
+   three places a source has to be registered (the `client_assets` CHECK
+   constraint, `SOURCES` in `services/assets.js`, and `SOURCE_LABEL` in
+   `AssetLibrary.jsx`) and give composition output a retention rule.
+
+---
+
+## Open decisions
+
+Two of these change what gets built. Do not guess at them.
+
+### 1. The image-to-video question — ANSWERED 8 November: Path B
+
+**Deterministic camera moves. No new pixels invented. No hosted
+image-to-video in the batch.** Daniel's call, and it settles more than the
+cost line:
+
+- **No third-party generative API in the critical path** of an unattended
+  fortnightly run. That was the real argument, not the money.
+- **A fortnight of thirty videos costs about £2** rather than £29 to £67,
+  so the spend question stops being a question.
+- **Nothing in the batch can fail at a vendor.** A camera move renders in the
+  same `filter_complex` as everything else, in under a second, identically
+  every time.
+- **It makes the transform fields load-bearing rather than cosmetic.** A
+  deterministic move IS an animated `scale` and `pos`, so step 2 is now the
+  thing the whole batch's motion rests on, not a nicety shared with the
+  mockup's inspector. Build it accordingly.
+- **The geometry argument is why this is the right answer for these
+  clients.** Image-to-video models are trained mostly on people and general
+  scenes; on an interior or a façade the common failure is a bowed window
+  frame or a drifting reveal line. On a photograph of a person nobody
+  notices. On architecture the eye knows what straight looks like, so it
+  reads as cheap in exactly the register the clients pay for.
+
+`services/stillsReel.js` keeps its six motion presets as the vocabulary for
+the deterministic moves (push-in, drift, reveal, orbit, rise, subtle). Its
+fal price table and i2v call path are no longer needed by this plan; leave
+them until something else wants them rather than deleting a working
+integration on the way past.
+
+The material below is kept as the record of what the decision was made
+against, not as an open question.
+
+The cost model for thirty videos was dominated almost entirely by fal
+image-to-video: $36 to $81 USD of a $37 to $85 total, at $0.20 to $0.45 per
+animated still.
+
+Against that, `assafkip/claude-video-editor` published a root-cause analysis
+dated 11 June 2026 reporting **16 of 16 hosted image-to-video runs failing
+mid-production**, after which they removed hosted i2v and replaced it with
+deterministic camera moves over stills. That claim came from a research agent
+reading the repo and has not been independently verified, but it matches the
+risk profile of a fortnightly unattended batch leaning on a third-party
+generative API.
+
+Deterministic camera moves cost nothing, never fail, and render inside our own
+graph once items carry animated `scale` and `pos`. The trade is less motion and
+no generated parallax.
+
+**The test:** six real client stills rendered both ways, viewed side by side.
+About $1.50 and twenty minutes. The answer decides whether a fortnight of
+content costs about £29 to £67 or about £2 (converting $37 to $85 at 1.27,
+the rate stated because it moves and because the figures above are billed in
+USD), and whether the batch has a third-party dependency in its critical path
+at all. The second of those is the reason to run it.
+
+My recommendation, for whoever runs it: default to deterministic moves, make
+i2v a per-template option, and let the bake-off decide which templates earn it.
+
+### 2. Who the FX library is for — ANSWERED 8 November: both
+
+Daniel's answer was "for me and clients", so the library serves two registers
+and the register is a property of the client, never of the effect author's
+taste.
+
+That is not a licence to ship seven loud effects. It means the FX library
+follows the caption presets' own pattern, which already solved this problem:
+`shared/captions/presets.json` carries 31 entries with a `category`, a
+`bestFor` line and an `acceptsAccent` flag, and the four `measured` presets
+exist precisely because the 27 ported creator ones were the wrong library for
+an institution. The guide states the rule it protects: a client's brand kit may
+change a caption's typeface, never its structure, because "a skin that could
+change size, weight or highlighting would make 'the Nordic one' mean something
+different on every account."
+
+So each FX entry carries a **register**: `creator` (glass panels, phone
+toggles, orbiting thumbnails, the checklist) or `editorial` (a spotlight, a
+match cut, a restrained lower third, a progress rule). A template names the
+register it draws from, and a client's default register is set once beside
+their caption preset. October's own channel draws from both; an architecture
+practice draws from `editorial` and never sees the rest.
+
+**Do not let the FX library become a ninth tab.** It is inspector sections
+plus shipped data, exactly as the caption templates are, and the guide is
+explicit that adding a template as a React composition is the `StyleA/C/G.jsx`
+pattern that does not scale past three.
+
+### 3. Smaller calls, with recommendations
+
+| Question | Recommendation |
+|---|---|
+| What drives a batch | A `social_batches` id. The brief and the per-frame on-screen text already exist there |
+| Where the audio comes from | A music bed plus on-screen text from the storyboard. Costs nothing and the timing is exact. TTS voiceover is under $0.20 for thirty videos but needs the transcript mapped back onto the timeline |
+| Where images come from | Allow uploads, the client asset library and Visualise. Default to the library |
+| Approval | A review sheet with per-item approve, reject and open-in-editor. Nothing reaches Drive or Instagram unapproved |
+| One template per batch or per item | Per batch. Per item needs a picker on every row and buys little |
+| Loudness target | Pick one and state it. The existing pipeline normalises to −16 LUFS; the QC set we are borrowing from targets −14 |
+
+---
+
+## Traps
+
+- **The deploy does not reach the video worker, so step 7 would ship nothing.**
+  `update.sh` installs and reloads the backend (`october-platform`), builds the
+  frontend, syncs nginx and handles the Shopify app (`october-mi-shopify`). It
+  has no step for `dev/platform/worker/`, which `docs/omi/video-worker.md` says
+  is started by hand on its own box with `pm2 start index.js --name
+  video-worker`. A merge touching `dev/platform/**` updates the source on the
+  box and the worker keeps running the old code until somebody connects to it.
+  Step 7 moves thirty encodes onto that worker, so **step 7 must add the worker
+  to `update.sh` or give it its own deploy job**, or it will appear to ship and
+  silently will not have. Everything else here (the shared templates JSON, the
+  migrations, the budget row) deploys cleanly through the existing path.
+- **Remotion is already a direct backend dependency** (`backend/package.json`,
+  `remotion ^4.0.0`, plus `@remotion/bundler` and `@remotion/renderer`) and
+  renders the StyleA, StyleC, StyleG and StoryboardReel templates. Remotion's
+  licence requires a paid company licence above a size threshold. This is
+  existing exposure rather than anything this plan introduces, but confirm
+  October's position before any new feature leans on that renderer.
+- **The retention sweep does not cover composition output.** Covered above;
+  repeated because a fortnightly batch fills the app box's disk in months and
+  the failure mode is writes failing while deletes still succeed.
+- **An agent and a human will edit the same composition.** The editor
+  autosaves on a 1.5 second debounce. Without the concurrent-edit protocol the
+  later writer wins silently, and the operator's work vanishes with no error.
+- **Every duration comparison wants an epsilon.** This rule cost three separate
+  bugs in the EDL work and the composition model carries `EPS` and `secs()` for
+  it. Write the comparison as a named helper, export it, and use it in the
+  tests as well as the module.
+- **A new field on an item has to be carried through every helper that copies
+  one.** `splitItem`, `moveItemToTrack`, `trimStart`, `trimEnd` and `moveItemTo`
+  all build new items. A transform field that survives a drag but not a split
+  is the kind of fault that reproduces only in the half nobody is looking at.
+- **Preview and render must agree.** `compositor-agreement.test.js` is what
+  stops the page lying about its output, and it is the reason the editor rewrite
+  worked. Every model change in step 2 needs its agreement case or the
+  guarantee quietly stops holding.
+- **Per-item failure must not fail a batch.** Repeated because the previous
+  stills implementation got this wrong.
+
+---
+
+## Provenance
+
+Scoped 8 November 2026 from a read of the Produce section, the composition
+editor code, `video-editor-review.md` (7 November), and an assessment of five
+public repositories. Claims sourced from those repositories are attributed
+above and marked where they are unverified; everything stated about OMI's own
+code was checked against the files named.

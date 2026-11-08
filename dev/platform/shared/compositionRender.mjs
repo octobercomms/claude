@@ -539,29 +539,36 @@ function buildXfadeChain(sorted, trackOverlaps, videoItemPads, filters, prefix) 
     return runOutputs[0].pad;
   }
 
-  // Multiple runs: overlay each onto a blank canvas at their time positions
-  // (We need the composition size, which we get from the filter already written)
-  // Extract W, H, fps from an existing color filter if present, or use defaults
-  const basePad = `${prefix}base`;
-  const maxEnd = Math.max(...runOutputs.map(r => r.endTime));
-  // Re-read W/H/fps from the item prep filters is fragile; instead we
-  // generate the blank with a known pattern. The caller's composition
-  // provides the values, but we don't have them here. Use a workaround:
-  // overlay all runs onto the first run's output, extending with tpad.
+  // Multiple runs: the first run is the base, held to the track's full
+  // length, and every later run is overlaid in its own time window.
   //
-  // Simpler approach: overlay each run onto a shared black canvas.
-  // We reference the canvas params through a generated source filter.
-  filters.push(
-    `color=c=black:s=1x1:r=1:d=${f(maxEnd)},`
-    + `scale=iw:ih,format=yuva420p[${basePad}]`
-  );
-
-  // Actually, we need the real dimensions. Let's overlay run outputs
-  // sequentially, with the first run as the base (padded to full duration).
+  // Two faults lived here and both were silent in different ways, so read
+  // this before changing it.
+  //
+  // There used to be a `color=c=black:s=1x1...[<prefix>base]` filter above
+  // this, left behind from an abandoned attempt to composite onto a real
+  // canvas. Nothing ever consumed it, and ffmpeg refuses an ENTIRE
+  // filter_complex that has an unconnected output ("Filter format:default
+  // has an unconnected output"). So any track carrying BOTH a transition
+  // and a gap produced a graph that could not run at all, in the only video
+  // editor there is, and no test covered the multi-run path. Do not
+  // reintroduce a producer without a consumer: `graphOrphans()` below is
+  // exported so the tests can assert the whole class rather than this case.
+  //
+  // And `tpad`'s `stop_duration` is the padding ADDED, not the length to
+  // reach. Passing the track's end time padded a 7s run out to 19s on a 12s
+  // timeline, which the audio side then did not match, so the render came
+  // back with video and audio of different lengths. The QC gate this plan
+  // adds would have reported it as duration drift and sent the next person
+  // looking at the wrong file.
+  const maxEnd = Math.max(...runOutputs.map(r => r.endTime));
   let current = runOutputs[0].pad;
-  const padded0 = `${prefix}p0`;
-  filters.push(`[${current}]tpad=stop_mode=clone:stop_duration=${f(maxEnd)}[${padded0}]`);
-  current = padded0;
+  const padNeeded = secs(maxEnd - runOutputs[0].endTime);
+  if (padNeeded > EPS) {
+    const padded0 = `${prefix}p0`;
+    filters.push(`[${current}]tpad=stop_mode=clone:stop_duration=${f(padNeeded)}[${padded0}]`);
+    current = padded0;
+  }
 
   for (let i = 1; i < runOutputs.length; i++) {
     const outPad = `${prefix}m${i}`;
@@ -579,6 +586,42 @@ function buildXfadeChain(sorted, trackOverlaps, videoItemPads, filters, prefix) 
 /**
  * Calculate expected output duration from a composition.
  */
+/**
+ * Labels the graph produces that nothing consumes.
+ *
+ * ffmpeg refuses an entire `filter_complex` containing an unconnected
+ * output, so an orphan is not untidiness: it is a render that cannot run at
+ * all. `declaredOutputs` are the pads the caller maps out of the graph
+ * (videoOut, audioOut); they are consumed outside it and are not orphans.
+ *
+ * Exported so a test can assert the whole class on any composition rather
+ * than pinning the one case that was found. A guard that names the incident
+ * instead of the decision is the failure this repo keeps re-learning.
+ */
+export function graphOrphans(graph, declaredOutputs = []) {
+  // renderGraph reports its outputs bracketed ("[vt0m1]"), because that is
+  // what ffmpegArgs maps. Accept either spelling rather than making every
+  // caller remember which one this wants.
+  const declared = new Set(
+    (declaredOutputs || [])
+      .filter(Boolean)
+      .map((o) => String(o).replace(/^\[|\]$/g, ''))
+  );
+  const produced = new Set();
+  const consumed = new Set();
+  const labelsIn = (m) =>
+    m ? [...m[0].matchAll(/\[([A-Za-z0-9_:]+)\]/g)].map((x) => x[1]) : [];
+
+  for (const raw of String(graph || '').split(';')) {
+    const chain = raw.trim();
+    if (!chain) continue;
+    // Leading bracket groups are a filter's inputs; trailing ones its outputs.
+    for (const l of labelsIn(chain.match(/^(\[[A-Za-z0-9_:]+\])+/))) consumed.add(l);
+    for (const l of labelsIn(chain.match(/(\[[A-Za-z0-9_:]+\])+$/))) produced.add(l);
+  }
+  return [...produced].filter((p) => !consumed.has(p) && !declared.has(p)).sort();
+}
+
 export function expectedDuration(comp) {
   let end = 0;
   for (const track of comp.tracks) {
