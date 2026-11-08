@@ -201,7 +201,7 @@ async function previewPrecodePass() {
       isReverseCharge: ['RRINPUT', 'RRINPUT2', 'REVERSECHARGES'].includes(supplier.vat_treatment),
       amount: amount ? Math.abs(amount) : null,
       currency: supplier.usual_currency || 'GBP',
-      confidenceCounter: supplier.confidence_counter,
+      confidenceCounter: parseInt(supplier.confidence_counter, 10) || 0,
       hasAmount: !!amount,
       wouldSkip: !amount,
       skipReason: !amount ? 'no amount available' : null,
@@ -211,6 +211,8 @@ async function previewPrecodePass() {
       } : null,
     });
   }
+
+  preview.sort((a, b) => a.confidenceCounter - b.confidenceCounter);
 
   const wouldWrite = preview.filter(p => !p.wouldSkip).length;
   const wouldSkip = preview.filter(p => p.wouldSkip).length;

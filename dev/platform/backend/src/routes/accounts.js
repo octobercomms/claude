@@ -606,6 +606,15 @@ router.get('/digests', async (req, res) => {
   }
 });
 
+router.get('/digests/preview', async (req, res) => {
+  try {
+    const { summary } = await accounts.digest.previewDigest();
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/digests/build', async (req, res) => {
   try {
     const result = await accounts.digest.buildWeeklyDigest();
@@ -1155,6 +1164,23 @@ router.delete('/extension/tokens/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Alias: /extension-tokens -> /extension/tokens (both forms work).
+router.get('/extension-tokens', async (req, res) => {
+  try { res.json({ tokens: await extensionAuth.listTokens() }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/extension-tokens', async (req, res) => {
+  try { res.status(201).json(await extensionAuth.createToken(req.body.label)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.delete('/extension-tokens/:id', async (req, res) => {
+  try {
+    const revoked = await extensionAuth.revokeToken(parseInt(req.params.id));
+    if (!revoked) return res.status(404).json({ error: 'Token not found or already revoked' });
+    res.json({ revoked: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Brain lookup routes are in routes/brain.js (mounted separately to bypass JWT auth).
