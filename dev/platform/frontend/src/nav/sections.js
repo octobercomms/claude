@@ -645,6 +645,7 @@ export function slugOf(row) {
 // their own. Each maps a URL slug to the tab key it should resolve to.
 export const SLUG_ALIASES = {
   connections: 'integrations',
+  digest: 'weekly-digest',
 };
 
 // slug -> the key the page compares against. Unknown slugs answer null so the

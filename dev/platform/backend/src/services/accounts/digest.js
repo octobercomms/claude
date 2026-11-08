@@ -6,6 +6,7 @@ const db = require('../../db');
 const deadlines = require('./deadlines');
 const reconcile = require('./reconcile');
 const invoices = require('./invoices');
+const suppliers = require('./suppliers');
 const { sendAccountsDigest } = require('../emailService');
 
 async function buildWeeklyDigest() {
@@ -20,12 +21,19 @@ async function buildWeeklyDigest() {
   const invoiceStats = await invoices.getInvoiceStats();
   const upcomingDeadlines = await deadlines.getUpcoming(30);
   const missingInvoices = await invoices.getMissingInvoices();
+  const supplierStats = await suppliers.getStats();
+  const autoCodedThisWeek = await suppliers.getAutoCodedSummary(weekAgo);
 
   // Items reconciled this week.
   const { rows: recentConfirmed } = await db.query(
     `SELECT count(*)::int as count FROM acct_confirmations
      WHERE confirmed_at >= $1`,
     [weekAgo.toISOString()]
+  );
+
+  // Overdue deadlines: past due date and not filed.
+  const overdueDeadlines = upcomingDeadlines.filter(d =>
+    d.effective_status === 'overdue'
   );
 
   const summary = {
@@ -47,13 +55,20 @@ async function buildWeeklyDigest() {
         currency: m.currency,
       })),
     },
+    suppliers: {
+      total: supplierStats.total,
+      autoCoding: supplierStats.auto_coding,
+      learning: supplierStats.learning,
+      autoCodedThisWeek,
+    },
     deadlines: upcomingDeadlines.map(d => ({
       type: d.tax_type,
       label: d.period_label,
-      dueDate: d.due_date,
-      status: d.status,
-      daysUntil: Math.ceil((new Date(d.due_date) - now) / (1000 * 60 * 60 * 24)),
+      dueDate: typeof d.due_date === 'string' ? d.due_date : d.due_date?.toISOString?.()?.split('T')[0],
+      status: d.effective_status || d.status,
+      daysUntil: d.days_until != null ? d.days_until : Math.ceil((new Date(d.due_date) - now) / (1000 * 60 * 60 * 24)),
     })),
+    overdueDeadlines: overdueDeadlines.length,
   };
 
   // Store the digest.
@@ -148,6 +163,35 @@ function formatDigestHtml(summary) {
           </tr></thead>
           <tbody>${missingRows}</tbody>
         </table>
+      ` : ''}
+
+      ${s.suppliers ? `
+        <h3 style="color:#1a1a1a;">Supplier Brain</h3>
+        <table style="border-collapse:collapse;margin:12px 0;">
+          <tr><td style="padding:4px 16px 4px 0;color:#666;">Total suppliers</td><td style="font-weight:600;">${s.suppliers.total}</td></tr>
+          <tr><td style="padding:4px 16px 4px 0;color:#666;">Auto-coding</td><td style="font-weight:600;">${s.suppliers.autoCoding}</td></tr>
+          <tr><td style="padding:4px 16px 4px 0;color:#666;">Still learning</td><td style="font-weight:600;">${s.suppliers.learning}</td></tr>
+        </table>
+        ${(s.suppliers.autoCodedThisWeek || []).length ? `
+          <h4 style="color:#1a1a1a;">Auto-coded this week</h4>
+          <table style="border-collapse:collapse;width:100%;margin:12px 0;">
+            <thead><tr style="background:#f5f5f5;">
+              <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Supplier</th>
+              <th style="padding:6px 12px;border:1px solid #e0e0e0;text-align:left;">Transactions</th>
+            </tr></thead>
+            <tbody>${(s.suppliers.autoCodedThisWeek || []).map(a =>
+              `<tr><td style="padding:6px 12px;border:1px solid #e0e0e0;">${a.display_name}</td>
+               <td style="padding:6px 12px;border:1px solid #e0e0e0;">${a.count}</td></tr>`
+            ).join('')}</tbody>
+          </table>
+        ` : ''}
+      ` : ''}
+
+      ${s.overdueDeadlines ? `
+        <div style="background:#fff3e0;border-left:4px solid #f57c00;padding:12px 16px;margin:16px 0;">
+          <strong style="color:#e65100;">${s.overdueDeadlines} overdue deadline${s.overdueDeadlines > 1 ? 's' : ''}</strong>
+          <span style="color:#666;"> require attention.</span>
+        </div>
       ` : ''}
 
       ${deadlineRows ? `

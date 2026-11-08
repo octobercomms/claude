@@ -104,7 +104,7 @@ async function buildVatPack(year, quarter) {
   // Summary totals.
   const outputVat = (byRate['OUTPUT2']?.net || 0) * 0.2;
   const inputVat = (byRate['INPUT2']?.net || 0) * 0.2;
-  const reverseCharge = byRate['RRINPUT']?.net || 0;
+  const reverseCharge = (byRate['RRINPUT']?.net || 0) + (byRate['REVERSECHARGES']?.net || 0);
 
   const summary = {
     period: periodLabel,
@@ -149,10 +149,10 @@ function detectExceptions(item) {
     }
   }
 
-  // Reverse charge: services from overseas suppliers should be RRINPUT.
+  // Reverse charge: services from overseas suppliers should use a reverse charge rate.
   if (/stripe|google|meta|facebook|adobe|slack|notion|figma|canva|mailchimp|hubspot/i.test(payee)) {
     if (rate === 'INPUT2') {
-      flags.push('Overseas SaaS supplier coded as INPUT2; likely reverse charge (RRINPUT)');
+      flags.push('Overseas SaaS supplier coded as INPUT2; likely reverse charge');
     }
   }
 

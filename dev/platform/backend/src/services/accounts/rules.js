@@ -153,54 +153,80 @@ async function promoteToRule(confirmation) {
   });
 }
 
-const SEED_RULES = [
-  { payee_pattern: 'dataforseo', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', currency: 'USD', notes: 'Reverse charge; US supplier, SEO API tooling' },
-  { payee_pattern: 'meta platforms', match_type: 'contains', account_code: '6020', account_name: 'Advertising & Marketing', tax_rate: 'RRINPUT', notes: 'Reverse charge; invoiced from Ireland' },
-  { payee_pattern: 'facebook', match_type: 'contains', account_code: '6020', account_name: 'Advertising & Marketing', tax_rate: 'RRINPUT', notes: 'Reverse charge; Meta ad spend from Ireland' },
-  { payee_pattern: 'google ads', match_type: 'contains', account_code: '6020', account_name: 'Advertising & Marketing', tax_rate: 'RRINPUT', notes: 'Reverse charge; invoiced from Ireland' },
-  { payee_pattern: 'google cloud', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; cloud hosting from Ireland' },
-  { payee_pattern: 'dropbox', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; Irish VAT number, EU digital service' },
-  { payee_pattern: 'stripe', match_type: 'contains', account_code: '7020', account_name: 'Bank Charges & Fees', tax_rate: 'NONE', notes: 'Payment processing fees, exempt' },
-  { payee_pattern: 'wise', match_type: 'contains', account_code: '7020', account_name: 'Bank Charges & Fees', tax_rate: 'NONE', notes: 'FX transfer fees' },
-  { payee_pattern: 'transferwise', match_type: 'contains', account_code: '7020', account_name: 'Bank Charges & Fees', tax_rate: 'NONE', notes: 'FX transfer fees (old brand)' },
-  { payee_pattern: 'hmrc vat', match_type: 'contains', account_code: '2201', account_name: 'VAT Control', tax_rate: 'NONE', notes: 'VAT payment to HMRC' },
-  { payee_pattern: 'hmrc paye', match_type: 'contains', account_code: '2210', account_name: 'PAYE Liability', tax_rate: 'NONE', notes: 'PAYE/NIC payment to HMRC' },
-  { payee_pattern: 'hmrc corp', match_type: 'contains', account_code: '2202', account_name: 'Corporation Tax', tax_rate: 'NONE', notes: 'CT payment to HMRC' },
-  { payee_pattern: 'gocardless', match_type: 'contains', account_code: '7020', account_name: 'Bank Charges & Fees', tax_rate: 'NONE', notes: 'Direct debit collection fees' },
-  { payee_pattern: 'slack', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US SaaS' },
-  { payee_pattern: 'adobe', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; Creative Cloud from Ireland' },
-  { payee_pattern: 'zoom', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US SaaS' },
-  { payee_pattern: 'xero', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; NZ supplier' },
-  { payee_pattern: 'amazon web services', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; AWS hosting from Ireland' },
-  { payee_pattern: 'github', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US SaaS' },
-  { payee_pattern: 'anthropic', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US AI API' },
-  { payee_pattern: 'openai', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US AI API' },
-  { payee_pattern: 'hetzner', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; German hosting' },
-  { payee_pattern: 'brevo', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; French email platform' },
-  { payee_pattern: 'beany', match_type: 'contains', account_code: '6030', account_name: 'Accountancy Fees', tax_rate: 'INPUT2', currency: 'GBP', notes: 'UK accountant, standard rated' },
-  { payee_pattern: 'paypal', match_type: 'contains', account_code: '7020', account_name: 'Bank Charges & Fees', tax_rate: 'NONE', notes: 'Payment processing fees' },
-  { payee_pattern: 'notion', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US SaaS' },
-  { payee_pattern: 'canva', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; Australian SaaS' },
-  { payee_pattern: 'figma', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US design tool' },
-  { payee_pattern: 'vercel', match_type: 'contains', account_code: '6012', account_name: 'Software & SaaS', tax_rate: 'RRINPUT', notes: 'Reverse charge; US hosting' },
-  { payee_pattern: 'linkedin', match_type: 'contains', account_code: '6020', account_name: 'Advertising & Marketing', tax_rate: 'RRINPUT', notes: 'Reverse charge; ad spend from Ireland' },
-];
-
 async function seedRules() {
+  const { rows: suppliers } = await db.query(
+    `SELECT display_name, account_code, account_name, vat_treatment, match_patterns, currency
+     FROM acct_suppliers
+     WHERE auto_code = true AND account_code IS NOT NULL`
+  );
+  if (!suppliers.length) return { inserted: 0, skipped: 0, total: 0 };
+
   let inserted = 0;
-  for (const rule of SEED_RULES) {
-    const existing = await findMatch(rule.payee_pattern, rule.currency || null);
-    if (existing) continue;
+  let skipped = 0;
+  for (const s of suppliers) {
+    const patterns = Array.isArray(s.match_patterns) ? s.match_patterns : [];
+    const primary = patterns[0] || s.display_name?.toLowerCase();
+    if (!primary) { skipped++; continue; }
+
+    const existing = await findMatch(primary, s.currency || null);
+    if (existing) { skipped++; continue; }
+
     await db.query(
       `INSERT INTO acct_rules
          (payee_pattern, match_type, account_code, account_name, tax_rate, currency, confidence, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, 0.95, $7)
+       VALUES ($1, 'contains', $2, $3, $4, $5, 0.95, $6)
        ON CONFLICT DO NOTHING`,
-      [rule.payee_pattern, rule.match_type, rule.account_code, rule.account_name, rule.tax_rate, rule.currency || null, rule.notes]
+      [primary, s.account_code, s.account_name, s.vat_treatment || null, s.currency || null, `Seeded from supplier brain: ${s.display_name}`]
     );
     inserted++;
   }
-  return inserted;
+  return { inserted, skipped, total: suppliers.length };
+}
+
+async function purgeInvalidRules() {
+  const xero = require('../../connectors/xero');
+  let chart;
+  try {
+    const token = await xero.getValidToken();
+    chart = await xero.getChartOfAccounts(token);
+  } catch {
+    return { deleted: 0, error: 'Xero not connected; cannot validate rules' };
+  }
+  const validCodes = new Set(chart.map(a => a.code));
+  const { rows: allRules } = await db.query('SELECT id, account_code FROM acct_rules');
+  const toDelete = allRules.filter(r => r.account_code && !validCodes.has(r.account_code));
+  if (!toDelete.length) return { deleted: 0 };
+
+  await db.query(
+    'DELETE FROM acct_rules WHERE id = ANY($1)',
+    [toDelete.map(r => r.id)]
+  );
+  return { deleted: toDelete.length };
+}
+
+async function validateRule(accountCode, taxRate) {
+  const xero = require('../../connectors/xero');
+  const errors = [];
+  let token;
+  try {
+    token = await xero.getValidToken();
+  } catch {
+    return { valid: true, warning: 'Xero not connected; skipping validation' };
+  }
+
+  if (accountCode) {
+    const chart = await xero.getChartOfAccounts(token);
+    const match = chart.find(a => a.code === accountCode);
+    if (!match) errors.push(`Account code '${accountCode}' does not exist in this organisation's chart of accounts`);
+  }
+
+  if (taxRate) {
+    const rates = await xero.getTaxRates(token);
+    const match = rates.find(r => r.taxType === taxRate);
+    if (!match) errors.push(`Tax rate '${taxRate}' does not exist in this organisation's tax rates`);
+  }
+
+  return errors.length ? { valid: false, errors } : { valid: true };
 }
 
 module.exports = {
@@ -212,5 +238,6 @@ module.exports = {
   confirmRule,
   promoteToRule,
   seedRules,
-  SEED_RULES,
+  purgeInvalidRules,
+  validateRule,
 };
