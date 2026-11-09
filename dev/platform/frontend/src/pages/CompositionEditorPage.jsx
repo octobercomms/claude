@@ -884,16 +884,41 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
 
       <div className="edit-split" style={{ marginTop: 'var(--s2)' }}>
         <div>
-          <Compositor
-            ref={compositorRef}
-            composition={composition}
-            sourceUrls={sourceUrls}
-            transcripts={transcripts}
-            playhead={playhead}
-            onSeek={setPlayhead}
-            onMeta={onMeta}
-            maxHeight="50vh"
-          />
+          <div className="studio-stage">
+            <Compositor
+              ref={compositorRef}
+              composition={composition}
+              sourceUrls={sourceUrls}
+              transcripts={transcripts}
+              playhead={playhead}
+              onSeek={setPlayhead}
+              onMeta={onMeta}
+              maxHeight="50vh"
+            />
+            {/* Open, not collapsed. A panel that answers the operator's
+                question and has to be unfolded to do it is a panel nobody
+                opens, and the checks are advisory and say so on screen, so
+                there is nothing here to protect anyone from. */}
+            {hasSources && (
+              // Capped to the player's own height and scrolled, because the
+              // grid row is as tall as its tallest cell: opened, the eight
+              // checks and their evidence measured 964px against the player's
+              // 500, which pushed the timeline 460px down and off a
+              // 1000px-tall screen. The timeline is the thing you work in, so
+              // the panel beside the picture may not be taller than the
+              // picture. Found by measuring the boxes in a browser; no unit
+              // test and no amount of reading would have shown it.
+              <div className="card" data-studio-checks
+                style={{ padding: 'var(--s4)', maxHeight: '50vh', overflowY: 'auto' }}>
+                <ReelChecks
+                  timings={allTimings}
+                  edit={reelEdit}
+                  clientId={clientId}
+                  defaultOpen
+                />
+              </div>
+            )}
+          </div>
           <div style={{ marginTop: 'var(--s3)' }}>
             <CompositionTimeline
               composition={composition}
@@ -1283,16 +1308,7 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
             )}
           </div>
 
-          {hasSources && (
-            <div className="card" style={{ padding: 'var(--s4)', marginTop: 'var(--s3)' }}>
-              <ReelChecks
-                timings={allTimings}
-                edit={reelEdit}
-                clientId={clientId}
-                defaultOpen={false}
-              />
-            </div>
-          )}
+
         </div>
       </div>
 

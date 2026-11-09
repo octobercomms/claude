@@ -479,6 +479,40 @@ files that already exist, and flushing would imply the unsaved edit is part of
 what the client will see. Both halves are pinned, because tidying the two
 buttons into one handler would reverse it.
 
+## Built, 9 November: the verdict sits beside the picture
+
+Reel checks moves from the last card of the right-hand column, below the
+frame-rate chips and collapsed, to the frame's right elbow, open. It is the
+one thing on screen that answers "is this any good", which is the operator's
+actual question, and it was the furthest thing from the picture.
+
+Beside rather than under, for a specific reason: the composition is 9:16 and
+the player well is not. Measured in the browser at 1600px, the well is 865px
+wide and the frame occupies 281px of it, so most of the largest element on the
+page is empty black. The checks go into that space and the picture loses
+nothing. The mockup's answer, a 240px bin and a 260px inspector, would narrow
+the centre column and make the only thing being judged smaller.
+
+**A regression that only a measurement would have found.** Opened, the eight
+checks and their evidence measured 964px against the player's 500. A grid row
+is as tall as its tallest cell, so the timeline was pushed 460px down and off
+a 1000px screen. The panel is now capped to the player's own height and
+scrolls. Mutation-checked: removing the cap puts the timeline at y=1304.
+
+**The drives can finally see the editor.** Until now the stub had no
+`/api/compose/*` fixtures, so the editor rendered its empty state in every
+drive and nothing about it could be checked in a browser — the design critique
+had to intercept those calls in a script of its own. `drives/fixtures/` now
+carries a validated composition with a filmed clip, two photographs with
+camera moves, a music bed and a transcript, and `drive-fixtures.test.js` runs
+it through the real model so it cannot drift.
+
+The first version of that fixture was wrong in a way worth recording: the
+composition LIST returned thin rows, because that is what a list endpoint
+looks like it should return. `services/compositions.js` selects the whole row
+including `data`, and the editor opens `list[0]` without a second fetch, so
+every assertion about the editor passed against an empty composition.
+
 ## Faults found while auditing, worth fixing in passing
 
 - **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is

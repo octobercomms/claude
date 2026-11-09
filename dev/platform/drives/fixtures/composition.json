@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "sources": {
+    "sclip": {
+      "kind": "clip",
+      "asset": 11,
+      "url": "/api/brand/file/c1/atlas-walkthrough.mp4",
+      "duration": 12,
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "originalName": "atlas-walkthrough.mp4"
+    },
+    "sstill1": {
+      "kind": "clip",
+      "still": true,
+      "asset": 12,
+      "url": "/api/brand/file/c1/showroom-01.jpg",
+      "width": 4000,
+      "height": 3000,
+      "fps": 30,
+      "originalName": "showroom-01.jpg"
+    },
+    "sstill2": {
+      "kind": "clip",
+      "still": true,
+      "asset": 13,
+      "url": "/api/brand/file/c1/showroom-02.jpg",
+      "width": 4000,
+      "height": 3000,
+      "fps": 30,
+      "originalName": "showroom-02.jpg"
+    },
+    "smusic": {
+      "kind": "audio",
+      "asset": 14,
+      "url": "/api/brand/file/c1/space.mp3",
+      "duration": 40,
+      "originalName": "space.mp3"
+    }
+  },
+  "tracks": [
+    {
+      "id": "tv1",
+      "kind": "video",
+      "items": [
+        {
+          "id": "i1",
+          "at": 0,
+          "len": 8,
+          "source": "sclip"
+        },
+        {
+          "id": "i2",
+          "at": 8,
+          "len": 3.2,
+          "source": "sstill1",
+          "scale": {
+            "from": 1.0,
+            "to": 1.12
+          },
+          "beat": "push-in"
+        },
+        {
+          "id": "i3",
+          "at": 11.2,
+          "len": 3.2,
+          "source": "sstill2",
+          "scale": 1.08,
+          "pos": {
+            "from": {
+              "x": -0.035,
+              "y": 0
+            },
+            "to": {
+              "x": 0.035,
+              "y": 0
+            }
+          },
+          "beat": "drift"
+        }
+      ]
+    },
+    {
+      "id": "ta1",
+      "kind": "audio",
+      "items": [
+        {
+          "id": "i4",
+          "at": 0,
+          "len": 14.4,
+          "source": "smusic"
+        }
+      ]
+    }
+  ]
+}

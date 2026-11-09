@@ -1,0 +1,94 @@
+{
+  "sclip": [
+    {
+      "word": "we",
+      "start": 0.0,
+      "end": 0.52
+    },
+    {
+      "word": "designed",
+      "start": 0.56,
+      "end": 1.28
+    },
+    {
+      "word": "the",
+      "start": 1.32,
+      "end": 1.84
+    },
+    {
+      "word": "atlas",
+      "start": 1.88,
+      "end": 2.4
+    },
+    {
+      "word": "showroom",
+      "start": 2.44,
+      "end": 3.16
+    },
+    {
+      "word": "around",
+      "start": 3.2,
+      "end": 3.72
+    },
+    {
+      "word": "one",
+      "start": 3.76,
+      "end": 4.28
+    },
+    {
+      "word": "idea",
+      "start": 4.32,
+      "end": 4.84
+    },
+    {
+      "word": "that",
+      "start": 4.88,
+      "end": 5.4
+    },
+    {
+      "word": "a",
+      "start": 5.44,
+      "end": 5.96
+    },
+    {
+      "word": "material",
+      "start": 6.0,
+      "end": 6.72
+    },
+    {
+      "word": "should",
+      "start": 6.76,
+      "end": 7.28
+    },
+    {
+      "word": "be",
+      "start": 7.32,
+      "end": 7.84
+    },
+    {
+      "word": "touched",
+      "start": 7.88,
+      "end": 8.6
+    },
+    {
+      "word": "before",
+      "start": 8.64,
+      "end": 9.16
+    },
+    {
+      "word": "it",
+      "start": 9.2,
+      "end": 9.72
+    },
+    {
+      "word": "is",
+      "start": 9.76,
+      "end": 10.28
+    },
+    {
+      "word": "chosen",
+      "start": 10.32,
+      "end": 10.84
+    }
+  ]
+}

@@ -112,8 +112,43 @@ const FRAMEWORKS = [
   { framework: '(unspecified)', avg_engagement_rate: 9.9, posts: 8 },
 ];
 
+// The composition editor's fixtures, in files rather than inline, because a
+// composition is a validated document and `backend/tests/drive-fixtures.test.js`
+// runs them through the real model. A fixture nobody validates is how a drive
+// ends up asserting against a shape the product would reject.
+const COMPOSITION = require('./fixtures/composition.json');
+const TRANSCRIPT = require('./fixtures/transcript.json');
+
 const API = {
   '/api/auth/me': { id: 'u1', username: 'daniel', role: 'admin' },
+  // Produce → Studio. Until these existed the editor rendered its empty state
+  // in every drive, so nothing about the editor could be checked in a browser
+  // and the critique had to intercept /api/compose/* in a script of its own.
+  // Full rows, the way `services/compositions.js` returns them: the list
+  // SELECT carries `data` and `transcripts`, and the editor opens list[0]
+  // directly rather than fetching it again. A thin fixture here loads an
+  // EMPTY composition and every assertion about the editor passes against
+  // its empty state, which is how this was first written.
+  '/api/compose/clients/c1/compositions': [
+    {
+      id: 1, client_id: 'c1', title: 'Atlas showroom reel',
+      data: COMPOSITION, source_assets: {}, transcripts: TRANSCRIPT,
+      status: 'draft', batch_id: null, template_id: null,
+      created_at: '2026-11-09T08:00:00Z', updated_at: '2026-11-09T09:00:00Z',
+    },
+    {
+      id: 2, client_id: 'c1', title: 'Material study',
+      data: { version: 1, size: { width: 1080, height: 1920 }, fps: 30, sources: {}, tracks: [] },
+      source_assets: {}, transcripts: {},
+      status: 'draft', batch_id: null, template_id: null,
+      created_at: '2026-11-08T16:00:00Z', updated_at: '2026-11-08T16:30:00Z',
+    },
+  ],
+  '/api/compose/caption-templates': [
+    { id: 'editorial-centre', name: 'Editorial, centred' },
+    { id: 'creator-bold', name: 'Creator, bold' },
+  ],
+  '/api/compose/designs/c1': [],
   // loadAll() has no .catch on batches or competitors, so Promise.all rejects
   // and NOTHING on the page gets set — including the winners below, which is
   // why the decisions block showed its empty state while the stub was happily
@@ -777,6 +812,24 @@ const handler = (req, res) => {
         replied: 9, reply_rate: 3.8, warm: 3, unsubscribed: 2, unsub_rate: 0.8 },
       rows: [], delivery: null,
     })],
+    // One composition, with a transcript on its filmed clip and two
+    // photographs carrying camera moves, so the editor renders something an
+    // operator would recognise: a timeline with three blocks, a waveform, and
+    // enough speech for the reel checks to have an opinion.
+    [/^\/api\/compose\/compositions\/(\d+)$/, (m) => ({
+      id: Number(m[1]), client_id: 'c1', title: 'Atlas showroom reel',
+      data: COMPOSITION, source_assets: {}, transcripts: TRANSCRIPT,
+      status: 'draft', updated_at: '2026-11-09T09:00:00Z',
+    })],
+    // A finished render, so Share can be driven. `output_url` is in the shape
+    // the approval proxy rewrites.
+    [/^\/api\/compose\/compositions\/(\d+)\/renders$/, () => ({
+      renders: [
+        { id: 31, finished_at: '2026-11-09T09:40:00Z', output_url: '/api/brand/file/c1/render-1-31.mp4' },
+        { id: 30, finished_at: '2026-11-08T17:10:00Z', output_url: '/api/brand/file/c1/render-1-30.mp4' },
+      ],
+    })],
+    [/^\/api\/compose\/compositions\/(\d+)\/render-status$/, () => ({ status: 'none' })],
     [/^\/api\/press\/clients\/(c\d+)\/warm-config$/, () => ({})],
     [/^\/api\/press\/releases\/(p\d+)\/reply-status$/, () => ({})],
   ];

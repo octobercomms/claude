@@ -133,6 +133,62 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 6. The editor renders a real composition, and the verdict sits beside
+//        the picture ────────────────────────────────────────────────────
+//
+// Until the stub carried compose fixtures the editor drew its empty state in
+// every drive, so nothing about it could be checked in a browser and the
+// design critique had to intercept /api/compose/* in a script of its own.
+//
+// These are geometric on purpose. Reel checks being "beside the frame" is not
+// something a source read can establish, and the regression it caught is not
+// one either: opened, the eight checks measured 964px against the player's
+// 500, and because a grid row is as tall as its tallest cell that pushed the
+// timeline 460px down and off the screen.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1600, height: 1000 });
+  await p.waitForTimeout(600);
+  const t = await text(p);
+
+  say(/Atlas showroom reel/.test(t), 'the editor opens a real composition',
+    'the stub list must carry `data`: the editor opens list[0] directly rather '
+    + 'than fetching it, so a thin row loads an EMPTY composition and every '
+    + 'assertion here passes against its empty state');
+  say(/Reel checks/i.test(t), 'the reel checks render');
+  say(/of 8/.test(t), 'with all eight checks, not the mockup\'s four',
+    t.match(/\d of 8[^.]*/)?.[0] || 'no "of 8" on the page');
+
+  const box = async (sel) => { try { return await p.locator(sel).first().boundingBox(); } catch { return null; } };
+  const checks = await box('[data-studio-checks]');
+  const canvas = await box('canvas');
+  say(!!checks && !!canvas, 'the player and the checks are both on screen',
+    `checks ${JSON.stringify(checks)} canvas ${JSON.stringify(canvas)}`);
+
+  if (checks && canvas) {
+    say(checks.x >= canvas.x + canvas.width - 1,
+      'the checks sit to the RIGHT of the frame, in the empty black beside a 9:16 picture',
+      `canvas ends at ${Math.round(canvas.x + canvas.width)}, checks start at ${Math.round(checks.x)}`);
+    say(Math.abs(checks.y - canvas.y) < 4,
+      'and level with its top, rather than below it',
+      `canvas y ${Math.round(canvas.y)}, checks y ${Math.round(checks.y)}`);
+    say(checks.height <= canvas.height + 8,
+      'and no taller than the picture, so the timeline is not pushed off screen',
+      `checks ${Math.round(checks.height)}px against a ${Math.round(canvas.height)}px player`);
+  }
+
+  // The timeline is the thing you work in. If it is below the fold the layout
+  // has failed whatever the panels do.
+  const tl = await p.evaluate(() => {
+    const el = [...document.querySelectorAll('div')].find(d => /^V1$/.test(d.textContent.trim()));
+    return el ? el.getBoundingClientRect().y : null;
+  });
+  say(tl != null && tl < 1000, 'the timeline is on screen at 1600x1000',
+    tl == null ? 'no V1 track header found' : `V1 at y ${Math.round(tl)}`);
+
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
