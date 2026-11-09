@@ -250,6 +250,45 @@ export function marginFor(measured = {}, deps = {}) {
 }
 
 /**
+ * The spoken shape, once a transcript has been labelled.
+ *
+ * Reported and NOT put in the draft, for the same reason the measured
+ * loudness is not: a template's slots are pictures and words an operator
+ * supplies, and the spoken structure of somebody else's reel is information
+ * about how THEY wrote it. Sizing a text slot from a stranger's hook would
+ * state a constraint nothing measured about our own batch.
+ *
+ * What it is for is the brief. "Hook 2.4s, solution 14s, CTA 3.1s, and it
+ * asks for the click in words at 17s" is what somebody writing one actually
+ * wants, and it is the row the plan asked for.
+ */
+export function structureFor(measured = {}) {
+  const read = measured.structure || null;
+  if (!read) {
+    return {
+      value: null,
+      confidence: 0,
+      why: 'the spoken structure needs a transcript and a labelling pass,'
+        + ' and this pass did not run one',
+    };
+  }
+  if (!read.archetype) {
+    return {
+      value: null,
+      confidence: 0,
+      why: read.says || 'the labelling was not usable',
+    };
+  }
+  return {
+    value: read.archetype,
+    confidence: read.confidence,
+    why: read.says,
+    sections: read.sections || [],
+    disagreements: read.disagreements || [],
+  };
+}
+
+/**
  * Build a template proposal from what was measured.
  *
  * `m` is what the analyser found:
@@ -280,6 +319,7 @@ export function propose(m = {}, {
   // would be served.
   const caption = captionFor(m, deps);
   const margin = marginFor(m, deps);
+  const structure = structureFor(m);
 
   // The frame is the one thing a finished video states outright.
   const size = (Number.isFinite(m.width) && Number.isFinite(m.height))
@@ -302,7 +342,7 @@ export function propose(m = {}, {
     : { value: null, confidence: 0, why: len.why };
 
   const fields = {
-    size, fps, len, motion, caption, margin, count,
+    size, fps, len, motion, caption, margin, structure, count,
     loudness: Number.isFinite(m.loudnessLufs)
       ? {
         value: round(m.loudnessLufs, 1),

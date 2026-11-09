@@ -72,6 +72,10 @@ const FEATURES = [
     // service refuses with that reason rather than failing inside the API
     // call.
     { key: 'reference_caption_read', label: 'Reference caption reading', sensitive: false },
+    // Labelling the spoken shape of a reference from its transcript. Text
+    // only, so any model can run it; the transcription in front of it is
+    // Whisper and is logged separately as `reference_transcribe`.
+    { key: 'reference_structure_read', label: 'Reference structure reading', sensitive: false },
   ] },
   { group: 'SEO & visibility', items: [
     { key: 'ai_seo_keywords', label: 'AI SEO keywords', sensitive: false },

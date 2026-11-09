@@ -142,9 +142,25 @@ async function analyse(file, opts = {}) {
       }
     }
 
+    // THE SPOKEN SHAPE. Two calls behind it, Whisper and a labelling pass, so
+    // it is opt-in beside the caption read and carries its own figure. A
+    // failure here never fails the analysis either.
+    let structure = null;
+    let structureSays = null;
+    if (opts.readStructure) {
+      try {
+        const reader = require('./referenceStructure');
+        const got = await reader.read(file, { clientId: opts.clientId || null });
+        structure = got.structure;
+        structureSays = got.says;
+      } catch (err) {
+        structureSays = `the structure pass failed: ${err.message}`;
+      }
+    }
+
     const cm = await matchMod();
     const out = ref.propose(
-      { ...m, ...(caption ? { caption } : {}) },
+      { ...m, ...(caption ? { caption } : {}), ...(structure ? { structure } : {}) },
       {
         ...opts,
         styles: opts.styles || presetStyles(),
@@ -152,7 +168,7 @@ async function analyse(file, opts = {}) {
         marginVFor: cm.marginVFor,
       }
     );
-    return { ...out, measured: m, captionSays };
+    return { ...out, measured: m, captionSays, structureSays };
   } catch (err) {
     return {
       template: null,

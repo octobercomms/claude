@@ -27,6 +27,7 @@ import { api } from '../../utils/api';
 export default function ReferencePanel({ clientId }) {
   const [asset, setAsset] = useState(null);
   const [readCaptions, setReadCaptions] = useState(false);
+  const [readStructure, setReadStructure] = useState(false);
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState(null);
   const [error, setError] = useState(null);
@@ -41,6 +42,7 @@ export default function ReferencePanel({ clientId }) {
       const result = await api.post(`/compose/clients/${clientId}/analyse-reference`, {
         assetId: asset.id,
         readCaptions,
+        readStructure,
       });
       setOut(result);
     } catch (e) {
@@ -99,7 +101,29 @@ export default function ReferencePanel({ clientId }) {
       <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-caption)', margin: 'var(--s1) 0 0' }}>
         Eight frames go to a model that reads type. The answer is matched to one of the 31
         shipped caption presets, never a new one, and it comes back as a shortlist when a still
-        frame cannot tell two of them apart. Everything else on this panel is free.
+        frame cannot tell two of them apart.
+      </p>
+
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: 'var(--s2)',
+        marginTop: 'var(--s3)', flexWrap: 'wrap',
+      }}>
+        <input
+          type="checkbox"
+          checked={readStructure}
+          onChange={(e) => setReadStructure(e.target.checked)}
+          disabled={busy}
+        />
+        <span>Read the spoken shape</span>
+        {/* Two calls, two costs: the transcription and the labelling. Shown
+            separately because they are capped separately. */}
+        <FeatureCost feature="reference_transcribe" />
+        <FeatureCost feature="reference_structure_read" />
+      </label>
+      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-caption)', margin: 'var(--s1) 0 0' }}>
+        Transcribes the reference and labels it hook, problem, solution and call to action, with
+        the seconds each one runs. The words are searched for the phrases that ask for a click,
+        so a labelling that missed one comes back saying so.
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
@@ -120,6 +144,29 @@ export default function ReferencePanel({ clientId }) {
           <p style={{ fontSize: '1.1em' }}>{out.says}</p>
           {out.captionSays && (
             <p style={{ color: 'var(--text-muted)' }}>Captions: {out.captionSays}</p>
+          )}
+          {out.structureSays && (
+            <p style={{ color: 'var(--text-muted)' }}>Shape: {out.structureSays}</p>
+          )}
+
+          {!!out.fields?.structure?.sections?.length && (
+            <div style={{ marginTop: 'var(--s3)' }}>
+              {out.fields.structure.sections.map((s) => (
+                <div key={s.label} style={{
+                  display: 'flex', gap: 'var(--s2)', alignItems: 'baseline',
+                  padding: 'var(--s1) 0',
+                }}>
+                  <span className="chip">{s.label}</span>
+                  <span>{s.start}s to {s.end}s</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{s.says || `${s.words} words`}</span>
+                </div>
+              ))}
+              {/* What the transcript says against what the labelling says. The
+                  one thing worth reading before trusting the shape. */}
+              {out.fields.structure.disagreements?.map((d) => (
+                <div key={d} className="chip chip-warning" style={{ marginTop: 'var(--s2)' }}>{d}</div>
+              ))}
+            </div>
           )}
 
           <table style={{ width: '100%', marginTop: 'var(--s3)' }}>
@@ -186,6 +233,7 @@ const LABEL = {
   motion: 'Movement',
   caption: 'Caption preset',
   margin: 'Caption position',
+  structure: 'Spoken shape',
   count: 'How many',
   loudness: 'Loudness',
 };

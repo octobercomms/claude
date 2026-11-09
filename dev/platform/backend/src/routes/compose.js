@@ -1,6 +1,5 @@
 const express = require('express');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
@@ -8,7 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const compositions = require('../services/compositions');
 const assets = require('../services/assets');
-const { FFMPEG, FFPROBE } = require('../services/ffmpegBin');
+const { FFPROBE } = require('../services/ffmpegBin');
 const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('../services/costLog');
 const { whisperWords } = require('../services/whisper');
@@ -257,19 +256,9 @@ router.post('/compositions/:id/audio', loadComposition, (req, res, next) => {
 
 // ── Transcription ───────────────────────────────────────────────────
 
-function extractAudio(inPath) {
-  const outPath = path.join(os.tmpdir(), `comp-${crypto.randomBytes(8).toString('hex')}.mp3`);
-  return new Promise((resolve, reject) => {
-    const ff = spawn(FFMPEG, [
-      '-y', '-i', inPath, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', outPath,
-    ], { stdio: 'ignore' });
-    ff.on('error', reject);
-    ff.on('close', code => {
-      if (code === 0) resolve(outPath);
-      else reject(new Error(`ffmpeg exited ${code}`));
-    });
-  });
-}
+// `extractAudio` lives in services/whisper.js, beside the call that needs it.
+// This file had the fourth copy of the same eight lines.
+const { extractAudio } = require('../services/whisper');
 
 
 router.post('/compositions/:id/transcribe', loadComposition, async (req, res) => {
@@ -683,7 +672,7 @@ router.post('/clients/:clientId/analyse-reference',
   requireClientAccess({ paramNames: ['clientId'] }),
   async (req, res) => {
     try {
-      const { assetId, readCaptions } = req.body || {};
+      const { assetId, readCaptions, readStructure } = req.body || {};
       if (!assetId) return res.status(400).json({ error: 'assetId is required' });
 
       const asset = await assets.get(assetId);
@@ -704,6 +693,7 @@ router.post('/clients/:clientId/analyse-reference',
         // The only part of this that costs anything, so it is asked for
         // rather than assumed. The button that sets it carries the figure.
         readCaptions: readCaptions === true,
+        readStructure: readStructure === true,
         clientId: req.params.clientId,
       });
       res.json(out);
