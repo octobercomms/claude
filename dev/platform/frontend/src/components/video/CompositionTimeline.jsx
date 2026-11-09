@@ -700,109 +700,18 @@ export default function CompositionTimeline({
         </div>
       </div>
 
-      {/* Selected item controls */}
-      {selected && selectedTrackId && !readOnly && (() => {
-        const track = tracks.find(t => t.id === selectedTrackId);
-        const src = comp?.sources?.[selected.source];
-        const idx = track?.items.findIndex(i => i.id === selected.id) ?? -1;
-        const hasPrev = idx > 0;
-        const currentTrans = selected.trans?.type || 'cut';
+      {/* The selected-item strip is gone, and its three controls are not.
+          Transition, opacity and fit moved into the inspector on 9 November,
+          which is the only reason this could be deleted: `trans:` appeared in
+          exactly two lines of JSX in the whole frontend and both were here, so
+          removing this without rehoming them would have taken dissolves out of
+          the product.
+          It was a second inspector 700px below the first, and the two
+          disagreed — both carried a volume slider, this one 0–2 with a
+          `Math.min(2, …)` clamp and the other 0–4, for the same number on the
+          same item. An item set to 3.5 above read as 2 here, and touching this
+          slider wrote the clamped value back. */}
 
-        return (
-          <div style={{ marginTop: 'var(--s2)' }}>
-            {/* Position info */}
-            <div className="row center wrap" style={{ gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
-              <span className="caption">Selected</span>
-              <span className="body-xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {src?.kind || 'item'} · at {PB.timecode(selected.at, fps)} · {PB.timecode(selected.len, fps)} long
-                {selected.in ? ` · from ${PB.timecode(selected.in, fps)} in source` : ''}
-              </span>
-            </div>
-
-            {/* Transition picker */}
-            {hasPrev && (
-              <div className="row center wrap" style={{ gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
-                <span className="caption">Transition</span>
-                {['cut', ...C.TRANSITION_TYPES].map((t) => (
-                  <button key={t} type="button" className="btn-chip"
-                    style={{
-                      fontSize: 'var(--fs-caption)',
-                      borderColor: currentTrans === t ? 'var(--accent)' : undefined,
-                      fontWeight: currentTrans === t ? 700 : undefined,
-                    }}
-                    onClick={() => {
-                      if (t === 'cut') {
-                        commit(C.updateItem(comp, selectedTrackId, selected.id, { trans: null }));
-                      } else {
-                        commit(C.updateItem(comp, selectedTrackId, selected.id, { trans: { type: t } }));
-                      }
-                    }}>
-                    {t === 'cut' ? 'Cut' : t === 'wipeleft' ? 'Wipe' : t === 'fadeblack' ? 'Via black'
-                      : t === 'dissolve' ? 'Dissolve' : 'Fade'}
-                  </button>
-                ))}
-                <span className="body-xs text-subtle">
-                  {currentTrans !== 'cut'
-                    ? 'Overlap the previous item to set the transition length.'
-                    : ''}
-                </span>
-              </div>
-            )}
-
-            {/* Volume */}
-            <div className="row center wrap" style={{ gap: 'var(--s2)' }}>
-              <span className="caption">Volume</span>
-              <input type="range" min="0" max="2" step="0.05"
-                value={Math.min(2, selected.gain ?? 1)}
-                onChange={(e) => commit(C.updateItem(comp, selectedTrackId, selected.id,
-                  { gain: Number(e.target.value) }))}
-                style={{ width: 130 }} aria-label="Item volume" />
-              <span className="body-xs" style={{ fontVariantNumeric: 'tabular-nums', minWidth: 42 }}>
-                {(selected.gain ?? 1) === 0 ? 'Silent' : `${Math.round((selected.gain ?? 1) * 100)}%`}
-              </span>
-              {(selected.gain ?? 1) !== 1 && (
-                <button type="button" className="btn-chip" style={{ fontSize: 'var(--fs-caption)' }}
-                  onClick={() => commit(C.updateItem(comp, selectedTrackId, selected.id, { gain: 1 }))}>
-                  Back to 100%
-                </button>
-              )}
-            </div>
-
-            {/* Opacity for video items */}
-            {(src?.kind === 'clip' || src?.kind === 'design') && (
-              <div className="row center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
-                <span className="caption">Opacity</span>
-                <input type="range" min="0" max="1" step="0.05"
-                  value={selected.opacity ?? 1}
-                  onChange={(e) => commit(C.updateItem(comp, selectedTrackId, selected.id,
-                    { opacity: Number(e.target.value) }))}
-                  style={{ width: 130 }} aria-label="Item opacity" />
-                <span className="body-xs" style={{ fontVariantNumeric: 'tabular-nums', minWidth: 42 }}>
-                  {Math.round((selected.opacity ?? 1) * 100)}%
-                </span>
-              </div>
-            )}
-
-            {/* Fit mode for clips */}
-            {src?.kind === 'clip' && (
-              <div className="row center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
-                <span className="caption">Fit</span>
-                {['cover', 'contain'].map((f) => (
-                  <button key={f} type="button" className="btn-chip"
-                    style={{
-                      fontSize: 'var(--fs-caption)',
-                      borderColor: (selected.fit || 'cover') === f ? 'var(--accent)' : undefined,
-                      fontWeight: (selected.fit || 'cover') === f ? 700 : undefined,
-                    }}
-                    onClick={() => commit(C.updateItem(comp, selectedTrackId, selected.id, { fit: f }))}>
-                    {f === 'cover' ? 'Fill frame' : 'Letterbox'}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
       {/* Help text */}
       <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>

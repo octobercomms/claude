@@ -314,7 +314,16 @@ for (const [asked, want, row] of [
   say(/added at 00:14:12/.test(t),
     'at the end of the track, and the toast says where it landed',
     t.match(/[\w.\- ]+added at [\d:]+/)?.[0] || 'no toast found');
-  say(/SELECTED/.test(t), 'and the new item is selected, so a camera move is one more click');
+  // "SELECTED" was the caption of the timeline's selected-item strip, which
+  // was deleted when its controls moved into the inspector. Written on
+  // 9 November and broken the same day by my own change: the sixth guard in
+  // this repo to name a thing that happened to be on screen rather than the
+  // claim.
+  //
+  // The claim is that the inspector is pointed at the new item. Length and
+  // Remove are what the inspector renders only when something is selected.
+  say(/Length/.test(t) && /Remove/.test(t),
+    'and the new item is selected, so a camera move is one more click');
 
   await p.close();
 }
@@ -372,6 +381,68 @@ for (const [asked, want, row] of [
     'nor two ways to make a worse file');
   say(/Est\. size/.test(m) || /Duration:/.test(m),
     'while still saying what you are about to hand someone', m.slice(0, 160));
+  await p.close();
+}
+
+// ── 12. One inspector ──────────────────────────────────────────────────
+//
+// The timeline carried its own selected-item strip: a second inspector 700px
+// below the first. The two disagreed about volume — this one 0–2 with a
+// `Math.min(2, …)` clamp, the other 0–4 — for the same number on the same
+// item, so an item set to 3.5 above read as 2 below and touching the lower
+// slider wrote the clamped value back.
+//
+// Deleting it was only safe because its three controls moved first: `trans:`
+// appeared in exactly two lines of JSX in the whole frontend and both were in
+// that strip, so a cut without a rehome would have taken dissolves out of the
+// product. These assertions are the proof that the move happened.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(900);
+
+  // The SECOND block on the video track, because a transition is between an
+  // item and the one before it and the first has nothing to transition from.
+  const hit = await p.evaluate(() => {
+    const label = [...document.querySelectorAll('div')]
+      .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
+    if (!label) return null;
+    let el = label;
+    for (let i = 0; i < 6 && el; i++) {
+      if (getComputedStyle(el).position === 'absolute'
+        && el.getBoundingClientRect().width > 20) {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+      el = el.parentElement;
+    }
+    return null;
+  });
+  say(!!hit, 'a timeline block can be selected', hit ? JSON.stringify(hit) : 'no block found');
+  if (hit) {
+    await p.mouse.click(hit.x, hit.y);
+    await p.waitForTimeout(600);
+    const t = await text(p);
+
+    say(/Transition in/.test(t), 'the inspector offers the transition');
+    say(/Fade/.test(t) && /Via black/.test(t) && /Dissolve/.test(t),
+      'with every type the model has, so nothing was lost with the strip');
+    say(/Opacity:/.test(t), 'and opacity');
+    say(/Fill frame/.test(t) && /Letterbox/.test(t), 'and fit');
+    say(!/\bCover\b/.test(t) && !/\bContain\b/.test(t),
+      'in ONE vocabulary — the inspector used to say Cover and Contain for the '
+      + 'same two values the timeline called Fill frame and Letterbox');
+
+    // The fault this whole move was for.
+    const maxes = await p.evaluate(() => [...document.querySelectorAll('input[type=range]')]
+      .map(i => i.max));
+    say(maxes.filter(m => m === '2').length === 0,
+      'and there is no 0–2 volume slider left to disagree with the 0–4 one',
+      `range inputs: ${JSON.stringify(maxes)}`);
+    say(maxes.includes('4'), 'while volume still runs to the model\'s own bound',
+      `range inputs: ${JSON.stringify(maxes)}`);
+  }
+
   await p.close();
 }
 
