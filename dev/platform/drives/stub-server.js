@@ -1225,6 +1225,29 @@ const handler = (req, res) => {
   // drive. A drive that wants a failed save now asks for one, with
   // `page.route(...).abort()`, which is the honest shape: the stub behaves
   // like the backend and the test injects the fault it is testing.
+  // The fixture's own media, served for real.
+  //
+  // Every media URL in fixtures/composition.json used to 404. The drives saw
+  // a BLACK PLAYER on every run, so 114 assertions were judging an empty
+  // canvas: not one of them could tell a broken picture from a missing file,
+  // and the preview's inability to draw a photograph at all went unnoticed
+  // for the whole day it shipped in.
+  //
+  // The images carry distinguishable colour bands on purpose. A flat fixture
+  // makes every pixel assertion vacuous, which this project has already
+  // learned once with testsrc2's horizontal stripes.
+  if (/^\/api\/brand\/file\/c1\/[\w.-]+$/.test(url)) {
+    const name = url.split('/').pop();
+    const f = path.join(__dirname, 'fixtures', 'media', name);
+    if (fs.existsSync(f)) {
+      const ext = path.extname(f);
+      const type = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4',
+        '.mp3': 'audio/mpeg' }[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': type, 'Content-Length': fs.statSync(f).size });
+      return res.end(fs.readFileSync(f));
+    }
+  }
+
   if (/^\/api\/compose\/compositions\/\d+$/.test(url) && req.method === 'PUT') {
     let raw = ''; req.on('data', c => raw += c);
     return req.on('end', () => {

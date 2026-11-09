@@ -156,7 +156,19 @@ const Compositor = React.forwardRef(function Compositor({
     if (!url) return null;
 
     const src = st.composition?.sources?.[sourceId];
-    const isImage = src?.kind === 'design';
+    // A PHOTOGRAPH IS AN IMAGE. This read `kind === 'design'` alone, and a
+    // photograph is `kind: 'clip'` with `still: true` — so the compositor
+    // built a <video> element, pointed it at a JPEG, waited for a readyState
+    // that never arrives, and skipped the layer at the draw. Measured on the
+    // shipped build: the file was requested with initiatorType "video" and
+    // the canvas was 0% non-black on every frame of every photograph, while
+    // the render drew the picture correctly. So the six camera-move chips
+    // that shipped this morning drove a value nobody could see.
+    //
+    // The model has always known the difference — compositionPlayback.mjs
+    // reads `src.kind === 'clip' && src.still !== true` to decide whether a
+    // source has an audio stream. Only this line did not.
+    const isImage = src?.kind === 'design' || src?.still === true;
     const isAudio = src?.kind === 'audio';
 
     if (isAudio) {
@@ -188,6 +200,13 @@ const Compositor = React.forwardRef(function Compositor({
         if (onMeta) {
           onMeta({ sourceId, duration: null, width: img.naturalWidth, height: img.naturalHeight });
         }
+        // PAINT IT. A source arrives after the frame it belongs to was last
+        // drawn, and nothing else was asking for a repaint: the player sat
+        // black until the operator moved the playhead or pressed play.
+        // Measured at 1280x720: 0% non-black on load, 89% after one arrow
+        // key. The fault was mistaken for "the preview cannot draw stills",
+        // which was a second, real fault on the line above.
+        drawRef.current?.();
       });
       return img;
     }
@@ -200,6 +219,9 @@ const Compositor = React.forwardRef(function Compositor({
     vid.src = url;
     vid.load();
     st.elements.set(sourceId, vid);
+
+    vid.addEventListener('loadeddata', () => { drawRef.current?.(); });
+    vid.addEventListener('seeked', () => { drawRef.current?.(); });
 
     vid.addEventListener('loadedmetadata', () => {
       if (vid.videoWidth && vid.videoHeight && !natAR) {
@@ -228,6 +250,11 @@ const Compositor = React.forwardRef(function Compositor({
   }, []);
 
   // ── The frame loop ──────────────────────────────────────────────────
+
+  // The latest draw, for the listeners below. An element is created once and
+  // kept; `draw` is a new function on every render, so a listener that closed
+  // over it would repaint with a stale one.
+  const drawRef = useRef(null);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -310,6 +337,8 @@ const Compositor = React.forwardRef(function Compositor({
       ctx.restore();
     }
   }, [getElement, W, H]);
+
+  drawRef.current = draw;
 
   const tick = useCallback(() => {
     const st = m.current;

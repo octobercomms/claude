@@ -102,7 +102,7 @@ export default function CompositionEditorPage({
 }) {
   const toast = useToast();
   const {
-    state: composition, setState: setComposition,
+    state: composition, setState: setComposition, applyDerived: applyDerivedComp,
     undo, redo, canUndo, canRedo, resetHistory,
     startBatch, commitBatch, discardBatch,
   } = useCompositionHistory(initComp());
@@ -260,7 +260,12 @@ export default function CompositionEditorPage({
     resetHistory(data);
     setSourceAssets(loadedAssets);
     setTranscripts(loadedTranscripts);
-    savedJsonRef.current = JSON.stringify([data, loadedAssets, loadedTranscripts]);
+    // Through the same filter the live snapshot uses, or the two can never
+    // match: the baseline would carry a source's duration and frame size and
+    // the comparison would not, so every load would look like an edit. That
+    // is exactly what happened, within minutes of writing the filter.
+    savedJsonRef.current = JSON.stringify(
+      [withoutDerived(data), loadedAssets, loadedTranscripts]);
     setPlayhead(0);
     setSelectedId(null);
     setSelectedTrackId(null);
@@ -302,8 +307,20 @@ export default function CompositionEditorPage({
   // loaded and again whenever a write succeeds, and the autosave effect
   // below compares against it. See that effect for why.
   const savedJsonRef = useRef(null);
+  // Derived facts are left out: a source's duration and frame size are read
+  // off the file, so relearning them on load is not an unsaved edit. They
+  // ride along whenever a real change saves, and are relearned for free when
+  // one does not.
+  const withoutDerived = (comp) => (comp && comp.sources ? {
+    ...comp,
+    sources: Object.fromEntries(Object.entries(comp.sources).map(([k, v]) => {
+      const { duration, width, height, ...rest } = v || {};
+      return [k, rest];
+    })),
+  } : comp);
+
   const snapshot = () => JSON.stringify([
-    latestCompRef.current, latestAssetsRef.current, latestTransRef.current,
+    withoutDerived(latestCompRef.current), latestAssetsRef.current, latestTransRef.current,
   ]);
 
   const doSave = useCallback(async (id) => {
@@ -646,9 +663,23 @@ export default function CompositionEditorPage({
     if (audioFileRef.current) audioFileRef.current.value = '';
   }, [handleAudioFiles]);
 
+  /**
+   * What the browser learned about a file once it loaded.
+   *
+   * Two different things used to come through here as one edit. Writing a
+   * source's real duration and frame size is a CORRECTION — the file is the
+   * truth and the row was a guess — and it must not sit on the undo stack or
+   * mark the document dirty, because the operator changed nothing. Filling in
+   * an item whose length was never known IS a change to the edit, and has to
+   * be saved or the reel keeps a zero-length item.
+   *
+   * Both were invisible until the drive fixture started serving real media,
+   * at which point opening a reel wrote to the database again and undo lit up
+   * on a reel nobody had touched.
+   */
   const onMeta = useCallback(({ sourceId, duration: dur, width, height }) => {
     if (!sourceId || !dur) return;
-    setComposition(prev => {
+    const fill = (prev) => {
       let comp = {
         ...prev,
         sources: {
@@ -656,16 +687,22 @@ export default function CompositionEditorPage({
           [sourceId]: { ...prev.sources[sourceId], duration: dur, width, height },
         },
       };
+      let filledLength = false;
       for (const track of comp.tracks) {
         for (const item of track.items) {
           if (item.source === sourceId && item.len === 0) {
             comp = updateItem(comp, track.id, item.id, { len: dur });
+            filledLength = true;
           }
         }
       }
-      return comp;
-    });
-  }, []);
+      return { comp, filledLength };
+    };
+    // Peek first, so the choice of path is made on what actually changed.
+    const { filledLength } = fill(latestCompRef.current);
+    if (filledLength) setComposition(prev => fill(prev).comp);
+    else applyDerivedComp(prev => fill(prev).comp);
+  }, [applyDerivedComp]);
 
   /**
    * Remove the selected clip, and close the gap when there is one to close.

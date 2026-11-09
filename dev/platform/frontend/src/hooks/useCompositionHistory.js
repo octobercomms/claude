@@ -61,6 +61,26 @@ export function useCompositionHistory(initialState, maxHistory = 50) {
     setReactState(deepClone(coreRef.current.current));
   }, []);
 
+  /**
+   * A fact the browser LEARNED about a file, not an edit the operator made.
+   *
+   * `onMeta` writes a source's real duration and frame size into the model
+   * when the media finishes loading. That is a correction, not a change of
+   * intent, and treating it as an edit produced two visible faults the
+   * moment the drive fixture started serving real media: undo lit up on a
+   * reel nobody had touched, and opening a reel wrote to the database.
+   *
+   * Nobody wants Ctrl+Z to step back through "the browser read the file
+   * header". So this updates the live state and pushes nothing.
+   */
+  const applyDerived = useCallback((updater) => {
+    const core = coreRef.current;
+    const resolved = typeof updater === 'function' ? updater(core.current) : updater;
+    if (resolved === core.current) return;
+    core.current = resolved;
+    setReactState(deepClone(resolved));
+  }, []);
+
   const undo = useCallback(() => {
     if (coreRef.current.undoStack.length === 0) return;
     const prev = coreUndo(coreRef.current);
@@ -98,6 +118,7 @@ export function useCompositionHistory(initialState, maxHistory = 50) {
   return {
     state,
     setState,
+    applyDerived,
     undo,
     redo,
     canUndo,

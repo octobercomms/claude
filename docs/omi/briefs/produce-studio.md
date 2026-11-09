@@ -1207,6 +1207,62 @@ right answer at all. The camera-move chips already produce an animated scale
 and pos, and this project has already established that nobody picks a camera
 move by typing 1.12. A design pass is running on exactly that question.
 
+## Built, 9 November: the player was never drawing anything
+
+Three faults, found by the design pass on step 7 and verified here. The first
+two had been in the product all day and the third is why nothing caught them.
+
+**The preview could not draw a photograph.** `Compositor.jsx` decided
+image-versus-video with `kind === 'design'`, and a photograph is
+`kind: 'clip'` with `still: true`. So the compositor built a `<video>`
+element, pointed it at a JPEG, waited for a `readyState` that never arrives
+and skipped the layer. Measured: the file was requested with
+`initiatorType: "video"` and the canvas was **0% non-black** on every frame of
+every photograph, while the render drew the picture correctly. The six
+camera-move chips that shipped in the morning drove a value nobody could see.
+The model has always known the difference — `compositionPlayback.mjs` reads
+`src.kind === 'clip' && src.still !== true` to decide whether a source has an
+audio stream. Only that one line did not.
+
+**The preview did not repaint when a source finished loading.** Measured at
+1280x720 with the fix above in place: 0% non-black on load, 89% after one
+arrow key. A source arrives after the frame it belongs to was last drawn and
+nothing was asking for a repaint, so the player sat black until the operator
+moved the playhead or pressed play. This was the one that made the first look
+like "the preview cannot draw stills" when in fact it could not draw anything
+that had not arrived yet.
+
+**And the reason neither was caught: every media URL in the drive fixture
+404'd.** 114 assertions were judging a black rectangle, and not one of them
+could tell a broken picture from a missing file. Every claim this file makes
+about the player was true about geometry and empty about pixels.
+
+The stub serves `drives/fixtures/media/` now. The photographs carry
+distinguishable colour bands on purpose: a flat fixture makes a pixel
+assertion vacuous, which this project has already learned once with
+`testsrc2`'s horizontal stripes. The drive asserts the centre of the frame is
+GREEN on a photograph, because the image is red / green / blue across and a
+cover fit into 9:16 must show the middle third.
+
+### What the browser learns is not what the operator did
+
+Serving real media immediately broke two assertions that had been passing:
+opening a reel wrote to the database again, and undo lit up on a reel nobody
+had touched. Both were real, and both were hidden by the 404s.
+
+`onMeta` writes a source's measured duration and frame size into the model
+when the media loads. That is a correction, not a change of intent: the file
+is the truth and the row was a guess. It now goes through `applyDerived` on
+the history hook, which updates the live state and pushes nothing, and the
+autosave comparison strips those three fields from both sides. Filling in an
+item whose length was never known is a different thing, still an edit, and
+still saved.
+
+That last distinction cost a round trip of its own: the filter was applied to
+the live snapshot and not to the baseline recorded at load, so the two could
+never match and every load looked like an edit. The fix is in the file, and
+the lesson is that a comparison has two sides.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
@@ -1220,7 +1276,17 @@ move by typing 1.12. A design pass is running on exactly that question.
   seeking a `<video>`; a still is `kind: 'clip', still: true`, so the
   extraction fails silently and the block stays blank with a filename on it.
   A photograph is the one source that already IS an image, which makes this
-  the cheapest picture in the product.
+  the cheapest picture in the product. The same line that stopped the PREVIEW
+  drawing photographs, in a second place.
+- **The preview and the render disagree outside the overscan.** Measured by
+  the step 7 design pass: `pos` and `scale` mean "move the already-cropped
+  frame inside the output frame" to the renderer, which produces black bars,
+  and "pan within the source picture" to the preview, which does not. They
+  agree only while `|pos| <= (scale-1)/2`, and all six shipped MOTIONS are
+  inside that bound — `drift` and `rise` by 0.005 of the frame, which is 5px
+  on a 1080 frame. Any control that lets a person leave the overscan crosses
+  it on the first drag. The preview also never clips a layer to the frame
+  box, which is two lines.
 - **The transport is not the toolbar.** `Play`, `-1 frame`, `+1 frame` and
   `Start` are 36px pills wrapping onto two rows in a 188px column, 130px above
   a row of 26px chips, and `Play` is offered at full strength on an empty reel
