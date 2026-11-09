@@ -30,13 +30,23 @@ const raw = readFileSync(path.join(SRC, 'pages', 'CompositionEditorPage.jsx'), '
 const page = raw.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
 
 test('the clip input offers photographs, from the shared list', () => {
-  assert.ok(/accept=\{CLIP_ACCEPT\}/.test(page),
-    'the clip file input is not using CLIP_ACCEPT');
+  // The claim is that the list is shared, not that the expression is bare.
+  // It gained `,audio/*` on 9 November when the shelf became one door for
+  // every file kind, and a guard pinned to the exact expression failed on an
+  // addition that strengthened what it was guarding. That is the third guard
+  // in this repo to break that way; the file it watches is the same one.
+  assert.ok(/accept=\{[^}]*CLIP_ACCEPT[^}]*\}/.test(page),
+    'the clip file input is not built from CLIP_ACCEPT');
   assert.ok(!/accept="video\/\*"/.test(page),
     'a literal accept="video/*" is back on an input — that single attribute is '
     + 'what stopped six photographs entering the editor');
-  // The audio input keeps its own literal, and should: it is a different list.
+  // The audio input keeps its own literal, and should: an audio-only
+  // selection still has its own way in, and `audio/*` is not a list this
+  // codebase curates the way it curates the photograph formats.
   assert.ok(/accept="audio\/\*"/.test(page), 'the audio input lost its accept');
+  // And the shelf's input takes audio too, because one door means one door.
+  assert.ok(/CLIP_ACCEPT\},audio\/\*/.test(page),
+    'the shelf input no longer accepts audio, so "Add files" is not one door');
 });
 
 test('the upload handler gates on the shared predicate, not a literal', () => {

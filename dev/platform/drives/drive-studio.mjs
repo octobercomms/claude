@@ -231,6 +231,85 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 8. The shelf: where material enters ────────────────────────────────
+//
+// Before it there was no way to put anything OMI already owns into a
+// composition. Not an awkward path: none.
+//
+// Geometric again, because the placement is the design. A bin BESIDE the
+// stage was measured at 1440x900 and would have left the player cell 28px
+// wide, so the shelf is a full-width strip instead — and it sits BELOW the
+// timeline rather than above it, because above pushed the timeline to y=1018
+// on a 900px screen and the timeline is the thing you work in.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(700);
+  const box = async (sel) => { try { return await p.locator(sel).first().boundingBox(); } catch { return null; } };
+
+  const shelf = await box('[data-studio-shelf]');
+  const canvas = await box('canvas');
+  say(!!shelf, 'the shelf is on the screen');
+  if (shelf && canvas) {
+    say(shelf.width > 500, 'and is full width rather than a column beside the frame',
+      `${Math.round(shelf.width)}px; a 240px bin beside the stage would leave the player 28px`);
+    say(canvas.width > 240,
+      'and the player kept its width', `${Math.round(canvas.width)}px`);
+  }
+
+  const v1 = await p.evaluate(() => {
+    const el = [...document.querySelectorAll('div')].find(d => /^V1$/.test(d.textContent.trim()));
+    return el ? el.getBoundingClientRect().y : null;
+  });
+  say(v1 != null && v1 < 900,
+    'and the timeline is still above the fold at 1440x900',
+    `V1 at y ${Math.round(v1)}; it was at 931 before the hero came off this screen`);
+  if (shelf && v1 != null) {
+    say(shelf.y > v1, 'with the shelf below the timeline, not above it',
+      `shelf y ${Math.round(shelf.y)}, V1 y ${Math.round(v1)}`);
+  }
+
+  const t = await text(p);
+  say(/In this reel/.test(t) && /All footage/.test(t), 'two scopes, the reel first');
+  say(/Add files/.test(t), 'and one door for files');
+  say(!/\+ Add clip/.test(t) && !/\+ Add music/.test(t),
+    'with the inspector no longer offering its own',
+    'two buttons for one gesture is the two-doors problem, and the clip one was '
+    + 'the only yellow button on the screen while it opened an OS file dialog');
+
+  await p.close();
+}
+
+// ── 9. Clicking a tile places it, names it, and selects it ─────────────
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(700);
+  const blocks = () => p.evaluate(() => [...document.querySelectorAll('div')]
+    .filter(d => d.style.fontWeight === '700' && d.parentElement
+      && d.parentElement.style.pointerEvents === 'none')
+    .map(d => d.textContent.trim()));
+
+  const before = await blocks();
+  await p.locator('[data-studio-shelf] [role="button"]').first().click();
+  await p.waitForTimeout(800);
+  const after = await blocks();
+
+  say(after.length === before.length + 1, 'a click puts one more block on the timeline',
+    `${before.length} -> ${after.length}`);
+  const t = await text(p);
+  // At the END of the track, never at the playhead: the playhead sits at 0
+  // until somebody moves it, so "at the playhead" means "insert at the
+  // start", and dropping onto an occupied range raises insert-or-overwrite,
+  // which this editor has no answer for.
+  say(/added at 00:14:12/.test(t),
+    'at the end of the track, and the toast says where it landed',
+    t.match(/[\w.\- ]+added at [\d:]+/)?.[0] || 'no toast found');
+  say(/SELECTED/.test(t), 'and the new item is selected, so a camera move is one more click');
+
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
