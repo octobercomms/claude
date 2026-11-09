@@ -637,7 +637,7 @@ const Compositor = React.forwardRef(function Compositor({
        under the timeline in a 403px row. */
     <div ref={wrapRef} tabIndex={0} data-testid="compositor"
       style={{ outline: 'none', ...(fill ? { height: '100%', minHeight: 0 } : null) }}>
-      <div ref={wellRef} style={{
+      <div ref={wellRef} data-testid="player-well" style={{
         display: 'flex', justifyContent: 'center', background: BLACK,
         borderRadius: 'var(--r-md)', overflow: 'hidden',
         /* The well. In fill mode it takes the height of the row it is in and

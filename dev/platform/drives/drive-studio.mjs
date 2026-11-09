@@ -180,11 +180,16 @@ for (const [asked, want, row] of [
 // every drive, so nothing about it could be checked in a browser and the
 // design critique had to intercept /api/compose/* in a script of its own.
 //
-// These are geometric on purpose. Reel checks being "beside the frame" is not
-// something a source read can establish, and the regression it caught is not
-// one either: opened, the eight checks measured 964px against the player's
-// 500, and because a grid row is as tall as its tallest cell that pushed the
-// timeline 460px down and off the screen.
+// These are geometric on purpose. Where the reel checks ARE is not something a
+// source read can establish, and the regressions this has caught are not
+// either: opened beside the frame, the eight checks measured 964px against
+// the player's 500, and because a grid row is as tall as its tallest cell
+// that pushed the timeline 460px down and off the screen.
+//
+// They are in the inspector now, which is a reversal of what this section
+// used to assert, so it asserts the new claim with the same rigour: not
+// "there is a panel somewhere" but the checks to the right of the picture's
+// whole column, and the picture wider than it was while they were in it.
 {
   const p = await open('/clients/c1/produce/studio');
   await p.setViewportSize({ width: 1600, height: 1000 });
@@ -210,16 +215,64 @@ for (const [asked, want, row] of [
   say(!!checks && !!canvas, 'the player and the checks are both on screen',
     `checks ${JSON.stringify(checks)} canvas ${JSON.stringify(canvas)}`);
 
-  if (checks && canvas) {
-    say(checks.x >= canvas.x + canvas.width - 1,
-      'the checks sit to the RIGHT of the frame, in the empty black beside a 9:16 picture',
-      `canvas ends at ${Math.round(canvas.x + canvas.width)}, checks start at ${Math.round(checks.x)}`);
-    say(Math.abs(checks.y - canvas.y) < 4,
-      'and level with its top, rather than below it',
-      `canvas y ${Math.round(canvas.y)}, checks y ${Math.round(checks.y)}`);
-    say(checks.height <= canvas.height + 8,
-      'and no taller than the picture, so the timeline is not pushed off screen',
-      `checks ${Math.round(checks.height)}px against a ${Math.round(canvas.height)}px player`);
+  // The INSPECTOR's box, not the checks' own: the claim is that the checks
+  // are inside the right-hand panel, and a panel-shaped div anywhere on the
+  // page would satisfy a test written against the checks alone.
+  const insp = await box('.studio-inspector');
+  const stage = await box('.studio-stage');
+  if (checks && insp && stage) {
+    say(checks.x >= insp.x - 1 && checks.x + checks.width <= insp.x + insp.width + 1,
+      'the checks are inside the inspector, not a panel of their own',
+      `checks ${Math.round(checks.x)}..${Math.round(checks.x + checks.width)} `
+      + `against an inspector at ${Math.round(insp.x)}..${Math.round(insp.x + insp.width)}`);
+    say(checks.x >= stage.x + stage.width - 1,
+      'and so sit to the right of the picture\'s whole column, not inside it',
+      `the stage ends at ${Math.round(stage.x + stage.width)}, the checks start at ${Math.round(checks.x)}`);
+    // The negative. Written against the stage's box rather than a class name,
+    // because putting the checks back beside the frame would not change any
+    // name this file could name.
+    const inStage = await p.evaluate(() => {
+      const st = document.querySelector('.studio-stage');
+      const ch = document.querySelector('[data-studio-checks]');
+      return !!(st && ch && st.contains(ch));
+    });
+    say(!inStage, 'and are not in the row with it', `contained: ${inStage}`);
+  }
+  if (checks) {
+    // No box of its own. The 50vh scroller it used to carry hid most of the
+    // list behind a second scrollbar inside a column that already scrolls:
+    // measured, the panel was 390px tall over 964px of content.
+    const ownScroll = await p.evaluate(() => {
+      const ch = document.querySelector('[data-studio-checks]');
+      if (!ch) return null;
+      return { h: Math.round(ch.getBoundingClientRect().height), sh: ch.scrollHeight };
+    });
+    say(ownScroll && ownScroll.sh <= ownScroll.h + 2,
+      'and are not clipped by a scroller of their own inside a scrolling column',
+      `box ${ownScroll?.h}px over ${ownScroll?.sh}px of checks`);
+  }
+  // What the move actually bought, which is NOT what it was predicted to buy.
+  // The prediction was that taking a 300px panel out of the centre column
+  // would widen the picture. Measured, it moved 253px to 276 here and did not
+  // move at all at 1440x900, because the picture is bounded by the HEIGHT of
+  // its row and always has been: 491px of row at 0.5625 is 276px of picture
+  // whatever the column does. The column is 1300px wide and the picture uses
+  // 276 of it.
+  //
+  // That is worth asserting rather than quietly dropping, because it is the
+  // fact the next step rests on: the mockup's 240px media bin comes out of a
+  // thousand pixels of spare width and costs the picture nothing. What costs
+  // the picture is vertical — the shelf under the timeline — and the bin is
+  // what lets the shelf go.
+  const well = await box('[data-testid="player-well"]');
+  if (canvas && well) {
+    say(Math.abs(canvas.height - well.height) < 3,
+      'the picture is bounded by the height of its row, not the width of its column',
+      `picture ${Math.round(canvas.height)}px in a ${Math.round(well.height)}px well`);
+    say(well.width - canvas.width > 400,
+      'and leaves enough width spare for the 240px bin to cost it nothing',
+      `${Math.round(well.width - canvas.width)}px of empty black beside a `
+      + `${Math.round(canvas.width)}px picture`);
   }
 
   // The timeline is the thing you work in. If it is below the fold the layout
@@ -330,16 +383,18 @@ for (const [asked, want, row] of [
   if (shelf && canvas) {
     say(shelf.width > 500, 'and is full width rather than a column beside the frame',
       `${Math.round(shelf.width)}px; a 240px bin beside the stage would leave the player 28px`);
-    // A floor, not the old number. The player was 253px when the page was a
-    // tall document and the picture was bounded by 50vh — a fraction of the
-    // WINDOW, which had nothing to do with the space it was given. Now the
-    // Studio fills the window in three rows and the picture is bounded by
-    // its row, which is 220px wide at this size with the shelf still a row
-    // of its own. The mockup's is 269px, and the two steps that close that
-    // gap are moving the checks into the right panel and replacing the shelf
-    // with the left bin. Asserting the old number would pin the old layout.
+    // A floor, not the number. 253px while the page was a tall document and
+    // the picture was bounded by 50vh — a fraction of the WINDOW, with
+    // nothing to do with the space it was given. 220px since the Studio
+    // filled the window, and still 220 with the reel checks out of the
+    // centre column, because the bound is the row's HEIGHT. The mockup's is
+    // 269, and the thing standing between the two is the shelf under the
+    // timeline: 187px of height that the left bin takes over. Asserting a
+    // number rather than a floor would pin whichever layout is current.
     say(canvas.width > 200,
-      'and the player is not squeezed to nothing', `${Math.round(canvas.width)}px`);
+      'and the player is not squeezed to nothing',
+      `${Math.round(canvas.width)}px against the mockup's 269; the gap is `
+      + 'vertical, and the shelf is what is in it');
   }
 
   const v1 = await p.evaluate(() => {
