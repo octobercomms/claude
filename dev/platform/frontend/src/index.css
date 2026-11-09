@@ -396,6 +396,36 @@ button { font-family: inherit; }
 /* Small variant for tight table cells / inline rows. */
 .btn-icon.btn-icon-sm { width: 24px; height: 24px; font-size: var(--fs-body); }
 
+/* Chip — a small inline button for a dense row of them: the Studio's camera
+   moves and transitions, fit, the timeline's zoom, the shelf's two scopes.
+   It is `.btn` at a smaller size, which the note above invites rather than a
+   new vocabulary, and `.is-active` is the same ink invert `.btn` uses on
+   hover and `.tab.active` uses when selected.
+
+   IT DID NOT EXIST. Seventeen controls in the Studio carry `btn-chip` and
+   seven of them pass `is-active`; nothing in any stylesheet matched either,
+   so every one of them rendered as a native button — measured at 14px tall,
+   #efefef, no border, no radius, weight 400, next to a 36px pill. Worse,
+   `is-active` meant nothing: the selected camera move, the selected
+   transition, the selected fit and the shelf's selected scope were pixel
+   for pixel identical to the unselected ones. The camera-move chips shipped
+   with no way to see which move was on. */
+.btn-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: 26px; padding: 0 10px;
+  font-family: var(--font);
+  font-size: var(--fs-caption); font-weight: 700; line-height: 1;
+  border-radius: var(--r-pill);
+  border: var(--border-w) solid var(--border-neutral);
+  background: var(--surface); color: var(--text);
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.btn-chip:hover:not(:disabled) { background: var(--text); border-color: var(--text); color: #fff; }
+.btn-chip.is-active { background: var(--text); border-color: var(--text); color: #fff; }
+.btn-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-chip:focus-visible { outline: var(--border-w) solid var(--accent); outline-offset: 2px; }
+
 /* Quiet utility link — text only, no fill or border. For utilities that
    aren't primary actions (copy a link, run a check). Keeps accent = action:
    muted at rest, inks up on hover. Not a third button style — it's a link. */

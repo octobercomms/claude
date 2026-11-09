@@ -921,6 +921,38 @@ tab, because cutting the only door to reel seven before the other one exists
 would strand the operator; and a failed save still shouts on the first
 failure rather than retrying first.
 
+## Built, 9 November: the chip that did not exist
+
+Found by the design review of step 4, and the largest thing anyone has found
+in this screen's styling.
+
+**`.btn-chip` matched no rule in any stylesheet.** Seventeen controls in the
+Studio carry it and seven of them pass `is-active`; the only `is-active` rules
+in the application are `.sp-row`, `.sp-step` and `.adprev-chip`. So every chip
+rendered as a native button: measured at **14px tall, #efefef, no border, no
+radius, weight 400**, beside a 36px pill with a 2px border.
+
+The cost was not cosmetic. **`is-active` meant nothing**, so the selected
+camera move, the selected transition, the selected fit and the shelf's
+selected scope were pixel for pixel identical to the unselected ones. The
+camera-move chips shipped this morning with no way to see which move was on.
+
+One rule, and it is `.btn` at a smaller size rather than a new vocabulary —
+`index.css:343` invited exactly this in writing: "If a genuinely tiny inline
+button is ever needed, reintroduce a size here." 26px, pill, 2px border, white
+at rest, and the same ink invert on hover and on `is-active` that `.btn` and
+`.tab.active` already use.
+
+**`--primary` is defined nowhere either**, and eight places asked for it. Two
+of them were `accentColor` on the volume and opacity sliders, where an invalid
+value falls back to the browser's own blue — which made them the only blue
+controls in OMI, on the screen whose style guide says no brand blues. The
+progress bars take the accent, the sliders take ink, and two redundant colour
+overrides on a `.btn-link` are gone.
+
+Six drive assertions, and removing the rule fails two of them with the old
+measurements in the message.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the

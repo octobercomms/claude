@@ -1486,8 +1486,8 @@ export default function CompositionEditorPage({
             {!hasSources && (
               <div style={{
                 padding: 'var(--s6) var(--s4)', textAlign: 'center',
-                color: dragOver ? 'var(--primary)' : 'var(--text-muted)',
-                border: `2px dashed ${dragOver ? 'var(--primary)' : 'var(--card-border)'}`,
+                color: dragOver ? 'var(--accent)' : 'var(--text-muted)',
+                border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--card-border)'}`,
                 borderRadius: 'var(--r-md)',
                 background: dragOver ? 'var(--surface-sunken)' : 'transparent',
                 transition: 'all 150ms ease',
@@ -1632,7 +1632,7 @@ export default function CompositionEditorPage({
                   </div>
                   <input type="range" min="0" max="4" step="0.1"
                     value={selectedItem.item.gain ?? 1}
-                    style={{ width: '100%', accentColor: 'var(--primary)' }}
+                    style={{ width: '100%', accentColor: 'var(--text)' }}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value);
                       setComposition(prev =>
@@ -1702,7 +1702,7 @@ export default function CompositionEditorPage({
                       </div>
                       <input type="range" min="0" max="1" step="0.05"
                         value={selectedItem.item.opacity ?? 1}
-                        style={{ width: '100%', accentColor: 'var(--primary)' }}
+                        style={{ width: '100%', accentColor: 'var(--text)' }}
                         aria-label="Item opacity"
                         onChange={(e) => setComposition(prev => updateItem(
                           prev, selectedItem.track.id, selectedItem.item.id,

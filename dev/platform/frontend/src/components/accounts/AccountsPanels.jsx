@@ -2872,7 +2872,7 @@ export function SuppliersPanel() {
                           {expanded && patterns.length > 2 && (
                             <button
                               className="btn-link"
-                              style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)', color: 'var(--primary)' }}
+                              style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)' }}
                               onClick={() => setExpandedPatterns(prev => { const n = new Set(prev); n.delete(s.id); return n; })}
                             >collapse</button>
                           )}
@@ -2884,7 +2884,7 @@ export function SuppliersPanel() {
                         {patterns.slice(0, 2).join(', ')}
                         <button
                           className="btn-link"
-                          style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)', color: 'var(--primary)' }}
+                          style={{ marginLeft: 'var(--s1)', fontSize: 'var(--fs-body-sm)' }}
                           onClick={() => setExpandedPatterns(prev => new Set([...prev, s.id]))}
                         >+{patterns.length - 2} more</button>
                       </span>
