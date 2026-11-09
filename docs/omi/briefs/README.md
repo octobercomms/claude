@@ -38,4 +38,4 @@ nothing tested it.
 
 | File | Covers | Status |
 |---|---|---|
-| `produce-studio.md` | Produce → Studio, the four-panel editor and the consolidation | Partly built. Nav done 9 November; chrome steps 2 to 7 open; decisions 3 and 6 to 9 need Daniel |
+| `produce-studio.md` | Produce → Studio, the four-panel editor and the consolidation | Partly built. Nav renamed 9 November. Daniel then decided the full consolidation (Studio, Design, Library) and a dark theme, superseding two pushbacks; Batch and Visualise are open, and the client-login and phone collisions are being checked |

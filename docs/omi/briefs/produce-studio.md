@@ -101,9 +101,45 @@ prev/next clip.
    `/produce/compose` still resolves (`tabForSlug` matches the tab key as well
    as the slug; pinned by a test, because it was undocumented).
 
-**Pushed back on, pending Daniel:**
+**Decided by Daniel, 9 November, after reading the audit.** He overruled the
+argument in decision 4 below, and he is right to:
 
-3. **Dark-first is a fork of the design system.** `index.css` is one light
+> "yes, they aren't all video editors, but you're thinking that the studio is
+> a video editor. but naturally it has audio functions and transcribe
+> functions. so lets just combine this option into one studio? if i want to
+> record my screen, there is a record button in the studio that perhaps opens
+> a modal? and the result sits in the studio projects folder. if i want to
+> record audio, same thing. if i want to transcribe audio, same thing. it can
+> all happen in a studio. Make disappears."
+
+- **Produce collapses to Studio, Design, Library.** Make goes away. Record,
+  Audio and Transcribe become actions inside the Studio, each opening a modal,
+  with output landing in a Studio project.
+- **Dark theme is wanted.** "dark theme is ideal". This supersedes decision 3
+  below, which argued for a light palette with a dark canvas well. The
+  question left is scope, not whether: a dark Studio only, or `data-theme`
+  plus `prefers-color-scheme` across the app.
+- **Batch is open**: its own section, or a route inside the Studio.
+- **Visualise was not mentioned** and is not in his list of three. Unresolved.
+
+What this collides with, being checked before anything is built: a read-only
+client login sees Record and Library and nothing else, and `compose` is
+`agencyOnly`, so folding Record into the Studio removes a client's only way to
+record anything. `compose` is also `phone: false` while Record works on a
+phone. Batch Review is deliberately phone-enabled, so a Batch route inside a
+desktop-only Studio would end phone approval of a thirty-video run. And a
+"Studio project" is a new entity: today the unit is a composition and assets
+are per-client, so grouping recordings, transcripts, cleaned audio and
+compositions under one project is a migration, unless a project turns out to
+be a composition with its own asset scope.
+
+**Decisions 3 and 4 below are superseded, and are kept because the reasoning
+in them is still what the replacement has to answer.** Decisions 5 to 9 stand
+until Daniel says otherwise.
+
+3. **Dark-first is a fork of the design system.** SUPERSEDED, see above: he
+   wants dark. The cost stands and is now a scoping question, not an argument.
+    `index.css` is one light
    theme with no `prefers-color-scheme` and no `data-theme`. A dark Studio
    means a parallel palette plus dark variants of `.card`, `.btn`, `.chip-*`
    and `.input`. The house already settled this once: `.nav-chip` is the one
@@ -111,7 +147,14 @@ prev/next clip.
    light palette, give the Studio a dark **canvas well** only. The player
    already paints `#000`, which is the part of the mockup's darkness that
    earns itself.
-4. **Four of the six "doors" are not video editors.** Record is a capture
+4. **Four of the six "doors" are not video editors.** SUPERSEDED, see above.
+   The reframing that defeats it: the Studio is a production surface, not a
+   video editor, and a surface that records, cleans audio and transcribes is
+   the same surface that cuts. What survives of the original point is narrow
+   and still true: Design is a 2,000-line canvas editor and does not belong
+   inside another canvas editor, which is why Design stays a row in his own
+   list of three.
+   Original reasoning, kept because the replacement has to answer it: Record is a capture
    device, Design is a 2,000-line Fabric canvas, Visualise is image
    generation, Audio is denoise. Folding them behind a timeline would repeat
    the Create-inside-Create fault the nav file already records. The real fault
