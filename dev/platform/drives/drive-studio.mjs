@@ -330,8 +330,16 @@ for (const [asked, want, row] of [
   if (shelf && canvas) {
     say(shelf.width > 500, 'and is full width rather than a column beside the frame',
       `${Math.round(shelf.width)}px; a 240px bin beside the stage would leave the player 28px`);
-    say(canvas.width > 240,
-      'and the player kept its width', `${Math.round(canvas.width)}px`);
+    // A floor, not the old number. The player was 253px when the page was a
+    // tall document and the picture was bounded by 50vh — a fraction of the
+    // WINDOW, which had nothing to do with the space it was given. Now the
+    // Studio fills the window in three rows and the picture is bounded by
+    // its row, which is 220px wide at this size with the shelf still a row
+    // of its own. The mockup's is 269px, and the two steps that close that
+    // gap are moving the checks into the right panel and replacing the shelf
+    // with the left bin. Asserting the old number would pin the old layout.
+    say(canvas.width > 200,
+      'and the player is not squeezed to nothing', `${Math.round(canvas.width)}px`);
   }
 
   const v1 = await p.evaluate(() => {
@@ -1323,6 +1331,59 @@ for (const [asked, want, row] of [
     'and the next screen along has its shell back',
     `rail ${library.nav}px, panel ${library.panel}px — focus mode is one `
     + 'screen asking for the window, not a preference that follows you');
+}
+
+// ── 22. The Studio fills the window ──────────────────────────────────────
+//
+// It used to be a tall document: measured 1149px in a 900px viewport, so the
+// shelf — where material enters the Studio — began at y=930 and none of it
+// was on screen when the Studio loaded. At 1280x800 only 56px of a 164px
+// timeline was visible and the audio lane was entirely below the fold. Every
+// geometric difference from the mockup was downstream of that one thing.
+{
+  for (const [w, h] of [[1440, 900], [1280, 800]]) {
+    const p = await b.newPage();
+    p.on('pageerror', (e) => {
+      if (/stub: no route/.test(e.message)) return;
+      errs.push(`fullheight ${w}: ${e.message}`);
+    });
+    await p.setViewportSize({ width: w, height: h });
+    await p.goto('http://127.0.0.1:4599/clients/c1/produce/studio', { waitUntil: 'networkidle' });
+    await p.waitForTimeout(1600);
+    const m = await p.evaluate(() => {
+      const box = (s) => {
+        const e = document.querySelector(s);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        return { top: Math.round(r.y), bottom: Math.round(r.y + r.height) };
+      };
+      return {
+        docScroll: document.documentElement.scrollHeight,
+        viewport: document.documentElement.clientHeight,
+        mainScroll: document.querySelector('.app-main')?.scrollHeight ?? null,
+        mainBox: Math.round(document.querySelector('.app-main')?.getBoundingClientRect().height ?? 0),
+        timeline: box('[data-testid="composition-timeline"]'),
+        shelf: box('[data-studio-shelf]'),
+        canvas: box('canvas'),
+      };
+    });
+    say(m.docScroll === m.viewport && m.mainScroll === m.mainBox,
+      `nothing scrolls at ${w}x${h}`,
+      `document ${m.docScroll} in ${m.viewport}, main ${m.mainScroll} in ${m.mainBox} — `
+      + 'it was 1149 in 900');
+    say(m.shelf && m.shelf.bottom <= h,
+      `and the shelf is on screen at ${w}x${h}`,
+      `${JSON.stringify(m.shelf)} against a ${h}px window; it used to start at y=930`);
+    say(m.timeline && m.timeline.bottom <= h,
+      `and the whole timeline with it at ${w}x${h}`,
+      `${JSON.stringify(m.timeline)}`);
+    say(m.canvas && m.timeline && m.canvas.bottom <= m.timeline.top,
+      `and the picture does not run under the timeline at ${w}x${h}`,
+      `picture ends at ${m.canvas?.bottom}, timeline starts at ${m.timeline?.top} — `
+      + 'the player was bounded by 50vh, a fraction of the WINDOW, which has '
+      + 'nothing to do with the room it was given');
+    await p.close();
+  }
 }
 
 say(errs.length === 0, 'no page errors', errs.join(' | '));

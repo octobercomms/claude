@@ -185,6 +185,18 @@ button { font-family: inherit; }
    Every label stays in the DOM and is clipped, never removed, so each row
    keeps its accessible name and its tooltip. `nav/sections.js` decides which
    screens these apply to. */
+.app-main.is-focus {
+  /* The screen gets the window: no page scroll, and the padding drops from
+     the document's generous 40/56 to something an instrument can afford. */
+  height: 100dvh;
+  overflow: hidden;
+  padding: var(--s4) var(--s5);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.app-main.is-focus > * { min-height: 0; flex: 1; }
+
 .app-nav.is-icons {
   width: 56px; min-width: 56px;
 }
@@ -2494,6 +2506,39 @@ a:hover > .card-stat,
 
 /* Edit studio — split editor layout: big preview left, settings right. */
 .edit-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+
+/* ─── The Studio as an instrument ───────────────────────────────────
+   Three rows filling the window: the bar, the work, the timeline pinned to
+   the bottom. Nothing scrolls but the columns themselves.
+
+   It used to be one tall document — measured 1149px in a 900px viewport —
+   so the shelf began at y=930 and none of it was on screen when the Studio
+   loaded, and at 1280x800 only 56px of a 164px timeline was visible. Every
+   geometric difference from the mockup was downstream of that. */
+.studio-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--s3);
+  height: 100%;
+  min-height: 0;
+}
+.studio-bar { flex: none; }
+/* The middle row is the one that gives. `minmax(0, 1fr)` above and
+   `min-height: 0` here are what let a grid child shrink below its content
+   instead of pushing the timeline off the bottom of the window. */
+.studio-shell .edit-split { min-height: 0; align-items: stretch; }
+.studio-col { min-height: 0; height: 100%; display: flex; flex-direction: column; }
+.studio-shell .studio-stage { min-height: 0; height: 100%; flex: 1; align-items: stretch; }
+/* The app's own fixed controls — search, settings, the connector light, the
+   client menu — sit at top right over everything. The mockup has no
+   equivalent, because its bar carries the lot. Until that is resolved the
+   Studio's bar keeps out of their way rather than drawing underneath them. */
+.app-main.is-focus .studio-bar { padding-right: 300px; }
+/* The inspector is a column of its own and scrolls inside itself, rather
+   than making the page taller. */
+.studio-inspector { min-height: 0; overflow-y: auto; }
+.studio-bottom { flex: none; min-height: 0; }
+
 
 /* The Studio's stage: the frame, and the verdict beside it.
  *

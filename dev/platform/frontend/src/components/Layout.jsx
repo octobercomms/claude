@@ -389,7 +389,8 @@ export default function Layout() {
           panel itself is display:none at that width — a 170px fixed column
           beside a 260px drawer leaves nothing for the page. */}
       <MobileScreenNav />
-      <main className="app-main" ref={mainRef} id="main-content">
+      <main className={'app-main' + (focusScreen ? ' is-focus' : '')}
+        ref={mainRef} id="main-content">
         {readOnly && (
           <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             <span>👁</span>

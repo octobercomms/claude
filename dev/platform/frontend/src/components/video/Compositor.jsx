@@ -109,6 +109,7 @@ const Compositor = React.forwardRef(function Compositor({
   playhead = 0,
   onSeek,
   maxHeight = '62vh',
+  fill = false,
   children,
   onMeta,
 }, ref) {
@@ -589,9 +590,63 @@ const Compositor = React.forwardRef(function Compositor({
   const total = comp ? PB.duration(comp) : 0;
   const ar = comp ? W / H : (natAR || 9 / 16);
 
+  /**
+   * The picture's size, fitted to the well, in pixels.
+   *
+   * CSS cannot do this one on its own. A canvas's `max-height: 100%`
+   * resolves against its containing block, and every box that could be its
+   * containing block here is auto-height — so the percentage is dropped, the
+   * canvas falls back to its intrinsic 1080x1920, and a 791px picture runs
+   * under the timeline in a 391px row. Giving an ancestor a definite height
+   * instead moves the caption overlay off the picture and onto the black.
+   *
+   * The well's own box never depends on the picture (`width: 100%`,
+   * `height: 100%` of a row the grid has already sized), so measuring it is
+   * not circular. The arithmetic is the same fit a browser gives an image,
+   * and the ratio is exact rather than nearly right, which is the fault this
+   * screen has already shipped once.
+   */
+  const wellRef = useRef(null);
+  const [fitted, setFitted] = useState(null);
+  useEffect(() => {
+    const el = wellRef.current;
+    if (!fill || !el || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      // One axis is rounded and the other derived from the rounded value, so
+      // the box that ends up on screen holds the composition's ratio as
+      // closely as whole pixels allow. Rounding both independently is what
+      // leaves a frame measurably the wrong shape at small sizes.
+      const fitsHeight = r.height * ar <= r.width;
+      const h = Math.max(1, Math.round(fitsHeight ? r.height : r.width / ar));
+      setFitted({ w: Math.max(1, Math.round(h * ar)), h });
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, [fill, ar]);
+
   return (
-    <div ref={wrapRef} tabIndex={0} style={{ outline: 'none' }} data-testid="compositor">
-      <div style={{ display: 'flex', justifyContent: 'center', background: BLACK, borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+    /* `fill` hands the player the height of whatever box it is in, rather
+       than a fraction of the window. Every ancestor from here down carries a
+       definite height so the canvas's own `max-height: 100%` has something to
+       resolve against; without that chain the percentage is ignored and the
+       player sizes to its content, which is how a 450px frame came to run
+       under the timeline in a 403px row. */
+    <div ref={wrapRef} tabIndex={0} data-testid="compositor"
+      style={{ outline: 'none', ...(fill ? { height: '100%', minHeight: 0 } : null) }}>
+      <div ref={wellRef} style={{
+        display: 'flex', justifyContent: 'center', background: BLACK,
+        borderRadius: 'var(--r-md)', overflow: 'hidden',
+        /* The well. In fill mode it takes the height of the row it is in and
+           centres the picture inside itself, which is what gives the canvas
+           a DEFINITE height to resolve `max-height: 100%` against. Without
+           that the percentage is ignored, the canvas sizes to its intrinsic
+           1080x1920, and a 791px picture runs under the timeline. */
+        ...(fill ? { height: '100%', minHeight: 0, alignItems: 'center' } : null),
+      }}>
         {/* The frame is bounded on BOTH axes and sized by its ratio, never
             given a height and a width that can disagree.
             It used to carry `height: maxHeight` together with
@@ -608,7 +663,20 @@ const Compositor = React.forwardRef(function Compositor({
         <div ref={frameRef} style={{
           position: 'relative', background: BLACK,
           display: 'inline-block', maxWidth: '100%', lineHeight: 0,
+          /* Shrink-wrapped to the picture in both modes, so the caption
+             overlay below — which is 100% of this box — tracks the picture
+             and not the black around it. */
+          /* When filling, this IS the well: a definite height, with the
+             picture centred in it. That definite height is the whole point —
+             the canvas's `max-height: 100%` has to resolve against
+             something, and against an auto height it is ignored, which is
+             how a 791px picture came to run under the timeline. */
+          /* In fill mode the frame IS the picture, at the size measured
+             above, so the caption overlay below — 100% of this box — tracks
+             the picture rather than the black around it. */
+          ...(fill && fitted ? { width: fitted.w, height: fitted.h } : null),
         }}>
+          <div style={{ position: 'relative', display: 'grid', lineHeight: 0, height: '100%' }}>
           {/* The canvas fits itself, and the frame shrink-wraps it.
               A <canvas> has an intrinsic size from its width and height
               attributes, which are the composition's own, so `max-width` and
@@ -628,7 +696,9 @@ const Compositor = React.forwardRef(function Compositor({
             style={{
               display: 'block',
               width: 'auto', height: 'auto',
-              maxWidth: '100%', maxHeight,
+              maxWidth: '100%',
+              maxHeight: fill ? '100%' : maxHeight,
+              ...(fill && fitted ? { width: '100%', height: '100%' } : null),
             }}
           />
           {/* JASSUB creates and owns its canvas inside this container */}
@@ -660,6 +730,7 @@ const Compositor = React.forwardRef(function Compositor({
             </div>
           )}
           {children}
+          </div>
         </div>
       </div>
 
