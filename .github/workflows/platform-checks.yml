@@ -290,6 +290,18 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the effect pixel assertions would not run'; exit 1; }
           node tests/composition-fx-pixels.test.js
+      # The graph guard proves the renderer writes `-loop 1` and bounds it
+      # with `-t`. It cannot prove the result is a moving picture, and both
+      # ways a still fails are silent: one frame encodes without error as a
+      # frozen flash, and an animated scale that resolves to a constant looks
+      # exactly like a correct render of "hold". So every move is rendered and
+      # the frames are read back, with a held photograph as the control, which
+      # measures 0.000 and is what makes a number above zero mean motion.
+      - name: Guard — a camera move over a photograph actually moves
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the still pixel assertions would not run'; exit 1; }
+          node tests/composition-still-pixels.test.js
       # The frames that go to the model, and what is done with the answer. It
       # samples a real file: the first version of this read `probe.duration`,
       # which `renderQc.probe` does not return, so the pass refused every
@@ -500,6 +512,15 @@ jobs:
       # committed file has drifted from the model it is built from.
       - name: Guard — the composition skill and its schema are still true
         run: node tests/composition-skill.test.js
+      # A photograph could not be added to a composition by hand until
+      # 9 November: the model, the render graph, the preview and the batch had
+      # all handled a still for weeks, and one mime filter plus one `accept`
+      # attribute refused them. Both are lines no model test can see, so this
+      # holds the four descriptions of a photograph against each other — what
+      # the server stores, what the picker offers, what the graph does with
+      # it, and what a camera move means.
+      - name: Guard — a photograph can enter the editor
+        run: node tests/composition-still.test.js
       # A brief is what was agreed before a build started, and docs/omi/briefs/
       # exists because one that lived only as a chat link was lost: the Produce
       # studio layout was agreed, mocked, and then production shipped six

@@ -1,3 +1,4 @@
+const { isStillMime } = require('../../../shared/composition.mjs');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -44,8 +45,16 @@ const clipUpload = multer({
   storage: clipStore,
   limits: { fileSize: 500 * 1024 * 1024, files: 1 },
   fileFilter: (req, file, cb) => {
+    // Photographs as well as footage. The renderer, the preview and the batch
+    // have always handled a still — `shared/composition.mjs` carries
+    // `src.still` with the `-loop 1` reasoning, `compositionPlayback.mjs`
+    // knows a photograph has no audio stream, and `VideoBatchPage` emits one
+    // as a clip. This filter and the editor's `accept` attribute were the
+    // only two things refusing them, which meant the stills-montage
+    // template's own material could not be assembled by hand.
     if (/^video\//.test(String(file.mimetype || ''))) return cb(null, true);
-    cb(new Error('Only video files are accepted.'));
+    if (isStillMime(file.mimetype)) return cb(null, true);
+    cb(new Error('Only video files and photographs are accepted.'));
   },
 });
 const audioUpload = multer({
@@ -168,13 +177,21 @@ router.post('/compositions/:id/clip', loadComposition, (req, res, next) => {
     const filePath = path.join(UPLOAD_ROOT, String(clientId), f.filename);
     const probe = await probeVideo(filePath);
 
+    // ffprobe reads a photograph as a one-frame video stream, so width and
+    // height arrive correctly and the duration is meaningless: a JPEG reports
+    // nothing and a PNG sometimes reports a single frame's worth. Either way
+    // a still has no duration of its own — the item's length is the editor's
+    // choice — so it is reported as 0 rather than passed on as a number
+    // somebody downstream would believe.
+    const still = isStillMime(f.mimetype);
+
     const asset = await assets.record({
       client_id: clientId, source: 'upload', source_id: f.filename,
       title: f.originalname || f.filename,
       url: `/api/brand/file/${clientId}/${f.filename}`,
       mime: f.mimetype, bytes: f.size, created_by: req.user?.id || null,
       width: probe.width || null, height: probe.height || null,
-      duration_s: probe.duration || null,
+      duration_s: still ? null : (probe.duration || null),
       metadata: { uploaded: true, original_name: f.originalname, composition_id: comp.id },
     });
     if (!asset) return res.status(500).json({ error: 'Failed to record asset.' });
@@ -184,7 +201,8 @@ router.post('/compositions/:id/clip', loadComposition, (req, res, next) => {
       url: asset.url,
       mime: asset.mime,
       originalName: f.originalname,
-      duration: probe.duration,
+      still,
+      duration: still ? 0 : probe.duration,
       width: probe.width,
       height: probe.height,
       fps: probe.fps,

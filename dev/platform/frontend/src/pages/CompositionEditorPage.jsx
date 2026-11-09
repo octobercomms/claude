@@ -4,8 +4,11 @@ import CompositionTimeline from '../components/video/CompositionTimeline';
 import {
   emptyComposition, addSource, addTrack, addItem, removeItem,
   updateItem, duration as compDuration,
-  rippleRemoveItem,
+  rippleRemoveItem, isStillMime, CLIP_ACCEPT,
 } from '@shared/composition.mjs';
+import {
+  MOTION_NAMES, transformFor, describeMotion, STILL_DEFAULT_LEN,
+} from '@shared/compositionTemplate.mjs';
 import * as PB from '@shared/compositionPlayback.mjs';
 import { FX, FX_NAMES, describeFx } from '@shared/compositionFx.mjs';
 import ReelChecks from '../components/ReelChecks';
@@ -296,14 +299,22 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
 
   const handleFiles = useCallback(async (files) => {
     if (!files?.length) return;
-    const vids = Array.from(files).filter(f => f.type.startsWith('video/'));
-    if (!vids.length) { toast('Choose video files.', 'error'); return; }
+    // Photographs as well as footage. Everything downstream already handled a
+    // still: the model has `src.still` with the `-loop 1` reasoning, the
+    // preview knows a photograph carries no audio stream, the render graph
+    // bounds the loop with `-t`, and the batch emits a photograph as a clip.
+    // This filter and the `accept` attribute were the only two things
+    // refusing them, so six photographs could not enter the editor at all
+    // while being the headline case of the headline template.
+    const wanted = Array.from(files)
+      .filter(f => f.type.startsWith('video/') || isStillMime(f.type));
+    if (!wanted.length) { toast('Choose video files or photographs.', 'error'); return; }
     if (!compId) { toast('Composition not ready yet.', 'error'); return; }
 
     setUploading(true);
 
     try {
-      for (const file of vids) {
+      for (const file of wanted) {
         const form = new FormData();
         form.append('file', file);
         const res = await fetch(`/api/compose/compositions/${compId}/clip`, {
@@ -328,29 +339,62 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
             trackId = r.id;
           }
 
+          // `still` comes from the server rather than from the File object,
+          // because the server decided which mime types it would store and
+          // the two must not disagree: a source marked still that is really
+          // footage loses its audio in the render, and footage marked still
+          // freezes on its first frame.
+          const still = clip.still === true;
+
+          // A photograph has NO duration, and the model is strict about the
+          // difference between absent and zero: `duration` may be omitted,
+          // and a clip source carrying 0 is rejected outright
+          // (composition.mjs: "clip duration must be positive"). So the field
+          // is left off rather than set to 0.
+          //
+          // The same guard covers footage whose probe came back empty, which
+          // the old `duration: clip.duration || 0` would have written as 0 —
+          // an invalid composition from a corrupt upload, with the failure
+          // surfacing later as a refused save rather than at the upload.
+          const dur = Number(clip.duration) > 0 ? Number(clip.duration) : null;
+
           const { comp: c2, id: sourceId } = addSource(comp, {
             kind: 'clip', asset: clip.assetId, url: clip.url,
-            duration: clip.duration || 0,
+            ...(still ? { still: true } : {}),
+            ...(dur ? { duration: dur } : {}),
             width: clip.width || 0, height: clip.height || 0,
             fps: clip.fps || 30, originalName: clip.originalName,
           });
           comp = c2;
 
           const end = compDuration(comp);
-          const len = clip.duration || 0;
+          // A photograph takes the length the batch already gives a still,
+          // rather than a second number chosen here. Footage keeps its own,
+          // and falls back to the same figure when its duration is unknown:
+          // an item length must be positive, so the alternative is a clip
+          // that cannot be placed at all.
+          const len = still ? STILL_DEFAULT_LEN : (dur || STILL_DEFAULT_LEN);
           const { comp: c3 } = addItem(comp, trackId, {
             at: end, len, source: sourceId,
           });
           comp = c3;
 
           setSourceUrls(u => ({ ...u, [sourceId]: blobUrl }));
-          setSourceNames(n => ({ ...n, [sourceId]: clip.originalName || 'Clip' }));
+          setSourceNames(n => ({ ...n, [sourceId]: clip.originalName || (still ? 'Photograph' : 'Clip') }));
           setSourceAssets(a => ({ ...a, [sourceId]: clip.assetId }));
           return comp;
         });
       }
 
-      toast(`${vids.length} clip${vids.length > 1 ? 's' : ''} added.`, 'success');
+      // Name what actually went in. "6 clips added" after dropping six
+      // photographs is the kind of small lie that makes an operator distrust
+      // the rest of the screen.
+      const shots = wanted.filter(f => isStillMime(f.type)).length;
+      const clips = wanted.length - shots;
+      const parts = [];
+      if (clips) parts.push(`${clips} clip${clips > 1 ? 's' : ''}`);
+      if (shots) parts.push(`${shots} photograph${shots > 1 ? 's' : ''}`);
+      toast(`${parts.join(' and ')} added.`, 'success');
     } catch (err) {
       toast(err.message || 'Upload failed.', 'error');
     } finally {
@@ -907,7 +951,7 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
 
             {/* Add clip / design / audio */}
             <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
-              <input ref={fileRef} type="file" accept="video/*" multiple
+              <input ref={fileRef} type="file" accept={CLIP_ACCEPT} multiple
                 style={{ display: 'none' }} onChange={onFileChange} />
               <input ref={audioFileRef} type="file" accept="audio/*" multiple
                 style={{ display: 'none' }} onChange={onAudioFileChange} />
@@ -1005,6 +1049,56 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
                     </tr>
                   </tbody>
                 </table>
+
+                {/* Camera moves, on a photograph only.
+                    Six chips rather than a scale slider and a position pair.
+                    The move is the unit of work here: a photograph with a
+                    slow push reads as expensive and a static one reads as a
+                    slideshow, and nobody chooses that by typing 1.12 into a
+                    number field. The vocabulary is MOTIONS from the template
+                    engine, unchanged, so a move chosen here and the same move
+                    chosen by the stills-montage template produce the same
+                    animated scale and pos — one list, not a second opinion.
+
+                    Rotation is absent and stays absent: the render graph's
+                    output box is init-only, so an animated rotation cannot be
+                    produced, and a control for it would be the page lying
+                    about its own export. */}
+                {selectedSource?.still === true && (
+                  <div style={{ marginTop: 'var(--s2)' }}>
+                    <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                      Camera move
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                      <button type="button"
+                        className={`btn-chip${selectedItem.item.beat ? '' : ' is-active'}`}
+                        onClick={() => setComposition(prev => updateItem(
+                          prev, selectedItem.track.id, selectedItem.item.id,
+                          // Undoing a move has to clear every field the move
+                          // set, not just the name. A leftover `scale` with no
+                          // `beat` is a move the inspector says is off and the
+                          // render still performs.
+                          { scale: null, pos: null, beat: null },
+                        ))}>
+                        Hold
+                      </button>
+                      {MOTION_NAMES.map(name => (
+                        <button key={name} type="button"
+                          className={`btn-chip${selectedItem.item.beat === name ? ' is-active' : ''}`}
+                          title={describeMotion(name)}
+                          onClick={() => setComposition(prev => updateItem(
+                            prev, selectedItem.track.id, selectedItem.item.id,
+                            // `beat` carries the name so the chip can light up
+                            // and the review sheet can say why a clip moves.
+                            // It is already a rationale field on an item.
+                            { scale: null, pos: null, ...transformFor(name), beat: name },
+                          ))}>
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
                   <button type="button" className="btn btn-secondary btn-sm"

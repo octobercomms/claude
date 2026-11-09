@@ -396,6 +396,51 @@ mockup, and Review is the best-designed page in Produce. Numbered steps, a
 pre-flight sentence from the planner, per-item problems inline, a cost chip on
 the button that commits the spend, and j/k/a/r on the rail.
 
+## Built, 9 November: a photograph can enter the Studio
+
+The largest finding is closed. `accept` comes from one shared list,
+`isStillMime` gates the upload on both sides of the wire, a photograph becomes
+a `still: true` clip source, and the six camera moves are chips on the
+inspector.
+
+Four things worth recording because they were found by building it rather
+than by reading it:
+
+**The model draws a line between absent and zero, and the first version of
+this change got it wrong.** A clip source carrying `duration: 0` is rejected
+outright ("clip duration must be positive"), and a photograph has no duration,
+so the field is omitted. The first attempt wrote 0 and produced an invalid
+composition; `composition-still.test.js` caught it before it ran anywhere. The
+same guard now covers footage whose probe came back empty, which the old
+`duration: clip.duration || 0` would also have written as 0.
+
+**A photograph holds for 3.2 seconds, and the number is not new.**
+`stills-montage` gives its photographs 2.6s to 3.8s; 3.2 is the middle of that
+range, exported as `STILL_DEFAULT_LEN` so the editor and the batch cannot
+drift. A test asserts it stays inside the template's own range.
+
+**Turning a move off has to clear what the move set.** A chip that cleared
+only the name would leave a `scale` and `pos` the inspector reports as off and
+the render still performs. Pinned.
+
+**The pixel test accused the renderer of a bug it did not have, and that is
+worth keeping in the record.** `rise` measured 3.55 against `drift`'s 28.8 at
+the same magnitude, with a held photograph at 3.6, which read as vertical
+motion not rendering at all. The graphs were correct. The test picture was
+`testsrc2`, which is built from broad horizontal bands, so a vertical move
+slides within one band and changes almost nothing. On a 6px checkerboard a
+held photograph measures exactly **0.000** and every move measures 54 to 76.
+The lesson is the one this project keeps relearning: a fixture that does not
+match reality hides the thing you are testing, and here it invented a fault
+instead.
+
+The same test deliberately does **not** assert that the moves rank in the
+order their descriptions imply. An earlier version required `subtle` to
+measure smallest, because its tooltip says it barely moves. On a checkerboard
+it measures largest, since a small scale change on a high-frequency pattern
+moves every pixel across an edge. The ranking is a property of the picture,
+not the move, and that assertion was testing my own prose.
+
 ## Faults found while auditing, worth fixing in passing
 
 - **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is
