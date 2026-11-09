@@ -50,6 +50,38 @@ export const SOURCE_KINDS = ['clip', 'design', 'audio', 'captions', 'fx'];
  */
 export const PICTURE_KINDS = ['clip', 'design', 'fx'];
 
+// ── What a photograph is ───────────────────────────────────────────────
+//
+// A `clip` source with `still: true` is a photograph, and the render graph,
+// the preview and the batch all key off that flag. Which FILES count as a
+// photograph was decided in two places and they disagreed: the upload route
+// accepted `video/` only, and the editor's file input said `accept="video/*"`,
+// so the one thing the headline template is made of could not be added by
+// hand. One list now, here, because the server decides what it will store
+// and the input decides what it will offer, and those two disagreeing is the
+// fault either way round.
+//
+// A list rather than `image/`: svg is a script host, and gif is an animation
+// that ffmpeg reads as footage with a frame rate, so neither belongs on a
+// source the renderer will freeze and loop.
+export const STILL_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp',
+  'image/avif', 'image/heic', 'image/heif', 'image/tiff',
+];
+
+/** Whether a mime type is a photograph this editor will take. */
+export function isStillMime(mime) {
+  return STILL_MIME_TYPES.includes(String(mime || '').toLowerCase());
+}
+
+/**
+ * The `accept` attribute for a clip file input, built from the same list the
+ * server filters on. Written out rather than `image/*` so the dialog offers
+ * exactly what the upload will keep: a picker that shows a .gif and then a
+ * route that refuses it is worse than a picker that never offered it.
+ */
+export const CLIP_ACCEPT = ['video/*', ...STILL_MIME_TYPES].join(',');
+
 function validateSource(id, src) {
   if (!src || typeof src !== 'object') {
     return `source "${id}": not an object`;

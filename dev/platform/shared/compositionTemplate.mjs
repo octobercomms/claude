@@ -69,6 +69,40 @@ export const MOTIONS = {
 
 export const MOTION_NAMES = Object.keys(MOTIONS);
 
+/**
+ * What a move does, in words, for a chip's tooltip.
+ *
+ * Written out rather than derived from the numbers. "scale 1.00 to 1.12" is
+ * the implementation; "pushes slowly in" is what the operator is choosing.
+ * The same pattern as `describeFx` in compositionFx.mjs, and for the same
+ * reason: the person picking does not read the transform.
+ */
+const MOTION_WORDS = {
+  'push-in': 'Pushes slowly in. The safe one, and the one the stills template uses.',
+  reveal: 'Starts close and pulls back to the whole frame.',
+  drift: 'Slides across, left to right, holding its size.',
+  rise: 'Lifts from the bottom of the frame to the top.',
+  orbit: 'Pushes in while sliding, so the frame turns slightly.',
+  subtle: 'Barely moves. For a photograph that is already busy.',
+};
+
+export function describeMotion(name) {
+  return MOTION_WORDS[name] || '';
+}
+
+// How long a photograph holds when somebody drops one into the editor by hand.
+//
+// A video arrives knowing its own length. A photograph does not, so something
+// has to choose, and the choice should be the same number the batch already
+// uses rather than a second opinion invented in the editor. `stills-montage`
+// gives its photographs 2.6s to 3.8s and jitters within that; 3.2 is the
+// middle of that range.
+//
+// It matters more than it looks. Under about two seconds a camera move reads
+// as a glitch, because the eye has not settled before the frame changes; over
+// about four it reads as a slideshow waiting for something to happen.
+export const STILL_DEFAULT_LEN = 3.2;
+
 /** The transform fields a motion contributes to an item. */
 export function transformFor(motion) {
   const m = MOTIONS[motion];
