@@ -745,6 +745,42 @@ function shiftAfter(comp, trackId, afterTime, delta) {
   };
 }
 
+/**
+ * Remove an item and pull back the one joined to it, if there is one.
+ *
+ * This is what replaced the ripple MODE, and the difference is the whole
+ * point: a mode shifted the rest of the track whatever the shape of the
+ * reel, so a cutaway floating where the speech put it got slid earlier by a
+ * delete somewhere else, silently.
+ *
+ * "Joined" means the next item on this track starts after this one starts
+ * and at or before it ends — butted, OR OVERLAPPING, which is what every
+ * dissolve looks like. The first version of this rule tested for abutment
+ * alone, and so left a hole of black in the middle of a reel for exactly the
+ * clips somebody had taken the trouble to join.
+ *
+ * The shift is `next.at - item.at`, not `item.len`. For a butted pair those
+ * are the same number; for a dissolving pair the length would slide the run
+ * too far and open a gap before it instead.
+ *
+ * An item with air in front of the next one is not a gap, and nothing moves.
+ */
+export function removeAndClose(comp, trackId, itemId) {
+  const track = comp.tracks.find(t => t.id === trackId);
+  if (!track) return comp;
+  const item = track.items.find(i => i.id === itemId);
+  if (!item) return comp;
+
+  const end = item.at + item.len;
+  const next = track.items
+    .filter(i => i.id !== itemId && i.at > item.at + EPS && i.at <= end + EPS)
+    .sort((a, b) => a.at - b.at)[0];
+
+  const removed = removeItem(comp, trackId, itemId);
+  if (!next) return removed;
+  return shiftAfter(removed, trackId, item.at, -(next.at - item.at));
+}
+
 export function rippleRemoveItem(comp, trackId, itemId) {
   const track = comp.tracks.find(t => t.id === trackId);
   if (!track) return comp;

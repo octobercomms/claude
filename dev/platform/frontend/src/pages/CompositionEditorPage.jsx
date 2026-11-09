@@ -4,7 +4,7 @@ import CompositionTimeline from '../components/video/CompositionTimeline';
 import {
   emptyComposition, addSource, addTrack, addItem, removeItem,
   updateItem, duration as compDuration,
-  rippleRemoveItem, splitItem, isStillMime, CLIP_ACCEPT, TRANSITION_TYPES,
+  removeAndClose, splitItem, isStillMime, CLIP_ACCEPT, TRANSITION_TYPES,
 } from '@shared/composition.mjs';
 import {
   MOTION_NAMES, transformFor, describeMotion, STILL_DEFAULT_LEN,
@@ -430,11 +430,11 @@ export default function CompositionEditorPage({
 
   selectedItemRef.current = selectedItem;
 
-  // The rule the toolbar's Split button shows rather than keeps to itself:
-  // the playhead has to be inside the selected clip, which is what
-  // `splitItem` requires and what `[` and `]` have always no-opped on in
-  // silence.
-  const canSplit = !!selectedItem
+  // Whether the playhead is inside the selected clip, which is what
+  // `splitItem` requires. It no longer decides whether the button is
+  // offered — see `handleSplitItem` — but it does decide what its tooltip
+  // says, so the rule is readable before you press it as well as after.
+  const splitReady = !!selectedItem
     && playhead > selectedItem.item.at + 0.001
     && playhead < selectedItem.item.at + selectedItem.item.len - 0.001;
 
@@ -671,33 +671,32 @@ export default function CompositionEditorPage({
    * Remove the selected clip, and close the gap when there is one to close.
    *
    * THE RIPPLE MODE IS GONE, and this replaces it rather than hiding it.
-   * Three measured reasons it had to go. `shiftAfter` in composition.mjs
-   * shifts ONE track, and every October reel has a music bed, so a ripple
-   * delete on the picture shortened the video and left the music at full
-   * length — `duration()` takes the max, so the reel still reported 00:14:12
-   * and now ended on music over nothing. Its own tooltip claimed it worked on
-   * trimming, which it never did: `rippleTrimStart` and `rippleTrimEnd` were
-   * imported by the timeline and never called. And it was an invisible mode
-   * you could enter from anywhere with `r`, whose only indicator sat 193px
-   * above the top of the viewport when the timeline was in view.
+   * Three measured reasons it had to go. `shiftAfter` shifts ONE track, and
+   * every October reel has a music bed, so a ripple delete on the picture
+   * shortened the video and left the music at full length — `duration()`
+   * takes the max, so the reel still reported 00:14:12 and now ended on
+   * music over nothing. Its own tooltip claimed it worked on trimming, which
+   * it never did. And it was an invisible mode you could enter from anywhere
+   * with `r`, whose only indicator sat 193px above the top of the viewport
+   * when the timeline was in view.
    *
-   * What a person means by "close the gap" is: the clip after this one was
-   * butted up against it, so pull it back. A cutaway floating on V2 where the
-   * speech put it is not a gap and must not move, which is exactly what the
-   * old mode did to it silently.
+   * `removeAndClose` holds the rule, with its own unit tests. It says what it
+   * did afterwards, because one button with two behaviours and no voice is
+   * how an operator learns to distrust a toolbar: sometimes the rest of the
+   * reel jumps left and sometimes nothing moves, and nothing tells you which
+   * rule you were under.
    */
   const handleRemoveItem = useCallback(() => {
     if (!selectedItem) return;
     const { track, item } = selectedItem;
-    const end = item.at + item.len;
-    const abuts = track.items.some(
-      (i) => i.id !== item.id && Math.abs(i.at - end) < 0.001);
-    setComposition(prev => (abuts
-      ? rippleRemoveItem(prev, track.id, item.id)
-      : removeItem(prev, track.id, item.id)));
+    const name = sourceNames[item.source] || 'Clip';
+    const next = removeAndClose(latestCompRef.current, track.id, item.id);
+    setComposition(() => next);
     setSelectedId(null);
     setSelectedTrackId(null);
-  }, [selectedItem]);
+    toast(`Removed ${name}. Reel is now ${PB.timecode(compDuration(next), fps)}.`,
+      'success');
+  }, [selectedItem, sourceNames, fps, toast]);
 
   // Split the selected item at the playhead, and SELECT THE TAIL.
   //
@@ -710,10 +709,19 @@ export default function CompositionEditorPage({
     const { comp: next, id } = splitItem(
       latestCompRef.current, selectedItem.track.id, selectedItem.item.id,
       playheadRef.current);
-    if (!id) return;              // the playhead is not inside the item
+    // The playhead is not inside the clip, which is the one precondition a
+    // person cannot see. It is a RELATIONSHIP between two things on screen,
+    // and a greyed-out button teaches only the people who hover dead
+    // controls, which is nobody: a grey control reads as "splitting does not
+    // work on this clip". So the button stays live with a selection and says
+    // this once, to the person who has just shown what they wanted.
+    if (!id) {
+      toast('Put the playhead where you want the cut, then Split.', 'info');
+      return;
+    }
     setComposition(() => next);
     setSelectedId(id);
-  }, [selectedItem]);
+  }, [selectedItem, toast]);
 
   // Move the playhead, in seconds. The compositor follows the `playhead`
   // prop when it is not playing, so this is the one way to move it and it
@@ -1475,7 +1483,8 @@ export default function CompositionEditorPage({
               onDragCancel={discardBatch}
               onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo}
               onSplit={handleSplitItem} onDelete={handleRemoveItem}
-              canSplit={canSplit} canDelete={!!selectedItem}
+              canSplit={!!selectedItem} splitReady={splitReady}
+              canDelete={!!selectedItem}
               onShortcuts={() => setShortcutsOpen(v => !v)}
             />
 

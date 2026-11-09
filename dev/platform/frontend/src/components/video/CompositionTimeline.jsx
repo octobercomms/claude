@@ -87,7 +87,7 @@ export default function CompositionTimeline({
   // offered. They act on the composition, which the editor owns, so it hands
   // them down rather than the timeline reaching for them.
   onUndo, onRedo, canUndo = false, canRedo = false,
-  onSplit, onDelete, canSplit = false, canDelete = false,
+  onSplit, onDelete, canSplit = false, splitReady = false, canDelete = false,
   onShortcuts,
 }) {
   const scrollRef = useRef(null);
@@ -214,6 +214,7 @@ export default function CompositionTimeline({
     e.currentTarget.setPointerCapture?.(e.pointerId);
     onSelect?.(item.id, trackId);
     onDragStart?.();
+    movedRef.current = false;
     frozen.current = scale;
     setHoverTrackId(null);
     setDrag({
@@ -230,9 +231,18 @@ export default function CompositionTimeline({
     });
   };
 
+  // Whether this drag has actually changed anything. A click on a clip is a
+  // pointer-down and a pointer-up with no move between them, and it used to
+  // commit a history entry all the same: selecting a clip lit UNDO, and
+  // pressing it changed nothing on screen and handed back a Redo. A safety
+  // net that fires and does nothing is worse than no net, because the one
+  // time it was needed the press has been spent on a phantom.
+  const movedRef = useRef(false);
+
   const onPointerMove = (e) => {
     if (!drag || e.pointerId !== drag.pointerId) return;
     if (drag.mode === 'scrub') return;
+    if (e.clientX !== drag.originX || e.clientY !== drag.originY) movedRef.current = true;
 
     const dx = e.clientX - drag.originX;
     const dt = dx / scale;
@@ -340,7 +350,10 @@ export default function CompositionTimeline({
     frozen.current = null;
     setSnapLine(null);
     setHoverTrackId(null);
-    if (drag.mode !== 'scrub') onDragEnd?.();
+    if (drag.mode !== 'scrub') {
+      if (movedRef.current) onDragEnd?.(); else onDragCancel?.();
+    }
+    movedRef.current = false;
     setDrag(null);
   };
 
@@ -422,6 +435,15 @@ export default function CompositionTimeline({
           anywhere: Export is the screen's one primary, and the loudest thing
           in the timeline should not be a destructive verb. */}
       <div className="row between center wrap" style={{ gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
+        {/* An empty reel cannot undo, redo, split or delete anything, so four
+            greyed chips there are not "not yet", they are decoration that
+            looks broken — and they are the first thing the Studio shows a
+            person who has just made a reel. The verbs arrive with the first
+            clip; the zoom and the shortcut reference are always meaningful
+            and stay. */}
+        {tracks.every(t => !t.items.length) ? (
+          <span className="caption text-subtle">Add a clip to start editing</span>
+        ) : (
         <div className="row center" style={{ gap: 'var(--s1)' }}>
           <button type="button" className="btn-chip" title="Undo (Ctrl+Z)"
             disabled={readOnly || !canUndo} onClick={onUndo}
@@ -432,18 +454,23 @@ export default function CompositionTimeline({
           <span aria-hidden="true" style={{
             width: 1, height: 16, background: 'var(--card-border)', margin: '0 var(--s1)',
           }} />
-          {/* Disabled says WHY. `[` and `]` have always no-opped in silence
-              when the playhead was outside the selected clip; the same rule
-              is visible here instead of guessed at. */}
+          {/* Split is offered whenever a clip is selected, and says what it
+              needs when it cannot cut — see `handleSplitItem`. Greying it on
+              the playhead's position would hide the one precondition a
+              person cannot see, which is a RELATIONSHIP between two things
+              on screen rather than a property of one. Delete is different
+              and stays disabled: its precondition is the selection, and an
+              unselected timeline looks unselected. */}
           <button type="button" className="btn-chip"
-            title={canSplit ? 'Split at the playhead (S)'
-              : 'Put the playhead inside the selected clip to split it'}
+            title={splitReady ? 'Split at the playhead (S)'
+              : 'Put the playhead inside the clip, then Split (S)'}
             disabled={readOnly || !canSplit} onClick={onSplit}>Split</button>
           <button type="button" className="btn-chip"
             title={canDelete ? 'Remove the selected clip (Delete)'
               : 'Select a clip to remove it'}
             disabled={readOnly || !canDelete} onClick={onDelete}>Delete</button>
         </div>
+        )}
         <div className="row center" style={{ gap: 'var(--s1)' }}>
           <button type="button" className="btn-chip"
             onClick={() => setPps(null)} title="Show the whole composition">Fit</button>

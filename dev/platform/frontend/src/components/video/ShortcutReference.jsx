@@ -244,18 +244,11 @@ export function ShortcutButton({ onClick }) {
       title="Keyboard shortcuts (?)"
       aria-label="Show keyboard shortcuts"
       className="btn-chip"
-      style={{
-        fontSize: 'var(--fs-caption)',
-        fontWeight: 700,
-        width: 26,
-        height: 26,
-        padding: 0,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 'var(--r-sm)',
-        flexShrink: 0,
-      }}
+      // Size only. These used to carry font, weight, display, alignment and
+      // an 8px radius inline, from the days before `.btn-chip` matched any
+      // rule at all — and the inline radius won, so the `?` was the one
+      // control in the toolbar that was not a pill.
+      style={{ width: 26, padding: 0, flexShrink: 0 }}
     >
       ?
     </button>
