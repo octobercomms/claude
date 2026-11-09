@@ -1080,14 +1080,106 @@ by pointing them at a selector that gives the wrong answer.
 Two of the four were found by the full sweep rather than by the drive being
 edited, which is the argument for running all 26 every time.
 
- One asserted the word
-`TIMELINE` was on the page to prove the editor had rendered; that caption is
-now deleted, and the assertion had already been rewritten twice for the same
-reason ("Editor", then "Frame size"). It matches the timeline element and its
-lanes now. The other proved a new clip was selected by finding the word
-`Remove`, which this change deletes; it reads the inspector's `Length` row and
-the toolbar's live Delete instead — two independent consequences of the claim
-rather than two names from the same screen.
+
+## The ship review of the toolbar, 9 November
+
+Run against the built tree before merging. Six changes came out of it, three
+of which I would not have shipped without.
+
+**The abut rule had a hole, and it was exactly the clips with a transition.**
+`Math.abs(next.at - end) < EPS` is false for any OVERLAPPING pair, which is
+what every dissolve is. Deleting the first half of a dissolving pair left a
+2.9 second hole of black in the middle of the reel — and the reel's reported
+duration did not change, because the music bed is the longest track. The rule
+lives in `shared/composition.mjs` as `removeAndClose` now, with its own unit
+tests: joined means the next item starts after this one starts and at or
+before it ends, and the shift is `next.at - item.at` rather than `item.len`.
+For a butted pair those are the same number, so the measured cases are
+unchanged; for a dissolving pair the length would slide the run too far and
+open a gap in front of it instead.
+
+**Split is offered whenever a clip is selected, and says what it needs.**
+Greying it on the playhead hid the one precondition a person cannot see: it
+is a RELATIONSHIP between two things on screen rather than a property of one.
+Measured, Split was grey on load, grey after the gesture that selects a clip,
+and grey again the instant you used it, so the only state it was live in was
+one the operator reaches by clicking a 22px ruler that nothing asks them to
+click. A grey control reads as "this does not work on this clip". It now says
+"Put the playhead where you want the cut, then Split" once, to the person who
+has just shown what they wanted. Delete stays disabled, and the asymmetry is
+the point: its precondition is the selection, and an unselected timeline
+looks unselected.
+
+**Delete says what it did.** One button with two behaviours and no voice is
+how an operator learns to distrust a toolbar: sometimes the rest of the reel
+jumps left and sometimes nothing moves, and nothing said which rule you were
+under. "Removed showroom-01.jpg. Reel is now 00:14:12."
+
+**An empty reel is not four dead verbs.** On a reel made with `+ New` the
+timeline was 134px of empty ruler under four greyed chips, which cannot ever
+be live there — not "not yet" but decoration that looks broken, and the first
+thing the Studio shows somebody who has just made a reel. The row says "Add a
+clip to start editing" until there is something to edit. Zoom and the
+shortcut reference stay, because they always mean something.
+
+**Undo no longer lights up after a click that edited nothing.** The drag
+batch committed on pointer-up even when the pointer never moved, so selecting
+a clip lit Undo, and pressing it changed nothing and handed back a Redo. A
+safety net that fires and does nothing is worse than no net, because the one
+time it was needed the press has been spent on a phantom.
+
+**The `?` was the only control in the row that was not a pill.**
+`ShortcutButton` carried its own radius inline from the days before
+`.btn-chip` matched any rule, and the inline radius won.
+
+Two things the review raised that are NOT built, recorded here rather than
+lost: the delete announcement exists but there is still no check for music
+that outlasts the picture, and the transport under the player still offers
+`Play` at full strength on an empty reel in 36px pills while the toolbar
+below it is scrupulous about disabling what cannot act. The four lines of
+grey prose under the transport also survive the argument that killed the
+timeline's paragraph.
+
+One correction the reviewer made against itself, worth keeping because it is
+the behaviour this arrangement exists to produce: it had measured that a
+`title` never appears on a disabled button, re-ran the probe properly, found
+the opposite, and said so before making its argument on merit instead.
+
+## Built, 9 November: two more reel checks
+
+Decision 6 said the one thing worth taking from the mockup's check list was
+the **9:16 aspect check**, "deterministic and cheap". It is built, with the
+check the delete work made visible beside it.
+
+**Shot for a phone, nine by sixteen.** 1080x1920 and 720x1280 pass; 1080x1350
+does not, which is the portrait size people reach for out of habit and which
+is letterboxed on every surface October posts to. The evidence is the size
+itself.
+
+**The sound ends with the picture.** `duration()` takes the MAX across tracks,
+so a bed running three seconds past the last clip is invisible in every number
+on the screen: the reel reports its full length and ends on sound over black.
+The editor passes where each half stops; the server has no tracks to read on a
+finished render, so the check returns null there rather than a tick, which is
+the rule this file keeps everywhere else. Half a second of tail is allowed,
+because that is a bed fading rather than a reel ending on nothing.
+
+Both arrived from the same place: the delete that closes a gap shortens the
+picture and leaves every audio track alone, so it is now easy to make this
+mistake by accident.
+
+**Two counts that were written as literals, in the same breath as a comment
+warning against it.** `reel-checks.test.js` asserted `total === 8` four lines
+under its own note that "a count in a test is a count that disagrees with the
+code the first time a check is added, which is what happened here". It reads
+`Object.keys(LABELS).length` now, because every check has a label. And
+`drive-studio.mjs` matched `/of 8/`; it reads the number off the page and
+asserts it beats the mockup's four. That is the twelfth assertion in this
+project to name something the product then moved.
+
+The verdict thresholds were proportional-ised with them: `passed >= 5` was
+five of eight, and with ten checks the same literal would have called half a
+reel "most".
 
 ## Faults found while auditing, worth fixing in passing
 
@@ -1096,7 +1188,14 @@ rather than two names from the same screen.
 - ~~**Fit has two vocabularies.**~~ Fixed with step 5: "Fill frame" and
   "Letterbox" everywhere, because they say what happens to the picture.
 - ~~**A Library clip arrives 3.2 seconds long.**~~ Fixed; see below.
-- **No 9:16 aspect check** in `reelChecks.mjs`, per decision 6.
+- ~~**No 9:16 aspect check**~~ and ~~**no check for music that outlasts the
+  picture**~~. Both built; see below.
+- **The transport is not the toolbar.** `Play`, `-1 frame`, `+1 frame` and
+  `Start` are 36px pills wrapping onto two rows in a 188px column, 130px above
+  a row of 26px chips, and `Play` is offered at full strength on an empty reel
+  with nothing to play.
+- **Alt to suspend snapping** during a drag, which is what replaces the snap
+  toggle that was refused.
 - **The checks panel hides 54% of itself by default.** The critic's finding:
   each of the eight checks carries the evidence that produced it and the
   default state shows the verdict without it. Verdict first, evidence on

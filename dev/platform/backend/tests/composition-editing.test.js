@@ -271,6 +271,80 @@ describe('composition editing helpers', async () => {
     });
   });
 
+  // What replaced the ripple MODE in the editor. The mode shifted the rest of
+  // the track whatever the shape of the reel; this closes a gap only where a
+  // person would call it one.
+  describe('removeAndClose', () => {
+    it('pulls back a clip butted against the one removed', () => {
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const result = C.removeAndClose(comp, t1, i1);
+      const items = result.tracks[0].items;
+      assert.strictEqual(items.length, 1);
+      assert.strictEqual(items.find((i) => i.id === i2).at, 0);
+    });
+
+    it('pulls back a clip that OVERLAPS the one removed, by the overlap', () => {
+      // Which is what every dissolve looks like. The first version of this
+      // rule tested for abutment alone, so deleting the first half of a
+      // dissolving pair left a hole of black in the middle of the reel —
+      // and the reel's reported duration did not change, because the music
+      // bed is the longest track.
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const overlapped = C.updateItem(comp, t1, i2, { at: 9 });  // i1 ends at 10
+      const result = C.removeAndClose(overlapped, t1, i1);
+      const moved = result.tracks[0].items.find((i) => i.id === i2);
+      assert.strictEqual(moved.at, 0,
+        'shifted by the length rather than by the join, which opens a gap in front');
+    });
+
+    it('leaves a clip with air in front of it exactly where it is', () => {
+      // A cutaway floating where the speech put it is not a gap, and the
+      // ripple mode slid it earlier anyway.
+      const { comp, t1, i1, i2 } = makeComp(C);
+      const spaced = C.updateItem(comp, t1, i2, { at: 14 });  // i1 ends at 10
+      const result = C.removeAndClose(spaced, t1, i1);
+      assert.strictEqual(result.tracks[0].items.find((i) => i.id === i2).at, 14);
+    });
+
+    it('keeps the spacing of a whole run when it closes', () => {
+      const { comp, t1, i1, i2, s1 } = makeComp(C);
+      const { comp: c2, id: i3 } = C.addItem(comp, t1, {
+        source: s1, at: 20, len: 5, in: 0,
+      });
+      const result = C.removeAndClose(c2, t1, i1);
+      const items = result.tracks[0].items;
+      assert.strictEqual(items.find((i) => i.id === i2).at, 0);
+      assert.strictEqual(items.find((i) => i.id === i3).at, 10,
+        'the third clip kept its two-second gap after the second');
+    });
+
+    it('does nothing to another track', () => {
+      const { comp, t1, i1, s1 } = makeComp(C);
+      const { comp: c2, id: t2 } = C.addTrack(comp, 'audio');
+      const { comp: c3, id: music } = C.addItem(c2, t2, {
+        source: s1, at: 0, len: 30, in: 0,
+      });
+      const result = C.removeAndClose(c3, t1, i1);
+      const bed = result.tracks.find((t) => t.id === t2).items.find((i) => i.id === music);
+      assert.strictEqual(bed.at, 0);
+      assert.strictEqual(bed.len, 30,
+        'the music bed is not shortened by a cut in the picture, which is the '
+        + 'fault that made the ripple mode unusable');
+    });
+
+    it('is a plain removal when the item is last', () => {
+      const { comp, t1, i2 } = makeComp(C);
+      const result = C.removeAndClose(comp, t1, i2);
+      assert.strictEqual(result.tracks[0].items.length, 1);
+    });
+
+    it('returns the composition untouched for a bad id', () => {
+      const { comp, t1 } = makeComp(C);
+      assert.strictEqual(C.removeAndClose(comp, t1, 'nope'), comp);
+      assert.strictEqual(C.removeAndClose(comp, 'nope', 'nope'), comp);
+    });
+  });
+
   describe('rippleRemoveItem', () => {
     it('removes item and shifts subsequent items left', () => {
       const { comp, t1, i1, i2 } = makeComp(C);

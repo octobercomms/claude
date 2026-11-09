@@ -184,8 +184,13 @@ for (const [asked, want, row] of [
     + 'than fetching it, so a thin row loads an EMPTY composition and every '
     + 'assertion here passes against its empty state');
   say(/Reel checks/i.test(t), 'the reel checks render');
-  say(/of 8/.test(t), 'with all eight checks, not the mockup\'s four',
-    t.match(/\d of 8[^.]*/)?.[0] || 'no "of 8" on the page');
+  // The COUNT, read off the page rather than typed in here. This said `of 8`
+  // and two checks were added the same day — the twelfth assertion in this
+  // repo to name a number or a word that the product then moved. The claim is
+  // that the shipped checks beat the mockup's four.
+  const checkCount = Number((await text(p)).match(/\d+ of (\d+)/)?.[1] || 0);
+  say(checkCount >= 8, 'with every shipped check, not the mockup\'s four',
+    `${checkCount} checks on the page`);
 
   const box = async (sel) => { try { return await p.locator(sel).first().boundingBox(); } catch { return null; } };
   const checks = await box('[data-studio-checks]');
@@ -951,14 +956,22 @@ for (const [asked, want, row] of [
   await p.waitForTimeout(400);
   st = await state();
   say(!st.deleteOff, 'Delete wakes up when a clip is selected');
-  say(st.splitOff,
-    'and Split stays off while the playhead is outside the clip',
-    'the same rule `[` and `]` have always kept in silence, said out loud');
+  say(!st.splitOff,
+    'and so does Split, before the playhead is anywhere near it',
+    'greying Split on the playhead would hide the one precondition a person '
+    + 'cannot see — a relationship between two things on screen — and a grey '
+    + 'control reads as "splitting does not work on this clip"');
+
+  // So it has to SAY what it needs, to the person who just asked for it.
+  await btn('Split').click();
+  await p.waitForTimeout(700);
+  const asked = await p.evaluate(() => [...document.querySelectorAll('*')]
+    .filter(e => e.children.length === 0 && /playhead where you want/.test(e.textContent))
+    .map(e => e.textContent.trim())[0] || null);
+  say(!!asked, 'and says what it needs instead of doing nothing', `${asked}`);
 
   for (let i = 0; i < 20; i += 1) await p.keyboard.press('ArrowRight');
   await p.waitForTimeout(400);
-  st = await state();
-  say(!st.splitOff, 'and wakes up when the playhead is inside it');
 
   const blocks = () => p.evaluate(() => [...document.querySelectorAll('div')]
     .filter(d => d.style.fontWeight === '700' && d.parentElement
@@ -970,9 +983,16 @@ for (const [asked, want, row] of [
   say((await blocks()).length === n0 + 1, 'the button splits what the key splits',
     `${n0} blocks → ${(await blocks()).length}`);
   await btn('Delete').click();
-  await p.waitForTimeout(500);
+  await p.waitForTimeout(700);
   say((await blocks()).length === n0, 'and Delete removes it again',
     `back to ${(await blocks()).length}`);
+  // One button with two behaviours and no voice is how an operator learns to
+  // distrust a toolbar: sometimes the rest of the reel jumps left, sometimes
+  // nothing moves, and nothing says which rule you were under.
+  const said = await p.evaluate(() => [...document.querySelectorAll('*')]
+    .filter(e => e.children.length === 0 && /^Removed .+\. Reel is now /.test(e.textContent))
+    .map(e => e.textContent.trim())[0] || null);
+  say(!!said, 'and says what it removed and what the reel is now', `${said}`);
 
   await p.close();
 }
@@ -1081,6 +1101,59 @@ for (const [asked, want, row] of [
 
   await p.close();
   await q.close();
+}
+
+// ── 18. An empty reel, and a safety net that does not fire for nothing ───
+{
+  // Reel 2 in the stub has no tracks at all, which is what `+ New` makes.
+  const p = await open('/clients/c1/produce/studio?open=2');
+  await p.setViewportSize({ width: 1280, height: 900 });
+  await p.waitForTimeout(1000);
+  const t = await text(p);
+  const verbs = await p.evaluate(() => [...document.querySelectorAll('button')]
+    .filter(b => /^(Split|Delete|↩|↪)$/.test(b.textContent.trim()))
+    .map(b => ({ t: b.textContent.trim(), off: b.disabled })));
+  say(/add a clip to start editing/i.test(t),
+    'an empty reel is told what to do rather than shown four dead verbs',
+    'on a reel with nothing in it none of the four can ever be live, so they '
+    + 'are not "not yet" — they are decoration that looks broken, and they are '
+    + 'the first thing the Studio shows somebody who has just made a reel');
+  say(verbs.length === 0, 'and the verbs are not drawn at all',
+    JSON.stringify(verbs));
+  say(/Fit/.test(t), 'while zoom and the shortcuts stay, because they always mean something');
+  await p.close();
+}
+
+{
+  // Clicking a clip and moving nothing used to commit a history entry, so
+  // SELECTING lit Undo — and pressing it changed nothing and handed back a
+  // Redo. A safety net that fires and does nothing is worse than no net.
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(900);
+  const undoOff = () => p.evaluate(() => [...document.querySelectorAll('button')]
+    .find(b => b.textContent.trim() === '\u21a9')?.disabled);
+  say(await undoOff() === true, 'Undo is off on a reel nobody has edited');
+  const hit = await p.evaluate(() => {
+    const label = [...document.querySelectorAll('div')]
+      .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
+    let el = label;
+    for (let i = 0; i < 6 && el; i++) {
+      if (getComputedStyle(el).position === 'absolute'
+        && el.getBoundingClientRect().width > 20) {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+      el = el.parentElement;
+    }
+    return null;
+  });
+  await p.mouse.click(hit.x, hit.y);
+  await p.waitForTimeout(500);
+  say(await undoOff() === true,
+    'and still off after a click that selected a clip and moved nothing',
+    'a pointer-down and a pointer-up with no move between them is not an edit');
+  await p.close();
 }
 
 say(errs.length === 0, 'no page errors', errs.join(' | '));
