@@ -1060,12 +1060,25 @@ the screen for nothing. It renders when the lane actually overflows.
 
 The timeline block measures **202px against 292** at 1280.
 
-**The eighth, ninth and tenth guards that pinned a marker.** The tenth was
-`drive-embedded.mjs`, which proved the editor had rendered by finding the
-word `TIMELINE` — the same word, in a second file, found by the sweep rather
-than by the drive I was editing. Its `screen()` helper now takes an optional
-selector, and the Produce Compose line asserts the timeline COMPONENT is
-present. Pointing it at a selector that does not exist fails it.
+**Four marker guards, broken by one deleted caption.** The word `TIMELINE`
+was load-bearing in four assertions across three files, and each of those
+four had already been rewritten once for exactly the same reason — they used
+to read `Editor`, or `Frame size`, and those were cut as the screen improved.
+
+| File | Proved | Now |
+|---|---|---|
+| `drive-studio.mjs` | the editor rendered | the timeline element and its lanes |
+| `drive-studio.mjs` | a new clip is selected (by finding `Remove`) | the inspector's `Length` row and the toolbar's live `Delete` |
+| `drive-embedded.mjs` | the editor rendered | `screen()` takes a selector now; the component must be present |
+| `drive-produce-access.mjs` | the editor rendered, **and that it does not leak to a client** | the component present, and absent |
+
+The last one is the dangerous shape and it has now gone silently green twice:
+a NEGATIVE written against a word passes the moment that word is deleted, for
+a client, for a visitor and for a blank page alike. Both halves were checked
+by pointing them at a selector that gives the wrong answer.
+
+Two of the four were found by the full sweep rather than by the drive being
+edited, which is the argument for running all 26 every time.
 
  One asserted the word
 `TIMELINE` was on the page to prove the editor had rendered; that caption is
