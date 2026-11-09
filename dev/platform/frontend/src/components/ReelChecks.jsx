@@ -91,7 +91,15 @@ function Evidence({ outcome }) {
 }
 
 export default function ReelChecks({ timings = [], edit = {}, defaultOpen = false,
-  clientId = null }) {
+  clientId = null,
+  // Reports the verdict upward, so the one line that answers "is this any
+  // good" can also be drawn where it is never in a scroll — the top bar.
+  // The alternative was for the bar to call `checkReel` itself, which would
+  // be a second implementation of the verdict that quietly disagrees with
+  // this one the first time either side changes: this panel merges the
+  // client's tracked terms into the edit before judging, and a bar that did
+  // not would show a different count from the list underneath it.
+  onResult = null }) {
   // VERDICT FIRST. `open` means "show the reasoning", for every check at
   // once; `expanded` is the one check somebody asked about.
   //
@@ -133,6 +141,15 @@ export default function ReelChecks({ timings = [], edit = {}, defaultOpen = fals
       .catch(() => {});
     return () => { live = false; };
   }, [clientId]);
+
+  // `result` is a useMemo, so this fires when the verdict changes rather
+  // than on every render.
+  useEffect(() => {
+    if (!onResult) return;
+    const worst = result.checks.some((c) => c.pass === false) ? 'fail'
+      : result.checks.some((c) => c.pass === null) ? 'unknown' : 'pass';
+    onResult({ passed: result.passed, total: result.total, unknown: result.unknown, worst });
+  }, [result, onResult]);
 
   const outcomeFor = (key) => (learned?.checks || []).find((c) => c.key === key) || null;
 

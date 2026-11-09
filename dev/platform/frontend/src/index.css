@@ -2558,6 +2558,37 @@ a:hover > .card-stat,
    than making the page taller. */
 .studio-inspector { min-height: 0; overflow-y: auto; }
 .studio-bottom { flex: none; min-height: 0; }
+/* Sized by the splitter: the timeline keeps the height it was given and
+   scrolls its own lanes inside it, rather than growing into the picture one
+   track at a time. */
+.studio-bottom.is-sized { min-height: 0; overflow-y: auto; }
+
+/* The splitter.
+   8px of hit area around a 2px line, because a 2px target is a target you
+   miss. The line only shows on hover, focus or drag: a permanent rule
+   between two panels that already have borders is a third border. */
+.studio-splitter {
+  height: 8px;
+  flex: none;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  border-radius: var(--r-pill);
+}
+.studio-splitter-grip {
+  display: block;
+  width: 64px;
+  height: 2px;
+  border-radius: var(--r-pill);
+  background: transparent;
+  transition: background 120ms ease;
+}
+.studio-splitter:hover .studio-splitter-grip,
+.studio-splitter:active .studio-splitter-grip { background: var(--card-border); }
+.studio-splitter:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.studio-splitter:focus-visible .studio-splitter-grip { background: var(--accent); }
 
 
 /* The Studio's stage: the picture, and nothing else in the row with it.

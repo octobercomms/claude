@@ -1666,6 +1666,232 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 26. The splitter ─────────────────────────────────────────────────────
+//
+// The timeline is content-sized, here and in the mockup — which only looks
+// settled because the mockup draws exactly six lanes. Each lane costs 52px,
+// so a reel grows a track and the picture shrinks. Daniel's call was a
+// splitter rather than a fixed cap: the operator decides, once, and the
+// browser remembers.
+//
+// Every assertion here is geometric and most are about what must NOT happen,
+// because the failures of a draggable divider are all of that shape: the page
+// starts scrolling, the timeline eats the picture, or the preference is lost.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(800);
+
+  const read = () => p.evaluate(() => {
+    const tl = document.querySelector('.studio-bottom');
+    const c = document.querySelector('canvas');
+    const sp = document.querySelector('[data-testid="studio-splitter"]');
+    return {
+      timeline: tl ? Math.round(tl.getBoundingClientRect().height) : null,
+      timelineContent: tl ? tl.scrollHeight : null,
+      picture: c ? Math.round(c.getBoundingClientRect().width) : null,
+      splitterY: sp ? Math.round(sp.getBoundingClientRect().y) : null,
+      role: sp ? sp.getAttribute('role') : null,
+      orientation: sp ? sp.getAttribute('aria-orientation') : null,
+      focusable: sp ? sp.tabIndex >= 0 : false,
+      docScrolls: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+    };
+  });
+  const drag = async (dy) => {
+    const b = await p.locator('[data-testid="studio-splitter"]').boundingBox();
+    await p.mouse.move(b.x + 400, b.y + 4);
+    await p.mouse.down();
+    await p.mouse.move(b.x + 400, b.y + 4 + dy, { steps: 10 });
+    await p.mouse.up();
+    await p.waitForTimeout(350);
+  };
+
+  const start = await read();
+  say(start.role === 'separator' && start.orientation === 'horizontal' && start.focusable,
+    'the splitter is a separator a keyboard can reach',
+    `role ${start.role}, orientation ${start.orientation}, focusable ${start.focusable}`);
+
+  await drag(-180);
+  const taller = await read();
+  say(taller.timeline > start.timeline + 100 && taller.picture < start.picture,
+    'dragging it up gives the timeline room and takes it from the picture',
+    `timeline ${start.timeline} → ${taller.timeline}, picture ${start.picture} → ${taller.picture}`);
+  say(!taller.docScrolls, 'and the page still does not scroll');
+
+  // The preference, through a reload. A splitter nobody's browser remembers
+  // is a splitter they drag every morning.
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForTimeout(1200);
+  const reloaded = await read();
+  say(Math.abs(reloaded.timeline - taller.timeline) <= 2,
+    'and the browser remembers where it was left',
+    `${taller.timeline} before the reload, ${reloaded.timeline} after`);
+
+  // Shrunk below its own content, the TIMELINE scrolls — not the page. This
+  // is the whole point of a sized row: the lanes go inside it.
+  await drag(300);
+  const small = await read();
+  say(small.timeline < small.timelineContent,
+    'squeezed small, the timeline scrolls its own lanes',
+    `a ${small.timeline}px box over ${small.timelineContent}px of tracks`);
+  say(!small.docScrolls, 'and still the page does not');
+  say(small.picture > taller.picture,
+    'and the picture takes back what the timeline gave up',
+    `${taller.picture} → ${small.picture}`);
+
+  // Both floors. Dragged past either end, the thing at that end survives.
+  await drag(400);
+  const floorTl = await read();
+  say(floorTl.timeline >= 130,
+    'it cannot squeeze the timeline below its toolbar, ruler and one lane',
+    `${floorTl.timeline}px`);
+  await drag(-2000);
+  const floorPic = await read();
+  say(floorPic.picture > 100,
+    'nor take the picture down to a thumbnail',
+    `${floorPic.picture}px wide; at a 160px floor this measured 68`);
+  say(!floorPic.docScrolls, 'and neither extreme makes the page scroll');
+
+  // Keyboard, and the reset.
+  await p.locator('[data-testid="studio-splitter"]').focus();
+  await p.keyboard.press('Home');
+  await p.waitForTimeout(300);
+  const home = await read();
+  say(Math.abs(home.timeline - home.timelineContent) <= 2,
+    'Home gives the timeline back to its own content',
+    `${home.timeline}px box, ${home.timelineContent}px of content`);
+  await p.keyboard.press('ArrowUp');
+  await p.keyboard.press('ArrowUp');
+  await p.waitForTimeout(300);
+  const arrowed = await read();
+  say(arrowed.timeline > home.timeline,
+    'and the arrow keys move it, so it is not a mouse-only control',
+    `${home.timeline} → ${arrowed.timeline}`);
+
+  // A press that moves nothing changes nothing. Asserted on its own, from a
+  // dragged state, because it is both the behaviour anybody expects from a
+  // separator and the precondition for the reset below: a click that commits
+  // the height under the pointer shifts the handle a few pixels, and the
+  // second press of a double-click then lands on the timeline instead of the
+  // handle, so the reset never fires.
+  await drag(-150);
+  const beforeTap = await read();
+  const tapAt = await p.locator('[data-testid="studio-splitter"]').boundingBox();
+  await p.mouse.click(tapAt.x + 400, tapAt.y + 4);
+  await p.waitForTimeout(300);
+  const afterTap = await read();
+  say(afterTap.timeline === beforeTap.timeline,
+    'pressing the splitter without moving it changes nothing',
+    `${beforeTap.timeline}px before the click, ${afterTap.timeline}px after`);
+
+  // Two presses in quick succession reset it. This is detected in
+  // pointerdown rather than with onDoubleClick, because preventDefault on
+  // pointerdown — which the drag needs, or it selects the whole page —
+  // suppresses the click and dblclick that would follow. The handler was
+  // bound and never once fired.
+  const sp = await p.locator('[data-testid="studio-splitter"]').boundingBox();
+  await p.mouse.dblclick(sp.x + 400, sp.y + 4);
+  await p.waitForTimeout(400);
+  const reset = await read();
+  say(Math.abs(reset.timeline - reset.timelineContent) <= 2,
+    'and a double-click fits it to its tracks again',
+    `${reset.timeline}px box, ${reset.timelineContent}px of content — `
+    + 'this returned the height of the second click until a press that moves '
+    + 'nothing stopped committing one');
+  await p.close();
+}
+
+// ── 27. The verdict is in the bar ────────────────────────────────────────
+//
+// Reel checks are the inspector's last group, which is where the mockup puts
+// them. That is right for the detail and wrong for the ANSWER: select a clip
+// and the heading sits 832px into a 654px panel, so the one line that says
+// whether the reel is any good is off screen on the screen that exists to
+// give it.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(800);
+
+  const state = () => p.evaluate(() => {
+    const insp = document.querySelector('.studio-inspector');
+    const head = [...insp.querySelectorAll('span')]
+      .find((e) => /^Reel checks/i.test(e.textContent.trim()));
+    const ib = insp.getBoundingClientRect();
+    const hb = head ? head.getBoundingClientRect() : null;
+    const chip = document.querySelector('[data-testid="verdict-chip"]');
+    const stage = document.querySelector('.studio-stage');
+    return {
+      chip: chip ? chip.innerText.replace(/\s+/g, ' ') : null,
+      chipAboveTheWork: !!(chip && stage
+        && chip.getBoundingClientRect().bottom <= stage.getBoundingClientRect().top + 1),
+      panelCount: head ? head.innerText.replace(/\s+/g, ' ') : null,
+      headVisible: !!(hb && hb.top >= ib.top - 1 && hb.bottom <= ib.bottom + 1),
+      headOffset: hb ? Math.round(hb.top - ib.top + insp.scrollTop) : null,
+      panelHeight: insp.clientHeight,
+      scrollTop: Math.round(insp.scrollTop),
+      focused: null,
+    };
+  });
+
+  const first = await state();
+  say(!!first.chip && first.chipAboveTheWork,
+    'the verdict is in the bar, above the work',
+    `chip read "${first.chip}"`);
+
+  // ONE computation, not two. The bar could have called `checkReel` itself;
+  // it would then disagree with the panel the first time either side changed,
+  // and this panel merges the client's tracked terms into the edit before
+  // judging. The numbers are compared rather than assumed.
+  // Case-insensitive, because the panel's heading is uppercased in CSS and
+  // its innerText comes back "6 OF 10". The numbers were right and the
+  // matcher was wrong, which is its own small lesson about reading rendered
+  // text instead of state.
+  const nums = (t) => (t || '').match(/(\d+)\s+of\s+(\d+)/i);
+  const chipN = nums(first.chip);
+  const panelN = nums(first.panelCount);
+  say(!!chipN && !!panelN && chipN[1] === panelN[1] && chipN[2] === panelN[2],
+    'and it is the panel\'s own count, not a second opinion',
+    `bar "${first.chip}" against panel "${first.panelCount}"`);
+
+  // Why it earns the room. Select a clip — the first thing anyone does — and
+  // the group goes under the fold.
+  const hit = await p.evaluate(() => {
+    const tl = document.querySelector('[data-testid="composition-timeline"]');
+    const label = [...tl.querySelectorAll('div')]
+      .find((d) => d.textContent.trim() === 'atlas-walkthrough.mp4' && d.style.fontWeight === '700');
+    let el = label;
+    for (let i = 0; i < 6 && el; i++) {
+      if (getComputedStyle(el).position === 'absolute'
+        && el.getBoundingClientRect().width > 20) {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+      el = el.parentElement;
+    }
+    return null;
+  });
+  if (hit) { await p.mouse.click(hit.x, hit.y); await p.waitForTimeout(500); }
+  const selected = await state();
+  say(hit && !selected.headVisible && !!selected.chip,
+    'and with a clip selected the group is below the fold while the bar is not',
+    `the heading sits ${selected.headOffset}px into a ${selected.panelHeight}px panel`);
+
+  // Clicking it takes you there, and takes the keyboard with it.
+  await p.locator('[data-testid="verdict-chip"]').click();
+  await p.waitForTimeout(900);
+  const after = await state();
+  const landedOn = await p.evaluate(() =>
+    document.activeElement ? document.activeElement.getAttribute('data-check') : null);
+  say(after.scrollTop > selected.scrollTop + 100 && after.headVisible,
+    'clicking it scrolls the inspector to the checks',
+    `scrollTop ${selected.scrollTop} → ${after.scrollTop}, heading visible ${after.headVisible}`);
+  say(!!landedOn,
+    'and leaves the keyboard on the first check rather than back in the bar',
+    `focus is on ${landedOn || 'nothing in the list'}`);
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();

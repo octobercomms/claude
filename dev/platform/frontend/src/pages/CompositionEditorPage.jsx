@@ -122,6 +122,11 @@ function InspectorGroup({ title, children }) {
   );
 }
 
+// Where the operator's own split between picture and timeline is kept. Per
+// browser, not per reel: it is a preference about this screen, and a person
+// who wants a tall timeline wants it on the next reel too.
+const TIMELINE_H_KEY = 'omi.studio.timelineHeight';
+
 export default function CompositionEditorPage({
   clientId, clientName = null, openId = null, onOpen = null,
 }) {
@@ -1345,6 +1350,141 @@ export default function CompositionEditorPage({
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo, handleSplitItem, handleRemoveItem, seekBy]);
 
+  // ── The verdict, for the bar ──────────────────────────────────────
+  //
+  // Reel checks are the last group of the inspector, which is where the
+  // mockup puts them and where they belong: the detail is reference, not a
+  // running read-out. But the one LINE that answers "is this any good" was
+  // then 348px down a column that scrolls, and on a short window it is below
+  // the fold. Daniel's call: the line goes in the bar beside the save state,
+  // coloured by the worst check, and clicking it takes you to the group.
+  //
+  // It is reported by the panel rather than recomputed here. See `onResult`.
+  const [verdict, setVerdict] = useState(null);
+  const onChecksResult = useCallback((r) => {
+    setVerdict((prev) => (prev && prev.passed === r.passed && prev.total === r.total
+      && prev.unknown === r.unknown && prev.worst === r.worst ? prev : r));
+  }, []);
+
+  const goToChecks = useCallback(() => {
+    const el = document.querySelector('[data-studio-checks]');
+    if (!el) return;
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    // Focus the first check, so the keyboard lands where the eye does. A
+    // scroll that leaves focus in the bar makes the next Tab jump back.
+    const first = el.querySelector('[data-check]');
+    if (first) first.focus({ preventScroll: true });
+  }, []);
+
+  // ── The splitter ──────────────────────────────────────────────────
+  //
+  // The timeline is content-sized, here and in the mockup, which only looks
+  // settled because the mockup draws exactly six lanes. Measured: each lane
+  // costs 52px, so a reel grows a track and the picture shrinks — an editor
+  // whose picture resizes when you add a track is an editor you stop
+  // trusting.
+  //
+  // Daniel's call: a splitter rather than a fixed cap. It costs about the
+  // same, every editing application has one, and it settles the
+  // picture-against-timeline argument without either of us having to be
+  // right about it in advance. Dragged once, the preference is remembered
+  // for this browser; double-click gives the timeline back to its content.
+  // Both floors are measured rather than chosen. 132px of timeline is the
+  // toolbar, the ruler and one lane: below that the thing you work in is not
+  // on the screen. 240px of picture ROW is the one that had to be corrected:
+  // at 160 the clamp held and the picture was 68px wide, because the row's
+  // height buys a 9:16 picture nine-sixteenths of itself. 240 gives about
+  // 135px, which is small but is the operator's own choice to drag to.
+  const MIN_TIMELINE = 132;
+  const MIN_PICTURE = 240;
+  const shellRef = useRef(null);
+  const [timelineH, setTimelineH] = useState(() => {
+    try {
+      const v = Number(window.localStorage.getItem(TIMELINE_H_KEY));
+      return Number.isFinite(v) && v >= MIN_TIMELINE ? v : null;
+    } catch { return null; }
+  });
+
+  // Clamped against the WINDOW rather than against a number, because the
+  // same preference has to survive a 900px laptop and a 1400px monitor.
+  const clampTimeline = useCallback((h) => {
+    const shell = shellRef.current;
+    if (!shell) return Math.max(MIN_TIMELINE, h);
+    const bar = shell.querySelector('.studio-bar');
+    const room = shell.clientHeight - (bar ? bar.offsetHeight : 0) - 24;
+    const most = Math.max(MIN_TIMELINE, room - MIN_PICTURE);
+    return Math.max(MIN_TIMELINE, Math.min(h, most));
+  }, []);
+
+  const commitTimelineH = useCallback((h) => {
+    const v = h == null ? null : clampTimeline(h);
+    setTimelineH(v);
+    try {
+      if (v == null) window.localStorage.removeItem(TIMELINE_H_KEY);
+      else window.localStorage.setItem(TIMELINE_H_KEY, String(Math.round(v)));
+    } catch { /* a private window is not a reason to break the drag */ }
+  }, [clampTimeline]);
+
+  // The double-click is detected HERE rather than with an `onDoubleClick`,
+  // and the reason is worth keeping: `preventDefault` on pointerdown — which
+  // this needs, or a drag selects the text of the whole page — suppresses the
+  // compatibility click and dblclick that would follow. The handler was
+  // written, bound and never once fired; measured, a double-click left the
+  // timeline at the height of the second click instead of resetting it.
+  const lastDownRef = useRef(-1e9);
+  const onSplitterDown = useCallback((e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    const gap = e.timeStamp - lastDownRef.current;
+    lastDownRef.current = e.timeStamp;
+    if (gap < 400) { commitTimelineH(null); return; }
+    const shell = shellRef.current;
+    if (!shell) return;
+    const bottom = shell.getBoundingClientRect().bottom;
+    const startY = e.clientY;
+    let moved = false;
+    const move = (ev) => {
+      if (!moved && Math.abs(ev.clientY - startY) < 2) return;
+      moved = true;
+      setTimelineH(clampTimeline(bottom - ev.clientY));
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      // A click that moves nothing changes nothing. Without this the first
+      // half of a double-click committed the height under the pointer, which
+      // moved the handle a few pixels — and the second half then landed on
+      // the timeline instead of the handle, so the reset never fired. It also
+      // happens to be right on its own terms: pressing a separator is not an
+      // instruction to resize it.
+      if (!moved) return;
+      // Written once, at the end. Persisting every frame of a drag writes to
+      // localStorage sixty times a second for one decision.
+      commitTimelineH(bottom - ev.clientY);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }, [clampTimeline, commitTimelineH]);
+
+  const onSplitterKey = useCallback((e) => {
+    // A separator that only a mouse can move is a separator half the people
+    // using this cannot move at all. Shift moves by a lane.
+    const step = e.shiftKey ? 52 : 8;
+    const now = timelineH != null ? timelineH
+      : (shellRef.current?.querySelector('.studio-bottom')?.offsetHeight || MIN_TIMELINE);
+    if (e.key === 'ArrowUp') { e.preventDefault(); commitTimelineH(now + step); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); commitTimelineH(now - step); }
+    else if (e.key === 'Home' || e.key === 'Escape') { e.preventDefault(); commitTimelineH(null); }
+  }, [timelineH, commitTimelineH]);
+
+  // A window that shrinks must not leave the timeline taller than the room.
+  useEffect(() => {
+    if (timelineH == null) return undefined;
+    const onResize = () => setTimelineH((h) => (h == null ? h : clampTimeline(h)));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [timelineH, clampTimeline]);
+
   // ── Render ────────────────────────────────────────────────────────
 
   if (loading) {
@@ -1379,7 +1519,13 @@ export default function CompositionEditorPage({
      * mockup has been built this way from its first draft, and every
      * geometric difference between the two screens was downstream of this
      * one thing. */
-    <div className="studio-shell"
+    <div className="studio-shell" ref={shellRef}
+      style={{
+        // Four rows once the splitter is in: the bar, the work, the handle,
+        // the timeline. The timeline stays `auto` until somebody drags it,
+        // so the default screen is exactly the one that shipped.
+        gridTemplateRows: `auto minmax(0, 1fr) auto ${timelineH != null ? `${Math.round(timelineH)}px` : 'auto'}`,
+      }}
       onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
       {/* ── The top bar ──────────────────────────────────────────────
@@ -1470,6 +1616,26 @@ export default function CompositionEditorPage({
             <span className="body-xs text-subtle" style={{ flexShrink: 0 }}>
               {saveStatus === 'saved' ? 'Saved' : 'Saving…'}
             </span>
+            {/* The verdict, where it is never in a scroll. One line, coloured
+                by the worst check, and it takes you to the group rather than
+                repeating it: a bar that listed the failures would be the
+                second copy of a list that is already on the screen. */}
+            {verdict && verdict.total > 0 && (
+              <button type="button" className="btn-chip" data-testid="verdict-chip"
+                onClick={goToChecks}
+                title="Reel checks — click to read them"
+                style={{
+                  flexShrink: 0,
+                  borderColor: verdict.worst === 'fail' ? 'var(--warning)'
+                    : verdict.worst === 'pass' ? 'var(--positive)' : 'var(--card-border)',
+                  color: verdict.worst === 'fail' ? 'var(--warning)'
+                    : verdict.worst === 'pass' ? 'var(--positive)' : 'var(--text-subtle)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                {verdict.passed} of {verdict.total}
+                {verdict.unknown ? ` · ${verdict.unknown} not yet` : ''}
+              </button>
+            )}
           </div>
         </div>
 
@@ -2049,6 +2215,7 @@ export default function CompositionEditorPage({
                   timings={allTimings}
                   edit={reelEdit}
                   clientId={clientId}
+                  onResult={onChecksResult}
                 />
               </div>
             )}
@@ -2058,7 +2225,26 @@ export default function CompositionEditorPage({
         </div>
       </div>
 
-          <div className="studio-bottom">
+          {/* The handle. `separator` with an orientation and a value is what
+              makes it a control rather than a decorated border: a screen
+              reader announces it, and the arrow keys move it. */}
+          <div
+            className="studio-splitter"
+            data-testid="studio-splitter"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Drag to divide the picture and the timeline"
+            tabIndex={0}
+            onPointerDown={onSplitterDown}
+            onKeyDown={onSplitterKey}
+            title={timelineH != null
+              ? 'Drag to resize. Double-click to fit the timeline to its tracks.'
+              : 'Drag to give the timeline more room'}
+          >
+            <span className="studio-splitter-grip" aria-hidden="true" />
+          </div>
+
+          <div className={`studio-bottom${timelineH != null ? ' is-sized' : ''}`}>
             <CompositionTimeline
               composition={composition}
               onChange={setComposition}
