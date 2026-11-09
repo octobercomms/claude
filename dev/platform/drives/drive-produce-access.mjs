@@ -48,7 +48,10 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
   const links = await p.$$eval('a[href]', as => as.map(a => a.getAttribute('href')).filter(h => /\/produce$/.test(h)));
   say(links.length > 0, 'the agency still has Produce in the rail');
   const t = await text(p);
-  say(/Frame size/i.test(t), 'and the Studio still opens');
+  // TIMELINE, not "Frame size": that label was cut on 9 November when the
+  // frame became a sentence, and this assertion would have gone green-to-red
+  // on an improvement. The timeline is what makes this the editor.
+  say(/TIMELINE/i.test(t), 'and the Studio still opens');
   say(!/Produce is for the agency/.test(t), 'and is not shown the client notice');
   await p.close();
 }
@@ -77,7 +80,10 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
       // diagnostic that matters is what WAS on the page.
       /Produce is for the agency/.test(t) ? '' : `page read: "${t.slice(0, 200)}"`);
     // The specific failure: a blank content area under a lit nav.
-    say(!/Frame size/i.test(t), `${path} does not leak the editor`);
+    // The negative half of the same marker, and the more dangerous one: with
+    // "Frame size" gone this passed for a client, for a visitor, and for a
+    // blank page alike. A guard that cannot fail is not a guard.
+    say(!/TIMELINE/i.test(t), `${path} does not leak the editor`);
     await p.close();
   }
 }
