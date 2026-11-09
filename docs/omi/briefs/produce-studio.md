@@ -673,6 +673,32 @@ claim: one required the literal `accept={CLIP_ACCEPT}`, and one identified
 cuts removed on purpose. The second now matches the timeline, which is the
 editor's one irreducible part.
 
+## Built, 9 November: one inspector
+
+The timeline carried its own selected-item strip, which was a second
+inspector 700px below the first. It is gone, and its three controls are not:
+transition, opacity and fit moved into the inspector FIRST, which is the only
+reason the strip could be deleted. `trans:` appeared in exactly two lines of
+JSX in the whole frontend and both were in that strip, so a cut without a
+rehome would have taken dissolves out of the product. The review was right to
+call this a move.
+
+**The fault it fixes.** The two inspectors disagreed about volume: one 0–4,
+the other 0–2 with a `Math.min(2, …)` clamp, for the same number on the same
+item. A clip set to 3.5 in one read as 2 in the other, and touching the lower
+slider wrote the clamped value back. There is now one volume slider at the
+model's own bound, and the browser confirms exactly two range inputs on the
+page — volume at 4 and opacity at 1.
+
+**One vocabulary.** The inspector said Cover and Contain; the timeline said
+Fill frame and Letterbox. Same two values, both reachable in one sitting. It
+now says what happens to the picture rather than what the CSS is called.
+
+**A sixth guard, and this one I wrote and broke within the hour.** The shelf
+assertion checked for the word "SELECTED", which was the caption of the strip
+this change deletes. The claim was that the new item is selected; it now reads
+the inspector's own Length and Remove, which render only when something is.
+
 ## Faults found while auditing, worth fixing in passing
 
 - **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is

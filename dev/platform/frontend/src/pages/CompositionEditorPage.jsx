@@ -4,7 +4,7 @@ import CompositionTimeline from '../components/video/CompositionTimeline';
 import {
   emptyComposition, addSource, addTrack, addItem, removeItem,
   updateItem, duration as compDuration,
-  rippleRemoveItem, isStillMime, CLIP_ACCEPT,
+  rippleRemoveItem, isStillMime, CLIP_ACCEPT, TRANSITION_TYPES,
 } from '@shared/composition.mjs';
 import {
   MOTION_NAMES, transformFor, describeMotion, STILL_DEFAULT_LEN,
@@ -1349,23 +1349,9 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
                   )}
 
                   {selectedSource?.kind === 'design' && (
-                    <>
-                      <span className="body-xs text-muted">
-                        {selectedSource.width || '?'} x {selectedSource.height || '?'}
-                      </span>
-                      <select className="btn-chip"
-                        style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
-                        value={selectedItem.item.fit || 'contain'}
-                        onChange={(e) => {
-                          setComposition(prev =>
-                            updateItem(prev, selectedItem.track.id, selectedItem.item.id,
-                              { fit: e.target.value })
-                          );
-                        }}>
-                        <option value="contain">Contain</option>
-                        <option value="cover">Cover</option>
-                      </select>
-                    </>
+                    <span className="body-xs text-muted">
+                      {selectedSource.width || '?'} x {selectedSource.height || '?'}
+                    </span>
                   )}
                 </div>
 
@@ -1386,6 +1372,97 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
                     }}
                   />
                 </div>
+
+                {/* Transition, opacity and fit, moved here from the timeline's
+                    own selected-item strip on 9 November.
+                    The design review was right that this is a MOVE and not a
+                    cut: `trans:` appeared in exactly two lines of JSX in the
+                    whole frontend, both inside that strip, and it held the
+                    only opacity and fit controls a clip had. Deleting the
+                    strip without rehoming them would have removed dissolves
+                    from the product.
+                    One inspector, in one order, is also the point. The strip
+                    was a second inspector 700px below the first, and the two
+                    disagreed: both carried a volume slider, one 0–4 and one
+                    0–2 with a clamp, for the same number. */}
+                {selectedItem.track.kind === 'video' && (() => {
+                  const items = selectedItem.track.items;
+                  const idx = items.findIndex(i => i.id === selectedItem.item.id);
+                  // A transition is between this item and the one before it,
+                  // so the first item on a track has nothing to transition
+                  // from and is offered nothing.
+                  if (idx <= 0) return null;
+                  const current = selectedItem.item.trans?.type || 'cut';
+                  const LABEL = {
+                    cut: 'Cut', fade: 'Fade', fadeblack: 'Via black',
+                    wipeleft: 'Wipe', dissolve: 'Dissolve',
+                  };
+                  return (
+                    <div style={{ marginTop: 'var(--s3)' }}>
+                      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                        Transition in
+                      </div>
+                      <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                        {['cut', ...TRANSITION_TYPES].map(t => (
+                          <button key={t} type="button"
+                            className={`btn-chip${current === t ? ' is-active' : ''}`}
+                            onClick={() => setComposition(prev => updateItem(
+                              prev, selectedItem.track.id, selectedItem.item.id,
+                              { trans: t === 'cut' ? null : { type: t } },
+                            ))}>
+                            {LABEL[t] || t}
+                          </button>
+                        ))}
+                      </div>
+                      {current !== 'cut' && (
+                        <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
+                          Overlap the previous item to set its length.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Opacity and fit, for anything that draws a picture. */}
+                {(selectedSource?.kind === 'clip' || selectedSource?.kind === 'design') && (
+                  <>
+                    <div style={{ marginTop: 'var(--s3)' }}>
+                      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                        Opacity: {Math.round((selectedItem.item.opacity ?? 1) * 100)}%
+                      </div>
+                      <input type="range" min="0" max="1" step="0.05"
+                        value={selectedItem.item.opacity ?? 1}
+                        style={{ width: '100%', accentColor: 'var(--primary)' }}
+                        aria-label="Item opacity"
+                        onChange={(e) => setComposition(prev => updateItem(
+                          prev, selectedItem.track.id, selectedItem.item.id,
+                          { opacity: parseFloat(e.target.value) },
+                        ))}
+                      />
+                    </div>
+                    {/* One vocabulary. The timeline said "Fill frame" and
+                        "Letterbox"; the inspector said "Cover" and "Contain".
+                        Two names for two values, both reachable in one
+                        sitting. These are the words that say what happens to
+                        the picture rather than what the CSS is called. */}
+                    <div style={{ marginTop: 'var(--s3)' }}>
+                      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                        Fit
+                      </div>
+                      <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                        {[['cover', 'Fill frame'], ['contain', 'Letterbox']].map(([v, label]) => (
+                          <button key={v} type="button"
+                            className={`btn-chip${(selectedItem.item.fit || 'cover') === v ? ' is-active' : ''}`}
+                            onClick={() => setComposition(prev => updateItem(
+                              prev, selectedItem.track.id, selectedItem.item.id, { fit: v },
+                            ))}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Ducking toggle for audio track items */}
                 {selectedItem.track.kind === 'audio' && (() => {
