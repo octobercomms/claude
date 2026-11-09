@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, forwardRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sectionForPath, screenForPath, visibleGroups, slugOf, navCtx } from '../nav/sections';
 import { useAuth } from '../context/AuthContext';
+import NavIcon, { hasNavIcon } from '../nav/NavIcon';
 
 // The second panel — every destination in the current section, one click away.
 //
@@ -16,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 //
 // Contents live in nav/sections.js, not here, so there is one list to read and
 // one list for tests/sectionPanel.test.mjs to check against the pages.
-function SectionPanel({ navCollapsed, onToggleNav }, ref) {
+function SectionPanel({ navCollapsed, onToggleNav, icons = false }, ref) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -77,19 +78,33 @@ function SectionPanel({ navCollapsed, onToggleNav }, ref) {
         type="button"
         className={`sp-row${active ? ' is-active' : ''}`}
         aria-current={active ? 'page' : undefined}
+        title={icons ? row.label : undefined}
         onClick={() => go(row)}
       >
         {/* A vertical list cannot show order the way a strip can, so a genuine
             sequence says so. Decorative: the label alone is the accessible
             name, and the number is not part of it. */}
         {row.step && <span className="sp-step" aria-hidden="true">{row.step}</span>}
+        {icons && (
+          // A row with no glyph shows its first letter rather than an empty
+          // square: forgetting an icon must not make a screen unreachable.
+          <span className="sp-icon" aria-hidden="true">
+            {hasNavIcon(row.tab) ? <NavIcon name={row.tab} />
+              : <span className="sp-initial">{row.label.charAt(0)}</span>}
+          </span>
+        )}
+        {/* The label is always in the DOM. In icon mode it is clipped rather
+            than removed, so the row still has an accessible name and the
+            panel still reads as a list of screens to anything that is not
+            looking at it. */}
         <span className="sp-label">{row.label}</span>
       </button>
     );
   };
 
   return (
-    <aside ref={ref} className="section-panel" aria-label={`${section.title} sections`}>
+    <aside ref={ref} className={`section-panel${icons ? ' is-icons' : ''}`}
+      aria-label={`${section.title} sections`}>
       <div className="sp-head">
         <span className="sp-title">{section.title}</span>
         <button

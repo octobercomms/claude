@@ -174,6 +174,52 @@ button { font-family: inherit; }
   width: 0; min-width: 0; border-right: none; overflow: hidden;
 }
 
+/* ─── Focus mode: the shell steps back ──────────────────────────────
+   A screen can ask for the window. The Studio is an instrument built to a
+   mockup that gives the editor all 1440px, and the rail plus the section
+   panel are 340px of that before the Studio gets a pixel. Collapsed to icon
+   strips they are 112px, which hands 228px back to the work.
+
+   Icons rather than nothing: an editor that hides the way out teaches people
+   to distrust it, and the rail is also how you leave for another client.
+   Every label stays in the DOM and is clipped, never removed, so each row
+   keeps its accessible name and its tooltip. `nav/sections.js` decides which
+   screens these apply to. */
+.app-nav.is-icons {
+  width: 56px; min-width: 56px;
+}
+.app-nav.is-icons .app-nav-brand img { width: 28px; }
+.app-nav.is-icons .app-nav-brand .brand-sub,
+.app-nav.is-icons .nav-chip { display: none; }
+/* The footer is prose and two buttons, none of which fits 56px and none of
+   which is a destination. It comes back the moment the Studio is left, and
+   the client menu in the top bar carries the sign-out besides. */
+.app-nav.is-icons .app-nav-footer { display: none; }
+/* The labels are bare text nodes beside their icon, so they are collapsed
+   rather than wrapped in something that could be hidden. The glyph carries
+   its own px dimensions and is unaffected. */
+.app-nav.is-icons .app-nav-list a { font-size: 0; justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+.app-nav.is-icons .app-nav-list a svg { flex: none; }
+.app-nav.is-icons .app-nav-list ul,
+.app-nav.is-icons .app-nav-list div { padding-left: 0; margin-left: 0; }
+
+.section-panel.is-icons { width: 56px; }
+.section-panel.is-icons .sp-title,
+.section-panel.is-icons .sp-heading,
+.section-panel.is-icons .sp-step { display: none; }
+.section-panel.is-icons .sp-head { justify-content: center; padding-left: 0; padding-right: 0; }
+.section-panel.is-icons .sp-row {
+  justify-content: center; padding-left: 0; padding-right: 0; gap: 0;
+}
+.section-panel.is-icons .sp-icon { display: inline-flex; align-items: center; justify-content: center; }
+.section-panel.is-icons .sp-initial { font-size: var(--fs-caption); font-weight: 700; }
+/* Clipped, not removed: the row keeps its accessible name. */
+.section-panel.is-icons .sp-label {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.section-panel.is-icons .sp-group { margin-bottom: var(--s2); }
+
 .app-main {
   flex: 1; min-width: 0;
   padding: var(--s7) var(--s8);
