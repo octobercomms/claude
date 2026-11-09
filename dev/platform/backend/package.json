@@ -17,7 +17,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1109.0",
     "@remotion/bundler": "^4.0.0",
     "@remotion/renderer": "^4.0.0",
-    "archiver": "^8.0.0",
+    "archiver": "^7.0.1",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.0.0",
@@ -53,6 +53,10 @@
   "overrides": {
     "nodemailer": "^10.3.1",
     "zod": "^4.6.6",
-    "image-size": "^2.0.3"
+    "image-size": "^2.0.3",
+    "archiver": {
+      "glob": "^14.0.2",
+      "minimatch": "^11.0.1"
+    }
   }
 }

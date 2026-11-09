@@ -1,8 +1,8 @@
 # Backend dependency audit
 
-**Where it stands (31 Oct 2026): zero high or critical findings in the
+**Where it stands (9 Nov 2026): zero findings of any severity in the
 production tree.** It was 59 — 1 critical, 53 high, 5 moderate — on the
-morning of the Node 22 upgrade.
+morning of the Node 22 upgrade, and zero high or critical from 31 October.
 
 ```bash
 cd /opt/october-source/dev/platform/backend
@@ -55,6 +55,52 @@ thrown, nothing logged.
 conversion covering all six call sites, and `tests/pdf-buffer.test.js` guards
 it. That test measures the Express behaviour itself rather than asserting it,
 so the reason the conversion exists cannot decay into folklore.
+
+## archiver, 9 November 2026
+
+`archiver` went in at `^8.0.0` on 8 November with the extension-download
+route. It brought the whole of the `[G1]` finding with it — the production
+tree's only three moderate advisories were `minimatch ← readdir-glob ←
+archiver` — and it had never worked for a second reason: **archiver 8 is
+ESM-only**, exporting `Archiver`, `JsonArchive`, `TarArchive` and
+`ZipArchive` with no callable default, while the route is CommonJS and calls
+`archiver('zip', …)`. Every request threw `archiver is not a function`. Five
+500s in twenty-four hours, in the error digest, on a button nobody had
+clicked in testing.
+
+**Both majors carry a vulnerable `minimatch`, by different routes**, so
+`npm audit fix --force` flips between them for ever:
+
+| | chain | production moderate |
+|---|---|---|
+| archiver 8 | readdir-glob → minimatch | 3 |
+| archiver 7 | archiver-utils → glob → minimatch | 5 |
+
+So the version is the thing that stays and the transitive dependencies are
+what move. `archiver` is pinned to `^7.0.1`, the line whose API this codebase
+actually calls, and a **scoped** override under it takes glob past
+GHSA-3g3m-2fjr-6pw4 (9.0.0 – 14.0.1) and minimatch past GHSA-g3hv-75wg-m249
+(7.0.0 – 11.0.0):
+
+```json
+"overrides": { "archiver": { "glob": "^14.0.2", "minimatch": "^11.0.1" } }
+```
+
+Scoped rather than global on purpose. It reaches the nested copies under
+`archiver-utils` (glob 10.5.0 → 14.0.4, minimatch 9.0.9 → 11.0.5) and leaves
+nodemon's own minimatch alone, which is dev-only and already accepted below.
+The zod override had to be global because both trees carried the bad range;
+this one does not, and the narrower tool is the right one when it reaches.
+
+**Production tree: 0 critical, 0 high, 0 moderate, 0 low.**
+
+Checked the way this table asks for: `archiver-utils/file.js:65` calls
+`glob.sync(pattern, options)`, which glob 14 still exports, and
+`tests/archiver-contract.test.js` zips a real nested directory both ways the
+code touches — `directory()`, which is what the route calls, and `glob()`,
+which is the path that actually reaches the overridden glob — then reads the
+result back with `zipinfo` and `unzip -t` rather than trusting archiver's own
+report of success.
 
 ## Accepted, not fixed
 
