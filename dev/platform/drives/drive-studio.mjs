@@ -29,6 +29,25 @@ const open = async (path) => {
 };
 const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, ' ');
 
+// The lit row in the section panel, and something useful when there is not
+// one. A sweep run of this file reported `active row read ""` for the first
+// assertion while the three after it read correctly — the locator's own
+// failure, swallowed by a `.catch(() => '')`, which made a page that had not
+// finished loading look like a wrong nav state. It waits for the panel, then
+// for a lit row, and says which of the two is missing.
+const activeRow = async (p) => {
+  const panel = p.locator('.section-panel').first();
+  try { await panel.waitFor({ state: 'visible', timeout: 15000 }); }
+  catch { return '<the section panel never rendered>'; }
+  const lit = p.locator('.section-panel a[aria-current="page"], .section-panel .is-active').first();
+  try { await lit.waitFor({ state: 'attached', timeout: 15000 }); }
+  catch {
+    const rows = await p.locator('.section-panel a').allInnerTexts().catch(() => []);
+    return `<panel rendered with no lit row; it offers ${rows.join(' / ') || 'nothing'}>`;
+  }
+  return (await lit.innerText().catch(() => '<lit row unreadable>')).trim();
+};
+
 // ── 1. The three groups, and the row names ───────────────────────────────
 {
   const p = await open('/clients/c1/produce/studio');
@@ -64,8 +83,7 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
 // ── 2. The renamed row lights up on its own URL ──────────────────────────
 {
   const p = await open('/clients/c1/produce/studio');
-  const active = await p.locator('.section-panel a[aria-current="page"], .section-panel .is-active')
-    .first().innerText().catch(() => '');
+  const active = await activeRow(p);
   say(/Studio/i.test(active), 'Studio is the active row on /produce/studio',
     `active row read "${active}"`);
   await p.close();
@@ -103,8 +121,7 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
 // ── 4. Transcribe and Audio moved group without losing their URLs ────────
 for (const [slug, label] of [['transcribe', 'Transcribe'], ['audio', 'Audio'], ['library', 'Library']]) {
   const p = await open(`/clients/c1/produce/${slug}`);
-  const active = await p.locator('.section-panel a[aria-current="page"], .section-panel .is-active')
-    .first().innerText().catch(() => '');
+  const active = await activeRow(p);
   say(new RegExp(label, 'i').test(active), `/produce/${slug} lights up ${label}`,
     `active row read "${active}"`);
   await p.close();
@@ -134,8 +151,7 @@ for (const [asked, want, row] of [
 ]) {
   const p = await open(`/clients/c1/produce/${asked}`);
   const landed = new URL(p.url()).pathname.split('/').pop();
-  const active = await p.locator('.section-panel a[aria-current="page"], .section-panel .is-active')
-    .first().innerText().catch(() => '(none)');
+  const active = await activeRow(p);
   say(landed === want && new RegExp(row, 'i').test(active),
     `/produce/${asked} lands on /${want} with ${row} lit`,
     `url read /${landed}, active row "${active}"`);

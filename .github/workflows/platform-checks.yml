@@ -253,6 +253,17 @@ jobs:
       # step checks for it rather than assuming the install above worked.
       - name: Install ffmpeg for the render guards
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      # The Library drop target recorded a file's name, type and size and
+      # nothing about the picture, so a 90-second clip arrived on the timeline
+      # 3.2 seconds long — the editor's fallback length for a source with no
+      # duration. It probes footage ffmpeg makes here, because a stubbed
+      # ffprobe would have passed every day the bug existed: the route never
+      # called one.
+      - name: Guard — an uploaded file's real duration reaches its asset row
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the probe would have nothing real to read'; exit 1; }
+          node tests/media-probe.test.js
       - name: Guard — the playback remux actually unfragments the file
         run: |
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \

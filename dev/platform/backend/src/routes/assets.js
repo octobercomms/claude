@@ -20,6 +20,7 @@ const multer = require('multer');
 const scenes = require('../services/scenes');
 const silenceCut = require('../services/silenceCut');
 const reelOutcomes = require('../services/reelOutcomes');
+const { probeForRecord } = require('../services/mediaProbe');
 const brollRender = require('../services/brollRender');
 const { pathToFileURL } = require('url');
 const socialCaptionRender = require('../services/socialCaptionRender');
@@ -85,11 +86,24 @@ router.post('/clients/:clientId/assets/upload',
       const added = [];
       const failed = [];
       for (const f of req.files) {
+        // What the file is, read off the file. This route used to record a
+        // name, a mime type and a size, and nothing about the picture: no
+        // width, no height, no duration. The editor falls back to
+        // STILL_DEFAULT_LEN when a source carries no duration, so a
+        // 90-second clip dropped on the Library arrived on the timeline
+        // 3.2 seconds long and was silently truncated on render. The clip
+        // and audio uploads in routes/compose.js have always probed. This is
+        // the same probe, and it never throws: 25 files go up at a time and
+        // one unreadable header costs that file its duration, not the other
+        // 24 their row.
+        const probe = await probeForRecord(f.path
+          || path.join(UPLOAD_ROOT, clientId, f.filename), f.mimetype);
         const asset = await assets.record({
           client_id: clientId, source: 'upload', source_id: f.filename,
           title: f.originalname || f.filename,
           url: `/api/brand/file/${clientId}/${f.filename}`,
           mime: f.mimetype, bytes: f.size, created_by: req.user?.id || null,
+          width: probe.width, height: probe.height, duration_s: probe.duration_s,
           metadata: { uploaded: true, original_name: f.originalname },
         });
         // record() never throws, by design: a finished render must not be
