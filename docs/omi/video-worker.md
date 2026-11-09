@@ -54,9 +54,39 @@ add the keys for captions + the QA loop.
    cp .env.example .env   # PLATFORM_URL, WORKER_TOKEN, optional API keys
    npm start
    ```
-4. Keep it up with pm2/systemd (`pm2 start index.js --name video-worker`). Run
-   several with distinct `WORKER_ID` to scale — claims are SKIP LOCKED so
+4. Keep it up with pm2: `pm2 start ecosystem.config.js`, which names the
+   process `video-worker` and pins `TZ` to Europe/London — without it a Node
+   process on cloud Linux logs every timestamp an hour out during BST. Run
+   several with distinct `WORKER_ID` to scale; claims are SKIP LOCKED so
    workers never collide.
+
+## Deploying it
+
+**On the app box**, `update.sh` handles it: a step guarded on this directory's
+`.env` installs the dependencies and reloads `ecosystem.config.js`. Pointed at
+the file rather than the process name, so it starts the worker on a box that
+has never run it.
+
+**On its own box, nothing in this repo reaches it.** There is no `.env` on the
+app box to find, so the deploy skips it and says so. That box needs its own
+pull and reload:
+
+```bash
+cd /opt/october-source && git fetch origin main && git reset --hard origin/main
+cd dev/platform/worker && npm install --omit=dev
+pm2 reload ecosystem.config.js --update-env
+```
+
+Until that runs, a merge updates the source and the worker goes on running the
+old code. That is exactly what used to happen on every deploy: a fix to a stage
+appeared to ship and had not.
+
+**Composition renders do not run here.** They drain inside the backend process
+(`services/compositionRenderRunner.js`). The queue is `FOR UPDATE SKIP LOCKED`
+so a drainer on this box could join it without changing anything, but this
+worker reaches the platform over the `WORKER_TOKEN` API rather than Postgres,
+so it has no way to claim a `composition_renders` row. Until it does, a batch
+of thirty encodes shares the app box's CPU with the web app.
 
 ## Status / next
 - Slice 1 (#641): platform-side data model, project/clip/job queue, upload UI.

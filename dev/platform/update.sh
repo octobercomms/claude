@@ -138,6 +138,35 @@ else
   echo "==> nginx config unchanged — skipping reload."
 fi
 
+# ─── Video worker (the encode box) ──────────────────────────────────
+#
+# This step did not exist, and the gap was quiet in the worst way: a merge
+# touching `dev/platform/**` updated the source on the box and the worker went
+# on running the OLD CODE until somebody connected and restarted it by hand. A
+# fix to a stage appeared to ship and had not.
+#
+# Guarded on the worker's own `.env`, the same way the Shopify block is, so the
+# script stays safe on a box where the worker was never set up — including the
+# app box itself when the worker runs somewhere else. `pm2 reload` pointed at
+# the ecosystem file STARTS the process when it is not running and reloads it
+# when it is, so this is safe on first deploy as well as every one after.
+#
+# A worker on a DIFFERENT box is not reached by this and cannot be: there is
+# no `.env` here to find. That box needs its own deploy, and
+# `docs/omi/video-worker.md` says so rather than leaving it to be discovered.
+WORKER_DIR="$SOURCE_DIR/dev/platform/worker"
+if [ -f "$WORKER_DIR/.env" ]; then
+  echo "==> Installing video worker dependencies..."
+  cd "$WORKER_DIR"
+  npm install --omit=dev --silent
+
+  echo "==> Reloading video worker..."
+  pm2 reload "$WORKER_DIR/ecosystem.config.js" --update-env \
+    || echo "    WARNING: could not reload video-worker — check 'pm2 status'."
+else
+  echo "==> Skipping video worker deploy (no .env at $WORKER_DIR/.env)"
+fi
+
 # ─── Shopify app (October MI on omi.octobercomms.com) ──────────────
 # Skipped if the app's .env is missing (host not yet provisioned). Keeps
 # this script safe to run on a partially-set-up box.
@@ -165,7 +194,7 @@ fi
 
 echo ""
 echo "Done. $(date)"
-pm2 list --no-color | grep -E "october-platform|october-mi-shopify"
+pm2 list --no-color | grep -E "october-platform|october-mi-shopify|video-worker"
 }
 
 main "$@"; exit $?

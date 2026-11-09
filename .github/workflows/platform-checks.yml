@@ -496,6 +496,14 @@ jobs:
       # the lifetime of a streamed-down copy.
       - name: Guard — a recording can be edited, and its temp copy is let go
         run: node tests/recording-to-composition.test.js
+      # The quietest deploy fault there is: every check green, the commit on
+      # the box, and the fix in it not shipped. `update.sh` had no step for
+      # `dev/platform/worker/`, so the encode worker went on running the old
+      # code after every merge. An ecosystem config is a declaration that
+      # something runs forever, so the deploy has to know about it — add a
+      # third and this fails until it does.
+      - name: Guard — the deploy reaches every process that runs forever
+        run: node tests/deploy-reaches-workers.test.js
       # The spoken shape of a reference: hook, problem, solution, call to
       # action. The labelling is a model's, and it is CHECKED against the
       # transcript — a span covering no words, a solution before its problem,

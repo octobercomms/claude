@@ -1043,7 +1043,7 @@ the model changes and the template model.
 | 5 | The batch runner, fan-out, and the review sheet | 4 to 6 | The feature Daniel asked for |
 | 6 | The reference analyser | 4 to 6 | Turns ten reference reels into ten templates. Moved up: see below |
 | 7 | The QC gate | 2 to 3 | Needed before a batch runs unwatched twice |
-| 8 | The worker renders the composition model, **and `update.sh` learns to deploy it** | 3 to 5 | Moves thirty encodes off the app box. See the first trap |
+| 8 | The worker renders the composition model, **and `update.sh` learns to deploy it** | 3 to 5 | Moves thirty encodes off the app box. See the first trap. **Half done 9 November: the deploy reaches the worker. The renders have NOT moved onto it — see the trap** |
 | 9 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor. **Built 9 November: `.claude/skills/omi-composition/`, a generated JSON Schema, and a test that fails when either goes stale** |
 | 10 | The FX library, three to six effects | 4 to 6 | Nothing depends on it, so it goes late. **Built 9 November: the mechanism, three effects, the preview's copy of the mask** |
 | 11 | Spotlight and segmentation | 3 to 5 | The only genuinely hard effect. Last, and optional. **Half built 9 November: a spotlight that can be placed. Following a moving subject is three separate pieces of work and they are named** |
@@ -1431,6 +1431,35 @@ fails CI as a row that opens a blank screen.
 ---
 
 ## Traps
+
+> **Half closed, 9 November.** `update.sh` deploys the worker now: a step
+> guarded on `dev/platform/worker/.env`, installing its dependencies and
+> reloading it through a new `worker/ecosystem.config.js`. By the ecosystem
+> FILE rather than by name, because `pm2 reload video-worker` fails on a box
+> where the process has never been started while the file form starts it; and
+> with `|| echo WARNING` rather than bare, because `set -e` is on and a
+> worker that cannot reload must not take the backend's successful deploy with
+> it. `video-worker` is in the final status line too, which is what somebody
+> actually reads.
+>
+> `tests/deploy-reaches-workers.test.js` encodes the rule: an ecosystem config
+> is a declaration that something runs forever, so the deploy has to know
+> about it. Add a third and it fails until `update.sh` does. Four of its
+> assertions fail with the new step removed, which was checked rather than
+> assumed.
+>
+> **A worker on a different box is not reached by this and cannot be** — there
+> is no `.env` here to find. That box needs its own deploy, and
+> `video-worker.md` says so rather than leaving it to be discovered.
+>
+> **What did NOT move: composition renders still run in the backend process.**
+> The queue was built on `FOR UPDATE SKIP LOCKED` precisely so a second
+> drainer can join without changing anything, and the missing piece is only
+> that the worker talks to the platform over the `WORKER_TOKEN` API rather
+> than to Postgres — so it has no way to claim a `composition_renders` row
+> today. Until that exists, thirty encodes share the app box's CPU with the
+> web app, one at a time. That is the honest state of step 8's first half, and
+> it is a different change from this one.
 
 - **The deploy does not reach the video worker, so step 7 would ship nothing.**
   `update.sh` installs and reloads the backend (`october-platform`), builds the
