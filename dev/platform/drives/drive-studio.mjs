@@ -103,17 +103,20 @@ const activeRow = async (p) => {
   // And neither is the section default by accident: Library is what you get
   // if the slug falls through, since defaultTab is compose — so check the
   // editor's own furniture is present rather than trusting the slug.
-  // Matched on the timeline, which is the editor's one irreducible part.
-  // This used to look for the card title "Editor" or the "Frame size" label,
-  // and both were cut on 9 November — the title named the screen you were
-  // already on, and the frame became a sentence. A marker chosen because it
-  // happened to be on screen breaks when the screen improves.
-  // Against the WHOLE page, not `tc`: that is the first 600 characters, kept
-  // short so the identity comparison above does not drown in the timeline's
-  // timecodes, and 600 characters of this app is still the nav rail.
-  const full = await text(c);
-  say(/TIMELINE/i.test(full), 'and it is the editor, not a fallback screen',
-    full.slice(0, 200));
+  // Matched on the timeline, which is the editor's one irreducible part —
+  // but on the ELEMENT, not on a word printed above it.
+  //
+  // This has now been written three ways. It looked for the card title
+  // "Editor", then for the "Frame size" label, then for the word TIMELINE in
+  // the page text, and each of those was cut in turn as the screen improved:
+  // the title named the screen you were already on, the frame became a
+  // sentence, and the caption was the third copy of the duration. Three
+  // markers, one claim. The claim is that the editor rendered, and the thing
+  // that cannot be true without it is the timeline component itself.
+  const hasTimeline = await c.locator('[data-testid="composition-timeline"]').count();
+  const hasLanes = await c.locator('text=V1').count();
+  say(hasTimeline > 0 && hasLanes > 0, 'and it is the editor, not a fallback screen',
+    `timeline elements: ${hasTimeline}, lanes: ${hasLanes}`);
   await a.close();
   await c.close();
 }
@@ -368,10 +371,23 @@ for (const [asked, want, row] of [
   // this repo to name a thing that happened to be on screen rather than the
   // claim.
   //
-  // The claim is that the inspector is pointed at the new item. Length and
-  // Remove are what the inspector renders only when something is selected.
-  say(/Length/.test(t) && /Remove/.test(t),
-    'and the new item is selected, so a camera move is one more click');
+  // The claim is that the editor is pointed at the new item. `Length` is an
+  // inspector row that renders only with a selection, and the toolbar's
+  // Delete is enabled only with one — two independent consequences of the
+  // claim rather than two names from the same screen.
+  //
+  // This is the NINTH guard in this repo to be written against a marker.
+  // `Remove` stood here until the toolbar took the gesture and the
+  // inspector's duplicate was deleted; the test would have failed on a
+  // change that made the product better, which is the whole pattern.
+  const deleteLive = await p.evaluate(() => {
+    const b = [...document.querySelectorAll('button')]
+      .find(x => x.textContent.trim() === 'Delete');
+    return !!b && !b.disabled;
+  });
+  say(/Length/.test(t) && deleteLive,
+    'and the new item is selected, so a camera move is one more click',
+    `Length in the inspector: ${/Length/.test(t)}, toolbar Delete live: ${deleteLive}`);
 
   await p.close();
 }
@@ -863,6 +879,208 @@ for (const [asked, want, row] of [
     + 'explicitly ignored shifted arrows, so it had never once worked');
 
   await p.close();
+}
+
+// ── 16. The timeline has a toolbar ───────────────────────────────────────
+//
+// Step 4. Until now the only controls that acted on the timeline were in the
+// inspector's header, and measured at 1440x900 with the timeline scrolled
+// into view every one of them sat at y = -301. At 1280 the inspector's
+// Remove was at y = -86 and the Delete key did nothing, so THERE WAS NO
+// REACHABLE WAY TO DELETE A CLIP.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1280, height: 800 });
+  await p.waitForTimeout(900);
+  const btn = (label) => p.locator('button', { hasText: new RegExp(`^${label}$`) }).first();
+  const state = async () => p.evaluate(() => {
+    const b = (t) => [...document.querySelectorAll('button')]
+      .find(x => x.textContent.trim() === t);
+    const box = (e) => (e ? (({ x, y, width }) => ({
+      x: Math.round(x), y: Math.round(y), w: Math.round(width),
+    }))(e.getBoundingClientRect()) : null);
+    const tl = document.querySelector('[data-testid="composition-timeline"]');
+    return {
+      split: !!b('Split'), delete: !!b('Delete'),
+      splitOff: b('Split')?.disabled, deleteOff: b('Delete')?.disabled,
+      splitBox: box(b('Split')), undoBox: box(b('\u21a9')),
+      timeline: tl ? Math.round(tl.getBoundingClientRect().height) : null,
+      remove: !!b('Remove'), ripple: !!b('Ripple'),
+      caption: /\d tracks · \d\d:/.test(document.body.innerText),
+      prose: /alt-arrows trim/.test(document.body.innerText),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+
+  let st = await state();
+  say(st.split && st.delete, 'Split and Delete are on the timeline');
+  say(st.splitOff && st.deleteOff, 'and both are off with nothing selected',
+    `split ${st.splitOff}, delete ${st.deleteOff} — a toolbar that offers a `
+    + 'destructive verb for a selection that does not exist is a trap');
+  say(!st.remove,
+    "and the inspector's Remove is gone, not duplicated",
+    'two doors for one gesture, and that one was at y = -86 at this width');
+  say(!st.ripple, 'the ripple mode is gone',
+    'it shifted ONE track, so a ripple delete on the picture left the music at '
+    + 'full length and the reel ended on music over nothing');
+  say(!st.caption, 'the third copy of the duration is gone',
+    'the transport and the inspector footer both already say it');
+  say(!st.prose, 'and the paragraph that listed the keyboard in prose',
+    'it named two keys that no longer mean what it said and three that could '
+    + 'not be fired from the gesture that selects a clip');
+  say(st.overflow === 0 && st.timeline !== null && st.timeline < 240,
+    'the timeline block is shorter than it was',
+    `${st.timeline}px, against 292 before — caption 14, minimap 40, prose 50`);
+
+  // Now select something, and watch the two verbs wake up.
+  const hit = await p.evaluate(() => {
+    const label = [...document.querySelectorAll('div')]
+      .find(d => d.textContent.trim() === 'atlas-walkthrough.mp4' && d.style.fontWeight === '700');
+    let el = label;
+    for (let i = 0; i < 6 && el; i++) {
+      if (getComputedStyle(el).position === 'absolute'
+        && el.getBoundingClientRect().width > 20) {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+      el = el.parentElement;
+    }
+    return null;
+  });
+  await p.mouse.click(hit.x, hit.y);
+  await p.waitForTimeout(400);
+  st = await state();
+  say(!st.deleteOff, 'Delete wakes up when a clip is selected');
+  say(st.splitOff,
+    'and Split stays off while the playhead is outside the clip',
+    'the same rule `[` and `]` have always kept in silence, said out loud');
+
+  for (let i = 0; i < 20; i += 1) await p.keyboard.press('ArrowRight');
+  await p.waitForTimeout(400);
+  st = await state();
+  say(!st.splitOff, 'and wakes up when the playhead is inside it');
+
+  const blocks = () => p.evaluate(() => [...document.querySelectorAll('div')]
+    .filter(d => d.style.fontWeight === '700' && d.parentElement
+      && d.parentElement.style.pointerEvents === 'none')
+    .map(d => d.textContent.trim()));
+  const n0 = (await blocks()).length;
+  await btn('Split').click();
+  await p.waitForTimeout(500);
+  say((await blocks()).length === n0 + 1, 'the button splits what the key splits',
+    `${n0} blocks → ${(await blocks()).length}`);
+  await btn('Delete').click();
+  await p.waitForTimeout(500);
+  say((await blocks()).length === n0, 'and Delete removes it again',
+    `back to ${(await blocks()).length}`);
+
+  await p.close();
+}
+
+// ── 17. Delete closes the gap, when there is a gap to close ──────────────
+//
+// What replaced the ripple mode. The mode shifted one track whatever the
+// shape of the reel, so a cutaway floating on its own track got slid earlier
+// by a delete somewhere else, silently. What a person means by "close the
+// gap" is narrower: the clip after this one was butted against it, so pull
+// it back.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(900);
+
+  const clickBlock = async (name) => {
+    const hit = await p.evaluate((n) => {
+      const label = [...document.querySelectorAll('div')]
+        .find(d => d.textContent.trim() === n && d.style.fontWeight === '700');
+      let el = label;
+      for (let i = 0; i < 6 && el; i++) {
+        if (getComputedStyle(el).position === 'absolute'
+          && el.getBoundingClientRect().width > 20) {
+          const r = el.getBoundingClientRect();
+          return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        }
+        el = el.parentElement;
+      }
+      return null;
+    }, name);
+    if (!hit) return false;
+    await p.mouse.click(hit.x, hit.y);
+    await p.waitForTimeout(350);
+    return true;
+  };
+  // The inspector's own "At" row, which is the item's start time.
+  const startOf = async (name) => {
+    if (!await clickBlock(name)) return null;
+    return p.evaluate(() => {
+      const row = [...document.querySelectorAll('tr')]
+        .find(r => r.children[0]?.textContent.trim() === 'At');
+      return row ? row.children[1].textContent.trim() : null;
+    });
+  };
+
+  const before = await startOf('showroom-02.jpg');
+  await clickBlock('showroom-01.jpg');
+  await p.keyboard.press('Delete');
+  await p.waitForTimeout(600);
+  const after = await startOf('showroom-02.jpg');
+  say(!!before && !!after && before !== after,
+    'removing a clip pulls the one butted against it back',
+    `showroom-02 started at ${before} and now starts at ${after} — this is what `
+    + '"close the gap" means, and it used to need a mode you could not see');
+
+  // And the case the mode got wrong: a clip with air in front of it stays
+  // where the edit put it.
+  const q = await open('/clients/c1/produce/studio');
+  await q.setViewportSize({ width: 1440, height: 1200 });
+  await q.waitForTimeout(900);
+  const clickOn = async (page, name) => {
+    const hit = await page.evaluate((n) => {
+      const label = [...document.querySelectorAll('div')]
+        .find(d => d.textContent.trim() === n && d.style.fontWeight === '700');
+      let el = label;
+      for (let i = 0; i < 6 && el; i++) {
+        if (getComputedStyle(el).position === 'absolute'
+          && el.getBoundingClientRect().width > 20) {
+          const r = el.getBoundingClientRect();
+          return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        }
+        el = el.parentElement;
+      }
+      return null;
+    }, name);
+    if (!hit) return false;
+    await page.mouse.click(hit.x, hit.y);
+    await page.waitForTimeout(350);
+    return true;
+  };
+  const startOn = async (page, name) => {
+    if (!await clickOn(page, name)) return null;
+    return page.evaluate(() => {
+      const row = [...document.querySelectorAll('tr')]
+        .find(r => r.children[0]?.textContent.trim() === 'At');
+      return row ? row.children[1].textContent.trim() : null;
+    });
+  };
+
+  // Push the last clip two seconds later, which puts air in front of it.
+  await clickOn(q, 'showroom-02.jpg');
+  await q.keyboard.press('Shift+.');
+  await q.keyboard.press('Shift+.');
+  await q.waitForTimeout(400);
+  const moved = await startOn(q, 'showroom-02.jpg');
+  await clickOn(q, 'showroom-01.jpg');
+  await q.keyboard.press('Delete');
+  await q.waitForTimeout(600);
+  const stayed = await startOn(q, 'showroom-02.jpg');
+  say(!!moved && moved === stayed,
+    'and a clip with air in front of it does not move',
+    `it was at ${moved} and is at ${stayed} — the ripple mode slid this one `
+    + 'earlier whatever the edit meant, and on another track entirely it would '
+    + 'have slid the music under a picture that had not changed');
+
+  await p.close();
+  await q.close();
 }
 
 say(errs.length === 0, 'no page errors', errs.join(' | '));

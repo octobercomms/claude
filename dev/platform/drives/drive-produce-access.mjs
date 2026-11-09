@@ -48,10 +48,15 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
   const links = await p.$$eval('a[href]', as => as.map(a => a.getAttribute('href')).filter(h => /\/produce$/.test(h)));
   say(links.length > 0, 'the agency still has Produce in the rail');
   const t = await text(p);
-  // TIMELINE, not "Frame size": that label was cut on 9 November when the
-  // frame became a sentence, and this assertion would have gone green-to-red
-  // on an improvement. The timeline is what makes this the editor.
-  say(/TIMELINE/i.test(t), 'and the Studio still opens');
+  // The timeline COMPONENT, not a word printed near it. This has been written
+  // three ways — "Frame size", then TIMELINE, then this — and the first two
+  // were deleted as the screen improved: the frame became a sentence, and the
+  // caption was the third copy of the duration on one screen. One deleted
+  // caption broke this assertion in THREE files, each of which had already
+  // been rewritten once for the same reason.
+  const hasEditor = await p.locator('[data-testid="composition-timeline"]').count();
+  say(hasEditor > 0, 'and the Studio still opens',
+    `timeline components found: ${hasEditor}`);
   say(!/Produce is for the agency/.test(t), 'and is not shown the client notice');
   await p.close();
 }
@@ -79,11 +84,16 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
       // The failure mode is a blank content area under a lit nav, so the
       // diagnostic that matters is what WAS on the page.
       /Produce is for the agency/.test(t) ? '' : `page read: "${t.slice(0, 200)}"`);
-    // The specific failure: a blank content area under a lit nav.
-    // The negative half of the same marker, and the more dangerous one: with
-    // "Frame size" gone this passed for a client, for a visitor, and for a
-    // blank page alike. A guard that cannot fail is not a guard.
-    say(!/TIMELINE/i.test(t), `${path} does not leak the editor`);
+    // The negative half, and the more dangerous one, because a negative
+    // written against a word goes green the moment that word is deleted —
+    // for a client, for a visitor and for a blank page alike. It has already
+    // happened twice here: "Frame size" went in one pass and TIMELINE in the
+    // next, and on both days this assertion passed without reading anything.
+    //
+    // The component cannot be mistaken for absent while it is on the page.
+    const leaked = await p.locator('[data-testid="composition-timeline"]').count();
+    say(leaked === 0, `${path} does not leak the editor`,
+      `timeline components on the page: ${leaked}`);
     await p.close();
   }
 }

@@ -14,7 +14,7 @@ import { FX, FX_NAMES, describeFx } from '@shared/compositionFx.mjs';
 import ReelChecks from '../components/ReelChecks';
 import TightenPanel from '../components/video/TightenPanel';
 import BrollPanel from '../components/video/BrollPanel';
-import ShortcutReference, { ShortcutButton } from '../components/video/ShortcutReference';
+import ShortcutReference from '../components/video/ShortcutReference';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useCompositionHistory } from '../hooks/useCompositionHistory';
@@ -143,7 +143,6 @@ export default function CompositionEditorPage({
   const [exportOpen, setExportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [showFrame, setShowFrame] = useState(false);
-  const [ripple, setRipple] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
   const audioFileRef = useRef(null);
@@ -431,6 +430,14 @@ export default function CompositionEditorPage({
 
   selectedItemRef.current = selectedItem;
 
+  // The rule the toolbar's Split button shows rather than keeps to itself:
+  // the playhead has to be inside the selected clip, which is what
+  // `splitItem` requires and what `[` and `]` have always no-opped on in
+  // silence.
+  const canSplit = !!selectedItem
+    && playhead > selectedItem.item.at + 0.001
+    && playhead < selectedItem.item.at + selectedItem.item.len - 0.001;
+
   const selectedSource = selectedItem
     ? composition.sources[selectedItem.item.source] : null;
 
@@ -660,15 +667,37 @@ export default function CompositionEditorPage({
     });
   }, []);
 
+  /**
+   * Remove the selected clip, and close the gap when there is one to close.
+   *
+   * THE RIPPLE MODE IS GONE, and this replaces it rather than hiding it.
+   * Three measured reasons it had to go. `shiftAfter` in composition.mjs
+   * shifts ONE track, and every October reel has a music bed, so a ripple
+   * delete on the picture shortened the video and left the music at full
+   * length — `duration()` takes the max, so the reel still reported 00:14:12
+   * and now ended on music over nothing. Its own tooltip claimed it worked on
+   * trimming, which it never did: `rippleTrimStart` and `rippleTrimEnd` were
+   * imported by the timeline and never called. And it was an invisible mode
+   * you could enter from anywhere with `r`, whose only indicator sat 193px
+   * above the top of the viewport when the timeline was in view.
+   *
+   * What a person means by "close the gap" is: the clip after this one was
+   * butted up against it, so pull it back. A cutaway floating on V2 where the
+   * speech put it is not a gap and must not move, which is exactly what the
+   * old mode did to it silently.
+   */
   const handleRemoveItem = useCallback(() => {
     if (!selectedItem) return;
-    setComposition(prev => ripple
-      ? rippleRemoveItem(prev, selectedItem.track.id, selectedItem.item.id)
-      : removeItem(prev, selectedItem.track.id, selectedItem.item.id)
-    );
+    const { track, item } = selectedItem;
+    const end = item.at + item.len;
+    const abuts = track.items.some(
+      (i) => i.id !== item.id && Math.abs(i.at - end) < 0.001);
+    setComposition(prev => (abuts
+      ? rippleRemoveItem(prev, track.id, item.id)
+      : removeItem(prev, track.id, item.id)));
     setSelectedId(null);
     setSelectedTrackId(null);
-  }, [selectedItem, ripple]);
+  }, [selectedItem]);
 
   // Split the selected item at the playhead, and SELECT THE TAIL.
   //
@@ -1128,14 +1157,6 @@ export default function CompositionEditorPage({
         return;
       }
 
-      if (e.key === 'r' || e.key === 'R') {
-        if (!e.ctrlKey && !e.metaKey) {
-          e.preventDefault();
-          setRipple(prev => !prev);
-          return;
-        }
-      }
-
       /* Split, delete and the playhead, from anywhere on the page.
        *
        * These three lived on the timeline lane's own `onKeyDown`, which fires
@@ -1452,7 +1473,10 @@ export default function CompositionEditorPage({
               onDragStart={startBatch}
               onDragEnd={commitBatch}
               onDragCancel={discardBatch}
-              ripple={ripple}
+              onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo}
+              onSplit={handleSplitItem} onDelete={handleRemoveItem}
+              canSplit={canSplit} canDelete={!!selectedItem}
+              onShortcuts={() => setShortcutsOpen(v => !v)}
             />
 
           <StudioShelf
@@ -1470,49 +1494,17 @@ export default function CompositionEditorPage({
 
         <div>
           <div className="card" style={{ padding: 'var(--s4)' }}>
-            <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
-              {/* No "Editor" title: it names the screen you are already on,
-                  inside the application whose nav row for it is lit. */}
-              <div className="row center" style={{ gap: 'var(--s1)' }}>
-                <button type="button" className="btn-chip" title="Undo (Ctrl+Z)"
-                  disabled={!canUndo} onClick={undo}
-                  style={{ fontSize: 'var(--fs-caption)', width: 26, height: 26, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  &#x21a9;
-                </button>
-                <button type="button" className="btn-chip" title="Redo (Ctrl+Shift+Z)"
-                  disabled={!canRedo} onClick={redo}
-                  style={{ fontSize: 'var(--fs-caption)', width: 26, height: 26, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  &#x21aa;
-                </button>
-                <button type="button" className="btn-chip" title="Ripple edit: shift subsequent items when trimming or deleting"
-                  onClick={() => setRipple(v => !v)}
-                  style={{
-                    fontSize: 'var(--fs-caption)', padding: '0 8px', height: 26,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    borderColor: ripple ? 'var(--accent)' : undefined,
-                    fontWeight: ripple ? 700 : undefined,
-                    background: ripple ? 'var(--accent-soft)' : undefined,
-                  }}>
-                  Ripple
-                </button>
-                <ShortcutButton onClick={() => setShortcutsOpen(v => !v)} />
-                {/* Export and Share moved to the top bar, which is where the
-                    two things that leave the editor belong. They were here
-                    because this header row was the only toolbar there was.
-                    What is left of it — undo, redo, ripple, the shortcut
-                    reference — all act on the TIMELINE, and measured at
-                    1440x900 every one of them is above the viewport when the
-                    timeline is in front of you: only Ctrl+Z works. Build step
-                    4 moves them onto the timeline's own toolbar, which is why
-                    they are left alone here rather than dragged into the bar
-                    on the way past.
+            {/* The header row is gone, and it was a lid on a junk drawer.
+                It held undo, redo, Ripple, the shortcut reference, Export and
+                Share: a toolbar, an export bar and a mode switch in one card
+                with no title. Export and Share went to the top bar with the
+                last change; undo, redo and the `?` are on the timeline's own
+                toolbar now, which is the surface they act on, and Ripple is
+                deleted rather than moved — see `handleRemoveItem`.
 
-                    "Save now" is gone for the same reason it went before: the
-                    editor autosaves at 1500ms, Export flushes before it
-                    renders, and the save state says something when it fails. */}
-              </div>
-            </div>
-
+                Measured at 1440x900 with the timeline scrolled into view,
+                every one of those controls sat at y = -301. They were being
+                offered where no hand could reach them. */}
             {/* Add clip / design / audio */}
             <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
               <input ref={fileRef} type="file" accept={`${CLIP_ACCEPT},audio/*`} multiple
@@ -1669,11 +1661,18 @@ export default function CompositionEditorPage({
                 )}
 
                 <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-secondary btn-sm"
-                    onClick={handleRemoveItem}>
-                    Remove
-                  </button>
-
+                  {/* Remove is on the timeline's toolbar now, and this one is
+                      deleted in the same change rather than left as a second
+                      door. Three reasons, the first measured: at 1280x800
+                      with the timeline scrolled into view — the only position
+                      you can work on the timeline from — this button sat at
+                      y = -86, above the top of the window, and the Delete key
+                      did nothing, so THERE WAS NO REACHABLE WAY TO DELETE A
+                      CLIP. At 1440 it rendered five pixels from the fixed
+                      client topbar, reading as the sixth item in the
+                      application's global header. And the gesture is a
+                      timeline gesture: you point at the block you want gone.
+                      An inspector is where you change what a thing is. */}
                   {selectedSource?.kind === 'clip' && (
                     <>
                       <button type="button" className="btn btn-secondary btn-sm"
