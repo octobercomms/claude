@@ -1629,15 +1629,28 @@ screen. It is with Daniel, not taken.
   A photograph is the one source that already IS an image, which makes this
   the cheapest picture in the product. The same line that stopped the PREVIEW
   drawing photographs, in a second place.
-- **The preview and the render disagree outside the overscan.** Measured by
-  the step 7 design pass: `pos` and `scale` mean "move the already-cropped
-  frame inside the output frame" to the renderer, which produces black bars,
-  and "pan within the source picture" to the preview, which does not. They
-  agree only while `|pos| <= (scale-1)/2`, and all six shipped MOTIONS are
-  inside that bound — `drift` and `rise` by 0.005 of the frame, which is 5px
-  on a 1080 frame. Any control that lets a person leave the overscan crosses
-  it on the first drag. The preview also never clips a layer to the frame
-  box, which is two lines.
+- ~~**The preview and the render disagree outside the overscan.**~~
+  **FALSE, and closed 9 November.** The step 7 design pass recorded that
+  `pos` and `scale` meant "move the already-cropped frame inside the output
+  frame" to the renderer and "pan within the source picture" to the preview,
+  agreeing only while `|pos| <= (scale-1)/2`. Measured on rendered pixels,
+  neither is true. The renderer overlays the scaled frame at
+  `(main_w-overlay_w)/2 + pos.x*W`, which expands to a scale about the frame
+  centre followed by an offset — the same three canvas operations the
+  preview performs. Tested at `pos.x` 0.45 with `scale` 1.5, where the
+  claimed bound is 0.25, and at `scale` 0.6 with motion on both axes: the
+  source centre lands where the preview puts it in every case.
+
+  This was read by at least one later pass as a reason not to build the
+  Transform controls, so it had been blocking real work on a claim nobody
+  had measured.
+
+  The agreement is now structural rather than lucky. `framePlacement` in
+  `shared/composition.mjs` is the one implementation; `Compositor.jsx` draws
+  with it, and `composition-render-pixels.test.js` renders a four-quadrant
+  clip through the real graph and asserts ffmpeg puts the crossing where
+  that function says. Mutation-checked: halving the offset inside
+  `framePlacement` fails three of the five cases.
 - **The transport is not the toolbar.** `Play`, `-1 frame`, `+1 frame` and
   `Start` are 36px pills wrapping onto two rows in a 188px column, 130px above
   a row of 26px chips, and `Play` is offered at full strength on an empty reel

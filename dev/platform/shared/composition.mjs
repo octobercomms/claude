@@ -314,6 +314,46 @@ export function itemTransformAt(item, t) {
   };
 }
 
+/**
+ * Where an item's fitted frame lands in the output, in output pixels.
+ *
+ * ONE function, because the preview and the renderer were two
+ * implementations of the same arithmetic that happened to agree. The brief
+ * recorded them as disagreeing outside the overscan — that `pos` meant "move
+ * the cropped frame inside the output frame" to the renderer and "pan within
+ * the source" to the preview — and measured on real pixels that is not true
+ * of either. But "measured true today" is not a property; it is a
+ * coincidence with a test in front of it.
+ *
+ * The renderer scales the fitted frame to W*s x H*s and overlays it at
+ * `(main_w-overlay_w)/2 + pos.x*W`. Expanding that gives, for a point x in
+ * the fitted frame:
+ *
+ *   x' = W/2 + pos.x*W + s*(x - W/2)
+ *
+ * which is a scale about the frame centre followed by an offset — the three
+ * canvas operations the preview performs. This returns the box that
+ * arithmetic produces, so the preview can draw it and a pixel test can look
+ * for it at the same coordinates.
+ *
+ * `rot` is not here. The render graph refuses it outright, so there is no
+ * placement to agree about.
+ */
+export function framePlacement(transform, W, H) {
+  const s = transform?.scale != null ? transform.scale : 1;
+  const px = transform?.pos?.x || 0;
+  const py = transform?.pos?.y || 0;
+  const w = W * s;
+  const h = H * s;
+  return {
+    x: (W - w) / 2 + px * W,
+    y: (H - h) / 2 + py * H,
+    w,
+    h,
+    scale: s,
+  };
+}
+
 // ── Transition types ──────────────────────────────────────────────────
 
 export const TRANSITION_TYPES = ['fade', 'fadeblack', 'wipeleft', 'dissolve'];

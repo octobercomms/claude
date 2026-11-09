@@ -33,6 +33,7 @@ const os = require('os');
 const path = require('path');
 
 const { renderGraph, ffmpegArgs } = require('../../shared/compositionRender.mjs');
+const { framePlacement } = require('../../shared/composition.mjs');
 
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 const W = 320;
@@ -59,6 +60,30 @@ before(() => {
 after(() => {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
 });
+
+/**
+ * A clip in four coloured quadrants, so any point in it is identifiable.
+ *
+ * red | green on top, blue | yellow beneath, meeting at the source centre.
+ * A solid colour cannot answer "where did this pixel go"; this can.
+ */
+function makeQuadClip(name, seconds) {
+  const p = path.join(dir, name);
+  const half = `s=${W / 2}x${H / 2}:r=${FPS}:d=${seconds}`;
+  execFileSync(FFMPEG, [
+    '-y', '-loglevel', 'error',
+    '-f', 'lavfi', '-i', `color=c=red:${half}`,
+    '-f', 'lavfi', '-i', `color=c=green:${half}`,
+    '-f', 'lavfi', '-i', `color=c=blue:${half}`,
+    '-f', 'lavfi', '-i', `color=c=yellow:${half}`,
+    '-f', 'lavfi', '-i', `anullsrc=r=48000:cl=stereo:d=${seconds}`,
+    '-filter_complex',
+    '[0:v][1:v]hstack[t];[2:v][3:v]hstack[b];[t][b]vstack,format=yuv420p[v]',
+    '-map', '[v]', '-map', '4:a', '-c:v', 'libx264', '-c:a', 'aac',
+    '-shortest', p,
+  ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  return p;
+}
 
 /** A solid-colour clip with a silent audio track, so the graph has an [n:a]. */
 function makeClip(name, colour, seconds) {
@@ -447,4 +472,82 @@ describe('an animated scale', () => {
     ]).toString().trim();
     assert.equal(probe, `${W},${H}`, 'the encoded stream is the composition frame');
   });
+});
+
+// ── The preview and the render put a pixel in the same place ──────────
+//
+// The brief recorded these as DISAGREEING outside the overscan: that `pos`
+// meant "move the already-cropped frame inside the output frame" to the
+// renderer, which bars, and "pan within the source picture" to the preview,
+// which does not, and that they agreed only while |pos| <= (scale-1)/2.
+//
+// Measured on rendered pixels, that is false of both. The renderer scales
+// the fitted frame and overlays it at `(main_w-overlay_w)/2 + pos.x*W`,
+// which expands to a scale about the frame centre followed by an offset —
+// exactly the three canvas operations the preview performs.
+//
+// But "they agree today" is a coincidence, not a property. The arithmetic
+// now lives in ONE place, `framePlacement` in shared/composition.mjs, which
+// the preview draws with; this asserts that ffmpeg puts the pixels where
+// that function says, including well outside the overscan, so the two can
+// never drift apart again without a red test.
+describe('scale and pos, as the preview computes them', () => {
+  // The source centre, through the shared placement function. A point x in
+  // the fitted frame lands at placement.x + x * scale.
+  const centreOf = (transform) => {
+    const b = framePlacement(transform, W, H);
+    return { x: Math.round(b.x + (W / 2) * b.scale), y: Math.round(b.y + (H / 2) * b.scale) };
+  };
+
+  const name = ({ r, g, b }) => {
+    if (r > 150 && g < 90 && b < 90) return 'red';
+    if (g > 100 && r < 90 && b < 90) return 'green';
+    if (b > 100 && r < 90 && g < 90) return 'blue';
+    if (r > 150 && g > 150 && b < 90) return 'yellow';
+    if (r < 40 && g < 40 && b < 40) return 'black';
+    return `rgb(${r},${g},${b})`;
+  };
+
+  const CASES = [
+    { label: 'untransformed', scale: 1, pos: { x: 0, y: 0 } },
+    { label: 'scaled up, centred', scale: 1.5, pos: { x: 0, y: 0 } },
+    { label: 'moved INSIDE the overscan', scale: 1.5, pos: { x: 0.2, y: 0 } },
+    // The two the brief said would disagree.
+    { label: 'moved OUTSIDE the overscan', scale: 1.5, pos: { x: 0.45, y: 0 } },
+    { label: 'scaled down and moved on both axes', scale: 0.6, pos: { x: 0.3, y: -0.2 } },
+  ];
+
+  for (const c of CASES) {
+    it(`puts the picture where framePlacement says: ${c.label}`, () => {
+      const clip = makeQuadClip(`quad-${c.scale}-${c.pos.x}-${c.pos.y}.mp4`, 2);
+      const comp = {
+        version: 1, size: { width: W, height: H }, fps: FPS,
+        sources: { a: { kind: 'clip', url: 'a.mp4', duration: 2, width: W, height: H, fps: FPS } },
+        tracks: [{
+          id: 't0', kind: 'video', items: [
+            { id: 'i1', at: 0, len: 1, source: 'a', in: 0, scale: c.scale, pos: c.pos },
+          ],
+        }],
+      };
+      const out = render(comp, { a: clip });
+      const p = centreOf({ scale: c.scale, pos: c.pos });
+      // Probed a few pixels either side of the predicted crossing, so the
+      // assertion is about WHICH QUADRANT is where rather than one pixel on
+      // a boundary that anti-aliasing owns.
+      const d = 8;
+      const got = {
+        topLeft: name(pixelAt(out, 0.4, p.x - d, p.y - d)),
+        topRight: name(pixelAt(out, 0.4, p.x + d, p.y - d)),
+        botLeft: name(pixelAt(out, 0.4, p.x - d, p.y + d)),
+        botRight: name(pixelAt(out, 0.4, p.x + d, p.y + d)),
+      };
+      assert.deepEqual(
+        got,
+        { topLeft: 'red', topRight: 'green', botLeft: 'blue', botRight: 'yellow' },
+        `the preview puts the source centre at (${p.x}, ${p.y}); ffmpeg drew `
+        + `${JSON.stringify(got)} around it. The overscan bound for scale `
+        + `${c.scale} is ${((c.scale - 1) / 2).toFixed(3)}, and pos.x is ${c.pos.x}.`
+      );
+    });
+  }
 });
