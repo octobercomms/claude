@@ -184,8 +184,13 @@ for (const [asked, want, row] of [
     + 'than fetching it, so a thin row loads an EMPTY composition and every '
     + 'assertion here passes against its empty state');
   say(/Reel checks/i.test(t), 'the reel checks render');
-  say(/of 8/.test(t), 'with all eight checks, not the mockup\'s four',
-    t.match(/\d of 8[^.]*/)?.[0] || 'no "of 8" on the page');
+  // The COUNT, read off the page rather than typed in here. This said `of 8`
+  // and two checks were added the same day — the twelfth assertion in this
+  // repo to name a number or a word that the product then moved. The claim is
+  // that the shipped checks beat the mockup's four.
+  const checkCount = Number((await text(p)).match(/\d+ of (\d+)/)?.[1] || 0);
+  say(checkCount >= 8, 'with every shipped check, not the mockup\'s four',
+    `${checkCount} checks on the page`);
 
   const box = async (sel) => { try { return await p.locator(sel).first().boundingBox(); } catch { return null; } };
   const checks = await box('[data-studio-checks]');

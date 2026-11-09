@@ -29,7 +29,7 @@ function say(text, { start = 0.4, wps = 2.8 } = {}) {
 const by = (r, key) => r.checks.find((c) => c.key === key);
 
 async function main() {
-  const { checkReel } = await import(pathToFileURL(
+  const { checkReel, LABELS, THRESHOLDS } = await import(pathToFileURL(
     path.join(__dirname, '..', '..', 'shared', 'reelChecks.mjs')).href);
 
   // The plan's own example hook, which should pass everything it can.
@@ -45,7 +45,11 @@ async function main() {
       // A term this client is trying to be found for, said out loud. Without
       // one the keyword check is unjudgeable and this fixture would quietly
       // stop testing a full pass.
-      keywords: ['map of the world', 'antique maps'] },
+      keywords: ['map of the world', 'antique maps'],
+      // Shot for a phone, with the bed ending on the last picture. The same
+      // argument as the keywords above: without these two the new checks are
+      // unjudgeable and this fixture would quietly stop testing a full pass.
+      width: 1080, height: 1920, picture_end_s: 33, audio_end_s: 33 },
   });
   const failed = good.checks.filter((c) => !c.pass).map((c) => `${c.key}: ${c.detail}`);
   ok(good.passed === good.total,
@@ -216,9 +220,40 @@ async function main() {
       ok(false, `broke on ${JSON.stringify(input)}`); break;
     }
   }
-  ok(checkReel({}).total === 8, 'an empty reel still reports every check');
+  // Against the LABELS map rather than a literal. The comment four lines
+  // above says a count in a test disagrees with the code the first time a
+  // check is added — and then this line was written as `=== 8`, and two
+  // checks were added. Every check has a label, so the map is the contract.
+  ok(checkReel({}).total === Object.keys(LABELS).length,
+    'an empty reel still reports every check');
   ok(checkReel({}).passed === 0, 'none of which pass');
   ok(checkReel({}).verdict === 'early', 'and the verdict says it is early, not failing');
+
+  console.log('\nThe frame, which is the cheapest mistake to catch');
+  const vert = (w, h) => by(checkReel({ edit: { width: w, height: h } }), 'vertical');
+  ok(vert(1080, 1920).pass === true, '1080x1920 is the shape');
+  ok(vert(720, 1280).pass === true, 'and so is 720x1280');
+  ok(vert(1080, 1350).pass === false,
+    'but 4:5 is not — it is the portrait size people reach for out of habit, '
+    + 'and it is letterboxed on every surface October posts to');
+  ok(vert(1920, 1080).pass === false, 'nor is landscape');
+  ok(vert(0, 0).pass === null, 'and an edit with no frame size yet is unjudged');
+  ok(/1080 x 1920/.test(vert(1080, 1920).detail), 'the evidence is the size itself');
+
+  console.log('\nThe sound ending after the picture, which the duration cannot show');
+  const tail = (pic, aud) => by(
+    checkReel({ edit: { picture_end_s: pic, audio_end_s: aud } }),
+    'audio_ends_with_picture');
+  ok(tail(12, 12).pass === true, 'ending together passes');
+  ok(tail(12, 12 + THRESHOLDS.audio_tail_max_s).pass === true,
+    'and so does a tail inside the threshold');
+  ok(tail(12, 15).pass === false,
+    'three seconds of music over black does not — `duration()` takes the MAX '
+    + 'across tracks, so the reel reports its full length and nothing else on '
+    + 'the screen says the picture stopped');
+  ok(/3\.0s past/.test(tail(12, 15).detail), 'and says how far past');
+  ok(tail(12, 8).pass === true, 'a bed that ends early is not this fault');
+  ok(tail(0, 0).pass === null, 'and a reel with no sound or no picture is unjudged');
 
   console.log('\nThe panel never claims more certainty than it has');
   const src = require('fs').readFileSync(

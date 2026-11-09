@@ -69,10 +69,24 @@ async function record({ clientId, assetId = null, postId = null, words = [],
     // in, so a judgement taken on the server and one shown in the browser
     // cannot disagree about what this client is trying to be found for.
     const terms = await keywordsFor(clientId);
+    // The frame, which the 9:16 check reads. The asset row carries it when
+    // the file was probed; a judgement taken on a post with no asset has no
+    // frame to read, and the check returns null rather than a tick.
+    let frame = { width: null, height: null };
+    if (assetId) {
+      const { rows: a } = await pool.query(
+        'SELECT width, height FROM assets WHERE id = $1', [assetId]);
+      frame = { width: a[0]?.width || null, height: a[0]?.height || null };
+    }
     const result = mod.checkReel({
       timings: words,
       edit: { duration_s: durationS, caption_template: template, brand: name,
-        keywords: terms, on_screen_text: onScreenText },
+        keywords: terms, on_screen_text: onScreenText,
+        // A finished render has no tracks to read, so the
+        // sound-ends-with-the-picture check is unjudgeable here and returns
+        // null rather than a tick, which is the rule these checks keep
+        // everywhere else.
+        width: frame.width, height: frame.height },
     });
     const slim = result.checks.map((c) => ({ key: c.key, pass: c.pass }));
     const { rows } = await pool.query(

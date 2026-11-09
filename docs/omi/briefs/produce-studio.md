@@ -1145,6 +1145,42 @@ the behaviour this arrangement exists to produce: it had measured that a
 `title` never appears on a disabled button, re-ran the probe properly, found
 the opposite, and said so before making its argument on merit instead.
 
+## Built, 9 November: two more reel checks
+
+Decision 6 said the one thing worth taking from the mockup's check list was
+the **9:16 aspect check**, "deterministic and cheap". It is built, with the
+check the delete work made visible beside it.
+
+**Shot for a phone, nine by sixteen.** 1080x1920 and 720x1280 pass; 1080x1350
+does not, which is the portrait size people reach for out of habit and which
+is letterboxed on every surface October posts to. The evidence is the size
+itself.
+
+**The sound ends with the picture.** `duration()` takes the MAX across tracks,
+so a bed running three seconds past the last clip is invisible in every number
+on the screen: the reel reports its full length and ends on sound over black.
+The editor passes where each half stops; the server has no tracks to read on a
+finished render, so the check returns null there rather than a tick, which is
+the rule this file keeps everywhere else. Half a second of tail is allowed,
+because that is a bed fading rather than a reel ending on nothing.
+
+Both arrived from the same place: the delete that closes a gap shortens the
+picture and leaves every audio track alone, so it is now easy to make this
+mistake by accident.
+
+**Two counts that were written as literals, in the same breath as a comment
+warning against it.** `reel-checks.test.js` asserted `total === 8` four lines
+under its own note that "a count in a test is a count that disagrees with the
+code the first time a check is added, which is what happened here". It reads
+`Object.keys(LABELS).length` now, because every check has a label. And
+`drive-studio.mjs` matched `/of 8/`; it reads the number off the page and
+asserts it beats the mockup's four. That is the twelfth assertion in this
+project to name something the product then moved.
+
+The verdict thresholds were proportional-ised with them: `passed >= 5` was
+five of eight, and with ten checks the same literal would have called half a
+reel "most".
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
@@ -1152,11 +1188,8 @@ the opposite, and said so before making its argument on merit instead.
 - ~~**Fit has two vocabularies.**~~ Fixed with step 5: "Fill frame" and
   "Letterbox" everywhere, because they say what happens to the picture.
 - ~~**A Library clip arrives 3.2 seconds long.**~~ Fixed; see below.
-- **No 9:16 aspect check** in `reelChecks.mjs`, per decision 6.
-- **No check for music that outlasts the picture.** `duration()` takes the max
-  across tracks, so a reel whose bed runs past the last clip reports its full
-  length and ends on sound over nothing. Deterministic, cheap, and in the same
-  family as the 9:16 check above.
+- ~~**No 9:16 aspect check**~~ and ~~**no check for music that outlasts the
+  picture**~~. Both built; see below.
 - **The transport is not the toolbar.** `Play`, `-1 frame`, `+1 frame` and
   `Start` are 36px pills wrapping onto two rows in a 188px column, 130px above
   a row of 26px chips, and `Play` is offered at full strength on an empty reel

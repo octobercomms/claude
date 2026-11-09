@@ -31,6 +31,14 @@ export const THRESHOLDS = {
   words_per_second_max: 3.6,
   duration_min_s: 20,
   duration_max_s: 50,
+  // Nine by sixteen, to a tolerance that accepts 1080x1920 and 720x1280 and
+  // refuses 1080x1350, which is the portrait size people reach for out of
+  // habit and which is letterboxed on every surface October posts to.
+  aspect_target: 9 / 16,
+  aspect_tolerance: 0.01,
+  // How long the sound may outlast the last picture. Half a second is a tail
+  // on a music bed; three seconds is the reel ending on black.
+  audio_tail_max_s: 0.5,
 };
 
 /**
@@ -130,6 +138,8 @@ export const LABELS = {
   one_idea: 'One fact, carried to a payoff',
   says_a_term_we_rank_for: 'Says something people search for',
   length: 'Thirty to forty-five seconds',
+  vertical: 'Shot for a phone, nine by sixteen',
+  audio_ends_with_picture: 'The sound ends with the picture',
 };
 
 export function checkReel(input) {
@@ -143,6 +153,15 @@ export function checkReel(input) {
   const transcript = list.map((w) => w.word).join(' ');
   const duration = Number(ed.duration_s)
     || (list.length ? list[list.length - 1].end : 0);
+
+  // The frame, and where each half of the reel stops. All four are null for a
+  // caller that cannot know them — a judgement taken on a finished render has
+  // no tracks to read — and a check with nothing to read returns null rather
+  // than a tick, which is the rule this file already keeps everywhere else.
+  const width = Number(ed.width) || 0;
+  const height = Number(ed.height) || 0;
+  const pictureEnd = Number(ed.picture_end_s) || 0;
+  const audioEnd = Number(ed.audio_end_s) || 0;
 
   // The hook is everything said in the first three seconds, which is where the
   // plan says the decision is made: "people decide in two seconds whether to
@@ -253,6 +272,39 @@ export function checkReel(input) {
       detail: duration ? `${Math.round(duration)}s.` : 'No duration yet.',
       rule: 'Thirty to forty seconds, from the plan\'s own format note.',
     },
+    {
+      // The one thing worth taking from the mockup's own check list, per
+      // decision 6 in the brief: deterministic, cheap, and the mistake it
+      // catches is expensive. A 4:5 reel is letterboxed on every surface
+      // October posts to, and nothing else on this screen says so.
+      key: 'vertical',
+      label: LABELS.vertical,
+      pass: (width > 0 && height > 0)
+        ? Math.abs(width / height - THRESHOLDS.aspect_target) <= THRESHOLDS.aspect_tolerance
+        : null,
+      detail: (width > 0 && height > 0)
+        ? `${width} x ${height}.`
+        : 'No frame size yet.',
+      rule: 'Anything but 9:16 is letterboxed where this is posted.',
+    },
+    {
+      // The music outlasting the picture, which `duration()` cannot show you
+      // because it takes the MAX across tracks: a reel whose bed runs three
+      // seconds past the last clip reports its full length and ends on sound
+      // over black. Found while building the delete that closes a gap, which
+      // shortens the picture and leaves every audio track alone.
+      key: 'audio_ends_with_picture',
+      label: LABELS.audio_ends_with_picture,
+      pass: (pictureEnd > 0 && audioEnd > 0)
+        ? audioEnd <= pictureEnd + THRESHOLDS.audio_tail_max_s
+        : null,
+      detail: (pictureEnd > 0 && audioEnd > 0)
+        ? (audioEnd > pictureEnd + THRESHOLDS.audio_tail_max_s
+          ? `The sound runs ${(audioEnd - pictureEnd).toFixed(1)}s past the last picture.`
+          : 'They end together.')
+        : 'No sound, or no picture, yet.',
+      rule: 'A reel that ends on black has already lost the viewer it kept.',
+    },
   ];
 
   // Only a true counts. A check that cannot be judged yet is neither a pass
@@ -269,9 +321,12 @@ export function checkReel(input) {
     unknown,
     // Not 'all_seven'. A verdict named after a count is a verdict that lies
     // the first time a check is added, and one just was.
+    // Proportional, not a count. `passed >= 5` was five of eight; with ten
+    // checks the same literal would call half a reel "most", which is the
+    // fault the comment above warns about one line later.
     verdict: passed === checks.length ? 'all'
       : unknown ? 'early'
-        : passed >= 5 ? 'most' : 'early',
+        : passed >= Math.ceil(checks.length * 0.625) ? 'most' : 'early',
     transcript_words: list.length,
     duration_s: duration ? +duration.toFixed(1) : 0,
   };

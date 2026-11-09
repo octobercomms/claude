@@ -1031,10 +1031,26 @@ export default function CompositionEditorPage({
 
   const hasCaptionSource = Object.values(composition.sources).some(s => s.kind === 'captions');
 
-  const reelEdit = useMemo(() => ({
-    duration_s: total,
-    caption_template: hasCaptionSource ? 'yes' : null,
-  }), [total, hasCaptionSource]);
+  const reelEdit = useMemo(() => {
+    // Where each half of the reel stops. `duration()` takes the MAX across
+    // tracks, so a bed that runs past the last clip is invisible in every
+    // number on this screen: the reel reports its full length and ends on
+    // sound over black. The delete that closes a gap makes this easy to do by
+    // accident, because it shortens the picture and leaves audio alone.
+    const endsOf = (wantAudio) => {
+      const ends = composition.tracks
+        .filter((t) => (t.kind === 'audio') === wantAudio)
+        .flatMap((t) => t.items.map((i) => i.at + i.len));
+      return ends.length ? Math.max(...ends) : null;
+    };
+    return {
+      duration_s: total,
+      caption_template: hasCaptionSource ? 'yes' : null,
+      width: W, height: H,
+      picture_end_s: endsOf(false),
+      audio_end_s: endsOf(true),
+    };
+  }, [total, hasCaptionSource, composition.tracks, W, H]);
 
   // ── The shelf: material already in the system ─────────────────────
   //
