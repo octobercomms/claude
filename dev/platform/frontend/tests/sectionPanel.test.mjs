@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SECTIONS, tabsOf, slugsOf, slugOf, tabForSlug, slugForTab, SLUG_ALIASES } from '../src/nav/sections.js';
+import { SECTIONS, tabsOf, slugsOf, slugOf, tabForSlug, slugForTab, SLUG_ALIASES, navCtx } from '../src/nav/sections.js';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const read = (rel) => readFileSync(path.join(SRC, rel), 'utf8');
@@ -306,6 +306,48 @@ test('a row renamed to a new slug keeps answering on its old one', () => {
   assert.equal(tabForSlug(produce, 'compose'), 'compose',
     '/produce/compose stopped resolving — it must not fall through to the default tab');
   assert.notEqual(produce.defaultTab, null);
+});
+
+// One rule for who sees what, in one place.
+//
+// The bug this pins: the panel, the phone picker and the search box each read
+// canVisualise as the per-user grant `can_use_visualise`, while the page reads
+// it as `!readOnly || grant`, because the grant exists to let a CLIENT in and
+// an agency login was always allowed. The grant is only ever set on client
+// accounts, so Visualise rendered for any agency user who typed the URL and
+// appeared in the nav for none of them. Reproduced in a browser as an admin
+// before the fix: Make showed Studio, Record, Design and no Visualise.
+//
+// The second assertion is the one that matters long term. navCtx can be
+// correct and still be bypassed, which is how the four copies came about, so
+// the test reads the components rather than trusting them.
+test('the viewer is turned into a nav ctx in exactly one place', () => {
+  assert.deepEqual(navCtx({ role: 'admin' }), { readOnly: false, canVisualise: true },
+    'an agency login must see Visualise without a per-user grant');
+  assert.deepEqual(navCtx({ role: 'client' }), { readOnly: true, canVisualise: false },
+    'a read-only client without the grant must not');
+  assert.deepEqual(navCtx({ role: 'client', can_use_visualise: true }),
+    { readOnly: true, canVisualise: true }, 'the grant is what lets a client in');
+  assert.deepEqual(navCtx(undefined), { readOnly: false, canVisualise: true },
+    'no user yet must not crash the panel');
+
+  // Nothing may derive it inline again. Checked by source, because a second
+  // copy is invisible to every other assertion here.
+  const offenders = [];
+  for (const f of ['components/SectionPanel.jsx', 'components/MobileScreenNav.jsx',
+                   'components/Layout.jsx', 'components/GlobalSearch.jsx']) {
+    const body = read(f);
+    if (/can_use_visualise/.test(body) && !/navCtx/.test(body)) offenders.push(f);
+  }
+  assert.deepEqual(offenders, [],
+    `these read the grant directly instead of calling navCtx: ${offenders.join(', ')}`);
+
+  // And the page has to agree with the nav, or a row opens a screen that
+  // bounces you off it (ClientVideoTab sends you to Record when it disagrees).
+  const tab = page('ClientVideoTab.jsx');
+  assert.match(tab, /const canVisualise = !readOnly \|\| !!user\?\.can_use_visualise;/,
+    'ClientVideoTab no longer computes canVisualise the way navCtx does — if the '
+    + 'page rule changed, change navCtx with it');
 });
 
 test('every SLUG_ALIASES target is a real tab in at least one section', () => {

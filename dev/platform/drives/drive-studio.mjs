@@ -44,6 +44,23 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
   await p.close();
 }
 
+// ── 1b. Visualise is in the nav at all ──────────────────────────────────
+//
+// It was not. The panel, the phone picker and the search box each read
+// canVisualise as the per-user `can_use_visualise` grant, while the page reads
+// it as `!readOnly || grant`, because the grant is there to let a CLIENT in
+// and an agency login was always allowed. The grant is only ever set on client
+// accounts, so the row appeared for nobody while the page worked if you typed
+// the URL. The stub user is role 'admin' with no grant, which is exactly the
+// case that was broken: before the fix this assertion fails.
+{
+  const p = await open('/clients/c1/produce/studio');
+  const t = await text(p);
+  say(/\bVisualise\b/.test(t), 'an agency login sees the Visualise row',
+    /\bVisualise\b/.test(t) ? '' : 'the row is hidden from a user with no can_use_visualise grant');
+  await p.close();
+}
+
 // ── 2. The renamed row lights up on its own URL ──────────────────────────
 {
   const p = await open('/clients/c1/produce/studio');

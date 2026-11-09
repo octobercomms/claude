@@ -8,7 +8,7 @@ import AnalystPanel from './AnalystPanel';
 import DatabaseAssistantPanel from './database/DatabaseAssistantPanel';
 import SectionPanel from './SectionPanel';
 import MobileScreenNav from './MobileScreenNav';
-import { SECTIONS, sectionForPath, screenForPath, labelForTab } from '../nav/sections';
+import { SECTIONS, sectionForPath, screenForPath, labelForTab, navCtx } from '../nav/sections';
 
 
 export default function Layout() {
@@ -434,7 +434,7 @@ export default function Layout() {
         onClose={() => setSearchOpen(false)}
         clientId={clientId || lastClientPathId(lastClientPath)}
         readOnly={readOnly}
-        canVisualise={!!user?.can_use_visualise}
+        canVisualise={navCtx(user).canVisualise}
       />}
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
     </div>

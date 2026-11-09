@@ -61,6 +61,28 @@
 // `ctx` is { readOnly, canVisualise }.
 const agencyOnly = (ctx) => !ctx.readOnly;
 
+// The one place the viewer is turned into a ctx.
+//
+// It exists because there were four places. Three of them — the panel, the
+// phone screen picker and the search box — read `canVisualise` as
+// `!!user.can_use_visualise`, the per-user grant. The page reads it as
+// `!readOnly || !!user.can_use_visualise`, because the grant is there to let a
+// CLIENT in; an agency login has always been allowed.
+//
+// So Visualise rendered for any agency user who typed its URL and appeared in
+// the nav for none of them, since the grant is only ever set on client
+// accounts. Daniel, 9 November: "where is visualise actually - its not in the
+// navigation." It is the failure this file's header warns about in its second
+// paragraph, arrived at from the other direction: not a row with no page, but
+// a page with no row, because two files disagreed about one rule.
+//
+// tests/sectionPanel.test.mjs checks that ClientVideoTab still computes the
+// same thing, so the two cannot drift apart again in silence.
+export function navCtx(user) {
+  const readOnly = user?.role === 'client';
+  return { readOnly, canVisualise: !readOnly || !!user?.can_use_visualise };
+}
+
 export const SECTIONS = {
   // The client's own Dashboard.
   //

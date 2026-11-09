@@ -31,7 +31,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { sectionForPath, screenForPath, phoneGroups, slugOf, labelForTab } from '../nav/sections';
+import { sectionForPath, screenForPath, phoneGroups, slugOf, labelForTab, navCtx } from '../nav/sections';
 import { useAuth } from '../context/AuthContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -64,10 +64,7 @@ export default function MobileScreenNav() {
   const isMobile = useIsMobile(768);
   const [open, setOpen] = useState(false);
 
-  const ctx = useMemo(() => ({
-    readOnly: user?.role === 'client',
-    canVisualise: !!user?.can_use_visualise,
-  }), [user?.role, user?.can_use_visualise]);
+  const ctx = useMemo(() => navCtx(user), [user?.role, user?.can_use_visualise]);
 
   const section = sectionForPath(location.pathname);
   const clientId = (location.pathname.match(/^\/clients\/([^/]+)/) || [])[1];

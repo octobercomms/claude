@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, forwardRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { sectionForPath, screenForPath, visibleGroups, slugOf } from '../nav/sections';
+import { sectionForPath, screenForPath, visibleGroups, slugOf, navCtx } from '../nav/sections';
 import { useAuth } from '../context/AuthContext';
 
 // The second panel — every destination in the current section, one click away.
@@ -20,10 +20,7 @@ function SectionPanel({ navCollapsed, onToggleNav }, ref) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const ctx = useMemo(() => ({
-    readOnly: user?.role === 'client',
-    canVisualise: !!user?.can_use_visualise,
-  }), [user?.role, user?.can_use_visualise]);
+  const ctx = useMemo(() => navCtx(user), [user?.role, user?.can_use_visualise]);
 
   const section = sectionForPath(location.pathname);
   const clientId = (location.pathname.match(/^\/clients\/([^/]+)/) || [])[1];
