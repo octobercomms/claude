@@ -1,4 +1,35 @@
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
+const { FFMPEG } = require('./ffmpegBin');
+
+/**
+ * A 16kHz mono MP3 of whatever audio a file has, as a path on disk.
+ *
+ * Here rather than at each caller because `whisperWords` takes a path and
+ * nothing can call it without this first. The repo had three copies of these
+ * eight lines, which is how a helper drifts: the duplicate in
+ * `generatedMedia.js` and the one in `adResize.js` are already on the list of
+ * things a copy has cost us.
+ *
+ * 16kHz mono is what Whisper wants: a 48kHz stereo upload is four times the
+ * bytes for an answer the model derives from the same information.
+ */
+function extractAudio(inPath) {
+  const outPath = path.join(os.tmpdir(), `transcribe-${crypto.randomBytes(8).toString('hex')}.mp3`);
+  return new Promise((resolve, reject) => {
+    const ff = spawn(FFMPEG, [
+      '-y', '-i', inPath, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', outPath,
+    ], { stdio: 'ignore' });
+    ff.on('error', reject);                // ENOENT when ffmpeg is not installed
+    ff.on('close', (code) => {
+      if (code === 0) resolve(outPath);
+      else reject(new Error(`ffmpeg exited ${code}`));
+    });
+  });
+}
 
 /**
  * Call OpenAI Whisper with word-level timestamps.
@@ -28,4 +59,4 @@ async function whisperWords(audioPath, apiKey) {
     .filter((w) => w.word && Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start);
 }
 
-module.exports = { whisperWords };
+module.exports = { whisperWords, extractAudio };

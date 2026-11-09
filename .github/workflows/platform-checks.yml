@@ -471,6 +471,19 @@ jobs:
       # is the page lying about its own output.
       - name: Guard — the preview's mask and the render's agree
         run: node tests/composition-fx-agreement.test.js
+      # The spoken shape of a reference: hook, problem, solution, call to
+      # action. The labelling is a model's, and it is CHECKED against the
+      # transcript — a span covering no words, a solution before its problem,
+      # or no CTA where "link in bio" is plainly said all come back as
+      # disagreements rather than as a reading.
+      - name: Guard — a labelled shape is checked against what was said
+        run: node tests/structure-label.test.js
+      # And the pass around it, every boundary replaced and what crossed it
+      # asserted. The ordering is the one that costs money: the words are in
+      # hand and the Whisper charge is on the record before anything else can
+      # throw.
+      - name: Guard — the structure pass logs what it spent, in the right order
+        run: node tests/reference-structure.test.js
       - name: Guard — composition CRUD and persistence
         run: node tests/compositions.test.js
       - name: Guard — the compose routes
@@ -498,6 +511,11 @@ jobs:
       # carries.
       - name: Mutations — the caption matcher
         run: node tests/caption-match-mutations.test.js
+      # Most of these remove a check, because holding a model's answer up
+      # against the transcript is the whole job: a suite that only tested a
+      # good labelling would pass on a version that accepted anything.
+      - name: Mutations — the structure labeller
+        run: node tests/structure-label-mutations.test.js
       # Spend that is recorded wrong is spend nothing can cap. The fault this
       # guards called OpenAI, threw on the next line, discarded the transcript
       # it had just paid for, and recorded no cost — so every click of

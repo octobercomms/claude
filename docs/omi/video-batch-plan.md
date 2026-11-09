@@ -587,9 +587,62 @@ what keeps it on the right side.
 > **25 mutations, none surviving.** Most of them make the matcher claim
 > something rather than refuse it.
 >
-> **Still to do: the structural archetype** from the transcript, and storing a
-> proposal. Templates are files in `shared/templates/`, so the panel offers
-> the JSON to copy and says why rather than a Save that quietly does nothing.
+> **Built, 9 November: the spoken shape too.**
+> `shared/structureLabel.mjs` checks; `services/referenceStructure.js`
+> transcribes and labels. The archetype comes back as the sequence of its
+> sections — `hook-solution-cta` — with the seconds each one runs.
+>
+> **A call to action is measured, not asked.** Twenty-nine phrases ask a
+> viewer for something and almost nothing else does, so finding them is a
+> search over the transcript rather than a judgement. The model's labelling
+> is then held against it: no CTA where "link in bio" is said at 24s comes
+> back as a DISAGREEMENT with the words quoted and the second given, so
+> somebody can go and listen. A CTA labelled where nothing in the words asks
+> is allowed and noted as on screen rather than spoken, which is the honest
+> reading of a card or a handle.
+>
+> **The hook is positional.** It is the first thing said, so a span starting
+> nine seconds in is describing something else whatever it was called.
+>
+> **A span covering no words is refused**, which is what makes the
+> instruction's "your spans are checked against the transcript" true rather
+> than a form of words. So are a second hook, a solution before its problem,
+> overlapping spans, a span past the last word, and a field nothing reads.
+>
+> **The model is told to LEAVE A SECTION OUT.** Most reels are hook then
+> solution then CTA and plenty are hook then CTA; a model that feels obliged
+> to find a "problem" will label one. The prompt says labelling a problem
+> that was never stated is worse than having three sections.
+>
+> **It does not touch the draft template**, for the same reason the measured
+> loudness does not: a template's slots are pictures and words an operator
+> supplies, and a stranger's hook length is a constraint nothing measured
+> about our own batch. What it is for is the brief.
+>
+> **Two calls, two costs, logged separately** so the chip prices each and a
+> cap can stop either: Whisper by the seconds it actually transcribed (the
+> API returns no usage figure for audio, so the rate times the duration is
+> the only honest way), and the labelling as text. The words are in hand and
+> the charge is on the record before anything else can throw — a mutation
+> that moved the cost call after the labelling died, because that exact
+> ordering is what made every click of Transcribe charge again for a
+> transcript nobody received.
+>
+> **A fourth copy of `extractAudio` was about to be written.** It now lives in
+> `services/whisper.js` beside the call that needs it, and the copy in
+> `routes/compose.js` is gone.
+>
+> **31 mutations, none surviving.** Two needed the tests sharpened first: the
+> cue ordering test said its two phrases in lexicon order, so no sort was
+> needed to pass it, and the confidence test compared a full labelling
+> against a sparse one, where the coverage term alone explained the gap.
+> A redundant `Math.min(0.85, ...)` on top of a 0.85 coefficient also came
+> out, for the same reason the vignette's corner stop did: a sweep walked
+> straight through its removal.
+>
+> **Still to do: storing a proposal.** Templates are files in
+> `shared/templates/`, so the panel offers the JSON to copy and says why
+> rather than a Save that quietly does nothing.
 
 ---
 
