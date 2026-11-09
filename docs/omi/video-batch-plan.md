@@ -1199,13 +1199,22 @@ four sit under it.
 > - **3, the stale docs: CLOSED.** `agent-guide.md` §9 and `edit-studio.md`
 >   both carry the correction.
 > - **6, the batch and template columns: DONE** in migration 249.
-> - **1, "Send to Edit", is still broken**, and the reason is worth stating:
->   it is not a missing route, it is that a recording lives behind
->   `mediaStore` with a `storage_key` and the render path resolves only
->   `/api/brand/file/<client>/<name>` urls. Making it work means teaching the
->   renderer to resolve a recording through `mediaStore.localFile`, and
->   holding the release until ffmpeg closes. A real piece of work rather than
->   a one-line fix, and it is its own change.
+> - **1, "Send to Edit": DONE**, and the reason it took a change rather than
+>   a line is worth keeping. It was never only a missing route: a recording
+>   lives behind `mediaStore` under a `storage_key` and the render path
+>   resolved only `/api/brand/file/<client>/<name>` urls, so a composition
+>   pointing at one could be built and would then refuse to render with "has
+>   no file on disk" about a file that was fine and in the other store.
+>   `assetMedia` resolves both, the runner holds the streamed-down copy until
+>   ffmpeg closes and lets go on either outcome, and the recipe is in
+>   `compositions.fromRecording` where it can be checked against `validate()`
+>   rather than inside a route handler.
+>
+>   It also fixed a second handoff nobody had noticed. The editor opens the
+>   FIRST ROW of its own list, and both buttons that hand a composition over —
+>   "Send to Edit" and the review sheet's "Open in editor" — only switched the
+>   tab. So the review sheet's button reliably opened whatever was newest
+>   rather than the item the operator had clicked. Both pass the id now.
 
 1. **"Send to Edit" on the Record tab is broken.**
    `RecordingsPage.jsx:515` posts to `/edit/clients/:clientId/edit/from-recording`.

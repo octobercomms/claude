@@ -487,6 +487,15 @@ jobs:
       # leaves the review sheet offering a row whose file is gone.
       - name: Guard — the disk sweep takes only our own renders
         run: node tests/composition-retention.test.js
+      # "Send to Edit" was never only a missing route: a recording lives
+      # behind `mediaStore` under a `storage_key` and the render path resolved
+      # only uploads-tree urls, so a composition pointing at one could be
+      # built and would refuse to render with "has no file on disk" about a
+      # file that was fine. These pin the resolver, the recipe (checked
+      # against `validate()` rather than written inside a route handler) and
+      # the lifetime of a streamed-down copy.
+      - name: Guard — a recording can be edited, and its temp copy is let go
+        run: node tests/recording-to-composition.test.js
       # The spoken shape of a reference: hook, problem, solution, call to
       # action. The labelling is a model's, and it is CHECKED against the
       # transcript — a span covering no words, a solution before its problem,

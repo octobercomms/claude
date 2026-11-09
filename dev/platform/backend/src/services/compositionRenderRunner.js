@@ -42,7 +42,7 @@ const { pathToFileURL } = require('url');
 const compositions = require('./compositions');
 const assets = require('./assets');
 const queue = require('./compositionRenderQueue');
-const { buildCaptionAss, assetFilePath } = require('./compositionRenderer');
+const { buildCaptionAss, assetFilePath, assetMedia } = require('./compositionRenderer');
 const renderQc = require('./renderQc');
 // ONE ffmpeg for the whole backend. Reading FFMPEG_PATH here instead would
 // put a second answer to "which ffmpeg" in the tree, which is the exact state
@@ -105,12 +105,23 @@ async function prepare(compositionId, options = {}) {
   const sourceAssets = comp.source_assets || {};
   const sourcePaths = {};
   const stillSources = new Set();
+  // Temp copies to delete once ffmpeg is done. A recording on R2 is streamed
+  // down to one of these; on disk the release is a no-op. Held until the
+  // encode finishes rather than released at the end of this function, because
+  // the file has to still be there when ffmpeg opens it.
+  const releases = [];
   for (const [sourceId, src] of Object.entries(data.sources || {})) {
     const assetId = sourceAssets[sourceId] || src.asset;
     if (assetId) {
       const asset = await assets.get(assetId);
       if (asset) {
-        const fp = assetFilePath(asset);
+        // `assetMedia`, not `assetFilePath`: a recording is not in the
+        // uploads tree, it is behind `mediaStore` under a `storage_key`, and
+        // a render path that only knew the first store is why "Send to Edit"
+        // had nothing to point at.
+        const media = await assetMedia(asset);
+        const fp = media?.path || null;
+        if (media?.release) releases.push(media.release);
         if (fp) sourcePaths[sourceId] = fp;
         // The asset row is where a hand-built composition learns that its
         // source is a photograph rather than footage: `kind` is 'image' for
@@ -159,7 +170,7 @@ async function prepare(compositionId, options = {}) {
   const outDir = path.join(UPLOAD_ROOT, String(comp.client_id));
   fs.mkdirSync(outDir, { recursive: true });
 
-  return { comp, graph, resolved, captionAssPath, outDir, options };
+  return { comp, graph, resolved, captionAssPath, outDir, options, releases };
 }
 
 /**
@@ -172,6 +183,26 @@ async function prepare(compositionId, options = {}) {
 function discard(prepared) {
   if (prepared?.captionAssPath) {
     fs.promises.unlink(prepared.captionAssPath).catch(() => {});
+  }
+  releaseAll(prepared);
+}
+
+/**
+ * Let go of every temp copy a prepared render pulled down.
+ *
+ * Idempotent, because it is called both when a render is discarded and when
+ * one finishes, and a path that reached neither would leak a whole video per
+ * render on an R2 install.
+ */
+function releaseAll(prepared) {
+  const list = prepared?.releases;
+  if (!Array.isArray(list)) return;
+  prepared.releases = [];
+  for (const release of list) {
+    try {
+      const out = release();
+      if (out && typeof out.catch === 'function') out.catch(() => {});
+    } catch { /* a release that throws is not worth failing a render over */ }
   }
 }
 
@@ -202,11 +233,16 @@ async function renderOne(job) {
   return new Promise((resolve) => {
     const ff = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
 
-    if (captionAssPath) {
-      const release = () => { fs.promises.unlink(captionAssPath).catch(() => {}); };
-      ff.once('close', release);
-      ff.once('error', release);
-    }
+    // Everything temporary this render pulled down, let go the moment ffmpeg
+    // is finished with it, whichever way it finished. The ASS file and any
+    // streamed-down source copy are the same problem: on an R2 install each
+    // render would otherwise leave a whole video in the temp directory.
+    const letGo = () => {
+      if (captionAssPath) fs.promises.unlink(captionAssPath).catch(() => {});
+      releaseAll(prepared);
+    };
+    ff.once('close', letGo);
+    ff.once('error', letGo);
 
     let stderr = '';
     let lastWrite = 0;

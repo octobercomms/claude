@@ -72,6 +72,40 @@ function assetFilePath(asset) {
   return fs.existsSync(filePath) ? filePath : null;
 }
 
+/**
+ * An asset as a local file ffmpeg can open, whichever store it lives in.
+ *
+ * `assetFilePath` above answers one question — where is this asset in the
+ * uploads tree — and it is the right answer for anything an operator
+ * uploaded. A RECORDING is not there. It lives behind `mediaStore` under a
+ * `storage_key`, which on disk is `recordings-store/` and on R2 is an object
+ * that has to be streamed down first. That is why "Send to Edit" on the
+ * Record tab had nothing to point at: not a missing route, a render path that
+ * could only resolve one of the two stores.
+ *
+ * Returns `{ path, release }` or null. `release` MUST be called when ffmpeg
+ * is done: on disk it does nothing, and on R2 it deletes a temp copy of a
+ * whole video. Holding it open is the caller's job because the caller is the
+ * one that knows when the encode finished.
+ */
+async function assetMedia(asset) {
+  const uploaded = assetFilePath(asset);
+  if (uploaded) return { path: uploaded, release: async () => {} };
+
+  const key = asset?.storage_key;
+  if (!key) return null;
+  try {
+    const mediaStore = require('./mediaStore');
+    const got = await mediaStore.localFile(key);
+    return got?.path ? got : null;
+  } catch {
+    // A key the store cannot produce is an asset with no file, which is what
+    // the caller already handles. Not an error worth failing a render that
+    // has other sources it could still refuse for a better reason.
+    return null;
+  }
+}
+
 // ── Caption ASS generation ───────────────────────────────────────────
 
 /**
@@ -364,6 +398,7 @@ async function renderComposition(compositionId, options = {}) {
 module.exports = {
   renderComposition,
   assetFilePath,
+  assetMedia,
   parseProgress,
   buildCaptionAss,
   resolveTranscript,

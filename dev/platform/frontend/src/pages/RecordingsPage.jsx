@@ -509,13 +509,20 @@ export default function RecordingsPage({ clientId = null, onSendToEdit } = {}) {
     catch (err) { toast('Transcription failed: ' + (err?.message || ''), 'error'); }
   }
 
+  // The old route went with `routes/edit.js` in the November rewrite, so this
+  // button answered with a toast for a fortnight. It makes a composition from
+  // the recording now and hands its id up, so the editor opens THAT one
+  // rather than whichever composition happens to be newest.
   async function sendToEdit(rec) {
     if (!clientId) return;
     try {
-      await api.post(`/edit/clients/${clientId}/edit/from-recording`, { recording_id: rec.id });
-      toast('Sent to Edit');
-      if (onSendToEdit) onSendToEdit();
-    } catch (err) { toast('Send to Edit failed: ' + (err?.message || ''), 'error'); }
+      const comp = await api.post(
+        `/compose/clients/${clientId}/compositions/from-recording`,
+        { recording_id: rec.id }
+      );
+      toast('Opened in the editor');
+      if (onSendToEdit) onSendToEdit(comp?.id || null);
+    } catch (err) { toast('Could not open it in the editor: ' + (err?.message || ''), 'error'); }
   }
 
   async function copyLink(rec) {

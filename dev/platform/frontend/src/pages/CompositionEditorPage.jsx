@@ -92,7 +92,7 @@ function initComp() {
   return comp;
 }
 
-export default function CompositionEditorPage({ clientId }) {
+export default function CompositionEditorPage({ clientId, openId = null }) {
   const toast = useToast();
   const {
     state: composition, setState: setComposition,
@@ -156,7 +156,17 @@ export default function CompositionEditorPage({ clientId }) {
         setDesigns(designList);
         setCompList(list);
 
-        if (list.length > 0) {
+        // `openId` is a handoff: "Send to Edit" on the Record tab and "Open
+        // in editor" on the review sheet both name the composition they mean.
+        // Without it the editor opened the first row of its own list, so the
+        // review sheet's button landed on whatever was newest rather than on
+        // the item the operator had clicked.
+        const wanted = openId
+          ? list.find((r) => String(r.id) === String(openId))
+          : null;
+        if (wanted) {
+          loadFromRow(wanted);
+        } else if (list.length > 0) {
           const row = list[0];
           loadFromRow(row);
         } else {
@@ -175,7 +185,7 @@ export default function CompositionEditorPage({ clientId }) {
     }
     init();
     return () => { live = false; };
-  }, [clientId]);
+  }, [clientId, openId]);
 
   function loadFromRow(row) {
     const data = row.data && typeof row.data === 'object' && row.data.version
