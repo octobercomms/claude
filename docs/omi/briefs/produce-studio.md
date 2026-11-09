@@ -313,10 +313,10 @@ fixes it for all nine sections rather than only Produce, since nothing ever
 used the `screenSlugs` guard it exports. Pinned by five drive assertions,
 one of which is a real slug that must be left alone. | none |
 | 2 | ~~Studio top bar: name, save dot, Export, hero suppressed on this screen~~ **Built 9 November**, with `?open=` and inline rename; see below | none |
-| 3 | Four-panel shell: 240 / 1fr / 260 with a full-width timeline row | none |
+| 3 | ~~Four-panel shell: 240 / 1fr / 260 with a full-width timeline row~~ **Built 9 November**, in four conformance steps: the shell collapses to icon strips, the Studio fills the window, the checks move to the inspector, the bin takes its column | none |
 | 4 | ~~Timeline toolbar~~ **Built 9 November**: undo, redo, split, delete, Fit/−/+, `?`. Ripple deleted; zoom slider and snap toggle refused, with reasons below | none |
 | 5 | One ordered inspector; delete the timeline's selected-item strip; **collapse the two volume sliders** (see below) | none |
-| 6 | Media bin in the editor: `AssetLibrary` with `onPick` | none |
+| 6 | ~~Media bin in the editor: `AssetLibrary` with `onPick`~~ **Built 9 November**, as the 240px column of step 3 | none |
 | 7 | Transform panel on scale and pos, ~~with a preview-vs-render agreement test~~ — **the agreement test already exists**, see below | model already holds it |
 | 8+ | Drag from bin, fades, per-track mute, fixed lanes, text, filters | real, costed separately |
 
@@ -1496,6 +1496,72 @@ brief already has a section for.
   splitter as the alternative.
 - **Scale and position still have no controls.** Decision 5 refused rotation
   and does not cover these.
+
+## Built, 9 November: the bin takes its column, and the picture its size
+
+Step 3d, and the end of build-order item 3. The Studio's middle row is
+`240px 1fr 260px`, which is the mockup's `.main` exactly.
+
+**The media bin is a 240px column on the left**, where the mockup has it and
+where this file twice said it could not go. The refusal was a measurement:
+the stage's player cell was 284px at 1440x900, so a 240px bin beside it left
+28px of picture. True of the page it was taken on, false of this one, and
+retracted above by the critic that made the argument.
+
+**Lanes are 48px**, the mockup's. They were 64, and the 16px is multiplied by
+the number of tracks and subtracted from the picture: at the mockup's own six
+lanes, 64px lanes cost 96px of height, which is 54px of picture width, more
+than the whole gap to the mockup's player.
+
+**Measured at 1440x900, the picture:**
+
+| | |
+|---|---|
+| a tall document, bounded by `50vh` | 253 |
+| the Studio filling the window | 220 |
+| with the reel checks out of the centre column | 220, unchanged |
+| with the page margins gone and the transport in its row | 222 |
+| with lanes at 48 | 240 |
+| **with the bin as a column** | **352 x 626** |
+| the mockup | 269 x 479 |
+
+The picture is now larger than the mockup's at both sizes. That is not a
+victory to bank: **it is a two-lane reel.** The timeline is content-sized in
+our build and in the mockup, which hides it by drawing exactly six lanes.
+Each further lane costs 52px, so at six lanes the picture is about 235px. The
+decision the mockup does not take — whether the timeline caps and scrolls its
+lanes, or keeps growing into the picture — is with Daniel, with a draggable
+splitter as the alternative.
+
+### What the bin is, now it is a column
+
+- **16:9 thumbs in two columns**, as the mockup draws them, rather than the
+  strip's squares. A square tile of a 9:16 reel is mostly letterbox.
+- **Type filters and search are back on for the library scope.** They were
+  dropped from the strip because two rows of chips cost 110px of a 130px
+  strip; in a column the height of the picture they cost two rows of tiles,
+  and finding one file in a client's whole library is what the bin is for.
+- **Two scopes stay**, which is a departure the mockup does not make. "In
+  this reel" first.
+- **One line per clip on the timeline**, name left and length right. Stacked,
+  the second line sat on the filmstrip and was cut by the lane's bottom edge
+  at 48px. The labels also now clear the trim handles: at 6px of padding the
+  first letter of every name was drawn under the left handle, so "space.mp3"
+  read as "pace.mp3".
+
+### The bin broke nine assertions, and the reason is the house fault again
+
+Nine lookups in `drive-studio.mjs` found a timeline block by its file name
+and a 700 weight, sweeping the whole document to do it. The bin draws the
+same file name in the same weight and sits **earlier in the DOM**, so the
+moment it became a column each of them picked up a bin tile, walked six
+ancestors looking for the positioned element a block has, found none, and
+reported `no block found` on a screen full of blocks. They are scoped to the
+timeline now.
+
+Worth recording because the test was not wrong about the product and the
+product was not broken: a selector that had been correct for months stopped
+being correct when something that looks the same appeared above it.
 
 ## Faults found while auditing, worth fixing in passing
 

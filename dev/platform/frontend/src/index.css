@@ -2513,11 +2513,16 @@ a:hover > .card-stat,
 }
 
 /* Edit studio — split editor layout: big preview left, settings right. */
-/* The mockup's `.main` is `240px 1fr 260px`. The inspector takes its 260
-   rather than a share of the row: a fraction gave it 300px at 1440 and 380
-   at 1800, and an inspector that grows with the window grows the one column
-   on the screen whose content is a fixed list of fields. */
-.edit-split { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; align-items: start; }
+/* `240px 1fr 260px`, which is the mockup's `.main` exactly: the media bin,
+   the picture, the inspector.
+   Both fixed columns take the mockup's number rather than a share of the
+   row. A fraction gave the inspector 300px at 1440 and 380 at 1800, and the
+   two columns on this screen whose content is a fixed list of fields are the
+   last two that should grow with the window.
+   The width costs the picture nothing, which is the measurement that let the
+   bin exist at all: the picture is bounded by the height of its row, and at
+   1600x1000 there is 892px of empty black beside it. */
+.edit-split { display: grid; grid-template-columns: 240px minmax(0, 1fr) 260px; gap: var(--s3); align-items: start; }
 
 /* ─── The Studio as an instrument ───────────────────────────────────
    Three rows filling the window: the bar, the work, the timeline pinned to
@@ -2575,6 +2580,8 @@ a:hover > .card-stat,
  * matters is that the next step was nearly planned off the wrong number. */
 .studio-stage { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; }
 @container appmain (max-width: 580px) { .edit-split { grid-template-columns: 1fr; } }
+/* The bin is a column that scrolls inside itself, like the inspector. */
+.studio-bin { min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ══ Design system v1 — L1–L6 shell components ═══════════════════════
    Namespaced `ds-*` so they never collide with legacy page classes.

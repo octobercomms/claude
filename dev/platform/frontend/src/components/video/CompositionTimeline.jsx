@@ -24,7 +24,13 @@ import { ShortcutButton } from './ShortcutReference';
 
 const MIN_PPS = 2;
 const MAX_PPS = 400;
-const TRACK_H = 64;
+// 48, which is the mockup's lane. It was 64, and the 16px is not a matter of
+// taste: lane height is multiplied by the number of tracks and subtracted
+// from the picture. At the mockup's own six lanes, 64px lanes cost the
+// picture 96px of height, which is 54px of its width — more than the whole
+// gap to the mockup's player. A lane holds a label, a filmstrip and a 16px
+// waveform, all of which fit in 48.
+const TRACK_H = 48;
 const RULER_H = 22;
 const HANDLE_W = 10;
 const TRACK_GAP = 4;
@@ -639,17 +645,31 @@ export default function CompositionTimeline({
                         );
                       })()}
 
-                      {/* Label */}
+                      {/* Label.
+                          ONE LINE, name left and length right, because the
+                          lane is 48px. Stacked, the second line sat on the
+                          filmstrip and was cut by the lane's bottom edge the
+                          moment lanes came down from 64 to the mockup's 48.
+                          The mockup draws a single label and no per-clip
+                          length at all; the length is kept because it is the
+                          clip's own and is stated nowhere else, and the name
+                          gives way first because it is also in the inspector
+                          when the clip is selected. */}
                       <div style={{
                         position: 'relative',
-                        padding: '4px 6px', fontSize: 'var(--fs-caption)', lineHeight: 1.3,
+                        display: 'flex', alignItems: 'baseline', gap: 'var(--s2)',
+                        /* Clear of the trim handles, which are HANDLE_W wide
+                           and sit at both edges. At 6px the first letter of
+                           every name on the timeline was drawn under the left
+                           handle: "space.mp3" read as "pace.mp3". */
+                        padding: `4px ${HANDLE_W + 2}px`, fontSize: 'var(--fs-caption)', lineHeight: 1.3,
                         pointerEvents: 'none', whiteSpace: 'nowrap',
-                        background: 'linear-gradient(to bottom, var(--surface) 0%, var(--surface) 62%, transparent 100%)',
+                        background: 'linear-gradient(to bottom, var(--surface) 0%, var(--surface) 70%, transparent 100%)',
                       }}>
-                        <div style={{ fontWeight: 700 }}>
+                        <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                           {labelFor(src, item, sourceNames)}
                         </div>
-                        <div className="text-subtle">
+                        <div className="text-subtle" style={{ marginLeft: 'auto', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
                           {PB.timecode(item.len, fps)}
                           {item.gain != null && item.gain !== 1 ? ` · ${Math.round(item.gain * 100)}%` : ''}
                           {item.opacity != null && item.opacity !== 1 ? ` · ${Math.round(item.opacity * 100)}% opaque` : ''}

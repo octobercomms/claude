@@ -260,10 +260,10 @@ for (const [asked, want, row] of [
   // 276 of it.
   //
   // That is worth asserting rather than quietly dropping, because it is the
-  // fact the next step rests on: the mockup's 240px media bin comes out of a
-  // thousand pixels of spare width and costs the picture nothing. What costs
-  // the picture is vertical — the shelf under the timeline — and the bin is
-  // what lets the shelf go.
+  // fact the bin rests on: the mockup's 240px media bin comes out of spare
+  // width and costs the picture nothing. What cost the picture was vertical,
+  // and it was the bin's own former shape, a full-width strip under the
+  // timeline.
   const well = await box('[data-testid="player-well"]');
   if (canvas && well) {
     say(Math.abs(canvas.height - well.height) < 3,
@@ -321,7 +321,14 @@ for (const [asked, want, row] of [
   await p.route('**/api/compose/compositions/*', (route) => (
     route.request().method() === 'PUT' ? route.abort() : route.continue()));
   const hit = await p.evaluate(() => {
-    const label = [...document.querySelectorAll('div')]
+    // Scoped to the TIMELINE, and the day it was not cost nine assertions.
+    // These lookups find a block by its file name and a 700 weight, and used
+    // to sweep the whole document. The media bin draws the same file name in
+    // the same weight and sits earlier in the DOM, so the moment the bin
+    // became a column each of them picked up a BIN TILE instead of a block,
+    // walked six ancestors looking for the positioned element a block has,
+    // found none, and reported "no block found" on a screen full of blocks.
+    const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
     let el = label;
     for (let i = 0; i < 6 && el; i++) {
@@ -361,40 +368,49 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
-// ── 8. The shelf: where material enters ────────────────────────────────
+// ── 8. The media bin: where material enters ────────────────────────────
 //
 // Before it there was no way to put anything OMI already owns into a
 // composition. Not an awkward path: none.
 //
-// Geometric again, because the placement is the design. A bin BESIDE the
-// stage was measured at 1440x900 and would have left the player cell 28px
-// wide, so the shelf is a full-width strip instead — and it sits BELOW the
-// timeline rather than above it, because above pushed the timeline to y=1018
-// on a 900px screen and the timeline is the thing you work in.
+// Geometric again, because the placement is the design, and this section has
+// now asserted BOTH placements. It asserted a full-width strip under the
+// timeline, on a measurement that said a bin beside the stage would leave
+// the player cell 28px wide. That measurement was taken on a scrolling
+// document in which the picture was bounded by its WIDTH, and it is false of
+// a Studio that fills the window: the picture is bounded by the HEIGHT of
+// its row, so a column beside it costs nothing and a strip under the
+// timeline costs 199px.
+//
+// Measured, 1440x900: 220px of picture with the strip, 352 with the column.
+// The mockup's is 269.
 {
   const p = await open('/clients/c1/produce/studio');
   await p.setViewportSize({ width: 1440, height: 900 });
   await p.waitForTimeout(700);
   const box = async (sel) => { try { return await p.locator(sel).first().boundingBox(); } catch { return null; } };
 
-  const shelf = await box('[data-studio-shelf]');
+  const bin = await box('[data-studio-bin]');
+  const stage = await box('.studio-stage');
   const canvas = await box('canvas');
-  say(!!shelf, 'the shelf is on the screen');
-  if (shelf && canvas) {
-    say(shelf.width > 500, 'and is full width rather than a column beside the frame',
-      `${Math.round(shelf.width)}px; a 240px bin beside the stage would leave the player 28px`);
-    // A floor, not the number. 253px while the page was a tall document and
-    // the picture was bounded by 50vh — a fraction of the WINDOW, with
-    // nothing to do with the space it was given. 220px since the Studio
-    // filled the window, and still 220 with the reel checks out of the
-    // centre column, because the bound is the row's HEIGHT. The mockup's is
-    // 269, and the thing standing between the two is the shelf under the
-    // timeline: 187px of height that the left bin takes over. Asserting a
-    // number rather than a floor would pin whichever layout is current.
-    say(canvas.width > 200,
-      'and the player is not squeezed to nothing',
-      `${Math.round(canvas.width)}px against the mockup's 269; the gap is `
-      + 'vertical, and the shelf is what is in it');
+  say(!!bin, 'the media bin is on the screen');
+  if (bin && stage && canvas) {
+    // THE OPPOSITE of what this asserted an hour ago, which said the bin had
+    // to be a full-width strip because a column beside the stage would leave
+    // the player 28px. That was measured on a scrolling document in which
+    // the picture was bounded by its WIDTH, and it is false of a Studio that
+    // fills the window.
+    say(Math.abs(bin.width - 240) <= 1, 'and is the mockup\'s 240px column',
+      `${Math.round(bin.width)}px`);
+    say(bin.x + bin.width <= stage.x + 1, 'to the LEFT of the picture, not under the timeline',
+      `the bin ends at ${Math.round(bin.x + bin.width)}, the stage starts at ${Math.round(stage.x)}`);
+    // The claim the bin was refused on, now measured the other way round.
+    // 220px of picture with a full-width strip under the timeline; 352 with
+    // the same material in a 240px column beside it. The strip cost the
+    // picture 199px of HEIGHT and the column costs it no width at all.
+    say(canvas.width > 269,
+      'and the picture is now larger than the mockup\'s own 269px at this size',
+      `${Math.round(canvas.width)}px, against 220 with the bin as a strip under the timeline`);
   }
 
   const v1 = await p.evaluate(() => {
@@ -404,9 +420,11 @@ for (const [asked, want, row] of [
   say(v1 != null && v1 < 900,
     'and the timeline is still above the fold at 1440x900',
     `V1 at y ${Math.round(v1)}; it was at 931 before the hero came off this screen`);
-  if (shelf && v1 != null) {
-    say(shelf.y > v1, 'with the shelf below the timeline, not above it',
-      `shelf y ${Math.round(shelf.y)}, V1 y ${Math.round(v1)}`);
+  if (bin && v1 != null) {
+    // The bin is a column now, so the claim is that it does not push the
+    // timeline down: it stops where the picture's row stops.
+    say(bin.y < v1, 'with the bin beside the picture, above the timeline rather than under it',
+      `bin y ${Math.round(bin.y)}..${Math.round(bin.y + bin.height)}, V1 y ${Math.round(v1)}`);
   }
 
   const t = await text(p);
@@ -431,7 +449,7 @@ for (const [asked, want, row] of [
     .map(d => d.textContent.trim()));
 
   const before = await blocks();
-  await p.locator('[data-studio-shelf] [role="button"]').first().click();
+  await p.locator('[data-studio-bin] [role="button"]').first().click();
   await p.waitForTimeout(800);
   const after = await blocks();
 
@@ -548,7 +566,7 @@ for (const [asked, want, row] of [
   // The SECOND block on the video track, because a transition is between an
   // item and the one before it and the first has nothing to transition from.
   const hit = await p.evaluate(() => {
-    const label = [...document.querySelectorAll('div')]
+    const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
     if (!label) return null;
     let el = label;
@@ -633,7 +651,7 @@ for (const [asked, want, row] of [
   await p.route('**/api/compose/compositions/*', (route) => (
     route.request().method() === 'PUT' ? route.abort() : route.continue()));
   const hit = await p.evaluate(() => {
-    const label = [...document.querySelectorAll('div')]
+    const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
     let el = label;
     for (let i = 0; i < 6 && el; i++) {
@@ -813,7 +831,7 @@ for (const [asked, want, row] of [
   await p.setViewportSize({ width: 1440, height: 1200 });
   await p.waitForTimeout(900);
   const hit = await p.evaluate(() => {
-    const label = [...document.querySelectorAll('div')]
+    const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
     let el = label;
     for (let i = 0; i < 6 && el; i++) {
@@ -890,7 +908,7 @@ for (const [asked, want, row] of [
     .map(d => d.textContent.trim()));
   const pick = async (name) => {
     const hit = await p.evaluate((n) => {
-      const label = [...document.querySelectorAll('div')]
+      const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
         .find(d => d.textContent.trim() === n && d.style.fontWeight === '700');
       let el = label;
       for (let i = 0; i < 6 && el; i++) {
@@ -1014,7 +1032,7 @@ for (const [asked, want, row] of [
 
   // Now select something, and watch the two verbs wake up.
   const hit = await p.evaluate(() => {
-    const label = [...document.querySelectorAll('div')]
+    const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'atlas-walkthrough.mp4' && d.style.fontWeight === '700');
     let el = label;
     for (let i = 0; i < 6 && el; i++) {
@@ -1086,7 +1104,7 @@ for (const [asked, want, row] of [
 
   const clickBlock = async (name) => {
     const hit = await p.evaluate((n) => {
-      const label = [...document.querySelectorAll('div')]
+      const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
         .find(d => d.textContent.trim() === n && d.style.fontWeight === '700');
       let el = label;
       for (let i = 0; i < 6 && el; i++) {
@@ -1131,7 +1149,7 @@ for (const [asked, want, row] of [
   await q.waitForTimeout(900);
   const clickOn = async (page, name) => {
     const hit = await page.evaluate((n) => {
-      const label = [...document.querySelectorAll('div')]
+      const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
         .find(d => d.textContent.trim() === n && d.style.fontWeight === '700');
       let el = label;
       for (let i = 0; i < 6 && el; i++) {
@@ -1210,7 +1228,7 @@ for (const [asked, want, row] of [
     .find(b => b.textContent.trim() === '\u21a9')?.disabled);
   say(await undoOff() === true, 'Undo is off on a reel nobody has edited');
   const hit = await p.evaluate(() => {
-    const label = [...document.querySelectorAll('div')]
+    const label = [...(document.querySelector('[data-testid="composition-timeline"]') || document).querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
     let el = label;
     for (let i = 0; i < 6 && el; i++) {
@@ -1418,7 +1436,7 @@ for (const [asked, want, row] of [
         mainScroll: document.querySelector('.app-main')?.scrollHeight ?? null,
         mainBox: Math.round(document.querySelector('.app-main')?.getBoundingClientRect().height ?? 0),
         timeline: box('[data-testid="composition-timeline"]'),
-        shelf: box('[data-studio-shelf]'),
+        bin: box('[data-studio-bin]'),
         canvas: box('canvas'),
       };
     });
@@ -1426,9 +1444,10 @@ for (const [asked, want, row] of [
       `nothing scrolls at ${w}x${h}`,
       `document ${m.docScroll} in ${m.viewport}, main ${m.mainScroll} in ${m.mainBox} — `
       + 'it was 1149 in 900');
-    say(m.shelf && m.shelf.bottom <= h,
-      `and the shelf is on screen at ${w}x${h}`,
-      `${JSON.stringify(m.shelf)} against a ${h}px window; it used to start at y=930`);
+    say(m.bin && m.bin.bottom <= h,
+      `and the whole media bin is on screen at ${w}x${h}`,
+      `${JSON.stringify(m.bin)} against a ${h}px window; as a strip under the `
+      + 'timeline it used to start at y=930 and none of it was visible');
     say(m.timeline && m.timeline.bottom <= h,
       `and the whole timeline with it at ${w}x${h}`,
       `${JSON.stringify(m.timeline)}`);
