@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SECTIONS, allScreens } from '../src/nav/sections.js';
-import { matchScreens, screenPathLabel } from '../src/nav/screenSearch.js';
+import { matchScreens, screenPathLabel, screenWhere } from '../src/nav/screenSearch.js';
 
 const ALL = allScreens({});
 
@@ -32,6 +32,31 @@ test('typing a screen name puts that screen first', () => {
     assert.equal(hits[0].label, name,
       `"${name}" put ${hits[0].label} first (${screenPathLabel(hits[0])})`);
   }
+});
+
+// Produce → Studio was labelled "Video" until 9 November. The rename is right
+// — the row is a studio, and a list of five rows all implying "video" is what
+// made the agreed consolidation unreadable — but "video" is still the word an
+// operator types. So it is a keyword on the row.
+//
+// The test measures the hazard rather than remembering it: it asserts the
+// label really has no "video" in it, so the assertion below is proving the
+// keyword works and not merely that the word is in the label.
+test('a renamed screen is still found by the word people type for it', () => {
+  const studio = ALL.find(s => s.tab === 'compose');
+  assert.ok(studio, 'the composition editor has no screen entry');
+  assert.equal(studio.label, 'Studio');
+  assert.ok(!screenPathLabel(studio).toLowerCase().includes('video'),
+    `the path already contains "video" (${screenPathLabel(studio)}), so this proves nothing`);
+
+  for (const term of ['video', 'timeline', 'edit']) {
+    const hits = matchScreens(term, ALL);
+    assert.ok(hits.some(h => h.tab === 'compose'),
+      `"${term}" did not find the Studio (got ${hits.map(h => h.label).join(', ') || 'nothing'})`);
+  }
+
+  // And keywords must not leak into what the palette prints beside a result.
+  assert.equal(screenWhere(studio), 'Produce · Make');
 });
 
 test('a prefix beats a word that merely contains it', () => {

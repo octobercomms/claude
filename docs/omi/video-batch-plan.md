@@ -205,7 +205,13 @@ Fractions rather than pixels, so a composition survives a reframe, which is
 the rule `shared/overlays.mjs` already held for positioned text.
 
 Two things land on this one change: the OMI Studio mockup's Transform panel,
-and the cheap path to batch motion. A deterministic camera move over a still is
+and the cheap path to batch motion.
+
+> **This plan serves `docs/omi/briefs/produce-studio.md`, and this line was
+> the only place it ever cited it.** That is how the studio consolidation got
+> lost: the mockup's three model fields were taken and its IA was not, and no
+> later session had any way to know the mockup existed. The brief outranks
+> this plan. Read it before building anything else in Produce. A deterministic camera move over a still is
 a `scale` and `pos` animation, which costs nothing and never fails, against an
 image-to-video call that costs $0.20 to $0.45 and sometimes does. See **The
 image-to-video question**.
