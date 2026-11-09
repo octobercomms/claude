@@ -101,6 +101,38 @@ for (const [slug, label] of [['transcribe', 'Transcribe'], ['audio', 'Audio'], [
   await p.close();
 }
 
+// ── 5. An unknown slug corrects the URL rather than lying ────────────────
+//
+// This file's own header warned about the class and then tested only the
+// slugs that work, which is how it shipped. Measured on 9 November, before
+// the fix: /produce/nonsense, /produce/review and /produce/video each drew
+// the composition editor with "Studio" lit in the panel, as though that was
+// what you asked for. `review` is the dangerous one, being nearly the slug
+// of a real screen (`batch-review`).
+//
+// The fallback to the default tab is deliberate and stays; what changed is
+// that the address bar is corrected to match, so the URL and the nav agree.
+for (const [asked, want, row] of [
+  ['nonsense',     'studio',       'Studio'],
+  ['review',       'studio',       'Studio'],
+  ['video',        'studio',       'Studio'],
+  // The retired slug redirects to the canonical one rather than resolving
+  // quietly under the old address.
+  ['compose',      'studio',       'Studio'],
+  // A real slug is left exactly alone — this is the half that would catch a
+  // redirect rule too eager to fire.
+  ['batch-review', 'batch-review', 'Review'],
+]) {
+  const p = await open(`/clients/c1/produce/${asked}`);
+  const landed = new URL(p.url()).pathname.split('/').pop();
+  const active = await p.locator('.section-panel a[aria-current="page"], .section-panel .is-active')
+    .first().innerText().catch(() => '(none)');
+  say(landed === want && new RegExp(row, 'i').test(active),
+    `/produce/${asked} lands on /${want} with ${row} lit`,
+    `url read /${landed}, active row "${active}"`);
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
