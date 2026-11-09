@@ -122,6 +122,33 @@ argument in decision 4 below, and he is right to:
 - **Batch is open**: its own section, or a route inside the Studio.
 - **Visualise was not mentioned** and is not in his list of three. Unresolved.
 
+**Decided, second round, same day.** He answered the four collisions:
+
+- **"read only clients dont see Produce - good point. and they dont need it."**
+  So Produce becomes agency-only outright, rather than Record surviving as a
+  client row. That is one line in the rail (`Layout.jsx:274`, the way
+  Dashboard is already conditional) plus a guard on the typed URL, because a
+  client typing `/produce/studio` would otherwise reach a branch that renders
+  nothing: `useScreen`'s `setTab` returns early when a tab has no row
+  (`hooks/useScreen.js:32`), so the existing read-only fallback is silent.
+- **"phone - lets not have it on phone. its a desktop application. we can hide
+  produce on a phone."** Accepted, and the cost is small: `RecordingsPage`
+  captures with `getDisplayMedia`, which is not a phone capability, so phone
+  capture for the agency was incidental rather than designed.
+- **"batch - desktop only."** So Batch stays its own rows and both go
+  `phone: false`. **This gives up phone approval of a batch**, which
+  `VideoBatchReviewPage` was built for and says so in its own header. Recorded
+  because it is a real capability being dropped, not an oversight.
+- **"studio projects might just be library? shall we rename to Projects?"**
+  See the project model below. The answer is that a project already exists as
+  a `compositions` row, and the thing stopping "the result sits in the
+  projects folder" from being true is smaller and more specific than a rename.
+
+**Open, and cheap for him to answer:** `can_use_visualise` is a per-user grant
+whose only purpose is to let a CLIENT into Visualise. If Produce is
+agency-only, the grant does nothing. Either it is deleted, or Visualise needs
+a home a client can reach.
+
 What this collides with, being checked before anything is built: a read-only
 client login sees Record and Library and nothing else, and `compose` is
 `agencyOnly`, so folding Record into the Studio removes a client's only way to
@@ -137,8 +164,24 @@ be a composition with its own asset scope.
 in them is still what the replacement has to answer.** Decisions 5 to 9 stand
 until Daniel says otherwise.
 
-3. **Dark-first is a fork of the design system.** SUPERSEDED, see above: he
-   wants dark. The cost stands and is now a scoping question, not an argument.
+3. **Dark-first is a fork of the design system.** SUPERSEDED, and the cost in
+   it was wrong by about an order of magnitude. `.card` (`index.css:289`),
+   `.chip` (`:611`) and `.input/.select/.textarea` (`:1470`) are pure token
+   consumers: `var(--surface)`, `var(--text)`, `var(--card-border)` and
+   nothing else. Custom properties inherit, so redeclaring the tokens on a
+   wrapper gets all three with no new rules. A scoped dark Studio is one token
+   block of about eighteen declarations plus about twelve shared fixes where a
+   literal `#fff` is used as ink on a dark fill (`.btn-primary:hover`,
+   `.card.filled`, `.tab.active` and a few more), and those fixes improve the
+   light theme too, since they are currently correct only because `--text`
+   happens to be dark. Do the Studio first: the token block it produces is
+   exactly what a whole-app `data-theme` needs later, so it is a step rather
+   than a detour.
+   One real unknown, not solved by tokens: `index.css:28-35` records that the
+   rail at `#000` against the panel at `#222` is 1.32:1, and that the divider
+   is what draws the edge. Put a dark page behind both and they stop
+   separating. That is a design decision and should not be found late.
+   Original reasoning, kept because it is what the replacement answers:
     `index.css` is one light
    theme with no `prefers-color-scheme` and no `data-theme`. A dark Studio
    means a parallel palette plus dark variants of `.card`, `.btn`, `.chip-*`
@@ -183,6 +226,51 @@ until Daniel says otherwise.
 9. **Share implies an artefact that does not exist.** Export offers Download
    only. A share link is a tokenised page like `/coverage` and `/watch`, which
    is a backend story. Do not ship the button ahead of the thing.
+
+## The project model, and what is actually missing
+
+A "Studio project" needs no new table. `migrations/236_compositions.sql` gives
+each composition `client_id`, `title`, `data` (the whole composition including
+`data.sources`), **`source_assets`** (sourceId to `client_assets.id`, which is
+the project's file list) and **`transcripts`** (sourceId to a word array).
+Migration 249 added `batch_id` and `template_id`. The projects folder is
+`data.sources` joined to `source_assets`, which is what a media bin renders.
+A recording made in the Studio already becomes a source, through
+`POST /compose/clients/:id/compositions/from-recording`, which
+`RecordingsPage.jsx:516-526` already calls.
+
+**What is missing is two function calls, and it is the reason his sentence is
+currently false.** `assets.record` is called in exactly one place in the
+backend, `routes/recordings.js:150`. `routes/audio.js` and
+`routes/transcripts.js` never call it. So **a cleaned audio file and a
+transcript appear in no library at all today.** "The result sits in the studio
+projects folder" holds for recordings and for neither of the other two.
+
+The fix is the three-places rule: the `client_assets` source CHECK constraint
+(pattern in `migrations/251_composition_asset_source.sql`), `SOURCES` in
+`services/assets.js`, and `SOURCE_LABEL` in `components/AssetLibrary.jsx`. Two
+new sources, two calls, one migration, about forty lines. `assets.record` is
+written never to throw at its caller, so a library write cannot lose a job.
+
+A nullable `composition_id` on `transcripts` and `audio_cleanups` is the next
+tier, and only worth it when a standalone transcript needs to find its
+project. Both tables already have a nullable `client_id` for the standalone
+case (migrations 171 and 231).
+
+**On the rename:** Library today lists every asset for a client, not projects.
+Renaming it to Projects before it lists projects would be a label that lies,
+which is the fault this brief exists about. So: Library grows tabs (Assets,
+Transcripts, Audio) in one step, and becomes **Projects** in the step that
+gives it a project list as its first tab. Not before.
+
+**Transcribe is the one modal that does not work.** `AudioPage` is
+record-or-upload, one job, one result, which is modal-shaped. `TranscribePage`
+is a list-detail whose detail is a speaker-naming form, one input per detected
+voice with a sample quote, then a segment reader with copy, download and edit.
+The house rule is written down at `nav/sections.js:517-521`: "anything you
+would deep link to, or spend more than a minute inside, is a page." So the
+*job start* is a Studio modal and the *reading surface* lives in Library's
+Transcripts tab. His sentence stays true and the rule is kept.
 
 ## Build order
 
