@@ -238,6 +238,36 @@ for (const [asked, want, row] of [
   // autosave genuinely fails here — which is why this is checkable at all,
   // and it is the state that used to render in the same size, weight and
   // colour as "Saved".
+  //
+  // An EDIT is made first, and that is the point of the change rather than a
+  // detail of the test. These four assertions used to pass on a page nobody
+  // had touched, because opening a reel scheduled a save: the editor wrote to
+  // the database for merely being looked at, and the red "your last change is
+  // only in this tab" was about a change that did not exist. An edit nobody
+  // can save is worth shouting about. Opening a reel is not.
+  const hit = await p.evaluate(() => {
+    const label = [...document.querySelectorAll('div')]
+      .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
+    let el = label;
+    for (let i = 0; i < 6 && el; i++) {
+      if (getComputedStyle(el).position === 'absolute'
+        && el.getBoundingClientRect().width > 20) {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+      el = el.parentElement;
+    }
+    return null;
+  });
+  if (hit) {
+    await p.mouse.click(hit.x, hit.y);
+    await p.waitForTimeout(400);
+    const slider = p.locator('input[type=range]').first();
+    await slider.fill('2.5');
+    await slider.dispatchEvent('change');
+    await p.waitForTimeout(2600);
+  }
+  say(!!hit, 'a clip can be edited, so the save state has something to report');
   const t = await text(p);
   say(/Not saved/.test(t), 'a failed save says so');
   say(/only in this tab/.test(t), 'and says what it means for your work');
@@ -457,6 +487,100 @@ for (const [asked, want, row] of [
       `range inputs: ${JSON.stringify(maxes)}`);
     say(maxes.includes('4'), 'while volume still runs to the model\'s own bound',
       `range inputs: ${JSON.stringify(maxes)}`);
+  }
+
+  await p.close();
+}
+
+// ── 11. Looking is not editing, leaving is not losing ────────────────────
+//
+// Three faults that lived together. Opening a reel scheduled a save, so the
+// editor wrote to the database for being looked at — and `compositions.list`
+// orders by `updated_at`, so browsing three reels to find the right one
+// restamped and reordered all three. Switching reels guarded the `unsaved`
+// state and let `error` through, so the control sitting beside "your last
+// change is only in this tab" threw that change away without asking. And the
+// share link never carried the reel's name, because the editor held the
+// composition's `data` and not its row.
+{
+  const writes = [];
+  const p = await b.newPage();
+  p.on('pageerror', (e) => {
+    if (/stub: no route/.test(e.message)) return;
+    errs.push(`section 11: ${e.message}`);
+  });
+  const shared = [];
+  p.on('request', (r) => {
+    const u = new URL(r.url()).pathname;
+    if (['PUT', 'POST', 'PATCH'].includes(r.method())) writes.push(`${r.method()} ${u}`);
+    if (r.method() === 'POST' && /\/approvals\/clients\/[^/]+\/links$/.test(u)) {
+      try { shared.push(JSON.parse(r.postData() || '{}')); } catch { shared.push(null); }
+    }
+  });
+  await p.goto('http://127.0.0.1:4599/clients/c1/produce/studio', { waitUntil: 'networkidle' });
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(2600);
+
+  say(writes.length === 0, 'opening a reel writes nothing at all',
+    `${JSON.stringify(writes)} — a save on open bumps updated_at, and that column `
+    + 'is the order of the list you are browsing and the only thing telling two '
+    + '"Untitled" reels apart');
+  const afterOpen = await text(p);
+  say(/Saved/.test(afterOpen) && !/Not saved/.test(afterOpen),
+    'and an untouched reel does not claim your work is at risk',
+    'the red alert used to be the loudest thing on the screen on a page where '
+    + 'nothing had been changed');
+
+  // Now edit, let the save fail, and try to walk away from it.
+  const hit = await p.evaluate(() => {
+    const label = [...document.querySelectorAll('div')]
+      .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
+    let el = label;
+    for (let i = 0; i < 6 && el; i++) {
+      if (getComputedStyle(el).position === 'absolute'
+        && el.getBoundingClientRect().width > 20) {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+      el = el.parentElement;
+    }
+    return null;
+  });
+  if (hit) {
+    await p.mouse.click(hit.x, hit.y);
+    await p.waitForTimeout(400);
+    const slider = p.locator('input[type=range]').first();
+    await slider.fill('2.5');
+    await slider.dispatchEvent('change');
+    await p.waitForTimeout(2600);
+  }
+  say(/Not saved/.test(await text(p)), 'an edit the stub refuses reports as not saved');
+
+  const before = await p.locator('select.input').first().inputValue().catch(() => '');
+  await p.locator('select.input').first().selectOption('2').catch(() => {});
+  await p.waitForTimeout(1500);
+  const after = await p.locator('select.input').first().inputValue().catch(() => '');
+  say(before === '1' && after === '1',
+    'switching reels with an unsavable edit in hand does not switch',
+    `select went ${before} → ${after} — it used to load the other reel and the `
+    + 'edit was gone, with the warning about it still on screen');
+  say(/stays open/.test(await text(p)),
+    'and it says why rather than failing silently');
+
+  // The share link's heading.
+  await p.locator('button', { hasText: /^Share$/ }).first().click();
+  await p.waitForTimeout(900);
+  const make = p.locator('button', { hasText: /^Make the link$/ }).first();
+  const canMake = await make.isEnabled().catch(() => false);
+  say(canMake, 'the share dialog offers a render to send');
+  if (canMake) {
+    await make.click();
+    await p.waitForTimeout(1200);
+    const sentTitle = shared[0]?.title || '';
+    say(/Atlas showroom reel/.test(sentTitle),
+      "the share link carries the reel's name",
+      `title sent: "${sentTitle}" — the editor held the composition's data, which has `
+      + 'no title in it, so every link a client received was called "Reel — for your review"');
   }
 
   await p.close();

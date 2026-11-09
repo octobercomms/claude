@@ -87,10 +87,35 @@ describe('the other backend handoffs still flush', () => {
       const rest = src.slice(start + declaration.length);
       const end = rest.search(/\n  const \w+ = useCallback/);
       const body = end >= 0 ? rest.slice(0, end) : rest;
+      // The claim is that the handoff waits for the work in hand to reach the
+      // server, not that it names one particular function. `leaveSafely` is
+      // that wait for the two handoffs that change which reel is open: it
+      // flushes, and refuses to leave when the write fails. The assertion
+      // below pins what it does, so this list cannot be satisfied by calling
+      // something that merely sounds like a save.
       assert.match(
-        body, /await (doSave|flushSave)\(/,
+        body, /await (doSave|flushSave|leaveSafely)\(/,
         `${name} must not hand work to the backend on a stale row`
       );
     });
   }
+
+  it('and leaveSafely is a save, not a name', () => {
+    const start = src.indexOf('const leaveSafely = useCallback');
+    assert.ok(start >= 0, 'leaveSafely is gone; the two reel handoffs above now '
+      + 'await something that may not save anything');
+    const rest = src.slice(start);
+    const end = rest.search(/\n  const \w+ = useCallback/);
+    const body = end >= 0 ? rest.slice(0, end) : rest;
+    assert.match(body, /await doSave\(compId\)/,
+      `leaveSafely must actually write before it lets the screen change\n\n${body}`);
+    // And the half that is the whole point: a failed write stops the move
+    // rather than being walked away from. The editor used to guard 'unsaved'
+    // and let 'error' through, so the control beside "your last change is only
+    // in this tab" discarded that change without asking.
+    assert.match(body, /saveStatus !== 'error'|saveStatus === 'error'/,
+      `leaveSafely must treat a failed save as work in hand\n\n${body}`);
+    assert.match(body, /return ok/,
+      `leaveSafely must report whether it succeeded, or its callers cannot stop\n\n${body}`);
+  });
 });

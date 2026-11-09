@@ -115,6 +115,12 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
   const [transcribing, setTranscribing] = useState(null);
   const [compId, setCompId] = useState(null);
   const [compList, setCompList] = useState(null);
+  // The reel's NAME, which the editor did not hold. `composition` is the
+  // `data` blob and `emptyComposition()` has no title in it, so the one place
+  // the name was meant to reach a client — the share link's heading — fell
+  // through to ShareReelModal's own fallback and every link a client ever
+  // received was called "Reel — for your review".
+  const [compTitle, setCompTitle] = useState('');
   const [captionTemplates, setCaptionTemplates] = useState(null);
   const [saveStatus, setSaveStatus] = useState('saved');
   const [dragOver, setDragOver] = useState(false);
@@ -197,10 +203,14 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
   function loadFromRow(row) {
     const data = row.data && typeof row.data === 'object' && row.data.version
       ? row.data : initComp();
+    const loadedAssets = row.source_assets || {};
+    const loadedTranscripts = row.transcripts || {};
     setCompId(row.id);
+    setCompTitle(row.title || '');
     resetHistory(data);
-    setSourceAssets(row.source_assets || {});
-    setTranscripts(row.transcripts || {});
+    setSourceAssets(loadedAssets);
+    setTranscripts(loadedTranscripts);
+    savedJsonRef.current = JSON.stringify([data, loadedAssets, loadedTranscripts]);
     setPlayhead(0);
     setSelectedId(null);
     setSelectedTrackId(null);
@@ -238,8 +248,17 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
 
   // ── Auto-save ─────────────────────────────────────────────────────
 
+  // What the server is known to hold, serialised. It is set when a reel is
+  // loaded and again whenever a write succeeds, and the autosave effect
+  // below compares against it. See that effect for why.
+  const savedJsonRef = useRef(null);
+  const snapshot = () => JSON.stringify([
+    latestCompRef.current, latestAssetsRef.current, latestTransRef.current,
+  ]);
+
   const doSave = useCallback(async (id) => {
-    if (!id) return;
+    if (!id) return false;
+    const sending = snapshot();
     setSaveStatus('saving');
     try {
       await api.put(`/compose/compositions/${id}`, {
@@ -247,9 +266,12 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
         sourceAssets: latestAssetsRef.current,
         transcripts: latestTransRef.current,
       });
+      savedJsonRef.current = sending;
       setSaveStatus('saved');
+      return true;
     } catch {
       setSaveStatus('error');
+      return false;
     }
   }, []);
 
@@ -284,15 +306,61 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     await doSave(id);
   }, [doSave]);
 
+  // Leaving the screen inside the autosave window used to lose the last
+  // edit: this cleanup cleared the pending timer and saved nothing, so a
+  // click on any nav row within 1500ms of a trim discarded it in silence.
+  // The request is started here rather than awaited — a cleanup cannot wait
+  // — and a PUT already in flight completes after the component is gone.
+  const compIdRef = useRef(null);
+  compIdRef.current = compId;
   useEffect(() => {
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, []);
+    return () => {
+      if (!saveTimerRef.current) return;
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      if (compIdRef.current) doSave(compIdRef.current);
+    };
+  }, [doSave]);
 
-  // Mark unsaved on composition changes (skip during initial load)
+  // And the browser's own exit. `ClientDesignPage` and `RecordingsPage` both
+  // warn before an unload with work in hand; the editor, which is the screen
+  // with the autosave window, did not.
+  useEffect(() => {
+    const pending = saveStatus === 'unsaved' || saveStatus === 'error';
+    if (!pending) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; return ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [saveStatus]);
+
+  /**
+   * Mark unsaved on composition changes.
+   *
+   * OPENING A REEL IS NOT AN EDIT. `mountedRef` skipped the first run of
+   * this effect, which happens before the row has arrived; the run that
+   * mattered was the second one, after `loadFromRow` had put the loaded
+   * composition into state with `compId` now set. It scheduled a save, so
+   * MERELY LOOKING at a reel wrote to the database. Measured in the browser:
+   * one `PUT /api/compose/compositions/1` with no interaction at all.
+   *
+   * Two things came of that. `compositions.list` orders by `updated_at`, so
+   * browsing three reels to find the right one restamped all three and
+   * reordered the list you were browsing. And when that write failed you got
+   * "Your last change is only in this tab", in red, on a page where you had
+   * changed nothing — which is how the loudest state in the editor ends up
+   * meaning nothing.
+   *
+   * The comparison is against what the server is known to hold rather than a
+   * skip-the-next-run flag, because a flag has to guess how many renders a
+   * load takes. It also gets undo right: an edit undone back to the saved
+   * state is not a change, and an edit undone back to the LOADED state after
+   * a save in between still is.
+   */
   const mountedRef = useRef(false);
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
     if (!compId) return;
+    if (savedJsonRef.current !== null && snapshot() === savedJsonRef.current) return;
     scheduleSave();
   }, [composition, sourceAssets, transcripts]);
 
@@ -708,10 +776,30 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
 
   // ── Switch composition ────────────────────────────────────────────
 
+  /**
+   * Put the work in hand on the server before the screen changes under it.
+   *
+   * This guarded `'unsaved'` and let `'error'` fall straight through, which
+   * means the control that said "Your last change is only in this tab" sat
+   * next to a control that threw that change away without a question. Both
+   * states have unsaved work; the difference between them is only whether a
+   * write has already been attempted.
+   *
+   * It returns false when the save fails, and the caller stays where it is
+   * and says so. Losing the edit quietly is the one outcome worth refusing.
+   */
+  const leaveSafely = useCallback(async () => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    if (!compId) return true;
+    if (saveStatus !== 'unsaved' && saveStatus !== 'error') return true;
+    const ok = await doSave(compId);
+    if (!ok) toast('That change could not be saved, so this reel stays open.', 'error');
+    return ok;
+  }, [compId, saveStatus, doSave, toast]);
+
   const switchComposition = useCallback(async (id) => {
     if (id === compId) return;
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-    if (compId && saveStatus === 'unsaved') await doSave(compId);
+    if (!await leaveSafely()) return;
 
     try {
       const row = await api.get(`/compose/compositions/${id}`);
@@ -719,11 +807,10 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     } catch (err) {
       toast('Failed to load composition.', 'error');
     }
-  }, [compId, saveStatus, doSave, toast]);
+  }, [compId, leaveSafely, toast]);
 
   const createNew = useCallback(async () => {
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-    if (compId && saveStatus === 'unsaved') await doSave(compId);
+    if (!await leaveSafely()) return;
 
     try {
       const row = await api.post(`/compose/clients/${clientId}/compositions`, {
@@ -734,7 +821,7 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     } catch (err) {
       toast('Failed to create composition.', 'error');
     }
-  }, [clientId, compId, saveStatus, doSave, toast]);
+  }, [clientId, leaveSafely, toast]);
 
   // ── Derived state ─────────────────────────────────────────────────
 
@@ -1590,7 +1677,7 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
       )}
       {shareOpen && (
         <ShareReelModal compId={compId} clientId={clientId}
-          clientName={clientName} title={composition?.title}
+          clientName={clientName} title={compTitle}
           onClose={() => setShareOpen(false)} />
       )}
       <ShortcutReference visible={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />

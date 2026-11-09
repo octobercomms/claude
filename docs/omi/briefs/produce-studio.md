@@ -737,6 +737,124 @@ a `.catch(() => '')`, so a page that had not finished loading looked exactly
 like a wrong nav state. It waits for the panel and then for a lit row, and
 says which of the two is missing.
 
+## Built, 9 November: looking is not editing, leaving is not losing
+
+Three faults that lived together, all found by the design review of the top
+bar rather than by a test, and all fixed before the bar itself because the bar
+makes two of them worse.
+
+**Opening a reel wrote to the database.** Measured: one
+`PUT /api/compose/compositions/1` with no interaction at all. The autosave
+effect skipped its first run, which happens before the row has arrived, and
+fired on the second, after `loadFromRow` had put the loaded composition into
+state with `compId` set. Two consequences. `compositions.list` orders by
+`updated_at`, so **browsing three reels to find the right one restamped all
+three and reordered the list you were browsing** — and that date is the only
+thing telling two reels called "Untitled" apart. And when the write failed you
+got "Your last change is only in this tab", in red, on a page where you had
+changed nothing, which is how the loudest state in the editor comes to mean
+nothing.
+
+The effect now compares what is on screen against what the server is known to
+hold, rather than carrying a skip-the-next-run flag: a flag has to guess how
+many renders a load takes, and the comparison also gets undo right.
+
+**Switching reels with a failed save discarded the work.** `switchComposition`
+and `createNew` guarded `saveStatus === 'unsaved'` and let `'error'` fall
+straight through. So the control that said your change was only in this tab sat
+beside a control that threw it away without a question. Both states hold
+unsaved work; the difference is only whether a write has been tried. One
+`leaveSafely` now, which flushes, and **stays where it is and says so** when
+the write fails. Losing an edit quietly is the one outcome worth refusing.
+
+Two smaller halves of the same thing: the unmount cleanup cleared the pending
+autosave timer and saved nothing, so a click on any nav row within 1500ms of a
+trim discarded it in silence; and the editor had no `beforeunload` warning
+though `ClientDesignPage` and `RecordingsPage` both do, and the editor is the
+screen with the autosave window.
+
+**Every share link a client received was called "Reel, for your review".**
+`title={composition?.title}` — but `composition` is the `data` blob and
+`emptyComposition()` has no title in it. The name lives on the row, which the
+editor never held. The one place the reel's name was meant to reach a client,
+it never arrived. The editor holds the title now, which is also what the top
+bar needs, so the bar is what forced this out.
+
+Four new drive assertions, each shown to fail against the old code with the
+old fault in its message: opening writes nothing, an untouched reel does not
+claim your work is at risk, switching with an unsavable edit does not switch
+and says why, and the share link carries the reel's name.
+
+**A seventh guard that pinned a marker.** `compositionExportFlush.test.mjs`
+asserted that the two reel handoffs contain `await doSave(` or
+`await flushSave(`. They await `leaveSafely`, which does both and more, so a
+correct change failed the test. It pins what `leaveSafely` does instead: that
+it awaits the write, that it treats a failed write as work in hand, and that
+it reports whether it succeeded.
+
+## The design review before item 2, 9 November
+
+The critic ran the app at four widths rather than reading the plan. It agreed
+with the layout and named the hole in it.
+
+**The composition has no address, and that is the real reason the `<select>`
+is wrong.** `openCompId` is React state in `ClientVideoTab.jsx:30`, never a URL
+parameter, so a reel cannot be linked, bookmarked or reached with Back. The
+select is not a File-Open menu pretending to be a toolbar; it is a navigation
+system standing in for a URL nobody wrote, and demoting it without giving the
+composition an address takes the only door off the only room. OMI already has
+the fix: `useOpenState()` in `hooks/useOpenRecord.js:139`, which every other
+record type in the product uses, and whose own comment describes this exact
+situation. **Decision: `?open=<id>` ships with the bar.**
+
+**The switcher's one disambiguator is useless and invisible.** With fourteen
+reels injected, twelve of them never named, the select rendered 14 options with
+**3 distinct strings** — twelve rows reading `Untitled (11/9/2026)`. The date
+is `toLocaleDateString()`, so it carries no time and cannot separate two reels
+made the same afternoon, which is the only kind of afternoon this agency has.
+It also sits at the end of the string, so it is the first thing a 260px box
+truncates.
+
+**The bar is shorter than what it replaces.** The top-left heading slot is not
+empty: it holds an `h2` reading "Studio", naming the screen whose nav row is
+lit and whose panel header says PRODUCE above it. Replacing that with the
+project name and folding the save state into the same row gives back about
+40px of vertical, which moves the timeline up on a 1440x900 screen. The better
+design is also the shorter one.
+
+**Undo, redo and Ripple are physically unreachable from the surface they act
+on.** Measured at 1440x900: with the timeline scrolled into view, every control
+in the inspector header is above the viewport. Only Ctrl+Z works. Step 4 moves
+them; step 2's job is not to drag them into the bar on the way past.
+
+**Sticky will not work, and it was measured rather than assumed.**
+`position: sticky` on that row does not stick, because `.app-main` is
+`overflow: auto` and sticky resolves against a scroll container that is not the
+one scrolling. Making the bar stick is a change to the shell's scrolling model,
+not a line in this component.
+
+**Rename is cheap and exists end to end.** `PUT /compose/compositions/:id`
+takes `title`, and `compositions.update` builds its SET list field by field, so
+a rename sends `{ title }` alone and **cannot race the autosave**.
+
+Open, for Daniel:
+
+1. **`+ New` makes the Untitled problem.** It posts an empty composition and
+   lands you on a black player, and it is what manufactures the twelve
+   identical rows. The critic would delete it and have new reels come from
+   Batch, from Record's "Send to Edit", and from a New reel step in Library
+   that offers the eight shipped templates and prefills a name. That is a cut
+   rather than a feature, but it needs Library's Reels tab first, so `+ New`
+   stays until then.
+2. **Export as the one primary on the screen.** Today `Play` is the only accent
+   fill on the page and Export is drawn like `-1 frame`. The most emphasised
+   control in the Studio is "play the preview" and the thing the screen exists
+   to produce is a secondary button. It touches `Compositor.jsx`, so it is
+   flagged rather than smuggled in.
+3. **Retry before shouting.** A failed save schedules nothing and asks the
+   operator to press a button for a condition that would often clear itself.
+   Two or three retries with backoff, red only when they have all failed.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
