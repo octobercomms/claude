@@ -1563,6 +1563,57 @@ Worth recording because the test was not wrong about the product and the
 product was not broken: a selector that had been correct for months stopped
 being correct when something that looks the same appeared above it.
 
+## Built, 9 November: verdict first, and an inspector you can read
+
+Two of the four things the conformance pass left open, and neither needed a
+decision from Daniel: both are this file's own unbuilt items.
+
+### The checks answer the question before they explain themselves
+
+The reel checks opened every rule and every piece of evidence for all ten
+checks on load. Measured: **1246px of panel in a 260px column**, and its own
+heading 674px into a 524px scroller. The one thing on the screen that answers
+"is this any good" was below the fold on the screen whose job is to answer
+it.
+
+Verdict first. Ten rows of glyph and label, each a button that opens its own
+detail, evidence and rule; one control opens them all. Measured after: the
+heading sits **348px into an 857px panel**, on screen when the Studio opens,
+and the whole inspector is one short scroll rather than five.
+
+The honest-limit paragraph rides the same control. Eight lines of prose at
+224px of measure was a third of the panel, repeating a caveat the reader has
+already taken in; one line of it stays always.
+
+**The guards are written so that deleting the reasoning passes none of them.**
+A panel that is short because it has nothing in it is not what was asked for,
+so the drive asserts that the panel grows by more than 400px when the
+reasoning opens, and by more than 20px when a single check does.
+
+### Four named groups, in the mockup's order
+
+The inspector was 1883px of ungrouped rows with a clip selected, with nothing
+to say where the clip ended and the project began, and `+ Add effect` was its
+**first control, above the clip you had just selected**.
+
+Clip, AI tools, Reel, Reel checks. A rule and an uppercase label rather than a
+card, because a card inside a card is a border that says nothing.
+
+The mockup has five: **Transform and Audio are absent rather than drawn
+empty**, because scale, position, the two fades and ducking have no controls
+yet. A heading over nothing is a menu of things that do not happen. Those
+controls are still owed, and decision 5 refused only rotation, which does not
+cover them.
+
+### The number that is still off the mockup, and why it is not being fixed quietly
+
+The closed panel is 497px where the critic's estimate was 220. The difference
+is type: our body is 16px Brockmann and the mockup's base is 12px Inter on a
+10/11/12/13 ladder, so every check label wraps to two lines in a 224px
+column. **The Studio is the one screen in OMI that should be denser than the
+house**, and that is a decision about the design system rather than this
+screen. It is with Daniel, not taken.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the

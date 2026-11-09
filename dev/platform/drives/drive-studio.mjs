@@ -1525,6 +1525,86 @@ for (const [asked, want, row] of [
   }
 }
 
+// ── 24. The verdict is above the fold, and the inspector is grouped ──────
+//
+// The reel checks are the one thing on this screen that answers "is this any
+// good". Put last in the inspector, as the mockup has them, with every rule
+// and every piece of evidence open, the panel was 1246px tall and its own
+// HEADING landed 674px into a 524px scroller: the answer was below the fold
+// on the screen whose job is to give it.
+//
+// Verdict first, reasoning on click. The assertions below are written so
+// that DELETING the reasoning passes none of them: a panel that is short
+// because it has nothing in it is not what was asked for.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(900);
+
+  const read = () => p.evaluate(() => {
+    const insp = document.querySelector('.studio-inspector');
+    const rows = [...document.querySelectorAll('[data-check]')];
+    const head = [...(insp?.querySelectorAll('span') || [])]
+      .find((e) => /^Reel checks/i.test(e.textContent.trim()));
+    const ib = insp?.getBoundingClientRect();
+    const hb = head?.getBoundingClientRect();
+    return {
+      rows: rows.length,
+      openRows: rows.filter((r) => r.getAttribute('aria-expanded') === 'true').length,
+      panel: insp ? insp.scrollHeight : null,
+      headInView: !!(ib && hb && hb.top >= ib.top - 1 && hb.bottom <= ib.bottom + 1),
+      headOffset: ib && hb ? Math.round(hb.top - ib.top) : null,
+      groups: [...(insp?.querySelectorAll('h3') || [])].map((h) => h.textContent.trim()),
+    };
+  });
+
+  const shut = await read();
+  say(shut.rows >= 8, 'every check is a row of its own', `${shut.rows} rows`);
+  say(shut.openRows === 0, 'and none of them opens its reasoning unasked',
+    `${shut.openRows} of ${shut.rows} open on load`);
+  // The claim that matters, and it is geometric: the heading is INSIDE the
+  // panel's visible box without scrolling, not merely present.
+  say(shut.headInView,
+    'so the verdict is on screen when the Studio opens, not below the fold',
+    `the heading sits ${shut.headOffset}px into a ${shut.panel}px panel; `
+    + 'it used to be 674px into a 524px scroller');
+
+  // One check, on its own. A panel that opens everything on any click is the
+  // state this replaced.
+  await p.locator('[data-check]').first().click();
+  await p.waitForTimeout(200);
+  const one = await read();
+  say(one.openRows === 1, 'a check opens on its own when you ask it',
+    `${one.openRows} rows open`);
+  say(one.panel > shut.panel + 20,
+    'and what opens is REASONING, not an empty box',
+    `${shut.panel}px → ${one.panel}px`);
+  await p.locator('[data-check]').first().click();
+  await p.waitForTimeout(200);
+
+  // And all of it, for somebody reading the rules rather than the reel.
+  await p.locator('text=Show the reasoning').click();
+  await p.waitForTimeout(300);
+  const all = await read();
+  say(all.openRows === all.rows, 'and all of them together on one control',
+    `${all.openRows} of ${all.rows}`);
+  // The mutation guard: deleting the rules would make the default state
+  // short and this assertion is what notices.
+  say(all.panel > shut.panel + 400,
+    'and the rules are all still there behind it',
+    `${shut.panel}px closed against ${all.panel}px open`);
+
+  // The inspector's own groups. The mockup has five titled sections; four of
+  // ours are real, and Transform and Audio are not built, so they are absent
+  // rather than drawn empty.
+  say(all.groups.length >= 3, 'the inspector reads as named groups',
+    JSON.stringify(all.groups));
+  say(all.groups[0] === 'Clip',
+    'and the clip you selected comes first, not the effects menu',
+    `${JSON.stringify(all.groups)} — "+ Add effect" used to be the panel's first control`);
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();

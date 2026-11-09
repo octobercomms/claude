@@ -97,6 +97,31 @@ function initComp() {
   return comp;
 }
 
+/**
+ * One named section of the inspector.
+ *
+ * The mockup's right panel is five titled groups totalling 792px. Ours was
+ * one undifferentiated column, measured at 1883px with a clip selected, in
+ * which `+ Add effect`, the selected clip's own fields, the project's frame
+ * size and the reel checks ran together with nothing between them.
+ *
+ * A rule and a label, not a card. A card inside a card is a border that says
+ * nothing, and the panel is already one.
+ */
+function InspectorGroup({ title, children }) {
+  return (
+    <section style={{ marginBottom: 'var(--s4)' }}>
+      <h3 style={{
+        fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: '0.06em',
+        textTransform: 'uppercase', color: 'var(--text-subtle)',
+        margin: '0 0 var(--s2)', paddingBottom: 'var(--s1)',
+        borderBottom: 'var(--border-w) solid var(--card-border)',
+      }}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 export default function CompositionEditorPage({
   clientId, clientName = null, openId = null, onOpen = null,
 }) {
@@ -1541,58 +1566,18 @@ export default function CompositionEditorPage({
                 Measured at 1440x900 with the timeline scrolled into view,
                 every one of those controls sat at y = -301. They were being
                 offered where no hand could reach them. */}
-            {/* Add clip / design / audio */}
-            <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
-              <input ref={fileRef} type="file" accept={`${CLIP_ACCEPT},audio/*`} multiple
-                style={{ display: 'none' }} onChange={onAnyFileChange} />
-              <input ref={audioFileRef} type="file" accept="audio/*" multiple
-                style={{ display: 'none' }} onChange={onAudioFileChange} />
-              {/* `+ Add clip` and `+ Add music` are gone. Both are "put a file
-                  in", which is now the shelf's Add files, and the shelf routes
-                  by mime so a person with a folder open does not have to sort
-                  their selection by kind first.
-                  Two buttons for one gesture is the two-doors problem this
-                  codebase keeps finding; worse, the clip one was the only
-                  yellow button on the screen and it opened an OS file dialog,
-                  so the most emphasised action in the Studio took you out of
-                  the application while this client's media sat one panel away.
-                  The inputs stay: the shelf presses `fileRef`, and
-                  `audioFileRef` is still how an audio-only selection reaches
-                  the audio route. */}
+            {/* FIVE NAMED GROUPS is what the mockup has, and this had none:
+                1883px of ungrouped rows with a clip selected, so there was
+                nothing to tell you where the clip ended and the project
+                began. Four of the five are real here. Transform and Audio
+                are the mockup's and are not built — scale, position, the
+                two fades and ducking have no controls — and drawing empty
+                headings for them would be a menu of things that do not
+                happen.
 
-              {designs.length > 0 && (
-                <select className="btn btn-secondary btn-sm"
-                  style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
-                  value=""
-                  onChange={(e) => {
-                    const d = designs.find(x => String(x.id) === e.target.value);
-                    if (d) addDesign(d);
-                    e.target.value = '';
-                  }}>
-                  <option value="">+ Add design</option>
-                  {designs.map(d => (
-                    <option key={d.id} value={d.id}>{d.title || `Design ${d.id}`}</option>
-                  ))}
-                </select>
-              )}
-
-              {hasSources && (
-                <select className="btn btn-secondary btn-sm"
-                  style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
-                  value=""
-                  title="Generated in the render. No upload, no cost."
-                  onChange={(e) => {
-                    if (e.target.value) addEffect(e.target.value);
-                    e.target.value = '';
-                  }}>
-                  <option value="">+ Add effect</option>
-                  {FX_NAMES.map(name => (
-                    <option key={name} value={name}>{FX[name].label}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-
+                The order is the mockup's too, and the thing that moved
+                furthest is `+ Add effect`: it was the inspector's FIRST
+                control, above the clip you had just selected. */}
             {!hasSources && (
               <div style={{
                 padding: 'var(--s6) var(--s4)', textAlign: 'center',
@@ -1606,365 +1591,427 @@ export default function CompositionEditorPage({
               </div>
             )}
 
-            {/* Selected item inspector */}
-            {selectedItem && (
-              <div style={{
-                marginBottom: 'var(--s4)', padding: 'var(--s3)',
-                background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)',
-              }}>
-                <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s2)' }}>
-                  {sourceNames[selectedSourceId] || 'Selected item'}
-                </div>
-                <table style={{ width: '100%', fontSize: 'var(--fs-caption)' }}>
-                  <tbody>
-                    <tr>
-                      <td className="text-subtle" style={{ paddingRight: 'var(--s2)' }}>At</td>
-                      <td>
-                        <TimecodeInput value={selectedItem.item.at} fps={fps} label="start time"
-                          onChange={(v) => {
-                            setComposition(prev =>
-                              updateItem(prev, selectedItem.track.id, selectedItem.item.id, { at: v })
-                            );
-                          }}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="text-subtle" style={{ paddingRight: 'var(--s2)' }}>Length</td>
-                      <td>
-                        <TimecodeInput value={selectedItem.item.len} fps={fps} label="duration"
-                          onChange={(v) => {
-                            if (v > 0) {
+            <InspectorGroup title="Clip">
+              {/* Selected item inspector */}
+              {selectedItem && (
+                <div style={{
+                  marginBottom: 'var(--s4)', padding: 'var(--s3)',
+                  background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)',
+                }}>
+                  <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s2)' }}>
+                    {sourceNames[selectedSourceId] || 'Selected item'}
+                  </div>
+                  <table style={{ width: '100%', fontSize: 'var(--fs-caption)' }}>
+                    <tbody>
+                      <tr>
+                        <td className="text-subtle" style={{ paddingRight: 'var(--s2)' }}>At</td>
+                        <td>
+                          <TimecodeInput value={selectedItem.item.at} fps={fps} label="start time"
+                            onChange={(v) => {
                               setComposition(prev =>
-                                updateItem(prev, selectedItem.track.id, selectedItem.item.id, { len: v })
+                                updateItem(prev, selectedItem.track.id, selectedItem.item.id, { at: v })
                               );
-                            }
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                            }}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="text-subtle" style={{ paddingRight: 'var(--s2)' }}>Length</td>
+                        <td>
+                          <TimecodeInput value={selectedItem.item.len} fps={fps} label="duration"
+                            onChange={(v) => {
+                              if (v > 0) {
+                                setComposition(prev =>
+                                  updateItem(prev, selectedItem.track.id, selectedItem.item.id, { len: v })
+                                );
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
 
-                {/* Camera moves, on a photograph only.
-                    Six chips rather than a scale slider and a position pair.
-                    The move is the unit of work here: a photograph with a
-                    slow push reads as expensive and a static one reads as a
-                    slideshow, and nobody chooses that by typing 1.12 into a
-                    number field. The vocabulary is MOTIONS from the template
-                    engine, unchanged, so a move chosen here and the same move
-                    chosen by the stills-montage template produce the same
-                    animated scale and pos — one list, not a second opinion.
+                  {/* Camera moves, on a photograph only.
+                      Six chips rather than a scale slider and a position pair.
+                      The move is the unit of work here: a photograph with a
+                      slow push reads as expensive and a static one reads as a
+                      slideshow, and nobody chooses that by typing 1.12 into a
+                      number field. The vocabulary is MOTIONS from the template
+                      engine, unchanged, so a move chosen here and the same move
+                      chosen by the stills-montage template produce the same
+                      animated scale and pos — one list, not a second opinion.
 
-                    Rotation is absent and stays absent: the render graph's
-                    output box is init-only, so an animated rotation cannot be
-                    produced, and a control for it would be the page lying
-                    about its own export. */}
-                {selectedSource?.still === true && (
-                  <div style={{ marginTop: 'var(--s2)' }}>
-                    <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
-                      Camera move
-                    </div>
-                    <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
-                      <button type="button"
-                        className={`btn-chip${selectedItem.item.beat ? '' : ' is-active'}`}
-                        onClick={() => setComposition(prev => updateItem(
-                          prev, selectedItem.track.id, selectedItem.item.id,
-                          // Undoing a move has to clear every field the move
-                          // set, not just the name. A leftover `scale` with no
-                          // `beat` is a move the inspector says is off and the
-                          // render still performs.
-                          { scale: null, pos: null, beat: null },
-                        ))}>
-                        Hold
-                      </button>
-                      {MOTION_NAMES.map(name => (
-                        <button key={name} type="button"
-                          className={`btn-chip${selectedItem.item.beat === name ? ' is-active' : ''}`}
-                          title={describeMotion(name)}
+                      Rotation is absent and stays absent: the render graph's
+                      output box is init-only, so an animated rotation cannot be
+                      produced, and a control for it would be the page lying
+                      about its own export. */}
+                  {selectedSource?.still === true && (
+                    <div style={{ marginTop: 'var(--s2)' }}>
+                      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                        Camera move
+                      </div>
+                      <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                        <button type="button"
+                          className={`btn-chip${selectedItem.item.beat ? '' : ' is-active'}`}
                           onClick={() => setComposition(prev => updateItem(
                             prev, selectedItem.track.id, selectedItem.item.id,
-                            // `beat` carries the name so the chip can light up
-                            // and the review sheet can say why a clip moves.
-                            // It is already a rationale field on an item.
-                            { scale: null, pos: null, ...transformFor(name), beat: name },
+                            // Undoing a move has to clear every field the move
+                            // set, not just the name. A leftover `scale` with no
+                            // `beat` is a move the inspector says is off and the
+                            // render still performs.
+                            { scale: null, pos: null, beat: null },
                           ))}>
-                          {name}
+                          Hold
+                        </button>
+                        {MOTION_NAMES.map(name => (
+                          <button key={name} type="button"
+                            className={`btn-chip${selectedItem.item.beat === name ? ' is-active' : ''}`}
+                            title={describeMotion(name)}
+                            onClick={() => setComposition(prev => updateItem(
+                              prev, selectedItem.track.id, selectedItem.item.id,
+                              // `beat` carries the name so the chip can light up
+                              // and the review sheet can say why a clip moves.
+                              // It is already a rationale field on an item.
+                              { scale: null, pos: null, ...transformFor(name), beat: name },
+                            ))}>
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
+                    {/* Remove is on the timeline's toolbar now, and this one is
+                        deleted in the same change rather than left as a second
+                        door. Three reasons, the first measured: at 1280x800
+                        with the timeline scrolled into view — the only position
+                        you can work on the timeline from — this button sat at
+                        y = -86, above the top of the window, and the Delete key
+                        did nothing, so THERE WAS NO REACHABLE WAY TO DELETE A
+                        CLIP. At 1440 it rendered five pixels from the fixed
+                        client topbar, reading as the sixth item in the
+                        application's global header. And the gesture is a
+                        timeline gesture: you point at the block you want gone.
+                        An inspector is where you change what a thing is. */}
+                    {selectedSource?.kind === 'clip' && (
+                      <>
+                        <button type="button" className="btn btn-secondary btn-sm"
+                          onClick={() => transcribeSource(selectedSourceId)}
+                          disabled={transcribing === selectedSourceId || !compId}>
+                          {transcribing === selectedSourceId ? 'Transcribing...'
+                            : hasTranscript ? 'Re-transcribe' : 'Transcribe'}
+                        </button>
+
+                        {hasTranscript && captionTemplates?.length > 0 && (
+                          <select className="btn-chip"
+                            style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
+                            defaultValue=""
+                            onChange={(e) => {
+                              if (e.target.value) addCaptions(selectedSourceId, e.target.value);
+                              e.target.value = '';
+                            }}>
+                            <option value="">+ Captions</option>
+                            {captionTemplates.map(t => (
+                              <option key={t.id} value={t.id}>{t.name || t.id}</option>
+                            ))}
+                          </select>
+                        )}
+                      </>
+                    )}
+
+                    {selectedSource?.kind === 'design' && (
+                      <span className="body-xs text-muted">
+                        {selectedSource.width || '?'} x {selectedSource.height || '?'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Volume slider for any item */}
+                  <div style={{ marginTop: 'var(--s3)' }}>
+                    <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                      Volume: {(selectedItem.item.gain ?? 1).toFixed(1)}
+                    </div>
+                    <input type="range" min="0" max="4" step="0.1"
+                      value={selectedItem.item.gain ?? 1}
+                      style={{ width: '100%', accentColor: 'var(--text)' }}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setComposition(prev =>
+                          updateItem(prev, selectedItem.track.id, selectedItem.item.id,
+                            { gain: val })
+                        );
+                      }}
+                    />
+                  </div>
+
+                  {/* Transition, opacity and fit, moved here from the timeline's
+                      own selected-item strip on 9 November.
+                      The design review was right that this is a MOVE and not a
+                      cut: `trans:` appeared in exactly two lines of JSX in the
+                      whole frontend, both inside that strip, and it held the
+                      only opacity and fit controls a clip had. Deleting the
+                      strip without rehoming them would have removed dissolves
+                      from the product.
+                      One inspector, in one order, is also the point. The strip
+                      was a second inspector 700px below the first, and the two
+                      disagreed: both carried a volume slider, one 0–4 and one
+                      0–2 with a clamp, for the same number. */}
+                  {selectedItem.track.kind === 'video' && (() => {
+                    const items = selectedItem.track.items;
+                    const idx = items.findIndex(i => i.id === selectedItem.item.id);
+                    // A transition is between this item and the one before it,
+                    // so the first item on a track has nothing to transition
+                    // from and is offered nothing.
+                    if (idx <= 0) return null;
+                    const current = selectedItem.item.trans?.type || 'cut';
+                    const LABEL = {
+                      cut: 'Cut', fade: 'Fade', fadeblack: 'Via black',
+                      wipeleft: 'Wipe', dissolve: 'Dissolve',
+                    };
+                    return (
+                      <div style={{ marginTop: 'var(--s3)' }}>
+                        <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                          Transition in
+                        </div>
+                        <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                          {['cut', ...TRANSITION_TYPES].map(t => (
+                            <button key={t} type="button"
+                              className={`btn-chip${current === t ? ' is-active' : ''}`}
+                              onClick={() => setComposition(prev => updateItem(
+                                prev, selectedItem.track.id, selectedItem.item.id,
+                                { trans: t === 'cut' ? null : { type: t } },
+                              ))}>
+                              {LABEL[t] || t}
+                            </button>
+                          ))}
+                        </div>
+                        {current !== 'cut' && (
+                          <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
+                            Overlap the previous item to set its length.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Opacity and fit, for anything that draws a picture. */}
+                  {(selectedSource?.kind === 'clip' || selectedSource?.kind === 'design') && (
+                    <>
+                      <div style={{ marginTop: 'var(--s3)' }}>
+                        <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                          Opacity: {Math.round((selectedItem.item.opacity ?? 1) * 100)}%
+                        </div>
+                        <input type="range" min="0" max="1" step="0.05"
+                          value={selectedItem.item.opacity ?? 1}
+                          style={{ width: '100%', accentColor: 'var(--text)' }}
+                          aria-label="Item opacity"
+                          onChange={(e) => setComposition(prev => updateItem(
+                            prev, selectedItem.track.id, selectedItem.item.id,
+                            { opacity: parseFloat(e.target.value) },
+                          ))}
+                        />
+                      </div>
+                      {/* One vocabulary. The timeline said "Fill frame" and
+                          "Letterbox"; the inspector said "Cover" and "Contain".
+                          Two names for two values, both reachable in one
+                          sitting. These are the words that say what happens to
+                          the picture rather than what the CSS is called. */}
+                      <div style={{ marginTop: 'var(--s3)' }}>
+                        <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
+                          Fit
+                        </div>
+                        <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                          {[['cover', 'Fill frame'], ['contain', 'Letterbox']].map(([v, label]) => (
+                            <button key={v} type="button"
+                              className={`btn-chip${(selectedItem.item.fit || 'cover') === v ? ' is-active' : ''}`}
+                              onClick={() => setComposition(prev => updateItem(
+                                prev, selectedItem.track.id, selectedItem.item.id, { fit: v },
+                              ))}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Ducking toggle for audio track items */}
+                  {selectedItem.track.kind === 'audio' && (() => {
+                    const speechTrack = composition.tracks.find(t => t.kind === 'video');
+                    if (!speechTrack) return null;
+                    const isDucked = selectedItem.track.duckUnder === speechTrack.id;
+                    return (
+                      <label className="body-xs" style={{
+                        display: 'flex', alignItems: 'center', gap: 'var(--s1)',
+                        marginTop: 'var(--s2)', cursor: 'pointer',
+                      }}>
+                        <input type="checkbox" checked={isDucked}
+                          onChange={(e) => {
+                            const trackId = selectedItem.track.id;
+                            const newVal = e.target.checked ? speechTrack.id : undefined;
+                            setComposition(prev => ({
+                              ...prev,
+                              tracks: prev.tracks.map(t =>
+                                t.id === trackId
+                                  ? { ...t, duckUnder: newVal }
+                                  : t
+                              ),
+                            }));
+                          }}
+                        />
+                        Duck under speech
+                      </label>
+                    );
+                  })()}
+
+                  {hasTranscript && (
+                    <div style={{
+                      marginTop: 'var(--s2)', maxHeight: '6rem', overflow: 'auto',
+                      fontSize: 'var(--fs-caption)', color: 'var(--text-muted)',
+                      lineHeight: 1.4,
+                    }}>
+                      {transcripts[selectedSourceId].map(w => w.word).join(' ')}
+                    </div>
+                  )}
+
+                </div>
+              )}
+              {!selectedItem && (
+                <div className="body-xs text-subtle">
+                  Nothing selected. Click a block on the timeline.
+                </div>
+              )}
+            </InspectorGroup>
+
+            <InspectorGroup title="AI tools">
+              {/* Add clip / design / audio */}
+              <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
+                <input ref={fileRef} type="file" accept={`${CLIP_ACCEPT},audio/*`} multiple
+                  style={{ display: 'none' }} onChange={onAnyFileChange} />
+                <input ref={audioFileRef} type="file" accept="audio/*" multiple
+                  style={{ display: 'none' }} onChange={onAudioFileChange} />
+                {/* `+ Add clip` and `+ Add music` are gone. Both are "put a file
+                    in", which is now the shelf's Add files, and the shelf routes
+                    by mime so a person with a folder open does not have to sort
+                    their selection by kind first.
+                    Two buttons for one gesture is the two-doors problem this
+                    codebase keeps finding; worse, the clip one was the only
+                    yellow button on the screen and it opened an OS file dialog,
+                    so the most emphasised action in the Studio took you out of
+                    the application while this client's media sat one panel away.
+                    The inputs stay: the shelf presses `fileRef`, and
+                    `audioFileRef` is still how an audio-only selection reaches
+                    the audio route. */}
+
+                {designs.length > 0 && (
+                  <select className="btn btn-secondary btn-sm"
+                    style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
+                    value=""
+                    onChange={(e) => {
+                      const d = designs.find(x => String(x.id) === e.target.value);
+                      if (d) addDesign(d);
+                      e.target.value = '';
+                    }}>
+                    <option value="">+ Add design</option>
+                    {designs.map(d => (
+                      <option key={d.id} value={d.id}>{d.title || `Design ${d.id}`}</option>
+                    ))}
+                  </select>
+                )}
+
+                {hasSources && (
+                  <select className="btn btn-secondary btn-sm"
+                    style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
+                    value=""
+                    title="Generated in the render. No upload, no cost."
+                    onChange={(e) => {
+                      if (e.target.value) addEffect(e.target.value);
+                      e.target.value = '';
+                    }}>
+                    <option value="">+ Add effect</option>
+                    {FX_NAMES.map(name => (
+                      <option key={name} value={name}>{FX[name].label}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {/* Tighten and B-roll: use selected clip or auto-detect first clip */}
+              {effectiveHasTranscript && effectiveTrackId && (
+                <>
+                  <TightenPanel
+                    compId={compId}
+                    sourceId={effectiveClipSourceId}
+                    composition={composition}
+                    onCompositionChange={setComposition}
+                    trackId={effectiveTrackId}
+                  />
+                  <BrollPanel
+                    compId={compId}
+                    sourceId={effectiveClipSourceId}
+                    clientId={clientId}
+                    composition={composition}
+                    onCompositionChange={setComposition}
+                  />
+                </>
+              )}
+            </InspectorGroup>
+
+            <InspectorGroup title="Reel">
+              {/* Composition settings */}
+              <div style={{ marginBottom: 'var(--s3)' }}>
+                {/* Seven chips became a sentence, and the capability stayed.
+                    Frame size and frame rate are new-project decisions, not
+                    editing ones: every template in this product is 1080x1920 at
+                    30fps, nobody changes the rate mid-edit, and a control that
+                    is permanently on screen for a value nobody touches teaches
+                    the eye to skip that whole corner.
+                    They open on Change, which is the honest shape: the decision
+                    is rare, so it costs one click, and until then the panel
+                    states what the composition IS rather than offering to
+                    re-decide it. */}
+                <div className="row between center">
+                  <span className="body-xs text-subtle" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {W} x {H} · {fps}fps
+                  </span>
+                  <button type="button" className="btn-link body-xs"
+                    onClick={() => setShowFrame(v => !v)}>
+                    {showFrame ? 'Done' : 'Change'}
+                  </button>
+                </div>
+                {showFrame && (
+                  <div style={{ marginTop: 'var(--s2)' }}>
+                    <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                      {SIZE_PRESETS.map(p => (
+                        <button key={p.label} type="button"
+                          className={`btn-chip${W === p.w && H === p.h ? ' is-active' : ''}`}
+                          onClick={() => setSize(p.w, p.h)}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap', marginTop: 'var(--s1)' }}>
+                      {FPS_OPTIONS.map(f => (
+                        <button key={f} type="button"
+                          className={`btn-chip${fps === f ? ' is-active' : ''}`}
+                          onClick={() => setFps(f)}>
+                          {f}fps
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
-
-                <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
-                  {/* Remove is on the timeline's toolbar now, and this one is
-                      deleted in the same change rather than left as a second
-                      door. Three reasons, the first measured: at 1280x800
-                      with the timeline scrolled into view — the only position
-                      you can work on the timeline from — this button sat at
-                      y = -86, above the top of the window, and the Delete key
-                      did nothing, so THERE WAS NO REACHABLE WAY TO DELETE A
-                      CLIP. At 1440 it rendered five pixels from the fixed
-                      client topbar, reading as the sixth item in the
-                      application's global header. And the gesture is a
-                      timeline gesture: you point at the block you want gone.
-                      An inspector is where you change what a thing is. */}
-                  {selectedSource?.kind === 'clip' && (
-                    <>
-                      <button type="button" className="btn btn-secondary btn-sm"
-                        onClick={() => transcribeSource(selectedSourceId)}
-                        disabled={transcribing === selectedSourceId || !compId}>
-                        {transcribing === selectedSourceId ? 'Transcribing...'
-                          : hasTranscript ? 'Re-transcribe' : 'Transcribe'}
-                      </button>
-
-                      {hasTranscript && captionTemplates?.length > 0 && (
-                        <select className="btn-chip"
-                          style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
-                          defaultValue=""
-                          onChange={(e) => {
-                            if (e.target.value) addCaptions(selectedSourceId, e.target.value);
-                            e.target.value = '';
-                          }}>
-                          <option value="">+ Captions</option>
-                          {captionTemplates.map(t => (
-                            <option key={t.id} value={t.id}>{t.name || t.id}</option>
-                          ))}
-                        </select>
-                      )}
-                    </>
-                  )}
-
-                  {selectedSource?.kind === 'design' && (
-                    <span className="body-xs text-muted">
-                      {selectedSource.width || '?'} x {selectedSource.height || '?'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Volume slider for any item */}
-                <div style={{ marginTop: 'var(--s3)' }}>
-                  <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
-                    Volume: {(selectedItem.item.gain ?? 1).toFixed(1)}
-                  </div>
-                  <input type="range" min="0" max="4" step="0.1"
-                    value={selectedItem.item.gain ?? 1}
-                    style={{ width: '100%', accentColor: 'var(--text)' }}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setComposition(prev =>
-                        updateItem(prev, selectedItem.track.id, selectedItem.item.id,
-                          { gain: val })
-                      );
-                    }}
-                  />
-                </div>
-
-                {/* Transition, opacity and fit, moved here from the timeline's
-                    own selected-item strip on 9 November.
-                    The design review was right that this is a MOVE and not a
-                    cut: `trans:` appeared in exactly two lines of JSX in the
-                    whole frontend, both inside that strip, and it held the
-                    only opacity and fit controls a clip had. Deleting the
-                    strip without rehoming them would have removed dissolves
-                    from the product.
-                    One inspector, in one order, is also the point. The strip
-                    was a second inspector 700px below the first, and the two
-                    disagreed: both carried a volume slider, one 0–4 and one
-                    0–2 with a clamp, for the same number. */}
-                {selectedItem.track.kind === 'video' && (() => {
-                  const items = selectedItem.track.items;
-                  const idx = items.findIndex(i => i.id === selectedItem.item.id);
-                  // A transition is between this item and the one before it,
-                  // so the first item on a track has nothing to transition
-                  // from and is offered nothing.
-                  if (idx <= 0) return null;
-                  const current = selectedItem.item.trans?.type || 'cut';
-                  const LABEL = {
-                    cut: 'Cut', fade: 'Fade', fadeblack: 'Via black',
-                    wipeleft: 'Wipe', dissolve: 'Dissolve',
-                  };
-                  return (
-                    <div style={{ marginTop: 'var(--s3)' }}>
-                      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
-                        Transition in
-                      </div>
-                      <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
-                        {['cut', ...TRANSITION_TYPES].map(t => (
-                          <button key={t} type="button"
-                            className={`btn-chip${current === t ? ' is-active' : ''}`}
-                            onClick={() => setComposition(prev => updateItem(
-                              prev, selectedItem.track.id, selectedItem.item.id,
-                              { trans: t === 'cut' ? null : { type: t } },
-                            ))}>
-                            {LABEL[t] || t}
-                          </button>
-                        ))}
-                      </div>
-                      {current !== 'cut' && (
-                        <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
-                          Overlap the previous item to set its length.
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Opacity and fit, for anything that draws a picture. */}
-                {(selectedSource?.kind === 'clip' || selectedSource?.kind === 'design') && (
-                  <>
-                    <div style={{ marginTop: 'var(--s3)' }}>
-                      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
-                        Opacity: {Math.round((selectedItem.item.opacity ?? 1) * 100)}%
-                      </div>
-                      <input type="range" min="0" max="1" step="0.05"
-                        value={selectedItem.item.opacity ?? 1}
-                        style={{ width: '100%', accentColor: 'var(--text)' }}
-                        aria-label="Item opacity"
-                        onChange={(e) => setComposition(prev => updateItem(
-                          prev, selectedItem.track.id, selectedItem.item.id,
-                          { opacity: parseFloat(e.target.value) },
-                        ))}
-                      />
-                    </div>
-                    {/* One vocabulary. The timeline said "Fill frame" and
-                        "Letterbox"; the inspector said "Cover" and "Contain".
-                        Two names for two values, both reachable in one
-                        sitting. These are the words that say what happens to
-                        the picture rather than what the CSS is called. */}
-                    <div style={{ marginTop: 'var(--s3)' }}>
-                      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
-                        Fit
-                      </div>
-                      <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
-                        {[['cover', 'Fill frame'], ['contain', 'Letterbox']].map(([v, label]) => (
-                          <button key={v} type="button"
-                            className={`btn-chip${(selectedItem.item.fit || 'cover') === v ? ' is-active' : ''}`}
-                            onClick={() => setComposition(prev => updateItem(
-                              prev, selectedItem.track.id, selectedItem.item.id, { fit: v },
-                            ))}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Ducking toggle for audio track items */}
-                {selectedItem.track.kind === 'audio' && (() => {
-                  const speechTrack = composition.tracks.find(t => t.kind === 'video');
-                  if (!speechTrack) return null;
-                  const isDucked = selectedItem.track.duckUnder === speechTrack.id;
-                  return (
-                    <label className="body-xs" style={{
-                      display: 'flex', alignItems: 'center', gap: 'var(--s1)',
-                      marginTop: 'var(--s2)', cursor: 'pointer',
-                    }}>
-                      <input type="checkbox" checked={isDucked}
-                        onChange={(e) => {
-                          const trackId = selectedItem.track.id;
-                          const newVal = e.target.checked ? speechTrack.id : undefined;
-                          setComposition(prev => ({
-                            ...prev,
-                            tracks: prev.tracks.map(t =>
-                              t.id === trackId
-                                ? { ...t, duckUnder: newVal }
-                                : t
-                            ),
-                          }));
-                        }}
-                      />
-                      Duck under speech
-                    </label>
-                  );
-                })()}
-
-                {hasTranscript && (
-                  <div style={{
-                    marginTop: 'var(--s2)', maxHeight: '6rem', overflow: 'auto',
-                    fontSize: 'var(--fs-caption)', color: 'var(--text-muted)',
-                    lineHeight: 1.4,
-                  }}>
-                    {transcripts[selectedSourceId].map(w => w.word).join(' ')}
-                  </div>
-                )}
-
               </div>
-            )}
-
-            {/* Tighten and B-roll: use selected clip or auto-detect first clip */}
-            {effectiveHasTranscript && effectiveTrackId && (
-              <>
-                <TightenPanel
-                  compId={compId}
-                  sourceId={effectiveClipSourceId}
-                  composition={composition}
-                  onCompositionChange={setComposition}
-                  trackId={effectiveTrackId}
-                />
-                <BrollPanel
-                  compId={compId}
-                  sourceId={effectiveClipSourceId}
-                  clientId={clientId}
-                  composition={composition}
-                  onCompositionChange={setComposition}
-                />
-              </>
-            )}
-
-            {/* Composition settings */}
-            <div style={{ marginBottom: 'var(--s3)' }}>
-              {/* Seven chips became a sentence, and the capability stayed.
-                  Frame size and frame rate are new-project decisions, not
-                  editing ones: every template in this product is 1080x1920 at
-                  30fps, nobody changes the rate mid-edit, and a control that
-                  is permanently on screen for a value nobody touches teaches
-                  the eye to skip that whole corner.
-                  They open on Change, which is the honest shape: the decision
-                  is rare, so it costs one click, and until then the panel
-                  states what the composition IS rather than offering to
-                  re-decide it. */}
-              <div className="row between center">
-                <span className="body-xs text-subtle" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {W} x {H} · {fps}fps
-                </span>
-                <button type="button" className="btn-link body-xs"
-                  onClick={() => setShowFrame(v => !v)}>
-                  {showFrame ? 'Done' : 'Change'}
-                </button>
-              </div>
-              {showFrame && (
-                <div style={{ marginTop: 'var(--s2)' }}>
-                  <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
-                    {SIZE_PRESETS.map(p => (
-                      <button key={p.label} type="button"
-                        className={`btn-chip${W === p.w && H === p.h ? ' is-active' : ''}`}
-                        onClick={() => setSize(p.w, p.h)}>
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap', marginTop: 'var(--s1)' }}>
-                    {FPS_OPTIONS.map(f => (
-                      <button key={f} type="button"
-                        className={`btn-chip${fps === f ? ' is-active' : ''}`}
-                        onClick={() => setFps(f)}>
-                        {f}fps
-                      </button>
-                    ))}
-                  </div>
+              {hasSources && (
+                <div className="body-xs text-subtle" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {PB.timecode(total, fps)} total
+                  {` · ${Object.keys(composition.sources).length} source${Object.keys(composition.sources).length === 1 ? '' : 's'}`}
+                  {` · ${composition.tracks.length} track${composition.tracks.length === 1 ? '' : 's'}`}
                 </div>
               )}
-            </div>
+            </InspectorGroup>
 
-            {hasSources && (
-              <div className="body-xs text-subtle" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {PB.timecode(total, fps)} total
-                {` · ${Object.keys(composition.sources).length} source${Object.keys(composition.sources).length === 1 ? '' : 's'}`}
-                {` · ${composition.tracks.length} track${composition.tracks.length === 1 ? '' : 's'}`}
-              </div>
-            )}
             {/* Reel checks, the last group of the inspector. Where the mockup
                 puts them, and where they stop costing the picture its width.
 
@@ -1984,11 +2031,15 @@ export default function CompositionEditorPage({
             */}
             {hasSources && (
               <div data-studio-checks style={{ marginTop: 'var(--s4)' }}>
+                {/* No `defaultOpen`. It used to open every rule and every
+                    piece of evidence for all ten checks on load, which is
+                    what made this panel 1246px tall and put its own heading
+                    below the fold. The verdicts are the answer; the
+                    reasoning is a click, per check or all at once. */}
                 <ReelChecks
                   timings={allTimings}
                   edit={reelEdit}
                   clientId={clientId}
-                  defaultOpen
                 />
               </div>
             )}
