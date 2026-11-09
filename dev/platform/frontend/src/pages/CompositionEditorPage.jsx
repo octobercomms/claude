@@ -1341,7 +1341,20 @@ export default function CompositionEditorPage({
         : { label: 'Saved', tone: 'text-subtle' };
 
   return (
-    <div style={{ marginTop: 'var(--s4)' }}
+    /* An instrument, not a document.
+     *
+     * This page used to scroll: measured 1149px tall in a 900px viewport, so
+     * the shelf — the place material enters the Studio — began at y=930 and
+     * none of it was on screen when the Studio loaded. At 1280x800 only 56px
+     * of a 164px timeline was visible and the audio lane was entirely below
+     * the fold.
+     *
+     * Three rows now, filling the window: the bar, the work, and the
+     * timeline pinned to the bottom. Each column scrolls inside itself. The
+     * mockup has been built this way from its first draft, and every
+     * geometric difference between the two screens was downstream of this
+     * one thing. */
+    <div className="studio-shell"
       onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
       {/* ── The top bar ──────────────────────────────────────────────
@@ -1359,7 +1372,7 @@ export default function CompositionEditorPage({
           takes over held an h2 naming the screen whose nav row is lit and
           whose panel header says PRODUCE above it, so about 40px comes back on
           a screen where the timeline is already near the fold. */}
-      <div className="row between" style={{ gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
+      <div className="row between studio-bar" style={{ gap: 'var(--s3)' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {save.tone === 'negative' ? (
             // The error takes this line from the kicker. The kicker is the
@@ -1483,8 +1496,8 @@ export default function CompositionEditorPage({
         </div>
       </div>
 
-      <div className="edit-split" style={{ marginTop: 'var(--s2)' }}>
-        <div>
+      <div className="edit-split">
+        <div className="studio-col">
           <div className="studio-stage">
             <Compositor
               ref={compositorRef}
@@ -1494,7 +1507,7 @@ export default function CompositionEditorPage({
               playhead={playhead}
               onSeek={setPlayhead}
               onMeta={onMeta}
-              maxHeight="50vh"
+              fill maxHeight="100%"
             />
             {/* Open, not collapsed. A panel that answers the operator's
                 question and has to be unfolded to do it is a panel nobody
@@ -1520,42 +1533,10 @@ export default function CompositionEditorPage({
               </div>
             )}
           </div>
-          <div style={{ marginTop: 'var(--s3)' }}>
-            <CompositionTimeline
-              composition={composition}
-              onChange={setComposition}
-              sourceUrls={sourceUrls}
-              sourceNames={sourceNames}
-              playhead={playhead}
-              onSeek={setPlayhead}
-              selectedId={selectedId}
-              selectedTrackId={selectedTrackId}
-              onSelect={handleSelect}
-              onDragStart={startBatch}
-              onDragEnd={commitBatch}
-              onDragCancel={discardBatch}
-              onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo}
-              onSplit={handleSplitItem} onDelete={handleRemoveItem}
-              canSplit={!!selectedItem} splitReady={splitReady}
-              canDelete={!!selectedItem}
-              onShortcuts={() => setShortcutsOpen(v => !v)}
-            />
-
-          <StudioShelf
-            composition={composition}
-            clientId={clientId}
-            sourceUrls={sourceUrls}
-            sourceNames={sourceNames}
-            onPickAsset={pickAsset}
-            onPickSource={pickSource}
-            onAddFiles={() => fileRef.current?.click()}
-            uploading={uploading}
-          />
-          </div>
         </div>
 
-        <div>
-          <div className="card" style={{ padding: 'var(--s4)' }}>
+        <div className="studio-col">
+          <div className="card studio-inspector" style={{ padding: 'var(--s4)' }}>
             {/* The header row is gone, and it was a lid on a junk drawer.
                 It held undo, redo, Ripple, the shortcut reference, Export and
                 Share: a toolbar, an export bar and a mode switch in one card
@@ -1996,6 +1977,39 @@ export default function CompositionEditorPage({
 
         </div>
       </div>
+
+          <div className="studio-bottom">
+            <CompositionTimeline
+              composition={composition}
+              onChange={setComposition}
+              sourceUrls={sourceUrls}
+              sourceNames={sourceNames}
+              playhead={playhead}
+              onSeek={setPlayhead}
+              selectedId={selectedId}
+              selectedTrackId={selectedTrackId}
+              onSelect={handleSelect}
+              onDragStart={startBatch}
+              onDragEnd={commitBatch}
+              onDragCancel={discardBatch}
+              onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo}
+              onSplit={handleSplitItem} onDelete={handleRemoveItem}
+              canSplit={!!selectedItem} splitReady={splitReady}
+              canDelete={!!selectedItem}
+              onShortcuts={() => setShortcutsOpen(v => !v)}
+            />
+
+          <StudioShelf
+            composition={composition}
+            clientId={clientId}
+            sourceUrls={sourceUrls}
+            sourceNames={sourceNames}
+            onPickAsset={pickAsset}
+            onPickSource={pickSource}
+            onAddFiles={() => fileRef.current?.click()}
+            uploading={uploading}
+          />
+          </div>
 
       {exportOpen && (
         <ExportModal compId={compId} composition={composition}

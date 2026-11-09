@@ -1332,6 +1332,55 @@ own type filter says "Video". It reads the rows.
 Six new assertions, including that no row overflows its strip and that every
 one keeps a name.
 
+## Built, 9 November: the Studio fills the window
+
+Step 1 of the conformance order, and the one every other geometric difference
+was downstream of.
+
+**It was a document.** Measured: 1149px tall in a 900px viewport, so the
+shelf — the place material enters the Studio — began at y=930 and **none of
+it was on screen when the Studio loaded**. At 1280x800 only 56px of a 164px
+timeline was visible and the audio lane was entirely below the fold.
+
+**It is an instrument now.** Three rows filling the window: the bar, the
+work, the timeline and shelf pinned to the bottom. `document.scrollHeight`
+equals `clientHeight` at both sizes, and the timeline runs the full width
+(1288px at 1440, against 596) because it left the left-hand column for a row
+of its own.
+
+### The player, and why CSS could not do it alone
+
+The picture was bounded by `50vh` — a fraction of the WINDOW, with nothing to
+do with the room it had been given. In a 391px row a 450px picture ran under
+the timeline and the toolbar chips drew on top of it.
+
+Three attempts failed and the reason is worth keeping. A canvas's
+`max-height: 100%` resolves against its containing block, and every box that
+could be its containing block here is auto-height, so the percentage is
+dropped and the canvas falls back to its intrinsic 1080x1920 — measured at
+791px tall in a 391px row. Giving an ancestor a definite height instead moves
+the caption overlay off the picture and onto the black around it.
+
+So the fit is computed. The well's own box never depends on the picture
+(`width: 100%`, `height: 100%` of a row the grid has already sized), so
+measuring it is not circular — which the first attempt was: it measured the
+stage, the stage was as tall as the player, and the player was handed back
+its own height. One axis is rounded and the other derived from the rounded
+value, so the ratio survives whole pixels: measured 0.5625 against 0.5625 at
+1440 and at 1280.
+
+### What this costs, for now
+
+The player is 220px wide at 1440x900, against 253 before and the mockup's
+269. The shelf is still a row of its own below the timeline, and the checks
+still take 300px out of the centre. The next two steps — the checks into the
+right panel, the shelf replaced by the 240px bin — are what give the picture
+its size back, and the mockup's player is bigger than either because it pays
+for neither.
+
+The guard that asserted 253px now asserts a floor and says why: pinning the
+old number would pin the old layout.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
