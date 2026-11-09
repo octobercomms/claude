@@ -521,6 +521,15 @@ jobs:
       # it, and what a camera move means.
       - name: Guard — a photograph can enter the editor
         run: node tests/composition-still.test.js
+      # A share link is handed to someone with no login, and a render id is a
+      # SERIAL integer rather than a UUID, so guessing the one next door is not
+      # a feat. Two bindings keep that safe and neither shows in a passing
+      # happy path: the public respond route refusing a render that is not on
+      # the link, and the minting route refusing renders that are not this
+      # client's. Both are pinned, and the scope check is compared against the
+      # copy in the test so the two cannot drift.
+      - name: Guard — a reel can be shared, and only the right one
+        run: node tests/approval-renders.test.js
       # A brief is what was agreed before a build started, and docs/omi/briefs/
       # exists because one that lived only as a chat link was lost: the Produce
       # studio layout was agreed, mocked, and then production shipped six

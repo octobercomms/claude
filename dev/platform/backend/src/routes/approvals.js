@@ -58,8 +58,8 @@ router.get('/public/:token', async (req, res) => {
       return res.status(410).json({ error: 'Approval link has expired' });
     }
 
-    // Resolve which posts / creatives this link points to.
-    let posts = [], creatives = [];
+    // Resolve which posts / creatives / reels this link points to.
+    let posts = [], creatives = [], renders = [];
     if (link.scope === 'social_batch') {
       const { rows: ps } = await pool.query(
         `SELECT p.*,
@@ -89,6 +89,21 @@ router.get('/public/:token', async (req, res) => {
         [link.post_ids]
       );
       posts = ps;
+    } else if (link.scope === 'render_list' && link.render_ids?.length) {
+      // Finished reels. `status = 'done'` as well as the id list, because a
+      // render can be deleted or re-queued after a link is minted and a card
+      // with no file is worse than one fewer card: the client presses play on
+      // nothing and concludes the agency sent a broken link.
+      const { rows: rs } = await pool.query(
+        `SELECT r.id, r.output_url, r.finished_at,
+                c.id AS composition_id, c.title
+           FROM composition_renders r
+           JOIN compositions c ON c.id = r.composition_id
+          WHERE r.id = ANY($1) AND r.status = 'done' AND r.output_url IS NOT NULL
+          ORDER BY r.finished_at ASC NULLS LAST, r.id ASC`,
+        [link.render_ids]
+      );
+      renders = rs;
     }
 
     // Client info — name only, no internal fields.
@@ -98,7 +113,7 @@ router.get('/public/:token', async (req, res) => {
     // Prior responses on this link, so the public view shows what's
     // already been decided.
     const { rows: responses } = await pool.query(
-      'SELECT post_id, ad_creative_id, decision, comment, reviewer_name, created_at FROM approval_responses WHERE link_id = $1 ORDER BY created_at ASC',
+      'SELECT post_id, ad_creative_id, composition_render_id, decision, comment, reviewer_name, created_at FROM approval_responses WHERE link_id = $1 ORDER BY created_at ASC',
       [link.id]
     );
 
@@ -117,11 +132,18 @@ router.get('/public/:token', async (req, res) => {
     for (const c of creatives) {
       c.images = (c.images || []).map(i => ({ ...i, url: rewriteUrl(i.url) }));
     }
+    // A render's own url is the same `/api/brand/file/<client>/<name>` shape
+    // the proxy was built for, which is why no new file route was needed:
+    // `compositionRenderRunner` writes into `uploads/<client>/` and the proxy
+    // already serves exactly that directory, gated on the token.
+    for (const r of renders) {
+      r.output_url = rewriteUrl(r.output_url);
+    }
 
     res.json({
       title: link.title,
       client: { name: client.name },
-      posts, creatives, responses,
+      posts, creatives, renders, responses,
       expires_at: link.expires_at,
     });
   } catch (err) {
@@ -130,11 +152,13 @@ router.get('/public/:token', async (req, res) => {
 });
 
 router.post('/public/:token/respond', async (req, res) => {
-  const { post_id, ad_creative_id, decision, comment, reviewer_name } = req.body || {};
+  const { post_id, ad_creative_id, composition_render_id, decision, comment, reviewer_name } = req.body || {};
   if (!['approved', 'changes_requested', 'rejected', 'commented'].includes(decision || 'commented')) {
     return res.status(400).json({ error: 'invalid decision' });
   }
-  if (!post_id && !ad_creative_id) return res.status(400).json({ error: 'post_id or ad_creative_id required' });
+  if (!post_id && !ad_creative_id && !composition_render_id) {
+    return res.status(400).json({ error: 'post_id, ad_creative_id or composition_render_id required' });
+  }
   try {
     const { rows } = await pool.query('SELECT * FROM approval_links WHERE token = $1', [req.params.token]);
     if (!rows.length) return res.status(404).json({ error: 'Approval link not found' });
@@ -156,11 +180,22 @@ router.post('/public/:token/respond', async (req, res) => {
       const inScope = await adCreativeIsInLinkScope(link, ad_creative_id);
       if (!inScope) return res.status(403).json({ error: 'ad_creative_id is not part of this approval link.' });
     }
+    // Same binding, same reason. Without it anyone holding a public token
+    // could record an approval against any render in the database by
+    // supplying its id, including another client's. A render id is a small
+    // integer, so guessing one is not a feat.
+    if (composition_render_id) {
+      if (!renderIsInLinkScope(link, composition_render_id)) {
+        return res.status(403).json({ error: 'composition_render_id is not part of this approval link.' });
+      }
+    }
 
     const { rows: row } = await pool.query(
-      `INSERT INTO approval_responses (link_id, post_id, ad_creative_id, decision, comment, reviewer_name)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [link.id, post_id || null, ad_creative_id || null, decision || 'commented', comment || null, (reviewer_name || '').slice(0, 120) || null]
+      `INSERT INTO approval_responses
+         (link_id, post_id, ad_creative_id, composition_render_id, decision, comment, reviewer_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [link.id, post_id || null, ad_creative_id || null, composition_render_id || null,
+        decision || 'commented', comment || null, (reviewer_name || '').slice(0, 120) || null]
     );
     // Reflect approvals onto the underlying row so the AM sees the
     // status update on the Social / Paid card without polling responses.
@@ -177,6 +212,18 @@ router.post('/public/:token/respond', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// A render is in scope only when the link names it. There is no batch form of
+// a render link on purpose: a `render_list` is an explicit choice of files made
+// at the moment of sharing, which is the whole reason the link carries renders
+// rather than compositions. Synchronous, because unlike its two siblings it
+// needs no query — the ids are on the link.
+function renderIsInLinkScope(link, renderId) {
+  if (link.scope !== 'render_list') return false;
+  const id = Number(renderId);
+  if (!Number.isInteger(id)) return false;
+  return (link.render_ids || []).map(Number).includes(id);
+}
 
 // Verify a post belongs to whichever set the approval link authorises:
 // - 'social_batch' scope: post must live inside link.scope_id batch AND be
@@ -236,17 +283,52 @@ router.get('/clients/:clientId/links', async (req, res) => {
 });
 
 router.post('/clients/:clientId/links', async (req, res) => {
-  const { scope, scope_id, post_ids, title, expires_days } = req.body || {};
-  if (!['social_batch', 'ad_creative_batch', 'post_list'].includes(scope)) {
+  const { scope, scope_id, post_ids, render_ids, title, expires_days } = req.body || {};
+  if (!['social_batch', 'ad_creative_batch', 'post_list', 'render_list'].includes(scope)) {
     return res.status(400).json({ error: 'invalid scope' });
+  }
+  // A render link with no renders would mint a URL onto an empty page, which
+  // reads to the client as the agency having sent nothing.
+  const renderIds = Array.isArray(render_ids)
+    ? render_ids.map(Number).filter(Number.isInteger)
+    : [];
+  if (scope === 'render_list' && !renderIds.length) {
+    return res.status(400).json({ error: 'render_list needs at least one render_id' });
   }
   const token = crypto.randomBytes(24).toString('hex');
   const expiresAt = expires_days ? new Date(Date.now() + parseInt(expires_days) * 86400_000) : null;
   try {
+    // Every render must belong to the client in the path. `requireClientAccess`
+    // checks the caller may act for THIS client; it says nothing about the ids
+    // in the body, so without this a caller could mint a link that serves
+    // another client's reels — and the public view, correctly, only checks
+    // that an id is on the link.
+    //
+    // Done renders only, for the same reason the public view filters them: a
+    // link is a promise that these files exist.
+    if (scope === 'render_list') {
+      const { rows: mine } = await pool.query(
+        `SELECT r.id FROM composition_renders r
+           JOIN compositions c ON c.id = r.composition_id
+          WHERE r.id = ANY($1) AND c.client_id = $2
+            AND r.status = 'done' AND r.output_url IS NOT NULL`,
+        [renderIds, req.params.clientId]
+      );
+      const ok = new Set(mine.map(r => Number(r.id)));
+      const refused = renderIds.filter(id => !ok.has(id));
+      if (refused.length) {
+        return res.status(400).json({
+          error: `not this client's finished renders: ${refused.join(', ')}`,
+        });
+      }
+    }
+
     const { rows } = await pool.query(
-      `INSERT INTO approval_links (client_id, token, scope, scope_id, post_ids, title, created_by, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.params.clientId, token, scope, scope_id || null, post_ids || [], title || null, req.user.id, expiresAt]
+      `INSERT INTO approval_links
+         (client_id, token, scope, scope_id, post_ids, render_ids, title, created_by, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.params.clientId, token, scope, scope_id || null, post_ids || [], renderIds,
+        title || null, req.user.id, expiresAt]
     );
     const baseUrl = (process.env.PLATFORM_URL || '').replace(/\/$/, '') || '';
     res.status(201).json({ link: rows[0], public_url: `${baseUrl}/approve/${token}` });

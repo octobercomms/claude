@@ -19,6 +19,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useCompositionHistory } from '../hooks/useCompositionHistory';
 import ExportModal from '../components/video/ExportModal';
+import ShareReelModal from '../components/video/ShareReelModal';
 
 const SIZE_PRESETS = [
   { w: 1080, h: 1920, label: '9:16' },
@@ -95,7 +96,7 @@ function initComp() {
   return comp;
 }
 
-export default function CompositionEditorPage({ clientId, openId = null }) {
+export default function CompositionEditorPage({ clientId, clientName = null, openId = null }) {
   const toast = useToast();
   const {
     state: composition, setState: setComposition,
@@ -121,6 +122,7 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [ripple, setRipple] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
@@ -942,6 +944,15 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
                   disabled={!compId || total <= 0}>
                   Export
                 </button>
+                {/* Share needs no flushSave, deliberately, and it is worth
+                    saying why: a link carries renders that already exist, so
+                    the unsaved edit in front of you is not part of what the
+                    client would see. Flushing here would imply otherwise. The
+                    dialog lists exports by time so a stale one is visible. */}
+                <button type="button" className="btn btn-secondary btn-sm"
+                  onClick={() => setShareOpen(true)} disabled={!compId}>
+                  Share
+                </button>
                 <button type="button" className="btn btn-secondary btn-sm"
                   onClick={() => doSave(compId)} disabled={saveStatus === 'saving'}>
                   {saveStatus === 'saving' ? 'Saving...' : 'Save now'}
@@ -1288,6 +1299,11 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
       {exportOpen && (
         <ExportModal compId={compId} composition={composition}
           onClose={() => setExportOpen(false)} />
+      )}
+      {shareOpen && (
+        <ShareReelModal compId={compId} clientId={clientId}
+          clientName={clientName} title={composition?.title}
+          onClose={() => setShareOpen(false)} />
       )}
       <ShortcutReference visible={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>

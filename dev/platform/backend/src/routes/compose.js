@@ -486,6 +486,32 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
   }
 });
 
+// The finished renders of one composition, for the Share dialog.
+//
+// Only done ones with a file, because what a share link promises is that these
+// files exist, and `approvals.js` filters the same way on both the minting and
+// the public side. Three queries would otherwise disagree about what counts as
+// shareable.
+//
+// `loadComposition` already settles tenancy: it refuses a composition the
+// caller cannot see, so a render under it belongs to a client they may act for.
+router.get('/compositions/:id/renders', loadComposition, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, finished_at, output_url
+         FROM composition_renders
+        WHERE composition_id = $1 AND status = 'done' AND output_url IS NOT NULL
+        ORDER BY finished_at DESC NULLS LAST, id DESC
+        LIMIT 20`,
+      [req.composition.id]
+    );
+    res.json({ renders: rows });
+  } catch (err) {
+    console.error('[compose] render list failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/compositions/:id/render-status', loadComposition, async (req, res) => {
   try {
     // `renderId` reads one attempt by its own id, which is what a batch

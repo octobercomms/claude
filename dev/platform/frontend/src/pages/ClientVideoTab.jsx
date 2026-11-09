@@ -52,7 +52,10 @@ export default function ClientVideoTab() {
           editor" landed on whatever was newest, which for the review sheet
           was reliably the wrong item. */}
       {tab === 'compose' && !readOnly && (
-        <CompositionEditorPage clientId={id} openId={openCompId} />
+        // The client's name goes in, for the Share dialog's heading. A client
+        // opening the link sees their own name and none of October's chrome,
+        // so the person minting it should see whose link they are making.
+        <CompositionEditorPage clientId={id} clientName={client?.name} openId={openCompId} />
       )}
       {tab === 'record' && (
         <RecordingsPage

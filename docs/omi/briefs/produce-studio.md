@@ -441,6 +441,44 @@ it measures largest, since a small scale change on a high-frequency pattern
 moves every pixel across an edge. The ranking is a property of the picture,
 not the move, and that assertion was testing my own prose.
 
+## Built, 9 November: Share
+
+Decision 9 was wrong on the facts and the correction is above. What shipped:
+
+**A link carries renders, not compositions.** A composition keeps being
+edited; a render is the file that was made. Share the composition and the
+thing a client approved on Tuesday is not the thing they see on Thursday, with
+nothing recording the difference. `composition_renders` rows are immutable
+once done, so a link means "these files", for good. The dialog lists exports
+by time, so a stale one is visible before it is sent.
+
+**Migration 252 is two columns.** `approval_links.render_ids INTEGER[]` and
+`approval_responses.composition_render_id`. `post_ids` could not be reused:
+it is `UUID[]` and composition ids are `SERIAL`. The `scope` column has no
+CHECK, so `render_list` needed no constraint change, and a test asserts that
+is still true.
+
+**No new file route.** The existing public proxy serves `uploads/<client>/…`
+to a logged-out reviewer, gated on the token, which is exactly where
+`compositionRenderRunner` writes `render-<comp>-<render>.mp4`.
+
+**The two bindings are the dangerous part, not the new part.** The route's own
+comments already record the fault it is built around: anyone holding a public
+token could record a decision against any row by supplying its id. For a post
+that id is a UUID. For a render it is a small integer, so guessing the one
+next door is not a feat, which makes the binding more important here rather
+than less. So: the public respond route refuses a render that is not on the
+link, and the minting route refuses renders that are not this client's and
+are not finished. `requireClientAccess` checks the client in the path and says
+nothing about ids in the body, so that second check is the only place the
+tenancy of a shared render is established.
+
+**Share deliberately does not flush the autosave.** Export must, or it
+encodes the previous cut and reports success. Share must not: the link carries
+files that already exist, and flushing would imply the unsaved edit is part of
+what the client will see. Both halves are pinned, because tidying the two
+buttons into one handler would reverse it.
+
 ## Faults found while auditing, worth fixing in passing
 
 - **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is
