@@ -92,5 +92,16 @@
       "fadeblack"
     ],
     "lenJitter": 0.12
-  }
+  },
+  "fx": [
+    {
+      "effect": "scrim",
+      "track": 3,
+      "params": {
+        "start": 0.58,
+        "full": 0.84,
+        "strength": 0.68
+      }
+    }
+  ]
 }

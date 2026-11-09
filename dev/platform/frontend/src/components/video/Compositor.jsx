@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as PB from '@shared/compositionPlayback.mjs';
+import { paintFor } from '@shared/compositionFx.mjs';
 import * as GAIN from './audioGain';
 import useCaptionPreview from '../../hooks/useCaptionPreview';
 
@@ -31,6 +32,75 @@ import useCaptionPreview from '../../hooks/useCaptionPreview';
  */
 
 const BLACK = '#000';
+
+/**
+ * Draw one generated effect layer.
+ *
+ * An fx source holds no file, so there is no element to draw: the render
+ * makes it with a geq expression and the preview paints the same mask as a
+ * canvas gradient. Both descriptions come out of `shared/compositionFx.mjs`
+ * and an agreement test evaluates the expression numerically against the
+ * paint at points across the frame, because two implementations of one
+ * description drift and a preview that disagrees with the export is the page
+ * lying about its own output.
+ *
+ * Before this the layer was skipped silently — `getElement` returns null for
+ * a source with no url — so a template's scrim was in every rendered file
+ * and in none of the previews, which is the state the caption legibility
+ * judgement would have been made in.
+ */
+function drawFx(ctx, src, layer, W, H) {
+  let paint;
+  try {
+    paint = paintFor(src.effect, src.params, { width: W, height: H });
+  } catch {
+    // An effect this build does not know. The render refuses it with a
+    // message naming the source; the preview simply does not draw it rather
+    // than throwing out of the frame loop.
+    return;
+  }
+
+  const [r, g, b] = paint.colour;
+  const rgba = (a) => `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
+  const at = (v) => Math.max(0, Math.min(1, v));
+
+  ctx.save();
+  if (layer.opacity < 1) ctx.globalAlpha = layer.opacity;
+
+  // The item transform, the same arithmetic the other layers use, so an
+  // effect given a motion moves in the preview as it does in the render.
+  const tr = layer.transform;
+  if (tr && (tr.scale !== 1 || tr.pos?.x || tr.pos?.y)) {
+    ctx.translate(W / 2 + (tr.pos?.x || 0) * W, H / 2 + (tr.pos?.y || 0) * H);
+    ctx.scale(tr.scale, tr.scale);
+    ctx.translate(-W / 2, -H / 2);
+  }
+
+  if (paint.kind === 'rect') {
+    ctx.fillStyle = rgba(paint.alpha);
+    ctx.fillRect(paint.x * W, paint.y * H, paint.w * W, paint.h * H);
+  } else if (paint.kind === 'linear') {
+    const grad = ctx.createLinearGradient(
+      paint.from.x * W, paint.from.y * H, paint.to.x * W, paint.to.y * H
+    );
+    for (const stop of paint.stops) grad.addColorStop(at(stop.at), rgba(stop.alpha));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    // Radial, described in a space where the frame is a unit square about
+    // its centre. Scaling the context by half the frame turns the circle the
+    // browser draws into the ellipse the expression describes, which is what
+    // keeps a 9:16 vignette circular rather than squashed into a letterbox.
+    ctx.translate(paint.centre.x * W, paint.centre.y * H);
+    ctx.scale(W / 2, H / 2);
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, paint.radius);
+    for (const stop of paint.stops) grad.addColorStop(at(stop.at), rgba(stop.alpha));
+    ctx.fillStyle = grad;
+    ctx.fillRect(-1, -1, 2, 2);
+  }
+
+  ctx.restore();
+}
 
 const Compositor = React.forwardRef(function Compositor({
   composition,
@@ -177,6 +247,13 @@ const Compositor = React.forwardRef(function Compositor({
 
     // Draw each layer bottom to top
     for (const layer of scene.layers) {
+      // A generated layer: an effect, painted rather than drawn from a file.
+      const srcSpec = comp.sources?.[layer.sourceId];
+      if (srcSpec?.kind === 'fx') {
+        drawFx(ctx, srcSpec, layer, W, H);
+        continue;
+      }
+
       const el = getElement(layer.sourceId);
       if (!el || el._isAudio) continue;
 

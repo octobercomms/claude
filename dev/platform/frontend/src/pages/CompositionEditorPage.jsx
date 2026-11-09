@@ -7,6 +7,7 @@ import {
   rippleRemoveItem,
 } from '@shared/composition.mjs';
 import * as PB from '@shared/compositionPlayback.mjs';
+import { FX, FX_NAMES, describeFx } from '@shared/compositionFx.mjs';
 import ReelChecks from '../components/ReelChecks';
 import TightenPanel from '../components/video/TightenPanel';
 import BrollPanel from '../components/video/BrollPanel';
@@ -515,6 +516,46 @@ export default function CompositionEditorPage({ clientId }) {
     toast('Captions added to timeline.', 'success');
   }, [transcripts, toast]);
 
+  // ── Add a finishing effect ────────────────────────────────────────
+  //
+  // Generated, so there is nothing to upload and nothing to pay for: the
+  // render makes it with a filter expression and the preview paints the same
+  // mask. It spans the whole composition, because all three of them are
+  // finishing passes over a cut rather than something that happens at a
+  // moment.
+
+  const addEffect = useCallback((effect) => {
+    if (!FX[effect]) return;
+    setComposition(prev => {
+      const total = compDuration(prev);
+      if (!(total > 0)) return prev;
+
+      const { comp: c1, id: sourceId } = addSource(prev, { kind: 'fx', effect });
+      let comp = c1;
+
+      // Its own track, above everything that draws a picture. Reusing a
+      // track that holds footage would put the effect in that track's own
+      // time layout, where a second item on the same track is a transition.
+      let fxTrackId = null;
+      for (const t of comp.tracks) {
+        if (t.kind === 'video' && t.items.length
+            && t.items.every(i => comp.sources[i.source]?.kind === 'fx')) {
+          fxTrackId = t.id;
+          break;
+        }
+      }
+      if (!fxTrackId) {
+        const r = addTrack(comp, 'video');
+        comp = r.comp;
+        fxTrackId = r.id;
+      }
+
+      const { comp: c2 } = addItem(comp, fxTrackId, { at: 0, len: total, source: sourceId });
+      return c2;
+    });
+    toast(describeFx(effect), 'success');
+  }, [toast]);
+
   // ── Add design page as graphic ────────────────────────────────────
 
   const addDesign = useCallback((design, durationSecs = 5) => {
@@ -870,7 +911,7 @@ export default function CompositionEditorPage({ clientId }) {
               </button>
 
               {designs.length > 0 && (
-                <select className="btn-chip"
+                <select className="btn btn-secondary btn-sm"
                   style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
                   value=""
                   onChange={(e) => {
@@ -881,6 +922,22 @@ export default function CompositionEditorPage({ clientId }) {
                   <option value="">+ Add design</option>
                   {designs.map(d => (
                     <option key={d.id} value={d.id}>{d.title || `Design ${d.id}`}</option>
+                  ))}
+                </select>
+              )}
+
+              {hasSources && (
+                <select className="btn btn-secondary btn-sm"
+                  style={{ padding: '0 var(--s2)', fontSize: 'var(--fs-caption)' }}
+                  value=""
+                  title="Generated in the render. No upload, no cost."
+                  onChange={(e) => {
+                    if (e.target.value) addEffect(e.target.value);
+                    e.target.value = '';
+                  }}>
+                  <option value="">+ Add effect</option>
+                  {FX_NAMES.map(name => (
+                    <option key={name} value={name}>{FX[name].label}</option>
                   ))}
                 </select>
               )}

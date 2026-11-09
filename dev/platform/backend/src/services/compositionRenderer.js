@@ -245,6 +245,10 @@ async function renderComposition(compositionId, options = {}) {
   for (const [sourceId, src] of Object.entries(comp.sources || {})) {
     // Caption sources have no file on disk; they produce an ASS string
     if (src.kind === 'captions') continue;
+    // An fx source has no file either: ffmpeg generates it from a
+    // filtergraph. Demanding an asset for it answered "has no mapped asset"
+    // before the graph was ever built.
+    if (src.kind === 'fx') continue;
 
     const assetId = sourceAssets[sourceId] || src.asset;
     if (!assetId) {
@@ -284,6 +288,10 @@ async function renderComposition(compositionId, options = {}) {
 
   // Resolve input paths in order
   const resolvedPaths = graphResult.inputs.map((input) => {
+    // A generated input keeps its place in the array so the indices ffmpeg
+    // numbers by position stay aligned; `ffmpegArgs` reads its filtergraph
+    // off the input rather than this slot.
+    if (input.generated) return null;
     const p = sourcePaths[input.sourceId];
     if (!p) throw new Error(`No resolved path for source "${input.sourceId}"`);
     return p;
