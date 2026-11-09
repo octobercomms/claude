@@ -186,11 +186,19 @@ button { font-family: inherit; }
    keeps its accessible name and its tooltip. `nav/sections.js` decides which
    screens these apply to. */
 .app-main.is-focus {
-  /* The screen gets the window: no page scroll, and the padding drops from
-     the document's generous 40/56 to something an instrument can afford. */
+  /* The screen gets the window: no page scroll, and no page margin at the
+     top or bottom at all.
+     Vertical space on this screen comes straight off the picture, which is
+     the only thing being judged, and horizontal space is free: at 1600 the
+     well is 1168px wide and the picture is 276 of it, so there is 2.4x of
+     width spare and none of height. 16px of padding at the top and 16 at the
+     bottom was 32px of row, which is 18px of picture, paid every session for
+     a margin nobody looks at. The mockup pays none of it and neither does
+     any editing application. The horizontal gutter stays, because it costs
+     the picture nothing. */
   height: 100dvh;
   overflow: hidden;
-  padding: var(--s4) var(--s5);
+  padding: 0 var(--s3);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -2522,7 +2530,10 @@ a:hover > .card-stat,
 .studio-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: var(--s3);
+  /* A seam, not a gutter. Two 12px gaps between the three rows were 24px of
+     row and 13px of picture; the mockup separates its panels with a 1px
+     border. 4px keeps the cards legibly apart at a sixth of the cost. */
+  gap: var(--s1);
   height: 100%;
   min-height: 0;
 }
@@ -2548,15 +2559,20 @@ a:hover > .card-stat,
  *
  * Reel checks sat here for a while, beside the frame, on the argument that a
  * 9:16 picture leaves most of the well empty and the checks cost it nothing.
- * That held while the page was a tall document and the picture was bounded by
- * `50vh`. It stopped holding the moment the Studio filled the window: the
- * centre column is bounded by its row now, the picture is fitted to whatever
- * that row leaves, and a 300px panel in the row is 300px of picture.
  *
- * Measured at 1440x900: 220px of player with the checks beside it, 349px
- * without, against the mockup's 269. The checks are the last group of the
- * inspector, which is where the mockup puts them and where they read as one
- * list rather than through a scrollbar inside a scrollbar. */
+ * THE FIRST VERSION OF THIS COMMENT SAID "a 300px panel in the row is 300px
+ * of picture", and that is false. Measured: with the stage column narrowed
+ * from 1008px to 748px the picture is 220x391 either way, identical, because
+ * it is bounded by the row's HEIGHT and not the column's width. The panel
+ * beside the picture cost 0px at 1440x900 and 23px at 1600x1000.
+ *
+ * The checks moved for two reasons that survive measurement. Capped at 50vh
+ * with a scroller of their own, inside a column that already scrolls, 1246px
+ * of checks were read through a 390px box. And the mockup has them as the
+ * inspector's last group, which is the target.
+ *
+ * What makes the picture small is vertical, and the reason this correction
+ * matters is that the next step was nearly planned off the wrong number. */
 .studio-stage { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; }
 @container appmain (max-width: 580px) { .edit-split { grid-template-columns: 1fr; } }
 

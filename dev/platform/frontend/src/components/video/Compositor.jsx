@@ -119,6 +119,11 @@ const Compositor = React.forwardRef(function Compositor({
   const frameRef = useRef(null);
 
   const [playing, setPlaying] = useState(false);
+  // The render-only caveat, closed. It used to be 17px of full-width prose
+  // permanently under the picture, naming afftdn and loudnorm to a person
+  // deciding whether a cut lands. 17px of this row is 10px of picture, every
+  // session, for a sentence read once.
+  const [renderNote, setRenderNote] = useState(false);
   const [natAR, setNatAR] = useState(null);
 
   // Mutable state for the frame loop, same pattern as EdlPlayer
@@ -636,7 +641,20 @@ const Compositor = React.forwardRef(function Compositor({
        player sizes to its content, which is how a 450px frame came to run
        under the timeline in a 403px row. */
     <div ref={wrapRef} tabIndex={0} data-testid="compositor"
-      style={{ outline: 'none', ...(fill ? { height: '100%', minHeight: 0 } : null) }}>
+      style={{
+        outline: 'none',
+        /* A COLUMN in fill mode, and the whole defect this fixes was the
+           absence of this line. `height: 100%` on the wrapper with
+           `height: 100%` on the well inside it gave the well the entire box
+           and left the transport and the caption as siblings with nowhere to
+           go: 456px of content in a 391px wrapper, overflow visible, so 65px
+           of controls drew ON TOP OF the timeline toolbar.
+           Hit-tested on the shipped build at 1440x900 and 1280x800: all four
+           transport buttons were unreachable, and Play's centre returned
+           Redo while `-1 frame` returned Split. A person reaching for Play
+           got an undo of someone else's edit. */
+        ...(fill ? { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' } : null),
+      }}>
       <div ref={wellRef} data-testid="player-well" style={{
         display: 'flex', justifyContent: 'center', background: BLACK,
         borderRadius: 'var(--r-md)', overflow: 'hidden',
@@ -645,7 +663,11 @@ const Compositor = React.forwardRef(function Compositor({
            a DEFINITE height to resolve `max-height: 100%` against. Without
            that the percentage is ignored, the canvas sizes to its intrinsic
            1080x1920, and a 791px picture runs under the timeline. */
-        ...(fill ? { height: '100%', minHeight: 0, alignItems: 'center' } : null),
+        /* `flex: 1` and not `height: 100%`: the well takes the room the
+           transport does not want. Both give the canvas the definite height
+           its `max-height` resolves against, but only one of them leaves the
+           controls a row. */
+        ...(fill ? { flex: '1 1 auto', minHeight: 0, alignItems: 'center' } : null),
       }}>
         {/* The frame is bounded on BOTH axes and sized by its ratio, never
             given a height and a width that can disagree.
@@ -734,7 +756,7 @@ const Compositor = React.forwardRef(function Compositor({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap', flexShrink: 0 }}>
         {/* Secondary, deliberately. Play was the only accent fill on the
             Studio while Export — the thing the screen exists to produce —
             was drawn in the same class as "-1 frame". One accent per screen,
@@ -757,15 +779,24 @@ const Compositor = React.forwardRef(function Compositor({
           {PB.timecode(playhead, fps)} / {PB.timecode(total, fps)}
           {` · ${fps}fps`}
         </span>
+        {/* A disclosure rather than a tooltip. A `title` is unreachable from
+            a keyboard and unreadable on a touch screen, and the fact it
+            carries — that what you are watching is not everything the render
+            will do — is one a person needs to be able to read deliberately. */}
+        <button type="button" className="btn-link body-xs" data-testid="render-note-toggle"
+          aria-expanded={renderNote} onClick={() => setRenderNote(v => !v)}>
+          {renderNote ? 'Hide what the preview leaves out' : 'What the preview leaves out'}
+        </button>
       </div>
 
-      <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
-        <div>
+      {renderNote && (
+        <div className="body-xs text-subtle" data-testid="render-note"
+          style={{ marginTop: 'var(--s1)', flexShrink: 0 }}>
           {hasCaptions
             ? 'Ducking and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.'
             : 'Captions, ducking, and audio processing (afftdn/loudnorm) are render-only; this preview does not show them.'}
         </div>
-      </div>
+      )}
     </div>
   );
 });

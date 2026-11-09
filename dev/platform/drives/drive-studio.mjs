@@ -1441,6 +1441,71 @@ for (const [asked, want, row] of [
   }
 }
 
+// ── 23. The transport can be clicked ─────────────────────────────────────
+//
+// This is a HIT TEST, and the defect it exists for is the reason it has to
+// be. Every presence assertion in this file passed on the day Play could not
+// be pressed: the button was in the DOM, it was 65x36, it was on screen, it
+// had the right label, and `elementFromPoint` at the centre of it returned
+// REDO. The player's wrapper was `height: 100%` with the well inside it also
+// `height: 100%`, so the well took the whole box and the transport overflowed
+// it — 456px of content in a 391px wrapper — and 65px of controls drew on top
+// of the timeline toolbar. All four transport buttons were unreachable at
+// 1440x900 and at 1280x800, and two of them fired a different, destructive
+// command: a hand reaching for Play landed on an undo.
+//
+// Nothing short of asking the browser what is under the pixel would have
+// caught it, and nothing short of that will catch the next one.
+{
+  for (const [w, h] of [[1440, 900], [1280, 800]]) {
+    const p = await open('/clients/c1/produce/studio');
+    await p.setViewportSize({ width: w, height: h });
+    await p.waitForTimeout(700);
+
+    const probe = await p.evaluate(() => {
+      const out = { controls: {}, overflow: null };
+      for (const id of ['play', 'step-back', 'step-fwd', 'to-start']) {
+        const el = document.querySelector(`[data-testid="${id}"]`);
+        if (!el) { out.controls[id] = { reached: false, landedOn: 'the control is not on the page' }; continue; }
+        const b = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2));
+        out.controls[id] = {
+          reached: !!hit && (el === hit || el.contains(hit)),
+          landedOn: hit ? (hit.innerText || hit.getAttribute('aria-label') || hit.tagName).toString().replace(/\s+/g, ' ').slice(0, 30) : 'nothing',
+        };
+      }
+      // The cause, asserted separately from the symptom: a player that
+      // overflows its own box is the state in which the symptom is possible,
+      // and it can be reintroduced without any control moving.
+      const wrap = document.querySelector('[data-testid="compositor"]');
+      if (wrap) out.overflow = { client: wrap.clientHeight, scroll: wrap.scrollHeight };
+      return out;
+    });
+
+    for (const [id, r] of Object.entries(probe.controls)) {
+      say(r.reached, `${id} can actually be clicked at ${w}x${h}`,
+        r.reached ? '' : `the click landed on "${r.landedOn}"`);
+    }
+    say(probe.overflow && probe.overflow.scroll <= probe.overflow.client + 1,
+      `and the player does not overflow its own box at ${w}x${h}`,
+      `${probe.overflow?.scroll}px of content in a ${probe.overflow?.client}px box`);
+
+    // The caveat under the picture is a disclosure now, closed. It was 17px
+    // of permanent prose naming afftdn and loudnorm to somebody deciding
+    // whether a cut lands, and 17px of this row is 10px of picture.
+    const noteShut = await p.locator('[data-testid="render-note"]').count();
+    say(noteShut === 0, `the render-only caveat is not printed under the picture at ${w}x${h}`,
+      `render-note blocks on the page: ${noteShut}`);
+    await p.locator('[data-testid="render-note-toggle"]').click();
+    await p.waitForTimeout(200);
+    const noteOpen = await p.locator('[data-testid="render-note"]').count();
+    const noteText = noteOpen ? (await p.locator('[data-testid="render-note"]').innerText()) : '';
+    say(noteOpen === 1 && /render-only/.test(noteText),
+      'and opens on a control rather than being lost', noteText.slice(0, 80));
+    await p.close();
+  }
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
