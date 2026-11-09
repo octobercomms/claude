@@ -236,6 +236,37 @@ describe('the vignette', () => {
     assert.ok(across < BASE - 40, `and both are well into the falloff: ${across}`);
   });
 
+  it('becomes a spotlight when its middle is moved', async () => {
+    // The plan's hardest effect is "the background darkened, the subject
+    // lit", and for a subject who stays put this is it: the same radial mask
+    // with its middle over the face. Measured on a real frame, because the
+    // normalisation is the part that could quietly go wrong — the divisor
+    // stays half the frame so the shape does not change with the position.
+    const spot = frame(
+      render(withEffect('vignette', { cx: 0.25, cy: 0.3 }), 'spotlight.mp4'), 1.0
+    );
+    const core = at(spot, Math.round(W * 0.25), Math.round(H * 0.3));
+    const middle = at(spot, W >> 1, H >> 1);
+    const far = at(spot, W - 2, H - 2);
+    assert.ok(Math.abs(core - BASE) <= 2, `the new middle is untouched, read ${core}`);
+    assert.ok(middle < BASE - 30, `and the old one is not: ${middle}`);
+    assert.ok(far < middle, `the far corner is darkest: ${far} against ${middle}`);
+  });
+
+  it('is the same picture as before when its middle is left alone', async () => {
+    // `cx` and `cy` default to 0.5, so every composition written before they
+    // existed renders exactly as it did. Asserted against the pixels rather
+    // than against the expression string, because the expression changed
+    // shape and the picture must not have.
+    const moved = frame(render(withEffect('vignette', { cx: 0.5, cy: 0.5 }), 'vig-explicit.mp4'), 1.0);
+    for (const [x, y] of [[W >> 1, H >> 1], [2, H >> 1], [1, 1], [W >> 1, 20]]) {
+      assert.equal(
+        at(moved, x, y), at(raw, x, y),
+        `(${x},${y}) differs with the middle stated explicitly`
+      );
+    }
+  });
+
   it('takes its strength from the parameter', () => {
     const soft = frame(render(withEffect('vignette', { strength: 0.3 }), 'vignette-soft.mp4'), 1.0);
     assert.ok(

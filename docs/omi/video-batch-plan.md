@@ -507,6 +507,20 @@ what keeps it on the right side.
 > OUT of the draft — a template that states a constraint nothing measured is
 > the same lie the first eight templates were stripped of.
 >
+> **The tracked half, and why it is three pieces of work rather than one.**
+> Written into `compositionFx.mjs` so the next person does not re-derive it:
+> the mask cannot be redrawn per frame (`geq` costs 24x and `drawbox` knows
+> nothing about `t`), but it CAN be moved per frame, because `overlay`'s x and
+> y take expressions in `t` and `emitTransform` already animates position. So
+> a tracked spotlight is a static mask on a moving layer. What stops it is the
+> MODEL: an animatable value is a number or `{ from, to }`, which interpolates
+> in a straight line, and a head does not move in a straight line — following
+> one needs keyframes through `isAnim`, `animAt`, `sliceAnim`, `validate`,
+> `emitTransform` and the compositor, with the agreement test extended. And
+> something has to say where the subject is: segmentation per frame needs a
+> model this project does not have, while sampled frames through the vision
+> pass would follow a slow drift and not a pan. A limit to state, not to hide.
+>
 > Three limits it states rather than papers over:
 >
 > - **One delta per shot cannot tell a push from a drift.** Both move a
@@ -814,6 +828,7 @@ the effects are then data.
 | Glass panels, iOS-style toggles, checklist, editing timeline, orbiting thumbnails | An animated alpha source. Authored in HyperFrames or Remotion, rendered to transparent video |
 | Checklist ticking as the speaker reaches each item; a match cut holding one word in place | Word timings driving overlay state. Already available |
 | Spotlight (background darkened, subject lit) | Subject segmentation per frame, or a vignette tracked to a face. **The only hard one of the seven** |
+| | **Half built 9 November.** `vignette` took `cx`/`cy`, so the mask can be put over the subject: for a talking head on a tripod that is the effect, at no render cost, because it is still one generated frame. Measured on a real frame — the new middle reads 128 against a base of 128 and the old middle reads 97. `cx: 0.5` is pixel-identical to what the vignette rendered before, which is asserted rather than assumed |
 
 **Do not chase the full list.** That aesthetic is tech-creator register, and
 October's clients are architects and design-led brands where glass widgets and
@@ -1031,7 +1046,7 @@ the model changes and the template model.
 | 8 | The worker renders the composition model, **and `update.sh` learns to deploy it** | 3 to 5 | Moves thirty encodes off the app box. See the first trap |
 | 9 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor. **Built 9 November: `.claude/skills/omi-composition/`, a generated JSON Schema, and a test that fails when either goes stale** |
 | 10 | The FX library, three to six effects | 4 to 6 | Nothing depends on it, so it goes late. **Built 9 November: the mechanism, three effects, the preview's copy of the mask** |
-| 11 | Spotlight and segmentation | 3 to 5 | The only genuinely hard effect. Last, and optional |
+| 11 | Spotlight and segmentation | 3 to 5 | The only genuinely hard effect. Last, and optional. **Half built 9 November: a spotlight that can be placed. Following a moving subject is three separate pieces of work and they are named** |
 
 Steps 2 and 4 are where this is won or lost.
 

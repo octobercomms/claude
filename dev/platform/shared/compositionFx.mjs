@@ -138,7 +138,8 @@ export const FX = {
   vignette: {
     label: 'Vignette',
     register: 'both',
-    says: 'Darkens the corners so the eye stays on the middle of the frame.',
+    says: 'Darkens the edges so the eye stays on one part of the frame. Move'
+      + ' its middle with cx and cy and it is a spotlight.',
     rgb: '0',
     params: {
       strength: {
@@ -149,14 +150,33 @@ export const FX = {
         default: 1.1, min: 0.5, max: 3,
         says: 'How abruptly it falls off from the centre. Higher is tighter.',
       },
+      cx: {
+        default: 0.5, min: 0, max: 1,
+        says: 'Where the bright middle sits across the frame, as a fraction.',
+      },
+      cy: {
+        default: 0.5, min: 0, max: 1,
+        says: 'Where it sits down the frame, as a fraction.',
+      },
     },
     // Radial, normalised so the frame's own aspect does not oval it: the
-    // squared distance from centre in each axis is divided by that axis's
+    // squared distance from the centre in each axis is divided by that axis's
     // half-size before it is added.
-    alpha: (p) => `255*min(1,pow(pow((X-W/2)/(W/2),2)+pow((Y-H/2)/(H/2),2),`
+    //
+    // MOVING THE CENTRE IS THE SPOTLIGHT. The plan's hardest effect is "the
+    // background darkened, the subject lit", and for a subject who stays put
+    // — a talking head on a tripod, which is most of what this gets pointed
+    // at — that is this effect with `cx`/`cy` over the face. What it does NOT
+    // do is follow a subject who moves; see the note at the end of this file.
+    //
+    // The divisor stays W/2 and H/2 rather than becoming the distance to the
+    // nearer edge, so the gradient keeps the same shape wherever it is put
+    // and `cx: 0.5` is byte-identical to what this rendered before.
+    alpha: (p) => `255*min(1,pow(pow((X-W*${x(p.cx)})/(W/2),2)`
+      + `+pow((Y-H*${x(p.cy)})/(H/2),2),`
       + `${x(p.falloff)})*${x(p.strength)})`,
     alphaAt: (p, xf, yf) => {
-      const d2 = (2 * xf - 1) ** 2 + (2 * yf - 1) ** 2;
+      const d2 = (2 * (xf - p.cx)) ** 2 + (2 * (yf - p.cy)) ** 2;
       return Math.min(1, (d2 ** p.falloff) * p.strength);
     },
     // Sampled, because a canvas gradient interpolates linearly between its
@@ -172,7 +192,16 @@ export const FX = {
     //     interpolation error is 0.006 of full alpha, against 0.046 at eight
     //     and 0.022 at twelve; the test's tolerance is 0.02.
     paint: (p) => {
-      const R = Math.SQRT2;
+      // The furthest corner from WHEREVER the centre is, in the same
+      // normalised space. Leaving this at sqrt(2) put stops past 1.0 the
+      // moment the centre moved off middle, and a gradient stop outside 0..1
+      // is one the browser refuses.
+      const R = Math.max(
+        Math.hypot(2 * (0 - p.cx), 2 * (0 - p.cy)),
+        Math.hypot(2 * (1 - p.cx), 2 * (0 - p.cy)),
+        Math.hypot(2 * (0 - p.cx), 2 * (1 - p.cy)),
+        Math.hypot(2 * (1 - p.cx), 2 * (1 - p.cy)),
+      );
       const rSat = p.strength > 0
         ? Math.min(R, (1 / p.strength) ** (1 / (2 * p.falloff)))
         : R;
@@ -185,7 +214,7 @@ export const FX = {
         const r = (i / 24) * rSat;
         return { at: r / R, alpha: alpha(r) };
       });
-      return { kind: 'radial', centre: { x: 0.5, y: 0.5 }, radius: R, stops };
+      return { kind: 'radial', centre: { x: p.cx, y: p.cy }, radius: R, stops };
     },
   },
 
@@ -225,8 +254,14 @@ export const FX = {
       const H = size.height;
       const W = size.width;
       const half = p.thickness / 2;
-      const onY = Math.abs(yf * H - p.y * H) <= half;
-      const onX = xf * W >= p.inset * W && xf * W <= W - p.inset * W;
+      // The epsilon is not decoration. ffmpeg's `between` is inclusive and Y
+      // is an integer pixel, so the last row of the line IS drawn; here the
+      // same row arrives as a fraction, and 0.503125 * 1920 comes out as
+      // 966.0000000000001, which a bare `<=` reads as outside. The preview
+      // drew that row and the export did not, and the pairwise agreement
+      // sweep found it.
+      const onY = Math.abs(yf * H - p.y * H) <= half + 1e-6;
+      const onX = xf * W >= p.inset * W - 1e-6 && xf * W <= W - p.inset * W + 1e-6;
       // The same rounding the expression does, so the two agree to the byte
       // rather than to a tolerance.
       return onY && onX ? Math.round(255 * p.opacity) / 255 : 0;
@@ -404,3 +439,39 @@ export function describeFx(effect, params) {
   const bits = Object.keys(spec.params).map((n) => `${n} ${x(p[n])}`);
   return `${spec.label}: ${spec.says} (${bits.join(', ')})`;
 }
+
+// ── The spotlight, and what the tracked version would need ────────────
+//
+// The plan calls spotlight "the only genuinely hard one of the seven", and
+// half of it is now here: `vignette` with `cx`/`cy` over the subject darkens
+// everything but them. For a talking head on a tripod — most of what this
+// gets pointed at — that is the effect, and it costs nothing at render time
+// because the mask is still one generated frame.
+//
+// WHAT IS NOT BUILT is following a subject who moves, and the reason is
+// measured rather than assumed:
+//
+// 1. The mask cannot be redrawn per frame. `geq` per frame measured 24x the
+//    cost of generating the same picture once, and `drawbox` — the cheap
+//    alternative — exposes neither `t` nor `n`, so there is no expression in
+//    it that knows what time it is.
+// 2. The mask CAN be moved per frame. `overlay`'s x and y take arbitrary
+//    expressions in `t`, which is how `emitTransform` already animates an
+//    item's position. So a tracked spotlight is a static mask on a moving
+//    layer, not a moving mask.
+// 3. What stops it today is the MODEL, not ffmpeg. An animatable value is a
+//    number or `{ from, to }`, which interpolates in a straight line from
+//    start to end. A head does not move in a straight line, so following one
+//    needs keyframes — `{ keys: [{ at, value }] }` — in `isAnim`, `animAt`,
+//    `sliceAnim`, `validate`, `emitTransform` and the browser compositor,
+//    with the agreement test extended to cover them.
+// 4. And something has to say where the subject IS. Segmentation per frame
+//    needs a model this project does not have. Sampled frames through the
+//    vision pass that already reads caption treatment would give a position
+//    every few seconds, which is enough to follow a slow drift and not
+//    enough to follow a pan — a limit to state, not to hide.
+//
+// None of that is hard in the sense of unknown. It is three separate pieces
+// of work, and shipping a spotlight that cannot move while implying it can
+// would be the invention everything else in this module was written to
+// avoid.

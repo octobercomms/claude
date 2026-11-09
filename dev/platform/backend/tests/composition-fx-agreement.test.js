@@ -236,6 +236,71 @@ describe('the canvas paint and the mask agree', () => {
       }
     });
 
+    // ONE PARAMETER AT A TIME, as well as all of them. Moving all of them
+    // together drives `strength` to zero, which makes the mask empty and
+    // every other parameter unobservable — so the all-at-once case agreed
+    // happily with a paint that drew the spotlight in the middle of the frame
+    // wherever it had been put. A mutation sweep caught it.
+    for (const pname of Object.keys(FX[name].params)) {
+      it(`${name}, with only ${pname} moved`, () => {
+        const params = { [pname]: furthest(FX[name].params[pname]) };
+        const paint = paintFor(name, params, { width: W, height: H });
+        for (const [fx, fy] of POINTS) {
+          const want = alphaAt(name, params, fx, fy, { width: W, height: H });
+          const got = paintAlpha(paint, fx, fy);
+          assert.ok(
+            Math.abs(want - got) <= TOL,
+            `${name} ${pname}=${params[pname]} at (${fx}, ${fy}):`
+            + ` mask ${want.toFixed(4)}, paint ${got.toFixed(4)}`
+          );
+        }
+      });
+    }
+
+    // EVERY PAIR, over the LOW END, THE MIDDLE AND THE TOP of each range.
+    //
+    // Two rounds of this were too weak and a mutation sweep caught both. One
+    // parameter at a time missed a real disagreement: the vignette's gradient
+    // sampled out to the centred corner distance, which is correct only while
+    // the mask saturates inside the frame. Pairs at their EXTREMES missed it
+    // too, because the extreme furthest from `strength`'s default is zero and
+    // a mask of nothing agrees with any paint at all.
+    //
+    // At `cx: 0, strength: 0.3` — a soft spotlight off to one side, which is
+    // an ordinary setting — the far corner is 2.24 away in the normalised
+    // space, the stops stopped at 1.41, and the paint read 0.64 where the
+    // mask read 1.0. Three values a parameter is what finds it.
+    const names = Object.keys(FX[name].params);
+    const values = (meta) => [
+      meta.min + (meta.default - meta.min) * 0.35,
+      (meta.min + meta.max) / 2,
+      meta.max,
+    ];
+    for (let i = 0; i < names.length; i += 1) {
+      for (let j = i + 1; j < names.length; j += 1) {
+        it(`${name}, with ${names[i]} and ${names[j]} moved together`, () => {
+          let checked = 0;
+          for (const a of values(FX[name].params[names[i]])) {
+            for (const b of values(FX[name].params[names[j]])) {
+              const params = { [names[i]]: a, [names[j]]: b };
+              const paint = paintFor(name, params, { width: W, height: H });
+              for (const [fx, fy] of POINTS) {
+                const want = alphaAt(name, params, fx, fy, { width: W, height: H });
+                const got = paintAlpha(paint, fx, fy);
+                checked += 1;
+                assert.ok(
+                  Math.abs(want - got) <= TOL,
+                  `${name} ${JSON.stringify(params)} at (${fx}, ${fy}):`
+                  + ` mask ${want.toFixed(4)}, paint ${got.toFixed(4)}`
+                );
+              }
+            }
+          }
+          assert.ok(checked > 1000, `${checked} points is not a sweep`);
+        });
+      }
+    }
+
     it(`${name}, with every parameter moved`, () => {
       const params = {};
       for (const [pname, meta] of Object.entries(FX[name].params)) {
