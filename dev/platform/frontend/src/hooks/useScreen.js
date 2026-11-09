@@ -55,10 +55,16 @@ export function useScreen(sectionKey) {
 
   // replace, not push, so walking a section does not fill the back button
   // with every screen you glanced at — the same behaviour useTabParam had.
-  const setTab = (next) => {
+  // `search` overrides the current query string for callers that are setting
+  // one in the same gesture. Produce needs it: "Send to Edit" names a reel in
+  // `?open=` AND moves to the Studio, and doing those as two navigations
+  // drops the first, because this closure holds the search string as it was
+  // when the component rendered.
+  const setTab = (next, search) => {
     const slug = slugForTab(section, next);
     if (!slug) return;                       // a key this section does not have
-    navigate(`${section.base(id)}/${slug}${location.search}`, { replace: true });
+    const qs = search === undefined ? location.search : search;
+    navigate(`${section.base(id)}/${slug}${qs}`, { replace: true });
   };
 
   return [tab, setTab];

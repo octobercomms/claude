@@ -312,7 +312,7 @@ same. `useScreen` now corrects the address bar to the canonical slug, which
 fixes it for all nine sections rather than only Produce, since nothing ever
 used the `screenSlugs` guard it exports. Pinned by five drive assertions,
 one of which is a real slug that must be left alone. | none |
-| 2 | Studio top bar: name, save dot, Export, hero suppressed on this screen | none |
+| 2 | ~~Studio top bar: name, save dot, Export, hero suppressed on this screen~~ **Built 9 November**, with `?open=` and inline rename; see below | none |
 | 3 | Four-panel shell: 240 / 1fr / 260 with a full-width timeline row | none |
 | 4 | Timeline toolbar: undo, redo, ripple, split, delete, zoom slider, snap toggle | none |
 | 5 | One ordered inspector; delete the timeline's selected-item strip; **collapse the two volume sliders** (see below) | none |
@@ -854,6 +854,72 @@ Open, for Daniel:
 3. **Retry before shouting.** A failed save schedules nothing and asks the
    operator to press a button for a condition that would often clear itself.
    Two or three retries with backoff, red only when they have all failed.
+
+## Built, 9 November: the top bar, and a reel with an address
+
+Build order step 2, and the last of the chrome.
+
+**What it replaces.** A composition `<select>` as the first thing on the page,
+`+ New` beside it, and the save state pushed to the far right of the same row.
+Two measurements condemned that row. With fourteen reels and twelve never
+named, the box rendered 14 options with **three distinct strings**, and the
+date meant to tell them apart carries no time and is the first thing a 260px
+box truncates. And the save state, right-aligned, sat 35px under the fixed
+connector indicator in the same corner, reading as part of that status cluster
+rather than as a fact about the document.
+
+**What is there now.** A kicker reading `Reel • Draft`, the reel's name as the
+only heading on the page, the save state beside it, and at the right a reel
+picker, `+ New`, Share and Export. Measured: the title ends at 603px and the
+save state starts at 643, no horizontal overflow at 1280, and the stage starts
+25px higher than it did because the bar replaced an `h2` that named the screen
+whose row is lit and whose panel header says PRODUCE above it.
+
+**A reel has an address.** `openCompId` was component state in
+`ClientVideoTab`, so a reel could not be linked, pasted into a message or
+reached with Back, and a refresh landed on whatever the editor would have
+picked. It is `?open=<id>` now, through `useOpenState`, which every other
+record type in OMI already uses. That, rather than its styling, is what made
+the `<select>` load-bearing: it was a navigation system standing in for a URL
+nobody had written. The picker is demoted and holds no value, reading as
+"Open a reel…" rather than repeating the title beside it; `setTab` gained an
+optional search argument so "Send to Edit" can name a reel and change screen
+in one navigation rather than two, the second of which dropped the first.
+
+**Renaming, which is why the bar is worth building.** Without it the name is a
+label nobody can change and "Untitled" is permanent. The pencil opens an input
+at the same size, Enter or blur commits, Escape cancels, and the request
+carries the title ALONE — `compositions.update` sets only the fields it is
+given, so a rename cannot write a stale timeline over an edit in flight. A
+reel that has never been named reads "Untitled reel" in muted grey and opens
+the field empty, so the first thing you do is type rather than clear.
+
+**Export is the one primary on the screen, and Play is not.** Play was the
+only accent fill in the Studio while Export, the thing the screen exists to
+produce, was drawn in the same class as "-1 frame". The critic's argument,
+taken: one accent per screen, and it belongs to the control that commits.
+
+**The stub now saves.** `drives/stub-server.js` served no PUT for a
+composition at all, so the editor's save always failed there — which is how
+four save-state assertions came to pass on a page nobody had touched, and why
+a rename could not be driven. It answers the PUT like the backend, and a drive
+that wants a failed save asks for one with `route.abort()`. The fault belongs
+in the test that is testing it.
+
+Seventeen new drive assertions across two sections, including the three that
+pin the address: a pasted link opens the reel it names, opening another
+changes the address, and the screen follows it.
+
+Left alone on purpose: undo, redo, ripple and the shortcut reference stay in
+the inspector header until step 4 moves them onto the timeline's own toolbar.
+Measured at 1440x900, every one of them is above the viewport when the
+timeline is in front of you, so only Ctrl+Z works — but dragging them into the
+top bar on the way past would make that worse, not better.
+
+Still open from the design review: `+ New` stays until Library grows a Reels
+tab, because cutting the only door to reel seven before the other one exists
+would strand the operator; and a failed save still shouts on the first
+failure rather than retrying first.
 
 ## Faults found while auditing, worth fixing in passing
 

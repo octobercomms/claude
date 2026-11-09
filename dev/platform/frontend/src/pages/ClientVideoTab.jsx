@@ -13,6 +13,7 @@ import VideoBatchPage from './VideoBatchPage';
 import VideoBatchReviewPage from './VideoBatchReviewPage';
 const ClientDesignPage = lazyChunk('ClientDesignPage', () => import('./ClientDesignPage'));
 import { useScreen } from '../hooks/useScreen';
+import { useOpenState } from '../hooks/useOpenRecord';
 import { useAuth } from '../context/AuthContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 
@@ -24,10 +25,23 @@ export default function ClientVideoTab() {
   const [tab, setTab] = useScreen('produce');
   const [client, setClient] = useState(null);
   const [clientLoading, setClientLoading] = useState(true);
-  // Which composition the editor should open when something hands one over.
-  // Null means "whatever the editor would have picked", which is the
-  // behaviour for somebody opening the tab directly.
-  const [openCompId, setOpenCompId] = useState(null);
+  // WHICH reel the editor has open, in the address.
+  //
+  // This was component state, so a reel could not be linked, pasted into a
+  // message or reached with Back, and a refresh landed on whatever the editor
+  // would have picked. Every other record type in OMI reads its open record
+  // from `?open=` — see the note on `useOpenState`, which describes this
+  // situation while talking about press campaigns: "the id is not an
+  // instruction, it is the address of what you are looking at".
+  //
+  // Null still means "whatever the editor would have picked", which is the
+  // behaviour for somebody opening Produce directly.
+  const [openCompId, setOpenCompId] = useOpenState();
+
+  // One navigation, not two. `setTab` carries the search string it captured
+  // at render, so setting `?open=` and then switching screens would drop the
+  // parameter that had just been set.
+  const openInStudio = (compId) => setTab('compose', compId ? `?open=${compId}` : '');
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}).finally(() => setClientLoading(false)); }, [id]);
   // No redirect any more, and this is the part that needed care.
@@ -78,7 +92,11 @@ export default function ClientVideoTab() {
           </header>
         </>
       )}
-      {tab === 'compose' && <ScreenHeading title="Produce" />}
+      {/* No ScreenHeading on the Studio. It rendered an h2 reading "Studio",
+          naming the screen whose row is lit in the panel 170px away and under
+          whose PRODUCE header it sat — and the editor's top bar now puts the
+          name of the thing you are actually looking at in that slot. The
+          heading stays on every other screen in this section. */}
       {/* WHICH composition to open, not just which tab. Both handoffs into
           the editor used to switch the tab and nothing else, and the editor
           opens the first row of its own list — so "Send to Edit" and "Open in
@@ -88,12 +106,13 @@ export default function ClientVideoTab() {
         // The client's name goes in, for the Share dialog's heading. A client
         // opening the link sees their own name and none of October's chrome,
         // so the person minting it should see whose link they are making.
-        <CompositionEditorPage clientId={id} clientName={client?.name} openId={openCompId} />
+        <CompositionEditorPage clientId={id} clientName={client?.name}
+          openId={openCompId} onOpen={setOpenCompId} />
       )}
       {tab === 'record' && (
         <RecordingsPage
           clientId={id}
-          onSendToEdit={(compId) => { setOpenCompId(compId || null); setTab('compose'); }}
+          onSendToEdit={(compId) => openInStudio(compId)}
         />
       )}
       {tab === 'design' && !readOnly && (
@@ -108,7 +127,7 @@ export default function ClientVideoTab() {
       {tab === 'batch_review' && !readOnly && (
         <VideoBatchReviewPage
           clientId={id}
-          onOpenInEditor={(compId) => { setOpenCompId(compId || null); setTab('compose'); }}
+          onOpenInEditor={(compId) => openInStudio(compId)}
         />
       )}
       {tab === 'library' && (

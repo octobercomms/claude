@@ -97,7 +97,9 @@ function initComp() {
   return comp;
 }
 
-export default function CompositionEditorPage({ clientId, clientName = null, openId = null }) {
+export default function CompositionEditorPage({
+  clientId, clientName = null, openId = null, onOpen = null,
+}) {
   const toast = useToast();
   const {
     state: composition, setState: setComposition,
@@ -121,6 +123,16 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
   // through to ShareReelModal's own fallback and every link a client ever
   // received was called "Reel — for your review".
   const [compTitle, setCompTitle] = useState('');
+  const [compStatus, setCompStatus] = useState('draft');
+  // Which reel is open, for the effects and cleanups that read it after the
+  // render they were created in. Declared here rather than beside the
+  // autosave it was added for, because the loader above reads it too and a
+  // `const` used before its line is the shape of fault that cost this file a
+  // blank page once already.
+  const compIdRef = useRef(null);
+  compIdRef.current = compId;
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState('');
   const [captionTemplates, setCaptionTemplates] = useState(null);
   const [saveStatus, setSaveStatus] = useState('saved');
   const [dragOver, setDragOver] = useState(false);
@@ -155,39 +167,75 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
 
   // ── Initialise: load compositions list, templates ─────────────────
 
+  /**
+   * Which reel is open, and the one place that decides it.
+   *
+   * `openId` used to be a handoff only: "Send to Edit" on the Record tab and
+   * "Open in editor" on the review sheet name the composition they mean,
+   * because without it the editor opened the first row of its own list and
+   * the review sheet's button landed on whatever was newest.
+   *
+   * IT IS NOW THE ADDRESS. It comes from `?open=` in the URL rather than from
+   * component state in the tab above, so a reel can be linked, pasted into a
+   * message and reached with Back — which is what every other record type in
+   * OMI already gets from `useOpenState`. The composition was the only one
+   * without it, and that, rather than its styling, was what made the
+   * composition `<select>` load-bearing: it was a navigation system standing
+   * in for a URL nobody had written.
+   *
+   * The list is fetched once per client. This effect also runs when the
+   * address changes, and refetching 14 rows to answer "open number 7" would
+   * put a loading state over work in progress.
+   */
+  const compListRef = useRef(null);
+  const listForClientRef = useRef(null);
   useEffect(() => {
     let live = true;
     async function init() {
       try {
-        const [list, templates, designList] = await Promise.all([
-          api.get(`/compose/clients/${clientId}/compositions`),
-          api.get('/compose/caption-templates').catch(() => []),
-          api.get(`/compose/designs/${clientId}`).catch(() => []),
-        ]);
-        if (!live) return;
-        setCaptionTemplates(templates);
-        setDesigns(designList);
-        setCompList(list);
+        let list = compListRef.current;
+        if (listForClientRef.current !== clientId) {
+          const [fetched, templates, designList] = await Promise.all([
+            api.get(`/compose/clients/${clientId}/compositions`),
+            api.get('/compose/caption-templates').catch(() => []),
+            api.get(`/compose/designs/${clientId}`).catch(() => []),
+          ]);
+          if (!live) return;
+          setCaptionTemplates(templates);
+          setDesigns(designList);
+          list = fetched;
+          compListRef.current = fetched;
+          listForClientRef.current = clientId;
+          setCompList(fetched);
+        }
 
-        // `openId` is a handoff: "Send to Edit" on the Record tab and "Open
-        // in editor" on the review sheet both name the composition they mean.
-        // Without it the editor opened the first row of its own list, so the
-        // review sheet's button landed on whatever was newest rather than on
-        // the item the operator had clicked.
-        const wanted = openId
-          ? list.find((r) => String(r.id) === String(openId))
-          : null;
-        if (wanted) {
-          loadFromRow(wanted);
-        } else if (list.length > 0) {
-          const row = list[0];
+        if (openId && String(openId) === String(compIdRef.current)) return;
+
+        if (openId) {
+          // A link may name a reel made after this list was fetched, which is
+          // the ordinary case for an address somebody pasted.
+          const known = list.find((r) => String(r.id) === String(openId));
+          const row = known || await api.get(`/compose/compositions/${openId}`);
+          if (!live) return;
+          if (!known) {
+            const next = [row, ...list];
+            compListRef.current = next;
+            setCompList(next);
+          }
           loadFromRow(row);
+          return;
+        }
+
+        if (compIdRef.current) return;
+        if (list.length > 0) {
+          loadFromRow(list[0]);
         } else {
           const row = await api.post(`/compose/clients/${clientId}/compositions`, {
             title: 'Untitled', data: initComp(),
           });
           if (!live) return;
           setCompId(row.id);
+          compListRef.current = [row];
           setCompList([row]);
         }
       } catch (err) {
@@ -207,6 +255,7 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     const loadedTranscripts = row.transcripts || {};
     setCompId(row.id);
     setCompTitle(row.title || '');
+    setCompStatus(row.status || 'draft');
     resetHistory(data);
     setSourceAssets(loadedAssets);
     setTranscripts(loadedTranscripts);
@@ -311,8 +360,6 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
   // click on any nav row within 1500ms of a trim discarded it in silence.
   // The request is started here rather than awaited — a cleanup cannot wait
   // — and a PUT already in flight completes after the component is gone.
-  const compIdRef = useRef(null);
-  compIdRef.current = compId;
   useEffect(() => {
     return () => {
       if (!saveTimerRef.current) return;
@@ -797,17 +844,25 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     return ok;
   }, [compId, saveStatus, doSave, toast]);
 
+  /**
+   * Open another reel, by changing the address rather than the state.
+   *
+   * `onOpen` writes `?open=<id>`, the loader above reacts to it and reads the
+   * row out of the list it already has. One door: an address typed, a link
+   * pasted, Back, and this control all arrive the same way, so none of them
+   * can show a different reel from the one the URL names.
+   */
   const switchComposition = useCallback(async (id) => {
-    if (id === compId) return;
+    if (String(id) === String(compId)) return;
     if (!await leaveSafely()) return;
-
+    if (onOpen) { onOpen(id); return; }
     try {
       const row = await api.get(`/compose/compositions/${id}`);
       loadFromRow(row);
     } catch (err) {
       toast('Failed to load composition.', 'error');
     }
-  }, [compId, leaveSafely, toast]);
+  }, [compId, leaveSafely, onOpen, toast]);
 
   const createNew = useCallback(async () => {
     if (!await leaveSafely()) return;
@@ -816,12 +871,51 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
       const row = await api.post(`/compose/clients/${clientId}/compositions`, {
         title: 'Untitled', data: initComp(),
       });
-      setCompList(prev => [row, ...(prev || [])]);
+      const next = [row, ...(compListRef.current || [])];
+      compListRef.current = next;
+      setCompList(next);
       loadFromRow(row);
+      // And put it in the address, so the new reel can be linked like any
+      // other and a refresh does not land you back on the old one.
+      if (onOpen) onOpen(row.id);
     } catch (err) {
       toast('Failed to create composition.', 'error');
     }
-  }, [clientId, leaveSafely, toast]);
+  }, [clientId, leaveSafely, onOpen, toast]);
+
+  // ── The reel's name ───────────────────────────────────────────────
+  //
+  // `PUT /compose/compositions/:id` with a title alone: `compositions.update`
+  // builds its SET list field by field, so a rename touches no other column
+  // and cannot race the autosave with a stale `data`.
+  const startRename = useCallback(() => {
+    // Empty rather than prefilled when the reel has never been named, so the
+    // first thing you do is type rather than clear the word "Untitled".
+    setRenameDraft(compTitle === 'Untitled' ? '' : compTitle);
+    setRenaming(true);
+  }, [compTitle]);
+
+  const commitRename = useCallback(async () => {
+    const next = renameDraft.trim();
+    setRenaming(false);
+    if (!compId || !next || next === compTitle) return;
+    const previous = compTitle;
+    setCompTitle(next);
+    const apply = (list) => (list || []).map(
+      (r) => (String(r.id) === String(compId) ? { ...r, title: next } : r));
+    compListRef.current = apply(compListRef.current);
+    setCompList(apply);
+    try {
+      await api.put(`/compose/compositions/${compId}`, { title: next });
+    } catch {
+      setCompTitle(previous);
+      const revert = (list) => (list || []).map(
+        (r) => (String(r.id) === String(compId) ? { ...r, title: previous } : r));
+      compListRef.current = revert(compListRef.current);
+      setCompList(revert);
+      toast('That name could not be saved.', 'error');
+    }
+  }, [compId, compTitle, renameDraft, toast]);
 
   // ── Derived state ─────────────────────────────────────────────────
 
@@ -1086,49 +1180,144 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     <div style={{ marginTop: 'var(--s4)' }}
       onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
 
-      {/* Composition switcher */}
-      {compList && compList.length > 0 && (
-        <div className="row center" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
-          <select
-            className="input"
-            style={{ maxWidth: 260, fontSize: 'var(--fs-caption)' }}
-            value={compId || ''}
-            onChange={(e) => switchComposition(Number(e.target.value))}
-          >
-            {compList.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.title || 'Untitled'} ({new Date(c.updated_at).toLocaleDateString()})
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={createNew}>
-            + New
-          </button>
-          <span className={save.tone === 'negative' ? 'body-xs' : `body-xs ${save.tone}`}
-            role={save.tone === 'negative' ? 'alert' : undefined}
-            style={{
-              marginLeft: 'auto',
-              display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)',
-              ...(save.tone === 'negative' ? {
+      {/* ── The top bar ──────────────────────────────────────────────
+          What this replaces was a composition `<select>` as the first thing
+          on the page, with the save state pushed to the far right of the same
+          row. Two measurements condemned it. With fourteen reels and twelve of
+          them never named, the box rendered 14 options with THREE distinct
+          strings, and the date meant to tell them apart carries no time and is
+          the first thing a 260px box truncates. And the save state, right
+          aligned, sat 35px under the fixed connector indicator in the same
+          corner, reading as part of that status cluster rather than as a fact
+          about your document.
+
+          The bar is also SHORTER than what it replaces. The heading slot it
+          takes over held an h2 naming the screen whose nav row is lit and
+          whose panel header says PRODUCE above it, so about 40px comes back on
+          a screen where the timeline is already near the fold. */}
+      <div className="row between" style={{ gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {save.tone === 'negative' ? (
+            // The error takes this line from the kicker. The kicker is the
+            // least important thing in the bar and can yield, and a 387px
+            // pill fits here where it did not fit in the old right-hand
+            // corner.
+            <span className="body-xs" role="alert"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)',
                 color: 'var(--negative)', fontWeight: 700,
                 background: 'var(--negative-soft)',
                 padding: '2px var(--s2)', borderRadius: 'var(--r-pill)',
-              } : {}),
-            }}>
-            {save.tone === 'negative' && <span aria-hidden="true">!</span>}
-            {save.label}
-            {save.detail && (
+              }}>
+              <span aria-hidden="true">!</span>
+              {save.label}
+              <span className="text-subtle" style={{ fontWeight: 400 }}>{save.detail}</span>
+              <button type="button" className="btn btn-secondary btn-sm"
+                onClick={() => doSave(compId)} disabled={!compId}>
+                Try again
+              </button>
+            </span>
+          ) : (
+            <div className="kicker">
+              <span className="pip" />
+              <span>Reel • {compStatus === 'draft' ? 'Draft'
+                : compStatus.charAt(0).toUpperCase() + compStatus.slice(1)}</span>
+            </div>
+          )}
+
+          <div className="row center" style={{ gap: 'var(--s2)', minWidth: 0 }}>
+            {renaming ? (
+              <input
+                className="input" autoFocus
+                aria-label="Reel name"
+                value={renameDraft}
+                placeholder="Name this reel"
+                style={{ maxWidth: 420, fontSize: 'var(--fs-h1)', fontWeight: 700 }}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                  if (e.key === 'Escape') { e.preventDefault(); setRenaming(false); }
+                }}
+              />
+            ) : (
               <>
-                <span className="text-subtle" style={{ fontWeight: 400 }}>{save.detail}</span>
-                <button type="button" className="btn btn-secondary btn-sm"
-                  onClick={() => doSave(compId)} disabled={!compId}>
-                  Try again
+                {/* One line, always. A heading that wraps moves the timeline,
+                    and this screen has lost that fight twice. */}
+                <h1 className="h1" title={compTitle || 'Untitled reel'}
+                  style={{
+                    margin: 0, minWidth: 0,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    ...(compTitle && compTitle !== 'Untitled'
+                      ? {} : { color: 'var(--text-muted)' }),
+                  }}>
+                  {compTitle && compTitle !== 'Untitled' ? compTitle : 'Untitled reel'}
+                </h1>
+                <button type="button" className="btn-icon btn-icon-sm"
+                  onClick={startRename} disabled={!compId}
+                  title="Rename this reel" aria-label="Rename this reel">
+                  &#9998;
                 </button>
               </>
             )}
-          </span>
+            {/* The quietest thing in the bar, beside the work it describes.
+                Two words rather than four: "Unsaved" and "Saving…" are the
+                same fact to the person reading, and a label that changes
+                wording every 1500ms in the corner of your eye is motion you
+                have to ignore while judging a picture. */}
+            <span className="body-xs text-subtle" style={{ flexShrink: 0 }}>
+              {saveStatus === 'saved' ? 'Saved' : 'Saving…'}
+            </span>
+          </div>
         </div>
-      )}
+
+        <div className="row center" style={{ gap: 'var(--s2)', flexShrink: 0 }}>
+          {/* Switching is demoted, not deleted, and it stays until Library
+              grows a Reels tab: cutting the only door to reel seven before
+              the other one is built would strand the operator. It writes the
+              address now rather than component state, so a reel can be
+              linked, pasted and reached with Back. */}
+          {compList && compList.length > 1 && (
+            <select
+              className="btn btn-secondary btn-sm" aria-label="Open another reel"
+              style={{ maxWidth: 160 }}
+              // It holds no value on purpose: the reel you have open is the
+              // heading to the left of it, and a picker that repeats the
+              // title is a second answer to a question already answered. It
+              // reads as a verb instead, which is what it is.
+              value=""
+              onChange={(e) => { if (e.target.value) switchComposition(Number(e.target.value)); }}
+            >
+              <option value="">Open a reel…</option>
+              {compList.filter(c => String(c.id) !== String(compId)).map(c => (
+                <option key={c.id} value={c.id}>{c.title || 'Untitled'}</option>
+              ))}
+            </select>
+          )}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={createNew}>
+            + New
+          </button>
+          {/* Share needs no flushSave, deliberately, and it is worth saying
+              why: a link carries renders that already exist, so the unsaved
+              edit in front of you is not part of what the client would see.
+              Flushing here would imply otherwise. The dialog lists exports by
+              time so a stale one is visible. */}
+          <button type="button" className="btn btn-secondary btn-sm"
+            onClick={() => setShareOpen(true)} disabled={!compId}>
+            Share
+          </button>
+          {/* The one primary on the screen. It was `btn-secondary`, the same
+              class as `-1 frame`, while Play was the only accent fill on the
+              page: the most emphasised control in the Studio was "play the
+              preview" and the thing the screen exists to produce looked like
+              a step-back button. */}
+          <button type="button" className="btn btn-primary btn-sm"
+            onClick={async () => { await flushSave(compId); setExportOpen(true); }}
+            disabled={!compId || total <= 0}>
+            Export
+          </button>
+        </div>
+      </div>
 
       <div className="edit-split" style={{ marginTop: 'var(--s2)' }}>
         <div>
@@ -1225,26 +1414,20 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
                   Ripple
                 </button>
                 <ShortcutButton onClick={() => setShortcutsOpen(v => !v)} />
-                <button type="button" className="btn btn-secondary btn-sm"
-                  onClick={async () => { await flushSave(compId); setExportOpen(true); }}
-                  disabled={!compId || total <= 0}>
-                  Export
-                </button>
-                {/* Share needs no flushSave, deliberately, and it is worth
-                    saying why: a link carries renders that already exist, so
-                    the unsaved edit in front of you is not part of what the
-                    client would see. Flushing here would imply otherwise. The
-                    dialog lists exports by time so a stale one is visible. */}
-                <button type="button" className="btn btn-secondary btn-sm"
-                  onClick={() => setShareOpen(true)} disabled={!compId}>
-                  Share
-                </button>
-                {/* "Save now" is gone. The editor autosaves at 1500ms, Export
-                    flushes before it renders, and the save state is displayed
-                    and now says something when it fails — three affordances
-                    for one fact, and this was the one that did nothing the
-                    other two did not. Removing it also takes a button off a
-                    header row that overflowed its own card at 1440px. */}
+                {/* Export and Share moved to the top bar, which is where the
+                    two things that leave the editor belong. They were here
+                    because this header row was the only toolbar there was.
+                    What is left of it — undo, redo, ripple, the shortcut
+                    reference — all act on the TIMELINE, and measured at
+                    1440x900 every one of them is above the viewport when the
+                    timeline is in front of you: only Ctrl+Z works. Build step
+                    4 moves them onto the timeline's own toolbar, which is why
+                    they are left alone here rather than dragged into the bar
+                    on the way past.
+
+                    "Save now" is gone for the same reason it went before: the
+                    editor autosaves at 1500ms, Export flushes before it
+                    renders, and the save state says something when it fails. */}
               </div>
             </div>
 

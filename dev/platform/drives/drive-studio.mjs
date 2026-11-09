@@ -245,6 +245,8 @@ for (const [asked, want, row] of [
   // the database for merely being looked at, and the red "your last change is
   // only in this tab" was about a change that did not exist. An edit nobody
   // can save is worth shouting about. Opening a reel is not.
+  await p.route('**/api/compose/compositions/*', (route) => (
+    route.request().method() === 'PUT' ? route.abort() : route.continue()));
   const hit = await p.evaluate(() => {
     const label = [...document.querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
@@ -532,6 +534,8 @@ for (const [asked, want, row] of [
     + 'nothing had been changed');
 
   // Now edit, let the save fail, and try to walk away from it.
+  await p.route('**/api/compose/compositions/*', (route) => (
+    route.request().method() === 'PUT' ? route.abort() : route.continue()));
   const hit = await p.evaluate(() => {
     const label = [...document.querySelectorAll('div')]
       .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
@@ -556,13 +560,15 @@ for (const [asked, want, row] of [
   }
   say(/Not saved/.test(await text(p)), 'an edit the stub refuses reports as not saved');
 
-  const before = await p.locator('select.input').first().inputValue().catch(() => '');
-  await p.locator('select.input').first().selectOption('2').catch(() => {});
+  const heading = async () => (await p.locator('h1.h1').first().innerText().catch(() => '')).trim();
+  const before = await heading();
+  await p.locator('select[aria-label="Open another reel"]').first()
+    .selectOption('2').catch(() => {});
   await p.waitForTimeout(1500);
-  const after = await p.locator('select.input').first().inputValue().catch(() => '');
-  say(before === '1' && after === '1',
+  const after = await heading();
+  say(before === 'Atlas showroom reel' && after === before,
     'switching reels with an unsavable edit in hand does not switch',
-    `select went ${before} → ${after} — it used to load the other reel and the `
+    `heading went "${before}" → "${after}" — it used to load the other reel and the `
     + 'edit was gone, with the warning about it still on screen');
   say(/stays open/.test(await text(p)),
     'and it says why rather than failing silently');
@@ -583,6 +589,117 @@ for (const [asked, want, row] of [
       + 'no title in it, so every link a client received was called "Reel — for your review"');
   }
 
+  await p.close();
+}
+
+// ── 12. The top bar ──────────────────────────────────────────────────────
+//
+// What it replaces: a composition `<select>` as the first thing on the page,
+// with the save state pushed to the far right of the same row, under the
+// fixed connector indicator. The reel had no address at all — `openCompId`
+// was component state — so it could not be linked, pasted or reached with
+// Back, and that, rather than its styling, is what made the select
+// load-bearing.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1280, height: 900 });
+  await p.waitForTimeout(900);
+
+  const bar = await p.evaluate(() => {
+    const h1 = document.querySelector('h1.h1');
+    const screenName = document.querySelector('h2.ds-shell__screen');
+    const btn = (label) => [...document.querySelectorAll('button')]
+      .find((b) => b.textContent.trim() === label);
+    const saved = [...document.querySelectorAll('span')]
+      .find((x) => /^(Saved|Saving…)$/.test(x.textContent.trim()));
+    const box = (e) => (e ? (({ x, y, width }) => ({
+      x: Math.round(x), y: Math.round(y), w: Math.round(width),
+    }))(e.getBoundingClientRect()) : null);
+    const exp = btn('Export');
+    const play = document.querySelector('[data-testid="play"]');
+    return {
+      title: h1?.textContent?.trim() || null,
+      titleBox: box(h1),
+      screenName: screenName?.textContent?.trim() || null,
+      exportClass: exp?.className || null,
+      playClass: play?.className || null,
+      savedBox: box(saved), savedText: saved?.textContent?.trim() || null,
+      picker: document.querySelector('select[aria-label="Open another reel"]')?.value,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+
+  say(bar.title === 'Atlas showroom reel',
+    "the heading is the reel's name", `heading reads "${bar.title}"`);
+  say(bar.screenName === null,
+    'and not the name of the screen you are already on',
+    `${bar.screenName} — an h2 reading "Studio", inside the section whose panel `
+    + 'header says PRODUCE, next to the lit row that also says Studio');
+  say(!!bar.savedBox && !!bar.titleBox
+    && bar.savedBox.x - (bar.titleBox.x + bar.titleBox.w) < 120,
+    'the save state sits beside the work it describes',
+    `title ends at ${bar.titleBox?.x + bar.titleBox?.w}, save state at ${bar.savedBox?.x} — `
+    + 'it used to be right-aligned 35px under the fixed connector indicator, where it '
+    + 'read as part of that status cluster');
+  say(/btn-primary/.test(bar.exportClass || ''),
+    'Export is the one primary on the screen', `Export: ${bar.exportClass}`);
+  say(!/btn-primary/.test(bar.playClass || ''),
+    'and Play no longer outranks it',
+    `Play: ${bar.playClass} — the most emphasised control in the Studio was "play the `
+    + 'preview" while the thing the screen exists to produce was drawn like "-1 frame"');
+  say(bar.picker === '',
+    'the reel picker reads as a verb rather than repeating the title',
+    `picker value "${bar.picker}"`);
+  say(bar.overflow === 0, 'and the bar does not overflow at 1280',
+    `${bar.overflow}px of horizontal scroll`);
+
+  // Renaming, which is the reason the bar is worth building: without it the
+  // name is a label nobody can change and "Untitled" is permanent.
+  const renamed = [];
+  p.on('request', (r) => {
+    if (r.method() !== 'PUT') return;
+    try {
+      const body = JSON.parse(r.postData() || '{}');
+      if (body.title !== undefined) renamed.push(body);
+    } catch { /* not ours */ }
+  });
+  await p.locator('button[aria-label="Rename this reel"]').first().click();
+  await p.waitForTimeout(300);
+  const field = p.locator('input[aria-label="Reel name"]').first();
+  say(await field.count() > 0, 'the name can be edited in place');
+  await field.fill('Oculi Mundi autumn');
+  await field.press('Enter');
+  await p.waitForTimeout(1200);
+  const after = (await p.locator('h1.h1').first().innerText().catch(() => '')).trim();
+  say(after === 'Oculi Mundi autumn', 'and the new name is on the page',
+    `heading reads "${after}"`);
+  say(renamed.length === 1 && renamed[0].title === 'Oculi Mundi autumn'
+    && renamed[0].data === undefined,
+    'and a rename sends the title ALONE',
+    `${JSON.stringify(renamed)} — compositions.update sets only the fields it is `
+    + 'given, so a rename carrying `data` could write a stale timeline over an '
+    + 'edit in flight');
+
+  await p.close();
+}
+
+// ── 13. A reel has an address ────────────────────────────────────────────
+{
+  const p = await open('/clients/c1/produce/studio?open=2');
+  await p.waitForTimeout(1200);
+  const title = (await p.locator('h1.h1').first().innerText().catch(() => '')).trim();
+  say(title === 'Material study', 'a pasted link opens the reel it names',
+    `heading reads "${title}" — the editor used to open the first row of its own `
+    + 'list whatever the address said, because the open reel was component state');
+
+  await p.locator('select[aria-label="Open another reel"]').first().selectOption('1');
+  await p.waitForTimeout(1400);
+  say(/open=1/.test(p.url()), 'and opening another reel changes the address',
+    `url is ${p.url()} — Back, a refresh and a pasted link all have to agree with `
+    + 'what is on screen, and they cannot while the answer lives in a component');
+  const after = (await p.locator('h1.h1').first().innerText().catch(() => '')).trim();
+  say(after === 'Atlas showroom reel', 'and the screen follows the address',
+    `heading reads "${after}"`);
   await p.close();
 }
 
