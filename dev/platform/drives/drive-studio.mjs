@@ -50,16 +50,28 @@ const activeRow = async (p) => {
 
 // ── 1. The three groups, and the row names ───────────────────────────────
 {
-  const p = await open('/clients/c1/produce/studio');
+  // On Library, not on the Studio. The Studio is a FOCUS screen: the rail and
+  // the section panel collapse to 56px icon strips there, so the group
+  // headings are deliberately not drawn. The claim being made here is about
+  // how Produce is organised, not about what the Studio draws, so it is made
+  // on a Produce screen that shows the panel in full.
+  const p = await open('/clients/c1/produce/library');
   const t = await text(p);
   // Headings render uppercase; compare case-insensitively. Three drives in
   // this project have been lost to that.
   for (const h of ['MAKE', 'BATCH', 'MEDIA']) {
     say(new RegExp(`\\b${h}\\b`, 'i').test(t), `the panel has a ${h} group`);
   }
-  say(/\bStudio\b/.test(t), 'the editor row is called Studio');
-  say(!/\bVideo\b/.test(t.slice(0, 1200)),
-    'and no row still reads Video', t.slice(0, 1200).match(/Video/) ? 'found Video' : '');
+  // The ROWS, not the page. This read the first 1200 characters of the whole
+  // document, which worked only while it was pointed at a screen whose body
+  // happened not to contain the word: the Library page says "Video" in its
+  // own type filter, and the assertion failed on a change that moved where it
+  // was looking rather than on anything about the nav.
+  const rows = await p.evaluate(() => [...document.querySelectorAll('.sp-row')]
+    .map((e) => (e.title || e.textContent || '').trim()));
+  say(rows.includes('Studio'), 'the editor row is called Studio', JSON.stringify(rows));
+  say(!rows.some((r) => /\bVideo\b/.test(r)), 'and no row still reads Video',
+    JSON.stringify(rows));
   await p.close();
 }
 
@@ -1256,6 +1268,61 @@ for (const [asked, want, row] of [
       `${m?.box}, drawn ${m?.drawn} against the model's ${m?.model}`);
     await p.close();
   }
+}
+
+// ── 21. The shell steps back on the Studio, and only there ───────────────
+//
+// Daniel, 9 November, after seeing the built screen against the mockup:
+// "collapse the rail and panel to icons on this screen." The mockup gives the
+// editor the whole window; the rail and the section panel were 340px of it
+// before the Studio got a pixel.
+{
+  const shell = async (path) => {
+    const p = await open(path);
+    await p.setViewportSize({ width: 1440, height: 900 });
+    await p.waitForTimeout(600);
+    const m = await p.evaluate(() => {
+      const w = (sel) => {
+        const e = document.querySelector(sel);
+        return e ? Math.round(e.getBoundingClientRect().width) : null;
+      };
+      const links = [...document.querySelectorAll('.app-nav a')];
+      return {
+        nav: w('.app-nav'), panel: w('.section-panel'), main: w('.app-main'),
+        railIcons: document.querySelectorAll('.app-nav a svg').length,
+        rowIcons: document.querySelectorAll('.sp-row svg, .sp-initial').length,
+        // Every link keeps its text, whatever its size: a 56px strip of
+        // unlabelled glyphs with no accessible name is not a navigation.
+        named: links.every((a) => a.textContent.trim().length > 0),
+        overflowing: links.filter((a) => a.getBoundingClientRect().width > 60).length,
+        rowNames: [...document.querySelectorAll('.sp-row')].map((e) => e.title || ''),
+      };
+    });
+    await p.close();
+    return m;
+  };
+
+  const studio = await shell('/clients/c1/produce/studio');
+  say(studio.nav === 56 && studio.panel === 56,
+    'the Studio collapses the rail and the panel to icon strips',
+    `rail ${studio.nav}px, panel ${studio.panel}px`);
+  say(studio.main >= 1320, 'and hands the width to the work',
+    `${studio.main}px of main, against 1100 with the shell open — 228px back`);
+  say(studio.railIcons >= 12 && studio.rowIcons >= 8,
+    'with a glyph on every row rather than a blank strip',
+    `${studio.railIcons} in the rail, ${studio.rowIcons} in the panel`);
+  say(studio.named && studio.overflowing === 0,
+    'and every row keeps its name, clipped rather than removed',
+    `${studio.overflowing} rows wider than the strip; a glyph with no `
+    + 'accessible name is not a destination to anything that cannot see it');
+  say(studio.rowNames.filter(Boolean).length >= 8,
+    'and says what it is on hover', JSON.stringify(studio.rowNames));
+
+  const library = await shell('/clients/c1/produce/library');
+  say(library.nav === 170 && library.panel === 170,
+    'and the next screen along has its shell back',
+    `rail ${library.nav}px, panel ${library.panel}px — focus mode is one `
+    + 'screen asking for the window, not a preference that follows you');
 }
 
 say(errs.length === 0, 'no page errors', errs.join(' | '));

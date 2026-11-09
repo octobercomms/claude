@@ -804,3 +804,30 @@ export function allScreens(ctx = {}) {
   }
   return out;
 }
+
+/**
+ * Screens that ask the shell to get out of the way.
+ *
+ * The Studio is an instrument, not a document: the mockup it is built to
+ * gives the editor the whole window, and the rail plus the section panel are
+ * 340px of that window before the Studio gets a pixel. Daniel, 9 November:
+ * "collapse the rail and panel to icons on this screen."
+ *
+ * Icons rather than nothing, deliberately. A full-screen editor that hides
+ * the way out teaches people to distrust it, and the rail is also how you
+ * leave for another client.
+ *
+ * Keyed on the canonical slug, so an old address that `useScreen` corrects
+ * lands in focus mode too rather than flashing the full shell on the way.
+ */
+const FOCUS_SCREENS = [
+  { section: 'produce', slugs: ['studio', 'compose'] },
+];
+
+export function isFocusScreen(pathname) {
+  const section = sectionForPath(pathname);
+  if (!section) return false;
+  const entry = FOCUS_SCREENS.find((f) => f.section === section.key);
+  if (!entry) return false;
+  return entry.slugs.includes(screenForPath(pathname));
+}

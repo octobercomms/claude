@@ -7,8 +7,9 @@ import GlobalSearch, { SearchIcon } from './GlobalSearch';
 import AnalystPanel from './AnalystPanel';
 import DatabaseAssistantPanel from './database/DatabaseAssistantPanel';
 import SectionPanel from './SectionPanel';
+import NavIcon from '../nav/NavIcon';
 import MobileScreenNav from './MobileScreenNav';
-import { SECTIONS, sectionForPath, screenForPath, labelForTab, navCtx } from '../nav/sections';
+import { SECTIONS, sectionForPath, screenForPath, labelForTab, navCtx, isFocusScreen } from '../nav/sections';
 
 
 export default function Layout() {
@@ -112,6 +113,14 @@ export default function Layout() {
   // you are, so it survives navigation and reloads. localStorage can throw in
   // a locked-down browser, and a nav that fails to render is worse than one
   // that forgets, hence the guards.
+  // A screen that asks for the window. The Studio is an instrument built to a
+  // mockup that gives the editor all 1440px, and the rail plus the panel are
+  // 340px of it: collapsed to icons they are 112px, which hands 228px back to
+  // the work. Icons rather than nothing, because an editor that hides the way
+  // out teaches people to distrust it. The rule lives in nav/sections.js with
+  // the rest of the IA.
+  const focusScreen = isFocusScreen(location.pathname);
+
   const [navCollapsed, setNavCollapsed] = useState(() => {
     try { return localStorage.getItem('navCollapsed') === '1'; } catch { return false; }
   });
@@ -157,9 +166,16 @@ export default function Layout() {
 
   function handleLogout() { logout(); navigate('/login'); }
 
+  // Focus mode collapses the rail to 56px icons, and these inline styles beat
+  // any class rule, so the font size has to be answered here. Zero rather
+  // than `display: none`: the label stays in the DOM and keeps the link its
+  // accessible name, which a 56px strip of unlabelled glyphs otherwise loses.
   const linkStyle = (isActive) => ({
-    display: 'block', padding: 'var(--s3) var(--s4)', color: isActive ? '#fff' : 'var(--surface)',
-    textDecoration: 'none', fontSize: 'var(--fs-title)', fontWeight: isActive ? 600 : 400,
+    display: 'block', padding: focusScreen ? 'var(--s3) 0' : 'var(--s3) var(--s4)',
+    color: isActive ? '#fff' : 'var(--surface)',
+    textAlign: focusScreen ? 'center' : undefined,
+    textDecoration: 'none', fontSize: focusScreen ? 0 : 'var(--fs-title)',
+    fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2, background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
   });
@@ -168,13 +184,20 @@ export default function Layout() {
   // the widest row ("Shared" plus its Social chip, 110px in Brockmann at 14px)
   // clipped; at 24/16 the lane is 130px.
   const subLinkStyle = (isActive) => ({
-    display: 'block', padding: 'var(--s2) var(--s4) var(--s2) var(--s6)', color: isActive ? '#fff' : 'rgba(255,255,255,0.78)',
-    textDecoration: 'none', fontSize: 'var(--fs-body)', fontWeight: isActive ? 600 : 400,
+    display: 'block',
+    padding: focusScreen ? 'var(--s2) 0' : 'var(--s2) var(--s4) var(--s2) var(--s6)',
+    color: isActive ? '#fff' : 'rgba(255,255,255,0.78)',
+    textAlign: focusScreen ? 'center' : undefined,
+    textDecoration: 'none', fontSize: focusScreen ? 0 : 'var(--fs-body)',
+    fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
   });
   const subSubLinkStyle = (isActive) => ({
-    display: 'block', padding: 'var(--s2) var(--s4) var(--s2) var(--s7)', color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
+    display: 'block',
+    padding: focusScreen ? 'var(--s1) 0' : 'var(--s2) var(--s4) var(--s2) var(--s7)',
+    color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
+    textAlign: focusScreen ? 'center' : undefined,
     textDecoration: 'none', fontSize: 'var(--fs-body)', fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
@@ -208,7 +231,8 @@ export default function Layout() {
         </button>
       </header>
       <div className={'app-overlay' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)} />
-      <nav className={'app-nav' + (navOpen ? ' open' : '') + (navCollapsed ? ' is-collapsed' : '')}
+      <nav className={'app-nav' + (navOpen ? ' open' : '')
+        + (navCollapsed ? ' is-collapsed' : '') + (focusScreen ? ' is-icons' : '')}
         onClick={() => setNavOpen(false)}>
         <div className="app-nav-brand">
           <img src="/logo-black.gif" alt="October" />
@@ -217,13 +241,13 @@ export default function Layout() {
 
         <ul className="app-nav-list">
           <li>
-            <NavLink to="/clients" style={() => linkStyle(location.pathname === '/clients')}>Clients</NavLink>
+            <NavLink to="/clients" style={() => linkStyle(location.pathname === '/clients')}><NavIcon name="clients" />Clients</NavLink>
           </li>
           <li>
             {/* Workspace — the selected client's Dashboard + PESO area.
                 Jumps to the last client you were in (Clients is where you
                 pick a different one), or the client list if you've none yet. */}
-            <NavLink to={workspaceTarget} style={() => linkStyle(workspaceActive)}>Workspace</NavLink>
+            <NavLink to={workspaceTarget} style={() => linkStyle(workspaceActive)}><NavIcon name="workspace" />Workspace</NavLink>
             {clientId && (
               <div>
                 {/* Dashboard first: Measure, Reports and Strategy — what you
@@ -240,13 +264,13 @@ export default function Layout() {
                 {!readOnly && (
                   <NavLink to={`/clients/${clientId}/dashboard`}
                     style={subLinkStyle(currentSection?.key === 'dashboard'
-                      )}>Dashboard</NavLink>
+                      )}><NavIcon name="dashboard" />Dashboard</NavLink>
                 )}
                 {/* Data was the analyst behind a nav item. The analyst is now
                     on every page, so for the agency there is nothing left here.
                     A client login keeps it: it is where their own numbers are. */}
                 {readOnly && (
-                  <NavLink to={`/clients/${clientId}/data`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
+                  <NavLink to={`/clients/${clientId}/data`} style={({ isActive }) => subLinkStyle(isActive)}><NavIcon name="database" />Data</NavLink>
                 )}
                 {/* PESO stays the label, with the plain-English name as a chip
                     beside it. Paid/Earned/Shared/Owned is the model we work in
@@ -258,16 +282,16 @@ export default function Layout() {
                     looks for a literal `to=` per page, and a path assembled
                     from an array is a door neither the guard nor a human
                     grepping for the route can see. Four lines is the price. */}
-                <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid<span className="nav-chip">Ads</span></NavLink>
-                <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned<span className="nav-chip">PR</span></NavLink>
-                <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared<span className="nav-chip">Social</span></NavLink>
-                <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned<span className="nav-chip">SEO</span></NavLink>
+                <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}><NavIcon name="paid" />Paid<span className="nav-chip">Ads</span></NavLink>
+                <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}><NavIcon name="earned" />Earned<span className="nav-chip">PR</span></NavLink>
+                <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}><NavIcon name="shared" />Shared<span className="nav-chip">Social</span></NavLink>
+                <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}><NavIcon name="owned" />Owned<span className="nav-chip">SEO</span></NavLink>
                 {/* Convert — CRO, Forms and Email, lifted out of Owned. No
                     chip for the same reason Produce has none: the four
                     pillars carry one because PESO needs translating, and
                     "Convert" already says what it is. Above Produce because
                     it is closer to the pillars' job than the media suite is. */}
-                <NavLink to={`/clients/${clientId}/convert`} style={({ isActive }) => subLinkStyle(isActive)}>Convert</NavLink>
+                <NavLink to={`/clients/${clientId}/convert`} style={({ isActive }) => subLinkStyle(isActive)}><NavIcon name="convert" />Convert</NavLink>
                 {/* Produce — the media suite: the Studio, Record, Design,
                     Visualise, Batch and the Library.
                     Agency only since 9 November. It used to be visible to a
@@ -278,7 +302,7 @@ export default function Layout() {
                     URL, because hiding a link hides nothing from an address
                     bar. */}
                 {!readOnly && (
-                  <NavLink to={`/clients/${clientId}/produce`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
+                  <NavLink to={`/clients/${clientId}/produce`} style={({ isActive }) => subLinkStyle(isActive)}><NavIcon name="produce" />Produce</NavLink>
                 )}
               </div>
             )}
@@ -312,7 +336,7 @@ export default function Layout() {
                   is not. The alert is not buried with it: "N not sent" is a
                   KPI on Clients, the page you land on, linking straight to the
                   filtered view. */}
-              <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
+              <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}><NavIcon name="settings" />Settings</NavLink>
             </li>
           )}
           {/* Database and Biz dev were groups inside Settings. Neither is
@@ -322,21 +346,21 @@ export default function Layout() {
               business in either. */}
           {user?.role === 'admin' && (
             <li>
-              <NavLink to="/database" style={({ isActive }) => linkStyle(isActive)}>Database</NavLink>
+              <NavLink to="/database" style={({ isActive }) => linkStyle(isActive)}><NavIcon name="database" />Database</NavLink>
             </li>
           )}
           {user?.role === 'admin' && (
             <li>
-              <NavLink to="/biz-dev" style={({ isActive }) => linkStyle(isActive)}>Biz dev</NavLink>
+              <NavLink to="/biz-dev" style={({ isActive }) => linkStyle(isActive)}><NavIcon name="bizdev" />Biz dev</NavLink>
             </li>
           )}
           {user?.role === 'admin' && (
             <li>
-              <NavLink to="/accounts" style={({ isActive }) => linkStyle(isActive)}>Accounts</NavLink>
+              <NavLink to="/accounts" style={({ isActive }) => linkStyle(isActive)}><NavIcon name="accounts" />Accounts</NavLink>
             </li>
           )}
           <li>
-            <NavLink to="/guide" style={({ isActive }) => linkStyle(isActive)}>Guide</NavLink>
+            <NavLink to="/guide" style={({ isActive }) => linkStyle(isActive)}><NavIcon name="guide" />Guide</NavLink>
           </li>
         </ul>
 
@@ -359,7 +383,8 @@ export default function Layout() {
       {/* The section's own directory, beside the nav. Renders itself to null
           outside a client section, so /clients, /settings and /guide keep the
           single column they have always had. */}
-      <SectionPanel ref={panelRef} navCollapsed={navCollapsed} onToggleNav={toggleNav} />
+      <SectionPanel ref={panelRef} navCollapsed={navCollapsed} onToggleNav={toggleNav}
+        icons={focusScreen} />
       {/* The same directory on a phone, as a sheet rather than a column. The
           panel itself is display:none at that width — a 170px fixed column
           beside a 260px drawer leaves nothing for the page. */}

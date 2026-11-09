@@ -1287,6 +1287,51 @@ Pinned at three widths, with the drawn ratio held against the model's own.
 1440 and 1600 are unchanged at 253x450 and 281x500; 1280 is 188x334 rather
 than 188x400, which is correctly shorter rather than wrongly squashed.
 
+## Built, 9 November: the shell steps back on the Studio
+
+Daniel, after seeing the built screen beside the mockup: **"collapse the rail
+and panel to icons on this screen."** This is the first answer to the
+conformance pass, and the one that unblocks the rest of it.
+
+Measured at 1440x900: the rail and the section panel were **340px** before
+the Studio got a pixel, leaving 1100px of main. As 56px icon strips they are
+112px, and main is **1328px — 228px handed back to the work.**
+
+**Icons, not nothing.** The rail already had a collapse that set its width to
+zero. An editor that hides the way out teaches people to distrust it, and the
+rail is also how you leave for another client, so both strips keep every
+destination and carry a glyph instead of a word.
+
+The vocabulary is in `nav/NavIcon.jsx`, and seven of its paths are the
+mockup's own: it draws its eight library tabs as 24-unit line glyphs at 1.5
+stroke with no fill, so Media, Audio, Captions, Designs, Effects, Record and
+Text came across verbatim rather than being redrawn beside them. The rest are
+drawn to match. A row with no glyph falls back to its first letter, so
+forgetting one can never make a screen unreachable, and nothing in Produce
+needs that fallback today.
+
+**Every label stays in the DOM and is clipped**, never removed, so each row
+keeps its accessible name and gains a tooltip. The rail's labels are bare
+text nodes set at `font-size: 0`; the panel's are a span, clipped properly. A
+56px strip of unlabelled glyphs with no accessible name is not a navigation.
+
+The rule is `isFocusScreen(pathname)` in `nav/sections.js`, with the rest of
+the IA, keyed on the canonical slug so an address `useScreen` corrects lands
+in focus mode rather than flashing the full shell on the way. It is one
+screen asking for the window, not a preference that follows you: Library, one
+row below, has its full shell.
+
+**Two guards moved rather than being made to pass.** The MAKE / BATCH / MEDIA
+group assertions ran on the Studio, where the headings are now deliberately
+not drawn; the claim is about how Produce is organised, so it is made on
+Library where the panel shows in full. And "no row still reads Video" read
+the first 1200 characters of the whole document, which worked only while it
+pointed at a screen whose body happened not to contain the word — Library's
+own type filter says "Video". It reads the rows.
+
+Six new assertions, including that no row overflows its strip and that every
+one keeps a name.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
