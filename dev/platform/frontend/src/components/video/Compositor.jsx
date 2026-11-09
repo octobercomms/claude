@@ -592,16 +592,44 @@ const Compositor = React.forwardRef(function Compositor({
   return (
     <div ref={wrapRef} tabIndex={0} style={{ outline: 'none' }} data-testid="compositor">
       <div style={{ display: 'flex', justifyContent: 'center', background: BLACK, borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+        {/* The frame is bounded on BOTH axes and sized by its ratio, never
+            given a height and a width that can disagree.
+            It used to carry `height: maxHeight` together with
+            `maxWidth: 100%`, so in a column narrower than the frame the width
+            was clamped while the height stood its ground. Measured on the
+            shipped build: at 1280x800 a 1080x1920 composition drew into a
+            188x400 box — ratio 0.470 against the model's 0.5625 — so THE
+            PREVIEW SQUASHED THE PICTURE BY 16.4%. It was correct at 1440 and
+            at 1600, which is why it survived: a colleague judging a frame at
+            1280 was judging a frame that was not the frame, and everyone
+            else saw it right.
+            `maxHeight` with `width: 100%` lets `aspect-ratio` do the work;
+            the browser shrinks both axes together. */}
         <div ref={frameRef} style={{
-          position: 'relative', background: BLACK, maxWidth: '100%',
-          aspectRatio: `${ar}`,
-          height: ar < 1 ? maxHeight : undefined,
-          width: ar >= 1 ? '100%' : undefined,
-          maxHeight,
+          position: 'relative', background: BLACK,
+          display: 'inline-block', maxWidth: '100%', lineHeight: 0,
         }}>
+          {/* The canvas fits itself, and the frame shrink-wraps it.
+              A <canvas> has an intrinsic size from its width and height
+              attributes, which are the composition's own, so `max-width` and
+              `max-height` with both dimensions `auto` is the same fit a
+              browser gives an image: it shrinks on whichever axis runs out
+              first and takes the other with it.
+              It used to be `width: 100%; height: 100%` inside a frame given
+              BOTH a height and a max-width, which can disagree. Measured on
+              the shipped build at 1280x800: a 1080x1920 composition drew into
+              188x400 — ratio 0.470 against 0.5625 — so the preview squashed
+              the picture by 16.4%. It was right at 1440 and 1600, which is
+              how it survived: the person judging a frame at 1280 was judging
+              a frame that was not the frame, and everyone else saw it
+              correctly. */}
           <canvas
             ref={canvasRef}
-            style={{ width: '100%', height: '100%', display: 'block' }}
+            style={{
+              display: 'block',
+              width: 'auto', height: 'auto',
+              maxWidth: '100%', maxHeight,
+            }}
           />
           {/* JASSUB creates and owns its canvas inside this container */}
           <div
