@@ -20,7 +20,7 @@ import { useToast } from '../context/ToastContext';
 import { useCompositionHistory } from '../hooks/useCompositionHistory';
 import ExportModal from '../components/video/ExportModal';
 import ShareReelModal from '../components/video/ShareReelModal';
-import StudioShelf from '../components/video/StudioShelf';
+import StudioBin from '../components/video/StudioBin';
 
 const SIZE_PRESETS = [
   { w: 1080, h: 1920, label: '9:16' },
@@ -1497,6 +1497,22 @@ export default function CompositionEditorPage({
       </div>
 
       <div className="edit-split">
+        {/* The mockup's `.main` is `240px 1fr 260px`, and this is the 240.
+            It was a full-width strip under the timeline until the measurement
+            that refused it was retracted: see StudioBin.jsx. */}
+        <div className="studio-col">
+          <StudioBin
+            composition={composition}
+            clientId={clientId}
+            sourceUrls={sourceUrls}
+            sourceNames={sourceNames}
+            onPickAsset={pickAsset}
+            onPickSource={pickSource}
+            onAddFiles={() => fileRef.current?.click()}
+            uploading={uploading}
+          />
+        </div>
+
         <div className="studio-col">
           <div className="studio-stage">
             <Compositor
@@ -2002,17 +2018,6 @@ export default function CompositionEditorPage({
               canDelete={!!selectedItem}
               onShortcuts={() => setShortcutsOpen(v => !v)}
             />
-
-          <StudioShelf
-            composition={composition}
-            clientId={clientId}
-            sourceUrls={sourceUrls}
-            sourceNames={sourceNames}
-            onPickAsset={pickAsset}
-            onPickSource={pickSource}
-            onAddFiles={() => fileRef.current?.click()}
-            uploading={uploading}
-          />
           </div>
 
       {exportOpen && (

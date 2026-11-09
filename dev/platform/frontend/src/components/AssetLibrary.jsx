@@ -117,7 +117,11 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
   // `layout` 'strip' is one horizontal row that scrolls, rather than a grid
   // that grows downward. A grid inside a fixed-height strip shows its first
   // row and hides the rest behind a scroll nobody sees.
-  filters = true, layout = 'grid' }) {
+  //
+  // `minTile` is the narrowest a tile may be before the grid drops a column.
+  // The Studio's bin is 240px wide and the default 110 gives it ONE column in
+  // 216px of content, which wastes half the bin; the mockup draws two.
+  filters = true, layout = 'grid', minTile = null }) {
   const [data, setData] = useState({ assets: [], counts: {}, sources: [] });
   const [kind, setKind] = useState(fixedKind);
   const [source, setSource] = useState(null);
@@ -211,7 +215,7 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
           overflowX: 'auto', overflowY: 'hidden', paddingBottom: 'var(--s1)',
         } : {
           display: 'grid', marginTop: 'var(--s3)',
-          gridTemplateColumns: `repeat(auto-fill, minmax(${compact ? 110 : 150}px, 1fr))`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(${minTile || (compact ? 110 : 150)}px, 1fr))`,
           gap: 'var(--s2)',
         }}>
           {shown.map((a) => {
