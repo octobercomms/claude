@@ -123,8 +123,36 @@ mutation(
 mutation(
   'vignette not normalised per axis (ovals on a non-square frame)',
   FX_PATH,
-  'pow((Y-H/2)/(H/2),2)',
-  'pow((Y-H/2)/(W/2),2)'
+  'pow((Y-H*${x(p.cy)})/(H/2),2)',
+  'pow((Y-H*${x(p.cy)})/(W/2),2)'
+);
+
+mutation(
+  'the spotlight cannot be placed: the expression ignores cx',
+  FX_PATH,
+  'pow((X-W*${x(p.cx)})/(W/2),2)',
+  'pow((X-W/2)/(W/2),2)'
+);
+
+mutation(
+  'the function and the expression disagree about where the middle is',
+  FX_PATH,
+  'const d2 = (2 * (xf - p.cx)) ** 2 + (2 * (yf - p.cy)) ** 2;',
+  'const d2 = (2 * xf - 1) ** 2 + (2 * (yf - p.cy)) ** 2;'
+);
+
+mutation(
+  'the preview paints the spotlight in the middle wherever it was put',
+  FX_PATH,
+  "return { kind: 'radial', centre: { x: p.cx, y: p.cy }, radius: R, stops };",
+  "return { kind: 'radial', centre: { x: 0.5, y: 0.5 }, radius: R, stops };"
+);
+
+mutation(
+  'the gradient keeps a centred radius, so a moved middle puts stops past 1.0',
+  FX_PATH,
+  "      const R = Math.max(",
+  "      const R = Math.SQRT2; const unused_R = Math.max("
 );
 
 mutation(
@@ -317,8 +345,8 @@ mutation(
 mutation(
   'the vignette\'s paint is drawn on a circle rather than the frame',
   FX_PATH,
-  "return { kind: 'radial', centre: { x: 0.5, y: 0.5 }, radius: R, stops };",
-  "return { kind: 'radial', centre: { x: 0.5, y: 0.5 }, radius: 1, stops };"
+  "centre: { x: p.cx, y: p.cy }, radius: R, stops };",
+  "centre: { x: p.cx, y: p.cy }, radius: 1, stops };"
 );
 
 mutation(
