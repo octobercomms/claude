@@ -317,7 +317,7 @@ one of which is a real slug that must be left alone. | none |
 | 4 | ~~Timeline toolbar~~ **Built 9 November**: undo, redo, split, delete, Fit/−/+, `?`. Ripple deleted; zoom slider and snap toggle refused, with reasons below | none |
 | 5 | One ordered inspector; delete the timeline's selected-item strip; **collapse the two volume sliders** (see below) | none |
 | 6 | Media bin in the editor: `AssetLibrary` with `onPick` | none |
-| 7 | Transform panel on scale and pos, with a preview-vs-render agreement test | model already holds it |
+| 7 | Transform panel on scale and pos, ~~with a preview-vs-render agreement test~~ — **the agreement test already exists**, see below | model already holds it |
 | 8+ | Drag from bin, fades, per-track mute, fixed lanes, text, filters | real, costed separately |
 
 ## The design critique, 9 November
@@ -1181,6 +1181,32 @@ The verdict thresholds were proportional-ised with them: `passed >= 5` was
 five of eight, and with ten checks the same literal would have called half a
 reel "most".
 
+## Step 7 is half built already, 9 November
+
+The build order lists step 7 as "Transform panel on scale and pos, with a
+preview-vs-render agreement test". **The agreement test exists**, and it is
+better than the phrase suggests.
+
+`backend/tests/composition-transforms.test.js` parses the expression the
+renderer emits — `(A+(B-A)*min(max(t/L,0),1))`, a form `compositionRender.mjs`
+keeps deliberately dull so a test can read A, B and L back out — evaluates the
+same arithmetic in JavaScript, and holds it against `itemTransformAt` at eight
+sample times including both ends and past them. It also pins that a static
+value emits a plain `scale=` rather than a per-frame evaluation, that an
+untransformed item produces no transform stage at all, and that `rot` fails
+loudly rather than being dropped.
+
+And the preview does not reimplement any of it: `compositionPlayback.mjs`
+calls `itemTransformAt`, the same function. The three-descriptions problem
+that `composition-fx-agreement.test.js` exists to police does not arise here,
+because there are two descriptions and one of them is generated from the
+model.
+
+So what is actually open in step 7 is the panel, and whether a panel is the
+right answer at all. The camera-move chips already produce an animated scale
+and pos, and this project has already established that nobody picks a camera
+move by typing 1.12. A design pass is running on exactly that question.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
@@ -1190,6 +1216,11 @@ reel "most".
 - ~~**A Library clip arrives 3.2 seconds long.**~~ Fixed; see below.
 - ~~**No 9:16 aspect check**~~ and ~~**no check for music that outlasts the
   picture**~~. Both built; see below.
+- **A photograph gets no filmstrip on the timeline.** Filmstrips come from
+  seeking a `<video>`; a still is `kind: 'clip', still: true`, so the
+  extraction fails silently and the block stays blank with a filename on it.
+  A photograph is the one source that already IS an image, which makes this
+  the cheapest picture in the product.
 - **The transport is not the toolbar.** `Play`, `-1 frame`, `+1 frame` and
   `Start` are 36px pills wrapping onto two rows in a 188px column, 130px above
   a row of 26px chips, and `Play` is offered at full strength on an empty reel
