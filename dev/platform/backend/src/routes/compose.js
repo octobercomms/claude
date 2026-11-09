@@ -3,12 +3,11 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const compositions = require('../services/compositions');
 const assets = require('../services/assets');
-const { FFPROBE } = require('../services/ffmpegBin');
+const { probeMedia } = require('../services/mediaProbe');
 const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('../services/costLog');
 const { whisperWords } = require('../services/whisper');
@@ -126,42 +125,6 @@ router.delete('/compositions/:id', loadComposition, async (req, res) => {
 
 // ── Clip upload ────────────────────────────────────────────────────
 
-function parseFraction(str) {
-  const parts = String(str).split('/');
-  if (parts.length === 2) {
-    const n = parseFloat(parts[0]);
-    const d = parseFloat(parts[1]);
-    if (d > 0 && Number.isFinite(n)) return Math.round(n / d);
-  }
-  const n = parseFloat(str);
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : 30;
-}
-
-function probeVideo(filePath) {
-  return new Promise((resolve, reject) => {
-    const ff = spawn(FFPROBE, [
-      '-v', 'quiet', '-print_format', 'json',
-      '-show_format', '-show_streams', filePath,
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
-    let out = '';
-    ff.stdout.on('data', d => { out += d; });
-    ff.on('error', reject);
-    ff.on('close', code => {
-      if (code !== 0) return reject(new Error(`ffprobe exited ${code}`));
-      try {
-        const info = JSON.parse(out);
-        const vs = (info.streams || []).find(s => s.codec_type === 'video');
-        resolve({
-          duration: parseFloat(info.format?.duration) || 0,
-          width: vs ? parseInt(vs.width, 10) : 0,
-          height: vs ? parseInt(vs.height, 10) : 0,
-          fps: vs?.r_frame_rate ? parseFraction(vs.r_frame_rate) : 30,
-        });
-      } catch { resolve({ duration: 0, width: 0, height: 0, fps: 30 }); }
-    });
-  });
-}
-
 router.post('/compositions/:id/clip', loadComposition, (req, res, next) => {
   clipUpload.single('file')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
@@ -175,7 +138,7 @@ router.post('/compositions/:id/clip', loadComposition, (req, res, next) => {
     if (!f) return res.status(400).json({ error: 'No file sent.' });
 
     const filePath = path.join(UPLOAD_ROOT, String(clientId), f.filename);
-    const probe = await probeVideo(filePath);
+    const probe = await probeMedia(filePath);
 
     // ffprobe reads a photograph as a one-frame video stream, so width and
     // height arrive correctly and the duration is meaningless: a JPEG reports
@@ -215,25 +178,6 @@ router.post('/compositions/:id/clip', loadComposition, (req, res, next) => {
 
 // ── Audio upload ──────────────────────────────────────────────────
 
-function probeAudio(filePath) {
-  return new Promise((resolve, reject) => {
-    const ff = spawn(FFPROBE, [
-      '-v', 'quiet', '-print_format', 'json',
-      '-show_format', '-show_streams', filePath,
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
-    let out = '';
-    ff.stdout.on('data', d => { out += d; });
-    ff.on('error', reject);
-    ff.on('close', code => {
-      if (code !== 0) return reject(new Error(`ffprobe exited ${code}`));
-      try {
-        const info = JSON.parse(out);
-        resolve({ duration: parseFloat(info.format?.duration) || 0 });
-      } catch { resolve({ duration: 0 }); }
-    });
-  });
-}
-
 router.post('/compositions/:id/audio', loadComposition, (req, res, next) => {
   audioUpload.single('file')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
@@ -247,7 +191,7 @@ router.post('/compositions/:id/audio', loadComposition, (req, res, next) => {
     if (!f) return res.status(400).json({ error: 'No file sent.' });
 
     const filePath = path.join(UPLOAD_ROOT, String(clientId), f.filename);
-    const probe = await probeAudio(filePath);
+    const probe = await probeMedia(filePath);
 
     const asset = await assets.record({
       client_id: clientId, source: 'upload', source_id: f.filename,

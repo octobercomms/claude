@@ -43,6 +43,18 @@ stub(path.join(__dirname, '..', 'src', 'middleware', 'clientAccess.js'), {
   assertClientAccess: () => {},
   requireAdmin: passthrough,
 });
+// The probe is stubbed, not the ffprobe binary: what this file is for is
+// whether the route asks and whether the answer reaches the row. Whether the
+// probe reads a real file correctly is tests/media-probe.test.js, which
+// probes footage ffmpeg makes on the spot.
+let probeAnswer = { width: 1080, height: 1920, duration_s: 92.5 };
+const probed = [];
+stub(path.join(__dirname, '..', 'src', 'services', 'mediaProbe.js'), {
+  probeForRecord: async (filePath, mime) => {
+    probed.push({ filePath, mime });
+    return probeAnswer;
+  },
+});
 stub(path.join(__dirname, '..', 'src', 'services', 'assets.js'), {
   // record() never throws at its caller, by design. The upload route has to
   // notice a null and say so, which is what indexFails exercises.
@@ -174,6 +186,44 @@ const clean = () => fs.rmSync(DIR, { recursive: true, force: true });
   check('and the request is not reported as a success',
     r.status !== 201, `status ${r.status}`);
   indexFails = false;
+
+  // 8. What the file is, read off the file.
+  //
+  // The row used to carry a name, a mime type and a size and nothing about
+  // the picture. The editor has no other source of truth for how long a clip
+  // is: `pickAsset` reads `asset.duration_s` and falls back to
+  // STILL_DEFAULT_LEN, so a 92-second clip with a null duration arrived on
+  // the timeline 3.2 seconds long and rendered truncated, with nothing
+  // failing anywhere.
+  recorded.length = 0; probed.length = 0; clean(); indexFails = false;
+  probeAnswer = { width: 1080, height: 1920, duration_s: 92.5 };
+  r = await upload([{ name: 'long.mp4', type: 'video/mp4', body: 'aaa' }]);
+  check('the upload probes the file it just wrote', probed.length === 1
+    && /up-\d+-[0-9a-f]{6}\.mp4$/.test(probed[0]?.filePath || ''),
+    `probed ${JSON.stringify(probed)} — the path on disk, not the browser's name`);
+  check('and the duration reaches the asset row',
+    recorded[0]?.duration_s === 92.5,
+    `duration_s ${recorded[0]?.duration_s} — the editor falls back to 3.2s without it, `
+    + 'so a null here is a 92-second clip cut to three seconds with no error anywhere');
+  check('with the dimensions',
+    recorded[0]?.width === 1080 && recorded[0]?.height === 1920,
+    `${recorded[0]?.width}x${recorded[0]?.height}`);
+
+  // 9. A file the probe cannot read is still filed.
+  recorded.length = 0; probed.length = 0; clean();
+  probeAnswer = { width: null, height: null, duration_s: null };
+  r = await upload([
+    { name: 'headerless.mp4', type: 'video/mp4', body: 'nope' },
+    { name: 'fine.mp4', type: 'video/mp4', body: 'aaa' },
+  ]);
+  check('a file whose header will not read is filed anyway',
+    r.status === 201 && r.body?.added?.length === 2,
+    `status ${r.status}, added ${r.body?.added?.length} — an unreadable duration is `
+    + 'worth less than the file, and the other 24 in the batch are not its fault');
+  check('with a null duration rather than a made-up one',
+    recorded.every((a) => a.duration_s === null),
+    recorded.map((a) => a.duration_s).join(','));
+  probeAnswer = { width: 1080, height: 1920, duration_s: 92.5 };
 
   clean();
   server.close();

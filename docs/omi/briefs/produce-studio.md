@@ -699,17 +699,59 @@ assertion checked for the word "SELECTED", which was the caption of the strip
 this change deletes. The claim was that the new item is selected; it now reads
 the inspector's own Length and Remove, which render only when something is.
 
+## Built, 9 November: a file says how long it is
+
+The fault, and it was invisible: footage dropped on the **Library** was
+recorded with a name, a type and a size, and nothing about the picture. No
+width, no height, no duration. `pickAsset` in the editor reads
+`asset.duration_s` and falls back to `STILL_DEFAULT_LEN` when a source has
+none, so **a 90-second clip from the Library arrived on the timeline 3.2
+seconds long** and rendered truncated. Nothing failed; the clip was simply
+the wrong length, and the only way to notice was to count.
+
+The clip and audio uploads in `routes/compose.js` had always probed. There
+were two copies of the same `ffprobe` spawn in that one file — the clip
+version, which reads dimensions and frame rate, and the audio version, which
+is the same spawn with everything but duration discarded — and the third
+place that needed one did without.
+
+One `services/mediaProbe.js` now, with `probeMedia` for the routes that must
+fail loudly on an unreadable file and `probeForRecord` for the batch upload,
+which must not lose 24 rows to one bad header.
+
+`parseFraction` moved with it, and that is worth recording on its own: the
+test for it in `compose.test.js` **held its own copy of the function** and
+asserted against that. It would have stayed green if the product's version
+were deleted. It imports the real one now.
+
+The new guard, `tests/media-probe.test.js`, probes footage ffmpeg makes on the
+spot — a 2-second clip, a photograph, a sound, and one at 29.97 — because a
+stubbed ffprobe would have passed every day the bug existed: the route never
+called one. `library-upload.test.js` gained the wiring half, and removing the
+line that carries the probe onto the row fails three of its assertions.
+
+One more thing, found in the sweep rather than the code: `drive-studio.mjs`
+reported `active row read ""` on a run where the three assertions after it
+read correctly. That empty string was the locator's own failure, swallowed by
+a `.catch(() => '')`, so a page that had not finished loading looked exactly
+like a wrong nav state. It waits for the panel and then for a lit row, and
+says which of the two is missing.
+
 ## Faults found while auditing, worth fixing in passing
 
-- **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is
-  `max="4"`; `CompositionTimeline.jsx:731` is `max="2"` and clamps its
-  displayed value with `Math.min(2, …)`. The model allows 0 to 4. So an item
-  set to 3.5 in the inspector reads as 2 in the timeline, and touching that
-  slider writes the clamped value. Step 5 collapses them to one control at the
-  model's own bound.
-- **Fit has two vocabularies**: "Fill frame"/"Letterbox" in the timeline,
-  "Cover"/"Contain" for designs. Same two values. Step 5 picks one.
+- ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
+  model's own bound, measured in the browser as two range inputs on the page.
+- ~~**Fit has two vocabularies.**~~ Fixed with step 5: "Fill frame" and
+  "Letterbox" everywhere, because they say what happens to the picture.
+- ~~**A Library clip arrives 3.2 seconds long.**~~ Fixed; see below.
 - **No 9:16 aspect check** in `reelChecks.mjs`, per decision 6.
+- **The checks panel hides 54% of itself by default.** The critic's finding:
+  each of the eight checks carries the evidence that produced it and the
+  default state shows the verdict without it. Verdict first, evidence on
+  click, is the design it asked for. Not built.
+- **MOTION chips are offered on stills only.** `transformFor` does not care
+  what the source is, so a slow push on a clip is the same animated scale.
+  Not built.
 
 ## Corrected, so it is not repeated
 

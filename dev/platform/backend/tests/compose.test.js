@@ -515,16 +515,11 @@ describe('audio sources', async () => {
 // ── parseFraction (fps parsing from ffprobe) ────────────────────────
 
 describe('parseFraction', () => {
-  function parseFraction(str) {
-    const parts = String(str).split('/');
-    if (parts.length === 2) {
-      const n = parseFloat(parts[0]);
-      const d = parseFloat(parts[1]);
-      if (d > 0 && Number.isFinite(n)) return Math.round(n / d);
-    }
-    const n = parseFloat(str);
-    return Number.isFinite(n) && n > 0 ? Math.round(n) : 30;
-  }
+  // The real one. This block used to hold its own copy of the function and
+  // assert against that, which would have stayed green if the product's
+  // version were deleted or changed. It lives in a service now, so the test
+  // can reach the thing that runs.
+  const { parseFraction } = require('../src/services/mediaProbe');
 
   it('parses a fraction like 30000/1001', () => {
     assert.strictEqual(parseFraction('30000/1001'), 30);
