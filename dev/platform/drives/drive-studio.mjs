@@ -703,6 +703,77 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 14. The chip that did not exist ──────────────────────────────────────
+//
+// Seventeen controls in the Studio carry `btn-chip` and seven of them pass
+// `is-active`. Nothing in any stylesheet matched either class, so all of them
+// rendered as native buttons — measured at 14px tall, #efefef, no border, no
+// radius, weight 400 — and `is-active` meant NOTHING: the selected camera
+// move, the selected transition, the selected fit and the shelf's selected
+// scope were pixel for pixel identical to the unselected ones. The camera
+// moves shipped this morning with no way to see which one was on.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(900);
+  const hit = await p.evaluate(() => {
+    const label = [...document.querySelectorAll('div')]
+      .find(d => d.textContent.trim() === 'showroom-01.jpg' && d.style.fontWeight === '700');
+    let el = label;
+    for (let i = 0; i < 6 && el; i++) {
+      if (getComputedStyle(el).position === 'absolute'
+        && el.getBoundingClientRect().width > 20) {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+      el = el.parentElement;
+    }
+    return null;
+  });
+  if (hit) { await p.mouse.click(hit.x, hit.y); await p.waitForTimeout(500); }
+
+  const chips = await p.evaluate(() => [...document.querySelectorAll('.btn-chip')].map((e) => {
+    const c = getComputedStyle(e);
+    return {
+      text: e.textContent.trim().slice(0, 14),
+      active: e.classList.contains('is-active'),
+      height: Math.round(e.getBoundingClientRect().height),
+      border: c.borderTopWidth, radius: c.borderTopLeftRadius,
+      weight: c.fontWeight, bg: c.backgroundColor, colour: c.color,
+    };
+  }));
+
+  say(chips.length > 10, 'the Studio is full of chips', `${chips.length} of them`);
+  say(chips.every(c => c.height >= 24 && c.border !== '0px' && c.radius !== '0px'),
+    'and every one of them is a chip rather than a native button',
+    JSON.stringify(chips.find(c => c.height < 24 || c.border === '0px' || c.radius === '0px')
+      || 'all styled')
+    + ' — they measured 14px tall, #efefef, no border, no radius, next to a 36px pill');
+
+  const on = chips.filter(c => c.active);
+  const off = chips.filter(c => !c.active);
+  say(on.length > 0 && off.length > 0, 'with some on and some off',
+    `${on.length} on, ${off.length} off`);
+  say(on.every(c => c.bg !== off[0].bg && c.colour !== off[0].colour),
+    'and the one that is ON looks different from the ones that are not',
+    `on ${on[0]?.bg}/${on[0]?.colour} against off ${off[0]?.bg}/${off[0]?.colour} — `
+    + 'these were identical, so the selected camera move was invisible');
+  say(on.some(c => /push-in|Hold|drift|rise|orbit|reveal|subtle/.test(c.text)),
+    'including the camera move on the selected photograph',
+    JSON.stringify(on.map(c => c.text)));
+
+  // The other half of the same fault: `--primary` is defined nowhere, and two
+  // sliders asked for it. An invalid accent-color falls back to the browser's
+  // own blue, which made them the only blue controls in OMI.
+  const accents = await p.evaluate(() => [...document.querySelectorAll('input[type=range]')]
+    .map(i => getComputedStyle(i).accentColor));
+  say(accents.length > 0 && accents.every(a => a !== 'auto'),
+    'and no slider is left on the browser\'s own blue',
+    `accent colours: ${JSON.stringify(accents)}`);
+
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();

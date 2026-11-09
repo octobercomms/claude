@@ -264,7 +264,7 @@ export default function ExportModal({ compId, composition, onClose }) {
                 <div style={{
                   width: `${Math.min(100, Math.max(0, progress))}%`,
                   height: '100%',
-                  background: 'var(--primary)',
+                  background: 'var(--accent)',
                   borderRadius: 'var(--r-pill)',
                   transition: 'width 0.3s ease',
                 }} />

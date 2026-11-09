@@ -272,7 +272,7 @@ export default function AudioPage({ clientId = null } = {}) {
               </p>
               <div style={{ marginTop: 'var(--s3)' }}>
                 <div style={{ height: 4, borderRadius: 2, background: 'var(--surface-raised)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: 'var(--primary)', width: '60%', animation: 'pulse 2s infinite' }} />
+                  <div style={{ height: '100%', background: 'var(--accent)', width: '60%', animation: 'pulse 2s infinite' }} />
                 </div>
               </div>
             </div>
