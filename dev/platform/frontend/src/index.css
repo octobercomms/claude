@@ -2418,6 +2418,27 @@ a:hover > .card-stat,
 
 /* Edit studio — split editor layout: big preview left, settings right. */
 .edit-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+
+/* The Studio's stage: the frame, and the verdict beside it.
+ *
+ * Reel checks used to be the last card of the right-hand column, below the
+ * frame-rate chips, collapsed. It is the one thing on the screen that answers
+ * "is this any good", which is the operator's actual question, and it was the
+ * furthest thing from the picture.
+ *
+ * Beside the frame rather than under it, and the reason is specific: the
+ * composition is 9:16 and the player well is not. At 1600px the well is about
+ * 865px wide and a 1080x1920 frame occupies roughly 388px of it, so most of
+ * the largest element on the page is empty black. The checks go into that
+ * space, which costs the picture nothing — unlike the mockup's answer of a
+ * 240px bin and a 260px inspector, which would narrow the centre column and
+ * make the only thing being judged smaller.
+ *
+ * Stacks under 820px of CONTENT box, not viewport: the @container threshold is
+ * what the nav rail leaves, and the two differ by about 170px depending on
+ * whether the rail is collapsed. */
+.studio-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); gap: 16px; align-items: start; }
+@container appmain (max-width: 820px) { .studio-stage { grid-template-columns: 1fr; } }
 @container appmain (max-width: 580px) { .edit-split { grid-template-columns: 1fr; } }
 
 /* ══ Design system v1 — L1–L6 shell components ═══════════════════════

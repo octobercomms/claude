@@ -19,6 +19,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useCompositionHistory } from '../hooks/useCompositionHistory';
 import ExportModal from '../components/video/ExportModal';
+import ShareReelModal from '../components/video/ShareReelModal';
 
 const SIZE_PRESETS = [
   { w: 1080, h: 1920, label: '9:16' },
@@ -95,7 +96,7 @@ function initComp() {
   return comp;
 }
 
-export default function CompositionEditorPage({ clientId, openId = null }) {
+export default function CompositionEditorPage({ clientId, clientName = null, openId = null }) {
   const toast = useToast();
   const {
     state: composition, setState: setComposition,
@@ -121,6 +122,7 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [ripple, setRipple] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
@@ -882,16 +884,41 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
 
       <div className="edit-split" style={{ marginTop: 'var(--s2)' }}>
         <div>
-          <Compositor
-            ref={compositorRef}
-            composition={composition}
-            sourceUrls={sourceUrls}
-            transcripts={transcripts}
-            playhead={playhead}
-            onSeek={setPlayhead}
-            onMeta={onMeta}
-            maxHeight="50vh"
-          />
+          <div className="studio-stage">
+            <Compositor
+              ref={compositorRef}
+              composition={composition}
+              sourceUrls={sourceUrls}
+              transcripts={transcripts}
+              playhead={playhead}
+              onSeek={setPlayhead}
+              onMeta={onMeta}
+              maxHeight="50vh"
+            />
+            {/* Open, not collapsed. A panel that answers the operator's
+                question and has to be unfolded to do it is a panel nobody
+                opens, and the checks are advisory and say so on screen, so
+                there is nothing here to protect anyone from. */}
+            {hasSources && (
+              // Capped to the player's own height and scrolled, because the
+              // grid row is as tall as its tallest cell: opened, the eight
+              // checks and their evidence measured 964px against the player's
+              // 500, which pushed the timeline 460px down and off a
+              // 1000px-tall screen. The timeline is the thing you work in, so
+              // the panel beside the picture may not be taller than the
+              // picture. Found by measuring the boxes in a browser; no unit
+              // test and no amount of reading would have shown it.
+              <div className="card" data-studio-checks
+                style={{ padding: 'var(--s4)', maxHeight: '50vh', overflowY: 'auto' }}>
+                <ReelChecks
+                  timings={allTimings}
+                  edit={reelEdit}
+                  clientId={clientId}
+                  defaultOpen
+                />
+              </div>
+            )}
+          </div>
           <div style={{ marginTop: 'var(--s3)' }}>
             <CompositionTimeline
               composition={composition}
@@ -941,6 +968,15 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
                   onClick={async () => { await flushSave(compId); setExportOpen(true); }}
                   disabled={!compId || total <= 0}>
                   Export
+                </button>
+                {/* Share needs no flushSave, deliberately, and it is worth
+                    saying why: a link carries renders that already exist, so
+                    the unsaved edit in front of you is not part of what the
+                    client would see. Flushing here would imply otherwise. The
+                    dialog lists exports by time so a stale one is visible. */}
+                <button type="button" className="btn btn-secondary btn-sm"
+                  onClick={() => setShareOpen(true)} disabled={!compId}>
+                  Share
                 </button>
                 <button type="button" className="btn btn-secondary btn-sm"
                   onClick={() => doSave(compId)} disabled={saveStatus === 'saving'}>
@@ -1272,22 +1308,18 @@ export default function CompositionEditorPage({ clientId, openId = null }) {
             )}
           </div>
 
-          {hasSources && (
-            <div className="card" style={{ padding: 'var(--s4)', marginTop: 'var(--s3)' }}>
-              <ReelChecks
-                timings={allTimings}
-                edit={reelEdit}
-                clientId={clientId}
-                defaultOpen={false}
-              />
-            </div>
-          )}
+
         </div>
       </div>
 
       {exportOpen && (
         <ExportModal compId={compId} composition={composition}
           onClose={() => setExportOpen(false)} />
+      )}
+      {shareOpen && (
+        <ShareReelModal compId={compId} clientId={clientId}
+          clientName={clientName} title={composition?.title}
+          onClose={() => setShareOpen(false)} />
       )}
       <ShortcutReference visible={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>

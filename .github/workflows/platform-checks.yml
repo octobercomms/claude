@@ -521,6 +521,25 @@ jobs:
       # it, and what a camera move means.
       - name: Guard — a photograph can enter the editor
         run: node tests/composition-still.test.js
+      # A share link is handed to someone with no login, and a render id is a
+      # SERIAL integer rather than a UUID, so guessing the one next door is not
+      # a feat. Two bindings keep that safe and neither shows in a passing
+      # happy path: the public respond route refusing a render that is not on
+      # the link, and the minting route refusing renders that are not this
+      # client's. Both are pinned, and the scope check is compared against the
+      # copy in the test so the two cannot drift.
+      - name: Guard — a reel can be shared, and only the right one
+        run: node tests/approval-renders.test.js
+      # The drives' composition fixture, run through the real model. The
+      # editor drew its empty state in every drive until it existed, so
+      # nothing about the editor could be checked in a browser. Now that a
+      # drive asserts against it, a fixture that drifts from the model is a
+      # drive proving a shape the product would reject — which already
+      # happened once: the stub's composition LIST returned thin rows, the
+      # editor opens list[0] without a second fetch, and every assertion
+      # passed against an empty composition.
+      - name: Guard — the drives run against something real
+        run: node tests/drive-fixtures.test.js
       # A brief is what was agreed before a build started, and docs/omi/briefs/
       # exists because one that lived only as a chat link was lost: the Produce
       # studio layout was agreed, mocked, and then production shipped six

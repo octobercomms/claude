@@ -60,9 +60,14 @@ export default function ApprovePage() {
 
   const responsesByPost = {};
   const responsesByCreative = {};
+  const responsesByRender = {};
   for (const r of (data.responses || [])) {
     if (r.post_id) (responsesByPost[r.post_id] = responsesByPost[r.post_id] || []).push(r);
     if (r.ad_creative_id) (responsesByCreative[r.ad_creative_id] = responsesByCreative[r.ad_creative_id] || []).push(r);
+    if (r.composition_render_id) {
+      const k = r.composition_render_id;
+      (responsesByRender[k] = responsesByRender[k] || []).push(r);
+    }
   }
 
   return (
@@ -110,7 +115,56 @@ export default function ApprovePage() {
         </div>
       )}
 
+      {/* Reels. One per row rather than in the 440px grid the posts and ads
+          use, because a reel is 9:16 and a card wide enough to hold one at a
+          size worth judging is most of the column. The point of this page is
+          that the client sees the thing at the size it will be seen. */}
+      {!!(data.renders || []).length && (
+        <div style={{ marginTop: 'var(--s5)', display: 'grid', gap: 'var(--s5)' }}>
+          {data.renders.map(r => (
+            <ReelReviewCard key={r.id} render={r}
+              responses={responsesByRender[r.id] || []}
+              onEnlarge={setLightbox}
+              onRespond={(decision, comment) => respond({ composition_render_id: r.id, decision, comment })} />
+          ))}
+        </div>
+      )}
+
       {lightbox && <Lightbox image={lightbox} onClose={() => setLightbox(null)} />}
+    </div>
+  );
+}
+
+// A finished reel, for a client who is not logged in.
+//
+// The video element is given `controls` and nothing else: no autoplay, because
+// a page of reels all starting at once is unusable and the sound would be a
+// surprise, and `playsInline` so an iPhone plays it in the page rather than
+// taking over the screen. `preload="metadata"` because a link may carry
+// several and a client on a hotel connection should not download all of them
+// to read the titles.
+function ReelReviewCard({ render, responses, onEnlarge, onRespond }) {
+  const made = render.finished_at
+    ? new Date(render.finished_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+    : null;
+  return (
+    <div className="card" style={{ padding: 'var(--s5)' }}>
+      <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
+        <div>
+          <div className="h2">{render.title || 'Reel'}</div>
+          {made && <div className="caption text-subtle" style={{ marginTop: 'var(--s1)' }}>Made {made}</div>}
+        </div>
+        <button type="button" className="btn btn-secondary btn-sm"
+          onClick={() => onEnlarge({ url: render.output_url, media_type: 'video' })}>
+          Full size
+        </button>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', background: '#000', borderRadius: 'var(--r-md)' }}>
+        <video src={render.output_url} controls playsInline preload="metadata"
+          style={{ maxHeight: '70vh', maxWidth: '100%', display: 'block' }} />
+      </div>
+      <DecisionForm onRespond={onRespond} />
+      <ResponsesList responses={responses} />
     </div>
   );
 }
