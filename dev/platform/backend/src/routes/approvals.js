@@ -19,6 +19,7 @@ const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const users = require('../services/users');
+const renderQueue = require('../services/compositionRenderQueue');
 
 const router = express.Router();
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
@@ -90,20 +91,21 @@ router.get('/public/:token', async (req, res) => {
       );
       posts = ps;
     } else if (link.scope === 'render_list' && link.render_ids?.length) {
-      // Finished reels. `status = 'done'` as well as the id list, because a
-      // render can be deleted or re-queued after a link is minted and a card
-      // with no file is worse than one fewer card: the client presses play on
-      // nothing and concludes the agency sent a broken link.
-      const { rows: rs } = await pool.query(
-        `SELECT r.id, r.output_url, r.finished_at,
-                c.id AS composition_id, c.title
-           FROM composition_renders r
-           JOIN compositions c ON c.id = r.composition_id
-          WHERE r.id = ANY($1) AND r.status = 'done' AND r.output_url IS NOT NULL
-          ORDER BY r.finished_at ASC NULLS LAST, r.id ASC`,
-        [link.render_ids]
-      );
-      renders = rs;
+      // Finished reels, through the queue service, which owns every statement
+      // against that table (`composition-render-route.test.js` holds that
+      // rule, and it is why "finished" means the same thing here as in the
+      // dialog that minted the link).
+      //
+      // Scoped to the link's own client as well as its id list. The ids were
+      // already checked against this client when the link was minted, so this
+      // is belt and braces — but the row it serves is read by someone with no
+      // login, and a link whose client was later changed must not start
+      // serving somebody else's reels.
+      //
+      // Done with a file, because a card with nothing behind it is worse than
+      // one fewer card: the client presses play on nothing and concludes the
+      // agency sent a broken link.
+      renders = await renderQueue.doneByIdsForClient(link.render_ids, link.client_id);
     }
 
     // Client info — name only, no internal fields.
@@ -307,13 +309,7 @@ router.post('/clients/:clientId/links', async (req, res) => {
     // Done renders only, for the same reason the public view filters them: a
     // link is a promise that these files exist.
     if (scope === 'render_list') {
-      const { rows: mine } = await pool.query(
-        `SELECT r.id FROM composition_renders r
-           JOIN compositions c ON c.id = r.composition_id
-          WHERE r.id = ANY($1) AND c.client_id = $2
-            AND r.status = 'done' AND r.output_url IS NOT NULL`,
-        [renderIds, req.params.clientId]
-      );
+      const mine = await renderQueue.doneByIdsForClient(renderIds, req.params.clientId);
       const ok = new Set(mine.map(r => Number(r.id)));
       const refused = renderIds.filter(id => !ok.has(id));
       if (refused.length) {

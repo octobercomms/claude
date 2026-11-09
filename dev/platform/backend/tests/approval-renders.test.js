@@ -37,6 +37,12 @@ const ROUTE = path.join(__dirname, '../src/routes/approvals.js');
 const src = fs.readFileSync(ROUTE, 'utf8');
 const MIGRATION = path.join(__dirname, '../migrations/252_approval_render_list.sql');
 const sql = fs.readFileSync(MIGRATION, 'utf8');
+// The statements themselves live in the queue service, which owns every query
+// against `composition_renders`. That rule is held by
+// `composition-render-route.test.js`, and the first version of this work broke
+// it by putting a SELECT in the route; moving it also stopped three callers
+// deciding separately what "finished" means.
+const queue = fs.readFileSync(path.join(__dirname, '../src/services/compositionRenderQueue.js'), 'utf8');
 
 let passed = 0;
 const ok = (what, fn) => { fn(); passed += 1; void what; };
@@ -118,19 +124,31 @@ ok('the respond route binds a render before writing a decision', () => {
     'the respond route is not calling the scope check');
 });
 
-ok('the create route refuses renders that are not this client\'s', () => {
+ok('one place owns the render lookup, and it checks both things at once', () => {
   // `requireClientAccess` checks the caller may act for the client in the
   // PATH. It says nothing about ids in the body, and the public view
-  // deliberately trusts the link, so this is the only place the tenancy of a
-  // shared render is established.
-  assert.ok(/c\.client_id = \$2/.test(src),
-    'the create route no longer scopes the render lookup to the client');
+  // deliberately trusts the link, so this lookup is the only place the
+  // tenancy of a shared render is established.
+  //
+  // Client AND finished in one query, deliberately: split into two checks,
+  // one of them gets dropped.
+  const fn = queue.slice(queue.indexOf('async function doneByIdsForClient'));
+  assert.ok(fn.length > 100, 'doneByIdsForClient is gone from the queue service');
+  const body = fn.slice(0, fn.indexOf('\n}'));
+  assert.ok(/c\.client_id = \$2/.test(body),
+    'the lookup no longer scopes renders to the client');
+  assert.ok(/r\.status = 'done'/.test(body) && /r\.output_url IS NOT NULL/.test(body),
+    'the lookup would return a render that has no file');
+
+  // And the routes must USE it rather than growing their own copy. No file
+  // but the queue service may name that table.
+  assert.ok(!/composition_renders/.test(src),
+    'the approvals route queries composition_renders directly again — one place '
+    + 'owns those statements (composition-render-route.test.js)');
+  assert.ok(/renderQueue\.doneByIdsForClient/.test(src),
+    'the approvals route is not calling the shared lookup');
   assert.ok(/not this client's finished renders/.test(src),
     'the create route no longer refuses renders it could not verify');
-  // Done renders only: a link is a promise that these files exist.
-  const create = src.slice(src.indexOf("router.post('/clients/:clientId/links'"));
-  assert.ok(/r\.status = 'done'/.test(create) && /r\.output_url IS NOT NULL/.test(create),
-    'the create route would share a render that has no file');
   assert.ok(/render_list needs at least one render_id/.test(src),
     'an empty render_list would mint a URL onto an empty page');
 });
@@ -138,8 +156,11 @@ ok('the create route refuses renders that are not this client\'s', () => {
 ok('the public view only serves finished renders, through the token proxy', () => {
   const view = src.slice(src.indexOf("router.get('/public/:token'"), src.indexOf("router.post('/public/:token/respond'"));
   assert.ok(/scope === 'render_list'/.test(view), 'the public view has no render branch');
-  assert.ok(/r\.status = 'done'/.test(view),
-    'the public view would offer a card for a render with no file');
+  // Through the same lookup as the minting side, so "finished" cannot mean
+  // one thing when a link is made and another when it is opened. It also
+  // re-checks the link's own client, in case a link outlived a change to it.
+  assert.ok(/renderQueue\.doneByIdsForClient\(link\.render_ids, link\.client_id\)/.test(view),
+    'the public view is not reading renders through the shared, client-scoped lookup');
   assert.ok(/r\.output_url = rewriteUrl\(r\.output_url\)/.test(view),
     'a render url is not rewritten, so a logged-out client gets a 401 on play');
 });

@@ -488,24 +488,18 @@ router.post('/compositions/:id/render', loadComposition, async (req, res) => {
 
 // The finished renders of one composition, for the Share dialog.
 //
-// Only done ones with a file, because what a share link promises is that these
-// files exist, and `approvals.js` filters the same way on both the minting and
-// the public side. Three queries would otherwise disagree about what counts as
-// shareable.
+// The statement lives in `compositionRenderQueue`, not here:
+// `composition-render-route.test.js` holds the rule that one place owns every
+// query against that table, and the first version of this route broke it.
+// That is also what keeps "finished" meaning one thing — the share dialog and
+// the public approval page read the same two functions.
 //
 // `loadComposition` already settles tenancy: it refuses a composition the
 // caller cannot see, so a render under it belongs to a client they may act for.
 router.get('/compositions/:id/renders', loadComposition, async (req, res) => {
   try {
-    const { rows } = await db.query(
-      `SELECT id, finished_at, output_url
-         FROM composition_renders
-        WHERE composition_id = $1 AND status = 'done' AND output_url IS NOT NULL
-        ORDER BY finished_at DESC NULLS LAST, id DESC
-        LIMIT 20`,
-      [req.composition.id]
-    );
-    res.json({ renders: rows });
+    const renders = await renderQueue.doneFor(req.composition.id);
+    res.json({ renders });
   } catch (err) {
     console.error('[compose] render list failed:', err.message);
     res.status(500).json({ error: err.message });

@@ -314,6 +314,56 @@ async function positionOf(id) {
   return rows[0]?.position ?? null;
 }
 
+/**
+ * The finished renders of a composition, newest first.
+ *
+ * Here rather than in the route, because `composition-render-route.test.js`
+ * holds the rule that one place owns every statement against this table —
+ * written after `updateRenderJob` interpolated caller-supplied object keys
+ * straight into column positions. A SELECT is harmless on its own; a second
+ * file that has learned to query this table is how the next one stops being.
+ *
+ * Done and with a file, because every caller wants the same thing: a render
+ * you can play. The share dialog and the public approval page both filter
+ * this way, and three places deciding separately what "finished" means is how
+ * a client is offered a card with nothing behind it.
+ */
+async function doneFor(compositionId, { limit = 20 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT id, composition_id, finished_at, output_url
+       FROM composition_renders
+      WHERE composition_id = $1 AND status = 'done' AND output_url IS NOT NULL
+      ORDER BY finished_at DESC NULLS LAST, id DESC
+      LIMIT $2`,
+    [compositionId, limit]
+  );
+  return rows;
+}
+
+/**
+ * Of these render ids, the ones that are finished AND belong to this client.
+ *
+ * Both halves in one query on purpose. The caller is minting a public share
+ * link, and `requireClientAccess` has only checked the client in the request
+ * path: it says nothing about ids in the body, and the public view that
+ * serves the link deliberately trusts the link. So this is the only place the
+ * tenancy of a shared render is established, and splitting it into "is it
+ * done" and "is it theirs" invites one of the two to be dropped.
+ */
+async function doneByIdsForClient(ids, clientId) {
+  if (!Array.isArray(ids) || !ids.length) return [];
+  const { rows } = await pool.query(
+    `SELECT r.id, r.composition_id, r.finished_at, r.output_url, c.title
+       FROM composition_renders r
+       JOIN compositions c ON c.id = r.composition_id
+      WHERE r.id = ANY($1) AND c.client_id = $2
+        AND r.status = 'done' AND r.output_url IS NOT NULL
+      ORDER BY r.finished_at ASC NULLS LAST, r.id ASC`,
+    [ids, clientId]
+  );
+  return rows;
+}
+
 /** How many renders are waiting or running, for a status line. */
 async function depth() {
   const { rows } = await pool.query(
@@ -329,6 +379,8 @@ async function depth() {
 
 module.exports = {
   CLAIM_SQL,
+  doneFor,
+  doneByIdsForClient,
   enqueue,
   recordPreflightFailure,
   claimNext,
