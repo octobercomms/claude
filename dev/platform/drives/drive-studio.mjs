@@ -85,8 +85,17 @@ const text = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, 
   // And neither is the section default by accident: Library is what you get
   // if the slug falls through, since defaultTab is compose — so check the
   // editor's own furniture is present rather than trusting the slug.
-  say(/Editor|Composition|composition/i.test(tc) || /Frame size/i.test(await text(c)),
-    'and it is the editor, not a fallback screen');
+  // Matched on the timeline, which is the editor's one irreducible part.
+  // This used to look for the card title "Editor" or the "Frame size" label,
+  // and both were cut on 9 November — the title named the screen you were
+  // already on, and the frame became a sentence. A marker chosen because it
+  // happened to be on screen breaks when the screen improves.
+  // Against the WHOLE page, not `tc`: that is the first 600 characters, kept
+  // short so the identity comparison above does not drown in the timeline's
+  // timecodes, and 600 characters of this app is still the nav rail.
+  const full = await text(c);
+  say(/TIMELINE/i.test(full), 'and it is the editor, not a fallback screen',
+    full.slice(0, 200));
   await a.close();
   await c.close();
 }
@@ -307,6 +316,62 @@ for (const [asked, want, row] of [
     t.match(/[\w.\- ]+added at [\d:]+/)?.[0] || 'no toast found');
   say(/SELECTED/.test(t), 'and the new item is selected, so a camera move is one more click');
 
+  await p.close();
+}
+
+// ── 10. The cuts ───────────────────────────────────────────────────────
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(700);
+  const t = await text(p);
+
+  // Autosave is 1500ms, Export flushes before it renders, and the state is
+  // displayed — three affordances for one fact, and this was the one that did
+  // nothing the other two did not.
+  say(!/Save now/.test(t), 'Save now is gone');
+  say(!/\bEditor\b/.test(t), 'and the card title that named the screen you are on');
+
+  // Seven chips for two values nobody changes mid-edit, permanently on
+  // screen. A sentence, with the decision one click away.
+  say(/1080 x 1920 · 30fps/.test(t), 'the frame is stated rather than offered');
+  say(!/24fps/.test(t) && !/16:9/.test(t), 'with its chips put away');
+  await p.locator('button', { hasText: /^Change$/ }).first().click();
+  await p.waitForTimeout(400);
+  const t2 = await text(p);
+  say(/24fps/.test(t2) && /16:9/.test(t2), 'and back on Change, so nothing was lost');
+
+  // The header row ran to x=1498 inside a card ending at 1400, which put
+  // "Save now" 58px outside a 1440 viewport.
+  const right = await p.evaluate(() => {
+    const btns = [...document.querySelectorAll('button')]
+      .filter(x => /Export|Share|Ripple/.test(x.textContent));
+    return btns.length ? Math.round(Math.max(...btns.map(x => x.getBoundingClientRect().right))) : null;
+  });
+  say(right != null && right < 1440, 'and the header row fits its viewport again',
+    `rightmost control at x=${right}, viewport 1440; it was 1498`);
+
+  await p.close();
+}
+
+// ── 11. Export asks one question ───────────────────────────────────────
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(700);
+  await p.locator('button', { hasText: /^Export$/ }).first().click();
+  await p.waitForTimeout(800);
+  // Scoped to the dialog: "Low" and "Medium" appear elsewhere on the page,
+  // and a page-wide match passed while the modal still carried its chips.
+  const modal = await p.locator('.modal, [role="dialog"]').first().innerText().catch(() => '');
+  const m = modal.replace(/\s+/g, ' ');
+  say(/Format/.test(m), 'the export dialog opens', m.slice(0, 120));
+  say(!/1080p|720p|480p/.test(m),
+    'and no longer offers three landscape resolutions to a 9:16 reel');
+  say(!/Medium/.test(m) && !/\bLow\b/.test(m),
+    'nor two ways to make a worse file');
+  say(/Est\. size/.test(m) || /Duration:/.test(m),
+    'while still saying what you are about to hand someone', m.slice(0, 160));
   await p.close();
 }
 

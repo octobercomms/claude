@@ -5,20 +5,20 @@ import { duration as compDuration } from '@shared/composition.mjs';
 
 // ── Resolution presets ──────────────────────────────────────────────────────
 
+// Kept as a table of one, rather than inlined, because the size estimate reads
+// its bitrate and the backend still takes a quality name. Medium and Low were
+// removed from the UI, not from the protocol.
 const QUALITY_OPTIONS = [
   { value: 'high',   label: 'High',   crf: 18, bitrateKbps: 8000 },
-  { value: 'medium', label: 'Medium', crf: 23, bitrateKbps: 4000 },
-  { value: 'low',    label: 'Low',    crf: 28, bitrateKbps: 2000 },
 ];
 
+// One preset. The three landscape ones are gone: every template in this
+// product is 1080x1920, and a reel exported at 1920x1080 is a ruined reel.
 function resolutionPresets(comp) {
   const w = comp.size?.width || 1080;
   const h = comp.size?.height || 1920;
   return [
     { value: 'native', label: `Match composition (${w}x${h})`, width: w, height: h },
-    { value: '1080p',  label: '1080p (1920x1080)', width: 1920, height: 1080 },
-    { value: '720p',   label: '720p (1280x720)',   width: 1280, height: 720  },
-    { value: '480p',   label: '480p (854x480)',     width: 854,  height: 480  },
   ];
 }
 
@@ -54,8 +54,12 @@ export default function ExportModal({ compId, composition, onClose }) {
 
   const [phase, setPhase] = useState(PHASE.CONFIGURE);
   const [format] = useState('mp4');
-  const [resolution, setResolution] = useState('native');
-  const [quality, setQuality] = useState('high');
+  // Constants, not state. Both controls are gone (see the comment where they
+  // used to render) and the request still carries them, because the backend's
+  // contract has not changed and narrowing it is a separate decision with its
+  // own migration of expectations.
+  const resolution = 'native';
+  const quality = 'high';
   const [progress, setProgress] = useState(0);
   const [outputUrl, setOutputUrl] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -202,35 +206,23 @@ export default function ExportModal({ compId, composition, onClose }) {
               </select>
             </div>
 
-            {/* Resolution */}
-            <div className="field" style={{ marginBottom: 'var(--s4)' }}>
-              <label className="body-xs text-subtle" style={{ display: 'block', marginBottom: 'var(--s1)' }}>
-                Resolution
-              </label>
-              <select className="input" value={resolution}
-                onChange={(e) => setResolution(e.target.value)}
-                style={{ width: '100%', fontSize: 'var(--fs-body)' }}>
-                {presets.map(p => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </select>
-            </div>
+            {/* Resolution and quality are gone, and the capability is not.
+                The export still sends both; it sends the only answers worth
+                sending.
 
-            {/* Quality */}
-            <div className="field" style={{ marginBottom: 'var(--s4)' }}>
-              <label className="body-xs text-subtle" style={{ display: 'block', marginBottom: 'var(--s1)' }}>
-                Quality
-              </label>
-              <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
-                {QUALITY_OPTIONS.map(q => (
-                  <button key={q.value} type="button"
-                    className={`btn-chip${quality === q.value ? ' is-active' : ''}`}
-                    onClick={() => setQuality(q.value)}>
-                    {q.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                Resolution offered four presets and three of them were
+                LANDSCAPE — 1920x1080, 1280x720, 854x480 — for a product whose
+                every template is 1080x1920. Offering a reel an export at
+                1920x1080 is offering to ruin it, and a control whose wrong
+                answers outnumber its right one is a trap rather than a choice.
+                It matches the composition now, which is what "native" always
+                was.
+
+                Quality offered High, Medium and Low. An agency sending client
+                work exports at High every time; the other two exist to make a
+                worse file. The size estimate stays, because knowing what you
+                are about to hand someone is useful, and it is now a statement
+                rather than the consequence of a decision nobody makes.  */}
 
             {/* Estimate */}
             <div className="body-xs text-muted" style={{

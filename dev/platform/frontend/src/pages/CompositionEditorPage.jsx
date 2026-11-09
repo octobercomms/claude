@@ -124,6 +124,7 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [showFrame, setShowFrame] = useState(false);
   const [ripple, setRipple] = useState(false);
   const compositorRef = useRef(null);
   const fileRef = useRef(null);
@@ -1112,7 +1113,8 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
         <div>
           <div className="card" style={{ padding: 'var(--s4)' }}>
             <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
-              <h3 className="title">Editor</h3>
+              {/* No "Editor" title: it names the screen you are already on,
+                  inside the application whose nav row for it is lit. */}
               <div className="row center" style={{ gap: 'var(--s1)' }}>
                 <button type="button" className="btn-chip" title="Undo (Ctrl+Z)"
                   disabled={!canUndo} onClick={undo}
@@ -1150,10 +1152,12 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
                   onClick={() => setShareOpen(true)} disabled={!compId}>
                   Share
                 </button>
-                <button type="button" className="btn btn-secondary btn-sm"
-                  onClick={() => doSave(compId)} disabled={saveStatus === 'saving'}>
-                  {saveStatus === 'saving' ? 'Saving...' : 'Save now'}
-                </button>
+                {/* "Save now" is gone. The editor autosaves at 1500ms, Export
+                    flushes before it renders, and the save state is displayed
+                    and now says something when it fails — three affordances
+                    for one fact, and this was the one that did nothing the
+                    other two did not. Removing it also takes a button off a
+                    header row that overflowed its own card at 1440px. */}
               </div>
             </div>
 
@@ -1447,32 +1451,47 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
 
             {/* Composition settings */}
             <div style={{ marginBottom: 'var(--s3)' }}>
-              <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>Frame size</div>
-              <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
-                {SIZE_PRESETS.map(p => (
-                  <button key={p.label} type="button"
-                    className={`btn-chip${W === p.w && H === p.h ? ' is-active' : ''}`}
-                    onClick={() => setSize(p.w, p.h)}>
-                    {p.label}
-                  </button>
-                ))}
+              {/* Seven chips became a sentence, and the capability stayed.
+                  Frame size and frame rate are new-project decisions, not
+                  editing ones: every template in this product is 1080x1920 at
+                  30fps, nobody changes the rate mid-edit, and a control that
+                  is permanently on screen for a value nobody touches teaches
+                  the eye to skip that whole corner.
+                  They open on Change, which is the honest shape: the decision
+                  is rare, so it costs one click, and until then the panel
+                  states what the composition IS rather than offering to
+                  re-decide it. */}
+              <div className="row between center">
+                <span className="body-xs text-subtle" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {W} x {H} · {fps}fps
+                </span>
+                <button type="button" className="btn-link body-xs"
+                  onClick={() => setShowFrame(v => !v)}>
+                  {showFrame ? 'Done' : 'Change'}
+                </button>
               </div>
-              <div className="body-xs text-muted" style={{ marginTop: 'var(--s1)' }}>
-                {W} x {H}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 'var(--s3)' }}>
-              <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>Frame rate</div>
-              <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
-                {FPS_OPTIONS.map(f => (
-                  <button key={f} type="button"
-                    className={`btn-chip${fps === f ? ' is-active' : ''}`}
-                    onClick={() => setFps(f)}>
-                    {f}fps
-                  </button>
-                ))}
-              </div>
+              {showFrame && (
+                <div style={{ marginTop: 'var(--s2)' }}>
+                  <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' }}>
+                    {SIZE_PRESETS.map(p => (
+                      <button key={p.label} type="button"
+                        className={`btn-chip${W === p.w && H === p.h ? ' is-active' : ''}`}
+                        onClick={() => setSize(p.w, p.h)}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap', marginTop: 'var(--s1)' }}>
+                    {FPS_OPTIONS.map(f => (
+                      <button key={f} type="button"
+                        className={`btn-chip${fps === f ? ' is-active' : ''}`}
+                        onClick={() => setFps(f)}>
+                        {f}fps
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {hasSources && (
