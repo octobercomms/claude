@@ -513,6 +513,78 @@ looks like it should return. `services/compositions.js` selects the whole row
 including `data`, and the editor opens `list[0]` without a second fetch, so
 every assertion about the editor passed against an empty composition.
 
+## The design review before items 4 and 5, 9 November
+
+Run under `.claude/agents/ux-critic.md` for the first time, against the
+running app at four widths. It changed the plan, and three of its findings
+are corrections to things recorded earlier in this file.
+
+**The media bin as scoped would have broken the screen.** At 1440px, a normal
+laptop, the stage's player cell is 284px. Insert the mockup's 240px bin beside
+it and the player cell becomes **28px**; at 1600 it becomes 124px. A bin
+beside the stage is survivable only at 1920 and wider. So "the small version
+first" was not a cheap first step but a regression that destroys the only
+thing on screen being judged.
+
+**It retracted its own three-zone design, and said why.** That design put the
+transcript in the centre column. In a 9:16 product the centre column is the
+*narrowest* part of the page, and a transcript four words wide is not an edit
+surface. Its words: it imported Premiere's landscape assumption, which is the
+fault it had accused the mockup of. `.studio-stage` as shipped — frame plus
+verdict — is better than its three zones and should stay.
+
+**What it proposes instead:** one full-width strip between the transport and
+the timeline, 600px at 1440 rather than 240, next to the timeline where the
+material is going, with two states (Material, and later Transcript). It pays
+for its 130px of vertical with the hero that build-order step 2 already
+removes.
+
+**And the finding that reorders everything: there is no way at all to put
+material OMI already owns into the Studio.** Not an awkward path. None.
+`+ Add clip` reads local disk, `+ Add design` takes design pages, the b-roll
+picker fills planned cutaway slots. So the agreed sentence about recording
+and the result landing in the project was false twice over, and the second
+half is the one that mattered.
+
+### Two corrections to this file
+
+- Asset ids are **UUIDs** (`migrations/212_client_assets.sql:23`), so an
+  unnamed timeline block renders truncated hex rather than the integer
+  recorded earlier. The integer was `composition_renders`, which is SERIAL.
+- The timeline has **three** controls today (Fit, −, +), not eight. The
+  eight-button toolbar exists only in build-order step 4, so cutting it is
+  cutting a plan.
+
+## Built, 9 November: the three things ranked above the bin
+
+**Names on the timeline.** `sourceNames` was computed at load and spent in one
+place, the inspector heading, so the clip you had selected was named and the
+block you were looking at was not. One prop. A lane now reads
+`atlas-walkthrough.mp4 · showroom-01.jpg · showroom-02.jpg`, verified in a
+browser.
+
+**The black player, which was the precondition for the bin.**
+`compositions.fromRecording` writes `asset: <id>` and no url, because a
+recording lives behind `mediaStore` under a storage key. `loadFromRow` filled
+`sourceUrls` only from `src.url`. So "Send to Edit" on the Record tab opened a
+correct timeline over a black player while the render was fine — the renderer
+has resolved by asset id through `assetMedia` since the same fault was found
+on its side.
+
+`GET /api/assets/:id/file` is the browser's half: behind `assetAccess`, inline
+rather than an attachment, `nosniff`, and it honours a Range header so a
+`<video>` can seek. An uploaded asset redirects to the path it already has
+rather than adding a second way of serving the uploads tree. **Every future
+way into a composition reproduced this fault without it**, because anything
+picked from a library is an id, not a path.
+
+**The save state.** 12px grey, and "Save failed" rendered in exactly the same
+size, weight and colour as "Saved": you had to read the DOM to tell which. Now
+failure is the only one that shouts, says what it means for your work ("only
+in this tab") and offers a retry. The other three stay quiet on purpose,
+because a tool that congratulates itself every 1500ms trains you to stop
+reading the one message that matters.
+
 ## Faults found while auditing, worth fixing in passing
 
 - **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is

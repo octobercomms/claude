@@ -540,6 +540,15 @@ jobs:
       # passed against an empty composition.
       - name: Guard — the drives run against something real
         run: node tests/drive-fixtures.test.js
+      # "Send to Edit" on the Record tab opened a correct timeline over a
+      # BLACK player: the editor drew a source from its `url`, and
+      # `compositions.fromRecording` writes an asset id and no url, because a
+      # recording lives behind mediaStore under a storage key. The renderer
+      # had resolved by asset id for weeks. This is the browser's half, and it
+      # matters past recordings — anything picked from the library is an id,
+      # so every future way into a composition reproduces the fault without it.
+      - name: Guard — the editor can see the media it owns
+        run: node tests/asset-file-route.test.js
       # A brief is what was agreed before a build started, and docs/omi/briefs/
       # exists because one that lived only as a chat link was lost: the Produce
       # studio layout was agreed, mocked, and then production shipped six

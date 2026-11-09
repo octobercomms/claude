@@ -42,9 +42,37 @@ function tickStep(pps) {
 
 export { TRACK_H, RULER_H, TRACK_GAP, TRACK_LABEL_W };
 
+/**
+ * What to write on a block.
+ *
+ * The name first, then what the thing is, then the id as a last resort. An id
+ * is a true answer to "which source is this" and a useless one to "which clip
+ * is this", which is the question somebody scanning a lane is asking.
+ *
+ * `design` and `captions` keep their kind words rather than a file name: a
+ * design block is one page of a set and a captions block is derived from
+ * another source, so neither has a name of its own worth more than the word.
+ */
+export function labelFor(src, item, names = {}) {
+  const named = names[item.source];
+  if (src?.kind === 'design') return 'Design';
+  if (src?.kind === 'captions') return 'Captions';
+  if (src?.kind === 'fx') return src.fx || 'Effect';
+  if (named) return named;
+  if (src?.kind === 'audio') return src.asset ? String(src.asset) : 'Audio';
+  return String(src?.asset || item.source);
+}
+
 export default function CompositionTimeline({
   composition,
   sourceUrls = {},
+  // What each source is called, which the editor has always known and never
+  // handed over. Without it a lane reads `11 | 12 | 13` — or, once the asset
+  // ids are the UUIDs they really are, a row of truncated hex. The editor
+  // computes these names at load and spends them in exactly one place, the
+  // inspector heading, so the clip you are looking at is named and the block
+  // you are looking at is not.
+  sourceNames = {},
   onChange,
   playhead = 0,
   onSeek,
@@ -575,11 +603,7 @@ export default function CompositionTimeline({
                         background: 'linear-gradient(to bottom, var(--surface) 0%, var(--surface) 62%, transparent 100%)',
                       }}>
                         <div style={{ fontWeight: 700 }}>
-                          {src?.kind === 'clip' ? (src.asset || item.source)
-                            : src?.kind === 'audio' ? (src.asset || 'Audio')
-                            : src?.kind === 'design' ? 'Design'
-                            : src?.kind === 'captions' ? 'Captions'
-                            : item.source}
+                          {labelFor(src, item, sourceNames)}
                         </div>
                         <div className="text-subtle">
                           {PB.timecode(item.len, fps)}

@@ -12,6 +12,7 @@ const { loadVisibleClientIds, requireClientAccess, assertClientAccess,
   requireAdmin } = require('../middleware/clientAccess');
 const assets = require('../services/assets');
 const pool = require('../db');
+const mediaStore = require('../services/mediaStore');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -137,6 +138,62 @@ async function assetAccess(req, res, next) {
 }
 
 router.get('/assets/:id', assetAccess, (req, res) => res.json(req.asset));
+
+/**
+ * The bytes of one asset, for a browser.
+ *
+ * The composition editor draws a source from a url. `compositions.fromRecording`
+ * writes a source with an `asset` and NO url, because a recording has none: it
+ * lives behind `mediaStore` under a `storage_key`. So "Send to Edit" on the
+ * Record tab opened the Studio with a correct timeline and a black player,
+ * while the render would have been fine — the renderer resolves by asset id
+ * through `assetMedia` and has done since that bug was found on its side.
+ *
+ * This is the browser's half of that. Every future way of putting material
+ * into a composition — the media bin above all — reproduces the same fault
+ * without it, because an asset picked from the library is an id, not a path.
+ *
+ * `assetAccess` has already refused an asset whose client the caller cannot
+ * see, which is the whole of the tenancy question: an asset belongs to exactly
+ * one client.
+ *
+ * Range requests are honoured, because a `<video>` that cannot seek is a
+ * player with a dead scrub bar. On R2 the redirect hands that to the object
+ * store; on disk `openRead` takes the range itself.
+ */
+router.get('/assets/:id/file', assetAccess, async (req, res) => {
+  const asset = req.asset;
+  try {
+    // An uploaded asset already has a servable path, and it is the one every
+    // existing composition carries. Redirecting keeps one way of serving the
+    // uploads tree rather than adding a second.
+    if (asset.url) return res.redirect(asset.url);
+    if (!asset.storage_key) return res.status(404).json({ error: 'This asset has no file.' });
+
+    const signed = await mediaStore.signedGetUrl(asset.storage_key, 3600).catch(() => null);
+    if (signed) return res.redirect(signed);
+
+    const range = req.headers.range || undefined;
+    const got = await mediaStore.openRead(asset.storage_key, range);
+    res.set('Content-Type', got.mime || asset.mime || 'application/octet-stream');
+    // Inline, not an attachment: this is for a <video src>, not a download.
+    // With nosniff, so a file whose stored mime is wrong cannot be reinterpreted
+    // as something executable.
+    res.set('Content-Disposition', 'inline');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Accept-Ranges', 'bytes');
+    if (range && got.start != null && got.end != null && got.size) {
+      res.status(206);
+      res.set('Content-Range', `bytes ${got.start}-${got.end}/${got.size}`);
+      res.set('Content-Length', String(got.end - got.start + 1));
+    } else if (got.size) {
+      res.set('Content-Length', String(got.size));
+    }
+    got.stream.pipe(res);
+  } catch (err) {
+    res.status(err.code === 'ENOENT' ? 404 : 500).json({ error: err.message });
+  }
+});
 
 // Archive, never delete. A scheduled post holding this id must still be able to
 // resolve it, and "we made this and dropped it" is worth knowing when the same

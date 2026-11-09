@@ -203,11 +203,29 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     setSelectedId(null);
     setSelectedTrackId(null);
 
+    // A source may know where its media is in one of two ways, and until now
+    // the editor only understood one of them.
+    //
+    // An uploaded clip carries a `url`. A RECORDING does not:
+    // `compositions.fromRecording` writes `asset: <id>` and nothing else,
+    // because a recording lives behind `mediaStore` under a storage key and
+    // has no servable path. So "Send to Edit" on the Record tab opened a
+    // correct timeline over a BLACK player, while the render was fine all
+    // along — the renderer resolves by asset id through `assetMedia`.
+    //
+    // `/api/assets/:id/file` is the browser's half of that, and it matters
+    // beyond recordings: anything picked from the library is an id, so every
+    // future way into a composition reproduces the fault without it.
+    //
+    // The url wins when both exist. It is what every existing composition
+    // carries, it is already in the uploads tree, and going through the asset
+    // route instead would add a redirect to the common case.
     const urls = {};
     const names = {};
     if (data.sources) {
       for (const [sid, src] of Object.entries(data.sources)) {
         if (src.url) urls[sid] = src.url;
+        else if (src.asset) urls[sid] = `/api/assets/${src.asset}/file`;
         names[sid] = src.originalName || src.url?.split('/').pop() || 'Clip';
       }
     }
@@ -850,9 +868,19 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     return <div style={{ padding: 'var(--s6)', textAlign: 'center', color: 'var(--text-muted)' }}>Loading editor...</div>;
   }
 
-  const saveLabel = saveStatus === 'saving' ? 'Saving...'
-    : saveStatus === 'unsaved' ? 'Unsaved'
-    : saveStatus === 'error' ? 'Save failed' : 'Saved';
+  // In a tool where every edit is autosaved, the save state is the trust
+  // surface, and it was the quietest thing on the page: 12px, grey, and
+  // "Save failed" rendered in exactly the same size, weight and colour as
+  // "Saved". You had to read the DOM to tell which one you were looking at.
+  //
+  // So failure is the only one that shouts, and it says what to do. The other
+  // three stay quiet on purpose: a tool that congratulates itself every 1500ms
+  // trains you to stop reading the one message that matters.
+  const save = saveStatus === 'saving' ? { label: 'Saving…', tone: 'text-subtle' }
+    : saveStatus === 'unsaved' ? { label: 'Unsaved', tone: 'text-muted' }
+      : saveStatus === 'error'
+        ? { label: 'Not saved', tone: 'negative', detail: 'Your last change is only in this tab.' }
+        : { label: 'Saved', tone: 'text-subtle' };
 
   return (
     <div style={{ marginTop: 'var(--s4)' }}
@@ -876,8 +904,28 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
           <button type="button" className="btn btn-secondary btn-sm" onClick={createNew}>
             + New
           </button>
-          <span className="body-xs text-subtle" style={{ marginLeft: 'auto' }}>
-            {saveLabel}
+          <span className={save.tone === 'negative' ? 'body-xs' : `body-xs ${save.tone}`}
+            role={save.tone === 'negative' ? 'alert' : undefined}
+            style={{
+              marginLeft: 'auto',
+              display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)',
+              ...(save.tone === 'negative' ? {
+                color: 'var(--negative)', fontWeight: 700,
+                background: 'var(--negative-soft)',
+                padding: '2px var(--s2)', borderRadius: 'var(--r-pill)',
+              } : {}),
+            }}>
+            {save.tone === 'negative' && <span aria-hidden="true">!</span>}
+            {save.label}
+            {save.detail && (
+              <>
+                <span className="text-subtle" style={{ fontWeight: 400 }}>{save.detail}</span>
+                <button type="button" className="btn btn-secondary btn-sm"
+                  onClick={() => doSave(compId)} disabled={!compId}>
+                  Try again
+                </button>
+              </>
+            )}
           </span>
         </div>
       )}
@@ -924,6 +972,7 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
               composition={composition}
               onChange={setComposition}
               sourceUrls={sourceUrls}
+              sourceNames={sourceNames}
               playhead={playhead}
               onSeek={setPlayhead}
               selectedId={selectedId}

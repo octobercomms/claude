@@ -189,6 +189,48 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 7. The three things the design review ranked above the media bin ────
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1600, height: 1000 });
+  await p.waitForTimeout(800);
+
+  // (a) Names on the timeline. It read `11 | 12 | 13` — the editor computes
+  // every one of these at load and spent them in one place, the inspector
+  // heading, so the clip you had selected was named and the block you were
+  // looking at was not.
+  const labels = await p.evaluate(() => [...document.querySelectorAll('div')]
+    .filter(d => d.style.fontWeight === '700' && d.textContent && d.textContent.length < 60
+      && d.parentElement && d.parentElement.style.pointerEvents === 'none')
+    .map(d => d.textContent.trim()));
+  say(labels.length >= 3, 'the timeline draws labels on its blocks', JSON.stringify(labels));
+  say(labels.includes('atlas-walkthrough.mp4') && labels.includes('showroom-01.jpg'),
+    'and they are the file names, not the ids', JSON.stringify(labels));
+  say(!labels.some(l => /^\d+$/.test(l) || /^[0-9a-f]{8}-/.test(l)),
+    'and no block is labelled with a database id', JSON.stringify(labels));
+
+  // (b) A failed save looks like a failure. The stub serves no PUT, so the
+  // autosave genuinely fails here — which is why this is checkable at all,
+  // and it is the state that used to render in the same size, weight and
+  // colour as "Saved".
+  const t = await text(p);
+  say(/Not saved/.test(t), 'a failed save says so');
+  say(/only in this tab/.test(t), 'and says what it means for your work');
+  say(/Try again/.test(t), 'and offers a way out');
+  const alert = await p.evaluate(() => {
+    const el = [...document.querySelectorAll('span')]
+      .find(s => /Not saved/.test(s.textContent) && s.getAttribute('role') === 'alert');
+    if (!el) return null;
+    const cs = getComputedStyle(el);
+    return { weight: cs.fontWeight, colour: cs.color };
+  });
+  say(!!alert && Number(alert.weight) >= 700,
+    'and is not the same 12px grey as every other state',
+    JSON.stringify(alert));
+
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
