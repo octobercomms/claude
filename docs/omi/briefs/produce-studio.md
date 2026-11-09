@@ -1614,6 +1614,84 @@ column. **The Studio is the one screen in OMI that should be denser than the
 house**, and that is a decision about the design system rather than this
 screen. It is with Daniel, not taken.
 
+## Built, 9 November: Daniel's three answers
+
+Asked after the conformance pass; answered **"splitter for the timeline,
+verdict chip in the bar, keep light"**.
+
+### Light stays light
+
+No work. It is what ships, and decision 3 stands. The open question was
+whether the mockup's dark default changed the economics, and it does not:
+staying light also means nobody has to redraw the mockup's light tokens,
+which are broken as drawn (white clip labels on pale lane fills).
+
+### A splitter, not a cap
+
+The timeline is content-sized in our build and in the mockup, which only
+looks settled because the mockup draws exactly six lanes. Each lane costs
+52px, so a reel grows a track and the picture shrinks. An editor whose
+picture resizes when you add a track is an editor you stop trusting.
+
+A draggable separator between the picture and the timeline, remembered in
+the browser under `omi.studio.timelineHeight`. Default is unchanged: the
+timeline stays `auto` until somebody drags it, so the screen that shipped is
+the screen that still loads. Dragged, the timeline keeps its height and
+**scrolls its own lanes** rather than growing into the picture. Double-click
+or Home gives it back to its content; the arrow keys move it, Shift by a
+lane.
+
+**Both floors are measured, and one was wrong first.** 132px of timeline is
+the toolbar, the ruler and one lane. The picture's floor was set at 160px of
+row and the clamp held correctly — at which point the picture was **68px
+wide**, because a 9:16 picture takes nine-sixteenths of the height it is
+given. 240px of row, about 135px of picture, is the floor now.
+
+**Two bugs found by driving it rather than reading it.**
+
+1. `onDoubleClick` was bound and never once fired. `preventDefault` on
+   pointerdown — which the drag needs, or it selects the text of the whole
+   page — suppresses the compatibility click and dblclick that follow. The
+   reset is detected in pointerdown, by the gap between two presses.
+2. Even then it failed, because a press that moved nothing was committing
+   the height under the pointer. That shifted the handle a few pixels, and
+   the second press of a double-click landed on the timeline instead of the
+   handle. A press that moves nothing now changes nothing, which is also
+   what anyone expects of a separator.
+
+### The verdict, in the bar
+
+Reel checks are the inspector's last group, which is where the mockup puts
+them and is right for the detail. It is wrong for the ANSWER. Measured:
+select a clip, which is the first thing anyone does, and the Reel checks
+heading sits **832px into a 654px panel**. The one line that says whether
+the reel is any good was off screen on the screen that exists to give it.
+
+One line in the bar beside the save state, coloured by the worst check,
+clicking it scrolls the inspector to the group and puts the keyboard on the
+first check.
+
+**It is reported by the panel, not recomputed.** The bar could have called
+`checkReel` itself; it would then disagree with the list underneath it the
+first time either side changed, and the panel merges the client's tracked
+terms into the edit before judging. `ReelChecks` takes an `onResult`, and
+the drive **compares the two numbers on the page** rather than assuming they
+match.
+
+### What the guards cost, and what they caught
+
+Twenty-one new assertions across two sections, all geometric or behavioural.
+Mutation-checked, three ways: removing the picture floor (`113px → 25px`),
+making the chip count differ from the panel's (`bar "7 of 10" against panel
+"6 OF 10"`), and letting a press that moves nothing commit a height
+(`344px before the click, 352px after`). Each fails exactly one assertion
+and names what it saw.
+
+One of those mutations passed at first and the test was rewritten rather
+than accepted: a double-click performed near the timeline's content height
+moves the handle so little that the broken code still resets. The invariant
+is now asserted directly, from a dragged state.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
