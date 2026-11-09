@@ -774,6 +774,97 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 15. The keys fire after you click the thing you want to edit ─────────
+//
+// Measured on the shipped build: click a clip, the inspector opens, press
+// Delete — nothing. Press S — nothing. The editing keys lived on the timeline
+// lane's own keydown and fired only when that div had DOM focus, and clicking
+// a CLIP does not focus it; clicking the ruler does. So the keys worked or
+// did not depending on where you last clicked, and the loser was whoever
+// clicked the thing they wanted to edit. Tab did not reach the lane either,
+// in forty presses. Meanwhile the timeline printed a paragraph underneath
+// itself telling you to press those keys.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(900);
+  const blocks = () => p.evaluate(() => [...document.querySelectorAll('div')]
+    .filter(d => d.style.fontWeight === '700' && d.parentElement
+      && d.parentElement.style.pointerEvents === 'none')
+    .map(d => d.textContent.trim()));
+  const pick = async (name) => {
+    const hit = await p.evaluate((n) => {
+      const label = [...document.querySelectorAll('div')]
+        .find(d => d.textContent.trim() === n && d.style.fontWeight === '700');
+      let el = label;
+      for (let i = 0; i < 6 && el; i++) {
+        if (getComputedStyle(el).position === 'absolute'
+          && el.getBoundingClientRect().width > 20) {
+          const r = el.getBoundingClientRect();
+          return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        }
+        el = el.parentElement;
+      }
+      return null;
+    }, name);
+    if (hit) { await p.mouse.click(hit.x, hit.y); await p.waitForTimeout(350); }
+    return hit;
+  };
+  const focused = () => p.evaluate(() => document.activeElement.tagName);
+
+  await pick('showroom-01.jpg');
+  say(await focused() === 'BODY',
+    'clicking a clip still does not focus the timeline lane',
+    'which is the fault these assertions are about: the keys must not depend on it');
+
+  const before = await blocks();
+  await p.keyboard.press('Delete');
+  await p.waitForTimeout(500);
+  const after = await blocks();
+  say(before.includes('showroom-01.jpg') && !after.includes('showroom-01.jpg'),
+    'Delete removes the clip you clicked',
+    `${JSON.stringify(before)} → ${JSON.stringify(after)} — this did nothing at all`);
+
+  // Split, and the half that was being thrown away: the new piece is the one
+  // selected, so you can cut, move on, cut again and delete the middle.
+  const counted = async () => (await blocks()).length;
+  await pick('atlas-walkthrough.mp4');
+  const n0 = await counted();
+  await p.keyboard.press('ArrowRight');
+  for (let i = 0; i < 12; i += 1) await p.keyboard.press('ArrowRight');
+  await p.waitForTimeout(300);
+  await p.keyboard.press('s');
+  await p.waitForTimeout(600);
+  const n1 = await counted();
+  say(n1 === n0 + 1, 'S splits the selected clip at the playhead',
+    `${n0} blocks → ${n1}`);
+  const lengths = await p.evaluate(() => {
+    const rows = [...document.querySelectorAll('tr')];
+    const row = rows.find(r => r.textContent.includes('At'));
+    return row ? row.textContent.replace(/\s+/g, ' ').trim() : null;
+  });
+  say(!!lengths && !/00:00:00/.test(lengths),
+    'and the piece left selected is the SECOND one',
+    `${lengths} — splitItem has always returned the new id and the handler threw `
+    + 'it away, so you were left holding the half you had already finished with');
+
+  // The playhead, with one meaning for the arrows.
+  const timecode = () => p.evaluate(() => {
+    const el = [...document.querySelectorAll('*')]
+      .find(e => e.children.length === 0 && /^\d\d:\d\d:\d\d \/ \d\d:\d\d:\d\d/.test(e.textContent.trim()));
+    return el ? el.textContent.trim().split('/')[0].trim() : null;
+  });
+  const t0 = await timecode();
+  await p.keyboard.press('Shift+ArrowRight');
+  await p.waitForTimeout(400);
+  const t1 = await timecode();
+  say(!!t0 && !!t1 && t0 !== t1, 'Shift and an arrow move the playhead a second',
+    `${t0} → ${t1} — the shortcut panel promised this and Compositor.jsx `
+    + 'explicitly ignored shifted arrows, so it had never once worked');
+
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();

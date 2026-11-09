@@ -4,46 +4,51 @@ import React, { useCallback, useEffect, useRef } from 'react';
  * Keyboard-shortcut reference panel for the composition editor.
  *
  * Toggle with the `?` key; close with Escape or clicking outside.
- * Reads every shortcut that Compositor.jsx and CompositionTimeline.jsx
- * actually handle, plus planned J/K/L playback-speed controls.
+ * Reads every shortcut the editor's window key handler actually implements.
  */
 
+// What the editor actually handles, checked against the window handler in
+// CompositionEditorPage rather than remembered.
+//
+// This list used to promise two shortcuts that did not exist — Shift and an
+// arrow to move the playhead a second, which `Compositor.jsx` explicitly
+// ignored — and to file S, Delete and the arrows under "select an item on
+// the timeline first", which was not the condition that was failing: those
+// keys fired only when the timeline LANE had focus, and clicking a clip does
+// not focus it. A reference that is wrong is worse than none, because it
+// sends you looking for your own mistake.
 const SHORTCUT_GROUPS = [
   {
     label: 'Playback',
     shortcuts: [
       { keys: ['Space'], desc: 'Play / Pause' },
-      { keys: ['K'], desc: 'Pause' },
-      // TODO: wire J/K/L variable-speed playback in Compositor.jsx
-      { keys: ['J'], desc: 'Step backward' },
-      { keys: ['L'], desc: 'Play forward' },
+      { keys: ['K'], desc: 'Play / Pause' },
+      { keys: ['J'], desc: 'Step back one frame' },
+      { keys: ['L'], desc: 'Play' },
     ],
   },
   {
     label: 'Navigation',
     shortcuts: [
-      { keys: ['←'], desc: 'Step back 1 frame' },
-      { keys: ['→'], desc: 'Step forward 1 frame' },
-      { keys: ['Shift', '←'], desc: 'Move playhead back 1 second' },
-      { keys: ['Shift', '→'], desc: 'Move playhead forward 1 second' },
+      { keys: ['←'], desc: 'Playhead back one frame' },
+      { keys: ['→'], desc: 'Playhead forward one frame' },
+      { keys: ['Shift', '←'], desc: 'Playhead back one second' },
+      { keys: ['Shift', '→'], desc: 'Playhead forward one second' },
     ],
   },
   {
     label: 'Editing',
-    note: 'Select an item on the timeline first',
+    note: 'These act on the selected clip, from anywhere on the page',
     shortcuts: [
-      { keys: ['S'], desc: 'Split item at playhead' },
-      { keys: ['R'], desc: 'Toggle ripple edit mode' },
-      { keys: ['Delete'], desc: 'Remove selected item' },
-      { keys: ['['], desc: 'Set in-point at playhead' },
-      { keys: [']'], desc: 'Set out-point at playhead' },
-      { keys: [','], desc: 'Nudge item left one frame' },
-      { keys: ['.'], desc: 'Nudge item right one frame' },
-      { keys: ['← / →'], desc: 'Nudge item by 0.1 s' },
-      { keys: ['Shift', '← / →'], desc: 'Nudge item by 1 s' },
-      { keys: ['Alt', '← / →'], desc: 'Trim item end' },
-      { keys: ['Alt', 'Shift', '← / →'], desc: 'Trim item end by 1 s' },
-      { keys: ['Escape'], desc: 'Cancel drag' },
+      { keys: ['S'], desc: 'Split at the playhead' },
+      { keys: ['Delete'], desc: 'Remove the clip' },
+      { keys: ['['], desc: 'Trim the start to the playhead' },
+      { keys: [']'], desc: 'Trim the end to the playhead' },
+      { keys: [','], desc: 'Move the clip back one frame' },
+      { keys: ['.'], desc: 'Move the clip forward one frame' },
+      { keys: ['Shift', ', / .'], desc: 'Move the clip by one second' },
+      { keys: ['R'], desc: 'Toggle ripple edit' },
+      { keys: ['Escape'], desc: 'Cancel a drag' },
     ],
   },
   {
@@ -51,7 +56,7 @@ const SHORTCUT_GROUPS = [
     shortcuts: [
       { keys: ['Ctrl', 'Z'], desc: 'Undo' },
       { keys: ['Ctrl', 'Shift', 'Z'], desc: 'Redo' },
-      { keys: ['?'], desc: 'Toggle this shortcuts panel' },
+      { keys: ['?'], desc: 'Toggle this panel' },
     ],
   },
 ];

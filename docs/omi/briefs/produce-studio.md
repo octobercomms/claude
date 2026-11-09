@@ -953,6 +953,56 @@ overrides on a `.btn-link` are gone.
 Six drive assertions, and removing the rule fails two of them with the old
 measurements in the message.
 
+## Built, 9 November: the keys fire after you click the thing you want to edit
+
+The second of three changes for step 4, and the fault underneath it.
+
+**Measured on the shipped build: click a clip, press Delete, nothing happens.
+Press S, nothing happens.** The editing keys lived on the timeline lane's own
+`onKeyDown`, which fires only when that div has DOM focus — and clicking a
+CLIP does not focus it. Clicking the ruler does. So whether the editing keys
+worked depended on where you last clicked, and the loser was whoever clicked
+the thing they wanted to edit. The lane was not reachable with Tab either, in
+forty presses. Meanwhile the timeline printed a paragraph underneath itself
+telling you to press exactly those keys.
+
+Selection is a property of the document, not of which div has focus. S, Delete
+and the arrows are on the window handler now, beside `[`, `]`, `,`, `.` and
+Ctrl+Z, which have always worked from anywhere.
+
+**One meaning for the arrows.** They used to mean three different things
+depending on focus: nothing, a frame step in the player, or a 0.1s item nudge
+on the lane. They step the playhead now, always, because scrubbing is the
+constant act. **Shift and an arrow moves a second** — which the shortcut
+reference has promised since it was written while `Compositor.jsx` explicitly
+ignored shifted arrows, so it had never once worked. `,` and `.` keep the item
+nudge and gain the same Shift second, so there is one vocabulary for "a frame"
+and "a second".
+
+**Split selects the tail.** `splitItem` has always returned `{ comp, id }`
+where `id` is the new second piece, and the timeline's handler destructured
+only `comp` and threw the id away, leaving you holding the half you had
+finished with. Cut, move on, cut again, delete the middle is the gesture.
+
+Smaller things in the same change: K toggles rather than being a second pause
+(the compositor already toggled it, so it was handled twice); Space works
+without the player having focus, and leaves a focused button its own space
+bar; `role="application"` on the lane became `role="group"`, because it no
+longer handles its own keys and telling a screen reader otherwise is a lie;
+and three ripple imports that were never called are gone.
+
+**The shortcut panel is true now.** It promised two shortcuts that did not
+exist, carried a TODO about planned J/K/L, and filed S, Delete and the arrows
+under "select an item on the timeline first" — which was not the condition
+that was failing. A reference that is wrong is worse than none, because it
+sends you looking for your own mistake.
+
+Five drive assertions, each shown to fail against the old code: clicking a
+clip still does not focus the lane (which is the point — the keys must not
+depend on it), Delete removes the clip you clicked, S splits at the playhead,
+the piece left selected is the second one, and Shift with an arrow moves a
+second.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
