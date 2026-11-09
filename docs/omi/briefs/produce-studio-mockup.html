@@ -1,0 +1,1348 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>OMI Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* OMI Studio: four-panel NLE layout, dark-first */
+:root {
+  --bg: #1a1a1f;
+  --bg-panel: #222228;
+  --bg-surface: #2a2a32;
+  --bg-raised: #32323c;
+  --bg-hover: #3a3a46;
+  --bg-selected: rgba(0, 200, 180, 0.12);
+  --border: #3a3a44;
+  --border-subtle: #2e2e38;
+  --text: #e8e8ec;
+  --text-secondary: #a0a0b0;
+  --text-muted: #6a6a7a;
+  --accent: #00c8b4;
+  --accent-hover: #00dcc6;
+  --accent-soft: rgba(0, 200, 180, 0.15);
+  --accent-dim: #009080;
+  --danger: #e84057;
+  --warning: #f0a030;
+  --success: #30c060;
+  --track-video: #4a7aff;
+  --track-audio: #40c070;
+  --track-text: #e080d0;
+  --track-design: #f0a030;
+  --playhead: #ff4060;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --fs-xs: 10px;
+  --fs-sm: 11px;
+  --fs-base: 12px;
+  --fs-md: 13px;
+  --r: 4px;
+  --r-lg: 6px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f0f0f4;
+    --bg-panel: #ffffff;
+    --bg-surface: #f5f5f8;
+    --bg-raised: #eaeaf0;
+    --bg-hover: #e0e0e8;
+    --bg-selected: rgba(0, 160, 140, 0.1);
+    --border: #d8d8e0;
+    --border-subtle: #e8e8ee;
+    --text: #1a1a24;
+    --text-secondary: #5a5a6a;
+    --text-muted: #8a8a9a;
+    --accent: #009a88;
+    --accent-hover: #00b8a4;
+    --accent-soft: rgba(0, 160, 140, 0.1);
+    --accent-dim: #007a6a;
+    --track-video: #3a6aee;
+    --track-audio: #28a050;
+    --track-text: #c060b0;
+    --track-design: #d08820;
+    --playhead: #e02040;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f0f0f4;
+  --bg-panel: #ffffff;
+  --bg-surface: #f5f5f8;
+  --bg-raised: #eaeaf0;
+  --bg-hover: #e0e0e8;
+  --bg-selected: rgba(0, 160, 140, 0.1);
+  --border: #d8d8e0;
+  --border-subtle: #e8e8ee;
+  --text: #1a1a24;
+  --text-secondary: #5a5a6a;
+  --text-muted: #8a8a9a;
+  --accent: #009a88;
+  --accent-hover: #00b8a4;
+  --accent-soft: rgba(0, 160, 140, 0.1);
+  --accent-dim: #007a6a;
+  --track-video: #3a6aee;
+  --track-audio: #28a050;
+  --track-text: #c060b0;
+  --track-design: #d08820;
+  --playhead: #e02040;
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  padding: 0;
+}
+
+.studio {
+  display: grid;
+  grid-template-rows: 36px 1fr auto;
+  height: 100%;
+  min-height: 0;
+}
+
+/* === Top bar === */
+.topbar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+  gap: 2px;
+  z-index: 10;
+}
+.topbar-brand {
+  font-weight: 700;
+  font-size: var(--fs-md);
+  color: var(--accent);
+  margin-right: 12px;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+.topbar-brand span { color: var(--text); font-weight: 500; }
+.topbar-tabs {
+  display: flex;
+  gap: 1px;
+}
+.topbar-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 10px;
+  border-radius: var(--r);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 80ms;
+  line-height: 1;
+}
+.topbar-tab:hover { background: var(--bg-hover); color: var(--text); }
+.topbar-tab.active { background: var(--bg-surface); color: var(--accent); }
+.topbar-tab svg { width: 16px; height: 16px; stroke-width: 1.5; }
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.topbar-right .project-name {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin-right: 8px;
+}
+.topbar-right .save-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--success);
+  display: inline-block;
+  margin-right: 2px;
+}
+
+/* === Main area (three panels) === */
+.main {
+  display: grid;
+  grid-template-columns: 240px 1fr 260px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* === Left panel: Media bin === */
+.panel-left {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.panel-header h3 {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.panel-search {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r);
+  padding: 3px 8px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  font-family: var(--font);
+  outline: none;
+}
+.panel-search:focus { border-color: var(--accent); }
+.panel-search::placeholder { color: var(--text-muted); }
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  padding: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.media-thumb {
+  aspect-ratio: 16/9;
+  background: var(--bg-surface);
+  border-radius: var(--r);
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  border: 1px solid transparent;
+  transition: border-color 80ms;
+}
+.media-thumb:hover { border-color: var(--accent); }
+.media-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.media-thumb .duration {
+  position: absolute;
+  bottom: 2px; right: 3px;
+  font-size: 9px;
+  font-family: var(--mono);
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 0 3px;
+  border-radius: 2px;
+  line-height: 1.4;
+}
+.media-thumb .badge {
+  position: absolute;
+  top: 2px; left: 3px;
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 0 3px;
+  border-radius: 2px;
+  line-height: 1.6;
+}
+.badge-added { background: var(--accent); color: #000; }
+.badge-audio { background: var(--track-audio); color: #000; }
+.media-thumb-inner {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.media-name {
+  font-size: 9px;
+  color: var(--text-muted);
+  padding: 2px 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Waveform-style thumb for audio */
+.audio-wave-thumb {
+  width: 80%; height: 40%;
+  display: flex; align-items: flex-end; gap: 1px;
+}
+.audio-wave-thumb .bar {
+  flex: 1;
+  background: var(--track-audio);
+  border-radius: 1px 1px 0 0;
+  opacity: 0.6;
+}
+
+/* === Centre: Player === */
+.panel-centre {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+.player-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  position: relative;
+  min-height: 0;
+}
+.player-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 9/16;
+  background: #111;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+.player-canvas .overlay-text {
+  position: absolute;
+  bottom: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  line-height: 1.3;
+  max-width: 80%;
+}
+.player-canvas .frame-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.transport-tc {
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: center;
+}
+.transport-tc.dim { color: var(--text-muted); }
+.transport-btn {
+  width: 28px; height: 28px;
+  border-radius: var(--r);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 80ms;
+}
+.transport-btn:hover { background: var(--bg-hover); color: var(--text); }
+.transport-btn.play-btn {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  color: #000;
+  border-radius: 50%;
+}
+.transport-btn.play-btn:hover { background: var(--accent-hover); }
+.transport-btn svg { width: 16px; height: 16px; }
+
+/* === Right panel: Inspector === */
+.panel-right {
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+.inspector-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.inspector-section h4 {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.inspector-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.inspector-row label {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  min-width: 60px;
+}
+.inspector-input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r);
+  padding: 3px 6px;
+  font-size: var(--fs-sm);
+  font-family: var(--mono);
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  max-width: 90px;
+}
+.inspector-input:focus { border-color: var(--accent); }
+.inspector-slider {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 3px;
+}
+.inspector-toggle {
+  display: flex;
+  gap: 2px;
+}
+.inspector-toggle button {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 80ms;
+}
+.inspector-toggle button:first-child { border-radius: var(--r) 0 0 var(--r); }
+.inspector-toggle button:last-child { border-radius: 0 var(--r) var(--r) 0; }
+.inspector-toggle button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* AI features panel */
+.ai-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ai-section h4 {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-btn {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  transition: all 80ms;
+}
+.ai-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.ai-btn svg { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
+
+/* === Bottom: Timeline === */
+.timeline-area {
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.timeline-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.tl-btn {
+  width: 24px; height: 24px;
+  border-radius: var(--r);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 80ms;
+}
+.tl-btn:hover { background: var(--bg-hover); color: var(--text); }
+.tl-btn.active { color: var(--accent); background: var(--accent-soft); }
+.tl-btn svg { width: 14px; height: 14px; }
+.tl-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
+.tl-label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0 4px;
+}
+.tl-zoom {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tl-zoom input[type="range"] {
+  width: 80px;
+  accent-color: var(--accent);
+  height: 3px;
+}
+
+.timeline-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Track headers */
+.track-headers {
+  width: 52px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.ruler-spacer {
+  height: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.track-header {
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  position: relative;
+}
+.track-header .track-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+.track-header .track-controls {
+  display: flex;
+  gap: 2px;
+}
+.track-ctrl {
+  width: 14px; height: 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  padding: 0;
+}
+.track-ctrl:hover { color: var(--text); background: var(--bg-hover); }
+.track-ctrl.muted { color: var(--danger); opacity: 0.6; }
+.track-ctrl svg { width: 10px; height: 10px; }
+.track-indicator {
+  position: absolute;
+  left: 0; top: 0; bottom: 0; width: 3px;
+}
+
+/* Timeline lanes */
+.timeline-lanes {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  min-width: 0;
+}
+.timeline-inner {
+  min-width: 100%;
+  width: 1200px;
+  position: relative;
+}
+
+/* Ruler */
+.ruler {
+  height: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+}
+.ruler-tick {
+  position: absolute;
+  bottom: 0;
+  font-size: 8px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.ruler-tick::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 1px;
+  height: 6px;
+  background: var(--border);
+}
+
+/* Track lanes */
+.track-lane {
+  height: 48px;
+  position: relative;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Timeline items (clips on tracks) */
+.tl-item {
+  position: absolute;
+  top: 3px;
+  height: calc(100% - 6px);
+  border-radius: var(--r);
+  overflow: hidden;
+  cursor: grab;
+  border: 1px solid transparent;
+  transition: border-color 80ms;
+  display: flex;
+  align-items: stretch;
+}
+.tl-item:hover { border-color: rgba(255,255,255,0.2); }
+.tl-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tl-item-inner {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  overflow: hidden;
+  min-width: 0;
+}
+.tl-item-label {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Filmstrip pattern (CSS only) */
+.tl-filmstrip {
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  overflow: hidden;
+  height: 100%;
+}
+.tl-filmstrip .frame {
+  flex: 1;
+  min-width: 20px;
+  max-width: 50px;
+}
+
+/* Waveform in audio items */
+.tl-waveform {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 60%;
+  padding: 0 2px;
+}
+.tl-waveform .bar {
+  flex: 1;
+  min-width: 1px;
+  border-radius: 1px 1px 0 0;
+  opacity: 0.7;
+}
+
+/* Caption blocks */
+.tl-caption-blocks {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  padding: 0 2px;
+  height: 100%;
+}
+.tl-caption-block {
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Playhead */
+.playhead-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--playhead);
+  z-index: 5;
+  pointer-events: none;
+}
+.playhead-head {
+  position: absolute;
+  top: -1px;
+  left: -5px;
+  width: 12px;
+  height: 10px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: var(--playhead);
+}
+
+/* Resize handles */
+.tl-handle {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+.tl-handle-left { left: 0; }
+.tl-handle-right { right: 0; }
+.tl-handle::after {
+  content: '';
+  position: absolute;
+  top: 30%; bottom: 30%;
+  left: 1px;
+  width: 2px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 1px;
+}
+
+/* Buttons */
+.btn-sm {
+  padding: 4px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 80ms;
+}
+.btn-sm:hover { border-color: var(--accent); }
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+.btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+/* Phone layout */
+@media (max-width: 768px) {
+  .main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+  .panel-left, .panel-right { display: none; }
+  .topbar-tabs { overflow-x: auto; }
+  .tl-zoom { display: none; }
+  .track-headers { width: 40px; }
+}
+</style>
+
+<div class="studio">
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-brand">OMI <span>Studio</span></div>
+    <div class="topbar-tabs">
+      <button class="topbar-tab active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+        Media
+      </button>
+      <button class="topbar-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Audio
+      </button>
+      <button class="topbar-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+        Text
+      </button>
+      <button class="topbar-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l1.5 4.5H18l-3.5 3 1.5 4.5L12 12l-4 3 1.5-4.5L6 7.5h4.5z"/></svg>
+        Effects
+      </button>
+      <button class="topbar-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Transitions
+      </button>
+      <button class="topbar-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h2M10 12h2M14 12h2"/></svg>
+        Captions
+      </button>
+      <button class="topbar-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="13.5" cy="6.5" r="2.5"/><path d="M17 15H7l3-4 2 2.5 3-3.5z"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        Designs
+      </button>
+      <button class="topbar-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+        Filters
+      </button>
+    </div>
+    <div class="topbar-right">
+      <span class="project-name">TSC Jananne Al-Ani</span>
+      <span class="save-dot"></span>
+      <span style="font-size:var(--fs-xs);color:var(--text-muted)">Saved</span>
+      <button class="btn-sm" style="margin-left:8px">Share</button>
+      <button class="btn-accent btn-sm">Export</button>
+    </div>
+  </div>
+
+  <!-- Main area -->
+  <div class="main">
+    <!-- Left: Media bin -->
+    <div class="panel-left">
+      <div class="panel-header">
+        <input class="panel-search" placeholder="Search media..." type="text">
+      </div>
+      <div style="display:flex;gap:1px;padding:4px 6px;flex-shrink:0">
+        <button class="tl-btn active" title="All"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+        <button class="tl-btn" title="Video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+        <button class="tl-btn" title="Audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/></svg></button>
+        <button class="tl-btn" title="Images"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        <span style="flex:1"></span>
+        <button class="tl-btn" title="Import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="tl-btn" title="Record"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></button>
+      </div>
+      <div class="media-grid" id="mediaGrid"></div>
+    </div>
+
+    <!-- Centre: Player -->
+    <div class="panel-centre">
+      <div class="player-area">
+        <div class="player-canvas" id="playerCanvas">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);display:flex;align-items:center;justify-content:center">
+            <div style="text-align:center;padding:20px">
+              <div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.1);margin:0 auto 12px;display:flex;align-items:center;justify-content:center">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              </div>
+              <div style="color:rgba(255,255,255,0.7);font-size:14px;font-weight:500;margin-bottom:4px">Half Flight</div>
+              <div style="color:rgba(255,255,255,0.35);font-size:11px">Jananne Al-Ani</div>
+            </div>
+          </div>
+          <div class="overlay-text">"There is something deeply human about the impulse to map"</div>
+        </div>
+      </div>
+      <div class="transport">
+        <span class="transport-tc">00:00:12:15</span>
+        <button class="transport-btn" title="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+        <button class="transport-btn" title="Step back"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg></button>
+        <button class="transport-btn play-btn" title="Play" id="playBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="transport-btn" title="Step forward"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6L13 6zM4 18l8.5-6L4 6v12z"/></svg></button>
+        <button class="transport-btn" title="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/></svg></button>
+        <span class="transport-tc dim">/ 00:00:32:01</span>
+        <div style="margin-left:12px;display:flex;gap:4px">
+          <button class="tl-btn" title="Fit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg></button>
+          <button class="tl-btn" title="Snapshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+          <button class="tl-btn" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Inspector -->
+    <div class="panel-right">
+      <div class="inspector-section">
+        <h4>Clip Properties</h4>
+        <div class="inspector-row">
+          <label>Position</label>
+          <input class="inspector-input" value="00:05:12" readonly>
+        </div>
+        <div class="inspector-row">
+          <label>Duration</label>
+          <input class="inspector-input" value="00:08:24" readonly>
+        </div>
+        <div class="inspector-row">
+          <label>In point</label>
+          <input class="inspector-input" value="00:02:10" readonly>
+        </div>
+        <div class="inspector-row">
+          <label>Source</label>
+          <span style="font-size:var(--fs-sm);color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Snapinsta_m6h80.mp4</span>
+        </div>
+      </div>
+
+      <div class="inspector-section">
+        <h4>Transform</h4>
+        <div class="inspector-row">
+          <label>Scale</label>
+          <input class="inspector-input" value="100%" readonly>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        </div>
+        <div class="inspector-row">
+          <label>Position</label>
+          <input class="inspector-input" style="max-width:60px" value="0" readonly>
+          <input class="inspector-input" style="max-width:60px" value="0" readonly>
+        </div>
+        <div class="inspector-row">
+          <label>Rotation</label>
+          <input class="inspector-input" value="0.0°" readonly>
+        </div>
+        <div class="inspector-row">
+          <label>Opacity</label>
+          <input type="range" class="inspector-slider" min="0" max="100" value="100">
+          <span style="font-size:var(--fs-xs);color:var(--text-muted);min-width:28px;text-align:right;font-variant-numeric:tabular-nums">100%</span>
+        </div>
+        <div class="inspector-row">
+          <label>Fit</label>
+          <div class="inspector-toggle">
+            <button>Fill</button>
+            <button class="active">Fit</button>
+            <button>Stretch</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="inspector-section">
+        <h4>Audio</h4>
+        <div class="inspector-row">
+          <label>Volume</label>
+          <input type="range" class="inspector-slider" min="0" max="400" value="100">
+          <span style="font-size:var(--fs-xs);color:var(--text-muted);min-width:28px;text-align:right;font-variant-numeric:tabular-nums">1.0</span>
+        </div>
+        <div class="inspector-row">
+          <label>Fade in</label>
+          <input class="inspector-input" value="0.0s" readonly>
+        </div>
+        <div class="inspector-row">
+          <label>Fade out</label>
+          <input class="inspector-input" value="0.0s" readonly>
+        </div>
+        <div class="inspector-row">
+          <label>Duck</label>
+          <div class="inspector-toggle">
+            <button>Off</button>
+            <button class="active">On</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-section">
+        <h4>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a4 4 0 014 4c0 1.1-.9 2-2 2h-4a2 2 0 01-2-2 4 4 0 014-4zM8 8v4m8-4v4M6 16h12M8 20h8"/><circle cx="9" cy="13" r="1" fill="currentColor"/><circle cx="15" cy="13" r="1" fill="currentColor"/></svg>
+          AI Tools
+        </h4>
+        <button class="ai-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          Transcribe clip
+        </button>
+        <button class="ai-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 3h6v6M14 10l6.16-6.16M9 21H3v-6M10 14l-6.16 6.16"/></svg>
+          Tighten (remove silence)
+        </button>
+        <button class="ai-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></svg>
+          Suggest B-roll
+        </button>
+        <button class="ai-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h2M10 12h2M14 12h2"/></svg>
+          Add captions
+        </button>
+        <button class="ai-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          Auto colour correct
+        </button>
+      </div>
+
+      <div class="inspector-section">
+        <h4>Reel Checks</h4>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-sm)">
+            <span style="color:var(--success)">&#10003;</span> Duration under 90s
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-sm)">
+            <span style="color:var(--success)">&#10003;</span> 9:16 aspect ratio
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-sm)">
+            <span style="color:var(--success)">&#10003;</span> Captions present
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-sm)">
+            <span style="color:var(--warning)">!</span>
+            <span style="color:var(--text-secondary)">Hook under 3s not verified</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline-area">
+    <div class="timeline-toolbar">
+      <button class="tl-btn" title="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10h10a5 5 0 010 10H9M3 10l4-4M3 10l4 4"/></svg></button>
+      <button class="tl-btn" title="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10H11a5 5 0 000 10h4M21 10l-4-4M21 10l-4 4"/></svg></button>
+      <span class="tl-sep"></span>
+      <button class="tl-btn" title="Split"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M4 12h4M16 12h4"/></svg></button>
+      <button class="tl-btn" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+      <button class="tl-btn" title="Crop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.13 1L6 16a2 2 0 002 2h15"/><path d="M1 6.13L16 6a2 2 0 012 2v15"/></svg></button>
+      <span class="tl-sep"></span>
+      <button class="tl-btn active" title="Ripple mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 3h6v6M14 10l6.16-6.16M9 21H3v-6M10 14l-6.16 6.16"/></svg></button>
+      <button class="tl-btn" title="Snap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10H3M21 6H3M21 14H3M21 18H3"/></svg></button>
+      <span class="tl-sep"></span>
+      <span class="tl-label">Ripple</span>
+      <div class="tl-zoom">
+        <button class="tl-btn" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg></button>
+        <input type="range" min="1" max="100" value="50">
+        <button class="tl-btn" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+        <button class="tl-btn" title="Fit all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg></button>
+      </div>
+    </div>
+
+    <div class="timeline-body">
+      <div class="track-headers">
+        <div class="ruler-spacer"></div>
+        <div class="track-header">
+          <div class="track-indicator" style="background:var(--track-text)"></div>
+          <span class="track-label">T1</span>
+          <div class="track-controls">
+            <button class="track-ctrl" title="Visible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="track-ctrl" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
+          </div>
+        </div>
+        <div class="track-header">
+          <div class="track-indicator" style="background:var(--track-video)"></div>
+          <span class="track-label">V1</span>
+          <div class="track-controls">
+            <button class="track-ctrl" title="Visible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="track-ctrl" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
+          </div>
+        </div>
+        <div class="track-header">
+          <div class="track-indicator" style="background:var(--track-video)"></div>
+          <span class="track-label">V2</span>
+          <div class="track-controls">
+            <button class="track-ctrl" title="Visible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="track-ctrl" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
+          </div>
+        </div>
+        <div class="track-header">
+          <div class="track-indicator" style="background:var(--track-video)"></div>
+          <span class="track-label">V3</span>
+          <div class="track-controls">
+            <button class="track-ctrl" title="Visible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="track-ctrl" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
+          </div>
+        </div>
+        <div class="track-header">
+          <div class="track-indicator" style="background:var(--track-design)"></div>
+          <span class="track-label">D1</span>
+          <div class="track-controls">
+            <button class="track-ctrl" title="Visible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="track-ctrl" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
+          </div>
+        </div>
+        <div class="track-header">
+          <div class="track-indicator" style="background:var(--track-audio)"></div>
+          <span class="track-label">A1</span>
+          <div class="track-controls">
+            <button class="track-ctrl" title="Mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg></button>
+            <button class="track-ctrl" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-lanes">
+        <div class="timeline-inner" id="timelineInner">
+          <!-- Ruler -->
+          <div class="ruler" id="ruler"></div>
+          <!-- Tracks rendered by JS -->
+          <div id="tracksContainer"></div>
+          <!-- Playhead -->
+          <div class="playhead-line" id="playheadLine" style="left:35%">
+            <div class="playhead-head"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const TOTAL_DURATION = 32;
+  const PPS = 36;
+  const TIMELINE_W = TOTAL_DURATION * PPS + 100;
+
+  const inner = document.getElementById('timelineInner');
+  inner.style.width = TIMELINE_W + 'px';
+
+  // Ruler ticks
+  const ruler = document.getElementById('ruler');
+  for (let t = 0; t <= TOTAL_DURATION; t += 2) {
+    const tick = document.createElement('div');
+    tick.className = 'ruler-tick';
+    tick.style.left = (t * PPS) + 'px';
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    tick.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    ruler.appendChild(tick);
+  }
+
+  // Track data
+  const tracks = [
+    {
+      kind: 'text', color: 'var(--track-text)',
+      items: [
+        { at: 0, len: 3, label: '"Th', bg: 'rgba(224,128,208,0.35)' },
+        { at: 3.2, len: 2.5, label: 'to map', bg: 'rgba(224,128,208,0.35)' },
+        { at: 6, len: 2, label: 'to go', bg: 'rgba(224,128,208,0.35)' },
+        { at: 8.5, len: 1.5, label: '', bg: 'rgba(224,128,208,0.35)' },
+        { at: 10.5, len: 2, label: 'Maps', bg: 'rgba(224,128,208,0.35)' },
+        { at: 13, len: 2, label: 'yet th', bg: 'rgba(224,128,208,0.35)' },
+        { at: 15.5, len: 2.5, label: 'of', bg: 'rgba(224,128,208,0.35)' },
+        { at: 18.5, len: 2, label: 'From', bg: 'rgba(224,128,208,0.35)' },
+        { at: 21, len: 2, label: 'the his', bg: 'rgba(224,128,208,0.35)' },
+        { at: 23.5, len: 3, label: 'organise an', bg: 'rgba(224,128,208,0.35)' },
+        { at: 27, len: 3, label: '', bg: 'rgba(224,128,208,0.35)' },
+      ]
+    },
+    {
+      kind: 'video', color: 'var(--track-video)',
+      items: [
+        { at: 0, len: 14, label: 'Half Flight by Jananne Al-Ani 1.jpg', bg: 'rgba(74,122,255,0.3)', selected: true },
+        { at: 14, len: 14, label: 'Half Flight by Jananne Al-Ani 4.jpg', bg: 'rgba(74,122,255,0.3)' },
+      ]
+    },
+    {
+      kind: 'video', color: 'var(--track-video)',
+      items: [
+        { at: 0, len: 14, label: 'Half Flight by Jananne Al-Ani 2.jpg', bg: 'rgba(74,122,255,0.25)' },
+        { at: 14, len: 14, label: 'Half Flight by Jananne Al-Ani 5.jpg', bg: 'rgba(74,122,255,0.25)' },
+      ]
+    },
+    {
+      kind: 'video', color: 'var(--track-video)',
+      items: [
+        { at: 0, len: 14, label: 'Half Flight by Jananne Al-Ani 3.jpg', bg: 'rgba(74,122,255,0.2)' },
+        { at: 14, len: 10, label: 'Half Flight by Jananne Al-Ani 6.jpg', bg: 'rgba(74,122,255,0.2)' },
+        { at: 24, len: 8, label: 'Half Flight featured.jpg', bg: 'rgba(74,122,255,0.2)' },
+      ]
+    },
+    {
+      kind: 'design', color: 'var(--track-design)',
+      items: [
+        { at: 28, len: 4, label: 'Cover', bg: 'rgba(240,160,48,0.3)' },
+      ]
+    },
+    {
+      kind: 'audio', color: 'var(--track-audio)',
+      items: [
+        { at: 0, len: 32, label: 'Space', bg: 'rgba(64,192,112,0.25)', wave: true },
+      ]
+    }
+  ];
+
+  const container = document.getElementById('tracksContainer');
+
+  tracks.forEach(function(track) {
+    const lane = document.createElement('div');
+    lane.className = 'track-lane';
+
+    track.items.forEach(function(item) {
+      const el = document.createElement('div');
+      el.className = 'tl-item' + (item.selected ? ' selected' : '');
+      el.style.left = (item.at * PPS) + 'px';
+      el.style.width = (item.len * PPS) + 'px';
+      el.style.background = item.bg;
+
+      if (item.wave) {
+        // Audio waveform
+        const wf = document.createElement('div');
+        wf.className = 'tl-waveform';
+        var barCount = Math.max(10, Math.floor(item.len * PPS / 3));
+        for (var b = 0; b < barCount; b++) {
+          var bar = document.createElement('div');
+          bar.className = 'bar';
+          var h = 15 + Math.random() * 75;
+          bar.style.height = h + '%';
+          bar.style.background = track.color;
+          wf.appendChild(bar);
+        }
+        el.appendChild(wf);
+        // Label overlay
+        var lbl2 = document.createElement('div');
+        lbl2.className = 'tl-item-label';
+        lbl2.style.position = 'absolute';
+        lbl2.style.bottom = '2px';
+        lbl2.style.left = '4px';
+        lbl2.textContent = item.label;
+        el.appendChild(lbl2);
+      } else if (track.kind === 'text') {
+        var inner2 = document.createElement('div');
+        inner2.className = 'tl-item-inner';
+        var cb = document.createElement('div');
+        cb.className = 'tl-caption-block';
+        cb.style.background = 'rgba(224,128,208,0.4)';
+        cb.style.color = '#fff';
+        cb.textContent = item.label;
+        inner2.appendChild(cb);
+        el.appendChild(inner2);
+      } else {
+        var inner3 = document.createElement('div');
+        inner3.className = 'tl-item-inner';
+        var lbl = document.createElement('div');
+        lbl.className = 'tl-item-label';
+        lbl.textContent = item.label;
+        inner3.appendChild(lbl);
+        el.appendChild(inner3);
+      }
+
+      // Resize handles
+      var hl = document.createElement('div');
+      hl.className = 'tl-handle tl-handle-left';
+      el.appendChild(hl);
+      var hr = document.createElement('div');
+      hr.className = 'tl-handle tl-handle-right';
+      el.appendChild(hr);
+
+      lane.appendChild(el);
+    });
+
+    container.appendChild(lane);
+  });
+
+  // Media grid
+  var mediaItems = [
+    { name: 'Half Flight...Al-Ani 2.jpg', type: 'image', badge: 'Added' },
+    { name: 'Snapinsta...m6h80.mp4', type: 'video', dur: '00:30' },
+    { name: 'pexels-cot...488233.jpg', type: 'image' },
+    { name: '2964554-u...25fps.mp4', type: 'video', dur: '00:33' },
+    { name: 'Recording...leaned.mp3', type: 'audio', dur: '00:41', badge: 'Audio' },
+    { name: 'Half Flight...Al-Ani 1.jpg', type: 'image', badge: 'Added' },
+    { name: 'Half Flight...featured.jpg', type: 'image', badge: 'Added' },
+    { name: 'Half Flight...Al-Ani 3.jpg', type: 'image', badge: 'Added' },
+    { name: 'Half Flight...Al-Ani 4.jpg', type: 'image', badge: 'Added' },
+    { name: 'Half Flight...Al-Ani 5.jpg', type: 'image', badge: 'Added' },
+    { name: 'Half Flight...Al-Ani 6.jpg', type: 'image', badge: 'Added' },
+    { name: 'Snapinsta...840wg.mp4', type: 'video', dur: '00:47', badge: 'Added' },
+  ];
+
+  var grid = document.getElementById('mediaGrid');
+  var gradients = [
+    'linear-gradient(135deg,#2a2040,#3a3050)',
+    'linear-gradient(135deg,#1e2a3a,#2a3a4a)',
+    'linear-gradient(135deg,#2a3020,#3a4030)',
+    'linear-gradient(135deg,#3a2a2a,#4a3a3a)',
+    'linear-gradient(135deg,#20303a,#30404a)',
+    'linear-gradient(135deg,#2a2a3a,#3a3a4a)',
+  ];
+
+  mediaItems.forEach(function(m, i) {
+    var wrap = document.createElement('div');
+
+    var thumb = document.createElement('div');
+    thumb.className = 'media-thumb' + (i === 1 ? ' selected' : '');
+
+    if (m.type === 'audio') {
+      thumb.style.background = 'var(--bg-surface)';
+      var waveDiv = document.createElement('div');
+      waveDiv.className = 'audio-wave-thumb';
+      waveDiv.style.width = '80%';
+      waveDiv.style.height = '40%';
+      waveDiv.style.margin = 'auto';
+      for (var k = 0; k < 20; k++) {
+        var bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = (10 + Math.random() * 80) + '%';
+        waveDiv.appendChild(bar);
+      }
+      var center = document.createElement('div');
+      center.className = 'media-thumb-inner';
+      center.appendChild(waveDiv);
+      thumb.appendChild(center);
+    } else {
+      thumb.style.background = gradients[i % gradients.length];
+    }
+
+    if (m.dur) {
+      var dur = document.createElement('div');
+      dur.className = 'duration';
+      dur.textContent = m.dur;
+      thumb.appendChild(dur);
+    }
+    if (m.badge) {
+      var badge = document.createElement('div');
+      badge.className = 'badge ' + (m.type === 'audio' ? 'badge-audio' : 'badge-added');
+      badge.textContent = m.badge;
+      thumb.appendChild(badge);
+    }
+
+    wrap.appendChild(thumb);
+
+    var name = document.createElement('div');
+    name.className = 'media-name';
+    name.textContent = m.name;
+    wrap.appendChild(name);
+
+    grid.appendChild(wrap);
+  });
+
+  // Playhead interaction
+  var playheadLine = document.getElementById('playheadLine');
+  var playing = false;
+  var playBtn = document.getElementById('playBtn');
+
+  playBtn.addEventListener('click', function() {
+    playing = !playing;
+    if (playing) {
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+    } else {
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    }
+  });
+
+  // Click on timeline to seek
+  var timelineLanes = document.querySelector('.timeline-lanes');
+  timelineLanes.addEventListener('click', function(e) {
+    var rect = inner.getBoundingClientRect();
+    var x = e.clientX - rect.left;
+    var pct = x / TIMELINE_W;
+    playheadLine.style.left = (pct * 100) + '%';
+  });
+})();
+</script>
+
+</body></html>
