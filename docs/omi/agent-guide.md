@@ -18,6 +18,16 @@
 > does not survive the session that heard it.** If he agrees something with
 > you, write it into `briefs/` in that same session.
 
+> **Any screen, flow or IA change goes past `ux-critic` before you build it,
+> and again before it ships.** It is a standing agent defined at
+> `.claude/agents/ux-critic.md`, and Daniel asked for it in these words: "i
+> want them to fight you on your ideas to ensure the UX and UI is as good as
+> the code you write." Brief it to bring design, not to audit yours: the first
+> time it ran it answered the questions it was asked, priced everything, and
+> said nothing about how the screen feels to work in, which is the engineer's
+> frame winning by default. On design its view outranks your convenience. It
+> never approves or merges.
+
 ---
 
 ## 1. What OMI is

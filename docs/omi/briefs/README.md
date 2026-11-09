@@ -34,6 +34,23 @@ The same mechanism is why `CLAUDE.md` points at `agent-guide.md`: a wrong line
 in that file survived six sessions unnoticed, because nothing loaded it and
 nothing tested it.
 
+## The design side of the same problem
+
+A brief stops the *decision* getting lost. It does nothing about the slower
+failure, which is a decision that survives into a build nobody judged as an
+experience. Code gets reviewed here; screens did not.
+
+So `.claude/agents/ux-critic.md` is a standing agent with the remit to hold
+the UX and UI bar and to argue against the easy route. Any screen, flow or IA
+change goes past it before being built and again before shipping. On design
+its view outranks the engineering agent's convenience; it never approves or
+merges, and Daniel decides.
+
+Brief it to bring design rather than to audit a plan. The first time it ran it
+answered exactly what it was asked, priced every item, and said nothing about
+how the screen feels to use. That is what happens when an engineer writes the
+brief, and it is recorded in the agent's own definition so it is not repeated.
+
 ## Current briefs
 
 | File | Covers | Status |

@@ -115,10 +115,14 @@ argument in decision 4 below, and he is right to:
 - **Produce collapses to Studio, Design, Library.** Make goes away. Record,
   Audio and Transcribe become actions inside the Studio, each opening a modal,
   with output landing in a Studio project.
-- **Dark theme is wanted.** "dark theme is ideal". This supersedes decision 3
-  below, which argued for a light palette with a dark canvas well. The
-  question left is scope, not whether: a dark Studio only, or `data-theme`
-  plus `prefers-color-scheme` across the app.
+- **Dark theme: asked for, then withdrawn, same day.** "dark theme is ideal",
+  then, once the rail-against-panel contrast problem was put to him, "lets
+  keep light theme then". **The app stays light.** No dark token block, no
+  `data-theme`, no scoped dark Studio. The player well stays black because it
+  already is and because a video preview belongs on black.
+  Both halves are recorded on purpose. A brief that keeps only the final
+  answer loses why it was reached, and the next session proposing a dark theme
+  should find the reason it was dropped rather than the fact that it was.
 - **Batch is open**: its own section, or a route inside the Studio.
 - **Visualise was not mentioned** and is not in his list of three. Unresolved.
 
@@ -136,13 +140,18 @@ argument in decision 4 below, and he is right to:
   captures with `getDisplayMedia`, which is not a phone capability, so phone
   capture for the agency was incidental rather than designed.
 - **"batch - desktop only."** So Batch stays its own rows and both go
-  `phone: false`. **This gives up phone approval of a batch**, which
-  `VideoBatchReviewPage` was built for and says so in its own header. Recorded
-  because it is a real capability being dropped, not an oversight.
-- **"studio projects might just be library? shall we rename to Projects?"**
-  See the project model below. The answer is that a project already exists as
-  a `compositions` row, and the thing stopping "the result sits in the
-  projects folder" from being true is smaller and more specific than a rename.
+  `phone: false`. I flagged that this gives up phone approval of a batch,
+  which `VideoBatchReviewPage` was built for and argues for in its own header.
+  His answer: **"tbh, i build everything on desktop - im not going to do that
+  much work on a phone."** So the capability was never used and the phone
+  argument in that file is obsolete. **OMI is a desktop application.** That is
+  the wider decision, and it settles the phone question for Produce rather
+  than only for Batch: `VideoBatchReviewPage`'s phone branch and its
+  `useIsPhone` become dead weight to remove, not a constraint to protect.
+- **"ok, keep calling it Library."** No rename. Library grows tabs (Assets,
+  Transcripts, Audio) and keeps its name. A project already exists as a
+  `compositions` row; the thing stopping "the result sits in the projects
+  folder" from being true is two missing function calls, below, not a label.
 
 **Open, and cheap for him to answer:** `can_use_visualise` is a per-user grant
 whose only purpose is to let a CLIENT into Visualise. If Produce is
@@ -164,8 +173,10 @@ be a composition with its own asset scope.
 in them is still what the replacement has to answer.** Decisions 5 to 9 stand
 until Daniel says otherwise.
 
-3. **Dark-first is a fork of the design system.** SUPERSEDED, and the cost in
-   it was wrong by about an order of magnitude. `.card` (`index.css:289`),
+3. **Dark-first is a fork of the design system.** WITHDRAWN by Daniel, 9
+   November: "lets keep light theme then." The app stays light. The cost
+   estimate in the original was wrong by about an order of magnitude and is
+   corrected below anyway, because a wrong number left in a file gets reused. `.card` (`index.css:289`),
    `.chip` (`:611`) and `.input/.select/.textarea` (`:1470`) are pure token
    consumers: `var(--surface)`, `var(--text)`, `var(--card-border)` and
    nothing else. Custom properties inherit, so redeclaring the tokens on a
@@ -257,11 +268,10 @@ tier, and only worth it when a standalone transcript needs to find its
 project. Both tables already have a nullable `client_id` for the standalone
 case (migrations 171 and 231).
 
-**On the rename:** Library today lists every asset for a client, not projects.
-Renaming it to Projects before it lists projects would be a label that lies,
-which is the fault this brief exists about. So: Library grows tabs (Assets,
-Transcripts, Audio) in one step, and becomes **Projects** in the step that
-gives it a project list as its first tab. Not before.
+**The rename is off.** "ok, keep calling it Library." It grows tabs (Assets,
+Transcripts, Audio) and keeps the name, which is the right outcome anyway:
+Library lists every asset for a client rather than projects, so Projects would
+have been a label that lies.
 
 **Transcribe is the one modal that does not work.** `AudioPage` is
 record-or-upload, one job, one result, which is modal-shaped. `TranscribePage`
