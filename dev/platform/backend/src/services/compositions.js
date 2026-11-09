@@ -95,4 +95,57 @@ async function remove(id) {
   await pool.query('DELETE FROM compositions WHERE id = $1', [id]);
 }
 
-module.exports = { create, list, get, update, remove };
+/**
+ * The composition a recording becomes when somebody presses "Send to Edit".
+ *
+ * Here rather than in the route so it can be checked against `validate()`
+ * without an HTTP server: the data an operator then edits for ten minutes is
+ * worth being sure about, and the equivalent recipe inside a route handler is
+ * the shape of thing this codebase has repeatedly found to be wrong in a way
+ * no test could reach.
+ *
+ * One clip, its whole length, marked `voice: true` — a recording is somebody
+ * talking, so it is the thing music should duck under rather than the thing
+ * that ducks.
+ *
+ * `duration_s` is missing on older recordings, and an item needs a positive
+ * length, so a default stands in and the SOURCE is left without a duration
+ * rather than claiming one. The operator trims it in the editor, which is the
+ * point of sending it there.
+ */
+const DEFAULT_LENGTH_S = 30;
+
+function fromRecording(recording, asset) {
+  const seconds = Number(recording?.duration_s);
+  const known = Number.isFinite(seconds) && seconds > 0;
+  const length = known ? Math.round(seconds * 100) / 100 : DEFAULT_LENGTH_S;
+  return {
+    version: 1,
+    size: { width: 1080, height: 1920 },
+    fps: 30,
+    sources: {
+      s1: {
+        kind: 'clip',
+        asset: asset.id,
+        ...(known ? { duration: length } : {}),
+        voice: true,
+      },
+    },
+    tracks: [{
+      id: 't0',
+      kind: 'video',
+      items: [{
+        id: 'i1',
+        at: 0,
+        len: length,
+        source: 's1',
+        in: 0,
+        reason: `From the recording "${recording?.title || 'Untitled'}"`,
+      }],
+    }],
+  };
+}
+
+module.exports = {
+  fromRecording,
+  DEFAULT_LENGTH_S, create, list, get, update, remove };

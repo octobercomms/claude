@@ -339,10 +339,21 @@ describe('the render path wires captions into the graph', () => {
     );
   });
 
-  it('releases the compiled ASS when the render process ends', () => {
+  it('releases the compiled ASS when the render process ends, either way', () => {
+    // The handler's NAME is not the guarantee — it was `release` and is now
+    // `letGo`, because it also lets go of any source copy streamed down from
+    // the media store. What matters is that both ffmpeg outcomes trigger it:
+    // a batch of thirty renders would otherwise leave thirty temp files, and
+    // on an R2 install each one is a whole video.
+    const handler = runner.match(/ff\.once\('close', (\w+)\)/);
+    assert.ok(handler, 'something is released when ffmpeg closes');
     assert.match(
-      runner, /ff\.once\('close', release\)/,
-      'a batch of thirty renders would otherwise leave thirty temp files'
+      runner, new RegExp(`ff\\.once\\('error', ${handler[1]}\\)`),
+      'and when it fails to start, which is the path that leaks quietly'
+    );
+    assert.match(
+      runner, new RegExp(`const ${handler[1]} = \\(\\) => \\{[\\s\\S]*?unlink\\(captionAssPath\\)`),
+      'and what it releases includes the ASS file'
     );
   });
 

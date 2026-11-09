@@ -24,6 +24,10 @@ export default function ClientVideoTab() {
   const [tab, setTab] = useScreen('produce');
   const [client, setClient] = useState(null);
   const [clientLoading, setClientLoading] = useState(true);
+  // Which composition the editor should open when something hands one over.
+  // Null means "whatever the editor would have picked", which is the
+  // behaviour for somebody opening the tab directly.
+  const [openCompId, setOpenCompId] = useState(null);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}).finally(() => setClientLoading(false)); }, [id]);
   useEffect(() => {
@@ -42,8 +46,20 @@ export default function ClientVideoTab() {
           <ScreenHeading title="Produce" />
         </div>
       </header>
-      {tab === 'compose' && !readOnly && <CompositionEditorPage clientId={id} />}
-      {tab === 'record' && <RecordingsPage clientId={id} onSendToEdit={() => setTab('compose')} />}
+      {/* WHICH composition to open, not just which tab. Both handoffs into
+          the editor used to switch the tab and nothing else, and the editor
+          opens the first row of its own list — so "Send to Edit" and "Open in
+          editor" landed on whatever was newest, which for the review sheet
+          was reliably the wrong item. */}
+      {tab === 'compose' && !readOnly && (
+        <CompositionEditorPage clientId={id} openId={openCompId} />
+      )}
+      {tab === 'record' && (
+        <RecordingsPage
+          clientId={id}
+          onSendToEdit={(compId) => { setOpenCompId(compId || null); setTab('compose'); }}
+        />
+      )}
       {tab === 'design' && !readOnly && (
         <Suspense fallback={<div className="card" style={{ marginTop: 'var(--s4)' }}>Loading the editor…</div>}>
           <ClientDesignPage clientId={id} />
@@ -54,7 +70,10 @@ export default function ClientVideoTab() {
       {tab === 'audio' && !readOnly && <AudioPage clientId={id} />}
       {tab === 'batch' && !readOnly && <VideoBatchPage clientId={id} />}
       {tab === 'batch_review' && !readOnly && (
-        <VideoBatchReviewPage clientId={id} onOpenInEditor={() => setTab('compose')} />
+        <VideoBatchReviewPage
+          clientId={id}
+          onOpenInEditor={(compId) => { setOpenCompId(compId || null); setTab('compose'); }}
+        />
       )}
       {tab === 'library' && (
         <div className="card" style={{ marginTop: 'var(--s4)' }}>

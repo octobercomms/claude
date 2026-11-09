@@ -703,6 +703,65 @@ router.post('/clients/:clientId/analyse-reference',
     }
   });
 
+// ── A composition from a recording ──────────────────────────────────
+//
+// "Send to Edit" on the Record tab posted to `/edit/clients/:id/edit/
+// from-recording`, and `routes/edit.js` was deleted in the November rewrite,
+// so the button had answered with a toast ever since.
+//
+// It was never only a missing route. A recording does not live in the uploads
+// tree: it is behind `mediaStore` under a `storage_key`, and the render path
+// resolved only `/api/brand/file/<client>/<name>` urls, so a composition
+// pointing at one could be built and never rendered. `assetMedia` in the
+// renderer service resolves both stores now, and the runner holds the temp
+// copy until ffmpeg closes.
+
+router.post('/clients/:clientId/compositions/from-recording',
+  requireClientAccess({ paramNames: ['clientId'] }),
+  async (req, res) => {
+    try {
+      const { recording_id: recordingId } = req.body || {};
+      if (!recordingId) return res.status(400).json({ error: 'recording_id is required' });
+
+      const { rows } = await db.query(
+        'SELECT id, client_id, title, duration_s, status FROM recordings WHERE id = $1',
+        [recordingId]
+      );
+      const rec = rows[0];
+      // Scoped to the client whose tab this is, not merely to a logged-in
+      // user: a recording id is guessable and a recording is somebody's face.
+      if (!rec || String(rec.client_id) !== String(req.params.clientId)) {
+        return res.status(404).json({ error: 'Recording not found' });
+      }
+      if (rec.status !== 'ready') {
+        return res.status(409).json({ error: 'That recording is still processing.' });
+      }
+
+      const asset = await assets.bySource('recording', String(rec.id));
+      if (!asset) {
+        return res.status(409).json({
+          error: 'That recording is not in the library yet, so there is nothing to edit.',
+        });
+      }
+
+      // The recipe is in the service so it can be checked against
+      // `validate()` without an HTTP server.
+      const data = compositions.fromRecording(rec, asset);
+
+      const comp = await compositions.create({
+        clientId: req.params.clientId,
+        createdBy: req.user?.id || null,
+        title: rec.title || 'From a recording',
+        data,
+        sourceAssets: { s1: asset.id },
+      });
+      res.json(comp);
+    } catch (err) {
+      console.error('[compose] from-recording failed:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
 // ── Video templates (the eight shipped shapes) ──────────────────────
 
 /**
