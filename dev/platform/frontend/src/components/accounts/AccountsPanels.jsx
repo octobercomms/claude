@@ -87,7 +87,7 @@ function TaxRateSelect({ value, onChange, taxRates }) {
 // ---------------------------------------------------------------------------
 
 export function DashboardPanel() {
-  const { toast } = useToast();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -189,7 +189,7 @@ export function DashboardPanel() {
 
 export function ReconcilePanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const { accounts: xeroAccounts, taxRates: xeroTaxRates } = useXeroRefData();
   const [stats, setStats] = useState(null);
   const [items, setItems] = useState([]);
@@ -644,7 +644,7 @@ export function ReconcilePanel() {
 
 export function RulesPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const { accounts: xeroAccounts, taxRates: xeroTaxRates } = useXeroRefData();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -840,7 +840,7 @@ export function RulesPanel() {
 
 export function InvoicesPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [missing, setMissing] = useState([]);
   const [allInvoices, setAllInvoices] = useState([]);
@@ -1085,7 +1085,7 @@ export function InvoicesPanel() {
 
 export function DeadlinesPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
@@ -1277,7 +1277,7 @@ export function DeadlinesPanel() {
 
 export function VatPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const [exceptions, setExceptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState(null);
@@ -1537,7 +1537,7 @@ export function VatPanel() {
 
 export function DigestsPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const [digests, setDigests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
@@ -1718,7 +1718,7 @@ export function DigestsPanel() {
 
 export function DrivePanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const [status, setStatus] = useState(null);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2091,7 +2091,7 @@ export function DrivePanel() {
 
 export function XeroPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const location = useLocation();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2289,7 +2289,7 @@ function XeroReportTable({ report }) {
 }
 
 export function ReportsPanel() {
-  const { toast } = useToast();
+  const toast = useToast();
   const today = new Date().toISOString().split('T')[0];
   const [reportType, setReportType] = useState('pnl');
   const [fromDate, setFromDate] = useState(ukFinancialYearStart());
@@ -2370,7 +2370,7 @@ export function ReportsPanel() {
 
 export function FxPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const [events, setEvents] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2559,7 +2559,7 @@ export function FxPanel() {
 
 export function SuppliersPanel() {
   const { readOnly } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const { accounts: xeroAccounts, taxRates: xeroTaxRates } = useXeroRefData();
   const [suppliers, setSuppliers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -2931,7 +2931,7 @@ export function SuppliersPanel() {
 // ---------------------------------------------------------------------------
 
 export function ExtensionPanel() {
-  const { toast } = useToast();
+  const toast = useToast();
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -3108,7 +3108,7 @@ export function ExtensionPanel() {
 // ---------------------------------------------------------------------------
 
 export function PrecodePanel() {
-  const { toast } = useToast();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -3226,7 +3226,7 @@ export function PrecodePanel() {
 // ---------------------------------------------------------------------------
 
 export function AuditPanel() {
-  const { toast } = useToast();
+  const toast = useToast();
   const [confirmations, setConfirmations] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
