@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "sources": {
+    "p1": {
+      "kind": "clip",
+      "asset": 501,
+      "still": true,
+      "width": 1080,
+      "height": 1920
+    },
+    "scrim": {
+      "kind": "fx",
+      "effect": "scrim",
+      "params": {
+        "start": 0.58,
+        "full": 0.84,
+        "strength": 0.68
+      }
+    },
+    "words": {
+      "kind": "captions",
+      "template": "gallery-quiet",
+      "perLine": 1,
+      "transcript": [
+        {
+          "word": "WHITE PLASTER, WHITE TYPE",
+          "start": 0.3,
+          "end": 3.5
+        }
+      ]
+    }
+  },
+  "tracks": [
+    {
+      "id": "t0",
+      "kind": "video",
+      "items": [
+        {
+          "id": "i1",
+          "at": 0,
+          "len": 4,
+          "source": "p1",
+          "reason": "the photograph"
+        }
+      ]
+    },
+    {
+      "id": "t1",
+      "kind": "video",
+      "items": [
+        {
+          "id": "f1",
+          "at": 0,
+          "len": 4,
+          "source": "scrim",
+          "reason": "so the type survives the wall"
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "kind": "video",
+      "items": [
+        {
+          "id": "c1",
+          "at": 0.3,
+          "len": 3.2,
+          "source": "words",
+          "reason": "the title"
+        }
+      ]
+    }
+  ]
+}

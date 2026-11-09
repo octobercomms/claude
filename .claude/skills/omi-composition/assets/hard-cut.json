@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "sources": {
+    "a": {
+      "kind": "clip",
+      "asset": 101,
+      "duration": 12,
+      "width": 1080,
+      "height": 1920,
+      "fps": 30
+    },
+    "b": {
+      "kind": "clip",
+      "asset": 102,
+      "duration": 9,
+      "width": 1080,
+      "height": 1920,
+      "fps": 30
+    }
+  },
+  "tracks": [
+    {
+      "id": "t0",
+      "kind": "video",
+      "items": [
+        {
+          "id": "i1",
+          "at": 0,
+          "len": 4,
+          "source": "a",
+          "in": 1.5,
+          "reason": "the wide, after the first second"
+        },
+        {
+          "id": "i2",
+          "at": 4,
+          "len": 3.5,
+          "source": "b",
+          "in": 0,
+          "reason": "the detail"
+        }
+      ]
+    }
+  ]
+}

@@ -471,6 +471,15 @@ jobs:
       # is the page lying about its own output.
       - name: Guard — the preview's mask and the render's agree
         run: node tests/composition-fx-agreement.test.js
+      # The agent skill is prose, which is the one thing here nothing
+      # compiles. This runs its four worked examples through the real model
+      # and the real graph, checks every identifier and path it names, and
+      # asserts that every field the validator reads is documented — so
+      # adding a field to the model fails CI until the skill says what it
+      # does. It also regenerates the published JSON Schema and fails if the
+      # committed file has drifted from the model it is built from.
+      - name: Guard — the composition skill and its schema are still true
+        run: node tests/composition-skill.test.js
       # The spoken shape of a reference: hook, problem, solution, call to
       # action. The labelling is a model's, and it is CHECKED against the
       # transcript — a span covering no words, a solution before its problem,
