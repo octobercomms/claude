@@ -1029,11 +1029,50 @@ the model changes and the template model.
 | 6 | The reference analyser | 4 to 6 | Turns ten reference reels into ten templates. Moved up: see below |
 | 7 | The QC gate | 2 to 3 | Needed before a batch runs unwatched twice |
 | 8 | The worker renders the composition model, **and `update.sh` learns to deploy it** | 3 to 5 | Moves thirty encodes off the app box. See the first trap |
-| 9 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor |
+| 9 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor. **Built 9 November: `.claude/skills/omi-composition/`, a generated JSON Schema, and a test that fails when either goes stale** |
 | 10 | The FX library, three to six effects | 4 to 6 | Nothing depends on it, so it goes late. **Built 9 November: the mechanism, three effects, the preview's copy of the mask** |
 | 11 | Spotlight and segmentation | 3 to 5 | The only genuinely hard effect. Last, and optional |
 
 Steps 2 and 4 are where this is won or lost.
+
+> **Built, 9 November: step 9.** `.claude/skills/omi-composition/SKILL.md`,
+> four worked examples in its `assets/`, and
+> `shared/composition.schema.json`.
+>
+> **The schema is GENERATED, not written.** `compositionSchema.mjs` reads
+> every vocabulary and every bound out of `composition.mjs` — which meant
+> exporting `SOURCE_KINDS`, `FIT_VALUES`, `TRACK_KINDS` and the five bounds
+> that were module-private — and the test regenerates it and compares byte
+> for byte. A hand-written schema is a second description of the model that
+> drifts from it, and a committed schema that has drifted is worse than none:
+> something reads it and believes it.
+>
+> **What a schema cannot say is said in the schema.** It describes the shape.
+> It cannot describe a picture on an audio track, a second caption source, an
+> item pointing at a source that is not there, or a transition with no overlap
+> behind it — which is most of the invariants that have actually broken a
+> render here. Its own `description` says so, because somebody will read the
+> file rather than the skill.
+>
+> **The skill is tested, which is the only reason to trust it.** Prose is the
+> one thing in this repo nothing compiles. So:
+> every worked example is run through the real model AND the real graph (an
+> example that validates but cannot render teaches how to break a render);
+> every identifier and file path it names is checked to exist; and every field
+> the validator reads must be documented, so adding a field to the model
+> fails CI until the skill says what it does.
+>
+> **It found a factual error in its own first draft.** The skill said `rot`
+> was "validated and never drawn", implying a render that quietly ignores it.
+> `renderGraph` THROWS on it — an honest refusal, because `rotate`'s output
+> box is init-only. Two smaller gaps as well: the skill named neither
+> `MOTION_NAMES` nor two of the three effects.
+>
+> The one off-the-shelf thing avoided: no JSON Schema validator is a declared
+> dependency of this project, so rather than a lockfile change for a test the
+> suite carries a 90-line checker for exactly the subset `buildSchema`
+> emits — and feeds it eight documents it has to refuse, so the checker is
+> checked.
 
 > **RE-SEQUENCED 8 November: step 8 must come before step 5.** The render
 > "queue" is not a queue. It is two module-level variables in

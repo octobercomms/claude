@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://platform.octobercomms.com/schema/composition-v1.json",
+  "title": "OMI Composition",
+  "description": "One Composition in, one ffmpeg filter_complex out. The same object drives the browser preview, so what validates here is what the export produces. GENERATED from shared/composition.mjs by shared/compositionSchema.mjs — do not edit by hand. This describes the SHAPE only: the rules that span more than one part of the document (a picture on an audio track, a second caption source, an item referencing a source that is not there, a transition with no overlap behind it) are checked by validate(), and the invariants the renderer enforces beyond that are in .claude/skills/omi-composition/SKILL.md.",
+  "type": "object",
+  "required": [
+    "version",
+    "size",
+    "fps",
+    "sources",
+    "tracks"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "const": 1,
+      "description": "The only version there is."
+    },
+    "size": {
+      "type": "object",
+      "description": "The frame every fraction in this document is a fraction of.",
+      "properties": {
+        "width": {
+          "type": "number",
+          "minimum": 1
+        },
+        "height": {
+          "type": "number",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "fps": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 120
+    },
+    "ducking": {
+      "type": "boolean",
+      "description": "Compress the music under the voice. Needs a source marked voice: true and something else to duck; which is the voice is a property of the source, never of its kind."
+    },
+    "sources": {
+      "type": "object",
+      "description": "Keyed by source id, which items reference.",
+      "additionalProperties": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "tracks": {
+      "type": "array",
+      "description": "Composited in array order: track 0 is the base and each later one overlays it.",
+      "items": {
+        "$ref": "#/$defs/track"
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "clip",
+            "design",
+            "audio",
+            "captions",
+            "fx"
+          ]
+        },
+        "asset": {
+          "description": "An asset id in client_assets. A clip or audio source needs this or url."
+        },
+        "url": {
+          "type": "string"
+        },
+        "project": {
+          "description": "A design project id. Required on a design source."
+        },
+        "effect": {
+          "type": "string",
+          "description": "Required on an fx source, and must name an effect in shared/compositionFx.mjs. The model accepts any string; the renderer refuses one it does not have."
+        },
+        "params": {
+          "type": "object",
+          "description": "An fx effect's own parameters."
+        },
+        "transcript": {
+          "description": "Required on a captions source. Either literal cues ([{ word, start, end }]) or the id of the clip source whose transcript to use."
+        },
+        "template": {
+          "type": "string",
+          "description": "A caption preset id from shared/captions/presets.json."
+        },
+        "perLine": {
+          "type": "number",
+          "description": "Words to a caption line. 1 keeps a supplied title whole."
+        },
+        "still": {
+          "type": "boolean",
+          "description": "This clip is a PHOTOGRAPH. It has no audio stream and its input needs looping, and the render gets both wrong without this."
+        },
+        "voice": {
+          "type": "boolean",
+          "description": "This is the narration everything else ducks under."
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "width": {
+          "type": "number",
+          "minimum": 1
+        },
+        "height": {
+          "type": "number",
+          "minimum": 1
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "track": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "items"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "video",
+            "audio"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "id",
+        "at",
+        "len",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "at": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Where it starts on the timeline, in seconds."
+        },
+        "len": {
+          "type": "number",
+          "minimum": 0.001,
+          "description": "How long it runs."
+        },
+        "source": {
+          "type": "string",
+          "description": "A key of `sources`."
+        },
+        "in": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Where to start inside the source."
+        },
+        "fit": {
+          "enum": [
+            "cover",
+            "contain"
+          ]
+        },
+        "gain": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "trans": {
+          "type": "object",
+          "description": "A transition INTO this item. It is an overlap: this item must start before the one before it on the same track ends, or there is no transition whatever this says.",
+          "properties": {
+            "type": {
+              "enum": [
+                "fade",
+                "fadeblack",
+                "wipeleft",
+                "dissolve"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": true
+        },
+        "scale": {
+          "description": "A multiplier of the frame.",
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 10
+            },
+            {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "number",
+                  "minimum": 0.01,
+                  "maximum": 10
+                },
+                "to": {
+                  "type": "number",
+                  "minimum": 0.01,
+                  "maximum": 10
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "pos": {
+          "description": "An offset from centre, as a fraction of the frame.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": -2,
+                  "maximum": 3
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": -2,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "x",
+                "y"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 3
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 3
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "additionalProperties": false
+                },
+                "to": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 3
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 3
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "rot": {
+          "description": "Degrees. The model accepts it and the RENDERER REFUSES IT: rotate's output box is init-only, so an animated rotation needs a construction that is not built. Do not put it on an item you intend to render.",
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": -360,
+              "maximum": 360
+            },
+            {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "number",
+                  "minimum": -360,
+                  "maximum": 360
+                },
+                "to": {
+                  "type": "number",
+                  "minimum": -360,
+                  "maximum": 360
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Why this item is here. Ignored by the renderer."
+        },
+        "beat": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Which camera move this is, for the review sheet."
+        },
+        "quote": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "The line of the brief this came from."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

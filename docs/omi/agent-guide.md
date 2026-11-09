@@ -2228,6 +2228,13 @@ Three phases:
      mask and `composition-fx-agreement.test.js` parses the shipped
      expression and holds the two against each other: a preview that
      disagrees with the export is the page lying about its output.
+   - **A skill for authoring a composition by hand**,
+     `.claude/skills/omi-composition/`, with four worked examples and
+     `shared/composition.schema.json` generated from the model. Read it
+     before writing a composition or a template: it carries the invariants
+     the validator cannot express, every one of which has cost a broken
+     render. `tests/composition-skill.test.js` fails when the skill or the
+     schema drifts from the code, so trust it.
 
    **The trap is reading "complete" as "nothing has moved since", then
    rebuilding what is already there.** The DB-backed render state, the

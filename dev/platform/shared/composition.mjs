@@ -35,7 +35,12 @@ export { secs, EPS };
 
 // ── Source kinds ───────────────────────────────────────────────────────
 
-const SOURCE_KINDS = ['clip', 'design', 'audio', 'captions', 'fx'];
+// Exported, along with the other vocabularies and bounds below, because
+// `compositionSchema.mjs` BUILDS the published JSON Schema from them rather
+// than restating them. A schema written by hand is a second description of
+// this file that drifts from it, and a committed schema that drifts is worse
+// than none: something reads it and believes it.
+export const SOURCE_KINDS = ['clip', 'design', 'audio', 'captions', 'fx'];
 
 /**
  * Source kinds that draw a picture, so they belong on a video track and
@@ -43,7 +48,7 @@ const SOURCE_KINDS = ['clip', 'design', 'audio', 'captions', 'fx'];
  * because the list has been written out in three places and a new kind
  * added to two of them is a validation hole that only shows on one path.
  */
-const PICTURE_KINDS = ['clip', 'design', 'fx'];
+export const PICTURE_KINDS = ['clip', 'design', 'fx'];
 
 function validateSource(id, src) {
   if (!src || typeof src !== 'object') {
@@ -175,11 +180,11 @@ export const TRANSFORM_FIELDS = ['scale', 'pos', 'rot'];
 /** Free-text fields an agent or a template writes to explain a decision. */
 export const RATIONALE_FIELDS = ['reason', 'beat', 'quote'];
 
-const MAX_RATIONALE = 500;
-const SCALE_MIN = 0.01;
-const SCALE_MAX = 10;
-const POS_MIN = -2;
-const POS_MAX = 3;
+export const MAX_RATIONALE = 500;
+export const SCALE_MIN = 0.01;
+export const SCALE_MAX = 10;
+export const POS_MIN = -2;
+export const POS_MAX = 3;
 
 function finite(n) {
   return typeof n === 'number' && Number.isFinite(n);
@@ -283,8 +288,8 @@ export const TRANSITION_TYPES = ['fade', 'fadeblack', 'wipeleft', 'dissolve'];
 
 // ── Item validation ───────────────────────────────────────────────────
 
-const FIT_VALUES = ['cover', 'contain'];
-const MIN_ITEM = 0.001;
+export const FIT_VALUES = ['cover', 'contain'];
+export const MIN_ITEM = 0.001;
 
 function validateItem(item, sources, trackKind) {
   if (!item || typeof item !== 'object') return 'item is not an object';
@@ -326,7 +331,7 @@ function validateItem(item, sources, trackKind) {
 
 // ── Track validation ──────────────────────────────────────────────────
 
-const TRACK_KINDS = ['video', 'audio'];
+export const TRACK_KINDS = ['video', 'audio'];
 
 function validateTrack(track, sources, allTracks) {
   if (!track || typeof track !== 'object') return 'track is not an object';

@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "sources": {
+    "p1": {
+      "kind": "clip",
+      "asset": 201,
+      "still": true,
+      "width": 1080,
+      "height": 1920
+    },
+    "p2": {
+      "kind": "clip",
+      "asset": 202,
+      "still": true,
+      "width": 1080,
+      "height": 1920
+    },
+    "p3": {
+      "kind": "clip",
+      "asset": 203,
+      "still": true,
+      "width": 1080,
+      "height": 1920
+    },
+    "bed": {
+      "kind": "audio",
+      "asset": 301,
+      "duration": 180,
+      "voice": false
+    },
+    "words": {
+      "kind": "captions",
+      "template": "gallery-quiet",
+      "perLine": 1,
+      "transcript": [
+        {
+          "word": "GRADE II LISTED",
+          "start": 0.4,
+          "end": 3.2
+        },
+        {
+          "word": "HACKNEY 2026",
+          "start": 6.4,
+          "end": 9
+        }
+      ]
+    }
+  },
+  "tracks": [
+    {
+      "id": "t0",
+      "kind": "video",
+      "items": [
+        {
+          "id": "i1",
+          "at": 0,
+          "len": 3.4,
+          "source": "p1",
+          "scale": {
+            "from": 1,
+            "to": 1.08
+          },
+          "beat": "push-in",
+          "reason": "the exterior"
+        },
+        {
+          "id": "i2",
+          "at": 3.2,
+          "len": 3.4,
+          "source": "p2",
+          "pos": {
+            "from": {
+              "x": -0.02,
+              "y": 0
+            },
+            "to": {
+              "x": 0.02,
+              "y": 0
+            }
+          },
+          "beat": "drift",
+          "trans": {
+            "type": "fade"
+          },
+          "reason": "the interior"
+        },
+        {
+          "id": "i3",
+          "at": 6.4,
+          "len": 3.4,
+          "source": "p3",
+          "scale": {
+            "from": 1.08,
+            "to": 1
+          },
+          "beat": "subtle",
+          "trans": {
+            "type": "fade"
+          },
+          "reason": "the detail"
+        }
+      ]
+    },
+    {
+      "id": "t1",
+      "kind": "video",
+      "items": [
+        {
+          "id": "c1",
+          "at": 0.4,
+          "len": 2.8,
+          "source": "words",
+          "reason": "the first title"
+        },
+        {
+          "id": "c2",
+          "at": 6.4,
+          "len": 2.6,
+          "source": "words",
+          "reason": "the second title"
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "kind": "audio",
+      "items": [
+        {
+          "id": "m1",
+          "at": 0,
+          "len": 9.8,
+          "source": "bed",
+          "gain": 0.5,
+          "reason": "the bed"
+        }
+      ]
+    }
+  ]
+}

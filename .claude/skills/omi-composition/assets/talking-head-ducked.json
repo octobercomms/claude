@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "size": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "ducking": true,
+  "sources": {
+    "speaker": {
+      "kind": "clip",
+      "asset": 401,
+      "duration": 60,
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "voice": true
+    },
+    "bed": {
+      "kind": "audio",
+      "asset": 402,
+      "duration": 180,
+      "voice": false
+    },
+    "spoken": {
+      "kind": "captions",
+      "template": "gallery-quiet",
+      "transcript": "speaker"
+    }
+  },
+  "tracks": [
+    {
+      "id": "t0",
+      "kind": "video",
+      "items": [
+        {
+          "id": "i1",
+          "at": 0,
+          "len": 24,
+          "source": "speaker",
+          "in": 2,
+          "reason": "the take, from the second line"
+        }
+      ]
+    },
+    {
+      "id": "t1",
+      "kind": "video",
+      "items": [
+        {
+          "id": "c1",
+          "at": 0,
+          "len": 24,
+          "source": "spoken",
+          "reason": "his own words"
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "kind": "audio",
+      "items": [
+        {
+          "id": "m1",
+          "at": 0,
+          "len": 24,
+          "source": "bed",
+          "gain": 0.35,
+          "reason": "under the voice"
+        }
+      ]
+    }
+  ]
+}
