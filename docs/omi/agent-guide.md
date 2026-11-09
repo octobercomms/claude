@@ -4056,7 +4056,7 @@ was done and what still needs a human eye.
 | Frontend | `frontend/src/components/accounts/AccountsPanels.jsx` |
 | Settings page | `frontend/src/pages/SettingsPage.jsx` (overview tab + accounts section) |
 | Chrome extension | `extension/` (manifest.json, background.js, content.js, popup.html/js) |
-| Tests | `backend/tests/accounts-rules.test.js`, `accounts-vatPack.test.js`, `accounts-reconcile.test.js`, `accounts-fx.test.js` |
+| Tests | `backend/tests/accounts-vatPack.test.js`, `accounts-reconcile.test.js`, `accounts-fx.test.js` |
 
 ### Key tables
 
@@ -4232,9 +4232,24 @@ rules.
   inconsistencies, and known overseas suppliers with wrong VAT treatment.
 - The `WRITE_BACK_ENABLED` env var must be `'true'` (string) for the
   write-back-to-Xero route to do anything. It defaults to off.
-- Seed rules (30 entries for common October payees) can be loaded via POST
-  `/api/accounts/rules/seed` or the "Seed rules" button in the Rules tab.
-  But the rules table should stay as a manual override. Do not reseed.
+- **There is no hardcoded seed-rule list, and writing one back is a
+  regression.** `seedRules()` reads `acct_suppliers` (the supplier brain) and
+  inserts a rule per auto-coded supplier, having first validated every
+  `account_code` against the live chart of accounts; with Xero disconnected it
+  inserts nothing and returns an `error`. The 30-entry array it replaced was
+  deleted in `2b16047` because its codes (`6012`, `6020`, `2201`, `2202`,
+  `2210`, `7020`) do not exist in the connected org's chart, so seeding wrote
+  rules that could never post. POST `/api/accounts/rules/seed` and the "Seed
+  rules" button still exist, but the rules table should stay as a manual
+  override. Do not reseed.
+- `tests/accounts-rules.test.js` was deleted on 9 Nov 2026, a day after that
+  commit. It only ever asserted the shape of the deleted array, so from
+  `2b16047` onwards it failed all eight of its assertions on every run and
+  printed "0 seed rules validated". It was never a step in
+  `platform-checks.yml`, which is why nothing caught it. Nothing in `rules.js`
+  is now testable without a database: the matchers are SQL and `escapeLike` is
+  not exported. If you want this guarded, it belongs in a `.db` test, not a
+  revived static fixture.
 - The Drive scanner needs `ACCOUNTS_DRIVE_FOLDER_ID` or
   `ACCOUNTS_DRIVE_FOLDER_URL` set, and the Google service account must have
   Viewer access on the folder.
