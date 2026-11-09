@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { SECTIONS, slugForTab, tabForSlug, slugsOf } from '../nav/sections';
 
@@ -25,6 +26,32 @@ export function useScreen(sectionKey) {
   const location = useLocation();
 
   const tab = (screen && tabForSlug(section, screen)) || section.defaultTab;
+
+  // An unknown slug falls back to the default tab, above, which is right. What
+  // was wrong is that it then RENDERED the default under the wrong URL, with
+  // the default's row lit in the panel as though you had asked for it.
+  //
+  // Measured on 9 November: /clients/c1/produce/nonsense, /produce/review and
+  // /produce/video all drew the composition editor with "Studio" lit. The
+  // second one is the worst of the three, because `review` is nearly the slug
+  // of a real screen (`batch-review`), so a typo or a link written from memory
+  // put you in a video editor while the nav insisted that was the request.
+  // drives/drive-studio.mjs warns about exactly this in its own header and
+  // then only tested the slugs that work.
+  //
+  // So the URL is corrected to the canonical one instead, with `replace` so
+  // the bad address leaves no history entry. This also means a renamed row's
+  // old slug now redirects rather than silently resolving: /produce/compose
+  // becomes /produce/studio in the address bar.
+  //
+  // It cannot loop: the canonical slug resolves to the tab whose canonical
+  // slug it is. A bare section URL with no screen segment is left alone,
+  // because nothing is lying there.
+  const canonical = slugForTab(section, tab);
+  useEffect(() => {
+    if (!screen || !canonical || screen === canonical) return;
+    navigate(`${section.base(id)}/${canonical}${location.search}`, { replace: true });
+  }, [screen, canonical, section, id, location.search, navigate]);
 
   // replace, not push, so walking a section does not fill the back button
   // with every screen you glanced at — the same behaviour useTabParam had.

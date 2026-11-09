@@ -234,9 +234,25 @@ until Daniel says otherwise.
    eight shipped templates, and regenerating the schema and the agent skill.
    Recommendation: colour the 52px header by kind (the colours exist in the
    minimap already) and defer the lanes until something needs them.
-9. **Share implies an artefact that does not exist.** Export offers Download
-   only. A share link is a tokenised page like `/coverage` and `/watch`, which
-   is a backend story. Do not ship the button ahead of the thing.
+9. **Share implies an artefact that does not exist.** **WRONG ON THE FACTS,
+   corrected 9 November.** The artefact is shipped. `migrations/027_video_audio_approval.sql`
+   creates `approval_links` (opaque token, client, `scope VARCHAR(20)`, expiry)
+   and `approval_responses` (per-item decision, comment, reviewer name), and
+   `routes/approvals.js` is a live token-gated client view with per-item
+   approve, request-changes and comment, plus a public file proxy at `:29`
+   that already streams uploaded media to a logged-out client. It carries
+   social posts and ad creatives today. `scope` is a VARCHAR with a comment
+   listing its three values, not an enum, so a composition is a new string,
+   one query branch and a nullable column. **Not a backend story.**
+   I withheld a feature on a cost estimate that was wrong, which is precisely
+   the failure the ux-critic definition was written to prevent, committed in
+   the same document that defines it. Recorded rather than quietly fixed.
+   The design argument on top of the correction: for an agency, Share is what
+   separates a production surface from a toy. The Batch half already ends
+   somewhere ("Nothing leaves for Drive or Instagram until you do"); the
+   Studio half ends in `~/Downloads`. Two halves of one product disagreeing
+   about what finished means is the consistency fault that matters most here,
+   and decision 9 made it permanent by rule.
 
 ## The project model, and what is actually missing
 
@@ -289,7 +305,13 @@ it touches the model, the renderer or ffmpeg.
 
 | | What | Model risk |
 |---|---|---|
-| 1 | Studio in the nav (**done**, 9 November) | none |
+| 1 | Studio in the nav (9 November). **Was declared done and was not:**
+`/produce/<any-unknown-slug>` rendered the editor with Studio lit in the
+panel, and `/produce/review` — nearly the slug of a real screen — did the
+same. `useScreen` now corrects the address bar to the canonical slug, which
+fixes it for all nine sections rather than only Produce, since nothing ever
+used the `screenSlugs` guard it exports. Pinned by five drive assertions,
+one of which is a real slug that must be left alone. | none |
 | 2 | Studio top bar: name, save dot, Export, hero suppressed on this screen | none |
 | 3 | Four-panel shell: 240 / 1fr / 260 with a full-width timeline row | none |
 | 4 | Timeline toolbar: undo, redo, ripple, split, delete, zoom slider, snap toggle | none |
@@ -297,6 +319,82 @@ it touches the model, the renderer or ffmpeg.
 | 6 | Media bin in the editor: `AssetLibrary` with `onPick` | none |
 | 7 | Transform panel on scale and pos, with a preview-vs-render agreement test | model already holds it |
 | 8+ | Drag from bin, fades, per-track mute, fixed lanes, text, filters | real, costed separately |
+
+## The design critique, 9 November
+
+Commissioned after Daniel asked whether the UX agent had ideas or had only
+reported that things were fine. It ran the app rather than reading the plan.
+What it found, with the claims I verified myself marked:
+
+**The shape is wrong at the front door. VERIFIED.** Eight templates already
+ship (`shared/templates/*.json`), one of which describes itself as "six to
+eight photographs carried by deterministic camera moves, two to four short
+phrase titles and a music bed" — word for word the job the Studio is being
+built for. The engine that does volume already exists. The Studio's job is
+the one the template got wrong, and the build order spends seven of nine
+steps making the exception path look more like Premiere.
+`VideoBatchReviewPage.jsx:150` carries the agency's real unit of work in a
+comment: "Approve, reject, and move. Ninety clicks otherwise." On that same
+screen "Open in the editor" is already `btn-ghost`, the lowest emphasis in
+the system, beside a primary Approve. The code knew.
+
+**Six photographs cannot enter the Studio at all. VERIFIED, and this is the
+largest finding.** `CompositionEditorPage.jsx:910` is `accept="video/*"` and
+`:299` filters to `video/`, answering "Choose video files." Meanwhile
+`composition.mjs:73` has `src.still` with the `-loop 1` and no-audio-stream
+handling the render needs, `compositionPlayback.mjs` previews stills,
+`composition.mjs` says in a comment that a camera move over a still IS an
+animated scale and pos, and `VideoBatchPage.jsx:70` emits a photograph as
+`{ kind: 'clip', asset: a.id }`. **The model, the renderer, the preview and
+the batch all do photographs. One `accept` attribute and one `.filter()`
+refuse them.** Nine build steps and not one of them was "you can put a
+photograph in a reel".
+
+**Every clip on the timeline is labelled with a database row id. VERIFIED.**
+`CompositionTimeline.jsx:578` renders `src.asset || item.source`, and
+`src.asset` is an integer. A lane reads `V1 | 11 | 12`. The human name is
+computed into `sourceNames` at `CompositionEditorPage.jsx:206` and spent in
+exactly one place, the inspector heading at `:976`. The timeline takes twelve
+props and `sourceNames` is not one of them.
+
+**Two volume sliders, two scales and two unit systems, both on screen.
+VERIFIED.** Inspector `max="4"` reading `1.0`; timeline `max="2"` clamped
+with `Math.min(2, ...)` reading `100%`. Same number, 25px of scroll apart.
+
+**The 9:16 problem, which nobody had said out loud.** At 1600px the player
+well is about 865px wide and a 1080x1920 composition occupies about 388px of
+it, so roughly 70% of the largest element on the page is empty black. The
+mockup's answer is a 240px bin and a 260px inspector, which narrows the
+centre column and makes the only thing being judged smaller. A four-panel
+layout is a landscape layout, which is what Premiere looks like because
+Premiere assumes 16:9. October's output is vertical.
+
+**Reel checks is in the wrong place.** Eight named checks, each carrying the
+evidence that produced it, with a `null` state for checks that could only
+pass by absence and a written admission that the thresholds are reasoned
+assumptions. It is the most honest component in Produce and it sits at the
+bottom of a scrolling column under the frame-rate chips. It answers "is this
+good", which is the operator's actual question, and it is not in the build
+order at all.
+
+**The transcript as the edit surface.** For the talking half of October's
+video the transcript is the edit: click a word to seek, select a phrase to
+cut. `TightenPanel` and `BrollPanel` already operate on the transcript and
+are currently two unlabelled cards in a scroll. The operator is an account
+manager who thinks in sentences, not an editor who thinks in frames.
+
+**And the sentence that was the whole problem**, from this brief's own build
+order: "Chrome first, because all of it is moving JSX that already works."
+That is an engineering sequence wearing a design hat. Reordered by what the
+operator hits first: the bin, stills, the caption picker, Reel checks'
+position, then the chrome.
+
+Not everything was criticism, and this matters because rubber-stamping in
+either direction is the same failure: the shipped Reel checks are better than
+the mockup's four, the Batch Brief screen is better than anything in the
+mockup, and Review is the best-designed page in Produce. Numbered steps, a
+pre-flight sentence from the planner, per-item problems inline, a cost chip on
+the button that commits the spend, and j/k/a/r on the rail.
 
 ## Faults found while auditing, worth fixing in passing
 
