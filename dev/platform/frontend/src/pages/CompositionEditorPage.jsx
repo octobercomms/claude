@@ -1632,7 +1632,16 @@ export default function CompositionEditorPage({
                     </tbody>
                   </table>
 
-                  {/* Camera moves, on a photograph only.
+                  {/* Camera moves, on anything with a picture in it.
+                      A photograph only, until now, and that was a mistake with
+                      a measurement behind it rather than a decision: the brief
+                      recorded it as "MOTION chips are offered on stills only.
+                      `transformFor` does not care what the source is, so a slow
+                      push on a clip is the same animated scale." It is. The
+                      render graph's animated-scale pixel test runs on a FILMED
+                      clip, and a slow push on footage is as ordinary an edit as
+                      one on a photograph.
+
                       Six chips rather than a scale slider and a position pair.
                       The move is the unit of work here: a photograph with a
                       slow push reads as expensive and a static one reads as a
@@ -1646,7 +1655,7 @@ export default function CompositionEditorPage({
                       output box is init-only, so an animated rotation cannot be
                       produced, and a control for it would be the page lying
                       about its own export. */}
-                  {selectedSource?.still === true && (
+                  {selectedSource && selectedSource.kind !== 'audio' && (
                     <div style={{ marginTop: 'var(--s2)' }}>
                       <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
                         Camera move

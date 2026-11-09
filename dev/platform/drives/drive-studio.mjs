@@ -1605,6 +1605,67 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 25. A camera move is offered on footage, not only on photographs ─────
+//
+// `transformFor` does not care what the source is, and the render graph's
+// animated-scale pixel test runs on a FILMED clip, so a slow push on footage
+// was always producible. The inspector offered it only when the selected
+// source was `still === true`, which is a gate with no reason behind it: the
+// brief had it recorded as a fault for most of a day.
+//
+// Audio is the control: a camera move on a music bed is meaningless and the
+// row must not appear, so this is not simply "the chips are always there".
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1000 });
+  await p.waitForTimeout(800);
+
+  const select = async (fileName) => {
+    const hit = await p.evaluate((n) => {
+      const tl = document.querySelector('[data-testid="composition-timeline"]');
+      if (!tl) return null;
+      const label = [...tl.querySelectorAll('div')]
+        .find((d) => d.textContent.trim() === n && d.style.fontWeight === '700');
+      let el = label;
+      for (let i = 0; i < 6 && el; i++) {
+        if (getComputedStyle(el).position === 'absolute'
+          && el.getBoundingClientRect().width > 20) {
+          const r = el.getBoundingClientRect();
+          return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        }
+        el = el.parentElement;
+      }
+      return null;
+    }, fileName);
+    if (!hit) return false;
+    await p.mouse.click(hit.x, hit.y);
+    await p.waitForTimeout(350);
+    return true;
+  };
+  const inspector = () => p.evaluate(() =>
+    (document.querySelector('.studio-inspector')?.innerText || '').replace(/\s+/g, ' '));
+
+  const okClip = await select('atlas-walkthrough.mp4');
+  const clipText = await inspector();
+  say(okClip && /Camera move/.test(clipText),
+    'a filmed clip is offered a camera move',
+    okClip ? `inspector read: "${clipText.slice(0, 120)}"` : 'the block could not be selected');
+
+  const okStill = await select('showroom-01.jpg');
+  say(okStill && /Camera move/.test(await inspector()),
+    'and a photograph still is');
+
+  // The control. Written against AUDIO rather than against the absence of a
+  // word, because "the chips are gone" goes green the day the chips are
+  // renamed.
+  const okAudio = await select('space.mp3');
+  const audioText = await inspector();
+  say(okAudio && !/Camera move/.test(audioText),
+    'and a music bed is not, because a camera move on audio means nothing',
+    okAudio ? `inspector read: "${audioText.slice(0, 120)}"` : 'the audio block could not be selected');
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();

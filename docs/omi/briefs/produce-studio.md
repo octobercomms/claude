@@ -1661,9 +1661,15 @@ screen. It is with Daniel, not taken.
   each of the eight checks carries the evidence that produced it and the
   default state shows the verdict without it. Verdict first, evidence on
   click, is the design it asked for. Not built.
-- **MOTION chips are offered on stills only.** `transformFor` does not care
-  what the source is, so a slow push on a clip is the same animated scale.
-  Not built.
+- ~~**MOTION chips are offered on stills only.**~~ **Built 9 November.**
+  `transformFor` does not care what the source is, the render graph's
+  animated-scale pixel test runs on a filmed clip, and a slow push on
+  footage is as ordinary an edit as one on a photograph. The gate was
+  `selectedSource?.still === true` with no reason behind it. It is now any
+  picture source, and the guard is written against AUDIO — a camera move on
+  a music bed means nothing, so the row must not appear there — because a
+  guard that asserts the absence of a word goes green the day the word
+  changes. Mutation-checked: restoring the stills-only gate fails it.
 
 ## Corrected, so it is not repeated
 
