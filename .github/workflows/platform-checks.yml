@@ -221,6 +221,14 @@ jobs:
       # docs/omi/dependency-audit.md for what was fixed and what is accepted.
       - name: Guard — no known-vulnerable production dependencies
         run: node scripts/audit-check.js --all
+      # `archiver` went in at ^8.0.0 with the extension-download route. That
+      # major is ESM-only and exports named classes with no callable default,
+      # so the route's `archiver('zip', …)` threw "archiver is not a function"
+      # on every request and nothing caught it: the only require is inside the
+      # handler, so it is not reached until somebody clicks the button. This
+      # zips a real directory both ways the route and the override touch.
+      - name: Guard — archiver is callable, and its overridden glob still works
+        run: node tests/archiver-contract.test.js
       - name: Guard — a PDF leaves the service as a Buffer, not JSON
         run: node tests/pdf-buffer.test.js
       - name: Guard — a library clip the editor can open is not refused
