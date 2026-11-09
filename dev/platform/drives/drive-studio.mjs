@@ -1156,6 +1156,73 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 19. The player draws a photograph ────────────────────────────────────
+//
+// It did not. `Compositor.jsx` decided image-vs-video with
+// `kind === 'design'`, and a photograph is `kind: 'clip'` with
+// `still: true`, so the compositor built a <video> element, pointed it at a
+// JPEG, and skipped the layer. Measured: the file was requested with
+// initiatorType "video" and the canvas was 0% non-black on every frame of
+// every photograph, while the render drew the picture correctly.
+//
+// No assertion could catch it, because every media URL in the fixture 404'd:
+// 114 assertions were judging a black rectangle and none of them could tell
+// a broken picture from a missing file. The stub serves the fixture's media
+// now, and the photographs carry distinguishable colour bands — a flat
+// fixture makes a pixel assertion vacuous, which this project learned once
+// already with testsrc2.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 1200 });
+  await p.waitForTimeout(1200);
+
+  const sample = () => p.evaluate(() => {
+    const c = document.querySelector('canvas');
+    if (!c) return null;
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    const row = Math.floor(c.height / 2);
+    const at = (f) => {
+      const i = (row * c.width + Math.floor(c.width * f)) * 4;
+      return { r: d[i], g: d[i + 1], b: d[i + 2] };
+    };
+    let nb = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 24) nb += 1;
+    return { mid: at(0.5), nonBlackPct: Math.round(100 * nb / (d.length / 4)) };
+  });
+
+  // Waiting for the picture rather than for a clock: a video element decodes
+  // its first frame when it decodes it, and a fixed sleep here is a flake
+  // that would eventually be blamed on the renderer.
+  let atZero = null;
+  for (let i = 0; i < 20; i += 1) {
+    atZero = await sample();
+    if (atZero && atZero.nonBlackPct > 50) break;
+    await p.waitForTimeout(250);
+  }
+  say(!!atZero && atZero.nonBlackPct > 50, 'the player draws the footage at the start',
+    JSON.stringify(atZero));
+
+  // Ten seconds in is the second photograph.
+  for (let i = 0; i < 10; i += 1) await p.keyboard.press('Shift+ArrowRight');
+  await p.waitForTimeout(1200);
+  const onStill = await sample();
+  say(!!onStill && onStill.nonBlackPct > 90,
+    'and draws a PHOTOGRAPH rather than a black rectangle',
+    `${JSON.stringify(onStill)} — this read 0% non-black on the day photographs `
+    + 'shipped, so every camera-move chip drove a value nobody could see');
+  say(!!onStill && onStill.mid.g > 100 && onStill.mid.r < 80 && onStill.mid.b < 80,
+    'and it is the right part of the photograph',
+    `centre pixel ${JSON.stringify(onStill?.mid)} — the fixture image is red | green | `
+    + 'blue across, so a cover fit into 9:16 must show the green middle third');
+
+  const fetchedAs = await p.evaluate(() => performance.getEntriesByType('resource')
+    .filter((e) => /showroom-01/.test(e.name)).map((e) => e.initiatorType));
+  say(fetchedAs.includes('img'), 'and it was loaded as an image, not as a video',
+    JSON.stringify(fetchedAs));
+
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
