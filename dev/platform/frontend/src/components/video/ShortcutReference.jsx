@@ -47,7 +47,6 @@ const SHORTCUT_GROUPS = [
       { keys: [','], desc: 'Move the clip back one frame' },
       { keys: ['.'], desc: 'Move the clip forward one frame' },
       { keys: ['Shift', ', / .'], desc: 'Move the clip by one second' },
-      { keys: ['R'], desc: 'Toggle ripple edit' },
       { keys: ['Escape'], desc: 'Cancel a drag' },
     ],
   },

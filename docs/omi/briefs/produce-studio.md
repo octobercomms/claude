@@ -314,7 +314,7 @@ used the `screenSlugs` guard it exports. Pinned by five drive assertions,
 one of which is a real slug that must be left alone. | none |
 | 2 | ~~Studio top bar: name, save dot, Export, hero suppressed on this screen~~ **Built 9 November**, with `?open=` and inline rename; see below | none |
 | 3 | Four-panel shell: 240 / 1fr / 260 with a full-width timeline row | none |
-| 4 | Timeline toolbar: undo, redo, ripple, split, delete, zoom slider, snap toggle | none |
+| 4 | ~~Timeline toolbar~~ **Built 9 November**: undo, redo, split, delete, Fit/−/+, `?`. Ripple deleted; zoom slider and snap toggle refused, with reasons below | none |
 | 5 | One ordered inspector; delete the timeline's selected-item strip; **collapse the two volume sliders** (see below) | none |
 | 6 | Media bin in the editor: `AssetLibrary` with `onPick` | none |
 | 7 | Transform panel on scale and pos, with a preview-vs-render agreement test | model already holds it |
@@ -1002,6 +1002,72 @@ clip still does not focus the lane (which is the point — the keys must not
 depend on it), Delete removes the clip you clicked, S splits at the playhead,
 the piece left selected is the second one, and Shift with an arrow moves a
 second.
+
+## Built, 9 November: the timeline has a toolbar
+
+Step 4, the last of the chrome. **Four of the seven controls the brief listed,
+one deleted, and three never built.**
+
+```
+↩  ↪  │  Split   Delete                              Fit  −  +  │  ?
+```
+
+Left acts on the reel, right looks at it. Undo and redo are icons because
+arrows are universal; Split and Delete are words because a scissors glyph is
+ambiguous between "cut here" and "cut to clipboard" and a bin at 12px reads as
+nothing. No accent anywhere: Export is the screen's one primary, and the
+loudest thing in a timeline should not be a destructive verb.
+
+**Disabled says why.** Split is off until the playhead is inside the selected
+clip, which is the rule `splitItem` has always enforced and `[` and `]` have
+always no-opped on in silence. The toolbar says it once, in a place you can
+see.
+
+**The inspector's Remove is deleted in the same change, not left as a second
+door.** Measured at 1280x800 with the timeline scrolled into view — the only
+position you can work on the timeline from — that button sat at y = -86 and
+the Delete key did nothing, so **there was no reachable way to delete a clip
+at all**. At 1440 it rendered five pixels from the fixed client topbar,
+reading as the sixth item in the application's global header.
+
+**Ripple is cut, not moved.** `shiftAfter` shifts ONE track, and every October
+reel has a music bed, so a ripple delete on the picture shortened the video
+and left the music at full length: `duration()` takes the max, so the reel
+still reported 00:14:12 and ended on music over nothing. Its tooltip claimed
+it worked on trimming, which it never did — `rippleTrimStart` and
+`rippleTrimEnd` were imported by the timeline and never called. And it was an
+invisible mode, enterable from anywhere with `r`, whose only indicator sat
+193px above the top of the viewport when the timeline was in view.
+
+What replaces it is narrower and needs no mode: **Delete closes the gap when
+the next clip on that track abuts the one going, and leaves it when it does
+not.** Measured both ways — a butted clip moves from 00:11:05 to 00:08:00, and
+a clip with air in front of it stays at 00:13:05 where the edit put it.
+
+**Three things the brief asked for and did not get.** A zoom slider, over a
+logarithmic 2-to-400 pixels-per-second range with no detent at "fit", would
+eat 100px of a 504px row to do worse than `Fit − +` does in 63px. A snap
+toggle is an invisible mode with a delayed failure; Alt held during a drag is
+the next thing to build there. And ripple, above.
+
+**Also cut**: `Timeline · 2 tracks · 00:14:12`, the third statement of the
+same two facts on a screen where the transport and the inspector footer both
+already say them; the prose paragraph under the lane, which listed the
+keyboard and named keys that could not be fired; and the minimap at default
+zoom, where the lane does not overflow, so the viewport indicator covered
+100% of the bar and carried no information — 40px of the loudest colour on
+the screen for nothing. It renders when the lane actually overflows.
+
+The timeline block measures **202px against 292** at 1280.
+
+**The eighth and ninth guards that pinned a marker.** One asserted the word
+`TIMELINE` was on the page to prove the editor had rendered; that caption is
+now deleted, and the assertion had already been rewritten twice for the same
+reason ("Editor", then "Frame size"). It matches the timeline element and its
+lanes now. The other proved a new clip was selected by finding the word
+`Remove`, which this change deletes; it reads the inspector's `Length` row and
+the toolbar's live Delete instead — two independent consequences of the claim
+rather than two names from the same screen.
 
 ## Faults found while auditing, worth fixing in passing
 

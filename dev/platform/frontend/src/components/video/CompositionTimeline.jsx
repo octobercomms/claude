@@ -6,6 +6,7 @@ import { useWaveforms } from '../../utils/waveform';
 import { peaksForBlock, peaksPath } from '../../utils/waveformPeaks';
 import { findSnap } from '@shared/snap.mjs';
 import TimelineMinimap from './TimelineMinimap';
+import { ShortcutButton } from './ShortcutReference';
 
 /**
  * Multi-track composition timeline.
@@ -82,7 +83,12 @@ export default function CompositionTimeline({
   onDragStart,
   onDragEnd,
   onDragCancel,
-  ripple = false,
+  // The toolbar's four verbs, and the state that decides whether they are
+  // offered. They act on the composition, which the editor owns, so it hands
+  // them down rather than the timeline reaching for them.
+  onUndo, onRedo, canUndo = false, canRedo = false,
+  onSplit, onDelete, canSplit = false, canDelete = false,
+  onShortcuts,
 }) {
   const scrollRef = useRef(null);
   const laneRef = useRef(null);
@@ -399,22 +405,68 @@ export default function CompositionTimeline({
 
   return (
     <div data-testid="composition-timeline">
-      {/* Header: zoom and summary */}
+      {/* ── The toolbar ────────────────────────────────────────────────
+          Left acts on the reel, right looks at it.
+
+          This row used to read `Timeline · 2 tracks · 00:14:12`, which is the
+          THIRD statement of the same two facts on one screen: the transport
+          says `00:00:00 / 00:14:12 · 30fps` and the inspector footer says
+          `00:14:12 total · 4 sources · 2 tracks`. And the word "Timeline"
+          labels the thing you are looking at, which is why the "Editor" card
+          title was cut.
+
+          Undo and redo are icons because arrows are universal; Split and
+          Delete are words because a scissors glyph is ambiguous between "cut
+          here" and "cut to clipboard", and a bin at 12px reads as nothing.
+          The people using this are account managers, not editors. No accent
+          anywhere: Export is the screen's one primary, and the loudest thing
+          in the timeline should not be a destructive verb. */}
       <div className="row between center wrap" style={{ gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
-        <span className="caption">
-          Timeline · {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'} · {PB.timecode(total, fps)}
-        </span>
         <div className="row center" style={{ gap: 'var(--s1)' }}>
-          <button type="button" className="btn-chip" style={{ fontSize: 'var(--fs-caption)' }}
+          <button type="button" className="btn-chip" title="Undo (Ctrl+Z)"
+            disabled={readOnly || !canUndo} onClick={onUndo}
+            style={{ width: 26, padding: 0 }} aria-label="Undo">&#x21a9;</button>
+          <button type="button" className="btn-chip" title="Redo (Ctrl+Shift+Z)"
+            disabled={readOnly || !canRedo} onClick={onRedo}
+            style={{ width: 26, padding: 0 }} aria-label="Redo">&#x21aa;</button>
+          <span aria-hidden="true" style={{
+            width: 1, height: 16, background: 'var(--card-border)', margin: '0 var(--s1)',
+          }} />
+          {/* Disabled says WHY. `[` and `]` have always no-opped in silence
+              when the playhead was outside the selected clip; the same rule
+              is visible here instead of guessed at. */}
+          <button type="button" className="btn-chip"
+            title={canSplit ? 'Split at the playhead (S)'
+              : 'Put the playhead inside the selected clip to split it'}
+            disabled={readOnly || !canSplit} onClick={onSplit}>Split</button>
+          <button type="button" className="btn-chip"
+            title={canDelete ? 'Remove the selected clip (Delete)'
+              : 'Select a clip to remove it'}
+            disabled={readOnly || !canDelete} onClick={onDelete}>Delete</button>
+        </div>
+        <div className="row center" style={{ gap: 'var(--s1)' }}>
+          <button type="button" className="btn-chip"
             onClick={() => setPps(null)} title="Show the whole composition">Fit</button>
-          <button type="button" className="btn-chip" style={{ fontSize: 'var(--fs-caption)' }}
-            onClick={() => setPps(Math.max(MIN_PPS, scale / 1.6))} title="Zoom out">&minus;</button>
-          <button type="button" className="btn-chip" style={{ fontSize: 'var(--fs-caption)' }}
-            onClick={() => setPps(Math.max(scale, Math.min(MAX_PPS, scale * 1.6)))} title="Zoom in">+</button>
+          <button type="button" className="btn-chip" style={{ width: 26, padding: 0 }}
+            onClick={() => setPps(Math.max(MIN_PPS, scale / 1.6))} title="Zoom out"
+            aria-label="Zoom out">&minus;</button>
+          <button type="button" className="btn-chip" style={{ width: 26, padding: 0 }}
+            onClick={() => setPps(Math.max(scale, Math.min(MAX_PPS, scale * 1.6)))}
+            title="Zoom in" aria-label="Zoom in">+</button>
+          <span aria-hidden="true" style={{
+            width: 1, height: 16, background: 'var(--card-border)', margin: '0 var(--s1)',
+          }} />
+          <ShortcutButton onClick={onShortcuts} />
         </div>
       </div>
 
-      {/* Minimap */}
+      {/* Minimap, when the lane actually overflows.
+          Measured at the default zoom: `scrollWidth` equals `clientWidth` at
+          both 1280 and 1440, so the viewport indicator covered 100% of the
+          bar and the component carried no information at all — 40px of the
+          loudest colour on the screen for nothing. Zoom in twice and the lane
+          runs 652 to 799px wide, and it earns every pixel. */}
+      {contentWidth > laneWidth + 1 && (
       <div style={{ marginBottom: 'var(--s1)' }}>
         <TimelineMinimap
           composition={comp}
@@ -426,6 +478,7 @@ export default function CompositionTimeline({
           playhead={playhead}
         />
       </div>
+      )}
 
       {/* The scrollable surface */}
       <div ref={scrollRef} onScroll={(e) => setScrollLeftVal(e.currentTarget.scrollLeft)} style={{
@@ -678,12 +731,17 @@ export default function CompositionTimeline({
 
 
       {/* Help text */}
-      <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
-        {readOnly
-          ? 'Read-only: the composition is shown but cannot be changed here.'
-          : 'Drag items to move (across tracks too), drag edges to trim, click the ruler to scrub. '
-            + 'With an item selected: arrows move (shift for 1s), alt-arrows trim the end, S splits at the playhead, delete removes.'}
-      </div>
+      {/* The paragraph that used to be here listed the keyboard, in prose,
+          under the timeline — 50px of it at 1280, naming two keys that no
+          longer mean what it said and three that could not be fired at all
+          from the gesture that selects a clip. The `?` on the toolbar is one
+          click away and is now correct. A reference in two places, one of
+          them wrong, is the two-doors fault applied to documentation. */}
+      {readOnly && (
+        <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+          Read-only: the composition is shown but cannot be changed here.
+        </div>
+      )}
 
       <style>{`
         .trim-handle { opacity: 0.7; transition: opacity 100ms ease; }
