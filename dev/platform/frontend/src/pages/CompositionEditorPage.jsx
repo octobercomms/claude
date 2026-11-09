@@ -1509,29 +1509,6 @@ export default function CompositionEditorPage({
               onMeta={onMeta}
               fill maxHeight="100%"
             />
-            {/* Open, not collapsed. A panel that answers the operator's
-                question and has to be unfolded to do it is a panel nobody
-                opens, and the checks are advisory and say so on screen, so
-                there is nothing here to protect anyone from. */}
-            {hasSources && (
-              // Capped to the player's own height and scrolled, because the
-              // grid row is as tall as its tallest cell: opened, the eight
-              // checks and their evidence measured 964px against the player's
-              // 500, which pushed the timeline 460px down and off a
-              // 1000px-tall screen. The timeline is the thing you work in, so
-              // the panel beside the picture may not be taller than the
-              // picture. Found by measuring the boxes in a browser; no unit
-              // test and no amount of reading would have shown it.
-              <div className="card" data-studio-checks
-                style={{ padding: 'var(--s4)', maxHeight: '50vh', overflowY: 'auto' }}>
-                <ReelChecks
-                  timings={allTimings}
-                  edit={reelEdit}
-                  clientId={clientId}
-                  defaultOpen
-                />
-              </div>
-            )}
           </div>
         </div>
 
@@ -1970,6 +1947,33 @@ export default function CompositionEditorPage({
                 {PB.timecode(total, fps)} total
                 {` · ${Object.keys(composition.sources).length} source${Object.keys(composition.sources).length === 1 ? '' : 's'}`}
                 {` · ${composition.tracks.length} track${composition.tracks.length === 1 ? '' : 's'}`}
+              </div>
+            )}
+            {/* Reel checks, the last group of the inspector. Where the mockup
+                puts them, and where they stop costing the picture its width.
+
+                They were beside the frame, in the black beside a 9:16
+                picture, on the argument that the space was free. It was free
+                only while the page was a tall document. Now the Studio fills
+                the window, the centre column is bounded by its row, and a
+                300px panel in it is 300px the player cannot have: measured at
+                1440x900, the player was 220px wide with the checks beside it
+                against the mockup's 269.
+
+                No scroller of its own, and that is the second reason to move
+                them. A 50vh box inside a column that already scrolls needs a
+                second scrollbar to read the eighth check, and the panel was
+                hiding most of itself behind one. The inspector scrolls; this
+                is a group in it.
+            */}
+            {hasSources && (
+              <div data-studio-checks style={{ marginTop: 'var(--s4)' }}>
+                <ReelChecks
+                  timings={allTimings}
+                  edit={reelEdit}
+                  clientId={clientId}
+                  defaultOpen
+                />
               </div>
             )}
           </div>
