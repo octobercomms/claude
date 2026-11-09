@@ -1263,6 +1263,30 @@ the live snapshot and not to the baseline recorded at load, so the two could
 never match and every load looked like an edit. The fix is in the file, and
 the lesson is that a comparison has two sides.
 
+## Built, 9 November: the frame you judge is the frame you export
+
+Found by the first conformance pass against the mockup. The preview
+**squashed the picture by 16.4% at 1280x800**.
+
+The frame carried a height and a max-width that can disagree: in a column
+narrower than the frame the width was clamped while the height stood its
+ground, so a 1080x1920 composition drew into a 188x400 box, a ratio of 0.470
+against the model's 0.5625. It was correct at 1440 and at 1600, which is how
+it survived a whole day of this screen being measured: everyone who looked at
+it saw it right, and the person on a 1280 laptop was judging a frame that was
+not the frame.
+
+The canvas fits itself now. A `<canvas>` has an intrinsic size from its width
+and height attributes, which are the composition's own, so `max-width` and
+`max-height` with both dimensions `auto` give it the same fit a browser gives
+an image: it shrinks on whichever axis runs out first and takes the other
+with it. The frame shrink-wraps the canvas rather than being sized
+independently of it.
+
+Pinned at three widths, with the drawn ratio held against the model's own.
+1440 and 1600 are unchanged at 253x450 and 281x500; 1280 is 188x334 rather
+than 188x400, which is correctly shorter rather than wrongly squashed.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the

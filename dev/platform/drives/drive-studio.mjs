@@ -1223,6 +1223,41 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 20. The frame you judge is the frame you export ──────────────────────
+//
+// The preview squashed the picture by 16.4% at 1280x800. The frame carried a
+// height and a max-width that can disagree: in a column narrower than the
+// frame the width was clamped and the height stood its ground, so a
+// 1080x1920 composition drew into 188x400 — ratio 0.470 against 0.5625. It
+// was correct at 1440 and at 1600, which is how it survived a day of
+// measuring this screen: everyone who looked saw it right.
+{
+  for (const [w, h] of [[1280, 800], [1440, 900], [1600, 1000]]) {
+    const p = await b.newPage();
+    p.on('pageerror', (e) => {
+      if (/stub: no route/.test(e.message)) return;
+      errs.push(`aspect ${w}: ${e.message}`);
+    });
+    await p.setViewportSize({ width: w, height: h });
+    await p.goto('http://127.0.0.1:4599/clients/c1/produce/studio', { waitUntil: 'networkidle' });
+    await p.waitForTimeout(1500);
+    const m = await p.evaluate(() => {
+      const c = document.querySelector('canvas');
+      if (!c) return null;
+      const r = c.getBoundingClientRect();
+      return {
+        drawn: +(r.width / r.height).toFixed(4),
+        model: +(c.width / c.height).toFixed(4),
+        box: `${Math.round(r.width)}x${Math.round(r.height)}`,
+      };
+    });
+    say(!!m && Math.abs(m.drawn - m.model) < 0.002,
+      `the preview holds the composition's shape at ${w}x${h}`,
+      `${m?.box}, drawn ${m?.drawn} against the model's ${m?.model}`);
+    await p.close();
+  }
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
