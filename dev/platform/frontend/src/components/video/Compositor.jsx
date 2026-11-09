@@ -607,7 +607,13 @@ const Compositor = React.forwardRef(function Compositor({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
-        <button type="button" className="btn btn-primary btn-sm" data-testid="play"
+        {/* Secondary, deliberately. Play was the only accent fill on the
+            Studio while Export — the thing the screen exists to produce —
+            was drawn in the same class as "-1 frame". One accent per screen,
+            and it belongs to the control that commits rather than the one
+            that previews. The transport reads fine without a fill; it is the
+            leftmost control under the picture and it answers the space bar. */}
+        <button type="button" className="btn btn-secondary btn-sm" data-testid="play"
           onClick={() => (playing ? stopPlayback() : startPlayback())} disabled={!total}>
           {playing ? 'Pause' : 'Play'}
         </button>

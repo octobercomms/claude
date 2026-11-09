@@ -1219,6 +1219,25 @@ const handler = (req, res) => {
     return res.end(JSON.stringify({ configured: true, runs: COMPETITOR_RUNS }));
   }
   // Minting a client approval link.
+  // Saving a composition, and renaming one. The stub used to serve no PUT at
+  // all, so the editor's save ALWAYS failed here — which made the save-state
+  // assertions pass for the wrong reason and made a rename impossible to
+  // drive. A drive that wants a failed save now asks for one, with
+  // `page.route(...).abort()`, which is the honest shape: the stub behaves
+  // like the backend and the test injects the fault it is testing.
+  if (/^\/api\/compose\/compositions\/\d+$/.test(url) && req.method === 'PUT') {
+    let raw = ''; req.on('data', c => raw += c);
+    return req.on('end', () => {
+      let body = {};
+      try { body = JSON.parse(raw || '{}'); } catch { /* keep the empty one */ }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        id: Number(url.split('/').pop()), client_id: 'c1',
+        title: body.title !== undefined ? body.title : 'Atlas showroom reel',
+        status: 'draft', updated_at: '2026-11-09T09:05:00Z',
+      }));
+    });
+  }
   if (/^\/api\/approvals\/clients\/[^/]+\/links$/.test(url) && req.method === 'POST') {
     let raw = ''; req.on('data', c => raw += c);
     return req.on('end', () => {
