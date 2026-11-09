@@ -4248,8 +4248,8 @@ rules.
   printed "0 seed rules validated". It was never a step in
   `platform-checks.yml`, which is why nothing caught it. Nothing in `rules.js`
   is now testable without a database: the matchers are SQL and `escapeLike` is
-  not exported. If you want this guarded,
-  it belongs in a `.db` test, not a revived static fixture.
+  not exported. If you want this guarded, it belongs in a `.db` test, not a
+  revived static fixture.
 - The Drive scanner needs `ACCOUNTS_DRIVE_FOLDER_ID` or
   `ACCOUNTS_DRIVE_FOLDER_URL` set, and the Google service account must have
   Viewer access on the folder.
