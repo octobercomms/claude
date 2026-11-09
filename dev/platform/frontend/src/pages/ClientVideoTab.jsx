@@ -30,10 +30,28 @@ export default function ClientVideoTab() {
   const [openCompId, setOpenCompId] = useState(null);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}).finally(() => setClientLoading(false)); }, [id]);
-  useEffect(() => {
-    if (readOnly && ['transcribe', 'design', 'audio', 'compose', 'batch', 'batch_review'].includes(tab)) setTab('record');
-    if (tab === 'visualise' && !canVisualise) setTab('record');
-  }, [readOnly, canVisualise, tab, setTab]);
+  // No redirect any more, and this is the part that needed care.
+  //
+  // Produce is agency-only now, so there is no row a read-only client may be
+  // sent to. The old `setTab('record')` cannot work: `useScreen`'s setTab
+  // returns early when a tab has no row for this viewer, SILENTLY, so a client
+  // who typed the URL would fall through to the `compose` branch, which is
+  // gated on `!readOnly`, and get a blank page with the nav insisting they
+  // were somewhere.
+  //
+  // So the section says what it is instead. Hiding the rail link hides
+  // nothing from an address bar, a bookmark or an old email.
+  if (readOnly) {
+    return (
+      <div className="card" style={{ marginTop: 'var(--s4)' }}>
+        <h2 className="title">Produce is for the agency</h2>
+        <p className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>
+          This is where October makes your video, design and audio. You will see
+          the work itself when we send it over for approval.
+        </p>
+      </div>
+    );
+  }
 
   if (clientLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--s10)', color: 'var(--text-muted)' }}>Loading…</div>;
 

@@ -120,6 +120,14 @@ const COMPOSITION = require('./fixtures/composition.json');
 const TRANSCRIPT = require('./fixtures/transcript.json');
 
 const API = {
+  // The agency login. A drive that wants the CLIENT one sets a `stubrole=client`
+  // cookie and gets it from the handler below instead.
+  //
+  // A cookie rather than an env flag, deliberately: the CI step starts one
+  // stub and loops over every drive, so an env flag would mean restarting it
+  // between passes, and one drive could not then cover both roles. A cookie
+  // is per page, so the same file can check what the agency sees and what a
+  // client sees in one run.
   '/api/auth/me': { id: 'u1', username: 'daniel', role: 'admin' },
   // Produce → Studio. Until these existed the editor rendered its empty state
   // in every drive, so nothing about the editor could be checked in a browser
@@ -833,6 +841,15 @@ const handler = (req, res) => {
     [/^\/api\/press\/clients\/(c\d+)\/warm-config$/, () => ({})],
     [/^\/api\/press\/releases\/(p\d+)\/reply-status$/, () => ({})],
   ];
+  // The client session, for guards that only exist for a read-only login.
+  // Produce is agency-only now, and the failure it has to avoid — a client
+  // who types the URL getting a blank page rather than being told — is
+  // invisible without one.
+  if (url === '/api/auth/me' && /(?:^|;\s*)stubrole=client(?:;|$)/.test(req.headers.cookie || '')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ id: 'u2', username: 'oculi', role: 'client', client_id: 'c1' }));
+  }
+
   if (req.method === 'GET') {
     for (const [re, make] of ONE) {
       const m = url.match(re);

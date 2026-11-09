@@ -410,11 +410,28 @@ export const SECTIONS = {
       // in that list: both operate on a file that already exists, which is
       // Media's job, and the per-clip versions of both already live inside
       // the Studio (its Transcribe button and its music source).
+      // Every row is agency-only and desktop-only, which is two decisions
+      // Daniel made on 9 November rather than a sweep:
+      //
+      //   "read only clients dont see Produce - good point. and they dont
+      //    need it."
+      //   "phone - lets not have it on phone. its a desktop application. we
+      //    can hide produce on a phone."
+      //
+      // Record and Library lose their client access with the rest. Record was
+      // the only Produce screen a client could reach, and the cost of taking
+      // it is small: it captures with `getDisplayMedia`, which is a desktop
+      // capability, so phone capture was incidental rather than designed.
+      //
+      // `phone: false` on every row rather than a flag on the section,
+      // because `phoneGroups` filters rows and a section with no rows left
+      // simply does not appear — which is the behaviour wanted, reached
+      // through the mechanism that already exists.
       { heading: 'Make', rows: [
         { tab: 'compose',    label: 'Studio', slug: 'studio', keywords: ['video', 'edit', 'timeline'], when: agencyOnly, phone: false },
-        { tab: 'record',     label: 'Record' },
-        { tab: 'design',     label: 'Design',      when: agencyOnly },
-        { tab: 'visualise',  label: 'Visualise',   when: (ctx) => !!ctx.canVisualise },
+        { tab: 'record',     label: 'Record',      when: agencyOnly, phone: false },
+        { tab: 'design',     label: 'Design',      when: agencyOnly, phone: false },
+        { tab: 'visualise',  label: 'Visualise',   when: (ctx) => !ctx.readOnly && !!ctx.canVisualise, phone: false },
       ] },
       // Batch. Two rows, not one: briefing a run and working through what it
       // produced are different sittings, often days apart, and a single
@@ -426,18 +443,23 @@ export const SECTIONS = {
       // form with an asset library in it. `when: agencyOnly` hides both rows
       // from a read-only client, and ClientVideoTab also guards the typed URL,
       // because a `when` only hides the row.
+      // Review was deliberately phone-enabled, because approving thirty videos
+      // is a phone job and this file argued for it. Daniel settled it: "tbh, i
+      // build everything on desktop - im not going to do that much work on a
+      // phone." So the capability was never used, and the argument that used
+      // to sit here is obsolete rather than overruled.
       { heading: 'Batch', rows: [
         { tab: 'batch',        label: 'Brief',  slug: 'brief', when: agencyOnly, phone: false },
-        { tab: 'batch_review', label: 'Review', slug: 'batch-review', when: agencyOnly },
+        { tab: 'batch_review', label: 'Review', slug: 'batch-review', when: agencyOnly, phone: false },
       ] },
       // Media. Everything here takes a file that exists and does something to
       // it: the library of what has been made, a transcript of a recording, a
       // cleaned-up audio file. `tab` keys are untouched, so every existing
       // /produce/<slug> still resolves and no render branch moved.
       { heading: 'Media', rows: [
-        { tab: 'library',    label: 'Library' },
-        { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly },
-        { tab: 'audio',      label: 'Audio',       when: agencyOnly },
+        { tab: 'library',    label: 'Library',     when: agencyOnly, phone: false },
+        { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly, phone: false },
+        { tab: 'audio',      label: 'Audio',       when: agencyOnly, phone: false },
       ] },
     ],
   },

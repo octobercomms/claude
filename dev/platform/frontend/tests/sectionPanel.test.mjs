@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SECTIONS, tabsOf, slugsOf, slugOf, tabForSlug, slugForTab, SLUG_ALIASES, navCtx } from '../src/nav/sections.js';
+import { SECTIONS, tabsOf, slugsOf, slugOf, tabForSlug, slugForTab, SLUG_ALIASES, navCtx, visibleGroups, phoneGroups } from '../src/nav/sections.js';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const read = (rel) => readFileSync(path.join(SRC, rel), 'utf8');
@@ -348,6 +348,62 @@ test('the viewer is turned into a nav ctx in exactly one place', () => {
   assert.match(tab, /const canVisualise = !readOnly \|\| !!user\?\.can_use_visualise;/,
     'ClientVideoTab no longer computes canVisualise the way navCtx does — if the '
     + 'page rule changed, change navCtx with it');
+});
+
+// Produce is agency-only and desktop-only, both decided by Daniel on
+// 9 November: "read only clients dont see Produce - good point. and they dont
+// need it", and "phone - lets not have it on phone. its a desktop
+// application."
+//
+// Asserted as "the section contributes nothing" rather than row by row,
+// because a row added later would otherwise slip through with no `when`: the
+// default for a new row is visible to everyone.
+test('a read-only client is offered no part of Produce, on any device', () => {
+  const produce = SECTIONS.produce;
+  const client = { readOnly: true, canVisualise: false };
+  const granted = { readOnly: true, canVisualise: true };
+
+  for (const [name, ctx] of [['a client', client], ['a granted client', granted]]) {
+    const rows = visibleGroups(produce, ctx).flatMap(g => g.rows).map(r => r.label);
+    assert.deepEqual(rows, [],
+      `${name} can still reach ${rows.join(', ')} in Produce`);
+  }
+
+  // The grant used to let a client into Visualise. With Produce agency-only
+  // it reaches nothing, which is a decision for Daniel rather than a licence
+  // to delete the column — recorded in the brief, pinned here so the next
+  // session does not reintroduce the row by removing the readOnly half.
+  assert.deepEqual(
+    visibleGroups(produce, granted).flatMap(g => g.rows).map(r => r.tab), [],
+    'can_use_visualise opened a Produce row again');
+
+  // And nothing in it on a phone, for an agency login either.
+  const agency = { readOnly: false, canVisualise: true };
+  assert.ok(visibleGroups(produce, agency).flatMap(g => g.rows).length >= 8,
+    'the agency lost rows it should still have');
+  assert.deepEqual(phoneGroups(produce, agency).flatMap(g => g.rows).map(r => r.label), [],
+    'Produce still offers rows on a phone');
+
+  // The rail link has to agree with the panel. A link to a section whose
+  // every row is hidden lands on a page with an empty directory beside it.
+  const layout = read(path.join('components', 'Layout.jsx'));
+  const produceLink = layout.slice(layout.indexOf('/produce`'), layout.indexOf('/produce`') + 160);
+  assert.ok(/!readOnly/.test(layout.slice(Math.max(0, layout.indexOf('/produce`') - 400), layout.indexOf('/produce`'))),
+    'the rail still offers Produce to a read-only client');
+  void produceLink;
+
+  // And the page has to refuse the typed URL, not redirect: setTab returns
+  // early when a tab has no row, silently, so a redirect leaves a blank page.
+  const tab = page('ClientVideoTab.jsx');
+  assert.ok(/if \(readOnly\) \{/.test(tab),
+    'ClientVideoTab no longer guards a read-only visitor');
+  // Comments stripped: the file explains the old redirect directly above the
+  // guard that replaced it, and a test that cannot tell the fix from its own
+  // explanation fails on the explanation. Caught this way twice now.
+  const code = tab.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  assert.ok(!/setTab\('record'\)/.test(code),
+    'the old redirect is back — Record is agency-only now, so setTab returns '
+    + 'early and the client gets the compose branch, which renders nothing');
 });
 
 test('every SLUG_ALIASES target is a real tab in at least one section', () => {

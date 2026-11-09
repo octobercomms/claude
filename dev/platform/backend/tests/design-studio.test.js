@@ -516,21 +516,33 @@ check('with something on screen while it loads', /Suspense/.test(tab));
 // the row for completeness.
 const sections = codeOnly(fs.readFileSync(
   path.join(__dirname, '..', '..', 'frontend', 'src', 'nav', 'sections.js'), 'utf8'));
+// Matched on the gate rather than the whole row, which is the lesson this
+// file already records two comments up and which caught it again: the row
+// gained `phone: false` on 9 November when Produce became desktop-only, and a
+// pattern that pinned the row's exact shape failed on an addition that
+// strengthened nothing it was guarding.
 check('the Produce panel hides Design from a client login',
-  /\{ tab: 'design',\s+label: 'Design',\s+when: agencyOnly \}/.test(sections),
+  /\{ tab: 'design',[^}]*when: agencyOnly/.test(sections),
   'the row is offered to a read-only login');
-// Two shapes, because the gate is the claim and the phrasing is not. The
-// page used a chain of `tab === 'x' ||` and now uses a list with `.includes`,
-// which says the same thing for six tabs instead of four without a line that
-// runs off the screen. A guard that only matched the chain failed on the
-// rewrite while the gate it protects was untouched — the same trap as pinning
-// an error message instead of the decision behind it.
-const sentAway = /readOnly && \([^)]*tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab)
-  || /tab === 'design'[^)]*\)\) setTab\('record'\)/.test(tab)
-  || /readOnly && \[[^\]]*'design'[^\]]*\]\.includes\(tab\)\) setTab\('record'\)/.test(tab);
-check('and a client who types ?tab=design is sent away',
-  sentAway,
-  'hiding the row is not a gate — the tab is still reachable by URL');
+// The gate is the claim and the phrasing is not, which this guard has now
+// been rewritten for twice. It first pinned a chain of `tab === 'x' ||`, then
+// a list with `.includes`, and both were descriptions of one mechanism.
+//
+// That mechanism is gone, and not because it was tidied: Produce became
+// agency-only on 9 November, so there is no row left to send a client TO.
+// `useScreen`'s setTab returns early and silently when a tab has no row for
+// this viewer, so the old redirect would have left a client on a blank page
+// under a lit nav — a weaker outcome than the one it was guarding.
+//
+// So the claim, stated once and at the level it actually lives: a read-only
+// visitor to Produce gets a page that says so, before any tab is read.
+const refusedEarly = /if \(readOnly\) \{[\s\S]{0,400}?return \(/.test(tab);
+check('and a client who types the Design URL is refused, not redirected',
+  refusedEarly,
+  'ClientVideoTab no longer turns a read-only visitor away before it reads the tab');
+check('and the refusal comes before any tab branch renders',
+  tab.indexOf('if (readOnly) {') < tab.indexOf("tab === 'design'"),
+  'the guard runs after a branch has already rendered');
 check('and the editor refuses to render for them regardless',
   /\{tab === 'design' && !readOnly &&/.test(tab),
   'the last line of defence is the render itself');
