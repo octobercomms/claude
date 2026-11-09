@@ -1563,6 +1563,57 @@ Worth recording because the test was not wrong about the product and the
 product was not broken: a selector that had been correct for months stopped
 being correct when something that looks the same appeared above it.
 
+## Built, 9 November: verdict first, and an inspector you can read
+
+Two of the four things the conformance pass left open, and neither needed a
+decision from Daniel: both are this file's own unbuilt items.
+
+### The checks answer the question before they explain themselves
+
+The reel checks opened every rule and every piece of evidence for all ten
+checks on load. Measured: **1246px of panel in a 260px column**, and its own
+heading 674px into a 524px scroller. The one thing on the screen that answers
+"is this any good" was below the fold on the screen whose job is to answer
+it.
+
+Verdict first. Ten rows of glyph and label, each a button that opens its own
+detail, evidence and rule; one control opens them all. Measured after: the
+heading sits **348px into an 857px panel**, on screen when the Studio opens,
+and the whole inspector is one short scroll rather than five.
+
+The honest-limit paragraph rides the same control. Eight lines of prose at
+224px of measure was a third of the panel, repeating a caveat the reader has
+already taken in; one line of it stays always.
+
+**The guards are written so that deleting the reasoning passes none of them.**
+A panel that is short because it has nothing in it is not what was asked for,
+so the drive asserts that the panel grows by more than 400px when the
+reasoning opens, and by more than 20px when a single check does.
+
+### Four named groups, in the mockup's order
+
+The inspector was 1883px of ungrouped rows with a clip selected, with nothing
+to say where the clip ended and the project began, and `+ Add effect` was its
+**first control, above the clip you had just selected**.
+
+Clip, AI tools, Reel, Reel checks. A rule and an uppercase label rather than a
+card, because a card inside a card is a border that says nothing.
+
+The mockup has five: **Transform and Audio are absent rather than drawn
+empty**, because scale, position, the two fades and ducking have no controls
+yet. A heading over nothing is a menu of things that do not happen. Those
+controls are still owed, and decision 5 refused only rotation, which does not
+cover them.
+
+### The number that is still off the mockup, and why it is not being fixed quietly
+
+The closed panel is 497px where the critic's estimate was 220. The difference
+is type: our body is 16px Brockmann and the mockup's base is 12px Inter on a
+10/11/12/13 ladder, so every check label wraps to two lines in a 224px
+column. **The Studio is the one screen in OMI that should be denser than the
+house**, and that is a decision about the design system rather than this
+screen. It is with Daniel, not taken.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
@@ -1578,15 +1629,28 @@ being correct when something that looks the same appeared above it.
   A photograph is the one source that already IS an image, which makes this
   the cheapest picture in the product. The same line that stopped the PREVIEW
   drawing photographs, in a second place.
-- **The preview and the render disagree outside the overscan.** Measured by
-  the step 7 design pass: `pos` and `scale` mean "move the already-cropped
-  frame inside the output frame" to the renderer, which produces black bars,
-  and "pan within the source picture" to the preview, which does not. They
-  agree only while `|pos| <= (scale-1)/2`, and all six shipped MOTIONS are
-  inside that bound — `drift` and `rise` by 0.005 of the frame, which is 5px
-  on a 1080 frame. Any control that lets a person leave the overscan crosses
-  it on the first drag. The preview also never clips a layer to the frame
-  box, which is two lines.
+- ~~**The preview and the render disagree outside the overscan.**~~
+  **FALSE, and closed 9 November.** The step 7 design pass recorded that
+  `pos` and `scale` meant "move the already-cropped frame inside the output
+  frame" to the renderer and "pan within the source picture" to the preview,
+  agreeing only while `|pos| <= (scale-1)/2`. Measured on rendered pixels,
+  neither is true. The renderer overlays the scaled frame at
+  `(main_w-overlay_w)/2 + pos.x*W`, which expands to a scale about the frame
+  centre followed by an offset — the same three canvas operations the
+  preview performs. Tested at `pos.x` 0.45 with `scale` 1.5, where the
+  claimed bound is 0.25, and at `scale` 0.6 with motion on both axes: the
+  source centre lands where the preview puts it in every case.
+
+  This was read by at least one later pass as a reason not to build the
+  Transform controls, so it had been blocking real work on a claim nobody
+  had measured.
+
+  The agreement is now structural rather than lucky. `framePlacement` in
+  `shared/composition.mjs` is the one implementation; `Compositor.jsx` draws
+  with it, and `composition-render-pixels.test.js` renders a four-quadrant
+  clip through the real graph and asserts ffmpeg puts the crossing where
+  that function says. Mutation-checked: halving the offset inside
+  `framePlacement` fails three of the five cases.
 - **The transport is not the toolbar.** `Play`, `-1 frame`, `+1 frame` and
   `Start` are 36px pills wrapping onto two rows in a 188px column, 130px above
   a row of 26px chips, and `Play` is offered at full strength on an empty reel

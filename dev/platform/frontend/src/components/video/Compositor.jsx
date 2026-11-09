@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as PB from '@shared/compositionPlayback.mjs';
 import { paintFor } from '@shared/compositionFx.mjs';
+import { framePlacement } from '@shared/composition.mjs';
 import * as GAIN from './audioGain';
 import useCaptionPreview from '../../hooks/useCaptionPreview';
 
@@ -299,15 +300,17 @@ const Compositor = React.forwardRef(function Compositor({
         ctx.globalAlpha = layer.opacity;
       }
 
-      // The transform, from the same model function the render graph derives
-      // its ffmpeg expressions from (`itemTransformAt`, via sceneAt).
+      // The transform. `itemTransformAt` gives the numbers, via sceneAt, and
+      // `framePlacement` turns them into the box the RENDER GRAPH puts the
+      // fitted frame in — the same function, not a second implementation of
+      // the same arithmetic.
       //
-      // The renderer fits the item to the frame, scales that frame by
-      // `scale`, and overlays it centred plus `pos` as a fraction of the
-      // frame. These three canvas operations are the same arithmetic:
-      // scaling about the frame centre and then offsetting. Written in this
-      // order so that a scale of 1 with no pos leaves the matrix untouched
-      // and the untransformed path draws exactly as it did before.
+      // The two used to be written out separately here and in
+      // compositionRender.mjs, and the brief recorded them as disagreeing
+      // outside the overscan. Measured on rendered pixels they agreed at
+      // every case tried, including pos 0.45 at scale 1.5, where the
+      // overscan bound is 0.25. Agreement by coincidence is not a property,
+      // so the arithmetic is in one place and a pixel test holds it there.
       //
       // `rot` is deliberately NOT drawn. The render graph refuses it (its
       // output box is init-only, so an animated rotation needs a different
@@ -315,9 +318,9 @@ const Compositor = React.forwardRef(function Compositor({
       // produce would be the page lying about its output.
       const tr = layer.transform;
       if (tr && (tr.scale !== 1 || tr.pos?.x || tr.pos?.y)) {
-        ctx.translate(W / 2 + (tr.pos?.x || 0) * W, H / 2 + (tr.pos?.y || 0) * H);
-        ctx.scale(tr.scale, tr.scale);
-        ctx.translate(-W / 2, -H / 2);
+        const box = framePlacement(tr, W, H);
+        ctx.translate(box.x, box.y);
+        ctx.scale(box.scale, box.scale);
       }
 
       const ew = isImg ? (el.naturalWidth || W) : (el.videoWidth || W);

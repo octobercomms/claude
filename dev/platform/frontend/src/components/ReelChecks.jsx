@@ -92,7 +92,22 @@ function Evidence({ outcome }) {
 
 export default function ReelChecks({ timings = [], edit = {}, defaultOpen = false,
   clientId = null }) {
+  // VERDICT FIRST. `open` means "show the reasoning", for every check at
+  // once; `expanded` is the one check somebody asked about.
+  //
+  // This panel was 1246px tall in a 260px column with its reasoning always
+  // on, and its own heading landed 674px into a 524px scroller: the one
+  // thing on the screen that answers "is this any good" was below the fold
+  // on a screen whose whole job is to answer that. Ten verdicts are about
+  // 220px. The reasoning has not gone anywhere; it costs one click, and the
+  // measured cost of showing it to everybody forever was the panel itself.
   const [open, setOpen] = useState(defaultOpen);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggle = (key) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
   const [learned, setLearned] = useState(null);
   const [keywords, setKeywords] = useState([]);
 
@@ -124,46 +139,74 @@ export default function ReelChecks({ timings = [], edit = {}, defaultOpen = fals
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline',
-        gap: 'var(--s2)', flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 700 }}>
+        gap: 'var(--s2)', flexWrap: 'wrap',
+        paddingBottom: 'var(--s1)', borderBottom: LINE, marginBottom: 'var(--s2)' }}>
+        {/* The same register as the inspector's other group headings —
+            uppercase caption weight — because this IS one of its groups and
+            was drawing itself as a card title inside a panel of labels.
+            The count stays on the heading: it is the one line that answers
+            the operator's question, and it is why the heading is worth
+            reaching. */}
+        <span style={{
+          fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: '0.06em',
+          textTransform: 'uppercase', color: 'var(--text-subtle)',
+        }}>
           Reel checks
-          <span style={{ ...CAP, marginLeft: 8 }}>
+          <span style={{ marginLeft: 8, letterSpacing: 0 }}>
             {result.passed} of {result.total}
             {result.unknown ? `, ${result.unknown} not yet judgeable` : ''}
           </span>
         </span>
         <button type="button" onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
           style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer',
             ...CAP, textDecoration: 'underline' }}>
-          {open ? 'Hide the rules' : 'Show the rules'}
+          {open ? 'Hide the reasoning' : 'Show the reasoning'}
         </button>
       </div>
 
-      <div style={{ marginTop: 'var(--s2)', display: 'grid', gap: 'var(--s2)' }}>
-        {result.checks.map((c) => (
-          <div key={c.key} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start' }}>
-            <Mark pass={c.pass} />
-            <span style={{ minWidth: 0 }}>
-              <span style={{ fontSize: 'var(--fs-body)',
-                color: c.pass === null ? 'var(--text-subtle)' : 'inherit' }}>{c.label}</span>
-              <span style={{ ...CAP, display: 'block', lineHeight: 1.4 }}>{c.detail}</span>
-              <Evidence outcome={outcomeFor(c.key)} />
-              {open && (
-                <span style={{ ...CAP, display: 'block', lineHeight: 1.4, fontStyle: 'italic',
-                  marginTop: 2 }}>{c.rule}</span>
-              )}
-            </span>
-          </div>
-        ))}
+      <div style={{ marginTop: 'var(--s2)', display: 'grid', gap: 'var(--s1)' }}>
+        {result.checks.map((c) => {
+          const showing = open || expanded.has(c.key);
+          return (
+            // A BUTTON, not a div with a click on it. Every row here is a
+            // question somebody can ask, so each one has to be reachable by
+            // keyboard and has to say whether it is open.
+            <button key={c.key} type="button" onClick={() => toggle(c.key)}
+              aria-expanded={showing} data-check={c.key}
+              style={{ background: 'none', border: 0, padding: '2px 0', margin: 0,
+                textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit',
+                display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', width: '100%' }}>
+              <Mark pass={c.pass} />
+              <span style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 'var(--fs-body)', lineHeight: 1.35,
+                  color: c.pass === null ? 'var(--text-subtle)' : 'inherit' }}>{c.label}</span>
+                {showing && (
+                  <>
+                    <span style={{ ...CAP, display: 'block', lineHeight: 1.4 }}>{c.detail}</span>
+                    <Evidence outcome={outcomeFor(c.key)} />
+                    <span style={{ ...CAP, display: 'block', lineHeight: 1.4, fontStyle: 'italic',
+                      marginTop: 2 }}>{c.rule}</span>
+                  </>
+                )}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* The honest limit, on screen rather than in a comment. It used to
           promise that these become findings at thirty reels; now it says where
           this client actually is, because a standing promise nobody can check
           is worse than a number. */}
+      {/* The honest limit. One line always, the whole of it with the
+          reasoning: eight lines of prose at 224px of measure was a third of
+          this panel, repeating a caveat the reader has already taken in. */}
       <div style={{ ...CAP, marginTop: 'var(--s3)', paddingTop: 'var(--s2)',
         borderTop: LINE, lineHeight: 1.5 }}>
-        {result.total} of {result.total} is not a prediction that a reel will travel. It says the
+        Advisory. {result.total} of {result.total} is not a prediction that a reel will travel.
+        {open && <>
+        {' '}It says the
         reel does the {result.total} things, which is all these can honestly claim. The thresholds
         come from October&rsquo;s own growth plan.
         {learned ? (
@@ -187,6 +230,7 @@ export default function ReelChecks({ timings = [], edit = {}, defaultOpen = fals
           <> They are reasoned assumptions rather than measurements until enough reels have
             been published to test them.</>
         )}
+        </>}
       </div>
     </div>
   );
