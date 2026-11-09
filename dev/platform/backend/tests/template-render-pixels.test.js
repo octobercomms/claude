@@ -110,6 +110,10 @@ function template(id, over = {}) {
 function render(comp, name, captionAssPath = null) {
   const result = renderGraph(comp, { captionAssPath });
   const resolved = result.inputs.map((inp) => {
+    // A generated input (an effect) holds a filtergraph rather than a file,
+    // and keeps its slot so the indices ffmpeg numbers by position stay
+    // aligned with the graph's `[n:v]`.
+    if (inp.generated) return null;
     const url = comp.sources[inp.sourceId]?.url;
     if (!url) throw new Error(`input ${inp.sourceId} (${inp.kind}) has no url`);
     return url;
@@ -241,6 +245,54 @@ describe('a stills montage, bound and rendered', () => {
       Math.abs(got - want) < 0.25,
       `composition says ${want.toFixed(2)}s, the file is ${got.toFixed(2)}s`
     );
+  });
+
+  it('darkens the caption zone and leaves the top of the frame alone', () => {
+    // THE SCRIM, end to end: template JSON to pixels. The caption preset
+    // this template ships with is `gallery-quiet`, which is #FBF9F7 type at
+    // 36pt with a 2px outline. Over an architect's white plaster wall that is
+    // marginal, and the fix is a graded scrim under the words rather than a
+    // louder preset.
+    //
+    // Measured on the montage's own frames: a strip across the caption zone
+    // against the same strip at the top, on the same photograph, in the same
+    // frame. Both have to be read from one frame or a transition between two
+    // colours would explain any difference.
+    const raw = frame(out, 1.2);
+    const strip = (y) => {
+      let sum = 0;
+      for (let x = 0; x < W; x += 1) {
+        const i = (y * W + x) * 3;
+        sum += raw[i] + raw[i + 1] + raw[i + 2];
+      }
+      return sum / (W * 3);
+    };
+    const top = strip(Math.round(H * 0.2));
+    const words = strip(Math.round(H * 0.84));
+    assert.ok(
+      words < top * 0.6,
+      `the caption zone should be well under half the brightness of the top:`
+      + ` top ${top.toFixed(0)}, caption zone ${words.toFixed(0)}`
+    );
+    // And the top is genuinely untouched rather than darkened a little
+    // everywhere, which is what a scrim starting at zero would do.
+    const above = strip(Math.round(H * 0.4));
+    assert.ok(
+      Math.abs(above - top) < 6,
+      `above the scrim's start nothing should change: ${top.toFixed(0)} then ${above.toFixed(0)}`
+    );
+  });
+
+  it('generates the scrim rather than looking for a file for it', () => {
+    // The fault this is the regression test for: `fx` was a declared,
+    // validated source kind with no branch in the renderer, so an effect
+    // became an ordinary input and the route answered `Source "x" has no
+    // file on disk` — the same fault captions had, for the same reason.
+    const result = renderGraph(comp);
+    const fx = result.inputs.filter((i) => i.kind === 'fx');
+    assert.equal(fx.length, 1);
+    assert.equal(fx[0].generated, true);
+    assert.match(fx[0].lavfi, /geq=/);
   });
 
   it('shows all six photographs, in order, each held', () => {

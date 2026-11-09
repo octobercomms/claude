@@ -714,6 +714,113 @@ The post that prompted this is gated marketing ("follow me and comment FX").
 We have the HyperFrames kit installed already and do not need its setup guide,
 and a list of effect names is not evidence any of them render well.
 
+> **Built, 9 November: the mechanism and three effects.**
+> `shared/compositionFx.mjs` is the catalogue; `compositionRender.mjs` has an
+> `fx` branch; the preview paints the same mask; `stills-montage` and
+> `project-reveal` carry a scrim.
+>
+> **The mechanism did not exist, and the model's vocabulary hid that.** `fx`
+> has been a declared, validated source kind since the model was written —
+> `SOURCE_KINDS`, `PICTURE_KINDS`, a validator requiring `effect` and
+> allowing `duration` and `params`. `compositionRender.mjs` had no branch for
+> it, so an fx source became an ordinary ffmpeg input, the route found no
+> asset for it and answered `Source "x" has no file on disk`. The same fault
+> class as captions, invisible for the same reason: the graph string was
+> correct about a file that did not exist. **"Ship three effects as data"
+> would have shipped three effects that cannot render.**
+>
+> **Four ffmpeg facts, each measured, decide the shape of all three.**
+>
+> - `geq` per frame costs **24x**: 3755ms against 154ms for the same picture
+>   generated once, over 60 frames at 1080x1920. A batch of thirty cannot pay
+>   the first figure. So every effect is ONE frame, generated with `geq` and
+>   held with `loop=-1:size=1` — 252ms for the whole layer.
+> - **`drawbox` writes colour and leaves alpha at zero.** A rule drawn with
+>   it measured `[228,228,228,0]` where `geq`'s measured `[255,255,255,230]`:
+>   it composites as *nothing*, with no error in the log.
+> - **`drawbox` exposes neither `t` nor `n`**, so there is no cheap animated
+>   mask to fall back to: `n/100` errors outright and `t` silently fills the
+>   full width.
+> - **`format=yuva420p` must precede `geq`** or there is no alpha plane to
+>   write; the expression is evaluated and discarded and the effect comes out
+>   opaque.
+>
+> Movement, where an effect wants it, comes from the item transform the
+> template model already animates and tests. An effect that must change shape
+> per frame is not in the catalogue, and the reason is cost, not taste.
+>
+> **The three, and why these three.** Measured against a mid-grey base of 128,
+> because on black a scrim is invisible and on white a rule is:
+>
+> | Effect | What it does | Measured |
+> |---|---|---|
+> | **Bottom scrim** | Darkens the lower frame so white captions survive a pale picture | 128 at 0.2 and 0.4 down, 55 at 0.80, 36 at full |
+> | **Vignette** | Holds the eye on the middle of the frame | centre 128, mid 104, edge 23, corner 0 |
+> | **Hairline rule** | A thin inset line under a date or a project name | 244 on the line, 128 four pixels above and inside the inset |
+>
+> The scrim is the one with a named problem behind it. Both templates that
+> burn type over photography ship `gallery-quiet`: `#FBF9F7` at 36pt with a
+> 2px outline. Over an architect's white plaster wall that is marginal, and a
+> graded scrim under the words is the fix rather than a louder preset. It is
+> on `stills-montage` and `project-reveal` and nothing else.
+>
+> **Where the ramp ends is a measurement, not a taste.** Burned captions sit
+> on ASS `MarginV` 320 of a 1920 frame, so a two-line block occupies roughly
+> 0.78 to 0.85 down the frame. The first version ramped from 0.62 to the
+> bottom EDGE, which puts 30 to 40% black where the words are and the darkest
+> part of it in the empty strip underneath. Hence a `full` parameter,
+> defaulted to where the type actually is.
+>
+> **The preview paints the same mask.** The compositor cannot run `geq`, and
+> before this the layer was skipped silently — `getElement` returns null for a
+> source with no url — so a template's scrim was in every rendered file and in
+> none of the previews. That is the state the caption-legibility judgement
+> would have been made in. So each effect describes itself three times: the
+> `geq` expression for ffmpeg, the arithmetic as a function, and a canvas
+> gradient for the browser. Two implementations of one description drift, so
+> `composition-fx-agreement.test.js` PARSES THE SHIPPED EXPRESSION, evaluates
+> it at every row down the middle of the frame plus a grid, and holds all
+> three against each other with every parameter driven to the end of its range
+> furthest from its default.
+>
+> **Reachable from two places.** The templates carry the scrim; the
+> composition editor has `+ Add effect`, which is free — generated in the
+> render, nothing uploaded, no API call, so no cost chip.
+>
+> **42 mutations, none surviving**, across the catalogue, the render branch,
+> the preview's paint and the template binding. What the sweep caught:
+>
+> - **An oval vignette passed a test rendered on a square frame.** Dividing by
+>   `W/2` and by `H/2` is the same arithmetic at 200x200, so swapping one for
+>   the other changed nothing and the test passed on a broken expression.
+> - **The preview's corner was lighter than the export's**: 0.935 where the
+>   mask was 1.0, because the gradient's stops were spread evenly to the
+>   corner and interpolated up to saturation from below. The stops now stop at
+>   the saturation radius; 24 segments hold the worst error across the whole
+>   parameter range at 0.006, against 0.046 at eight.
+> - **A redundant stop.** The sweep walked straight through the removal of the
+>   corner stop with nothing failing, which is what redundant means: a
+>   gradient holds its last stop's colour past it.
+> - **`fps` removed from the render's per-item chain survived**, because the
+>   fx branch gave that line a second home and `String.replace` took the
+>   first. The sweep was mutating the effect branch and reporting the real
+>   one as covered.
+> - **A grid that could not see its own parameter.** A 2px line in a 1920-high
+>   frame falls between sampled rows, so widening it changed nothing anywhere
+>   and `thickness` looked wired when nothing proved it was. And halving it
+>   from 2px to 1.5px genuinely changes no pixel, both rounding to the same
+>   two rows, so the test now drives each parameter to its furthest extreme.
+>
+> Two faults in the module itself, both found by its own tests rather than by
+> reading it: `Number(n)` read a null parameter as the DARKEST POSSIBLE scrim
+> instead of refusing it, and `opts.width || 1080` took the default for a
+> falsy zero, so the positive-frame-size guard beneath it could never fire.
+>
+> **Not built: anything animated, and anything segmented.** The glass panels,
+> the iOS toggles and the orbiting thumbnails all need an authored animated
+> alpha source, which is a different piece of work from this one. Spotlight
+> still needs segmentation and is still the only hard one.
+
 ---
 
 ## What to take from the five repos, and what not to
@@ -811,7 +918,7 @@ the model changes and the template model.
 | 7 | The QC gate | 2 to 3 | Needed before a batch runs unwatched twice |
 | 8 | The worker renders the composition model, **and `update.sh` learns to deploy it** | 3 to 5 | Moves thirty encodes off the app box. See the first trap |
 | 9 | The agent skill: Composition JSON schema, invariants, worked examples | 2 to 3 | What makes an agent able to drive the editor |
-| 10 | The FX library, three to six effects | 4 to 6 | Nothing depends on it, so it goes late |
+| 10 | The FX library, three to six effects | 4 to 6 | Nothing depends on it, so it goes late. **Built 9 November: the mechanism, three effects, the preview's copy of the mask** |
 | 11 | Spotlight and segmentation | 3 to 5 | The only genuinely hard effect. Last, and optional |
 
 Steps 2 and 4 are where this is won or lost.
@@ -1044,6 +1151,22 @@ practice draws from `editorial` and never sees the rest.
 plus shipped data, exactly as the caption templates are, and the guide is
 explicit that adding a template as a React composition is the `StyleA/C/G.jsx`
 pattern that does not scale past three.
+
+> **Built, 9 November, and the register is thinner than this says.** Each
+> entry in `shared/compositionFx.mjs` carries a register, and the list is
+> `editorial`, `creator` and `both` rather than the two above: the scrim and
+> the vignette suit either channel and marking them `editorial` would hide
+> them from Daniel's own.
+>
+> **Nothing shipped is creator-register only, and the test pins the count
+> rather than the intention**: `fxFor('creator')` returns two, not three. A
+> catalogue listing a creator effect it does not have would be the same
+> invention the first eight templates were stripped of. The register is in
+> place for when an animated alpha source lands, which is what every
+> creator-register effect on the list above actually needs.
+>
+> It is not a ninth tab: shipped data, one `+ Add effect` control in the
+> composition editor, and a `fx` list on a template.
 
 ### 3. Smaller calls, with recommendations
 

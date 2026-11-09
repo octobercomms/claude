@@ -74,9 +74,14 @@ mutation(
   "if (fit === 'contain') {"
 );
 
+// The `if (!isFx)` is part of the target, not decoration. An fx layer has
+// its own `fps` earlier in the same function, so the bare line now appears
+// twice and `String.replace` takes the first: the mutation hit the effect
+// branch, the real one survived, and the sweep reported a gap that was its
+// own. Caught by this file failing when the fx branch landed.
 mutation(
   'fps filter removed',
-  "parts.push(`fps=${fps}`);",
+  "if (!isFx) parts.push(`fps=${fps}`);",
   "// parts.push(`fps=${fps}`);"
 );
 

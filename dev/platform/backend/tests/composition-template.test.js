@@ -536,7 +536,7 @@ describe('the shipped templates', () => {
   // Only the fields the binder reads. A template declaring anything else is
   // claiming behaviour nothing implements, which is worse than not having it:
   // the next person reads the JSON and believes it.
-  const TOP = ['id', 'name', 'description', 'bestFor', 'register', 'size', 'fps', 'slots', 'caption', 'variation', 'audio'];
+  const TOP = ['id', 'name', 'description', 'bestFor', 'register', 'size', 'fps', 'slots', 'caption', 'variation', 'audio', 'fx'];
   const SLOT = ['id', 'kind', 'min', 'max', 'len', 'motion', 'trans', 'track', 'alignTo', 'voice'];
 
   it('ships eight of them', () => {
@@ -791,5 +791,150 @@ describe('ducking the music under the voice', () => {
     assert.equal(t.audio?.duck, true);
     assert.equal(t.slots.find((x) => x.id === 'speech').voice, true);
     assert.deepEqual(validateTemplate(t), []);
+  });
+});
+
+// ── finishing effects ────────────────────────────────────────────────
+
+describe('finishing effects', () => {
+  // An effect is NOT a slot. A slot is something the operator fills; an
+  // effect takes no input, so it lives at the top level and spans whatever
+  // the template binds.
+  const scrimmed = (over = {}) => montage({
+    fx: [{ effect: 'scrim', track: 1, params: { strength: 0.5 } }],
+    ...over,
+  });
+
+  it('validates a good one', () => {
+    assert.deepEqual(validateTemplate(scrimmed()), []);
+  });
+
+  it('refuses an effect the catalogue does not have', () => {
+    const errs = validateTemplate(scrimmed({ fx: [{ effect: 'filmburn' }] }));
+    assert.match(errs.join(' '), /unknown effect "filmburn"/);
+    assert.match(errs.join(' '), /scrim, vignette, rule/);
+  });
+
+  it('refuses a parameter the effect does not have', () => {
+    // Caught here rather than at render time: a template is data nothing
+    // compiles, so a misspelt parameter left to the renderer surfaces as a
+    // failed job on video nineteen of a batch of thirty.
+    const errs = validateTemplate(scrimmed({ fx: [{ effect: 'scrim', params: { strenght: 1 } }] }));
+    assert.match(errs.join(' '), /has no parameter "strenght"/);
+  });
+
+  it('refuses a field nothing reads', () => {
+    const errs = validateTemplate(scrimmed({ fx: [{ effect: 'scrim', blend: 'multiply' }] }));
+    assert.match(errs.join(' '), /declares blend, which nothing reads/);
+  });
+
+  it('refuses an opacity of zero, which would render nothing at all', () => {
+    assert.match(
+      validateTemplate(scrimmed({ fx: [{ effect: 'scrim', opacity: 0 }] })).join(' '),
+      /opacity must be greater than 0/
+    );
+  });
+
+  it('refuses an effect on a track the slots made an audio one', () => {
+    // A track whose slots are all audio is created as an audio track, and an
+    // effect is a picture. The composition validator refuses it too, but at
+    // bind time, by which point the batch is already running.
+    const t = montage({
+      slots: [
+        { id: 'stills', kind: 'still', min: 1, max: 2, len: { min: 2, max: 3 }, track: 0 },
+        { id: 'music', kind: 'audio', min: 1, max: 1, track: 1 },
+      ],
+      fx: [{ effect: 'scrim', track: 1 }],
+    });
+    assert.match(validateTemplate(t).join(' '), /track 1 is an audio track/);
+  });
+
+  it('refuses an fx that is not a list', () => {
+    assert.match(validateTemplate(montage({ fx: { effect: 'scrim' } })).join(' '), /fx must be an array/);
+  });
+
+  it('binds to one generated source and one item', () => {
+    const comp = bindTemplate(scrimmed(), { stills: STILLS.slice(0, 3) }, { seed: 'fx' });
+    assert.deepEqual(validateTemplate(scrimmed()), []);
+    const fxSources = Object.values(comp.sources).filter((s) => s.kind === 'fx');
+    assert.equal(fxSources.length, 1);
+    assert.equal(fxSources[0].effect, 'scrim');
+    assert.deepEqual(fxSources[0].params, { strength: 0.5 });
+  });
+
+  it('spans the whole timeline, measured off the result', () => {
+    // NOT summed from the slots. Transitions are overlaps in this model, so
+    // every item after the first starts before the one before it ends: a
+    // scrim sized by adding the slot lengths would overrun the reel and hold
+    // a dark band over the final frame.
+    const comp = bindTemplate(scrimmed(), { stills: STILLS }, { seed: 'fx' });
+    const ends = comp.tracks.flatMap((tr) => tr.items.map((i) => i.at + i.len));
+    const bound = Math.max(...ends);
+    const fxItem = comp.tracks
+      .flatMap((tr) => tr.items)
+      .find((i) => comp.sources[i.source]?.kind === 'fx');
+    assert.equal(fxItem.at, 0);
+    assert.equal(fxItem.len, bound);
+    const summed = comp.tracks[0].items.reduce((a, i) => a + i.len, 0);
+    assert.ok(summed > bound, `the sum of the slots (${summed}) exceeds the timeline (${bound})`);
+  });
+
+  it('lands on a video track above the picture', () => {
+    const comp = bindTemplate(scrimmed(), { stills: STILLS }, { seed: 'fx' });
+    const ti = comp.tracks.findIndex((tr) => tr.items.some(
+      (i) => comp.sources[i.source]?.kind === 'fx'
+    ));
+    const picture = comp.tracks.findIndex((tr) => tr.items.some(
+      (i) => comp.sources[i.source]?.kind === 'clip'
+    ));
+    assert.equal(comp.tracks[ti].kind, 'video');
+    assert.ok(ti > picture, `effect on track ${ti}, picture on track ${picture}`);
+  });
+
+  it('makes a track for itself when no slot asked for one', () => {
+    // And counts it in with the slots' indices rather than appending it
+    // after, because a track's POSITION is its layer: a scrim created after
+    // the fact would land above a graphic that asked to be on top.
+    const comp = bindTemplate(
+      montage({ fx: [{ effect: 'vignette', track: 1 }] }),
+      { stills: STILLS.slice(0, 3) },
+      { seed: 'fx' }
+    );
+    assert.equal(comp.tracks.length, 2);
+    assert.equal(comp.tracks[1].kind, 'video');
+  });
+
+  it('adds nothing when the template asks for nothing', () => {
+    const comp = bindTemplate(montage(), { stills: STILLS }, { seed: 'fx' });
+    assert.equal(Object.values(comp.sources).filter((s) => s.kind === 'fx').length, 0);
+  });
+
+  it('carries the item opacity through', () => {
+    const comp = bindTemplate(
+      montage({ fx: [{ effect: 'scrim', track: 1, opacity: 0.4 }] }),
+      { stills: STILLS },
+      { seed: 'fx' }
+    );
+    const item = comp.tracks.flatMap((tr) => tr.items)
+      .find((i) => comp.sources[i.source]?.kind === 'fx');
+    assert.equal(item.opacity, 0.4);
+  });
+
+  it('is on the two shipped templates that burn pale type over photography', () => {
+    // `gallery-quiet` is #FBF9F7 at 36pt with a 2px outline. Over an
+    // architect's white plaster wall that is marginal, and a scrim under the
+    // words is the fix rather than a louder preset.
+    const dir = path.join(__dirname, '..', '..', 'shared', 'templates');
+    for (const id of ['stills-montage', 'project-reveal']) {
+      const t = JSON.parse(fs.readFileSync(path.join(dir, `${id}.json`), 'utf8'));
+      assert.deepEqual(validateTemplate(t), [], id);
+      assert.equal(t.fx.length, 1, id);
+      assert.equal(t.fx[0].effect, 'scrim', id);
+      assert.equal(t.caption.preset, 'gallery-quiet', id);
+      // The scrim's full strength is where the burned type sits: ASS
+      // alignment 2 with MarginV 320 of 1920 puts a two-line block at
+      // roughly 0.78 to 0.85 down the frame.
+      assert.ok(t.fx[0].params.full >= 0.78 && t.fx[0].params.full <= 0.9, id);
+    }
   });
 });

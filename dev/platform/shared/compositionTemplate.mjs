@@ -28,6 +28,7 @@
 import {
   emptyComposition, addSource, addTrack, addItem, secs, validate,
 } from './composition.mjs';
+import { FX, FX_NAMES, paramsFor } from './compositionFx.mjs';
 
 export const TEMPLATE_VERSION = 1;
 
@@ -194,6 +195,58 @@ export function validateTemplate(t) {
       if (!music.length) {
         errors.push('audio.duck needs an audio slot to duck; nothing else would change');
       }
+    }
+  }
+
+  // FINISHING EFFECTS. Not slots: a slot is something the operator fills, and
+  // an effect takes no input. It is a fixed decoration the template applies to
+  // whatever it binds, which is why it lives at the top level and spans the
+  // whole composition rather than one shot.
+  //
+  // The catalogue is checked HERE rather than at render time. A template
+  // naming an effect that does not exist, or a parameter spelt wrong, is a
+  // fault in data nothing compiles: left to the renderer it surfaces as a
+  // failed job on video nineteen of a batch of thirty.
+  if (t.fx != null) {
+    if (!Array.isArray(t.fx)) {
+      errors.push('fx must be an array');
+    } else {
+      t.fx.forEach((e, i) => {
+        const at = `fx ${i}`;
+        if (!e || typeof e !== 'object' || Array.isArray(e)) {
+          errors.push(`${at}: not an object`);
+          return;
+        }
+        const unknown = Object.keys(e).filter(
+          (k) => !['effect', 'track', 'params', 'opacity'].includes(k)
+        );
+        if (unknown.length) errors.push(`${at}: declares ${unknown.join(', ')}, which nothing reads`);
+        if (!FX[e.effect]) {
+          errors.push(`${at}: unknown effect "${e.effect}" (${FX_NAMES.join(', ')})`);
+          return;
+        }
+        if (e.track != null && (!Number.isInteger(e.track) || e.track < 0)) {
+          errors.push(`${at}: track must be a non-negative integer`);
+        }
+        if (e.opacity != null
+            && (!Number.isFinite(e.opacity) || e.opacity <= 0 || e.opacity > 1)) {
+          errors.push(`${at}: opacity must be greater than 0 and at most 1`);
+        }
+        // A track whose slots are all audio is created as an audio track, and
+        // an effect is a picture. Caught here because the composition
+        // validator's own refusal arrives at bind time, by which point a
+        // batch is already running.
+        const ti = e.track ?? 1;
+        const onTrack = (t.slots || []).filter((x) => (x?.track ?? 0) === ti);
+        if (onTrack.length && onTrack.every((x) => x?.kind === 'audio')) {
+          errors.push(`${at}: track ${ti} is an audio track, and an effect is a picture`);
+        }
+        try {
+          paramsFor(e.effect, e.params);
+        } catch (err) {
+          errors.push(`${at}: ${err.message}`);
+        }
+      });
     }
   }
 
@@ -372,10 +425,18 @@ export function bindTemplate(template, content = {}, opts = {}) {
   // One track per distinct `track` index the slots ask for, created in order
   // so track 0 is the base and higher indices composite over it.
   const trackIds = new Map();
-  const trackIndices = [...new Set(template.slots.map((s) => s.track ?? 0))].sort((a, b) => a - b);
+  // Effect tracks are counted in with the slots' rather than appended after,
+  // because a track's position IS its layer: the renderer composites track 0
+  // first and each later one over it. A scrim created after the fact would
+  // land above a graphic that asked to be on top, whatever index it claimed.
+  const fxEntries = Array.isArray(template.fx) ? template.fx : [];
+  const trackIndices = [...new Set([
+    ...template.slots.map((s) => s.track ?? 0),
+    ...fxEntries.map((e) => e.track ?? 1),
+  ])].sort((a, b) => a - b);
   for (const ti of trackIndices) {
     const kinds = template.slots.filter((s) => (s.track ?? 0) === ti).map((s) => s.kind);
-    const kind = kinds.every((k) => k === 'audio') ? 'audio' : 'video';
+    const kind = kinds.length && kinds.every((k) => k === 'audio') ? 'audio' : 'video';
     const made = addTrack(comp, kind);
     comp = made.comp;
     trackIds.set(ti, made.id);
@@ -583,6 +644,46 @@ export function bindTemplate(template, content = {}, opts = {}) {
           len: speechItem.it.len,
           source: made.id,
           reason: `${template.name} · spoken captions`,
+        });
+        comp = placed.comp;
+      }
+    }
+  }
+
+  // ── Finishing effects ───────────────────────────────────────────────
+  //
+  // One item per effect, spanning everything that was bound. The length is
+  // measured off the result rather than summed from the slots, because the
+  // slots' own lengths do not add up to the timeline: transitions are
+  // overlaps, so every item after the first starts before the one before it
+  // ends. A scrim sized by summing the slots would overrun a 24s reel by two
+  // seconds and hold a dark band over the final frame.
+  //
+  // Burned captions are applied after all compositing, so an effect never
+  // covers the words whatever track it is on. That is what makes the scrim
+  // work: it darkens the picture under the type, not the type.
+  if (fxEntries.length) {
+    let bound = 0;
+    for (const tr of comp.tracks) {
+      for (const it of tr.items) {
+        const end = secs(it.at + it.len);
+        if (end > bound) bound = end;
+      }
+    }
+    if (bound > 0) {
+      for (const e of fxEntries) {
+        const made = addSource(comp, {
+          kind: 'fx',
+          effect: e.effect,
+          ...(e.params ? { params: e.params } : {}),
+        });
+        comp = made.comp;
+        const placed = addItem(comp, trackIds.get(e.track ?? 1), {
+          at: 0,
+          len: bound,
+          source: made.id,
+          ...(e.opacity != null ? { opacity: e.opacity } : {}),
+          reason: `${template.name} · ${FX[e.effect].label.toLowerCase()}`,
         });
         comp = placed.comp;
       }

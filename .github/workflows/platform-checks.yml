@@ -259,6 +259,17 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the template pixel assertions would not run'; exit 1; }
           node tests/template-render-pixels.test.js
+      # The way ffmpeg loses an overlay is silently. `drawbox` writes colour
+      # and leaves alpha at zero, so a rule drawn with it composites as
+      # nothing with no error; `format=yuva420p` after geq rather than before
+      # gives no alpha plane to write and the effect comes out opaque.
+      # Neither shows in a graph string and neither fails a render, so the
+      # three effects are sampled on real frames.
+      - name: Guard — the three effects are visible, and only where they should be
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the effect pixel assertions would not run'; exit 1; }
+          node tests/composition-fx-pixels.test.js
       - name: Guard — an MP4 export cannot run away with its own size
         run: node tests/recording-export.test.js
       # The one step that drives ffmpeg the way the box does: a real remux with
@@ -430,6 +441,20 @@ jobs:
       # through it.
       - name: Guard — a reference proposal says what it could not read
         run: node tests/reference-analysis.test.js
+      # The `fx` source kind was declared, validated and accepted by the
+      # composition model with no branch in the renderer, so an effect became
+      # an ordinary ffmpeg input and the route answered "has no file on disk"
+      # — the same fault captions had. These pin the catalogue and the
+      # generated input.
+      - name: Guard — an effect generates itself rather than needing a file
+        run: node tests/composition-fx.test.js
+      # An effect is described three times: a geq expression for ffmpeg, the
+      # arithmetic as a function, and a canvas paint for the preview. This
+      # evaluates the shipped expression numerically and holds all three
+      # against each other, because a preview that disagrees with the export
+      # is the page lying about its own output.
+      - name: Guard — the preview's mask and the render's agree
+        run: node tests/composition-fx-agreement.test.js
       - name: Guard — composition CRUD and persistence
         run: node tests/compositions.test.js
       - name: Guard — the compose routes
@@ -444,6 +469,12 @@ jobs:
         run: node tests/composition-playback-mutations.test.js
       - name: Mutations — timeline editing
         run: node tests/composition-timeline-mutations.test.js
+      # Judged on pixels and on the agreement test, not only on the graph
+      # string: three faults in this build were invisible to anything that
+      # reads a graph, so a sweep that ran only the string tests would be
+      # certifying the wrong thing. Needs the ffmpeg installed above.
+      - name: Mutations — the effects and the fx render branch
+        run: node tests/composition-fx-mutations.test.js
       # Spend that is recorded wrong is spend nothing can cap. The fault this
       # guards called OpenAI, threw on the next line, discarded the transcript
       # it had just paid for, and recorded no cost — so every click of
