@@ -668,17 +668,22 @@ router.post('/batch-items/:id/retry', loadBatchItem, async (req, res) => {
 //
 // What comes back is a PROPOSAL, with a confidence and a reason per field,
 // which an operator confirms. It proposes only from OUR vocabulary — the six
-// motions, the three template transitions, and (once the vision half exists)
-// one of the shipped caption presets, matched rather than generated. Reading a
-// competitor's pacing is ordinary competitive analysis; cloning a distinctive
-// look closely enough to be mistaken for them is not what this is for, and
-// proposing from our own set is what keeps it on that side.
+// motions, the three template transitions, and one of the 31 shipped caption
+// presets, matched rather than generated. Reading a competitor's pacing is
+// ordinary competitive analysis; cloning a distinctive look closely enough to
+// be mistaken for them is not what this is for, and proposing from our own set
+// is what keeps it on that side.
+//
+// `readCaptions` turns on the vision pass. It is the one part that spends
+// anything — eight sampled frames to a model that takes images — so it is
+// opt-in and the control that sets it shows the cost. Everything else is
+// ffmpeg and free.
 
 router.post('/clients/:clientId/analyse-reference',
   requireClientAccess({ paramNames: ['clientId'] }),
   async (req, res) => {
     try {
-      const { assetId } = req.body || {};
+      const { assetId, readCaptions } = req.body || {};
       if (!assetId) return res.status(400).json({ error: 'assetId is required' });
 
       const asset = await assets.get(assetId);
@@ -696,6 +701,10 @@ router.post('/clients/:clientId/analyse-reference',
       const out = await analyser.analyse(file, {
         id: `ref-${assetId}`,
         name: `From ${asset.title || 'a reference'}`,
+        // The only part of this that costs anything, so it is asked for
+        // rather than assumed. The button that sets it carries the figure.
+        readCaptions: readCaptions === true,
+        clientId: req.params.clientId,
       });
       res.json(out);
     } catch (err) {

@@ -270,6 +270,15 @@ jobs:
           node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
             || { echo 'ffmpeg missing: the effect pixel assertions would not run'; exit 1; }
           node tests/composition-fx-pixels.test.js
+      # The frames that go to the model, and what is done with the answer. It
+      # samples a real file: the first version of this read `probe.duration`,
+      # which `renderQc.probe` does not return, so the pass refused every
+      # reference with a plausible message and never sampled a frame.
+      - name: Guard — the caption vision pass sends real frames and checks the answer
+        run: |
+          node -e "require('child_process').execFileSync('ffmpeg',['-version'],{stdio:'ignore'})" \
+            || { echo 'ffmpeg missing: the sampled frames would not be real'; exit 1; }
+          node tests/reference-vision.test.js
       - name: Guard — an MP4 export cannot run away with its own size
         run: node tests/recording-export.test.js
       # The one step that drives ffmpeg the way the box does: a real remux with
@@ -448,6 +457,13 @@ jobs:
       # generated input.
       - name: Guard — an effect generates itself rather than needing a file
         run: node tests/composition-fx.test.js
+      # Matching somebody else's caption treatment to one of our 31 presets.
+      # The round trip is the guarantee: every preset asked what it would look
+      # like, fed back, and the right answer in the shortlist 31 times out of
+      # 31. The six it does not pick outright are named, because they are
+      # genuinely identical in a still frame.
+      - name: Guard — a caption treatment is matched, never generated
+        run: node tests/caption-match.test.js
       # An effect is described three times: a geq expression for ffmpeg, the
       # arithmetic as a function, and a canvas paint for the preview. This
       # evaluates the shipped expression numerically and holds all three
@@ -475,6 +491,13 @@ jobs:
       # certifying the wrong thing. Needs the ffmpeg installed above.
       - name: Mutations — the effects and the fx render branch
         run: node tests/composition-fx-mutations.test.js
+      # Most of the matcher's value is in what it declines to claim, so most
+      # of these mutations make it claim something: that it can tell 105pt
+      # type from 102pt, that a scale preset's highlight colour is on the
+      # screen, that an all-caps reference can be matched on a case no preset
+      # carries.
+      - name: Mutations — the caption matcher
+        run: node tests/caption-match-mutations.test.js
       # Spend that is recorded wrong is spend nothing can cap. The fault this
       # guards called OpenAI, threw on the next line, discarded the transcript
       # it had just paid for, and recorded no cost — so every click of

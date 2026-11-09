@@ -525,12 +525,71 @@ what keeps it on the right side.
 >   A mutation sweep caught the test for this passing on a bound that the
 >   11-second tail satisfied exactly.
 >
-> **Still to do: the judgement half.** Caption treatment matched to one of the
-> 31 shipped presets (sampled frames, OCR, vision) and the structural
-> archetype from the transcript. `captionFor` returns a null with its reason
-> today and the test pins that, so the gap is visible rather than implied. The
-> rule for when it lands is already decided and does not move: the answer must
-> be one of the shipped presets, MATCHED, never generated.
+> **Built, 9 November: the caption half of the judgement.**
+> `shared/captionMatch.mjs` matches; `backend/src/services/referenceVision.js`
+> observes; the Brief page has a panel with the cost on the one control that
+> spends anything.
+>
+> **The model is never asked to name a preset.** It is asked only what a frame
+> contains — is there type, where, how big, what colour, is a second colour on
+> one word, is there a box or a glow, how thick is the outline, how many words
+> to a line — in a closed vocabulary that is validated before anything is done
+> with it. Which preset those observations are nearest is arithmetic in a pure
+> module. Handed a list of 31 names a model picks one, and a confident wrong
+> pick is the failure mode that matters when somebody runs ten references
+> through this in an afternoon. A test asserts the prompt names no preset, no
+> preset name and no typeface.
+>
+> **The round trip over all 31 is the guarantee.** Every preset can be asked
+> what observations it would produce and those fed back through the matcher.
+> The right answer is in the shortlist **31 times out of 31**, and that holds
+> at all 27 combinations of a weight sweep — only the shortlist LENGTH moves,
+> from a mean of 2.74 to 5.00. The exact pick is 25 of 31 and the six it does
+> not name outright are named in the test, because they are genuinely
+> identical in a still frame.
+>
+> **What a still cannot show, stated rather than guessed.** Four of the eight
+> `animationType` values — `scale`, `pop`, `bounce` and a plain `none` —
+> differ only in a per-cue entrance of about 120ms, which eight frames across
+> sixty seconds will not catch. So the eight are grouped into the four
+> families a frame does separate, and inside a family the answer is a
+> shortlist with the reason. Size is the same story: the catalogue splits
+> cleanly into the four `measured` presets at 36-44 and the 27 creator ones at
+> 92-120, and within the creator group 105pt against 102pt is a sixth of a
+> percentage point of frame height. So size is a BAND and is refused finer.
+>
+> **Outline thickness is what rescues the worst case.** Eleven of the creator
+> presets are near-white, plain-family and within 18pt of each other, so
+> family, colour and size put all eleven on one shortlist. Outlines run 3.5px
+> to 10px, which is nearly a factor of three and visible, so the frames are
+> sent at 1280 rather than 960 — at half size a 4px outline is 2px and the
+> signal is gone — and the reported pixels are scaled back to the real frame.
+> The eleven fall into groups of two, four and five.
+>
+> **A shortlist is reported but never written into the draft.** A template
+> naming the first of eight equally good candidates would state a choice
+> nothing made, which is what the first eight templates were stripped of.
+>
+> **Four faults, three of them in the wiring.** `probe.duration` does not
+> exist — `renderQc.probe` returns `videoDuration` — so the pass refused
+> every reference with "reported no duration" and never sampled a frame; the
+> message was plausible and the file was fine. Routed to DeepSeek the pass
+> would have failed inside the API call, so it now refuses beforehand and
+> names the setting to change. And two found by the mutation sweep: the
+> cap-height ratio is only load-bearing as a MEANING (it happens to move no
+> band today, so it is asserted on the value), and the guard that stops a
+> plain preset being scored on a highlight colour no frame shows only bites
+> when the pass reports an accent WITHOUT a family — which is the realistic
+> answer from a model that can see two colours but will not commit to how
+> they are applied. Without it `cinema-gold` wins on a gold highlight that is
+> on screen for 120ms.
+>
+> **25 mutations, none surviving.** Most of them make the matcher claim
+> something rather than refuse it.
+>
+> **Still to do: the structural archetype** from the transcript, and storing a
+> proposal. Templates are files in `shared/templates/`, so the panel offers
+> the JSON to copy and says why rather than a Save that quietly does nothing.
 
 ---
 
