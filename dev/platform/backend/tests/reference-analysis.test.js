@@ -286,3 +286,102 @@ describe('the proposal', () => {
     assert.deepEqual(validateTemplate(p.template), [], 'and still proposes something valid');
   });
 });
+
+// ── the caption treatment, once a vision pass has run ────────────────
+
+describe('the caption half of the proposal', () => {
+  const CM = require('../../shared/captionMatch.mjs');
+  const fs = require('fs');
+  const path = require('path');
+  const STYLES = JSON.parse(fs.readFileSync(
+    path.join(__dirname, '..', '..', 'shared', 'captions', 'presets.json'), 'utf8'
+  )).styles;
+
+  const { marginFor } = require('../../shared/referenceAnalysis.mjs');
+
+  const deps = {
+    styles: STYLES,
+    matchPreset: CM.matchPreset,
+    marginVFor: CM.marginVFor,
+  };
+
+  /** What a vision pass would report for a reference that looks like MrBeast. */
+  const seen = {
+    present: true, band: 0.82, capPct: CM.capPctOf(120, { height: 1920 }),
+    colour: '#FFFF00', accent: '#FF6600', family: 'accent', outlinePx: 8,
+  };
+
+  it('still says what it could not read when no pass ran', () => {
+    // The measurement half is not wrong for having no vision behind it, and a
+    // proposal that says "I could not read this" is usable where one that
+    // guesses is not.
+    const r = captionFor({ width: 1080, height: 1920 });
+    assert.equal(r.value, null);
+    assert.equal(r.confidence, 0);
+    assert.match(r.why, /did not run one/);
+  });
+
+  it('matches what the pass saw to a shipped preset', () => {
+    const r = captionFor({ width: 1080, height: 1920, caption: seen }, deps);
+    assert.equal(r.value, 'mrbeast');
+    assert.ok(r.confidence > 0.5);
+  });
+
+  it('refuses to match without a frame size, because caption size is a fraction of it', () => {
+    const r = captionFor({ caption: seen }, deps);
+    assert.equal(r.value, null);
+    assert.match(r.why, /only meaningful/);
+  });
+
+  it('refuses to match with no catalogue to match against', () => {
+    const r = captionFor({ width: 1080, height: 1920, caption: seen }, {});
+    assert.equal(r.value, null);
+    assert.match(r.why, /no preset catalogue/);
+  });
+
+  it('proposes a position separately, because no preset carries one', () => {
+    const r = marginFor({ width: 1080, height: 1920, caption: seen }, deps);
+    assert.equal(r.value, 350);
+    const none = marginFor({ width: 1080, height: 1920 }, deps);
+    assert.equal(none.value, null);
+    assert.match(none.why, /no vision pass/);
+  });
+
+  it('puts the preset in the draft when ONE was identified', () => {
+    const p = propose({ ...reel(), caption: seen }, deps);
+    assert.equal(p.fields.caption.value, 'mrbeast');
+    assert.equal(p.template.caption.preset, 'mrbeast');
+    assert.deepEqual(validateTemplate(p.template), []);
+  });
+
+  it('leaves it OUT of the draft when the stills could not narrow it', () => {
+    // A template naming the first of eight equally good candidates would be
+    // stating a choice nothing made, which is what the eight shipped
+    // templates were stripped of. The shortlist is still reported to the
+    // operator in `fields`.
+    const plain = {
+      present: true, capPct: CM.capPctOf(105, { height: 1920 }),
+      colour: '#FFFFFF', family: 'plain', outlinePx: 6,
+    };
+    const p = propose({ ...reel(), caption: plain }, deps);
+    assert.ok(p.fields.caption.alternatives.length > 0, 'a shortlist came back');
+    assert.equal(p.template.caption, undefined, 'and nothing was put in the draft');
+    assert.deepEqual(validateTemplate(p.template), []);
+  });
+
+  it('proposes no caption at all for a reference that burns no type', () => {
+    const p = propose({ ...reel(), caption: { present: false } }, deps);
+    assert.equal(p.fields.caption.value, null);
+    assert.equal(p.fields.caption.confidence, 1, 'and is sure about it');
+    assert.match(p.fields.caption.why, /burns no type/);
+    assert.equal(p.template.caption, undefined);
+  });
+
+  it('keeps proposing everything else when the caption pass found nothing', () => {
+    // Every other field was measured off the file and is still worth having.
+    const p = propose({ ...reel(), caption: { present: false } }, deps);
+    assert.ok(p.fields.len.value, 'the rhythm');
+    assert.ok(p.fields.size.value, 'the frame');
+    assert.ok(p.template.slots.length, 'and a shape');
+  });
+});

@@ -22,6 +22,7 @@
  */
 
 const { execFile } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { FFMPEG } = require('./ffmpegBin');
@@ -119,8 +120,39 @@ async function analyse(file, opts = {}) {
   const ref = await refMod();
   try {
     const m = await measure(file);
-    const out = ref.propose(m, opts);
-    return { ...out, measured: m };
+
+    // THE CAPTION TREATMENT, which is the half the file cannot answer. Opt-in
+    // rather than automatic, because it is the only part of this that costs
+    // anything and the button that triggers it shows the figure.
+    //
+    // A failure here never fails the analysis. Every other field was measured
+    // off the file and is still worth having, and the proposal's own job is to
+    // say what it could not read: `captionFor` with no observations returns
+    // the same null and reason it always did.
+    let caption = null;
+    let captionSays = null;
+    if (opts.readCaptions) {
+      try {
+        const vision = require('./referenceVision');
+        const seen = await vision.observe(file, { clientId: opts.clientId || null });
+        caption = seen.observations;
+        captionSays = seen.says;
+      } catch (err) {
+        captionSays = `the caption pass failed: ${err.message}`;
+      }
+    }
+
+    const cm = await matchMod();
+    const out = ref.propose(
+      { ...m, ...(caption ? { caption } : {}) },
+      {
+        ...opts,
+        styles: opts.styles || presetStyles(),
+        matchPreset: cm.matchPreset,
+        marginVFor: cm.marginVFor,
+      }
+    );
+    return { ...out, measured: m, captionSays };
   } catch (err) {
     return {
       template: null,
@@ -133,9 +165,37 @@ async function analyse(file, opts = {}) {
   }
 }
 
+/**
+ * The shipped caption presets, read once.
+ *
+ * Passed into the pure half rather than imported by it, because
+ * `referenceAnalysis.mjs` imports nothing but `composition.mjs` and a
+ * 31-entry JSON file is the backend's to read. It also means a caller can
+ * match against a subset: the measured four for an architecture practice.
+ */
+let _styles = null;
+function presetStyles() {
+  if (!_styles) {
+    const file = path.join(__dirname, '..', '..', '..', 'shared', 'captions', 'presets.json');
+    _styles = JSON.parse(fs.readFileSync(file, 'utf8')).styles;
+  }
+  return _styles;
+}
+
+let _match = null;
+async function matchMod() {
+  if (!_match) {
+    _match = await import(pathToFileURL(
+      path.join(__dirname, '..', '..', '..', 'shared', 'captionMatch.mjs')
+    ).href);
+  }
+  return _match;
+}
+
 module.exports = {
   analyse,
   measure,
   cuts,
+  presetStyles,
   SCENE_THRESHOLD,
 };

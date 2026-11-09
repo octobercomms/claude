@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import TemplatePicker from '../components/TemplatePicker';
 import FeatureCost from '../components/FeatureCost';
 import AssetLibrary from '../components/AssetLibrary';
+import ReferencePanel from '../components/video/ReferencePanel';
 
 /**
  * Brief a batch of videos and set it running.
@@ -145,6 +146,11 @@ export default function VideoBatchPage({ clientId }) {
         <h2>1. The shape</h2>
         <TemplatePicker value={templateId} onChange={setTemplateId} disabled={running} />
       </section>
+
+      {/* Reading a reference belongs here rather than on its own screen: the
+          question it answers is "which shape", and the answer is a reading to
+          confirm against the eight above. */}
+      <ReferencePanel clientId={clientId} />
 
       {template && (
         <>

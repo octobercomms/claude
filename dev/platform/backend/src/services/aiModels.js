@@ -67,6 +67,11 @@ const FEATURES = [
     { key: 'dm_bot_templates', label: 'DM bot — templates', sensitive: false },
     { key: 'ig_outreach_draft', label: 'IG outreach drafts', sensitive: false },
     { key: 'swipe_idea_card', label: 'Swipe-file idea cards', sensitive: false },
+    // Reading the caption treatment off a reference video. It sends SAMPLED
+    // FRAMES, so it needs a model that takes images: routed to DeepSeek the
+    // service refuses with that reason rather than failing inside the API
+    // call.
+    { key: 'reference_caption_read', label: 'Reference caption reading', sensitive: false },
   ] },
   { group: 'SEO & visibility', items: [
     { key: 'ai_seo_keywords', label: 'AI SEO keywords', sensitive: false },

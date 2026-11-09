@@ -183,20 +183,70 @@ export function lengthsFor(shots = []) {
 /**
  * Which caption preset this looks most like.
  *
- * NOT IMPLEMENTED HERE ON PURPOSE. Reading caption treatment needs sampled
- * frames, OCR and vision, and the one decision that matters is already made:
- * the answer must be one of the shipped presets, matched, never a generated
- * approximation. Until that half exists this returns a null with the reason,
- * which is the whole point of the confidence field — a proposal that says "I
- * could not read this" is usable, and one that guesses is not.
+ * Reading type off a frame needs a vision pass, so this takes OBSERVATIONS
+ * rather than doing it: what the pass saw, in the closed vocabulary
+ * `shared/captionMatch.mjs` defines. The matching is arithmetic and happens
+ * there, in a pure module, which is why it can be tested against all 31
+ * presets without a model and without a video.
+ *
+ * A model is never asked to name a preset. Asked to pick one from a list of
+ * 31 it would pick one, and a confident wrong answer is the failure mode that
+ * matters when somebody runs ten references through this.
+ *
+ * With no observations it still answers the way it always did: a null with
+ * the reason. A measurement pass with no vision behind it has not become
+ * wrong, and the proposal has to keep saying what it could not read.
  */
-export function captionFor(_measured = {}) {
-  return {
-    value: null,
-    confidence: 0,
-    why: 'caption treatment needs sampled frames and vision, which this pass does not do;'
-      + ' pick from the shipped presets by eye',
-  };
+export function captionFor(measured = {}, deps = {}) {
+  const obs = measured.caption || null;
+  const styles = deps.styles || null;
+  if (!obs) {
+    return {
+      value: null,
+      confidence: 0,
+      why: 'caption treatment needs sampled frames and vision, and this pass did not'
+        + ' run one; pick from the shipped presets by eye',
+    };
+  }
+  if (!styles) {
+    return {
+      value: null,
+      confidence: 0,
+      why: 'the type was observed but no preset catalogue was supplied to match it against',
+    };
+  }
+  const format = (Number.isFinite(measured.width) && Number.isFinite(measured.height))
+    ? { width: measured.width, height: measured.height }
+    : null;
+  if (!format) {
+    return {
+      value: null,
+      confidence: 0,
+      why: 'the file did not report its size, and caption size is only meaningful'
+        + ' as a fraction of the frame',
+    };
+  }
+  return deps.matchPreset(obs, { styles, format });
+}
+
+/**
+ * Where the type sat, as a caption margin.
+ *
+ * Separate from the preset because position is not a preset field: the
+ * compiler takes `marginV` from the caption source. So a reference can give
+ * one and not the other, and it often does — a band is one of the few things
+ * a frame states outright, while which of 31 presets it is may come back as
+ * a shortlist.
+ */
+export function marginFor(measured = {}, deps = {}) {
+  const obs = measured.caption || null;
+  if (!obs || !deps.marginVFor) {
+    return { value: null, confidence: 0, why: 'no vision pass, so no position to read' };
+  }
+  if (!Number.isFinite(measured.height)) {
+    return { value: null, confidence: 0, why: 'the file did not report its size' };
+  }
+  return deps.marginVFor(obs, { width: measured.width, height: measured.height });
 }
 
 /**
@@ -211,14 +261,25 @@ export function captionFor(_measured = {}) {
  * is shown it. `fields` is the per-field confidence and reasoning, which is
  * what an operator actually reads.
  */
-export function propose(m = {}, { id = 'from-reference', name = 'From a reference' } = {}) {
+export function propose(m = {}, {
+  id = 'from-reference',
+  name = 'From a reference',
+  ...deps
+} = {}) {
   const duration = Number.isFinite(m.duration) ? m.duration : null;
   const shots = shotsFrom(m.cuts || [], duration);
   const withMotion = shotMotion(shots, m.motion || []);
 
   const len = lengthsFor(shots);
   const motion = motionFor(withMotion);
-  const caption = captionFor(m);
+  // `deps` rather than an import: this module is pure and the matcher needs
+  // the shipped preset catalogue, which is a 31-entry JSON file the backend
+  // reads. Passing it in keeps the one import rule this half has kept from
+  // the start — nothing but `composition.mjs` — and lets a caller match
+  // against a subset, which is how a client who only gets the measured four
+  // would be served.
+  const caption = captionFor(m, deps);
+  const margin = marginFor(m, deps);
 
   // The frame is the one thing a finished video states outright.
   const size = (Number.isFinite(m.width) && Number.isFinite(m.height))
@@ -241,7 +302,7 @@ export function propose(m = {}, { id = 'from-reference', name = 'From a referenc
     : { value: null, confidence: 0, why: len.why };
 
   const fields = {
-    size, fps, len, motion, caption, count,
+    size, fps, len, motion, caption, margin, count,
     loudness: Number.isFinite(m.loudnessLufs)
       ? {
         value: round(m.loudnessLufs, 1),
@@ -274,6 +335,15 @@ export function propose(m = {}, { id = 'from-reference', name = 'From a referenc
     fps: fps.value || 30,
     slots: [slot],
   };
+
+  // A caption preset goes in the draft only when ONE was identified. A
+  // shortlist is a real answer for an operator and not a template field: a
+  // template naming the first of eight equally good candidates would be
+  // stating a choice nothing made, which is what the first eight templates
+  // were stripped of.
+  if (caption.value && !(caption.alternatives || []).length) {
+    template.caption = { preset: caption.value };
+  }
 
   const graded = Object.values(fields).filter((f) => f.confidence > 0);
   const confidence = graded.length
