@@ -268,10 +268,18 @@ export default function Layout() {
                     "Convert" already says what it is. Above Produce because
                     it is closer to the pillars' job than the media suite is. */}
                 <NavLink to={`/clients/${clientId}/convert`} style={({ isActive }) => subLinkStyle(isActive)}>Convert</NavLink>
-                {/* Produce — the media suite: Record (video), Edit and Visualise
-                    (images) in one place. Visible to clients (Record view-only;
-                    Visualise only with the can_use_visualise grant). */}
-                <NavLink to={`/clients/${clientId}/produce`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
+                {/* Produce — the media suite: the Studio, Record, Design,
+                    Visualise, Batch and the Library.
+                    Agency only since 9 November. It used to be visible to a
+                    client for Record and the Library; Daniel: "read only
+                    clients dont see Produce - good point. and they dont need
+                    it." Every row inside it is `agencyOnly` too, so this link
+                    and the panel agree — and `ClientVideoTab` guards the typed
+                    URL, because hiding a link hides nothing from an address
+                    bar. */}
+                {!readOnly && (
+                  <NavLink to={`/clients/${clientId}/produce`} style={({ isActive }) => subLinkStyle(isActive)}>Produce</NavLink>
+                )}
               </div>
             )}
           </li>
