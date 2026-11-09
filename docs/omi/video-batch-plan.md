@@ -1176,6 +1176,37 @@ the batch writes Compositions and the editor already opens those.
 Found while reviewing Produce on 8 November. All four predate this plan and all
 four sit under it.
 
+> **Status, 9 November.** Four of the six are closed.
+>
+> - **4, the asset source and retention: DONE.** Migration 251 gives a
+>   composition render its own `composition` source, backfilled on
+>   `metadata ? 'composition_id'` rather than a filename pattern, and the
+>   03:15 sweep now covers `uploads/<client>/render-*.mp4`. It will not touch
+>   anything else in that folder, and it HOLDS a batch item nobody has
+>   reviewed however old it is: sweeping one leaves the review sheet offering
+>   a row whose file is gone.
+> - **5, the refine chat: DONE.** The merge is in
+>   `shared/storyboard.mjs`, against the frames that are already there, and
+>   the prompt now carries the style and the on-screen text so a revision can
+>   change them. 21 assertions, including a round trip. Posts already damaged
+>   cannot be recovered — `style` is not derivable from a description — so the
+>   Produce panel says so and offers regeneration rather than showing no
+>   render options with nothing said.
+> - **2, the Stills → Reel remnants: CLOSED.** The frontend panel is gone and
+>   `services/stillsReel.js` is kept as this plan asked, now with a note at
+>   the top saying nothing calls it and why, so the next tidy-up does not take
+>   the fal price table with it.
+> - **3, the stale docs: CLOSED.** `agent-guide.md` §9 and `edit-studio.md`
+>   both carry the correction.
+> - **6, the batch and template columns: DONE** in migration 249.
+> - **1, "Send to Edit", is still broken**, and the reason is worth stating:
+>   it is not a missing route, it is that a recording lives behind
+>   `mediaStore` with a `storage_key` and the render path resolves only
+>   `/api/brand/file/<client>/<name>` urls. Making it work means teaching the
+>   renderer to resolve a recording through `mediaStore.localFile`, and
+>   holding the release until ffmpeg closes. A real piece of work rather than
+>   a one-line fix, and it is its own change.
+
 1. **"Send to Edit" on the Record tab is broken.**
    `RecordingsPage.jsx:515` posts to `/edit/clients/:clientId/edit/from-recording`.
    `routes/edit.js` was deleted in step 8 and `/api/edit` is mounted nowhere in

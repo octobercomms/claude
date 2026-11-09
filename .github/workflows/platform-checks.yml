@@ -480,6 +480,13 @@ jobs:
       # committed file has drifted from the model it is built from.
       - name: Guard — the composition skill and its schema are still true
         run: node tests/composition-skill.test.js
+      # Composition renders land beside a client's own uploads, so the sweep
+      # that deletes them is one filename pattern away from deleting
+      # somebody's footage. These pin the pattern and the rule: a batch item
+      # nobody has reviewed is held however old it is, because sweeping it
+      # leaves the review sheet offering a row whose file is gone.
+      - name: Guard — the disk sweep takes only our own renders
+        run: node tests/composition-retention.test.js
       # The spoken shape of a reference: hook, problem, solution, call to
       # action. The labelling is a model's, and it is CHECKED against the
       # transcript — a span covering no words, a solution before its problem,
