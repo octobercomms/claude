@@ -638,6 +638,41 @@ that calls it. In JavaScript that is a temporal dead zone, which renders a
 blank page rather than failing a lint rule. The browser check caught it in
 seconds; no unit test would have.
 
+## Built, 9 November: the cuts
+
+Five removals, each one a control that cost permanent screen space for a
+decision nobody makes.
+
+| Cut | Why |
+|---|---|
+| **Save now** | Autosave is 1500ms, Export flushes before it renders, and the state is displayed. Three affordances for one fact, and this was the one that did nothing the other two did not |
+| **Export resolution** | Four presets, three of them LANDSCAPE, for a product whose every template is 1080x1920. Offering a reel an export at 1920x1080 is offering to ruin it |
+| **Export quality** | An agency sending client work exports at High every time. Medium and Low exist to make a worse file. The size estimate stays, as a statement rather than the consequence of a decision |
+| **Frame size and rate chips** | Seven chips permanently on screen for two values nobody changes mid-edit. Now a line reading `1080 x 1920 · 30fps` with the chips one click away under Change |
+| **The "Editor" card title** | It named the screen you were already on, in an app whose nav row for it is lit |
+
+Removing Save now also fixed something measured: the header row ran from
+x=1086 to x=1498 inside a card ending at 1400, so it sat 58px outside a 1440
+viewport. It now ends at 1326.
+
+**Not cut, and the review was right to say so.** The timeline's selected-item
+strip is a MOVE rather than a removal: `trans:` appears in exactly two lines
+of JSX in the whole frontend, both inside it, and it holds the only opacity
+and fit controls for a clip. Deleting it without rehoming those loses
+transitions entirely. That move, and collapsing the two volume sliders to the
+model's own 0–4 bound, is its own change.
+
+Also not cut: text in the Studio stays refused, for the reason the review gave
+rather than cost — the house already makes type in two places, and a third
+type system inside the editor is the two-vocabularies fault at its worst.
+
+**A fourth guard rewritten for the same reason.** Two tests broke on these
+cuts, both pinning a marker that happened to be on screen rather than the
+claim: one required the literal `accept={CLIP_ACCEPT}`, and one identified
+"this is the editor" by the words "Editor" or "Frame size", both of which the
+cuts removed on purpose. The second now matches the timeline, which is the
+editor's one irreducible part.
+
 ## Faults found while auditing, worth fixing in passing
 
 - **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is

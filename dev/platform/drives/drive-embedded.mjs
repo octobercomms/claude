@@ -61,8 +61,13 @@ await screen({ path: '/biz-dev/leads', name: 'Biz dev Leads',
 // --- Client Produce tabs.
 await screen({ path: '/clients/c1/produce/record', name: 'Produce Record',
   shows: /Start recording/i });
+// Matched on the timeline, which is the editor's one irreducible part.
+// This read `Editor|Frame size` until 9 November, and both went in the same
+// pass: the card title named the screen you were already on, and the frame
+// chips became a sentence. Three markers, all of them things that happened to
+// be on screen rather than things that make this the editor.
 await screen({ path: '/clients/c1/produce/compose', name: 'Produce Compose',
-  shows: /Editor|Frame size|Loading editor/i });
+  shows: /TIMELINE|Loading editor/i });
 await screen({ path: '/clients/c1/produce/design', name: 'Produce Design',
   shows: /Layered posts for this client/i });
 await screen({ path: '/clients/c1/produce/transcribe', name: 'Produce Transcribe',
