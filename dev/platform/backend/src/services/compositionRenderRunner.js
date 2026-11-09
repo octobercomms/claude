@@ -280,7 +280,11 @@ async function renderOne(job) {
       // same millisecond collapsed onto a single library row.
       await assets.record({
         client_id: comp.client_id,
-        source: 'scene_render',
+        // `composition`, not `scene_render`. They shared a source until
+        // migration 251, so the Library called every one of these a "Scene
+        // template" and the disk sweep could not be pointed at them without
+        // archiving the scene-template feature's rows too.
+        source: 'composition',
         source_id: `render-${comp.id}-${job.id}`,
         title: `${comp.title || 'Composition'} (render)`,
         url: outputUrl,

@@ -1,3 +1,15 @@
+// NOTHING CALLS THIS, AND IT IS KEPT ON PURPOSE.
+//
+// Stills -> Reel was removed with the rest of the old edit pipeline in the
+// November 2026 rewrite, and this module survived because of two tables that
+// are still the best record of their subject: MOTIONS, whose six words
+// `shared/compositionTemplate.mjs` adopted as the camera-move vocabulary and
+// whose test asserts the match, and the fal price table behind `priceFor`,
+// which is the only place the hosted image-to-video rates are written down.
+//
+// So: do not delete it to tidy up a dead require. If the motion presets or
+// the prices move into the composition model, this goes with them.
+
 // Stills → Reel — animate a client's still images into short cinematic clips
 // (fal image-to-video), which the Edit worker then stitches into one vertical
 // reel via the existing combineClips path. This module owns only the "animate

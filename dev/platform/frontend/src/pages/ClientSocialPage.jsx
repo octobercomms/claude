@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
+import * as SB from '@shared/storyboard.mjs';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -871,13 +872,17 @@ function BrainstormTab({
           artifact={renderPostForArtifact(refining)}
           artifactMeta={`${refining.platform} · ${refining.kind}${refining.framework ? ` · ${refining.framework}` : ''}`}
           onApplyRevision={(content) => {
-            const partial = parsePostFields(content);
+            const partial = parsePostFields(content, refining);
             if (!partial) {
               setRefineErr('Could not parse revised post. Ask Claude to use the HOOK/CAPTION/HASHTAGS/STORYBOARD labels.');
               return;
             }
-            setRefineErr(null);
-            updatePost(refining.id, partial);
+            const { _storyboardNotes: notes, ...fields } = partial;
+            // Said rather than swallowed: a revision that numbers a frame
+            // past the end of the storyboard adds one with no style, and no
+            // reel will render it.
+            setRefineErr(notes?.length ? notes.join('; ') : null);
+            updatePost(refining.id, fields);
           }}
           onClose={() => setRefiningId(null)}
           compact
@@ -1462,7 +1467,11 @@ function renderPostForArtifact(p) {
     `HOOK: ${p.hook || ''}`,
     `CAPTION: ${p.caption || ''}`,
     `HASHTAGS: ${(p.hashtags || []).join(', ')}`,
-    `STORYBOARD:\n${(p.storyboard || []).map((f, i) => `${i + 1}. ${typeof f === 'string' ? f : (f.description || JSON.stringify(f))}`).join('\n')}`,
+    // The style and the on-screen text go in too. Sending the description
+    // alone made the round trip lossy by design: Claude could not revise
+    // what it was never shown, so the AM had no way to change the words that
+    // actually appear on screen through the one chat that exists for it.
+    `STORYBOARD:\n${SB.toLines(p.storyboard)}`,
   ].filter(Boolean);
   return lines.join('\n\n');
 }
@@ -1470,7 +1479,17 @@ function renderPostForArtifact(p) {
 // Pull hook/caption/hashtags/storyboard back out of Claude's revision
 // block. Tolerant of markdown bold and stray code fences. Returns only
 // the fields that actually changed so the PUT is a partial update.
-function parsePostFields(text) {
+//
+// `post` is the post being revised, and it is not optional for the
+// storyboard. This used to read the revision as an array of plain STRINGS
+// and PUT that into the same JSONB column, which took `style`,
+// `on_screen_text`, `duration_sec` and `voiceover` off every frame. `style`
+// is the field the renderer dispatches on, so "Stitch reel" then answered
+// `No A/C/G frames to stitch` on a post that had been renderable five
+// seconds earlier, and nothing could get those fields back. The merge lives
+// in `@shared/storyboard.mjs` now, against the frames that are already
+// there, and it is tested.
+function parsePostFields(text, post) {
   if (!text) return null;
   const cleaned = String(text).replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').replace(/\*\*/g, '').trim();
   const labels = ['hook', 'caption', 'hashtags', 'storyboard'];
@@ -1485,10 +1504,11 @@ function parsePostFields(text) {
       const tags = raw.split(/[,\n]/).map(t => t.trim().replace(/^#/, '')).filter(Boolean).slice(0, 30);
       if (tags.length) out.hashtags = tags;
     } else if (label === 'storyboard') {
-      const frames = raw.split(/\n+/)
-        .map(line => line.replace(/^\s*\d+[.)]\s*/, '').trim())
-        .filter(Boolean);
-      if (frames.length) out.storyboard = frames;
+      const merged = SB.mergeRevision(post?.storyboard, raw);
+      if (merged.storyboard) {
+        out.storyboard = merged.storyboard;
+        out._storyboardNotes = merged.notes;
+      }
     } else {
       out[label] = raw;
     }
@@ -2536,10 +2556,25 @@ function PostCard({ post, clientId, engagement, media, reelCheck, onChange, onDe
       <div style={{ marginTop: 'var(--s3)' }}>
         <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">Produce {showProd ? '▴' : '▾'}</button>
         {showProd && (() => {
-          const acg = (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length;
+          const acg = SB.renderableCount(post.storyboard);
+          const degraded = SB.isDegraded(post.storyboard);
           return (
             <div style={{ marginTop: 'var(--s3)', padding: 'var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
               <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s3)' }}>Pick how you want to make this post — you only need one route to a finished asset.</div>
+
+              {/* A storyboard whose frames have lost their style cannot be
+                  rendered, and until this line the two render actions simply
+                  did not appear with nothing said. Posts refined before
+                  November 2026 are in that state: the refine round trip
+                  replaced each frame with a plain string and the lost fields
+                  are not recoverable, so the only way back is to generate the
+                  storyboard again. */}
+              {degraded && (
+                <div className="chip chip-warning" style={{ marginBottom: 'var(--s3)' }}>
+                  This storyboard has lost its frame detail, so nothing here can render it.
+                  Generate the storyboard again to get the A/C/G styles back.
+                </div>
+              )}
 
               <ProdGroup title="🎬 Make a video">
                 {onMakeReel && (
