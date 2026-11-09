@@ -35,14 +35,20 @@ const displays = () => page.evaluate(() =>
 const kickers = () => page.evaluate(() =>
   [...document.querySelectorAll('.app-main .kicker')].length);
 
-async function screen({ path, name, shows, maxDisplays = 1 }) {
+// `shows` is a word on the page; `sel` is a thing that cannot be there unless
+// the screen rendered. Prefer `sel` where a screen has one: a word chosen
+// because it happens to be on screen breaks every time the screen improves,
+// which the Produce Compose line below has now demonstrated three times.
+async function screen({ path, name, shows, sel = null, maxDisplays = 1 }) {
   errors = [];
   await page.goto(`${B}${path}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
   const text = await main();
   const ds = await displays();
   const ks = await kickers();
-  ok(shows.test(text), `${name} draws its own content`, shows.source);
+  const present = sel ? await page.locator(sel).count() : null;
+  ok(sel ? present > 0 : shows.test(text), `${name} draws its own content`,
+    sel ? `${sel}: ${present} found` : shows.source);
   ok(ds.length <= maxDisplays, `${name} draws at most ${maxDisplays} hero heading`, JSON.stringify(ds));
   ok(ks <= 1, `${name} does not stack kickers`, `kickers=${ks}`);
   ok(errors.length === 0, `${name} throws nothing`, errors.join(' | '));
@@ -61,13 +67,14 @@ await screen({ path: '/biz-dev/leads', name: 'Biz dev Leads',
 // --- Client Produce tabs.
 await screen({ path: '/clients/c1/produce/record', name: 'Produce Record',
   shows: /Start recording/i });
-// Matched on the timeline, which is the editor's one irreducible part.
-// This read `Editor|Frame size` until 9 November, and both went in the same
-// pass: the card title named the screen you were already on, and the frame
-// chips became a sentence. Three markers, all of them things that happened to
-// be on screen rather than things that make this the editor.
+// Matched on the timeline COMPONENT, which is the editor's one irreducible
+// part. This read `Editor|Frame size`, then `TIMELINE`, and all three of
+// those words were deleted as the screen improved: the card title named the
+// screen you were already on, the frame chips became a sentence, and the
+// caption was the third copy of the duration. Three markers, one claim, and
+// the claim is "the editor rendered".
 await screen({ path: '/clients/c1/produce/compose', name: 'Produce Compose',
-  shows: /TIMELINE|Loading editor/i });
+  sel: '[data-testid="composition-timeline"]', shows: /./ });
 await screen({ path: '/clients/c1/produce/design', name: 'Produce Design',
   shows: /Layered posts for this client/i });
 await screen({ path: '/clients/c1/produce/transcribe', name: 'Produce Transcribe',

@@ -1060,7 +1060,14 @@ the screen for nothing. It renders when the lane actually overflows.
 
 The timeline block measures **202px against 292** at 1280.
 
-**The eighth and ninth guards that pinned a marker.** One asserted the word
+**The eighth, ninth and tenth guards that pinned a marker.** The tenth was
+`drive-embedded.mjs`, which proved the editor had rendered by finding the
+word `TIMELINE` — the same word, in a second file, found by the sweep rather
+than by the drive I was editing. Its `screen()` helper now takes an optional
+selector, and the Produce Compose line asserts the timeline COMPONENT is
+present. Pointing it at a selector that does not exist fails it.
+
+ One asserted the word
 `TIMELINE` was on the page to prove the editor had rendered; that caption is
 now deleted, and the assertion had already been rewritten twice for the same
 reason ("Editor", then "Frame size"). It matches the timeline element and its
