@@ -33,6 +33,11 @@ on:
       # the one kind of PR it exists to catch.
       - 'docs/omi/**'
       - 'CLAUDE.md'
+      # The same guard pins .claude/agents/ux-critic.md, the standing design
+      # authority. Editing or deleting an agent definition touches neither
+      # dev/platform/ nor docs/, so without this path the guard would not run
+      # on the one commit that could quietly remove it.
+      - '.claude/agents/**'
 
 concurrency:
   group: platform-checks-${{ github.ref }}
