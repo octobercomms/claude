@@ -585,6 +585,59 @@ in this tab") and offers a retry. The other three stay quiet on purpose,
 because a tool that congratulates itself every 1500ms trains you to stop
 reading the one message that matters.
 
+## Built, 9 November: the shelf
+
+Where material enters the Studio. Before it there was no way to put anything
+OMI already owns into a composition.
+
+**Full width, below the timeline.** The review's measurement killed the bin
+beside the stage: at 1440x900 the player cell is 284px, and a 240px bin beside
+it leaves the player 28px. The shelf is 600px across the bottom instead. It
+also sits BELOW the timeline rather than above it, which departs from the
+review and is the better answer for a measured reason: above, it pushed the
+timeline to y=1018 on a 900px screen; below, the timeline is at **831** —
+better than the 931 the review measured before any of this, because removing
+the hero on this screen bought back 102px. The timeline is where you work
+continuously, the shelf is where you go deliberately.
+
+**The player was not shrunk to make room.** Measured at three stage heights:
+fitting the timeline that way takes the player to 182px wide, narrower than a
+phone shows it, which is the trade the review said not to make.
+
+**Two scopes, the reel first.** "In this reel" is the composition's own
+sources, already in memory, and it is the default because it is the only
+surface that makes a project's contents visible — it gives back a clip you
+already trimmed, and it is where a recording made here lands. "All footage" is
+`AssetLibrary` with two new props: `filters` false drops the kind chips and
+source select, which cost about 110px of a 130px strip, and `layout` strip
+makes one horizontal row rather than a grid that hides itself.
+
+**A count badge, not a disabled state.** Reusing a clip for b-roll is normal,
+and a picker that silently no-ops on an already-added item reads as a broken
+click.
+
+**Click, not drag, and everything lands at the END of its track.** That is the
+rule the upload already uses, so the shelf introduces no second rule. The
+playhead sits at 0 until somebody moves it, so "at the playhead" would mean
+"insert at the start", and dropping onto an occupied range raises
+insert-or-overwrite, which this editor has no answer for. Three things make it
+feel like placing rather than a database write: the new item is selected, so a
+camera move is one more click; the toast names it; and it says the timecode it
+landed on.
+
+**One door for files.** `+ Add clip` and `+ Add music` are gone from the
+inspector. Two buttons for one gesture is the two-doors problem, and the clip
+one was the only yellow button on the screen while it opened an OS file dialog
+with this client's media one panel away. "Add files" routes by mime, because
+`isStillMime` and `CLIP_ACCEPT` already decide that everywhere else.
+`+ Add design` stays: a design is not a file, it is a page of a set this
+client already has, so it is a picker rather than an upload.
+
+**A bug worth recording.** The new file router was declared below the handler
+that calls it. In JavaScript that is a temporal dead zone, which renders a
+blank page rather than failing a lint rule. The browser check caught it in
+seconds; no unit test would have.
+
 ## Faults found while auditing, worth fixing in passing
 
 - **Two volume sliders disagree.** `CompositionEditorPage.jsx:1067` is

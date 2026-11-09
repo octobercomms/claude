@@ -105,7 +105,19 @@ function Thumb({ asset }) {
 }
 
 export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind = null,
-  title = 'Asset library', compact = false, refreshKey = 0 }) {
+  title = 'Asset library', compact = false, refreshKey = 0,
+  // Two props for one caller, the Studio's shelf, and both are about height
+  // rather than taste.
+  //
+  // `filters` false drops the kind chips and the source select. In a bin you
+  // want footage and photographs together and you find things by name, and
+  // those two rows cost about 110px of a 130px strip — most of the thing they
+  // would sit above.
+  //
+  // `layout` 'strip' is one horizontal row that scrolls, rather than a grid
+  // that grows downward. A grid inside a fixed-height strip shows its first
+  // row and hides the rest behind a scroll nobody sees.
+  filters = true, layout = 'grid' }) {
   const [data, setData] = useState({ assets: [], counts: {}, sources: [] });
   const [kind, setKind] = useState(fixedKind);
   const [source, setSource] = useState(null);
@@ -151,6 +163,7 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
           value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
+      {filters && (
       <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s2)' }}>
         {!fixedKind && KINDS.map((k) => (
           <button key={k.label} type="button" className={`chip${kind === k.key ? ' chip-active' : ''}`}
@@ -170,6 +183,7 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
           </select>
         )}
       </div>
+      )}
 
       {/* Above the list rather than inside it: the case where the item is
           missing is also the case where the list may be empty, and the empty
@@ -192,7 +206,10 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
               + 'lands here on its own.'}
         </div>
       ) : (
-        <div style={{
+        <div style={layout === 'strip' ? {
+          display: 'flex', marginTop: 'var(--s2)', gap: 'var(--s2)',
+          overflowX: 'auto', overflowY: 'hidden', paddingBottom: 'var(--s1)',
+        } : {
           display: 'grid', marginTop: 'var(--s3)',
           gridTemplateColumns: `repeat(auto-fill, minmax(${compact ? 110 : 150}px, 1fr))`,
           gap: 'var(--s2)',
@@ -205,7 +222,14 @@ export default function AssetLibrary({ clientId, onPick = null, kind: fixedKind 
                 onKeyDown={pickable ? (e) => {
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(a); }
                 } : undefined}
-                style={{ cursor: pickable ? 'pointer' : 'default' }}>
+                // A strip tile needs a width of its own: a flex row gives its
+                // children their content width, so without this each tile is
+                // as wide as its longest filename and four clips fill the
+                // screen.
+                style={{
+                  cursor: pickable ? 'pointer' : 'default',
+                  ...(layout === 'strip' ? { flex: '0 0 96px', width: 96 } : {}),
+                }}>
                 <Thumb asset={a} />
                 <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginTop: 4,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

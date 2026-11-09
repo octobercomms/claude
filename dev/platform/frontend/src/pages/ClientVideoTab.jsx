@@ -57,13 +57,28 @@ export default function ClientVideoTab() {
 
   return (
     <div>
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Produce</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Produce</h1>
-          <ScreenHeading title="Produce" />
-        </div>
-      </header>
+      {/* The Studio pays for its shelf out of this.
+          Measured at 1440x900: the hero is 155px of a 900px screen, spent
+          telling you the name of the section whose row is already lit in the
+          panel beside it. The Studio is the one screen where the operator
+          unambiguously knows where they are, and it is the one screen with no
+          vertical to spare — the timeline is already near the fold, and a
+          shelf that pushes it past is the regression the checks panel had.
+          `ScreenHeading` stays, because the page is still the Produce page and
+          `tests/sectionPanel.test.mjs` requires this file to render it; it is
+          the display title and the kicker that go. */}
+      {tab !== 'compose' && (
+        <>
+          <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Produce</span></div>
+          <header className="hero">
+            <div>
+              <h1 className="display mt-2">Produce</h1>
+              <ScreenHeading title="Produce" />
+            </div>
+          </header>
+        </>
+      )}
+      {tab === 'compose' && <ScreenHeading title="Produce" />}
       {/* WHICH composition to open, not just which tab. Both handoffs into
           the editor used to switch the tab and nothing else, and the editor
           opens the first row of its own list — so "Send to Edit" and "Open in

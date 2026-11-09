@@ -20,6 +20,7 @@ import { useToast } from '../context/ToastContext';
 import { useCompositionHistory } from '../hooks/useCompositionHistory';
 import ExportModal from '../components/video/ExportModal';
 import ShareReelModal from '../components/video/ShareReelModal';
+import StudioShelf from '../components/video/StudioShelf';
 
 const SIZE_PRESETS = [
   { w: 1080, h: 1920, label: '9:16' },
@@ -487,6 +488,34 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     }
   }, [compId, toast]);
 
+  // One door for files, which is what the shelf's "Add files" presses.
+  //
+  // Three buttons used to live in the inspector — `+ Add clip`, `+ Add music`,
+  // `+ Add design` — and the first two are the same gesture with a different
+  // `accept`. A person with a folder open does not sort their selection by
+  // kind first. The mime type already decides everything downstream, so it
+  // decides here too: `isStillMime` and `CLIP_ACCEPT` were written for exactly
+  // this and the upload routes disagree about nothing.
+  //
+  // `+ Add design` stays where it is: a design is not a file, it is a page of
+  // a set this client already has, so it is a picker rather than an upload.
+  const handleAnyFiles = useCallback(async (files) => {
+    const all = Array.from(files || []);
+    if (!all.length) return;
+    const audio = all.filter(f => f.type.startsWith('audio/'));
+    const rest = all.filter(f => !f.type.startsWith('audio/'));
+    // Sequential, not parallel: both paths read and replace the composition,
+    // and two of them racing would drop whichever finished first.
+    if (rest.length) await handleFiles(rest);
+    if (audio.length) await handleAudioFiles(audio);
+  }, [handleFiles, handleAudioFiles]);
+
+  // The shelf's input takes every kind, so its change handler sorts them.
+  const onAnyFileChange = useCallback((e) => {
+    handleAnyFiles(e.target.files);
+    if (fileRef.current) fileRef.current.value = '';
+  }, [handleAnyFiles]);
+
   const onAudioFileChange = useCallback((e) => {
     handleAudioFiles(e.target.files);
     if (audioFileRef.current) audioFileRef.current.value = '';
@@ -758,6 +787,89 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
     caption_template: hasCaptionSource ? 'yes' : null,
   }), [total, hasCaptionSource]);
 
+  // ── The shelf: material already in the system ─────────────────────
+  //
+  // A library asset needs no upload and no copy. The renderer resolves a
+  // source by its asset id through `assetMedia`, which handles both stores,
+  // and the browser resolves it through `/api/assets/:id/file`. So picking is
+  // a model edit, not a transfer.
+  //
+  // Everything lands at the END of its track rather than at the playhead.
+  // That is the rule the upload already uses, so the shelf introduces no
+  // second rule; the playhead sits at 0 until somebody moves it, so "at the
+  // playhead" would mean "insert at the start", which is almost never meant;
+  // and dropping onto an occupied range raises insert-or-overwrite, which
+  // this editor has no answer for yet.
+  const placeSource = useCallback((comp, sourceId, kind, len) => {
+    const wantAudio = kind === 'audio';
+    let c = comp;
+    let trackId = c.tracks.find(t => t.kind === (wantAudio ? 'audio' : 'video'))?.id;
+    if (!trackId) {
+      const r = addTrack(c, wantAudio ? 'audio' : 'video');
+      c = r.comp;
+      trackId = r.id;
+    }
+    const at = compDuration(c);
+    const r = addItem(c, trackId, { at, len, source: sourceId });
+    return { comp: r.comp, trackId, itemId: r.id, at };
+  }, []);
+
+  // Added, then selected, then named in the toast with the time it landed on.
+  // Without those three a click reads as a database write rather than as
+  // placing something: the inspector is already pointed at the new item, so a
+  // camera move is one more click.
+  const announce = useCallback((name, at) => {
+    toast(`${name} added at ${PB.timecode(at, fps)}`, 'success');
+  }, [toast, fps]);
+
+  const pickAsset = useCallback((asset) => {
+    const still = String(asset.mime || '').startsWith('image/') || asset.kind === 'image';
+    const isAudio = asset.kind === 'audio';
+    const dur = Number(asset.duration_s) > 0 ? Number(asset.duration_s) : null;
+    const len = still ? STILL_DEFAULT_LEN : (dur || STILL_DEFAULT_LEN);
+
+    setComposition(prev => {
+      const { comp: c1, id: sourceId } = addSource(prev, {
+        kind: isAudio ? 'audio' : 'clip',
+        asset: asset.id,
+        ...(asset.url ? { url: asset.url } : {}),
+        ...(still ? { still: true } : {}),
+        ...(dur ? { duration: dur } : {}),
+        ...(asset.width ? { width: asset.width } : {}),
+        ...(asset.height ? { height: asset.height } : {}),
+        originalName: asset.title || undefined,
+      });
+      const placed = placeSource(c1, sourceId, isAudio ? 'audio' : 'video', len);
+
+      // The browser needs a url even when the asset row has none: a recording
+      // lives behind the media store under a key, which is exactly the case
+      // that used to draw a black player.
+      setSourceUrls(u => ({ ...u, [sourceId]: asset.url || `/api/assets/${asset.id}/file` }));
+      setSourceNames(n => ({ ...n, [sourceId]: asset.title || 'Clip' }));
+      setSourceAssets(a => ({ ...a, [sourceId]: asset.id }));
+      setSelectedId(placed.itemId);
+      setSelectedTrackId(placed.trackId);
+      announce(asset.title || 'Clip', placed.at);
+      return placed.comp;
+    });
+  }, [placeSource, announce]);
+
+  // A source already in the reel, used again. No new source: one source, two
+  // items, which is what b-roll is.
+  const pickSource = useCallback((sourceId) => {
+    setComposition(prev => {
+      const src = prev.sources[sourceId];
+      if (!src) return prev;
+      const len = src.kind === 'clip' && src.still !== true && Number(src.duration) > 0
+        ? Number(src.duration) : STILL_DEFAULT_LEN;
+      const placed = placeSource(prev, sourceId, src.kind === 'audio' ? 'audio' : 'video', len);
+      setSelectedId(placed.itemId);
+      setSelectedTrackId(placed.trackId);
+      announce(sourceNames[sourceId] || 'Clip', placed.at);
+      return placed.comp;
+    });
+  }, [placeSource, announce, sourceNames]);
+
   // ── Drag-and-drop ─────────────────────────────────────────────────
 
   const onDragOver = useCallback((e) => { e.preventDefault(); setDragOver(true); }, []);
@@ -983,6 +1095,17 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
               onDragCancel={discardBatch}
               ripple={ripple}
             />
+
+          <StudioShelf
+            composition={composition}
+            clientId={clientId}
+            sourceUrls={sourceUrls}
+            sourceNames={sourceNames}
+            onPickAsset={pickAsset}
+            onPickSource={pickSource}
+            onAddFiles={() => fileRef.current?.click()}
+            uploading={uploading}
+          />
           </div>
         </div>
 
@@ -1036,18 +1159,22 @@ export default function CompositionEditorPage({ clientId, clientName = null, ope
 
             {/* Add clip / design / audio */}
             <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
-              <input ref={fileRef} type="file" accept={CLIP_ACCEPT} multiple
-                style={{ display: 'none' }} onChange={onFileChange} />
+              <input ref={fileRef} type="file" accept={`${CLIP_ACCEPT},audio/*`} multiple
+                style={{ display: 'none' }} onChange={onAnyFileChange} />
               <input ref={audioFileRef} type="file" accept="audio/*" multiple
                 style={{ display: 'none' }} onChange={onAudioFileChange} />
-              <button type="button" className="btn btn-primary btn-sm"
-                onClick={() => fileRef.current?.click()} disabled={uploading}>
-                {uploading ? 'Uploading...' : '+ Add clip'}
-              </button>
-              <button type="button" className="btn btn-secondary btn-sm"
-                onClick={() => audioFileRef.current?.click()} disabled={uploadingAudio}>
-                {uploadingAudio ? 'Uploading...' : '+ Add music'}
-              </button>
+              {/* `+ Add clip` and `+ Add music` are gone. Both are "put a file
+                  in", which is now the shelf's Add files, and the shelf routes
+                  by mime so a person with a folder open does not have to sort
+                  their selection by kind first.
+                  Two buttons for one gesture is the two-doors problem this
+                  codebase keeps finding; worse, the clip one was the only
+                  yellow button on the screen and it opened an OS file dialog,
+                  so the most emphasised action in the Studio took you out of
+                  the application while this client's media sat one panel away.
+                  The inputs stay: the shelf presses `fileRef`, and
+                  `audioFileRef` is still how an audio-only selection reaches
+                  the audio route. */}
 
               {designs.length > 0 && (
                 <select className="btn btn-secondary btn-sm"
