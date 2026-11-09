@@ -26,6 +26,13 @@ on:
     paths:
       - 'dev/platform/**'
       - '.github/workflows/platform-checks.yml'
+      # The briefs guard reads docs/omi/ and the root CLAUDE.md, so a change
+      # that only touches those is exactly the change that breaks it: deleting
+      # the pointer out of agent-guide.md, or adding a brief and not indexing
+      # it, is a docs-only commit. Without these paths the guard never runs on
+      # the one kind of PR it exists to catch.
+      - 'docs/omi/**'
+      - 'CLAUDE.md'
 
 concurrency:
   group: platform-checks-${{ github.ref }}
@@ -488,6 +495,15 @@ jobs:
       # committed file has drifted from the model it is built from.
       - name: Guard — the composition skill and its schema are still true
         run: node tests/composition-skill.test.js
+      # A brief is what was agreed before a build started, and docs/omi/briefs/
+      # exists because one that lived only as a chat link was lost: the Produce
+      # studio layout was agreed, mocked, and then production shipped six
+      # separate nav rows against it for four sessions. Nothing loads briefs/
+      # on its own, so the pointer chain from CLAUDE.md through agent-guide.md
+      # is the only thing that makes it reachable, and an index that has
+      # drifted from the folder is worse than none.
+      - name: Guard — a brief cannot go missing quietly
+        run: node tests/briefs-contract.test.js
       # Composition renders land beside a client's own uploads, so the sweep
       # that deletes them is one filename pattern away from deleting
       # somebody's footage. These pin the pattern and the rule: a batch item

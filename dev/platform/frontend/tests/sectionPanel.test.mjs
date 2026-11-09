@@ -287,6 +287,27 @@ test('/settings/connections resolves to integrations, not to the default tab', (
     '/settings/connections must land on the Integrations tab');
 });
 
+// Renaming a row's SLUG retires a URL, and a retired URL that resolves to the
+// section default is the worst outcome: the page opens, shows the wrong screen,
+// and nothing fails. /produce/compose is the one that matters — it is in the
+// address bar of anyone who had the editor open before 9 November, and in
+// several places in docs/.
+//
+// It keeps working because tabForSlug matches `r.tab === resolved` as well as
+// the slug (sections.js), so an old slug that is still a tab key resolves
+// without a SLUG_ALIASES entry. That is load-bearing and undocumented, so it
+// is pinned here rather than left to be rediscovered: this test fails if that
+// fallback is ever removed.
+test('a row renamed to a new slug keeps answering on its old one', () => {
+  const produce = SECTIONS.produce;
+  assert.equal(slugForTab(produce, 'compose'), 'studio',
+    'the canonical URL for the editor is /produce/studio');
+  assert.equal(tabForSlug(produce, 'studio'), 'compose');
+  assert.equal(tabForSlug(produce, 'compose'), 'compose',
+    '/produce/compose stopped resolving — it must not fall through to the default tab');
+  assert.notEqual(produce.defaultTab, null);
+});
+
 test('every SLUG_ALIASES target is a real tab in at least one section', () => {
   const allTabs = new Set(Object.values(SECTIONS).flatMap(s => tabsOf(s)));
   const dangling = Object.entries(SLUG_ALIASES)

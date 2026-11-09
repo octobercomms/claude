@@ -6,6 +6,18 @@
 > the shared-shell architecture, the product roadmap, and the hard-won
 > gotchas that are easy to get wrong.
 
+> **Before you build against a plan, check `docs/omi/briefs/` for the brief it
+> serves.** A brief is what was agreed; a plan is one route to it, and a plan
+> outranks nothing. `briefs/README.md` has the rule, and
+> `briefs/produce-studio.md` is why the folder exists: a studio layout was
+> agreed, mocked, and then production shipped six separate nav rows instead,
+> because the mockup lived only as a chat link. One session lifted the three
+> model fields it needed into `video-batch-plan.md` and left the IA behind.
+> From then on the plan was the brief. Four sessions built against it before
+> Daniel noticed. **An agreed decision that is not a file in this repository
+> does not survive the session that heard it.** If he agrees something with
+> you, write it into `briefs/` in that same session.
+
 ---
 
 ## 1. What OMI is

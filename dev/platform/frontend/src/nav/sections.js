@@ -52,6 +52,11 @@
 //                      rows qualify today. The route still works if you type
 //                      it or follow a link, so nothing becomes unreachable;
 //                      it is only absent from the list.
+//                keywords
+//                      extra words the palette matches this row on, for a
+//                      row whose honest name is not the word people type.
+//                      They are matched, never printed. One row has them
+//                      today: Studio, which answers to "video".
 
 // `ctx` is { readOnly, canVisualise }.
 const agencyOnly = (ctx) => !ctx.readOnly;
@@ -375,13 +380,19 @@ export const SECTIONS = {
     base: (id) => `/clients/${id}/produce`,
     defaultTab: 'compose',
     groups: [
+      // Make holds the four screens that originate something. Studio is first
+      // and is named for what it is, because the row that is the video editor
+      // spent a week labelled "Video" in a list of five equals, which is how
+      // the agreed studio consolidation (docs/omi/briefs/produce-studio.md)
+      // came to be read as six co-equal doors. Transcribe and Audio are not
+      // in that list: both operate on a file that already exists, which is
+      // Media's job, and the per-clip versions of both already live inside
+      // the Studio (its Transcribe button and its music source).
       { heading: 'Make', rows: [
-        { tab: 'compose',    label: 'Video',       when: agencyOnly, phone: false },
+        { tab: 'compose',    label: 'Studio', slug: 'studio', keywords: ['video', 'edit', 'timeline'], when: agencyOnly, phone: false },
         { tab: 'record',     label: 'Record' },
         { tab: 'design',     label: 'Design',      when: agencyOnly },
         { tab: 'visualise',  label: 'Visualise',   when: (ctx) => !!ctx.canVisualise },
-        { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly },
-        { tab: 'audio',      label: 'Audio',       when: agencyOnly },
       ] },
       // Batch. Two rows, not one: briefing a run and working through what it
       // produced are different sittings, often days apart, and a single
@@ -397,7 +408,15 @@ export const SECTIONS = {
         { tab: 'batch',        label: 'Brief',  slug: 'brief', when: agencyOnly, phone: false },
         { tab: 'batch_review', label: 'Review', slug: 'batch-review', when: agencyOnly },
       ] },
-      { heading: null, rows: [{ tab: 'library', label: 'Library' }] },
+      // Media. Everything here takes a file that exists and does something to
+      // it: the library of what has been made, a transcript of a recording, a
+      // cleaned-up audio file. `tab` keys are untouched, so every existing
+      // /produce/<slug> still resolves and no render branch moved.
+      { heading: 'Media', rows: [
+        { tab: 'library',    label: 'Library' },
+        { tab: 'transcribe', label: 'Transcribe',  when: agencyOnly },
+        { tab: 'audio',      label: 'Audio',       when: agencyOnly },
+      ] },
     ],
   },
   // Settings. Its sections and sub-tabs were already a two-level tree in
@@ -734,6 +753,7 @@ export function allScreens(ctx = {}) {
           label: row.label,
           tab: row.tab,
           slug: slugOf(row),
+          keywords: row.keywords || null,
         });
       }
     }

@@ -23,6 +23,22 @@ export function screenPathLabel(s) {
   return [s.sectionTitle, s.heading, s.label].filter(Boolean).join(' · ');
 }
 
+// What a term is matched against: the path, plus any `keywords` the row
+// carries. Separate from screenPathLabel because the path is also what a
+// failing assertion prints, and a printed path reading "Produce · Make ·
+// Studio video edit timeline" names a screen nobody would recognise.
+//
+// Keywords exist for one case: a screen whose honest name is not the word
+// people type for it. Produce → Studio is the instance. It was labelled
+// Video, which is what an operator says, and renaming it to what it IS took
+// the searchable word with it — "video" then matched nothing in Produce,
+// and a palette that answers nothing reads as broken search rather than as
+// a renamed screen.
+export function screenHaystack(s) {
+  const extra = Array.isArray(s.keywords) ? s.keywords.join(' ') : '';
+  return extra ? `${screenPathLabel(s)} ${extra}` : screenPathLabel(s);
+}
+
 // What is printed beside the title: "Earned · Track". The label is dropped,
 // because the title is the label and a row reading "Coverage … Earned · Track ·
 // Coverage" says it twice.
@@ -36,7 +52,7 @@ function scoreOf(term, words, s) {
   if (label.startsWith(term)) return 1;
   if (label.includes(term)) return 2;
 
-  const hay = screenPathLabel(s).toLowerCase();
+  const hay = screenHaystack(s).toLowerCase();
   if (hay.includes(term)) return 3;
   if (words.length > 1 && words.every(w => hay.includes(w))) return 4;
   return null;
