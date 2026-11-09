@@ -4,7 +4,7 @@ import CompositionTimeline from '../components/video/CompositionTimeline';
 import {
   emptyComposition, addSource, addTrack, addItem, removeItem,
   updateItem, duration as compDuration,
-  rippleRemoveItem, isStillMime, CLIP_ACCEPT, TRANSITION_TYPES,
+  rippleRemoveItem, splitItem, isStillMime, CLIP_ACCEPT, TRANSITION_TYPES,
 } from '@shared/composition.mjs';
 import {
   MOTION_NAMES, transformFor, describeMotion, STILL_DEFAULT_LEN,
@@ -164,6 +164,8 @@ export default function CompositionEditorPage({
   latestAssetsRef.current = sourceAssets;
   latestTransRef.current = transcripts;
   playheadRef.current = playhead;
+  const totalRef = useRef(0);
+  totalRef.current = total;
 
   // ── Initialise: load compositions list, templates ─────────────────
 
@@ -668,6 +670,34 @@ export default function CompositionEditorPage({
     setSelectedTrackId(null);
   }, [selectedItem, ripple]);
 
+  // Split the selected item at the playhead, and SELECT THE TAIL.
+  //
+  // `splitItem` has always returned `{ comp, id }` where `id` is the new
+  // second piece, and the timeline's handler destructured only `comp` and
+  // threw the id away. Selecting the tail is what the gesture is for: cut,
+  // move on, cut again, delete the middle.
+  const handleSplitItem = useCallback(() => {
+    if (!selectedItem) return;
+    const { comp: next, id } = splitItem(
+      latestCompRef.current, selectedItem.track.id, selectedItem.item.id,
+      playheadRef.current);
+    if (!id) return;              // the playhead is not inside the item
+    setComposition(() => next);
+    setSelectedId(id);
+  }, [selectedItem]);
+
+  // Move the playhead, in seconds. The compositor follows the `playhead`
+  // prop when it is not playing, so this is the one way to move it and it
+  // works whether or not anything has focus.
+  const seekBy = useCallback((secs) => {
+    compositorRef.current?.pause?.();
+    const fpsNow = latestCompRef.current?.fps || 30;
+    setPlayhead((p) => {
+      const next = Math.max(0, Math.min(totalRef.current, p + secs));
+      return Math.round(next * fpsNow) / fpsNow;
+    });
+  }, []);
+
   const setSize = useCallback((w, h) => {
     setComposition(prev => ({ ...prev, size: { width: w, height: h } }));
   }, []);
@@ -1089,7 +1119,7 @@ export default function CompositionEditorPage({
       }
       if (e.key === 'k' || e.key === 'K') {
         e.preventDefault();
-        compositorRef.current?.pause?.();
+        compositorRef.current?.toggle?.();
         return;
       }
       if (e.key === 'l' || e.key === 'L') {
@@ -1104,6 +1134,56 @@ export default function CompositionEditorPage({
           setRipple(prev => !prev);
           return;
         }
+      }
+
+      /* Split, delete and the playhead, from anywhere on the page.
+       *
+       * These three lived on the timeline lane's own `onKeyDown`, which fires
+       * only when that div has DOM focus — and CLICKING A CLIP DOES NOT GIVE
+       * IT FOCUS. Measured on the shipped build: click a clip, the inspector
+       * opens, press Delete and nothing happens; press S and nothing happens.
+       * Clicking the RULER focuses the lane, so whether the editing keys
+       * worked depended on where you last clicked, and the loser was whoever
+       * clicked the thing they wanted to edit. The lane was not reachable
+       * with Tab either, in forty presses. Meanwhile the timeline printed a
+       * paragraph underneath itself telling you to press those keys.
+       *
+       * Selection is a property of the document, not of which div has focus.
+       */
+      if (e.key === 's' || e.key === 'S') {
+        if (!selectedItemRef.current) return;
+        e.preventDefault();
+        handleSplitItem();
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!selectedItemRef.current) return;
+        e.preventDefault();
+        handleRemoveItem();
+        return;
+      }
+
+      // One meaning for the arrows: step the playhead. They used to mean
+      // three different things depending on what had focus — nothing, a
+      // frame step in the player, or a 0.1s item nudge on the lane — and
+      // scrubbing is the constant act. Shift makes it a second, which is
+      // what the shortcut reference has always promised and nothing
+      // implemented. `,` and `.` keep the item nudge, in one vocabulary.
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        const fpsNow = latestCompRef.current?.fps || 30;
+        seekBy(dir * (e.shiftKey ? 1 : 1 / fpsNow));
+        return;
+      }
+
+      // Play and pause, with one owner. Space worked only with the player
+      // focused, and K was handled twice — by the compositor as a toggle and
+      // here as a pause. A button with focus keeps its own space bar.
+      if (e.key === ' ' && tag !== 'button' && tag !== 'a') {
+        e.preventDefault();
+        compositorRef.current?.toggle?.();
+        return;
       }
 
       // Trim shortcuts: [ ] for in/out points, , . for frame nudge
@@ -1133,16 +1213,18 @@ export default function CompositionEditorPage({
           }
           return;
         }
-        if (e.key === ',') {
+        // Shift for a second, the same two sizes the arrows now have.
+        const nudge = e.shiftKey ? 1 : frameDur;
+        if (e.key === ',' || e.key === '<') {
           e.preventDefault();
           setComposition(prev => updateItem(prev, sel.track.id, sel.item.id,
-            { at: Math.max(0, sel.item.at - frameDur) }));
+            { at: Math.max(0, sel.item.at - nudge) }));
           return;
         }
-        if (e.key === '.') {
+        if (e.key === '.' || e.key === '>') {
           e.preventDefault();
           setComposition(prev => updateItem(prev, sel.track.id, sel.item.id,
-            { at: sel.item.at + frameDur }));
+            { at: sel.item.at + nudge }));
           return;
         }
       }
@@ -1154,7 +1236,7 @@ export default function CompositionEditorPage({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
+  }, [undo, redo, handleSplitItem, handleRemoveItem, seekBy]);
 
   // ── Render ────────────────────────────────────────────────────────
 

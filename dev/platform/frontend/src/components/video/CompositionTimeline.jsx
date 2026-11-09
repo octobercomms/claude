@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as C from '@shared/composition.mjs';
-import { rippleRemoveItem, rippleTrimStart, rippleTrimEnd } from '@shared/composition.mjs';
 import * as PB from '@shared/compositionPlayback.mjs';
 import { useFilmstrips, thumbsForBlock, THUMB_HEIGHT } from '../../utils/filmstrip';
 import { useWaveforms } from '../../utils/waveform';
@@ -375,56 +374,18 @@ export default function CompositionTimeline({
   };
 
   // ── Keyboard ─────────────────────────────────────────────────────────
-
-  const onLaneKeyDown = (e) => {
-    if (readOnly) return;
-    const tag = (e.target?.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
-
-    const id = selectedId;
-    const tId = selectedTrackId;
-    const nudge = e.shiftKey ? 1 : 0.1;
-
-    if (e.key === 's' || e.key === 'S') {
-      if (!id || !tId) return;
-      e.preventDefault();
-      const { comp: next } = C.splitItem(comp, tId, id, playhead);
-      if (next !== comp) commit(next);
-      return;
-    }
-
-    if (e.key === 'Backspace' || e.key === 'Delete') {
-      if (!id || !tId) return;
-      e.preventDefault();
-      commit(ripple ? rippleRemoveItem(comp, tId, id) : C.removeItem(comp, tId, id));
-      onSelect?.(null, null);
-      return;
-    }
-
-    if (!id || !tId) return;
-    const track = tracks.find(t => t.id === tId);
-    const item = track?.items.find(i => i.id === id);
-    if (!item) return;
-
-    if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      if (e.altKey) {
-        commit(C.updateItem(comp, tId, id, { len: Math.max(MIN_ITEM_LEN, item.len - nudge) }));
-      } else {
-        commit(C.updateItem(comp, tId, id, { at: Math.max(0, item.at - nudge) }));
-      }
-      return;
-    }
-
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      if (e.altKey) {
-        commit(C.updateItem(comp, tId, id, { len: item.len + nudge }));
-      } else {
-        commit(C.updateItem(comp, tId, id, { at: item.at + nudge }));
-      }
-    }
-  };
+  //
+  // There is none here any more, and that is the fix rather than a loss.
+  //
+  // `onLaneKeyDown` handled S, Delete and the arrows, and fired only when
+  // this lane div had DOM focus. Clicking a CLIP does not focus it; clicking
+  // the ruler does. So the editing keys worked or did not depending on where
+  // you last clicked, and the loser was whoever clicked the thing they wanted
+  // to edit. Tab did not reach the lane either, in forty presses.
+  //
+  // They live on the window handler in CompositionEditorPage now, beside
+  // Ctrl+Z, `[`, `]`, `,` and `.`, which have always worked from anywhere.
+  // Selection is a property of the document, not of which div has focus.
 
   // ── Rendering ────────────────────────────────────────────────────────
 
@@ -476,10 +437,13 @@ export default function CompositionTimeline({
       }}>
         <div
           ref={laneRef}
-          role="application"
+          /* `role="application"` told a screen reader this element handles
+             its own keys. It no longer does: the editing keys are on the
+             window, where they work without this div having focus. It is a
+             labelled group that can be scrolled, and it says so. */
+          role="group"
           aria-label="Multi-track composition timeline"
           tabIndex={0}
-          onKeyDown={onLaneKeyDown}
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={cancelDrag}
