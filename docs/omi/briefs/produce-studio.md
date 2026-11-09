@@ -526,6 +526,19 @@ beside the stage is survivable only at 1920 and wider. So "the small version
 first" was not a cheap first step but a regression that destroys the only
 thing on screen being judged.
 
+> **RETRACTED, 9 November, by the conformance pass on step 3c.** True of the
+> page it was measured on and false of the page that exists now. That Studio
+> was a tall document in which the picture was bounded by its WIDTH, so a
+> column beside it took pixels off it. Since the Studio fills the window the
+> picture is bounded by the HEIGHT of its row: measured, narrowing the stage
+> column from 1008px to 748px leaves the picture at 220x391, identical. At
+> 1600x1000 the well is 1168px wide and the picture is 276 of it, so there is
+> 2.4x of width spare and none of height. **The mockup's 240px bin costs the
+> picture nothing.** This paragraph cost the brief its build-order step 3,
+> and the critic that wrote it retracted it in those words: horizontal space
+> on this screen is free, vertical space comes off the only thing being
+> judged, and every later proposal should be weighed against that sentence.
+
 **It retracted its own three-zone design, and said why.** That design put the
 transcript in the centre column. In a 9:16 product the centre column is the
 *narrowest* part of the page, and a transcript four words wide is not an edit
@@ -1380,6 +1393,109 @@ for neither.
 
 The guard that asserted 253px now asserts a floor and says why: pinning the
 old number would pin the old layout.
+
+## Built, 9 November: Play could not be pressed
+
+The conformance pass on step 3c found a defect that had been live on `main`
+for half an hour, and it is the most useful thing this brief records about
+testing.
+
+**All four transport controls were unclickable.** Hit-tested at 1440x900 and
+1280x800: `elementFromPoint` at the centre of **Play** returned **Redo**, at
+the centre of `-1 frame` returned **Split**. A hand reaching for Play fired
+an undo of somebody else's edit, and a hand reaching for one frame back
+offered to cut the clip.
+
+**Every presence assertion in the file passed that day.** The button was in
+the DOM, it was 65x36, it was on screen, it had the right label and the right
+`data-testid`. What was wrong was what lay on top of it. The player's wrapper
+was `height: 100%` with the well inside it also `height: 100%`, so the well
+took the entire box and the transport and the caption were siblings with
+nowhere to go: 456px of content in a 391px wrapper, overflow visible, 65px of
+controls painted over the timeline toolbar.
+
+It came in with "the Studio fills the window", which is the change that gave
+every ancestor a definite height. The fix is one line of intent: the wrapper
+is a flex **column**, the well takes `flex: 1` instead of all of it, and the
+transport is a row in the column rather than a thing hanging off the bottom.
+
+**The guard is a hit test**, because nothing weaker would have caught this
+and nothing weaker will catch the next one. `drive-studio.mjs` now asks the
+browser what is under the centre pixel of each transport control, names what
+the click landed on when it is wrong, and separately asserts that the player
+does not overflow its own box — the cause, which can be reintroduced without
+any control moving. Mutation-checked: restoring the old two lines fails five
+assertions and prints `the click landed on "↩ ↪ Split Delete"`.
+
+### An instrument does not have page margins
+
+The same pass measured where the picture's height goes, and 48px of it was
+going to nothing at all: 32px of vertical padding on `.app-main.is-focus` and
+24px of grid gaps between the Studio's three rows. The mockup pays neither.
+Padding is now zero at the top and bottom, the horizontal gutter stays
+because it costs the picture nothing, and the row gaps are 4px seams rather
+than 12px gutters.
+
+**The rule this screen is governed by from here**, and it is worth stating
+once because it decides every remaining proposal: at 1600x1000 the player
+well is 1168px wide and the picture is 278 of it, so if the row were tall
+enough the picture could reach 657px before width constrained it. **There is
+2.4x of headroom horizontally and none vertically.** A 240px bin is free. A
+260px inspector is free. A 17px line of prose under the picture is not: it is
+10px of picture, every session.
+
+Which is why the render-only caveat is a disclosure now. "Captions, ducking,
+and audio processing (afftdn/loudnorm) are render-only" was permanent
+full-width prose under the picture, naming two ffmpeg filters to somebody
+deciding whether a cut lands. It opens on a control, and it is a disclosure
+rather than a `title` because a tooltip is unreachable from a keyboard and
+the fact is one a person needs to be able to read deliberately.
+
+**Measured after, at 1440x900:** the picture is 222x395, against 220 while
+the transport was overlapping the toolbar. The defect fix costs the picture
+nothing because the margins paid for it.
+
+### Three corrections to this file and to the code
+
+All three were wrong numbers sitting in files, which is the failure mode this
+brief already has a section for.
+
+1. `index.css` said "a 300px panel in the row is 300px of picture". False.
+   Narrowing the stage column from 1008px to 748px leaves the picture at
+   220x391, identical, because it is height-bound. The panel beside the
+   picture cost 0px at 1440x900 and 23px at 1600x1000.
+2. The 9 November review's "insert the mockup's 240px bin and the player cell
+   becomes 28px" is **retracted above**, by the critic that made the
+   argument, in those words. True of the scrolling document, false of the
+   window-filling Studio.
+3. `StudioShelf.jsx` carried the same 28px claim in its header and now
+   carries the correction, so the stale number is not quoted a third time
+   before the shelf becomes the bin.
+
+### Still open from that pass, in the order it ranked them
+
+- **The checks are 1246px against the mockup's 118.** Verdict first, evidence
+  on click, which is this file's own unbuilt item from the first critique.
+  `Hide the rules` gets to 772px, so the default state is what is wrong.
+- **The one-line verdict should leave the scroll.** `6 of 10` belongs in the
+  bar beside the save dot, coloured by worst state, clicking it scrolling the
+  inspector to the group. That is what keeps the operator's question
+  answerable while leaving the group where the mockup puts it, 674px into a
+  524px scroller.
+- **The inspector has no headings.** The mockup has five named groups
+  totalling 792px; the built one is 1883px of ungrouped rows with a clip
+  selected, and `+ Add effect` is its first control, above the thing you
+  selected.
+- **Lane height 64px against the mockup's 48.** 32px today and 96px at the
+  mockup's own six lanes, which is what decides whether the bin's 199px
+  survives a real composition.
+- **The timeline is content-sized in both.** At six lanes the built timeline
+  is ~474px against the mockup's 340, and the picture goes back under 200px.
+  The mockup has not solved this; it draws exactly six lanes. Whether the
+  timeline caps and scrolls is a decision for Daniel, with a draggable
+  splitter as the alternative.
+- **Scale and position still have no controls.** Decision 5 refused rotation
+  and does not cover these.
 
 ## Faults found while auditing, worth fixing in passing
 

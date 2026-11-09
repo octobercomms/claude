@@ -7,11 +7,19 @@
 // all.
 //
 // A full-width strip under the player rather than a column beside it, and the
-// reason is a measurement. The composition is 9:16 and the stage's player cell
-// is 284px wide at 1440px, which is a normal laptop. Put the mockup's 240px
-// bin beside it and the player cell becomes 28px: the bin would have destroyed
-// the only thing on the screen being judged. Across the bottom it is 600px at
-// 1440 and it sits next to the timeline, which is where the material is going.
+// reason was a measurement: the stage's player cell was 284px wide at 1440px,
+// so the mockup's 240px bin beside it left 28px of picture.
+//
+// THAT MEASUREMENT IS OUT OF DATE and the conclusion with it. It was taken
+// when the Studio was a tall document and the picture was bounded by its
+// WIDTH. The Studio fills the window now and the picture is bounded by the
+// HEIGHT of its row: narrowing the stage column from 1008px to 748px leaves
+// the picture at 220x391, identical. At 1600x1000 there is 892px of empty
+// black beside a 276px picture. A 240px bin costs the picture nothing, and
+// this strip costs it 199px of height, which is what it is actually short of.
+//
+// So this shelf becomes the bin, and this comment is here to stop the stale
+// number being quoted a third time in the meantime.
 //
 // Two scopes, not two components. "In this reel" is the composition's own
 // sources, already in memory, and it is the default because it is the only
