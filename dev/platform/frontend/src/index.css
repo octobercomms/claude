@@ -2522,7 +2522,23 @@ a:hover > .card-stat,
    The width costs the picture nothing, which is the measurement that let the
    bin exist at all: the picture is bounded by the height of its row, and at
    1600x1000 there is 892px of empty black beside it. */
-.edit-split { display: grid; grid-template-columns: 240px minmax(0, 1fr) 260px; gap: var(--s3); align-items: start; }
+.edit-split {
+  display: grid;
+  /* The inspector grows; the bin does not.
+     `260px` was the mockup's number and it was right for the mockup, whose
+     picture is bounded by its WIDTH so the centre column earns every pixel it
+     takes. Ours is bounded by its HEIGHT, so `1fr` in the middle does not
+     make the picture bigger — it makes the black bigger. Measured at 1920:
+     813px of empty black beside a 447px picture, while the panel holding
+     every control on the screen was 240px hiding 1341px of content.
+     So the surplus goes to the column that has something to put in it. The
+     clamp stops the inspector running away on a wide monitor, where a fixed
+     list of fields does not want 600px, and the remaining black is where the
+     transcript surface goes when it is built. */
+  grid-template-columns: 240px minmax(0, 1fr) clamp(320px, 24vw, 460px);
+  gap: var(--s3);
+  align-items: start;
+}
 
 /* ─── The Studio as an instrument ───────────────────────────────────
    Three rows filling the window: the bar, the work, the timeline pinned to
@@ -2613,6 +2629,14 @@ a:hover > .card-stat,
 @container appmain (max-width: 580px) { .edit-split { grid-template-columns: 1fr; } }
 /* The bin is a column that scrolls inside itself, like the inspector. */
 .studio-bin { min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+/* The dense control tier on this screen: a square 28px button holding a
+   glyph. The house pill is 36px and carries a word, which is right for a
+   verb you press once and wrong for a transport you press all afternoon. */
+.btn-icon-tr {
+  width: 28px; height: 28px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
 
 /* ══ Design system v1 — L1–L6 shell components ═══════════════════════
    Namespaced `ds-*` so they never collide with legacy page classes.

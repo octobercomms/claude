@@ -1755,6 +1755,53 @@ a word, so renaming the state cannot make them pass. Mutation-checked: both
 fixes removed, three assertions fail and print `88.9% non-black` and
 `the chip reads "6 of 10 · 1 not yet"`.
 
+## Built, 10 November: the surplus goes to the panel, not to the black
+
+`240px 1fr 260px` is the mockup's grid and it was right for the mockup,
+whose picture is bounded by its WIDTH, so the centre column earns every
+pixel it takes. **Ours is bounded by its HEIGHT.** `1fr` in the middle does
+not make the picture bigger; it makes the black bigger.
+
+Measured at 1920x1080 before this: **813px of empty black** beside a 447px
+picture, while the panel holding every control on the screen was 240px wide
+hiding 1341px of content behind a scroll.
+
+The inspector now grows with the window and the bin does not:
+`240px minmax(0, 1fr) clamp(320px, 24vw, 460px)`. The clamp stops a fixed
+list of fields taking 600px on a wide monitor, and the remaining black is
+where a transcript surface goes when it is built.
+
+| at 1440x900 | before | after |
+|---|---|---|
+| inspector | 240px | **346px** |
+| inspector content, clip selected | 1341px | 1135px |
+| black beside the picture | 435px | 344px |
+| picture | 345 x 614 | **350 x 622** |
+
+### The transport had to go with it, and paid for the move
+
+Narrowing the centre column made the four word-pills wrap. Measured the day
+the inspector was widened: the picture went from 345 to **327**, because a
+wrapped transport costs 32px of HEIGHT and on a 9:16 frame that is 18px of
+width.
+
+`Play`, `-1 frame`, `+1 frame` and `Start` spanned **340px** under the
+picture, at the same 36px height and weight as `Export`, which is the one
+control on this screen that commits. They read as four equal offers.
+
+They are 28px glyphs now, in the order every editing application uses: to
+start, back, play, on. Each carries its own accessible name, because a glyph
+with no name is not a control to anything that cannot see it. The row is
+about 170px, it cannot wrap, and the picture came back larger than it had
+been before the column moved.
+
+The render-only caveat is a glyph on the same row, still a disclosure rather
+than a tooltip: the sentence is its accessible name and its open state is
+real text.
+
+**Measured consequence worth keeping:** at 1440x900 all ten reel checks now
+sit on one screen with no scroll at all.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
