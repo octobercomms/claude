@@ -63,8 +63,10 @@ features.
   `main` when a feature is ready. October iterates on `main` and Caro never
   receives half-finished work. Daniel: "i'd love to iterate on my OMI and
   deploy when ready to theirs. not push half done work."
-- Module set chosen by environment variable. Branding (logo, typefaces) by
-  environment or the settings table.
+- **Module set chosen by toggles in Settings, not by environment variable.**
+  Daniel, 11 November: "in the settings, can we have a way to turn on and off
+  sections from the nav. so if caro dont want it all they dont have to." See
+  the section below. Branding (logo, typefaces) by the settings table.
 - Reached at `platform.octobercomms.com` for now.
 
 `.github/workflows/platform-deploy.yml` pushes to a single `DEPLOY_HOST`. It
@@ -106,6 +108,70 @@ it is ready it gets promoted like anything else.
 **Paid is in, and paid social reporting lives in it.** Daniel, 11 November:
 "paid social in paid actually so keep that." This revises the first pass,
 which had Paid out and paid social folded into Shared. Meta only for now.
+
+---
+
+## Turning sections on and off in Settings
+
+Daniel, 11 November: "essentially, in the settings, can we have a way to turn
+on and off sections from the nav. so if caro dont want it all they dont have
+to."
+
+This replaces the environment variable in the first draft and is the better
+answer, because it generalises: any install can hide what it does not use, and
+Caro's module set stops being a deployment detail.
+
+**Where it hooks in.** `frontend/src/nav/sections.js` is already the single
+source of truth, 833 lines, deliberately literal, guarded by
+`tests/sectionPanel.test.mjs` both ways: every tab a page accepts has a row,
+and every row names a tab that page accepts. It has eleven top-level sections
+keyed by leaf:
+
+| leaf | shown as | Caro |
+|---|---|---|
+| `dashboard` | Dashboard | on |
+| `pr` | Earned | on |
+| `social` | Shared | on |
+| `ads` | Paid | on |
+| `biz-dev` | Biz Dev | on |
+| `database` | Database | on |
+| `settings` | Settings | on |
+| `seo` | Owned | **off** |
+| `convert` | Convert | **off** |
+| `produce` | Produce | **off** |
+| `accounts` | Accounts | **off** |
+
+It also already has the mechanism. Rows carry a `when` that "gates a row on
+the viewer, for the handful that are role- or grant-dependent", and `navCtx(user)`
+is "the one place the viewer is turned into a ctx". So the work is to widen
+`navCtx` to carry the install's enabled sections and gate the section itself,
+not to invent a gate.
+
+**Three things that have to be true, and the file's own history says why.**
+
+1. **Hiding the nav row is not access control.** `sections.js` was written
+   after a screen existed with no row and was unreachable; the opposite
+   failure is a row removed while the route still answers, so a bookmark or a
+   typed URL walks straight in. An off section refuses its routes as well as
+   hiding its rows.
+2. **The backend has to agree.** A section switched off in the browser whose
+   API still answers has only moved the problem. The toggle is read
+   server-side too.
+3. **Anything that reads across pillars has to respect it.** The Strategist
+   briefing pulls every pillar's overview report; on Caro's install it would
+   quietly report on Owned and Convert, which are off. Same for any
+   cross-pillar dashboard tile.
+
+**Who can toggle.** Super administrator only, in the first cut. An agency
+administrator turning a module off mid-month hides work their own team is
+doing, and the failure would look like data loss rather than a setting. If
+Caro want it themselves later it is a permission change, not a rebuild.
+
+**The guard this needs.** `sectionPanel.test.mjs` currently proves every row
+has a page and every page has a row. It should also prove that a section
+switched off appears in neither the panel, the phone screen picker, the
+command palette, nor its own routes. The file's header records three separate
+occasions when two places disagreed about one rule; a fourth is avoidable.
 
 ---
 
@@ -248,7 +314,99 @@ nothing.
 
 ---
 
+## The activity report, anatomised
+
+Source: a Caro monthly activity report supplied by Daniel on 11 November and
+read page by page. Seven pages, Caro's mark top left, the client's marks top
+right. Client names, journalist names and the month's figures are deliberately
+left out of this file; what a future session needs is the report's shape, and
+the shape is below. The live example is one client running **three Instagram
+accounts**, reported in **EUR**, which is the euro client already noted.
+
+Section names below are theirs, not invented. This is what phase 2 reproduces.
+
+### Pages 1 to 2: the activity table
+
+One table, section headers in Caro's sand colour, in two shapes.
+
+**Four-column sections** — Publication, Journalist, Publication Date, Activity:
+
+| section | what it holds |
+|---|---|
+| **Published** | Coverage that ran. Print is marked in the publication name itself, as a `(print)` suffix, so the same title appears twice in a month when a piece runs online and in print. The Activity cell carries the hyperlink on an online row and the same text unlinked on a print one. Dates are `DD.MM.YY` |
+| **Forthcoming Coverage** | Expected pieces. Dates are loose on purpose: a month with the issue in brackets, or `TBC`. **This section already exists in their report**, which settles the Readly replacement: the forthcoming-coverage tracker in this brief is what they keep by hand today, not a new idea being sold to them |
+| **Media conversations** | Live approaches with no commitment. Every date `TBC`. The Activity cell reads like "keeping the opportunity warm". **This is the hide-from-client case**: a conversation Caro want on their own record but not necessarily in front of the client |
+
+**Single-column sections**, free text, one row per line, no columns at all:
+
+| section | shape of a row |
+|---|---|
+| **Communications Activity** | What the team did. "Issued [X] press release with new installation imagery" |
+| **Account Management** | Servicing rather than press. Monitoring a shared inbox, sharing a strategy document, answering the client's questions |
+| **Client Meetings / Events** | Date-prefixed **inside the text**, not in a column: `05.10.26 Weekly Meeting` |
+
+### Pages 3 to 7: Social Media Statistics
+
+**Every one of these is a screenshot pasted out of Sprout.** That is the
+manual labour this project removes, and it is why the social half of the
+report cannot be searched, totalled or corrected.
+
+**The KPI table** (page 3), one row per account, four columns:
+
+| Account | Projection for KPIs at the end of [year] based on this month's average growth rate | Instagram budget spent | Cost per profile visit gained from paid activity |
+|---|---|---|---|
+
+The projection cell holds the annual target in brackets followed by the
+projected figure. Budget is a cash amount in the client's own currency, and
+cost per profile visit is that budget divided by profile visits gained.
+
+**Audience Growth and Net Audience Growth**, per account, carrying their own
+footnote: "Note that the 'Net Audience Growth' percentage is measured against
+total net followers gained in the previous month." Each block shows a
+Reporting Period against a Compare To period, with four numbers: audience,
+percentage change, net new followers, and the percentage change in net new
+against the previous month.
+
+**Top Performing Posts**, three per account, as Sprout cards: thumbnail,
+caption opening, posted-by, timestamp, then **Engagements** with Likes,
+Comments, Shares and Saves beneath it.
+
+### What the report settles that conversation did not
+
+1. **The projection is impossible without stored followers.** A projection to
+   year end from this month's average growth rate needs a follower series and
+   a per-account annual target. OMI stores neither. That is gap 3 with a
+   consequence attached, and it also means an account needs a **target**
+   field, which exists nowhere in the schema.
+2. **So does the Compare To.** Every audience figure is stated against the
+   previous month. Gap 2, concretely.
+3. **Sprout's "Engagements" is exactly OMI's `interactions`.** Likes,
+   comments, shares and saves, which is `interactionsOf` in
+   `socialBaseline.js` verbatim. Figures stay comparable across the migration
+   rather than needing an explanation, which matters when a client has twelve
+   months of Sprout numbers in their inbox.
+4. **Top posts are ranked by raw engagement count.** On one page that puts a
+   small account's best post, in the low hundreds, beside a large account's,
+   in the low thousands, as though the two were comparable. `socialBaseline`
+   is the fix: "3.4x this account's own baseline" is both defensible and more
+   use to a client who knows their own numbers and nobody else's.
+5. **One client, several social accounts**, each with its own target and its
+   own baseline. OMI's model runs client to posts. That has to be settled
+   before phase 1 stores anything, because retrofitting an account dimension
+   to a populated time series is far worse than starting with one.
+6. **Paid and organic are already joined.** Cost per profile visit divides
+   Instagram ad budget by an organic metric, in one cell. That is why paid
+   social belongs beside the social reporting even though the module is Paid.
+
+---
+
 ## The social sign-off pipeline
+
+**There is no written process to copy.** Daniel, 11 November: "i dont have the
+step by step guide written up." So the account below is this file's record of
+what he described, and it stands as the working version until he corrects it.
+It is marked rather than presented as sourced, because the fault this folder
+exists to prevent is a reconstruction quietly hardening into a brief.
 
 Today it crosses six tools: planning in Google Sheets, visuals in Photoshop,
 assets passed through Dropbox, captions in Google Docs, client sign-off by
@@ -357,27 +515,34 @@ a real API call is a liability rather than a saving.
 
 ## Loose ends
 
-1. **The two source attachments are not in the repository, and this is the
-   one thing blocking the next step.** Needed:
-   - **Caro's monthly activity report**, the one produced by hand today, as
-     the PDF or a link to the live document. Phase 2 automates this report,
-     and automating it means reproducing its sections, its order and the
-     figures it quotes. Without the artefact that is guesswork.
-   - **The written sign-off process**, so the six steps are canonical rather
-     than reconstructed from conversation, which is what the list below them
-     currently is.
+1. **The sign-off process has never been written down.** The six steps above
+   are this file's reconstruction of what Daniel described, not a copy of a
+   document, and they are marked as such in place. Correcting them is a ten
+   minute job for whoever runs the process, and it should happen before the
+   pipeline is built rather than after.
 
-   Both should land in `docs/omi/briefs/` beside this file, for the reason
-   this folder exists: a conversation attachment is invisible to the session
-   after the one that saw it.
+2. **Multiple social accounts per client.** The October report covers three
+   Instagram accounts under one client, each with its own follower target and
+   its own baseline. OMI's model runs client to posts. This has to be settled
+   before phase 1 stores anything, because retrofitting an account dimension
+   to a populated time series is far worse than starting with one.
 
-2. **The NLA licence.** Daniel to confirm what Caro holds. It covers cuttings
+3. **Per-account annual targets.** "Projection for KPIs at the end of 2026"
+   needs a target field that does not exist anywhere in the schema. Where it
+   lives, and who sets it, is open.
+
+4. **The NLA licence.** Daniel to confirm what Caro holds. It covers cuttings
    and is a separate question from Readly.
 
-3. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
+5. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
    TikTok are named. Daniel asked for the options explained before deciding;
-   TikTok is now phase 4.
+   TikTok is now phase 4. The October report is Instagram only.
 
-4. **Caro's AWS account for SES.** See Mailchimp above. Needed before any
-   press release sends from OMI, and the only item on that track with an
-   external dependency.
+6. **Caro's AWS account for SES.** See Mailchimp above. The only item on that
+   track with an external dependency.
+
+7. **The source report is not in the repository.** Its structure is written
+   out above in full, which is what a future session actually needs, but the
+   PDF itself is not committed. If the original is wanted here, it is
+   `October_2026_TSC_Caro_Activity_Report.pdf` and it holds client and
+   journalist names, so that is a decision for Daniel rather than a default.
