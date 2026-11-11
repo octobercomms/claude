@@ -5,7 +5,7 @@ import { useFilmstrips, thumbsForBlock, THUMB_HEIGHT } from '../../utils/filmstr
 import { useWaveforms } from '../../utils/waveform';
 import { peaksForBlock, peaksPath } from '../../utils/waveformPeaks';
 import { findSnap } from '@shared/snap.mjs';
-import TimelineMinimap from './TimelineMinimap';
+import TimelineMinimap, { KIND_COLOURS } from './TimelineMinimap';
 import { ShortcutButton } from './ShortcutReference';
 
 /**
@@ -22,6 +22,51 @@ import { ShortcutButton } from './ShortcutReference';
  * and not a hundred accumulating rounding errors.
  */
 
+/**
+ * The colour a block and its lane take from what is in it.
+ *
+ * A tint, not a fill: `color-mix` against the surface keeps the block light
+ * enough for the label and the filmstrip to sit on it, and keeps it the same
+ * colour in a theme that redefines `--surface`. The indicator on the track
+ * header is the full-strength colour, because 3px of it has to carry at a
+ * glance.
+ */
+// A photograph gets its own colour rather than borrowing the design violet.
+// `still: true` is a `clip` in the model, but on a timeline the difference
+// between filmed footage and a held photograph is the first thing you read
+// off a reel, and the two things it could be confused with — a design page
+// and a video — are exactly the two it must not look like.
+const STILL_COLOUR = 'var(--fn-research)';
+
+function kindOf(src) {
+  if (!src) return null;
+  if (src.kind === 'clip') return src.still ? 'still' : 'clip';
+  return KIND_COLOURS[src.kind] ? src.kind : null;
+}
+function colourFor(kind) {
+  return kind === 'still' ? STILL_COLOUR : KIND_COLOURS[kind];
+}
+function kindTint(src, selected) {
+  if (selected) return 'var(--accent-soft)';
+  const k = kindOf(src);
+  if (!k) return 'var(--surface)';
+  // 18%, measured rather than chosen: at 13% the tint was present and did
+  // not carry, and the whole point of colouring a block is that the shape of
+  // a reel reads at a glance. Above about 22% the filmstrip thumbnails start
+  // to sit on a colour rather than on a surface.
+  return `color-mix(in srgb, ${colourFor(k)} 18%, var(--surface))`;
+}
+function kindInk(track, items, sources) {
+  // A lane takes the colour of what is on it, which is almost always one
+  // kind; where it is mixed, the first item decides rather than the lane's
+  // declared kind, because the declared kind cannot tell a photograph from
+  // a filmed clip and the operator can see the difference.
+  const first = items?.[0];
+  const k = first ? kindOf(sources?.[first.source]) : null;
+  if (k) return colourFor(k);
+  return track?.kind === 'audio' ? KIND_COLOURS.audio : KIND_COLOURS.clip;
+}
+
 const MIN_PPS = 2;
 const MAX_PPS = 400;
 // 48, which is the mockup's lane. It was 64, and the 16px is not a matter of
@@ -37,6 +82,27 @@ const TRACK_GAP = 4;
 const TRACK_LABEL_W = 52;
 const WAVE_H = 16;
 const MIN_ITEM_LEN = 0.05;
+
+/**
+ * What a ruler tick says.
+ *
+ * It said `PB.timecode(t, fps)`, which is hours, minutes, seconds and
+ * frames. On a fourteen-second reel that drew fifteen ticks reading
+ * `00:00:00`, `00:01:00`, `00:02:00` and so on: eight characters each, of
+ * which the first four were identical on every one of them, to say "three
+ * seconds". It is the busiest row in the timeline and it carried the least.
+ *
+ * Minutes and seconds, and bare seconds under a minute. Frames belong on the
+ * transport, where the playhead's exact position is the question; a ruler is
+ * for finding roughly where you are.
+ */
+function rulerLabel(t) {
+  const whole = Math.round(t);
+  if (whole < 60) return `${whole}s`;
+  const m = Math.floor(whole / 60);
+  const sec = whole % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
 
 function tickStep(pps) {
   const target = 80 / Math.max(0.0001, pps);
@@ -557,9 +623,11 @@ export default function CompositionTimeline({
               <div key={t} style={{
                 position: 'absolute', left: xOf(t), top: 0, height: '100%',
                 borderLeft: '1px solid var(--card-border)', paddingLeft: 3,
-                fontSize: 10, lineHeight: `${RULER_H}px`, color: 'var(--text-subtle)',
+                fontSize: 'var(--fs-micro, 11px)', lineHeight: `${RULER_H}px`,
+                color: 'var(--text-subtle)',
                 whiteSpace: 'nowrap', pointerEvents: 'none',
-              }}>{PB.timecode(t, fps)}</div>
+                fontVariantNumeric: 'tabular-nums',
+              }}>{rulerLabel(t)}</div>
             ))}
           </div>
 
@@ -584,9 +652,14 @@ export default function CompositionTimeline({
                   position: 'absolute', left: 0, top: 0, bottom: 0,
                   width: TRACK_LABEL_W,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+                  fontSize: 'var(--fs-micro, 11px)', fontWeight: 700, textTransform: 'uppercase',
                   color: 'var(--text-subtle)',
                   borderRight: '1px solid var(--card-border)',
+                  // 3px of the lane's own colour down its left edge. Decision
+                  // 8 asked for exactly this when it deferred fixed lanes —
+                  // "colour the 52px header by kind (the colours exist in the
+                  // minimap already)" — and it was never built.
+                  borderLeft: `3px solid ${kindInk(track, track.items, composition.sources)}`,
                   background: 'var(--surface-sunken)',
                   zIndex: 2,
                 }}>{trackLabel(track)}</div>
@@ -613,7 +686,7 @@ export default function CompositionTimeline({
                       title={`${src?.kind || 'item'} · ${PB.timecode(item.at, fps)} to ${PB.timecode(C.itemEnd(item), fps)}`}
                       style={{
                         position: 'absolute', top: 0, left, width: w, height: tl.h,
-                        background: isSel ? 'var(--accent-soft)' : 'var(--surface)',
+                        background: kindTint(src, isSel),
                         border: `var(--border-w) solid ${isSel ? 'var(--accent)' : 'var(--card-border)'}`,
                         borderRadius: 'var(--r-sm)',
                         cursor: readOnly ? 'default' : 'grab',
@@ -664,7 +737,15 @@ export default function CompositionTimeline({
                            handle: "space.mp3" read as "pace.mp3". */
                         padding: `4px ${HANDLE_W + 2}px`, fontSize: 'var(--fs-caption)', lineHeight: 1.3,
                         pointerEvents: 'none', whiteSpace: 'nowrap',
-                        background: 'linear-gradient(to bottom, var(--surface) 0%, var(--surface) 70%, transparent 100%)',
+                        // The band under the label is the BLOCK'S OWN TINT,
+                        // not white. It has to be close to opaque or the
+                        // filmstrip shows through the text — tried at 72%
+                        // and the duration sat on a thumbnail — but painting
+                        // it `--surface` put a white stripe across the top of
+                        // every coloured block and the reel read as striped
+                        // rather than as its kinds. Same colour as the block,
+                        // fading out over the filmstrip.
+                        background: `linear-gradient(to bottom, ${kindTint(src, isSel)} 0%, ${kindTint(src, isSel)} 72%, transparent 100%)`,
                       }}>
                         <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                           {labelFor(src, item, sourceNames)}

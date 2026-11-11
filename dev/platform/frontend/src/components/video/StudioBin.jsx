@@ -68,7 +68,7 @@ function Tile({ label, sub, badge, url, kind, onClick }) {
             position: 'absolute', top: 3, right: 3,
             background: 'var(--accent)', color: 'var(--on-accent, #1a1a1a)',
             borderRadius: 'var(--r-pill)', padding: '0 6px',
-            fontSize: 10, fontWeight: 700, lineHeight: '16px',
+            fontSize: 'var(--fs-micro, 11px)', fontWeight: 700, lineHeight: '16px',
           }}>{badge}</span>
         )}
       </div>
@@ -115,7 +115,7 @@ export default function StudioBin({
           problem this codebase keeps finding; the bin decides what a file is
           from its mime type, which `isStillMime` and `CLIP_ACCEPT` already
           do. */}
-      <button type="button" className="btn btn-secondary btn-sm"
+      <button type="button" className="btn btn-secondary btn-sm studio-commit"
         style={{ marginTop: 'var(--s2)', width: '100%', flexShrink: 0 }}
         onClick={onAddFiles} disabled={uploading}>
         {uploading ? 'Adding…' : 'Add files'}

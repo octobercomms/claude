@@ -13,8 +13,20 @@ const MINIMAP_H = 40;
 const LANE_PAD = 2;
 const MIN_VIEWPORT_W = 6;
 
-/** Colour per source kind — muted, non-attention-grabbing. */
-const KIND_COLOURS = {
+/** Colour per source kind — muted, non-attention-grabbing.
+ *
+ * Exported, because the TIMELINE needs the same four. It drew every block in
+ * `var(--surface)` with a grey border on a lane that was also white, so a
+ * reel of four clips and a music bed read as five identical rectangles and
+ * the shape of a reel could not be seen at all. The minimap had the
+ * vocabulary all along and nothing else used it.
+ *
+ * October's own functional colours rather than the mockup's hex values: the
+ * mockup draws blue video and green audio, we already have a blue that means
+ * distribute and a teal that means strategy, and a second palette for one
+ * screen is how a design system comes apart.
+ */
+export const KIND_COLOURS = {
   clip:     'var(--fn-distribute)',  // blue
   audio:    'var(--fn-strategy)',    // teal
   design:   'var(--fn-create)',      // violet
