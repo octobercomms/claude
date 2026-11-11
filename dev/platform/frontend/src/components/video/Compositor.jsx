@@ -773,24 +773,62 @@ const Compositor = React.forwardRef(function Compositor({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap', flexShrink: 0 }}>
-        {/* Secondary, deliberately. Play was the only accent fill on the
-            Studio while Export — the thing the screen exists to produce —
-            was drawn in the same class as "-1 frame". One accent per screen,
-            and it belongs to the control that commits rather than the one
-            that previews. The transport reads fine without a fill; it is the
-            leftmost control under the picture and it answers the space bar. */}
-        <button type="button" className="btn btn-secondary btn-sm" data-testid="play"
-          onClick={() => (playing ? stopPlayback() : startPlayback())} disabled={!total}>
-          {playing ? 'Pause' : 'Play'}
-        </button>
-        <button type="button" className="btn btn-secondary btn-sm" data-testid="step-back"
-          onClick={() => step(-1)} disabled={!total} title="One frame back (left arrow)">-1 frame</button>
-        <button type="button" className="btn btn-secondary btn-sm" data-testid="step-fwd"
-          onClick={() => step(+1)} disabled={!total} title="One frame on (right arrow)">+1 frame</button>
-        <button type="button" className="btn btn-secondary btn-sm" data-testid="to-start"
+      {/* THE TRANSPORT, AS GLYPHS.
+          Four word-pills — Play, -1 frame, +1 frame, Start — spanned 340px
+          under the picture, drawn at the same 36px height and the same
+          weight as Export, which is the one thing on this screen that
+          commits. They read as four equal offers.
+          340px is also what made them wrap the moment the centre column
+          narrowed, and a wrapped transport costs the picture 32px of HEIGHT,
+          which on a 9:16 frame is 18px of width. Measured: the picture went
+          from 345 to 327 on the day the inspector was widened, and every
+          pixel of it came back with this.
+          Order is the one every editing application uses — to start, back,
+          play, on — rather than the order these happened to be written in.
+          Each carries its own accessible name: a glyph with no name is not a
+          control to anything that cannot see it. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s1)', marginTop: 'var(--s2)', flexWrap: 'wrap', flexShrink: 0 }}>
+        <button type="button" className="btn btn-secondary btn-icon-tr" data-testid="to-start"
           onClick={() => { stopPlayback(); m.current.playhead = 0; if (onSeek) onSeek(0); tick(); }}
-          disabled={!total}>Start</button>
+          disabled={!total} title="Back to the start" aria-label="Back to the start">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path d="M7 5v14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M19 5 9 12l10 7z" fill="currentColor" />
+          </svg>
+        </button>
+        <button type="button" className="btn btn-secondary btn-icon-tr" data-testid="step-back"
+          onClick={() => step(-1)} disabled={!total}
+          title="One frame back (left arrow)" aria-label="One frame back">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path d="M6 5v14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M18 6 10 12l8 6z" fill="currentColor" />
+          </svg>
+        </button>
+        {/* Still secondary, deliberately. One accent per screen, and it
+            belongs to the control that commits rather than the one that
+            previews. */}
+        <button type="button" className="btn btn-secondary btn-icon-tr" data-testid="play"
+          onClick={() => (playing ? stopPlayback() : startPlayback())} disabled={!total}
+          title={playing ? 'Pause (space)' : 'Play (space)'}
+          aria-label={playing ? 'Pause' : 'Play'}>
+          {playing ? (
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="M8 5v14M16 5v14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="M7 4.5 19.5 12 7 19.5z" fill="currentColor" />
+            </svg>
+          )}
+        </button>
+        <button type="button" className="btn btn-secondary btn-icon-tr" data-testid="step-fwd"
+          onClick={() => step(+1)} disabled={!total}
+          title="One frame on (right arrow)" aria-label="One frame on">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path d="M6 6 14 12l-8 6z" fill="currentColor" />
+            <path d="M18 5v14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+        </button>
 
         <span className="body-xs text-subtle" data-testid="position" style={{ marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
           {PB.timecode(playhead, fps)} / {PB.timecode(total, fps)}
@@ -800,9 +838,17 @@ const Compositor = React.forwardRef(function Compositor({
             a keyboard and unreadable on a touch screen, and the fact it
             carries — that what you are watching is not everything the render
             will do — is one a person needs to be able to read deliberately. */}
-        <button type="button" className="btn-link body-xs" data-testid="render-note-toggle"
-          aria-expanded={renderNote} onClick={() => setRenderNote(v => !v)}>
-          {renderNote ? 'Hide what the preview leaves out' : 'What the preview leaves out'}
+        <button type="button" className="btn btn-secondary btn-icon-tr"
+          data-testid="render-note-toggle"
+          aria-expanded={renderNote} onClick={() => setRenderNote(v => !v)}
+          title="What the preview leaves out"
+          aria-label="What the preview leaves out">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none"
+            stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5" strokeLinecap="round" />
+            <path d="M12 7.6v.8" strokeLinecap="round" />
+          </svg>
         </button>
       </div>
 

@@ -1971,6 +1971,60 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 29. The surplus goes to the panel, not to the black ──────────────────
+//
+// `240px 1fr 260px` is the mockup's grid and it was right for the mockup,
+// whose picture is bounded by its WIDTH so the centre column earns every
+// pixel. Ours is bounded by its HEIGHT, so `1fr` in the middle does not make
+// the picture bigger — it makes the black bigger.
+//
+// Measured before this change, at 1920x1080: 813px of empty black beside a
+// 447px picture, while the panel holding every control on the screen was
+// 240px wide hiding 1341px of content behind a scroll.
+{
+  for (const [w, h] of [[1440, 900], [1920, 1080]]) {
+    const p = await open('/clients/c1/produce/studio');
+    await p.setViewportSize({ width: w, height: h });
+    await p.waitForTimeout(900);
+
+    const m = await p.evaluate(() => {
+      const stage = document.querySelector('.studio-stage').getBoundingClientRect();
+      const insp = document.querySelector('.studio-inspector');
+      const bin = document.querySelector('[data-studio-bin]');
+      const c = document.querySelector('canvas').getBoundingClientRect();
+      const tr = document.querySelector('[data-testid="play"]');
+      const well = document.querySelector('[data-testid="player-well"]');
+      return {
+        inspector: Math.round(insp.getBoundingClientRect().width),
+        bin: Math.round(bin.getBoundingClientRect().width),
+        picture: Math.round(c.width),
+        black: Math.round(stage.width - c.width),
+        transportRow: tr ? Math.round(tr.getBoundingClientRect().height) : null,
+        // The transport's own row height, which is what a wrap costs.
+        belowPicture: well ? Math.round(stage.height - well.getBoundingClientRect().height) : null,
+      };
+    });
+
+    say(m.inspector > 300, `the inspector has room to be read at ${w}x${h}`,
+      `${m.inspector}px; it was 240 at every width`);
+    say(m.bin === 240, 'and the bin still takes the mockup\'s 240', `${m.bin}px`);
+    say(m.black < m.inspector * 1.6,
+      'so the empty black is no longer the widest thing on the screen',
+      `${m.black}px of black against a ${m.inspector}px panel; at 1920 the `
+      + 'black was 813 against 240');
+
+    // The transport is a row of glyphs, and the assertion is its HEIGHT,
+    // because the fault this replaced was four 36px word-pills wrapping onto
+    // a second line the moment the column narrowed. A wrapped transport is
+    // 32px of picture height, which on a 9:16 frame is 18px of width.
+    say(m.belowPicture != null && m.belowPicture <= 44,
+      'and the transport fits on one row under the picture',
+      `${m.belowPicture}px between the well and the bottom of the stage; `
+      + 'wrapped it measured 76');
+    await p.close();
+  }
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
