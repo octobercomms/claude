@@ -400,13 +400,140 @@ Comments, Shares and Saves beneath it.
 
 ---
 
+## Several social accounts per client
+
+**Decided 11 November.** Daniel: "each client can have multiple social
+accounts." This is settled, and it has to land before phase 1 stores a row,
+because adding an account dimension to a populated time series is far worse
+than starting with one.
+
+### What exists today
+
+- `connectors` has **no unique constraint** on `(client_id, connector_type)`
+  and carries a `store_label`, so several connectors of one type per client
+  already work. That is how a client with six Shopify stores is handled, as
+  migration 216 records.
+- **Instagram does not use that.** One Meta grant legitimately covers several
+  Pages and their IG business accounts, and `preferredIgId`, a value in the
+  connector's `config`, picks exactly **one**.
+  `meta.js:407 pickPublishingTargets` throws if the saved selection is not
+  found among them.
+
+So the gap is at the account level, not the connector level. Duplicating
+connector rows would duplicate one OAuth grant's credentials and triple the
+token-refresh problem for no gain.
+
+### The shape
+
+A `social_accounts` table, one row per account, hanging off the connector that
+authorises it:
+
+```
+social_accounts
+  id            uuid
+  client_id     uuid  -> clients
+  connector_id  uuid  -> connectors        (which grant reaches it)
+  platform      text                       instagram | linkedin | facebook | tiktok
+  external_id   text                       IG business id, LinkedIn org urn
+  handle        text                       the @name as the client knows it
+  display_name  text                       what the report calls it
+  is_default    bool                       replaces preferredIgId
+  archived_at   timestamptz                an account they stop running
+  UNIQUE (platform, external_id)
+```
+
+Then `social_posts` gains `account_id`. `social_post_engagement` is unchanged,
+because it already hangs off the post. Follower history gets its own table
+keyed on the account, which is also what makes the year-end projection
+possible.
+
+### The part that is easy to miss
+
+**`socialBaseline` cohorts have to become `account|platform|kind`.** Today:
+
+```js
+const cohortKey = (post) => `${post.platform || '?'}|${post.kind || '?'}`;
+```
+
+With three Instagram accounts under one client, that pools every one of them
+into a single baseline, so an account with tens of thousands of followers sets
+the bar for one with a thousand, and the small account's posts read as
+permanent failures. That is precisely the failure `socialBaseline.js` was
+written to stop, arriving from a new direction: its own header says a post is
+scored against "the median of the client's OTHER posts of the same platform
+and format" because that is "the only comparison that survives an account with
+800 followers sitting next to one with 80,000". Three accounts under one
+client is that sentence again, inside a single client.
+
+One line, and it must change in the same commit as the account dimension
+rather than after it, or every baseline computed in between is wrong and
+nothing says so.
+
+---
+
+## KPIs and targets
+
+Daniel, 11 November: "maybe we add kpis?" **Recommended, narrowly.**
+
+**Nothing exists today.** There is no KPI or target storage anywhere in the
+schema. `kpis` appears twice and neither is this: a JSONB column on proposal
+method templates holding prose commitments ("Two active initiatives a
+quarter"), and a JavaScript object name in revenue reporting. Nothing holds a
+number, for a client, against a date.
+
+**What the report actually needs is one figure.** A follower target per
+account per year, which is what "Projection for KPIs at the end of [year]" is
+measured against. Cost per profile visit, the other number on that page, is
+derived from spend and visits rather than set by anyone.
+
+So the honest scope is one metric. The argument for a table rather than a
+column on `social_accounts` is only that it costs three fields more and turns
+"add an engagement-rate target" into a row instead of a migration:
+
+```
+social_account_targets
+  account_id, metric, period_start, period_end, target_value, set_by, set_at
+```
+
+**The argument against going further.** A general KPI framework is the thing
+every agency tool grows and nobody maintains, because targets that no report
+reads go stale within two quarters and then mislead. One metric that a report
+quotes every month stays true. Add the second when a client asks for it, not
+in anticipation.
+
+---
+
 ## The social sign-off pipeline
 
 **There is no written process to copy.** Daniel, 11 November: "i dont have the
 step by step guide written up." So the account below is this file's record of
-what he described, and it stands as the working version until he corrects it.
-It is marked rather than presented as sourced, because the fault this folder
-exists to prevent is a reconstruction quietly hardening into a brief.
+what he described, and it stands as the working version until corrected. It is
+marked rather than presented as sourced, because the fault this folder exists
+to prevent is a reconstruction quietly hardening into a brief.
+
+**A document is not what is missing.** The shape of the six steps is known.
+What cannot be inferred from it is six specifics, and each one changes what
+gets built:
+
+1. **Who does which step.** Account executive, designer, you. The OMI record
+   needs to know whose turn it is, and a surface that does not say reads as
+   a shared inbox.
+2. **What the client is shown at once.** A month of posts, a week, or one at a
+   time. This decides whether sign-off is a page or a queue.
+3. **What "change this" does.** Back to the designer for a new visual, or the
+   account executive edits the caption in place. One is a revision loop with
+   states; the other is an edit.
+4. **How many rounds a month normally takes.** Under two, version history is
+   overhead. Over three, its absence is the complaint.
+5. **Whether approval is per post or per month.** Their report runs monthly
+   and Sprout schedules individually, so the practice sits somewhere between
+   and only they know where.
+6. **What happens when a client changes their mind after approval but before
+   the post goes out.** This is the one that will happen in week one and the
+   one a generic approval flow handles worst.
+
+Ten minutes of answers beats a written process, and it should happen before
+the pipeline is built rather than after.
 
 Today it crosses six tools: planning in Google Sheets, visuals in Photoshop,
 assets passed through Dropbox, captions in Google Docs, client sign-off by
@@ -515,34 +642,44 @@ a real API call is a liability rather than a saving.
 
 ## Loose ends
 
-1. **The sign-off process has never been written down.** The six steps above
-   are this file's reconstruction of what Daniel described, not a copy of a
-   document, and they are marked as such in place. Correcting them is a ten
-   minute job for whoever runs the process, and it should happen before the
-   pipeline is built rather than after.
+1. **The sign-off specifics.** Six questions, listed in full in the pipeline
+   section above. Not a document, six answers.
 
-2. **Multiple social accounts per client.** The October report covers three
-   Instagram accounts under one client, each with its own follower target and
-   its own baseline. OMI's model runs client to posts. This has to be settled
-   before phase 1 stores anything, because retrofitting an account dimension
-   to a populated time series is far worse than starting with one.
+2. **Whether targets get a table or a column.** The recommendation above is
+   `social_account_targets`, one metric to start. Daniel's call.
 
-3. **Per-account annual targets.** "Projection for KPIs at the end of 2026"
-   needs a target field that does not exist anywhere in the schema. Where it
-   lives, and who sets it, is open.
+3. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
+   TikTok are named. The example report is Instagram only. TikTok is phase 4.
 
-4. **The NLA licence.** Daniel to confirm what Caro holds. It covers cuttings
-   and is a separate question from Readly.
+4. **Caro's AWS account for SES.** **Not blocking, long lead.** It blocks
+   sending a press release from OMI, which is the end of the Mailchimp track,
+   and nothing before it. It is listed only because SES production access is
+   a request with a queue in front of it rather than a setting, so it is the
+   one item on that track running on somebody else's clock. Start it early for
+   that reason alone.
 
-5. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
-   TikTok are named. Daniel asked for the options explained before deciding;
-   TikTok is now phase 4. The October report is Instagram only.
+   **Why their own account rather than October's SES.** Not cost: at $0.10 per
+   thousand emails the money is pennies and "they pay their own costs" does
+   not decide it. Reputation isolation does. AWS judges bounce and complaint
+   rates per account and puts accounts with poor rates under review, so a
+   press list that has not been cleaned in years should not be able to put
+   October's own outreach at risk. Verifying Caro's domain inside October's
+   SES would skip the sandbox wait and is the fallback if their own account
+   stalls, at that cost.
 
-6. **Caro's AWS account for SES.** See Mailchimp above. The only item on that
-   track with an external dependency.
+### Closed, and why
 
-7. **The source report is not in the repository.** Its structure is written
-   out above in full, which is what a future session actually needs, but the
-   PDF itself is not committed. If the original is wanted here, it is
-   `October_2026_TSC_Caro_Activity_Report.pdf` and it holds client and
-   journalist names, so that is a decision for Daniel rather than a default.
+**The NLA licence does not matter to this build.** It was listed as an open
+question on 11 November and should not have been. Readly is scrapped, and the
+forthcoming-coverage tracker that replaces it stores a publication name, a
+journalist, an expected date and a note. None of that is copyrighted content:
+OMI never holds, copies or distributes a cutting, so no reproduction right is
+engaged.
+
+The licence governs what Caro do outside OMI, which is photographing or
+scanning a print cutting and sending it to a client. That is their existing
+practice and their existing position, unchanged by anything here.
+
+It becomes a live question again only if OMI is ever asked to **store cutting
+images or PDFs**, at which point it is a hard blocker rather than a loose end.
+Recorded here so the reasoning is on file when somebody proposes that feature.
