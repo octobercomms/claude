@@ -1705,7 +1705,7 @@ export default function CompositionEditorPage({
               edit in front of you is not part of what the client would see.
               Flushing here would imply otherwise. The dialog lists exports by
               time so a stale one is visible. */}
-          <button type="button" className="btn btn-secondary btn-sm"
+          <button type="button" className="btn btn-secondary btn-sm studio-commit"
             onClick={() => setShareOpen(true)} disabled={!compId}>
             Share
           </button>
@@ -1714,7 +1714,7 @@ export default function CompositionEditorPage({
               page: the most emphasised control in the Studio was "play the
               preview" and the thing the screen exists to produce looked like
               a step-back button. */}
-          <button type="button" className="btn btn-primary btn-sm"
+          <button type="button" className="btn btn-primary btn-sm studio-commit"
             onClick={async () => { await flushSave(compId); setExportOpen(true); }}
             disabled={!compId || total <= 0}>
             Export

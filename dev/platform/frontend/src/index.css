@@ -2629,6 +2629,43 @@ a:hover > .card-stat,
 @container appmain (max-width: 580px) { .edit-split { grid-template-columns: 1fr; } }
 /* The bin is a column that scrolls inside itself, like the inspector. */
 .studio-bin { min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+/* ─── The Studio's own ladder ────────────────────────────────────────
+   Daniel's call: this screen may break the house norms. It was already
+   breaking them, just not on purpose — measured inside `.studio-shell`,
+   nineteen nodes sat at 10px against a 12px floor and two at 16px, neither
+   of which is in the ladder, and there were NINE distinct control heights
+   on one screen. That is not density, it is accident.
+
+   So the ladder is declared, scoped, and three sizes shorter than the
+   house's. Every October token keeps its name, so a component written for
+   the rest of the product simply gets denser in here and nothing has to
+   know it is on this screen.
+
+   Why smaller at all: the rest of OMI is documents you read once; this is an
+   instrument somebody sits at for an afternoon with thirty reels to cut. The
+   reel's name drops from 24px to 20 for the same reason — it was the loudest
+   thing on a screen where it is not the most important thing. */
+.studio-shell {
+  --fs-micro: 11px;    /* ruler ticks, duration and count badges, lane names */
+  --fs-caption: 12px;  /* chip labels, group headings, meta */
+  --fs-body: 13px;     /* inspector rows, check labels */
+  --fs-title: 15px;
+  --fs-section: 20px;  /* the reel's name */
+}
+
+/* THREE control heights, not nine.
+   24 for a chip you choose among, 28 for a control you use, 36 for the two
+   that commit. The house pill is 36 with a word in it, which is right for a
+   verb you press once and wrong for a row you press all afternoon. */
+/* `.btn-link` sets its own size and wins over `.body-xs` on source order,
+   so "Change" beside the frame size rendered at 16px — the largest body text
+   on the screen, on the quietest control. */
+.studio-shell .btn-link { font-size: var(--fs-caption); }
+.studio-shell .btn-chip { height: 24px; }
+.studio-shell .btn-sm,
+.studio-shell select.btn { height: 28px; padding-top: 0; padding-bottom: 0; }
+.studio-shell .studio-commit { height: 36px; padding-top: 0; padding-bottom: 0; }
+
 /* The dense control tier on this screen: a square 28px button holding a
    glyph. The house pill is 36px and carries a word, which is right for a
    verb you press once and wrong for a transport you press all afternoon. */

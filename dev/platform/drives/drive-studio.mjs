@@ -2025,6 +2025,114 @@ for (const [asked, want, row] of [
   }
 }
 
+// ── 30. The Studio's own ladder ──────────────────────────────────────────
+//
+// Daniel's call: this screen may break the house norms. It was already
+// breaking them, unnamed. Measured inside `.studio-shell` before this:
+// NINE distinct control heights, nineteen text nodes at 10px against a 12px
+// floor, and every timeline block drawn in the same `var(--surface)` with a
+// grey border on a lane that was also white — so a reel of four clips and a
+// music bed read as five identical rectangles.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(900);
+
+  const m = await p.evaluate(() => {
+    const shell = document.querySelector('.studio-shell');
+    const tl = document.querySelector('[data-testid="composition-timeline"]');
+
+    // A block's colour, found by its label rather than by a class, so the
+    // assertion survives a rename of anything in the implementation.
+    const blockFor = (name) => {
+      const label = [...tl.querySelectorAll('div')]
+        .find((d) => d.textContent.trim() === name && d.style.fontWeight === '700');
+      let el = label;
+      for (let i = 0; i < 6 && el; i++) {
+        if (getComputedStyle(el).position === 'absolute'
+          && el.getBoundingClientRect().width > 20) return getComputedStyle(el).backgroundColor;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const laneHeader = (txt) => {
+      const el = [...tl.querySelectorAll('div')].find((d) => d.textContent.trim() === txt
+        && Math.round(d.getBoundingClientRect().width) <= 60);
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      return { w: cs.borderLeftWidth, colour: cs.borderLeftColor };
+    };
+
+    // Visible type only: a <style> element's own text is a text node too.
+    const sizes = {};
+    for (const el of shell.querySelectorAll('*')) {
+      if (el.tagName === 'STYLE' || el.tagName === 'SCRIPT') continue;
+      if (![...el.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim())) continue;
+      const fs = Math.round(parseFloat(getComputedStyle(el).fontSize));
+      sizes[fs] = (sizes[fs] || 0) + 1;
+    }
+
+    // Only buttons in the BUTTON VOCABULARY — anything carrying a `btn`
+    // class. A bare <button> used as a row, which is what each reel check
+    // is, takes the height of its own text and is not a control tier; the
+    // first version of this counted ten of them and reported five tiers on a
+    // screen that has three.
+    const heights = {};
+    for (const el of shell.querySelectorAll('button[class*="btn"]')) {
+      const h = Math.round(el.getBoundingClientRect().height);
+      if (h < 1) continue;
+      heights[h] = (heights[h] || 0) + 1;
+    }
+
+    return {
+      video: blockFor('atlas-walkthrough.mp4'),
+      photo: blockFor('showroom-01.jpg'),
+      audio: blockFor('space.mp3'),
+      v1: laneHeader('V1'),
+      a1: laneHeader('A1'),
+      sizes,
+      heights,
+      rulerLabels: [...tl.querySelectorAll('div')]
+        .filter((d) => /^\d+s$|^\d+:\d\d$/.test(d.textContent.trim()))
+        .map((d) => d.textContent.trim()).slice(0, 4),
+    };
+  });
+
+  // ── Colour by kind ──
+  const distinct = new Set([m.video, m.photo, m.audio].filter(Boolean));
+  say(distinct.size === 3,
+    'footage, a photograph and a music bed are three different colours',
+    `video ${m.video}, photograph ${m.photo}, audio ${m.audio} — all three were `
+    + 'rgb(255, 255, 255)');
+  say(m.v1 && m.a1 && parseInt(m.v1.w, 10) >= 3 && m.v1.colour !== m.a1.colour,
+    'and each lane header carries its own kind down its left edge',
+    `V1 ${JSON.stringify(m.v1)}, A1 ${JSON.stringify(m.a1)}; decision 8 asked `
+    + 'for this when it deferred fixed lanes and it was never built');
+
+  // ── The ladder ──
+  const belowFloor = Object.keys(m.sizes).map(Number).filter((n) => n < 11);
+  say(belowFloor.length === 0,
+    'nothing on this screen is set below the ladder\'s floor',
+    `sizes in use: ${JSON.stringify(m.sizes)}; nineteen nodes were at 10px`);
+
+  // Three tiers, and the assertion is the COUNT rather than the numbers, so
+  // retuning a tier does not fail it but adding a ninth does.
+  const tiers = Object.keys(m.heights).map(Number).filter((h) => h >= 20);
+  say(tiers.length <= 4,
+    'and its controls come in a few deliberate sizes rather than nine',
+    `${tiers.length} distinct heights in the button vocabulary: `
+    + `${JSON.stringify(m.heights)} — 24 chip, 28 dense, 36 commit, and the `
+    + 'text link, which sizes to its own words');
+
+  // ── The ruler says less ──
+  say(m.rulerLabels.length > 0 && m.rulerLabels.every((l) => l.length <= 5),
+    'the ruler says the time rather than spelling out a timecode',
+    `${JSON.stringify(m.rulerLabels)}; it read "00:01:00", eight characters of `
+    + 'which four were the same on every tick');
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();

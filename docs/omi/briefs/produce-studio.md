@@ -1802,6 +1802,88 @@ real text.
 **Measured consequence worth keeping:** at 1440x900 all ten reel checks now
 sit on one screen with no scroll at all.
 
+## Built, 10 November: the Studio's own ladder
+
+Daniel's call: *"perhaps we do need to break some of the norm for this. And
+go full bleed and change some sizes of fonts etc."*
+
+**It was already breaking the norms, unnamed.** Measured inside
+`.studio-shell` before this: **nine** distinct control heights, nineteen text
+nodes at 10px against the house's 12px floor, two at 16px, and every
+timeline block drawn in the same `var(--surface)` with a grey border on a
+lane that was also white.
+
+### A ladder, declared and scoped
+
+```
+--fs-micro:   11px   ruler ticks, duration and count badges, lane names
+--fs-caption: 12px   chip labels, group headings, meta
+--fs-body:    13px   inspector rows, check labels
+--fs-title:   15px
+--fs-section: 20px   the reel's name, down from 24
+```
+
+Every October token keeps its name, so a component written for the rest of
+the product simply becomes denser in here and nothing has to know it is on
+this screen. 11px rather than 10 as the floor: 10px bold at October's
+letter-spacing is not readable at a glance thirty times in an afternoon.
+
+**Three control heights, not nine.** 24 for a chip you choose among, 28 for a
+control you use, 36 for the two that commit. The house pill is 36 with a word
+in it, which is right for a verb you press once and wrong for a row you press
+all afternoon.
+
+### Colour by kind, which decision 8 asked for and nobody built
+
+Deferring fixed lanes, decision 8 said: *"colour the 52px header by kind (the
+colours exist in the minimap already)"*. They did, and nothing else used
+them.
+
+`KIND_COLOURS` is exported from `TimelineMinimap` and the timeline tints each
+block with it, 18% into the surface — measured rather than chosen, because at
+13% the tint was present and did not carry, and above about 22% the filmstrip
+thumbnails sit on a colour rather than on a surface. Each 52px lane header
+takes a 3px edge in the same colour.
+
+**October's own functional colours rather than the mockup's hex values.** The
+mockup draws blue video and green audio; we already have a blue that means
+distribute and a teal that means strategy, and a second palette for one
+screen is how a design system comes apart.
+
+**A photograph gets its own colour**, `--fn-research`, rather than borrowing
+the design violet. `still: true` is a `clip` in the model, but on a timeline
+the difference between filmed footage and a held photograph is the first
+thing you read off a reel, and the two things it could be confused with are
+exactly the two it must not look like.
+
+**The label band is the block's own tint, not white.** Opaque `--surface` put
+a white stripe across the top of every coloured block, so the reel read as
+striped rather than as its kinds; translucent at 72% let the filmstrip show
+through the text and the duration sat on a thumbnail. The band is the same
+colour as the block it is on.
+
+### The ruler said eight characters to mean three seconds
+
+Fifteen ticks reading `00:00:00`, `00:01:00`, `00:02:00`, of which the first
+four characters were identical on every one. It is the busiest row in the
+timeline and it carried the least. Minutes and seconds now, bare seconds
+under a minute; frames belong on the transport, where the playhead's exact
+position is the question.
+
+### A claim from the review that measurement did not support
+
+The review proposed a neutral grey viewing surround, on the argument that the
+picture is judged against `#ffffff` at full brightness filling 56% to 65% of
+the stage column. **Measured: the player well is `rgb(0, 0, 0)` and spans the
+full 694px**, so the surround was already black and `elementFromPoint` 40px
+left of the picture returns the well. The review had measured the page
+background rather than what is painted beside the picture. Not built, and the
+reason is recorded so it is not proposed again.
+
+**That is the second claim from a design review that did not survive
+measurement**, after the preview-versus-render disagreement. Both were worth
+checking rather than building.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the
