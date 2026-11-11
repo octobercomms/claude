@@ -473,7 +473,8 @@ nothing says so.
 
 ## KPIs and targets
 
-Daniel, 11 November: "maybe we add kpis?" **Recommended, narrowly.**
+Daniel, 11 November: "maybe we add kpis?" then "yes to the targets table."
+**Decided: `social_account_targets`, one metric to start.**
 
 **Nothing exists today.** There is no KPI or target storage anywhere in the
 schema. `kpis` appears twice and neither is this: a JSONB column on proposal
@@ -486,20 +487,33 @@ account per year, which is what "Projection for KPIs at the end of [year]" is
 measured against. Cost per profile visit, the other number on that page, is
 derived from spend and visits rather than set by anyone.
 
-So the honest scope is one metric. The argument for a table rather than a
-column on `social_accounts` is only that it costs three fields more and turns
-"add an engagement-rate target" into a row instead of a migration:
+So the scope is one metric, in a table rather than a column on
+`social_accounts`, because it costs three fields more and turns "add an
+engagement-rate target" into a row instead of a migration:
 
 ```
 social_account_targets
-  account_id, metric, period_start, period_end, target_value, set_by, set_at
+  id            uuid
+  account_id    uuid  -> social_accounts
+  metric        text          'followers' to start
+  period_start  date
+  period_end    date
+  target_value  numeric
+  set_by        uuid  -> users
+  set_at        timestamptz
+  UNIQUE (account_id, metric, period_start, period_end)
 ```
 
-**The argument against going further.** A general KPI framework is the thing
-every agency tool grows and nobody maintains, because targets that no report
-reads go stale within two quarters and then mislead. One metric that a report
-quotes every month stays true. Add the second when a client asks for it, not
-in anticipation.
+`set_by` and `set_at` are there because a target is a claim somebody made.
+When a projection says an account will miss its year end by 1,700 followers,
+the next question is who set 45,800 and when, and an unattributed number
+invites the client to argue with the target instead of the work.
+
+**Scope held at one metric.** A general KPI framework is the thing every
+agency tool grows and nobody maintains, because targets that no report reads
+go stale within two quarters and then mislead. One metric a report quotes
+every month stays true. Add the second when a client asks, not in
+anticipation.
 
 ---
 
@@ -645,13 +659,10 @@ a real API call is a liability rather than a saving.
 1. **The sign-off specifics.** Six questions, listed in full in the pipeline
    section above. Not a document, six answers.
 
-2. **Whether targets get a table or a column.** The recommendation above is
-   `social_account_targets`, one metric to start. Daniel's call.
-
-3. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
+2. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
    TikTok are named. The example report is Instagram only. TikTok is phase 4.
 
-4. **Caro's AWS account for SES.** **Not blocking, long lead.** It blocks
+3. **Caro's AWS account for SES.** **Not blocking, long lead.** It blocks
    sending a press release from OMI, which is the end of the Mailchimp track,
    and nothing before it. It is listed only because SES production access is
    a request with a queue in front of it rather than a setting, so it is the
