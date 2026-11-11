@@ -1366,6 +1366,25 @@ export default function CompositionEditorPage({
       && prev.unknown === r.unknown && prev.worst === r.worst ? prev : r));
   }, []);
 
+  // THE VERDICT BELONGS TO THE REEL IN FRONT OF YOU, and this is what it took
+  // to make that true.
+  //
+  // The panel reports its result upward so the bar and the list can never
+  // disagree. That protects the case where both exist. It does nothing for
+  // the case where the panel is ABSENT: an empty reel has nothing to check,
+  // so no panel renders, `onResult` never fires, and the bar kept the last
+  // number it was given — for ever, and across reels.
+  //
+  // Measured on the shipped build: `+ New`, and the empty reel wore
+  // "6 of 10 · 1 not yet" from the reel before it. Switch to a second empty
+  // reel and it still said 6 of 10, naming a score neither reel had.
+  //
+  // The guard could not see it either. It compared the bar's number against
+  // the panel's, and on an empty reel there is only one number on the page,
+  // so the comparison passed with nothing to compare. A comparison with one
+  // operand is the same failure as a test written against a word.
+  useEffect(() => { setVerdict(null); }, [compId]);
+
   const goToChecks = useCallback(() => {
     const el = document.querySelector('[data-studio-checks]');
     if (!el) return;
@@ -1620,8 +1639,24 @@ export default function CompositionEditorPage({
                 by the worst check, and it takes you to the group rather than
                 repeating it: a bar that listed the failures would be the
                 second copy of a list that is already on the screen. */}
-            {verdict && verdict.total > 0 && (
+            {/* Three states, not two. A reel with nothing in it says so
+                rather than disappearing: a control that vanishes is harder
+                to trust than one that admits it has nothing to say, and the
+                bar keeps its shape. The silent middle state is the half
+                second between opening a reel that HAS material and the panel
+                reporting on it — printing "Not checked" there would be a
+                flicker that reads as a verdict. */}
+            {!hasSources && (
+              <span className="btn-chip" data-testid="verdict-chip" data-verdict="none"
+                title="Nothing in this reel to check yet"
+                style={{ flexShrink: 0, color: 'var(--text-muted)',
+                  borderColor: 'var(--card-border)', cursor: 'default' }}>
+                Not checked
+              </span>
+            )}
+            {hasSources && verdict && verdict.total > 0 && (
               <button type="button" className="btn-chip" data-testid="verdict-chip"
+                data-verdict={verdict.worst}
                 onClick={goToChecks}
                 title="Reel checks — click to read them"
                 style={{

@@ -1892,6 +1892,85 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 28. A new reel is a new reel ─────────────────────────────────────────
+//
+// Three faults lived in this one gesture, and no drive could see any of them
+// because the STUB answered the create POST with the GET list — a 200
+// carrying an array — so `row.id` was undefined and the editor never left
+// the reel it was on. A design review reported "`+ New` does not give the
+// new reel an address" from exactly that, and the product had always set it.
+// The harness manufactured a defect and hid two real ones behind it.
+//
+// With the route implemented, the empty reel is reachable, and it is the
+// state in which the preview must go black and the verdict must admit it has
+// nothing to judge.
+{
+  const p = await open('/clients/c1/produce/studio');
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(900);
+
+  const read = () => p.evaluate(() => {
+    const c = document.querySelector('canvas');
+    let ink = null;
+    if (c) {
+      const g = c.getContext('2d');
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      let nb = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 12 || d[i + 1] > 12 || d[i + 2] > 12) nb++;
+      ink = Math.round((nb / (d.length / 4)) * 1000) / 10;
+    }
+    const chip = document.querySelector('[data-testid="verdict-chip"]');
+    return {
+      url: location.pathname + location.search,
+      ink,
+      chip: chip ? chip.innerText.replace(/\s+/g, ' ') : null,
+      verdict: chip ? chip.getAttribute('data-verdict') : null,
+      panel: !!document.querySelector('[data-studio-checks]'),
+      total: (document.querySelector('[data-testid="position"]') || {}).innerText || null,
+    };
+  });
+
+  const before = await read();
+  say(before.ink > 50, 'the reel that is open is drawing its own picture',
+    `${before.ink}% non-black`);
+
+  await p.locator('text=+ New').click();
+  await p.waitForTimeout(2600);
+  const fresh = await read();
+
+  // (1) The address. A reel you cannot link to or refresh back onto is a reel
+  // you can lose by pressing F5.
+  say(/[?&]open=\d+/.test(fresh.url),
+    'a reel made with + New has an address of its own',
+    fresh.url);
+
+  // (2) The picture. THE PREVIEW IS THE PROOF on this screen, and it was
+  // showing the previous reel's proof: measured 88.9% non-black on a reel
+  // with no sources, no tracks and a duration of 00:00:00. A canvas keeps
+  // its pixels, and nothing redrew on a composition change.
+  say(fresh.total && /00:00:00 \/ 00:00:00/.test(fresh.total),
+    'and it really is empty', fresh.total);
+  say(fresh.ink === 0,
+    'and the preview is black rather than the last reel\'s picture',
+    `${fresh.ink}% non-black; this measured 88.9% before`);
+
+  // (3) The verdict. Asserted as the ABSENCE of a score rather than the
+  // presence of a word, so renaming the state cannot make it pass.
+  say(!fresh.panel, 'there is nothing to check, so no checks are drawn');
+  say(fresh.verdict === 'none' && !/\d+ of \d+/.test(fresh.chip || ''),
+    'and the bar does not wear the previous reel\'s score',
+    `the chip reads "${fresh.chip}"`);
+
+  // And it stays right. The first version of this fault was permanent: the
+  // bar held the stale number across every later reel.
+  await p.waitForTimeout(3000);
+  const later = await read();
+  say(later.verdict === 'none' && !/\d+ of \d+/.test(later.chip || ''),
+    'and does not acquire one three seconds later either',
+    `the chip reads "${later.chip}"`);
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();

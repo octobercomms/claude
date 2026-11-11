@@ -569,8 +569,22 @@ const Compositor = React.forwardRef(function Compositor({
     }
   }, [composition?.sources]);
 
-  // Stop when composition changes
-  useEffect(() => { stopPlayback(); }, [composition]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Stop when composition changes, AND REPAINT.
+  //
+  // A canvas keeps its pixels. Nothing else in this component redraws when
+  // the composition changes: the playhead is already 0, the frame size is
+  // usually identical between reels, and no media event fires for a reel
+  // that has no media. So the old frame stayed on screen.
+  //
+  // Measured on the shipped build: press `+ New` and the canvas was 88.9%
+  // non-black on a reel with no sources, no tracks and a duration of
+  // 00:00:00. The operator's brand new empty reel was showing the previous
+  // reel's picture. The preview is the proof on this screen, and it was
+  // showing somebody else's proof.
+  useEffect(() => {
+    stopPlayback();
+    drawRef.current?.();
+  }, [composition]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Keyboard ────────────────────────────────────────────────────────
 

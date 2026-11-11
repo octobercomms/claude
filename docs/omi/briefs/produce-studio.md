@@ -1692,6 +1692,69 @@ than accepted: a double-click performed near the timeline's content height
 moves the handle so little that the broken code still resets. The invariant
 is now asserted directly, from a dragged state.
 
+## Built, 10 November: a new reel is a new reel
+
+Three findings from the broad design review, one of which was not real and
+is the most useful of the three.
+
+### The harness manufactured a defect
+
+The review reported that `+ New` does not give the new reel an address: the
+POST fires, the URL does not change, a refresh loses the reel. True of what
+it could see, and false of the product. `createNew` calls `onOpen(row.id)`
+and `useOpenState` writes `?open=`.
+
+**The stub had no handler for the create POST**, so the request fell through
+to the GET and came back 200 carrying an ARRAY. `row.id` was `undefined`,
+`loadFromRow` rendered an empty state, and `onOpen(undefined)` *cleared* the
+parameter rather than setting it.
+
+Worth recording for two reasons. A harness that answers an unimplemented
+route with 200 and the wrong shape will keep inventing product defects; and
+this one was also **hiding two real faults behind the invented one**, because
+no drive could reach a genuinely empty reel at all. The route is implemented
+now and returns a row with an id and an empty `data`.
+
+### The preview was showing the previous reel's picture
+
+Measured on the shipped build: `+ New`, and the canvas was **88.9%
+non-black** on a reel with no sources, no tracks and a duration of
+`00:00:00`.
+
+A canvas keeps its pixels, and nothing in `Compositor` redrew on a
+composition change: the playhead was already 0, the frame size was identical
+between the two reels, and no media event fires for a reel with no media. So
+the last frame simply stayed there. The preview is the proof on this screen,
+and it was showing somebody else's proof. One line: repaint in the effect
+that already stops playback when the composition changes.
+
+### The verdict chip wore the previous reel's score
+
+`6 of 10 · 1 not yet` on an empty reel, and still after switching to a second
+empty reel.
+
+The panel reports its result upward so the bar and the list can never
+disagree, which the brief records. That protects the case where **both**
+exist. The panel is absent when there is nothing to check, so `onResult`
+never fired and the bar held its last value for ever.
+
+**And the guard could not see it.** It compared the bar's number with the
+panel's, and on an empty reel there is only one number on the page, so the
+comparison passed with nothing to compare. *A comparison with one operand is
+the same failure as a test written against a word*, and it belongs on the
+list this file keeps.
+
+Three states now: `Not checked` when the reel has nothing in it, the count
+when the panel has reported, and nothing at all in the half second between.
+A control that vanishes is harder to trust than one that admits it has
+nothing to say. The verdict is also cleared on `compId`, so a score cannot
+cross from one reel to another.
+
+The new guards assert the **absence** of a score rather than the presence of
+a word, so renaming the state cannot make them pass. Mutation-checked: both
+fixes removed, three assertions fail and print `88.9% non-black` and
+`the chip reads "6 of 10 · 1 not yet"`.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the

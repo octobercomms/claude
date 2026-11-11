@@ -1,3 +1,5 @@
+// Ids for reels created during a run, above the fixture rows.
+let nextCompositionId = 100;
 // The browser-drive stub.
 //
 // A fake OMI backend on port 4599 serving the REAL built frontend out of
@@ -1246,6 +1248,40 @@ const handler = (req, res) => {
       res.writeHead(200, { 'Content-Type': type, 'Content-Length': fs.statSync(f).size });
       return res.end(fs.readFileSync(f));
     }
+  }
+
+  // Creating a reel. This was NOT implemented, and the stub answered the POST
+  // with the GET list — a 200 carrying an ARRAY — so `row.id` was undefined,
+  // the editor loaded an empty state, and `onOpen(undefined)` cleared the
+  // address instead of setting it.
+  //
+  // A design review then reported, correctly from what it could see, that
+  // "`+ New` does not give the new reel an address". The product does: it
+  // calls `onOpen(row.id)` and `useOpenState` writes `?open=`. The harness
+  // lied, and a harness that answers an unimplemented route with 200 and the
+  // wrong shape will keep manufacturing defects that do not exist.
+  //
+  // It also matters for what can be tested at all: a genuinely empty reel is
+  // the state in which the preview must go black and the verdict must say it
+  // has nothing to judge, and until now no drive could reach it.
+  if (/^\/api\/compose\/clients\/[^/]+\/compositions$/.test(url) && req.method === 'POST') {
+    let raw = ''; req.on('data', c => raw += c);
+    return req.on('end', () => {
+      let body = {};
+      try { body = JSON.parse(raw || '{}'); } catch { /* keep the empty one */ }
+      nextCompositionId += 1;
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        id: nextCompositionId,
+        client_id: url.split('/')[4],
+        title: body.title !== undefined ? body.title : 'Untitled',
+        // The whole point of this row: `data` really is empty, the way the
+        // real service returns it for a new composition.
+        data: body.data || { version: 1, size: { width: 1080, height: 1920 }, fps: 30, sources: {}, tracks: [] },
+        status: 'draft',
+        updated_at: '2026-11-10T09:00:00Z',
+      }));
+    });
   }
 
   if (/^\/api\/compose\/compositions\/\d+$/.test(url) && req.method === 'PUT') {
