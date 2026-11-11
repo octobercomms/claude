@@ -128,7 +128,7 @@ function InspectorGroup({ title, children }) {
 const TIMELINE_H_KEY = 'omi.studio.timelineHeight';
 
 export default function CompositionEditorPage({
-  clientId, clientName = null, openId = null, onOpen = null,
+  clientId, clientName = null, openId = null, onOpen = null, onOpenBatch = null,
 }) {
   const toast = useToast();
   const {
@@ -287,6 +287,9 @@ export default function CompositionEditorPage({
     setCompId(row.id);
     setCompTitle(row.title || '');
     setCompStatus(row.status || 'draft');
+    // Which batch this reel came out of, if any. The column has been on the
+    // row since migration 249 and the editor had never once read it.
+    setBatchId(row.batch_id || null);
     resetHistory(data);
     setSourceAssets(loadedAssets);
     setTranscripts(loadedTranscripts);
@@ -1350,6 +1353,60 @@ export default function CompositionEditorPage({
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo, handleSplitItem, handleRemoveItem, seekBy]);
 
+  // ── The batch this reel belongs to ────────────────────────────────
+  //
+  // THE STUDIO WAS SHAPED LIKE THE `compositions` TABLE: one row, opened by
+  // id, with a `<select>` of every other row. The job is a batch of thirty
+  // of which six need a human, and this screen had no idea that batch
+  // existed — `batch_id` has been on the row since migration 249 and nothing
+  // here read it. An operator who opened reel 7 of 30 arrived at a screen
+  // that could not say it was reel 7, could not get back, and had no way to
+  // say "this one is fine, next".
+  //
+  // `VideoBatchReviewPage` carries the comment this is the other half of:
+  // "Approve, reject, and move. Ninety clicks otherwise." The Studio is
+  // where those ninety clicks came back.
+  //
+  // No new endpoint. `GET /compose/batches/:id` already returns the items
+  // with their `idx`, `composition_id` and verdict, which is everything the
+  // bar needs; a second fetch, only when there is a batch.
+  const [batchId, setBatchId] = useState(null);
+  const [batch, setBatch] = useState(null);
+
+  useEffect(() => {
+    if (!batchId) { setBatch(null); return undefined; }
+    let live = true;
+    api.get(`/compose/batches/${batchId}`)
+      .then((b) => { if (live) setBatch(b); })
+      // Silent, and deliberately: the batch bar is an affordance on top of a
+      // working editor. A reel that will not load its batch is still a reel
+      // you can cut.
+      .catch(() => { if (live) setBatch(null); });
+    return () => { live = false; };
+  }, [batchId]);
+
+  // The sheet returns items worst-first, which is right for the sheet and
+  // wrong for "7 of 30". Position is the operator's own count.
+  const batchItems = useMemo(() => {
+    const rows = (batch?.items || []).slice();
+    rows.sort((a, b) => (a.idx ?? 0) - (b.idx ?? 0));
+    return rows;
+  }, [batch]);
+
+  const batchPlace = useMemo(() => {
+    if (!batchItems.length || !compId) return null;
+    const at = batchItems.findIndex((i) => String(i.composition_id) === String(compId));
+    if (at < 0) return null;
+    return {
+      item: batchItems[at],
+      position: at + 1,
+      total: batchItems.length,
+      // Still to judge, not "still to fix": `pending` means nobody has
+      // decided, which includes the ones that are perfectly good.
+      pending: batchItems.filter((i) => i.verdict === 'pending').length,
+    };
+  }, [batchItems, compId]);
+
   // ── The verdict, for the bar ──────────────────────────────────────
   //
   // Reel checks are the last group of the inspector, which is where the
@@ -1384,6 +1441,108 @@ export default function CompositionEditorPage({
   // so the comparison passed with nothing to compare. A comparison with one
   // operand is the same failure as a test written against a word.
   useEffect(() => { setVerdict(null); }, [compId]);
+
+  // ── Moving through the batch ──────────────────────────────────────
+  //
+  // The next thing that still wants a human, by position, wrapping once. Not
+  // simply "the next row": an operator stepping through a batch is stepping
+  // through the ones nobody has judged, and the four already approved are
+  // not work.
+  const nextPending = useCallback((dir) => {
+    if (!batchPlace) return null;
+    const n = batchItems.length;
+    for (let k = 1; k <= n; k += 1) {
+      const at = (batchPlace.position - 1 + dir * k + n * k) % n;
+      const it = batchItems[at];
+      // A blocked item has no composition, so there is nothing to open: it
+      // is fixed on the sheet, not here.
+      if (it && it.verdict === 'pending' && it.composition_id
+        && String(it.composition_id) !== String(compId)) return it;
+    }
+    return null;
+  }, [batchItems, batchPlace, compId]);
+
+  const goToBatchItem = useCallback(async (item) => {
+    if (!item?.composition_id) return;
+    await switchComposition(item.composition_id);
+  }, [switchComposition]);
+
+  // THE VERB DEPENDS ON WHAT THE SERVER WILL ACCEPT, and finding that out
+  // changed the design.
+  //
+  // `compositionBatches.setVerdict` refuses to approve an item whose render
+  // is not `done`: "This item has not finished rendering, so there is
+  // nothing to approve yet." So an edited reel cannot be approved — the
+  // render that exists is the one from before the edit, and approving it
+  // would approve a video that is not the one on screen.
+  //
+  // So: an untouched reel that has rendered offers Approve. A reel you have
+  // changed offers Render, which is `retryItem` — it re-renders and puts the
+  // verdict back to pending, which is exactly what an edit means. Offering
+  // Approve in that state would be the screen promising something the server
+  // refuses.
+  const batchVerb = useMemo(() => {
+    if (!batchPlace) return null;
+    const it = batchPlace.item;
+    if (saveStatus !== 'saved') return 'render';
+    if (it.render_status !== 'done') return 'render';
+    return 'approve';
+  }, [batchPlace, saveStatus]);
+
+  const [batchBusy, setBatchBusy] = useState(false);
+
+  const commitBatchItem = useCallback(async () => {
+    if (!batchPlace || batchBusy) return;
+    const it = batchPlace.item;
+    const onward = nextPending(1);
+    setBatchBusy(true);
+    try {
+      await flushSave(compId);
+      if (batchVerb === 'approve') {
+        await api.post(`/compose/batch-items/${it.id}/verdict`, { verdict: 'approved' });
+        toast(`Approved. ${onward ? 'Next reel.' : 'That was the last one waiting.'}`);
+      } else {
+        await api.post(`/compose/batch-items/${it.id}/retry`, {});
+        toast(`Rendering again. ${onward ? 'Next reel.' : 'That was the last one waiting.'}`);
+      }
+      // The sheet is the source of truth for verdicts, so it is re-read
+      // rather than patched in place: a local guess would disagree with the
+      // sheet the moment anybody else judged a row.
+      api.get(`/compose/batches/${batchId}`).then(setBatch).catch(() => {});
+      if (onward) await goToBatchItem(onward);
+    } catch (err) {
+      // The server's own sentence. It knows why it refused and this screen
+      // does not.
+      toast(err.message || 'That could not be recorded.', 'error');
+    } finally {
+      setBatchBusy(false);
+    }
+  }, [batchPlace, batchBusy, batchVerb, nextPending, flushSave, compId,
+    batchId, goToBatchItem, toast]);
+
+  // `[` and `]` step through the ones that still want a human.
+  //
+  // Its own listener rather than a branch in the big keydown handler above,
+  // because that handler is declared before the batch exists and reordering
+  // 130 lines of shortcuts to reach two is a worse trade than one more
+  // effect. The brackets are the keys every editing application uses for
+  // "previous / next item in the bin", and they are free here.
+  useEffect(() => {
+    if (!batchPlace) return undefined;
+    function onKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const tag = (e.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select'
+        || e.target?.isContentEditable) return;
+      if (e.key !== '[' && e.key !== ']') return;
+      const onward = nextPending(e.key === ']' ? 1 : -1);
+      e.preventDefault();
+      if (!onward) { toast('Nothing else in this batch is waiting for you.'); return; }
+      goToBatchItem(onward);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [batchPlace, nextPending, goToBatchItem, toast]);
 
   const goToChecks = useCallback(() => {
     const el = document.querySelector('[data-studio-checks]');
@@ -1587,8 +1746,31 @@ export default function CompositionEditorPage({
           ) : (
             <div className="kicker">
               <span className="pip" />
-              <span>Reel • {compStatus === 'draft' ? 'Draft'
-                : compStatus.charAt(0).toUpperCase() + compStatus.slice(1)}</span>
+              {/* WHERE YOU ARE, when there is a batch to be in. "Reel ·
+                  Draft" is the right line for a reel somebody made on its
+                  own and tells an operator working a batch nothing they did
+                  not know. The batch's own words come first — a run is
+                  briefed, and the brief is what distinguishes one from
+                  another in a client with a dozen. */}
+              {batchPlace ? (
+                <>
+                  <button type="button" className="btn-link" data-testid="batch-back"
+                    style={{ font: 'inherit', letterSpacing: 'inherit' }}
+                    onClick={() => onOpenBatch && onOpenBatch(batchId)}
+                    disabled={!onOpenBatch}
+                    title="Back to the review sheet">
+                    {batch?.brief || 'Batch'}
+                  </button>
+                  <span data-testid="batch-place">
+                    {' · '}{batchPlace.position} of {batchPlace.total}
+                    {batchPlace.pending
+                      ? ` · ${batchPlace.pending} still to judge` : ' · all judged'}
+                  </span>
+                </>
+              ) : (
+                <span>Reel • {compStatus === 'draft' ? 'Draft'
+                  : compStatus.charAt(0).toUpperCase() + compStatus.slice(1)}</span>
+              )}
             </div>
           )}
 
@@ -1713,12 +1895,31 @@ export default function CompositionEditorPage({
               class as `-1 frame`, while Play was the only accent fill on the
               page: the most emphasised control in the Studio was "play the
               preview" and the thing the screen exists to produce looked like
-              a step-back button. */}
-          <button type="button" className="btn btn-primary btn-sm studio-commit"
+              a step-back button.
+
+              In a batch it is not the commit. The batch renders and the
+              sheet publishes; what this screen commits is a DECISION about
+              one reel, so the decision takes the accent and Export steps
+              back to secondary rather than disappearing — a reel in a batch
+              is still a reel somebody may want a file of. */}
+          <button type="button"
+            className={`btn btn-sm studio-commit ${batchPlace ? 'btn-secondary' : 'btn-primary'}`}
             onClick={async () => { await flushSave(compId); setExportOpen(true); }}
             disabled={!compId || total <= 0}>
             Export
           </button>
+          {batchPlace && (
+            <button type="button" className="btn btn-primary btn-sm studio-commit"
+              data-testid="batch-commit"
+              onClick={commitBatchItem}
+              disabled={batchBusy || !compId}
+              title={batchVerb === 'approve'
+                ? 'Record this one as approved and open the next that needs a look'
+                : 'Render this reel again with your changes, then open the next that needs a look'}>
+              {batchBusy ? 'Working…'
+                : batchVerb === 'approve' ? 'Approve & next' : 'Render & next'}
+            </button>
+          )}
         </div>
       </div>
 

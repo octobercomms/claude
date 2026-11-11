@@ -1884,6 +1884,79 @@ reason is recorded so it is not proposed again.
 measurement**, after the preview-versus-render disagreement. Both were worth
 checking rather than building.
 
+## Built, 11 November: the Studio knows it is reel 2 of 4
+
+The broad design review's first proposal, and the only one on its list that
+changes what an afternoon costs rather than what a single edit costs.
+
+**The screen was shaped like the `compositions` table**: one row, opened by
+id, with a `<select>` of every other row. The job is a batch of thirty of
+which six need a human. `batch_id` has been on the row since migration 249
+and nothing in the editor had ever read it, so an operator who opened reel 7
+of 30 arrived at a screen that could not say it was reel 7, could not get
+back to the sheet, and had no way to say "this one is fine, next".
+`VideoBatchReviewPage` carries the comment this is the other half of:
+*"Approve, reject, and move. Ninety clicks otherwise."*
+
+**No new endpoint.** `GET /compose/batches/:id` already returns the items
+with their `idx`, `composition_id` and verdict. One extra fetch, only when
+the open reel has a batch.
+
+### What the bar says
+
+`Atlas Q4 showroom · 2 of 4 · 3 still to judge`, with the run's own brief as
+the way back to the sheet. **Still to judge, not still to fix**: `pending`
+means nobody has decided, which includes the ones that are perfectly good.
+
+A reel in no batch is offered none of it and keeps `Reel · Draft`.
+
+### The verb is whatever the server will accept, and finding that out changed the design
+
+The review proposed `Approve & next`. `compositionBatches.setVerdict`
+**refuses** to approve an item whose render is not `done`: *"This item has
+not finished rendering, so there is nothing to approve yet."*
+
+So an edited reel cannot be approved. The render that exists is the one from
+before the edit, and approving it would approve a video that is not the one
+on screen.
+
+| state | verb |
+|---|---|
+| rendered, nothing unsaved | **Approve & next** |
+| edited, or the render failed | **Render & next** (`retryItem`, which re-renders and returns the verdict to pending) |
+
+Offering Approve in the second state would be the screen promising something
+the server refuses.
+
+**Export steps back to secondary while a batch reel is open**, because the
+batch renders and the sheet publishes: what this screen commits is a
+decision about one reel. It does not disappear — a reel in a batch is still
+a reel somebody may want a file of.
+
+`[` and `]` walk the reels that are still waiting, skipping the judged ones
+and the blocked ones, which have no composition to open.
+
+### Three faults in the test harness, all found by driving it
+
+1. **The per-id composition route returned the same reel for every id**, with
+   no `batch_id`, so switching reels appeared to work while loading one reel
+   under a different number. Nothing that depends on which reel you are on
+   could be driven at all.
+2. **Making the default fixture reel a batch reel silently changed the
+   context thirty assertions were written against** — Export stopped being
+   the only primary on the screen, and an existing guard caught it. The
+   batch reels are 2 and 3 now, opened by address; reel 1 is what every
+   other section still opens.
+3. **The batch section passed on a fresh stub and failed on the second run
+   against the same one**, because the verdict routes mutate the fixture.
+   Green in CI, red on a desk, which is the worst shape a test can have. The
+   section resets the batch before it reads anything, and three consecutive
+   runs against one stub now pass.
+
+A fourth, in my own assertion rather than the harness: the bracket-key check
+ran after the approval and tried to step back to the row the section had
+just judged. Correct behaviour, broken test. It runs first now.
+
 ## Faults found while auditing, worth fixing in passing
 
 - ~~**Two volume sliders disagree.**~~ Fixed with step 5: one slider at the

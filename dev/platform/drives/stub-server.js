@@ -1,5 +1,8 @@
 // Ids for reels created during a run, above the fixture rows.
 let nextCompositionId = 100;
+
+// Every verdict and re-render this run was asked for, in order.
+const batchActions = [];
 // The browser-drive stub.
 //
 // A fake OMI backend on port 4599 serving the REAL built frontend out of
@@ -143,6 +146,11 @@ const API = {
     {
       id: 1, client_id: 'c1', title: 'Atlas showroom reel',
       data: COMPOSITION, source_assets: {}, transcripts: TRANSCRIPT,
+      // NOT in a batch, deliberately. This is the reel every other section
+      // of every drive opens, and putting it in one quietly changed the
+      // context thirty assertions were written against — Export stopped
+      // being the primary, because in a batch the decision is the commit.
+      // The batch reels are 2 and 3, opened by `?open=`.
       status: 'draft', batch_id: null, template_id: null,
       created_at: '2026-11-09T08:00:00Z', updated_at: '2026-11-09T09:00:00Z',
     },
@@ -150,10 +158,66 @@ const API = {
       id: 2, client_id: 'c1', title: 'Material study',
       data: { version: 1, size: { width: 1080, height: 1920 }, fps: 30, sources: {}, tracks: [] },
       source_assets: {}, transcripts: {},
-      status: 'draft', batch_id: null, template_id: null,
+      // In the batch, rendered and pending: the reel that can be approved.
+      // The first version of this fixture had the batch claiming a
+      // composition while that composition's own row said it had no batch —
+      // real rows cannot disagree with each other, and a fixture that does
+      // will pass a test the product would fail.
+      status: 'draft', batch_id: 'vb1', template_id: null,
       created_at: '2026-11-08T16:00:00Z', updated_at: '2026-11-08T16:30:00Z',
     },
+    {
+      // In the batch, and its render FAILED: the reel that must be offered
+      // "render again" rather than "approve", because the server refuses to
+      // approve an item that has not finished rendering.
+      id: 3, client_id: 'c1', title: 'Lookbook teaser',
+      data: { version: 1, size: { width: 1080, height: 1920 }, fps: 30, sources: {}, tracks: [] },
+      source_assets: {}, transcripts: {},
+      status: 'draft', batch_id: 'vb1', template_id: null,
+      created_at: '2026-11-07T10:00:00Z', updated_at: '2026-11-07T10:30:00Z',
+    },
   ],
+  // ── A video batch, and the review sheet's own shape ───────────────
+  //
+  // `services/compositionBatches.js` returns the batch with its items and a
+  // roll-up. Items carry `idx`, `composition_id`, `verdict` and a derived
+  // `state`, which is everything the Studio needs to know it is reel 2 of 4
+  // and which of the others still want a human.
+  //
+  // Four items on purpose: one approved, one rendered and still pending
+  // (the open reel), one pending whose render failed, and one blocked with
+  // no composition at all. A stepper that only ever meets happy rows is a
+  // stepper nobody has tested.
+  '/api/compose/clients/c1/batches': [
+    { id: 'vb1', client_id: 'c1', template_id: 'stills-montage', seed: 1,
+      brief: 'Atlas Q4 showroom', estimate_usd: 2.4, item_count: 4,
+      created_at: '2026-11-09T07:00:00Z', updated_at: '2026-11-09T09:00:00Z' },
+  ],
+  '/api/compose/batches/vb1': {
+    id: 'vb1', client_id: 'c1', template_id: 'stills-montage', seed: 1,
+    brief: 'Atlas Q4 showroom', estimate_usd: 2.4,
+    created_at: '2026-11-09T07:00:00Z', updated_at: '2026-11-09T09:00:00Z',
+    items: [
+      { id: 'vi1', batch_id: 'vb1', idx: 0, ref: 'atlas-01', composition_id: 9,
+        render_id: 'r1', problems: [], verdict: 'approved', verdict_note: null,
+        verdict_at: '2026-11-09T09:10:00Z', title: 'Atlas entrance',
+        render_status: 'done', render_progress: 100, state: 'rendered' },
+      { id: 'vi2', batch_id: 'vb1', idx: 1, ref: 'atlas-02', composition_id: 2,
+        render_id: 'r2', problems: [], verdict: 'pending', verdict_note: null,
+        verdict_at: null, title: 'Material study',
+        render_status: 'done', render_progress: 100, state: 'rendered' },
+      { id: 'vi3', batch_id: 'vb1', idx: 2, ref: 'atlas-03', composition_id: 3,
+        render_id: 'r3', problems: [], verdict: 'pending', verdict_note: null,
+        verdict_at: null, title: 'Lookbook teaser',
+        render_status: 'failed', render_progress: 0, state: 'failed' },
+      { id: 'vi4', batch_id: 'vb1', idx: 3, ref: 'atlas-04', composition_id: null,
+        render_id: null, problems: ['No photographs matched "atrium".'],
+        verdict: 'pending', verdict_note: null, verdict_at: null, title: null,
+        render_status: null, render_progress: 0, state: 'blocked' },
+    ],
+    summary: { total: 4, approved: 1, rejected: 0, pending: 3, blocked: 1, suspect: 1 },
+  },
+
   '/api/compose/caption-templates': [
     { id: 'editorial-centre', name: 'Editorial, centred' },
     { id: 'creator-bold', name: 'Creator, bold' },
@@ -826,11 +890,21 @@ const handler = (req, res) => {
     // photographs carrying camera moves, so the editor renders something an
     // operator would recognise: a timeline with three blocks, a waveform, and
     // enough speech for the reel checks to have an opinion.
-    [/^\/api\/compose\/compositions\/(\d+)$/, (m) => ({
-      id: Number(m[1]), client_id: 'c1', title: 'Atlas showroom reel',
-      data: COMPOSITION, source_assets: {}, transcripts: TRANSCRIPT,
-      status: 'draft', updated_at: '2026-11-09T09:00:00Z',
-    })],
+    // THE ROW THAT IS ACTUALLY ASKED FOR. This returned "Atlas showroom
+    // reel" with the Atlas timeline for every id, and no `batch_id` at all,
+    // so switching reels appeared to work while loading the same reel under
+    // a different number — and anything that depends on which reel you are
+    // on, which is now the whole batch bar, could not be driven at all.
+    [/^\/api\/compose\/compositions\/(\d+)$/, (m) => {
+      const want = Number(m[1]);
+      const row = (API['/api/compose/clients/c1/compositions'] || [])
+        .find((r) => r.id === want);
+      return row || {
+        id: want, client_id: 'c1', title: 'Atlas showroom reel',
+        data: COMPOSITION, source_assets: {}, transcripts: TRANSCRIPT,
+        status: 'draft', batch_id: null, updated_at: '2026-11-09T09:00:00Z',
+      };
+    }],
     // A finished render, so Share can be driven. `output_url` is in the shape
     // the approval proxy rewrites.
     [/^\/api\/compose\/compositions\/(\d+)\/renders$/, () => ({
@@ -1264,6 +1338,64 @@ const handler = (req, res) => {
   // It also matters for what can be tested at all: a genuinely empty reel is
   // the state in which the preview must go black and the verdict must say it
   // has nothing to judge, and until now no drive could reach it.
+  // A verdict, and a re-render. Both write to a log the drive reads, because
+  // the claim is not "a button exists" but "pressing it sent the right verb
+  // for the right item" — and a stub that answers 200 to everything proves
+  // neither. `setVerdict` on the real service REFUSES to approve an item
+  // whose render is not done, so the stub refuses it too: an editor that
+  // offers Approve on an item the server will reject is an editor that lies.
+  if (/^\/api\/compose\/batch-items\/[^/]+\/(verdict|retry)$/.test(url) && req.method === 'POST') {
+    const parts = url.split('/');
+    const verb = parts[parts.length - 1];
+    const itemId = parts[parts.length - 2];
+    let raw = ''; req.on('data', c => raw += c);
+    return req.on('end', () => {
+      let body = {};
+      try { body = JSON.parse(raw || '{}'); } catch { /* keep the empty one */ }
+      batchActions.push({ verb, itemId, verdict: body.verdict || null });
+      const item = (API['/api/compose/batches/vb1'].items || [])
+        .find((i) => i.id === itemId);
+      if (verb === 'verdict' && body.verdict === 'approved'
+        && item && item.render_status !== 'done') {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+          error: 'This item has not finished rendering, so there is nothing to approve yet.',
+        }));
+      }
+      if (item) {
+        if (verb === 'verdict') item.verdict = body.verdict || 'pending';
+        else { item.verdict = 'pending'; item.render_status = 'queued'; item.state = 'queued'; }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(item || { id: itemId }));
+    });
+  }
+
+  // Put the batch back as it was briefed.
+  //
+  // The verdict and retry routes MUTATE the fixture, which is the point —
+  // an approval has to be visible afterwards. That makes the batch section
+  // of the drive depend on how many times the file has been run against one
+  // stub: pass on a fresh one, fail on the second. CI starts a fresh stub,
+  // so this would have been green there and red on anyone's desk, which is
+  // the worst shape a test can have.
+  if (url === '/__reset-batch' && req.method === 'POST') {
+    const items = API['/api/compose/batches/vb1'].items;
+    items[0].verdict = 'approved';
+    items[1].verdict = 'pending'; items[1].render_status = 'done'; items[1].state = 'rendered';
+    items[2].verdict = 'pending'; items[2].render_status = 'failed'; items[2].state = 'failed';
+    items[3].verdict = 'pending';
+    batchActions.length = 0;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true }));
+  }
+
+  // What the drive reads back to see which verb was sent for which item.
+  if (url === '/__batch-actions') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(batchActions));
+  }
+
   if (/^\/api\/compose\/clients\/[^/]+\/compositions$/.test(url) && req.method === 'POST') {
     let raw = ''; req.on('data', c => raw += c);
     return req.on('end', () => {

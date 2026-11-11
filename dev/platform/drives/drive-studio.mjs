@@ -2133,6 +2133,149 @@ for (const [asked, want, row] of [
   await p.close();
 }
 
+// ── 31. The Studio knows it is reel 2 of 4 ───────────────────────────────
+//
+// The screen was shaped like the `compositions` table: one row, opened by
+// id, with a `<select>` of every other row. The job is a batch of thirty of
+// which six need a human, and `batch_id` has been on the row since migration
+// 249 with nothing here reading it. `VideoBatchReviewPage` carries the
+// comment this is the other half of: "Approve, reject, and move. Ninety
+// clicks otherwise."
+//
+// The stub's batch has four items on purpose — one approved, one rendered
+// and pending (the open reel), one pending whose render FAILED, one blocked
+// with no composition — because a stepper that only meets happy rows is a
+// stepper nobody has tested.
+{
+  // Opened by address, because the reel every other section uses is
+  // deliberately NOT in a batch.
+  const p = await open('/clients/c1/produce/studio?open=2');
+  // The verdict routes mutate the fixture, so this section puts the batch
+  // back as it was briefed before reading anything. Without it the section
+  // passes against a fresh stub and fails on the second run against the same
+  // one — green in CI, red on a desk.
+  await p.evaluate(() => fetch('/__reset-batch', { method: 'POST' }));
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(1300);
+
+  const read = () => p.evaluate(() => {
+    const g = (s) => {
+      const e = document.querySelector(s);
+      return e ? e.innerText.replace(/\s+/g, ' ').trim() : null;
+    };
+    const ex = [...document.querySelectorAll('button')]
+      .find((x) => x.innerText.trim() === 'Export');
+    return {
+      place: g('[data-testid="batch-place"]'),
+      back: g('[data-testid="batch-back"]'),
+      commit: g('[data-testid="batch-commit"]'),
+      exportIsPrimary: !!ex && /btn-primary/.test(ex.className),
+      title: (document.querySelector('h1') || {}).innerText || null,
+      kicker: g('.studio-bar .kicker'),
+    };
+  });
+
+  const first = await read();
+  say(/\b2 of 4\b/i.test(first.place || ''),
+    'the bar says which reel of the batch this is',
+    `the kicker reads "${first.kicker}"`);
+  say(/still to judge/i.test(first.place || ''),
+    'and how many of them still want a human',
+    `"${first.place}"`);
+  say(first.back === 'Atlas Q4 showroom',
+    'and names the run, as a way back to the sheet',
+    `"${first.back}"`);
+
+  // THE VERB THE SERVER WILL ACCEPT. `setVerdict` refuses to approve an item
+  // whose render is not done, so a screen offering Approve on one would be
+  // promising something that gets refused.
+  say(first.commit === 'Approve & next',
+    'a rendered reel with no unsaved edit offers to approve it',
+    `the button reads "${first.commit}"`);
+  say(!first.exportIsPrimary,
+    'and Export steps back, because in a batch the decision is the commit',
+    'Export was the only primary on the screen');
+
+  // The bracket keys first, while both of the waiting reels still are.
+  // Done after the approval below, this walks a batch the section itself has
+  // just changed, and the step back has nowhere to go — which is correct
+  // behaviour and a broken test.
+  await p.keyboard.press(']');
+  await p.waitForTimeout(1700);
+  const stepped = await read();
+  say(/Lookbook teaser/.test(stepped.title || '') && /\b3 of 4\b/i.test(stepped.place || ''),
+    'the bracket keys walk the reels that are waiting',
+    `"]" landed on "${(stepped.title || '').trim()}" ${stepped.place}`);
+  await p.keyboard.press('[');
+  await p.waitForTimeout(1700);
+  const back = await read();
+  say(/Material study/.test(back.title || '') && /\b2 of 4\b/i.test(back.place || ''),
+    'and step back the same way',
+    `"[" landed on "${(back.title || '').trim()}" ${back.place}`);
+
+  // Pressing it sends the right verb for the right ITEM, and moves on. A
+  // button that posts nothing, or posts for the wrong row, looks identical
+  // on screen — so the stub records what it was asked for and this reads it.
+  await p.locator('[data-testid="batch-commit"]').click();
+  await p.waitForTimeout(2600);
+  const after = await read();
+  const sent = await p.evaluate(async () =>
+    (await fetch('/__batch-actions')).json());
+  // Asserted by WHAT WAS ASKED, not by how many rows the log has: the stub
+  // keeps its log for the life of the process, so a count passes on a fresh
+  // stub and fails on the second run against the same one. That is a test
+  // that depends on how you ran it.
+  const verdicts = sent.filter((a) => a.verb === 'verdict');
+  say(verdicts.length > 0
+    && verdicts.every((a) => a.itemId === 'vi2' && a.verdict === 'approved'),
+    'pressing it approves THIS item, by id, and not another',
+    JSON.stringify(sent));
+  say(/Lookbook teaser/.test(after.title || ''),
+    'and opens the next one that still wants a human',
+    `now on "${(after.title || '').trim()}"`);
+  say(/\b3 of 4\b/i.test(after.place || ''),
+    'which knows its own place in the same batch', `"${after.place}"`);
+
+  // The failed item. Its render is not done, so Approve is not on offer —
+  // the verb changes rather than the button failing.
+  say(after.commit === 'Render & next',
+    'a reel whose render failed offers to render it, not to approve it',
+    `the button reads "${after.commit}" — the server refuses to approve an `
+    + 'item that has not finished rendering, so offering it would be a lie');
+
+  await p.close();
+}
+
+// ── 32. A reel that is in no batch says so by saying nothing ─────────────
+//
+// The other half of the claim, and the one that stops the bar appearing on
+// every screen: a reel somebody made on their own has no position, no
+// verdict to record, and no sheet to go back to.
+{
+  const p = await open('/clients/c1/produce/studio?open=1');
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.waitForTimeout(1300);
+  const m = await p.evaluate(() => ({
+    title: (document.querySelector('h1') || {}).innerText || null,
+    kicker: (document.querySelector('.studio-bar .kicker') || {}).innerText || null,
+    commit: !!document.querySelector('[data-testid="batch-commit"]'),
+    place: !!document.querySelector('[data-testid="batch-place"]'),
+    exportIsPrimary: !![...document.querySelectorAll('button')]
+      .find((x) => x.innerText.trim() === 'Export' && /btn-primary/.test(x.className)),
+  }));
+  say(/Atlas showroom reel/.test(m.title || ''), 'the reel that belongs to no batch opens',
+    `"${(m.title || '').trim()}"`);
+  say(!m.commit && !m.place,
+    'and is offered no verdict and no position',
+    `commit ${m.commit}, place ${m.place}`);
+  say(/Reel/i.test(m.kicker || ''), 'the kicker says what it is instead',
+    `"${(m.kicker || '').replace(/\s+/g, ' ').trim()}"`);
+  say(m.exportIsPrimary,
+    'and Export is the primary again, because here it IS the commit');
+  await p.close();
+}
+
 say(errs.length === 0, 'no page errors', errs.join(' | '));
 
 await b.close();
