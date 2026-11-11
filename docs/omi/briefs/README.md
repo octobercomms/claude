@@ -56,4 +56,4 @@ brief, and it is recorded in the agent's own definition so it is not repeated.
 | File | Covers | Status |
 |---|---|---|
 | `produce-studio.md` | Produce → Studio, the four-panel editor and the consolidation | Partly built. Nav renamed 9 November. Daniel then decided the full consolidation (Studio, Design, Library) and a dark theme, superseding two pushbacks; Batch and Visualise are open, and the client-login and phone collisions are being checked |
-| `caro-agency.md` | Caro Communications on OMI: separate deployment, the agency tier, the module set, analytics-first phasing, the sign-off pipeline and the coverage tracker | Scoped 11 November 2026, agreed, not started. Analytics is phase 1; TikTok is phase 4 |
+| `caro-agency.md` | Caro Communications on OMI: separate deployment, the agency tier, the module set, analytics-first phasing, the sign-off pipeline, the coverage tracker and the Mailchimp replacement | Scoped and agreed 11 November 2026, not started. Analytics and the Mailchimp/SES track run in parallel as phase 1; TikTok is phase 4. Waiting on Caro's activity report and sign-off process as files |

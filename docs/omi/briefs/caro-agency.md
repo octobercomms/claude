@@ -19,7 +19,7 @@ given to Caro at no charge; Caro carries its own running costs.
 | tool | cost | notes |
 |---|---|---|
 | Sprout Social | **£9,210.66 / year** for 3 licences | Just renewed, so roughly 12 months of runway |
-| Mailchimp | **~£6,000 / year** | |
+| Mailchimp | **~£6,000 / year** | Press release distribution, not marketing email. See below |
 
 About £15,200 a year, but the cost is not the main fault. Three licences for a
 team of about twenty means the tool is rationed, so most of the people who get
@@ -95,17 +95,17 @@ remembered so it is not a faff on every round. PDF reports by email. Daniel:
 
 ## Modules
 
-**In:** dashboard, earned, shared, biz dev, clients, database, guide, settings.
+**In:** dashboard, earned, shared, **paid**, biz dev, clients, database,
+guide, settings.
 
-**Out:** paid, owned, convert, produce, accounts.
+**Out:** owned, convert, produce, accounts.
 
 Produce is out because it is paused, not because Caro does not want it. When
 it is ready it gets promoted like anything else.
 
-**Assumption to confirm.** Caro needs paid social in their reports (Meta only
-for now), but does not want the Paid module, which is the Google Ads and
-ecommerce pillar. So paid social reporting lands inside **Shared** alongside
-organic. Flagged rather than assumed silently.
+**Paid is in, and paid social reporting lives in it.** Daniel, 11 November:
+"paid social in paid actually so keep that." This revises the first pass,
+which had Paid out and paid social folded into Shared. Meta only for now.
 
 ---
 
@@ -153,6 +153,50 @@ Caro needs LinkedIn.
 
 ---
 
+## Mailchimp is press distribution, and Earned already replaces it
+
+Daniel, 11 November: "mailchimp - we have press releases - this is it." So the
+~£6,000 is a press release sending tool, not an email marketing programme.
+That resolves what the first pass left open, and it resolves it in Caro's
+favour, because the capability is built.
+
+Measured in the tree on 11 November:
+
+| what the job needs | what OMI has |
+|---|---|
+| A real bulk sender, not a personal mailbox | `outreachSender.js` sends through **Amazon SES v2**, with the SES SMTP transport as fallback. Credentials come from `getSetting('SES_ACCESS_KEY_ID')`, the settings table, so Caro's deployment uses Caro's AWS account and Caro's send costs |
+| One-click unsubscribe, which Gmail and Yahoo require of bulk senders | Built, with HMAC-signed stateless unsubscribe URLs. The signature encodes the client, so a journalist unsubscribing from one client stays on the others. 365-day expiry |
+| Audiences within one release | `pressSegments.js`: several named audiences per release (Workplace, Retail, Residential), each with its own subject lines, intro and follow-ups, the body and hero shared. Membership keyed on `(campaign_id, contact_id)` so nobody lands in two audiences, and an overlapping list is reported for the operator to resolve rather than silently moved |
+| Bounce and complaint hygiene | `bounceHandler.js`, fed by the SES SNS webhook. A hard bounce or complaint suppresses the contact globally and cancels pending sends across every client. Soft bounces are retried, not suppressed |
+| Drafting and client sign-off | `prPress.js`: Claude drafts the release, and a token-gated link lets the client approve without a login |
+| The rest | Journalist matching and scouting, coverage extraction, link checking, thank-yous, attribution: `journalistMatch.js`, `prCoverageExtract.js`, `prLinkCheck.js`, `prThanks.js`, `pressAttribution.js` |
+
+Mailchimp does none of the last two rows. It is a newsletter tool being used
+as a press tool.
+
+**Commercially this is the better saving to take first.** SES costs about
+$0.10 per thousand emails, so a release to 500 journalists is about five
+cents, against £6,000 a year. And unlike Sprout, nothing has to be built: the
+work is setup rather than development, so it runs as a parallel track in
+phase 1 and does not compete with the analytics work.
+
+Three setup steps, none of them development:
+
+1. **Caro's own AWS account, with the sending domain verified** and SES moved
+   out of its sandbox. A new SES account sends only 200 messages a day, to
+   verified addresses only, until AWS grants production access. This is the
+   one external dependency on the whole track.
+2. **Domain warm-up.** Mailchimp's shared IPs carry their own sending
+   reputation; a fresh domain does not. Volume has to build over a few weeks
+   or the first large release lands in spam. This is the real risk, and it is
+   a scheduling matter rather than a technical one.
+3. **Journalist lists imported** from Mailchimp. `pressImport.js` exists.
+
+Run both in parallel for one release cycle before cancelling Mailchimp, so a
+deliverability problem surfaces while there is still another way to send.
+
+---
+
 ## Phases
 
 ### Phase 1: store it and score it honestly
@@ -171,6 +215,13 @@ query.
 - Wire `socialBaseline` into `socialReport`.
 
 Sprout untouched throughout.
+
+**In parallel, and independent of all of the above: the Mailchimp track.**
+Caro's AWS account, domain verification, SES out of the sandbox, warm-up,
+lists imported, one release sent both ways. No development, so it competes
+with the analytics work for nobody's time but Daniel's. It is also where the
+first cash saving lands: about £6,000 a year, available in weeks rather than
+at Sprout's renewal.
 
 ### Phase 2: answer the questions
 
@@ -306,17 +357,27 @@ a real API call is a liability rather than a saving.
 
 ## Loose ends
 
-1. **The two source attachments are not in the repository.** The monthly
-   activity report PDF and the written sign-off process should land in
-   `docs/omi/briefs/` beside this file, for the same reason this folder
-   exists: a conversation attachment is invisible to the next session. The
-   six-step list above is reconstructed from the conversation, not copied from
-   the source.
-2. **Paid social in Shared rather than Paid.** Assumption above, needs a yes.
-3. **The NLA licence.** Daniel to confirm what Caro holds.
-4. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
-   TikTok are named. Daniel asked for an explanation of the options before
-   deciding; TikTok is now phase 4.
-5. **Mailchimp.** The ~£6,000 is in scope for replacement but no email module
-   is in Caro's list. Either Owned comes in later or the saving is not
-   claimed. Unresolved.
+1. **The two source attachments are not in the repository, and this is the
+   one thing blocking the next step.** Needed:
+   - **Caro's monthly activity report**, the one produced by hand today, as
+     the PDF or a link to the live document. Phase 2 automates this report,
+     and automating it means reproducing its sections, its order and the
+     figures it quotes. Without the artefact that is guesswork.
+   - **The written sign-off process**, so the six steps are canonical rather
+     than reconstructed from conversation, which is what the list below them
+     currently is.
+
+   Both should land in `docs/omi/briefs/` beside this file, for the reason
+   this folder exists: a conversation attachment is invisible to the session
+   after the one that saw it.
+
+2. **The NLA licence.** Daniel to confirm what Caro holds. It covers cuttings
+   and is a separate question from Readly.
+
+3. **Which networks beyond the four.** Instagram, LinkedIn, Facebook and
+   TikTok are named. Daniel asked for the options explained before deciding;
+   TikTok is now phase 4.
+
+4. **Caro's AWS account for SES.** See Mailchimp above. Needed before any
+   press release sends from OMI, and the only item on that track with an
+   external dependency.
