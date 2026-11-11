@@ -24,6 +24,18 @@
 > shipped, what is left and in what order, the two open decisions, and four
 > claims from design reviews that did not survive measurement and should not
 > be rebuilt.
+>
+> **Caro Communications is a live, scoped, unstarted project.** Read
+> `docs/omi/briefs/caro-agency.md` before touching social analytics or the
+> user model. Two things in it will catch a session out. OMI has no tenant or
+> agency concept at all, only `admin`, `viewer` and `client`, and Caro needs a
+> super-administrator over an administrator who makes their own team logins.
+> And the social analytics are not as finished as they look: the monthly
+> report ranks posts by raw engagement rate rather than through
+> `socialBaseline`, so the best post in a client report is decided by the
+> smallest post, and nothing about the client's own account is ever stored, so
+> no trend question can be answered. The brief records all four gaps with
+> file and line, measured on 11 November 2026.
 
 > **Any screen, flow or IA change goes past `ux-critic` before you build it,
 > and again before it ships.** It is a standing agent defined at
