@@ -1,5 +1,12 @@
 # Brief: Produce → Studio
 
+> **PAUSED 11 November 2026**, at Daniel's request, with everything merged
+> and deployed and nothing half-finished in the tree. Before reading this
+> file, read **`docs/omi/produce-studio-handover.md`**: it says where the
+> work got to, what is left, which two decisions it is waiting on, and the
+> four claims that did not survive measurement. This file is the reasoning
+> and is long; that one is the state and is short.
+
 > **This is a BRIEF, not a plan.** Where it disagrees with an implementation
 > plan in `docs/omi/`, this file wins and the plan is wrong. A plan that
 > departs from it has to say so in the plan, in writing, with Daniel's sign

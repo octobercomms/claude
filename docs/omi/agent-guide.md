@@ -17,6 +17,13 @@
 > Daniel noticed. **An agreed decision that is not a file in this repository
 > does not survive the session that heard it.** If he agrees something with
 > you, write it into `briefs/` in that same session.
+>
+> **Produce → Studio is PAUSED as of 11 November 2026**, merged and deployed,
+> waiting on two decisions from Daniel. Read
+> `docs/omi/produce-studio-handover.md` before touching that screen: what
+> shipped, what is left and in what order, the two open decisions, and four
+> claims from design reviews that did not survive measurement and should not
+> be rebuilt.
 
 > **Any screen, flow or IA change goes past `ux-critic` before you build it,
 > and again before it ships.** It is a standing agent defined at
