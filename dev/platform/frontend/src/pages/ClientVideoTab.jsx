@@ -107,7 +107,10 @@ export default function ClientVideoTab() {
         // opening the link sees their own name and none of October's chrome,
         // so the person minting it should see whose link they are making.
         <CompositionEditorPage clientId={id} clientName={client?.name}
-          openId={openCompId} onOpen={setOpenCompId} />
+          openId={openCompId} onOpen={setOpenCompId}
+          // Back to the sheet the reel came from, carrying which batch, so
+          // the review screen does not land on whichever run is newest.
+          onOpenBatch={(batchId) => setTab('batch_review', batchId ? `?open=${batchId}` : '')} />
       )}
       {tab === 'record' && (
         <RecordingsPage

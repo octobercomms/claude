@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import ListDetail from '../components/shells/ListDetail';
 import StatStrip from '../components/shells/StatStrip';
+import { useOpenParam } from '../hooks/useOpenRecord';
 
 /**
  * The review sheet: thirty videos, one verdict each.
@@ -87,15 +88,30 @@ export default function VideoBatchReviewPage({ clientId, onOpenInEditor = null }
 
   useEffect(() => () => { liveRef.current = false; }, []);
 
+  // WHICH batch, from the address when it says.
+  //
+  // The sheet opened whichever run was newest, which is right when you
+  // arrive here cold and wrong when you have just come back from the Studio
+  // having judged a reel in an older one — you would land on a different
+  // batch and have to find your way back through the picker.
+  //
+  // `?open=<batch id>` is this repo's one convention for naming a record on
+  // a screen's own URL, and the Studio's kicker writes it.
+  const { openId: openBatchId } = useOpenParam();
+
   useEffect(() => {
     api.get(`/compose/clients/${clientId}/batches`)
       .then((rows) => {
         setList(rows);
-        if (rows.length && batchId == null) setBatchId(rows[0].id);
+        if (!rows.length) return;
+        const named = openBatchId
+          && rows.find((r) => String(r.id) === String(openBatchId));
+        if (named) setBatchId(named.id);
+        else if (batchId == null) setBatchId(rows[0].id);
       })
       .catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId]);
+  }, [clientId, openBatchId]);
 
   const load = useCallback(() => {
     if (batchId == null) return;
