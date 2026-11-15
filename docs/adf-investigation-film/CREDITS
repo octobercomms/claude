@@ -1,0 +1,46 @@
+Where the Year Goes
+Made entirely in code. No stock footage, no generated video, no generated images, no third-party
+pictures, recordings or data of any kind.
+
+EVIDENCE
+  Two documents supplied by the client, and the figures stated inside them:
+    · Atlanta Design Festival 2027 — Direction for the twentieth year. September 2026, 18 slides.
+    · A festival convenes. It does not produce. October 2026, 6 slides.
+  Pages of both are shown as evidence frames, rendered from the client's own PDFs at 150 dpi and
+  graded to greyscale. Quoted lines are typeset as transcriptions and labelled as such.
+  Every claim, with its source page and the wording it comes from, is listed in FACTS.md, along
+  with the three inferences the film makes and marks on screen.
+
+  The production calendar is a schematic reading, not a record: the documents state that each
+  produced event takes months of build but give no month-by-month schedule. The calendar carries
+  SCHEMATIC on screen throughout.
+
+TYPEFACES
+  Archivo — Omnibus-Type — SIL Open Font License 1.1
+  IBM Plex Mono — IBM — SIL Open Font License 1.1
+  Source Serif 4 — Adobe — SIL Open Font License 1.1
+  Licence texts ship beside the fonts in fonts/. All three are used as the style names them:
+  a grotesque for findings, mono for tags and readouts, serif italic for quoted wording.
+
+VOICE
+  Kokoro (kokoro-onnx), voice am_michael, run locally and offline. Synthetic narration, not a
+  recording of a person. The script is in lines.json and the subtitles in film.json.
+
+  Note: the speech-to-text check the pipeline normally runs on every line could not run in the
+  environment this was built in, because the Whisper model host was unreachable. The script
+  contains no digits, abbreviations or unusual spellings, and the subtitles carry the authoritative
+  wording.
+
+SOUND
+  Score and foley synthesised in this project (mix.py) with numpy and scipy: bowed low strings,
+  pizzicato, tremolo clusters, a resolving chord, a pendulum tick, and the print foley (paper,
+  pencil, keystrokes, taps, a rubber stamp, a rewind sweep and one deep thump). No sample
+  libraries, no recordings, no third-party audio.
+
+PICTURE
+  Drawn frame by frame with Canvas 2D in this project (film.js), captured headless and encoded
+  with ffmpeg. Lemo-Opuscar supplies the render and audio tooling
+  (github.com/lemomo-ai/lemo-opuscar, code MIT); none of its demo material is in this film.
+
+RIGHTS
+  The client owns the source documents and is responsible for where this film is shown.

@@ -1,0 +1,224 @@
+{
+ "dur": 192.5,
+ "fps": 30,
+ "sections": [
+  {
+   "id": "open",
+   "t0": 1.5,
+   "t1": 28.0
+  },
+  {
+   "id": "record",
+   "t0": 28.0,
+   "t1": 52.0
+  },
+  {
+   "id": "sale",
+   "t0": 52.0,
+   "t1": 74.0
+  },
+  {
+   "id": "year",
+   "t0": 74.0,
+   "t1": 109.5
+  },
+  {
+   "id": "costs",
+   "t0": 109.5,
+   "t1": 147.0
+  },
+  {
+   "id": "compare",
+   "t0": 147.0,
+   "t1": 168.0
+  },
+  {
+   "id": "board",
+   "t0": 168.0,
+   "t1": 178.0
+  },
+  {
+   "id": "map",
+   "t0": 178.0,
+   "t1": 192.5
+  }
+ ],
+ "cues": [
+  {
+   "id": "l01",
+   "t0": 1.5,
+   "t1": 8.17
+  },
+  {
+   "id": "l02",
+   "t0": 8.59,
+   "t1": 12.819
+  },
+  {
+   "id": "l03",
+   "t0": 13.239,
+   "t1": 21.991
+  },
+  {
+   "id": "l04",
+   "t0": 22.411,
+   "t1": 26.744
+  },
+  {
+   "id": "l05",
+   "t0": 28.0,
+   "t1": 33.534
+  },
+  {
+   "id": "l06",
+   "t0": 33.954,
+   "t1": 42.387
+  },
+  {
+   "id": "l07",
+   "t0": 42.807,
+   "t1": 50.703
+  },
+  {
+   "id": "l08",
+   "t0": 52.0,
+   "t1": 54.19
+  },
+  {
+   "id": "l09",
+   "t0": 54.61,
+   "t1": 60.161
+  },
+  {
+   "id": "l10",
+   "t0": 60.581,
+   "t1": 66.248
+  },
+  {
+   "id": "l11",
+   "t0": 67.5,
+   "t1": 71.86
+  },
+  {
+   "id": "l12",
+   "t0": 74.0,
+   "t1": 76.629
+  },
+  {
+   "id": "l13",
+   "t0": 77.049,
+   "t1": 83.874
+  },
+  {
+   "id": "l14",
+   "t0": 84.294,
+   "t1": 92.747
+  },
+  {
+   "id": "l15",
+   "t0": 93.167,
+   "t1": 95.15
+  },
+  {
+   "id": "l16",
+   "t0": 96.5,
+   "t1": 98.054
+  },
+  {
+   "id": "l17",
+   "t0": 99.5,
+   "t1": 107.834
+  },
+  {
+   "id": "l18",
+   "t0": 109.5,
+   "t1": 113.773
+  },
+  {
+   "id": "l19",
+   "t0": 114.193,
+   "t1": 122.568
+  },
+  {
+   "id": "l20",
+   "t0": 122.988,
+   "t1": 130.89
+  },
+  {
+   "id": "l21",
+   "t0": 131.31,
+   "t1": 135.58
+  },
+  {
+   "id": "l22",
+   "t0": 136.5,
+   "t1": 145.185
+  },
+  {
+   "id": "l23",
+   "t0": 147.0,
+   "t1": 156.795
+  },
+  {
+   "id": "l24",
+   "t0": 157.215,
+   "t1": 161.77
+  },
+  {
+   "id": "l25",
+   "t0": 162.19,
+   "t1": 166.523
+  },
+  {
+   "id": "l26",
+   "t0": 168.0,
+   "t1": 170.99
+  },
+  {
+   "id": "l27",
+   "t0": 171.41,
+   "t1": 176.363
+  },
+  {
+   "id": "l28",
+   "t0": 178.0,
+   "t1": 182.725
+  },
+  {
+   "id": "l29",
+   "t0": 183.145,
+   "t1": 189.253
+  }
+ ],
+ "subs": {
+  "l01": "In October 2026, the Atlanta Design Festival wrote down why it was losing money.",
+  "l02": "The explanation is one sentence, halfway down the second page.",
+  "l03": "Events cost months before they earn a dollar. The time that goes into building them is the time that would go into selling.",
+  "l04": "This is a reading of that claim, against the festival's own records.",
+  "l05": "Two internal documents. 18 slides in September. Six in October.",
+  "l06": "They agree on the numbers. Tour revenue of $14,685, 70% below peak.",
+  "l07": "Website traffic down a quarter. A mailing list that has not grown. 11 months with no money coming in.",
+  "l08": "The selling year is thirteen weeks long.",
+  "l09": "Nine of those weeks produce almost nothing. 10% of the year is in at four weeks out.",
+  "l10": "60% arrives in the final week, after every cost has already been paid.",
+  "l11": "Finding one. The festival cannot forecast, so it cannot commit.",
+  "l12": "Now the same year, read as a calendar.",
+  "l13": "Three produced events. A conference, a workshop, and an exhibition. Each takes months of build.",
+  "l14": "Against that, the selling calendar. Sponsors are approached in Q1. The chapters set budgets in the fall.",
+  "l15": "Put the two on the same axis.",
+  "l16": "They are the same months.",
+  "l17": "Finding two. Production does not compete for money. It competes for January, February and March.",
+  "l18": "Three consequences follow, and none appear in an event budget.",
+  "l19": "Every product is paid, so nobody who does not already know the festival can enter.",
+  "l20": "One list, remarketed each year, is the only channel. Flat at about 9,400 names.",
+  "l21": "And of six things the festival has to sell, two have ever been sold.",
+  "l22": "Finding three. The loss on the events is the small number. The large one was never worked.",
+  "l23": "Seattle runs a raw, deliberately unglossy program, and raises five figures from one sponsor.",
+  "l24": "Portland kept producing. It peaked, and it shut in 2021.",
+  "l25": "The difference is not production value. It is who does the producing.",
+  "l26": "What the record establishes, and what it does not.",
+  "l27": "The festival's own figures were never measured. Nobody has priced the months.",
+  "l28": "Every source here points at the same place on the calendar. The first quarter.",
+  "l29": "The decision is whether those months go into building events, or into selling the festival."
+ }
+}
