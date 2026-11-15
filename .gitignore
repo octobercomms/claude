@@ -46,3 +46,7 @@ dev/platform/backend/video-samples/cache/
 # Generated codebase maps from the floorplan skill. Derived from the code it
 # scans and rebuilt on demand, at any repo or app root.
 floorplan/
+
+# Film projects: source is kept in dev/<name>-film, the renders are not.
+# 2,520 JPEG frames, a 30MB WAV and the cut itself are rebuilt by build.sh.
+films/
