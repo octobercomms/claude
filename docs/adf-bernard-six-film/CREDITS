@@ -1,0 +1,40 @@
+A Festival Convenes
+Made entirely in code. No stock footage, no generated video, no generated images.
+
+TYPEFACE
+  Archivo (variable roman, weight 100–900, width 62–125)
+  Omnibus-Type · https://github.com/google/fonts/tree/main/ofl/archivo
+  SIL Open Font License 1.1 · the licence text ships beside the font in fonts/OFL.txt
+  Used for every word in the film.
+
+SOUND
+  Score and foley are synthesised in this project (mix.py) with numpy and scipy:
+  kick, closed hat, rim, bass, marimba, glockenspiel, vibraphone, sine glide, and the print
+  foley (ruling pen, block snap, letterpress clack, guillotine snick, paper slap and slide,
+  numeral thunk, rubber stamp, carriage return). No sample libraries, no recordings,
+  no third-party audio of any kind.
+
+PICTURE
+  Drawn frame by frame with Canvas 2D in this project (film.js), captured headless and
+  encoded with ffmpeg. Lemo-Opuscar supplies the render and audio tooling
+  (https://github.com/lemomo-ai/lemo-opuscar, code MIT); none of its demo material,
+  artwork or music is in this film.
+
+CONTENT
+  Every figure, name and quoted phrase is from the source deck, "A festival convenes. It does not
+  produce.", Atlanta Design Festival, prepared for Bernard by Daniel, October 2026, supplied by the
+  client. The six institutions are named as set type, not as logos or marks. The film carries no
+  third-party trademark, photograph, footage, map or dataset.
+
+  Figures as the deck states them: website traffic down 25% (32,342 sessions in 2025 against 21,308
+  so far in 2026); eleven months with no money coming in; 60% of tickets sold in the last week;
+  $14,685 tour revenue in 2026; Portland peaked at $239,630 and shut in 2021; 9,400 on the list at
+  37% open and 16% click; sponsorship $1,000-$20,000, website advertising $625-$8,500, Industry
+  Resources $2,500 each, directory listings $50 a year, the store $42 a shirt; $450 to file the
+  nonprofit, around six months to the determination letter.
+
+  The deck says two of the six revenue lines have ever been sold and does not say which two. The
+  film shows two of six marks filled rather than naming any line.
+
+RIGHTS
+  The client is responsible for the material in this film and for where it is shown.
