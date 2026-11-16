@@ -453,11 +453,25 @@ output rights assigned to the customer and content treated as confidential.
 Their privacy policy separately confirms it does not govern business content,
 which is the distinction most coverage of AI training misses.
 
+It is stronger still once the Privacy Center detail is added: **the agency is
+the data controller and Anthropic the processor**, a DPA with Standard
+Contractual Clauses is built into the commercial terms, API content is deleted
+within 30 days, and Anthropic is audited against **ISO/IEC 42001** for AI
+management as well as ISO 27001 and SOC 2.
+
+Two facts the document is careful about. Data is **stored in the United
+States**, with a US-only routing option available, which a UK client will ask
+about. And API content **cannot be deleted on demand**, only automatically
+within 30 days, so the client-facing page says that rather than promising
+something we cannot do.
+
 `services/aiModels.js` already flags every AI feature `sensitive: true` or
 `false` and routes each to a chosen model. What the policy needs that does not
 exist: a **per-client AI mode** (normal, Claude-only, off), and a hard refusal
 rather than a warning when a sensitive feature is pointed at a non-Claude
-provider.
+provider. One standing product rule comes with it: **never add a thumbs up/down
+that sends ratings to Anthropic**, because submitting feedback is one of the
+three ways the no-training default is broken.
 
 Carolyn's framing is why this is worth doing well rather than minimally: "we
 should be the people that are ahead of the game."
