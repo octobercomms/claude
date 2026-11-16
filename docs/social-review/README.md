@@ -63,111 +63,91 @@ be found by guessing a client name. Clients need no login and no account.
 
 ## Deploying it, step by step
 
-You need a Cloudflare account and Node 18 or newer. Everything below sits
-inside the free tier. Budget twenty minutes for the first run.
+**You are not creating a new Cloudflare account.** October already has one, the
+same account that serves `october-platform` from this repo. This is a new
+project inside it. The repo secrets `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` are already set and get reused.
+
+Do steps 1 to 6 once. After that, merging to `main` deploys on its own through
+`.github/workflows/social-review-deploy.yml`.
 
 ### 1. Turn on R2
 
 R2 stores the videos and images. Cloudflare asks for a payment method before it
-will enable R2, even though the free allowance costs nothing.
+will enable R2, even though the free allowance costs nothing. Without this,
+step 2 fails with an error that does not explain itself.
 
-Go to **dash.cloudflare.com → R2 → Overview**, and follow the prompt to enable
-it. Nothing is charged while you stay inside 10 GB of storage.
+**dash.cloudflare.com → R2 → Overview**, then follow the prompt to enable it.
+Nothing is charged while you stay inside 10 GB of storage.
 
-### 2. Get the code and install
+### 2. Create the bucket
 
-```bash
-git clone https://github.com/octobercomms/claude.git
-```
+**R2 → Create bucket**, name it `social-review-media`, leave the location
+automatic.
 
-```bash
-cd claude/dev/social-review && npm install
-```
-
-### 3. Sign wrangler in to Cloudflare
-
-```bash
-npx wrangler login
-```
-
-A browser tab opens. Approve it, then come back to the terminal.
-
-### 4. Create the bucket
+Or from a terminal, once `npx wrangler login` has run:
 
 ```bash
 npx wrangler r2 bucket create social-review-media
 ```
 
-### 5. Name the tool
+### 3. Create the Pages project
 
-Open `wrangler.toml` and set `BRAND_NAME` to whatever should appear in the
-admin header. Leave it as `Content Review` to stay neutral across clients.
+**Workers & Pages → Create → Pages → Upload assets**. Name it `social-review`.
+Upload anything to get past the first screen; the real deploy follows in
+step 6. Choose **Direct Upload**, not Git, so the workflow stays in charge.
 
-### 6. Create the Pages project
+### 4. Set the two secrets
 
-```bash
-npx wrangler pages project create social-review --production-branch main
-```
+**Workers & Pages → social-review → Settings → Variables and secrets**, and add
+both as type **Secret**, for the Production environment:
 
-### 7. Deploy
+| Name | Value |
+|---|---|
+| `TEAM_PASSWORD` | The password your team types at `/admin`. Put it in the shared password manager. |
+| `AUTH_SECRET` | A long random string, generated below. Nobody ever types this one. |
 
-```bash
-npx wrangler pages deploy
-```
-
-This prints a URL ending in `.pages.dev`. It will not work until step 8.
-
-### 8. Set the two secrets
-
-The first is the password your team types. Pick something you are happy to put
-in a shared password manager:
-
-```bash
-npx wrangler pages secret put TEAM_PASSWORD --project-name social-review
-```
-
-The second signs the session cookie and is never typed by anyone. Generate it:
+Generate the second with:
 
 ```bash
 openssl rand -base64 32
 ```
 
-Then paste that output when this asks for it:
+### 5. Bind R2 and name the tool
+
+Same Settings page, **Bindings → Add → R2 bucket**. Variable name `MEDIA`,
+bucket `social-review-media`. Signing in at `/admin` fails without this.
+
+`BRAND_NAME` comes from `wrangler.toml` and reads `Content Review`. Edit that
+line if you want the header to say something else.
+
+### 6. Deploy
+
+Merge the branch to `main`. The workflow publishes on every change under
+`dev/social-review/`.
+
+To deploy by hand instead, or to deploy before merging:
 
 ```bash
-npx wrangler pages secret put AUTH_SECRET --project-name social-review
+cd dev/social-review && npx wrangler login && npx wrangler pages deploy
 ```
 
-### 9. Confirm the R2 binding
+### 7. Point a domain at it
 
-`wrangler.toml` declares the `MEDIA` binding and the deploy should carry it
-across. Check at **Workers & Pages → social-review → Settings → Bindings**.
+**Workers & Pages → social-review → Custom domains → Set up a domain**, e.g.
+`review.octobercomms.com`. Cloudflare writes the DNS record itself when the
+domain is already on the account.
 
-If no R2 binding is listed, add one: variable name `MEDIA`, bucket
-`social-review-media`. Without it, signing in at `/admin` fails.
-
-### 10. Point a domain at it
-
-At **Workers & Pages → social-review → Custom domains → Set up a domain**, add
-something like `review.yourdomain.com`. Cloudflare adds the DNS record for you
-if the domain is already on your account.
-
-Links sent to clients then read `review.yourdomain.com/r/…` rather than
+Links then read `review.octobercomms.com/r/…` rather than
 `social-review.pages.dev/r/…`.
 
-### 11. Check it works
+### 8. Check it works
 
-Open `https://review.yourdomain.com/admin`, sign in with the password from
-step 8, create a test review, upload one image and one MP4, and open the client
-link in a private window to confirm it loads without a login.
+Open `/admin`, sign in with the password from step 4, create a test review,
+upload one image and one MP4, then open the client link in a private window and
+confirm it loads with no login and the video plays.
 
-### Deploying a change later
-
-```bash
-cd claude/dev/social-review && git pull && npx wrangler pages deploy
-```
-
-Secrets and the bucket persist. Only step 7 repeats.
+If the admin signs in but uploading fails, the R2 binding in step 5 is missing.
 
 ---
 

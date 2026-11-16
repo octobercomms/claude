@@ -1,0 +1,50 @@
+# Auto-deploys the Social Review client sign-off tool to Cloudflare Pages on
+# every merge to `main`. No build step — plain HTML/JS/CSS plus Pages Functions,
+# so wrangler publishes the folder as it stands.
+#
+# One-time setup (see docs/social-review/README.md for the walkthrough):
+#   1. Create the R2 bucket `social-review-media`.
+#   2. Create a Pages project named `social-review` (Direct Upload / no Git).
+#   3. Set TEAM_PASSWORD and AUTH_SECRET on the project, and bind R2 as MEDIA.
+#   4. Point a custom domain at the project.
+#
+# Repo secrets CLOUDFLARE_API_TOKEN (Pages:Edit) and CLOUDFLARE_ACCOUNT_ID are
+# already set for october-platform and are reused here.
+#
+# Runs from inside dev/social-review so wrangler reads that project's
+# wrangler.toml, which carries pages_build_output_dir, the R2 binding and
+# BRAND_NAME. Deploying the folder from the repo root would skip all three.
+name: Social Review — Deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'dev/social-review/**'
+      - '.github/workflows/social-review-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish to Cloudflare Pages
+        working-directory: dev/social-review
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Cloudflare secrets not set — skipping deploy. Add CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID."
+            exit 0
+          fi
+          npx --yes wrangler@4 pages deploy \
+            --project-name=social-review \
+            --branch=main \
+            --commit-dirty=true
