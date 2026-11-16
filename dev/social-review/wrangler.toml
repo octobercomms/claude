@@ -1,0 +1,14 @@
+name = "october-social-review"
+compatibility_date = "2025-10-01"
+pages_build_output_dir = "public"
+
+# R2 holds both the uploaded media and the per-review manifest JSON.
+# Create the bucket once:  npx wrangler r2 bucket create october-social-review
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "october-social-review"
+
+# Secrets are NOT set here. Set them in the Cloudflare dashboard
+# (Workers & Pages > the project > Settings > Variables and Secrets):
+#   TEAM_PASSWORD  - the shared password your team types at /admin
+#   AUTH_SECRET    - any long random string, used to sign the session cookie

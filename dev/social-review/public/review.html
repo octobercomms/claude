@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Content review</title>
+<link rel="stylesheet" href="/assets/ig.css">
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <span class="mark">O</span>
+    <div>
+      <h1 id="title">Content review</h1>
+      <p class="sub" id="sub">Loading</p>
+    </div>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="View">
+      <button id="tab-feed" aria-pressed="true">Feed</button>
+      <button id="tab-grid" aria-pressed="false">Grid</button>
+    </div>
+    <button class="btn" id="toggle-ui" aria-pressed="false">Hide Instagram UI</button>
+    <button class="btn" id="toggle-safe" aria-pressed="false">Safe zones</button>
+  </header>
+
+  <p class="note" id="intro">
+    These are mockups, rendered at the real crop Instagram applies. Carousels swipe, reels play on scroll.
+    Tap a reel for sound. <b>Safe zones</b> shades the areas Instagram's own buttons and caption sit over.
+    Send any changes by email as usual.
+  </p>
+
+  <main id="out" class="feed" aria-live="polite"></main>
+</div>
+<script type="module" src="/assets/review.js"></script>
+</body>
+</html>

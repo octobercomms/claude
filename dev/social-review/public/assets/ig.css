@@ -1,0 +1,302 @@
+/* ------------------------------------------------------------------
+   October Social Review
+   Page shell uses October brand. Everything inside .phone imitates
+   Instagram so the client sees the crop they will actually get.
+------------------------------------------------------------------ */
+
+:root {
+  --oc-ink: #231f20;
+  --oc-yellow: #e7cd41;
+  --oc-paper: #f4f3f1;
+  --oc-line: #e2dfd9;
+  --oc-muted: #6e6a66;
+  --sys: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ig-ink: #000;
+  --ig-line: #dbdbdb;
+  --ig-muted: #737373;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--sys);
+  color: var(--oc-ink);
+  background: var(--oc-paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- page shell ---------- */
+
+.shell { max-width: 1180px; margin: 0 auto; padding: 0 20px 80px; }
+
+.topbar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 20px 0 18px; border-bottom: 1px solid var(--oc-line); margin-bottom: 28px;
+}
+.topbar .mark {
+  width: 30px; height: 30px; border-radius: 7px; flex: none;
+  background: var(--oc-yellow); display: grid; place-items: center;
+  font-weight: 700; font-size: 14px; color: var(--oc-ink);
+}
+.topbar h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+.topbar .sub { font-size: 13px; color: var(--oc-muted); margin: 2px 0 0; }
+.topbar .spacer { flex: 1 1 auto; }
+
+/* ---------- controls ---------- */
+
+.controls {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 26px;
+}
+.seg {
+  display: inline-flex; background: #fff; border: 1px solid var(--oc-line);
+  border-radius: 9px; padding: 3px; gap: 2px;
+}
+.seg button {
+  font: inherit; font-size: 13px; font-weight: 550; border: 0; cursor: pointer;
+  background: transparent; color: var(--oc-muted); padding: 6px 13px; border-radius: 7px;
+}
+.seg button[aria-pressed="true"] { background: var(--oc-ink); color: #fff; }
+
+.btn {
+  font: inherit; font-size: 13px; font-weight: 550; cursor: pointer;
+  background: #fff; color: var(--oc-ink); border: 1px solid var(--oc-line);
+  border-radius: 9px; padding: 9px 14px;
+}
+.btn:hover { border-color: #c8c4bc; }
+.btn[aria-pressed="true"] { background: var(--oc-ink); color: #fff; border-color: var(--oc-ink); }
+.btn.primary { background: var(--oc-ink); color: #fff; border-color: var(--oc-ink); }
+.btn.danger { color: #b3261e; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+input[type="text"], input[type="password"] {
+  font: inherit; font-size: 14px; padding: 10px 12px; border-radius: 9px;
+  border: 1px solid var(--oc-line); background: #fff; color: var(--oc-ink); min-width: 0;
+}
+input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
+  outline: 2px solid var(--oc-ink); outline-offset: 2px;
+}
+
+.note {
+  font-size: 13px; color: var(--oc-muted); line-height: 1.5;
+  background: #fff; border: 1px solid var(--oc-line); border-left: 3px solid var(--oc-yellow);
+  border-radius: 8px; padding: 12px 14px; margin: 0 0 24px;
+}
+.empty { color: var(--oc-muted); font-size: 14px; padding: 60px 0; text-align: center; }
+
+/* ---------- layout of posts ---------- */
+
+.feed { display: flex; flex-wrap: wrap; gap: 48px 40px; align-items: flex-start; }
+.slot { width: 390px; flex: none; }
+.slot-label {
+  font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--oc-muted); margin: 0 0 10px; display: flex; gap: 8px; align-items: center;
+}
+.slot-label .tag {
+  background: var(--oc-ink); color: #fff; border-radius: 5px; padding: 2px 7px;
+  font-size: 10px; letter-spacing: .06em;
+}
+.warn {
+  font-size: 12px; line-height: 1.45; color: #8a5a00; background: #fff8e2;
+  border: 1px solid #f0dca4; border-radius: 8px; padding: 8px 10px; margin-top: 10px;
+}
+
+/* ---------- the phone ---------- */
+
+.phone {
+  width: 390px; border-radius: 42px; padding: 9px; background: #1c1b1a;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 18px 40px -12px rgba(0,0,0,.3);
+}
+.phone-screen {
+  border-radius: 34px; overflow: hidden; background: #fff; position: relative;
+}
+.phone.dark .phone-screen { background: #000; }
+
+.ig-status {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 20px 6px; font-size: 13px; font-weight: 600; color: var(--ig-ink);
+}
+.phone.dark .ig-status { color: #fff; }
+.ig-status .glyphs { display: flex; gap: 5px; align-items: center; opacity: .9; }
+
+/* ---------- feed post ---------- */
+
+.ig-head { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.ig-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex: none; object-fit: cover;
+  background: linear-gradient(135deg, #f9ce34, #ee2a7b 55%, #6228d7);
+}
+.ig-handle { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.ig-sub { font-size: 11px; color: var(--ig-muted); }
+.ig-head .dots { margin-left: auto; color: var(--ig-ink); }
+.phone.dark .ig-head, .phone.dark .ig-handle { color: #fff; }
+
+.ig-media { position: relative; background: #efefef; overflow: hidden; }
+.ig-slides {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  scrollbar-width: none; height: 100%; width: 100%;
+}
+.ig-slides::-webkit-scrollbar { display: none; }
+.ig-slides > figure {
+  margin: 0; flex: 0 0 100%; scroll-snap-align: center; position: relative;
+  height: 100%; background: #efefef;
+}
+.ig-slides img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.ig-count {
+  position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,.55);
+  color: #fff; font-size: 12px; font-weight: 600; border-radius: 12px; padding: 3px 9px;
+  backdrop-filter: blur(2px); pointer-events: none;
+}
+/* Instagram centres the carousel dots inside the action row, not over the image. */
+.ig-dots {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 4px; align-items: center; pointer-events: none;
+}
+.ig-dots i {
+  width: 6px; height: 6px; border-radius: 50%; background: #c7c7c7; transition: background .15s;
+}
+.ig-dots i.on { background: #0095f6; }
+
+.ig-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(255,255,255,.85); color: #262626; display: grid; place-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2); padding: 0;
+}
+.ig-arrow[hidden] { display: none; }
+.ig-arrow.prev { left: 8px; }
+.ig-arrow.next { right: 8px; }
+
+.ig-actions { display: flex; align-items: center; padding: 11px 13px 6px; position: relative; }
+.ig-actions .left { display: flex; align-items: center; gap: 15px; }
+.ig-actions .save { margin-left: auto; }
+.ig-likes { padding: 0 13px 14px; font-size: 13px; font-weight: 600; }
+.ig-likes span { font-weight: 400; color: var(--ig-muted); }
+
+/* ---------- reel ---------- */
+
+.ig-reel { position: relative; aspect-ratio: 9 / 16; background: #000; overflow: hidden; }
+.ig-reel video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+
+.reel-top {
+  position: absolute; top: 0; left: 0; right: 0; padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  color: #fff; font-size: 17px; font-weight: 650;
+  background: linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,0));
+}
+.reel-rail {
+  position: absolute; right: 10px; bottom: 86px; display: flex; flex-direction: column;
+  gap: 20px; align-items: center; color: #fff;
+}
+.reel-rail figure { margin: 0; display: grid; justify-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
+.reel-disc {
+  width: 28px; height: 28px; border-radius: 7px; border: 2px solid rgba(255,255,255,.85);
+  background: linear-gradient(135deg, #555, #111); margin-top: 4px;
+}
+.reel-foot {
+  position: absolute; left: 0; right: 64px; bottom: 0; padding: 0 14px 16px; color: #fff;
+  background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.5));
+}
+.reel-foot .who { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.reel-foot .who img, .reel-foot .who .ig-avatar { width: 28px; height: 28px; }
+.reel-foot .who b { font-size: 13px; font-weight: 600; }
+.reel-foot .follow {
+  border: 1px solid rgba(255,255,255,.9); border-radius: 7px; padding: 3px 9px;
+  font-size: 12px; font-weight: 600;
+}
+.reel-foot .audio { display: flex; gap: 6px; align-items: center; font-size: 12px; opacity: .95; }
+
+/* Kept out of the middle so it never hides the creative being judged. */
+.reel-unmute {
+  position: absolute; top: 52px; right: 14px;
+  background: rgba(0,0,0,.55); color: #fff; border: 0; cursor: pointer;
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  backdrop-filter: blur(3px);
+}
+.reel-unmute[hidden] { display: none; }
+
+/* safe zones: where Instagram's own UI sits over the creative */
+.safe { position: absolute; inset: 0; pointer-events: none; display: none; }
+.showsafe .safe { display: block; }
+.safe i {
+  position: absolute; background: rgba(214, 40, 40, .17);
+  border: 1px dashed rgba(255,255,255,.65);
+}
+.safe .t { top: 0; left: 0; right: 0; height: 14%; }
+.safe .b { bottom: 0; left: 0; right: 0; height: 20%; }
+.safe .r { top: 14%; bottom: 20%; right: 0; width: 16%; }
+.safe em {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  font-style: normal; font-size: 11px; font-weight: 650; letter-spacing: .04em;
+  color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); text-transform: uppercase;
+}
+
+/* hide the imitation Instagram UI to judge the creative on its own */
+.hideui .ig-head, .hideui .ig-actions, .hideui .ig-likes, .hideui .ig-status,
+.hideui .ig-count, .hideui .ig-dots, .hideui .reel-top, .hideui .reel-rail,
+.hideui .reel-foot { display: none !important; }
+
+/* ---------- grid (profile) view ---------- */
+
+.grid-wrap { width: 390px; }
+.grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+  background: #fff; padding: 2px;
+}
+.grid .cell { position: relative; aspect-ratio: 1; background: #efefef; overflow: hidden; }
+.grid .cell img, .grid .cell video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.grid .cell .pill {
+  position: absolute; top: 6px; right: 6px; color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
+}
+
+/* ---------- admin ---------- */
+
+.gate { max-width: 340px; margin: 14vh auto; text-align: left; }
+.gate h2 { font-size: 20px; margin: 0 0 6px; }
+.gate p { font-size: 14px; color: var(--oc-muted); margin: 0 0 20px; line-height: 1.5; }
+.gate form { display: grid; gap: 10px; }
+
+.card {
+  background: #fff; border: 1px solid var(--oc-line); border-radius: 12px;
+  padding: 16px 18px; margin-bottom: 12px;
+}
+.card .row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.card h3 { margin: 0; font-size: 15px; font-weight: 620; }
+.card .meta { font-size: 12.5px; color: var(--oc-muted); margin: 3px 0 0; }
+.card .spacer { flex: 1 1 auto; }
+
+.link-row {
+  display: flex; gap: 8px; align-items: center; margin-top: 12px;
+  background: var(--oc-paper); border-radius: 8px; padding: 8px 8px 8px 12px;
+}
+.link-row code { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+.drop {
+  border: 1.5px dashed #cfcac1; border-radius: 12px; padding: 26px 20px; text-align: center;
+  background: #fff; color: var(--oc-muted); font-size: 14px; line-height: 1.55; cursor: pointer;
+}
+.drop.over { border-color: var(--oc-ink); background: #fffdf2; color: var(--oc-ink); }
+.drop b { color: var(--oc-ink); }
+.drop input { display: none; }
+
+.bar { height: 4px; background: var(--oc-line); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+.bar i { display: block; height: 100%; background: var(--oc-ink); width: 0; transition: width .2s; }
+
+.err { color: #b3261e; font-size: 13px; margin: 10px 0 0; }
+.ok { color: #1d6b3f; font-size: 13px; margin: 10px 0 0; }
+
+.admin-post { display: flex; gap: 14px; align-items: center; }
+.admin-post .thumb {
+  width: 54px; height: 54px; border-radius: 8px; object-fit: cover; flex: none; background: #eee;
+}
+
+@media (max-width: 460px) {
+  .shell { padding: 0 12px 60px; }
+  .slot, .phone, .grid-wrap { width: 100%; max-width: 390px; }
+  .feed { gap: 36px 0; }
+}
