@@ -104,11 +104,22 @@ The live address is `social-review.pages.dev`. No custom domain is attached,
 which is deliberate while this is a temporary tool. Adding one later does not
 break links already sent, since the `pages.dev` address keeps working.
 
-To deploy by hand instead of through Git:
+### If the Git connection cannot be made
+
+A Cloudflare Pages Git connection already exists on this repository, owned by a
+different Cloudflare account, and deploys `october-platform` from it. A second
+Cloudflare account connecting to the same GitHub organisation may be refused.
+
+The fallback needs no GitHub connection. From a terminal, signed in to the
+October Communications account:
 
 ```bash
 cd dev/social-review && npx wrangler login && npx wrangler pages deploy
 ```
+
+That uploads the folder directly. The trade is that each later change needs the
+same command run again, rather than deploying on merge. Everything else, the
+bucket, the secrets and the binding, is identical.
 
 ---
 
