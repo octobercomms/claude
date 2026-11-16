@@ -104,8 +104,17 @@ Go to **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
 
 If GitHub is not yet authorised, follow the prompt to install or authorise the
 Cloudflare GitHub app and grant it access to the `octobercomms/claude`
-repository. This may need an organisation owner to approve. If approval is
-blocked, stop and report that.
+repository. This may need an organisation owner to approve.
+
+**Expect friction here.** A Cloudflare Pages Git connection already exists on
+this repository, owned by a different Cloudflare account, and it deploys a
+project called `october-platform`. The GitHub app may therefore appear already
+installed while not being linked to the account you are in. If the repository
+does not appear in the list, or the connection is refused, or you would have to
+change or remove an existing installation to proceed, **stop and report what
+you see. Do not remove or reconfigure the existing connection**, which would
+break someone else's deployment. There is a fallback that needs no GitHub
+connection at all, and the person who gave you this brief can run it.
 
 Select the repository `octobercomms/claude`, then set:
 
