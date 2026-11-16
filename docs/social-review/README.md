@@ -61,93 +61,51 @@ be found by guessing a client name. Clients need no login and no account.
 
 ---
 
-## Deploying it, step by step
+## Deploying it
 
-**You are not creating a new Cloudflare account.** October already has one, the
-same account that serves `october-platform` from this repo. This is a new
-project inside it. The repo secrets `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID` are already set and get reused.
+**There is a step by step walkthrough in `DEPLOY.md`** next to this file,
+written so it can be handed to someone, or to an agent, who has no context.
+What follows is the summary.
 
-Do steps 1 to 6 once. After that, merging to `main` deploys on its own through
-`.github/workflows/social-review-deploy.yml`.
+October already has a Cloudflare account, the same one that serves
+`october-platform` from this repo. This is a new project inside it, not a new
+account.
 
-### 1. Turn on R2
-
-R2 stores the videos and images. Cloudflare asks for a payment method before it
-will enable R2, even though the free allowance costs nothing. Without this,
-step 2 fails with an error that does not explain itself.
-
-**dash.cloudflare.com → R2 → Overview**, then follow the prompt to enable it.
-Nothing is charged while you stay inside 10 GB of storage.
-
-### 2. Create the bucket
-
-**R2 → Create bucket**, name it `social-review-media`, leave the location
-automatic.
-
-Or from a terminal, once `npx wrangler login` has run:
-
-```bash
-npx wrangler r2 bucket create social-review-media
-```
-
-### 3. Create the Pages project
-
-**Workers & Pages → Create → Pages → Upload assets**. Name it `social-review`.
-Upload anything to get past the first screen; the real deploy follows in
-step 6. Choose **Direct Upload**, not Git, so the workflow stays in charge.
-
-### 4. Set the two secrets
-
-**Workers & Pages → social-review → Settings → Variables and secrets**, and add
-both as type **Secret**, for the Production environment:
-
-| Name | Value |
+| Setting | Value |
 |---|---|
-| `TEAM_PASSWORD` | The password your team types at `/admin`. Put it in the shared password manager. |
-| `AUTH_SECRET` | A long random string, generated below. Nobody ever types this one. |
+| Pages project | `social-review` |
+| R2 bucket | `social-review-media` |
+| Deploy method | Connect to Git, production branch `main` |
+| Root directory | `dev/social-review` |
+| Build command | none |
+| Build output | `public` |
 
-Generate the second with:
+Then two secrets on the project, both type Secret, Production environment:
 
-```bash
-openssl rand -base64 32
-```
+| Name | What it is |
+|---|---|
+| `TEAM_PASSWORD` | What the team types at `/admin` |
+| `AUTH_SECRET` | 32+ random characters, signs the session cookie, never typed |
 
-### 5. Bind R2 and name the tool
+Three things bite, in order of how often:
 
-Same Settings page, **Bindings → Add → R2 bucket**. Variable name `MEDIA`,
-bucket `social-review-media`. Signing in at `/admin` fails without this.
+1. **R2 needs a payment method on file** before Cloudflare will enable it, even
+   though this stays inside the free allowance. The failure if you skip it does
+   not explain itself.
+2. **Root directory must be `dev/social-review`.** It hides behind an Advanced
+   toggle. Miss it and every page 404s.
+3. **Secrets apply on the next build, not the one already run.** Add them, then
+   redeploy, or the admin reports that they are not set.
 
-`BRAND_NAME` comes from `wrangler.toml` and reads `Content Review`. Edit that
-line if you want the header to say something else.
+The live address is `social-review.pages.dev`. No custom domain is attached,
+which is deliberate while this is a temporary tool. Adding one later does not
+break links already sent, since the `pages.dev` address keeps working.
 
-### 6. Deploy
-
-Merge the branch to `main`. The workflow publishes on every change under
-`dev/social-review/`.
-
-To deploy by hand instead, or to deploy before merging:
+To deploy by hand instead of through Git:
 
 ```bash
 cd dev/social-review && npx wrangler login && npx wrangler pages deploy
 ```
-
-### 7. Point a domain at it
-
-**Workers & Pages → social-review → Custom domains → Set up a domain**, e.g.
-`review.octobercomms.com`. Cloudflare writes the DNS record itself when the
-domain is already on the account.
-
-Links then read `review.octobercomms.com/r/…` rather than
-`social-review.pages.dev/r/…`.
-
-### 8. Check it works
-
-Open `/admin`, sign in with the password from step 4, create a test review,
-upload one image and one MP4, then open the client link in a private window and
-confirm it loads with no login and the video plays.
-
-If the admin signs in but uploading fails, the R2 binding in step 5 is missing.
 
 ---
 
