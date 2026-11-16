@@ -67,9 +67,12 @@ be found by guessing a client name. Clients need no login and no account.
 written so it can be handed to someone, or to an agent, who has no context.
 What follows is the summary.
 
-October already has a Cloudflare account, the same one that serves
-`october-platform` from this repo. This is a new project inside it, not a new
-account.
+This goes in the **October Communications** Cloudflare account, which already
+has R2 enabled. It is a new project inside that account, not a new account.
+
+Note that the `october-platform` Pages project is not in that account. The
+Cloudflare Pages check on this repo's pull requests reports from a different
+account, so whoever set that deployment up owns it elsewhere.
 
 | Setting | Value |
 |---|---|
