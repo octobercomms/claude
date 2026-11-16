@@ -1,0 +1,34 @@
+ADF 2027 — Direction
+Made entirely in code. No stock footage, no generated video, no generated images.
+
+TYPEFACE
+  Archivo (variable roman, weight 100–900, width 62–125)
+  Omnibus-Type · https://github.com/google/fonts/tree/main/ofl/archivo
+  SIL Open Font License 1.1 · the licence text ships beside the font in fonts/OFL.txt
+  Used for every word in the film.
+
+SOUND
+  Score and foley are synthesised in this project (mix.py) with numpy and scipy:
+  kick, closed hat, rim, bass, marimba, glockenspiel, vibraphone, sine glide, and the print
+  foley (ruling pen, block snap, letterpress clack, guillotine snick, paper slap and slide,
+  numeral thunk, rubber stamp, carriage return). No sample libraries, no recordings,
+  no third-party audio of any kind.
+
+PICTURE
+  Drawn frame by frame with Canvas 2D in this project (film.js), captured headless and
+  encoded with ffmpeg. Lemo-Opuscar supplies the render and audio tooling
+  (https://github.com/lemomo-ai/lemo-opuscar, code MIT); none of its demo material,
+  artwork or music is in this film.
+
+CONTENT
+  Every figure, name and quoted phrase is from the source deck, "Atlanta Design Festival 2027 —
+  Direction for the twentieth year", September 2026, supplied by the client. The seventeen
+  organisations are named as set type, not as logos or marks. The film carries no third-party
+  trademark, photograph, footage, map or dataset.
+
+  The weekly sales bars are the increments behind the deck's cumulative sales curve (slide 03).
+  They reproduce the three figures the deck states: $1,420 (10%) in at four weeks out,
+  $8,855 (60%) in event week, 78% in the final two weeks, $14,685 total on 407 tickets.
+
+RIGHTS
+  The client is responsible for the material in this film and for where it is shown.
