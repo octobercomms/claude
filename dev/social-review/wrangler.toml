@@ -7,10 +7,10 @@ compatibility_date = "2025-10-01"
 pages_build_output_dir = "public"
 
 # R2 holds both the uploaded media and the per-review manifest JSON.
-# Create the bucket once:  npx wrangler r2 bucket create social-review-media
+# Create the bucket once:  npx wrangler r2 bucket create socialfly
 [[r2_buckets]]
 binding = "MEDIA"
-bucket_name = "social-review-media"
+bucket_name = "socialfly"
 
 # The name shown in the admin header and the browser tab. This tool is
 # deliberately unbranded so one deployment can front every client; change

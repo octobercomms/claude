@@ -94,7 +94,7 @@ name and the upload lands as a preview rather than the live site.
 | Setting | Value |
 |---|---|
 | Pages project | `socialfly`, so the address is `socialfly.pages.dev` |
-| R2 bucket | `social-review-media` |
+| R2 bucket | `socialfly` |
 | R2 binding | `MEDIA` |
 
 Three things bite, in order of how often:

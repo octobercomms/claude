@@ -2,29 +2,29 @@
 
 A guide for doing this yourself, in Terminal, from a standing start.
 
-Read the whole of step 0 first. After that, run one command at a time and
-check what it printed before moving on.
+Read step 0 first. After that, run one command at a time and check what it
+printed before moving on.
 
 ---
 
 ## 0. What you need to know first
 
-**There is nothing to undo.** Earlier attempts created one thing, an R2 storage
-bucket called `social-review-media` in the October Communications Cloudflare
-account. That bucket is wanted and is used below. Nothing else was created and
-nothing was changed.
+**There is nothing to undo.** Earlier attempts left nothing behind. The storage
+buckets they created have been deleted again and no Pages project was ever
+created. You are starting from nothing.
+
+**`omi-recordings` is a different project's bucket.** No step here touches it.
 
 **Ignore Cloudflare's "connect to Git" option.** This repository is already
 claimed by a Pages project on a different Cloudflare account, so that route
 refuses to save, whatever the project is called. It cannot be unblocked from
-the October Communications account. The method below skips GitHub entirely and
-is unaffected.
+the October Communications account. Everything below skips GitHub entirely.
 
-**What you will end up with:** a site at `https://socialfly.pages.dev`. You
-sign in at `/admin` with a password you choose in step 5. Clients open links
-you send them and need no login.
+**What you end up with:** a site at `https://socialfly.pages.dev`. You sign in
+at `/admin` with a password you choose in step 7. Clients open links you send
+them and need no login.
 
-**How long:** about ten minutes the first time. Afterwards, one command.
+**How long:** about ten minutes. Afterwards, one command.
 
 ---
 
@@ -35,7 +35,7 @@ cd ~/claude/dev/social-review
 ```
 
 If that errors with "No such file or directory", the repository is somewhere
-else. Find it, and use that path instead with `/dev/social-review` on the end.
+else. Use that path instead, with `/dev/social-review` on the end.
 
 If you have not cloned the repository at all:
 
@@ -49,7 +49,7 @@ cd ~ && git clone https://github.com/octobercomms/claude.git && cd claude/dev/so
 git checkout main && git pull
 ```
 
-**Expect:** either "Already up to date" or a list of changed files. Both fine.
+**Expect:** "Already up to date", or a list of changed files. Both fine.
 
 ## 3. Sign in to Cloudflare
 
@@ -60,9 +60,22 @@ npx --yes wrangler@4 login
 **Expect:** a browser tab opens asking you to allow Wrangler access. Approve
 it, then return to Terminal, which should say you are logged in.
 
-You only ever do this once on this machine.
+You only do this once on this machine.
 
-## 4. Create the project
+## 4. Create the storage bucket
+
+This holds the uploaded videos and images.
+
+```bash
+npx --yes wrangler@4 r2 bucket create socialfly
+```
+
+**Expect:** a line confirming the bucket was created.
+
+**If it says R2 is not enabled:** turn it on at dash.cloudflare.com under R2,
+then run this again.
+
+## 5. Create the project
 
 ```bash
 npx --yes wrangler@4 pages project create socialfly --production-branch main
@@ -71,25 +84,24 @@ npx --yes wrangler@4 pages project create socialfly --production-branch main
 **Expect:** a line confirming the project was created, mentioning
 `socialfly.pages.dev`.
 
-**If it says the name is unavailable:** someone else has taken it. Stop and
-pick another name. Whatever you choose must also be changed in `wrangler.toml`
-on the `name =` line, and used in place of `socialfly` in steps 5 and 6.
+**If it says the name is unavailable:** someone else has taken it. Stop, pick
+another name, change the `name =` line in `wrangler.toml` to match, and use
+that name everywhere `socialfly` appears below.
 
-## 5. Upload the site
+## 6. Upload the site
 
 ```bash
-npx --yes wrangler@4 pages deploy --branch main
+npm run deploy
 ```
 
-**Expect:** a list of files uploading, then a success line with the URL.
+**Expect:** files uploading, then a success line with the URL.
 
-The site is now live but will not let you in yet. That is correct. Step 6
-fixes it.
+The site is live but will not let you in yet. That is correct. Step 8 fixes it.
 
-## 6. Set the two passwords
+## 7. Set the two passwords
 
-The first is the password your team will type to sign in. Choose something you
-are happy to keep in the shared password manager.
+The first is what your team types to sign in. Choose something you are happy to
+keep in the shared password manager.
 
 ```bash
 npx --yes wrangler@4 pages secret put TEAM_PASSWORD --project-name socialfly
@@ -113,20 +125,19 @@ npx --yes wrangler@4 pages secret put AUTH_SECRET --project-name socialfly
 
 Paste the random string at the prompt and press enter.
 
-## 7. Upload again
+## 8. Upload again
 
 ```bash
-npx --yes wrangler@4 pages deploy --branch main
+npm run deploy
 ```
 
-Passwords set in step 6 only reach the site on the next upload, which is why
-this runs twice. Skipping it is the single most common way this appears
-broken.
+Passwords set in step 7 only reach the site on the next upload, which is why
+this runs twice. Skipping it is the most common way this looks broken.
 
-## 8. Check it works
+## 9. Check it works
 
 1. Open `https://socialfly.pages.dev/admin`. You should see a password box.
-   - If it says the passwords are not set, step 7 was skipped. Run it again.
+   - If it says the passwords are not set, step 8 was skipped.
 2. Type a wrong password. It should say "Wrong password".
 3. Type the real one. You should see the review list.
 4. Create a review called `Test`.
@@ -152,25 +163,23 @@ cd ~/claude/dev/social-review && git checkout main && git pull
 npm run deploy
 ```
 
-That is the whole update process. No sign-in, no passwords, no dashboard.
-`npm run deploy` is the same upload as step 5, with the right settings built
-in.
+No sign-in, no passwords, no dashboard. `npm run deploy` carries the right
+settings, including `--branch main`; without that flag wrangler names the
+deployment after your current git branch and the upload lands as a preview
+rather than the live site, while still reporting success.
 
 ---
 
 ## Making it automatic later, if it is worth it
 
 The tool can redeploy itself whenever a change is merged, so you never run a
-command at all. It needs a Cloudflare API token, which takes about five
-minutes to set up once.
+command. It needs a Cloudflare API token, about five minutes to set up once.
 
 Cloudflare's own Git integration cannot do this, because of the repository
-claim described in step 0. A GitHub Actions workflow using an API token is not
-affected by that claim, and `october-platform` in this repo already deploys
-that way.
+claim in step 0. A GitHub Actions workflow using an API token is not subject to
+that claim, which is how `october-platform` already deploys from this repo.
 
-Worth doing if this tool outlives its stopgap phase. Not worth it for a few
-weeks of use. Ask and it can be set up.
+Worth doing if this tool outlives its stopgap phase. Ask and it can be set up.
 
 ---
 
@@ -178,13 +187,13 @@ weeks of use. Ask and it can be set up.
 
 | What you see | What it means | What to do |
 |---|---|---|
-| `TEAM_PASSWORD and AUTH_SECRET are not set` on the admin page | Passwords were set but not yet uploaded | Run step 7 |
-| Sign-in works, uploading a file fails | The storage binding is missing | In the Cloudflare dashboard: Workers & Pages, socialfly, Settings, Bindings. Add an R2 bucket binding, variable name `MEDIA`, bucket `social-review-media`. Then run step 7 |
-| Every page shows 404 | The upload ran from the wrong folder | `cd ~/claude/dev/social-review` and run step 5 again |
-| The site loads but looks unstyled | Same cause as above | Same fix |
-| A Cloudflare login screen appears instead of the password box | An Access policy is on the project, or you are looking at the wrong site | Check the address is exactly `socialfly.pages.dev`. If it is, remove the Access policy in Zero Trust |
-| `project name is not available` at step 4 | Someone else has the name | Pick another, and change it in `wrangler.toml` too |
-| Anything mentioning a different Cloudflare account | You are on the Git route, not this one | None of steps 1 to 8 touch GitHub. Re-read step 0 |
+| `TEAM_PASSWORD and AUTH_SECRET are not set` on the admin page | Passwords set but not yet uploaded | Run step 8 |
+| Sign-in works, uploading a file fails | The storage binding is missing | Dashboard: Workers & Pages, socialfly, Settings, Bindings. Add an R2 bucket binding, variable name `MEDIA`, bucket `socialfly`. Then run step 8 |
+| Every page shows 404 | Upload ran from the wrong folder | `cd ~/claude/dev/social-review`, then step 6 |
+| The site loads but looks unstyled | Same cause | Same fix |
+| A Cloudflare login screen instead of the password box | Wrong site, or an Access policy is on the project | Check the address is exactly `socialfly.pages.dev` |
+| `project name is not available` at step 5 | Someone else has the name | Pick another and change `wrangler.toml` to match |
+| Anything mentioning a different Cloudflare account | You are on the Git route, not this one | No step here touches GitHub. Re-read step 0 |
 
 ---
 
@@ -192,8 +201,9 @@ weeks of use. Ask and it can be set up.
 
 - **Cloudflare Pages** serves the site. The project is `socialfly`, so the
   address is `socialfly.pages.dev`.
-- **Cloudflare R2** stores the uploaded videos and images, in the bucket
-  `social-review-media`. There is no database.
+- **Cloudflare R2** stores the uploaded videos and images, in a bucket also
+  called `socialfly`. There is no database. The two can share a name because
+  they are separate namespaces.
 - **`TEAM_PASSWORD`** is what your team types. **`AUTH_SECRET`** signs the
   login cookie and is never typed by anyone.
 - Client links look like `socialfly.pages.dev/r/caro-november-k3f9qa`, and each
