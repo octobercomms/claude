@@ -37,7 +37,7 @@ they live **with the code**, not in `docs/`:
 `dev/` contains: `ada-checker`, `architourian-pdf`, `brevo-widgets`, `falcon-back-in-stock`,
 `hillcroft-gardens`, `landing-pages`, `loom-tutorial-player`, `meta-ads`,
 `oc-ad-manager`, `oc-forms`, `october-admin-theme`, `october-event-tickets`,
-`october-outreach`, `platform`, `ticker-link`, `tour-dates-shortcode`,
+`october-outreach`, `platform`, `social-review`, `ticker-link`, `tour-dates-shortcode`,
 `webp-image-optimizer`, `woo-bulk-editor`, `wordpress-lead-capture`.
 
 The **Hillcroft Garden Designer** WordPress plugin lives in `dev/hillcroft-gardens`
