@@ -46,6 +46,15 @@
 > measurement: a failed test, a figure that did not survive checking, or a
 > licence clause that blocks a route is information he asked for.
 
+> **The Caro work has two documents beyond the brief.**
+> `docs/omi/caro-meeting-2026-11-16.md` is the full read of their resource
+> meeting, checked against the tree: the Roxhill analysis (three of its four
+> jobs already exist), the seven requirements, and the quotes that constrain
+> the build. `docs/omi/ai-data-policy.md` is the AI and client-data position,
+> for October as well as Caro, with its claims sourced to Anthropic's
+> commercial terms. Both are referenced from `briefs/caro-agency.md`, which
+> still wins over either.
+
 > **Any screen, flow or IA change goes past `ux-critic` before you build it,
 > and again before it ships.** It is a standing agent defined at
 > `.claude/agents/ux-critic.md`, and Daniel asked for it in these words: "i
