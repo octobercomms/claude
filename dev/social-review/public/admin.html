@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Social Review — October</title>
+<link rel="stylesheet" href="/assets/ig.css">
+</head>
+<body>
+
+<div id="gate" class="gate" hidden>
+  <h2>Social Review</h2>
+  <p>Team access. One shared password.</p>
+  <form id="gate-form">
+    <input type="password" id="password" placeholder="Team password" autocomplete="current-password" required>
+    <button class="btn primary" type="submit">Sign in</button>
+  </form>
+  <p class="err" id="gate-err" hidden></p>
+</div>
+
+<div id="app" class="shell" hidden>
+  <header class="topbar">
+    <span class="mark">O</span>
+    <div><h1>Social Review</h1><p class="sub" id="crumb">All reviews</p></div>
+    <span class="spacer"></span>
+    <button class="btn" id="back" hidden>All reviews</button>
+    <button class="btn" id="signout">Sign out</button>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script type="module" src="/assets/admin.js"></script>
+</body>
+</html>
