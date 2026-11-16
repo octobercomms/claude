@@ -26,8 +26,20 @@ const el = (html) => {
 
 /* ---------------- sign in ---------------- */
 
+function applyBrand(brand) {
+  const name = brand || 'Content Review';
+  document.title = name;
+  for (const id of ['brand', 'gate-brand']) {
+    const node = document.getElementById(id);
+    if (node) node.textContent = name;
+  }
+  const mark = document.getElementById('mark');
+  if (mark) mark.textContent = name.trim().charAt(0);
+}
+
 async function boot() {
-  const { signedIn, configured } = await api('/api/session');
+  const { signedIn, configured, brand } = await api('/api/session');
+  applyBrand(brand);
   if (!configured) {
     gate.hidden = false;
     document.getElementById('gate-form').hidden = true;
@@ -133,6 +145,25 @@ async function showList() {
 /* ---------------- one review ---------------- */
 
 const shareUrl = (slug) => `${location.origin}/r/${encodeURIComponent(slug)}`;
+const postUrl = (slug, postId) => `${shareUrl(slug)}/${encodeURIComponent(postId)}`;
+
+async function copy(text, button, restore) {
+  const label = button.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = 'Copied';
+  } catch {
+    button.textContent = 'Copy failed';
+  }
+  setTimeout(() => { button.textContent = restore || label; }, 1800);
+}
+
+// One line per post, ready to paste beside the captions in the content schedule.
+const linkList = (review) => review.posts.map((post, i) => {
+  const kind = post.type === 'reel' ? 'Reel'
+    : post.type === 'carousel' ? `Carousel (${post.media.length} slides)` : 'Single post';
+  return `${i + 1}. ${kind} — ${postUrl(review.slug, post.id)}`;
+}).join('\n');
 
 async function showReview(slug) {
   back.hidden = false;
@@ -175,8 +206,12 @@ function settingsCard(review) {
       <a class="btn" href="/r/${encodeURIComponent(review.slug)}" target="_blank" rel="noopener">Open</a>
       <button class="btn" data-copy>Copy link</button>
     </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" data-copy-all ${review.posts.length ? '' : 'disabled'}>Copy all post links</button>
+      <span style="font-size:13px;color:var(--muted)">One numbered line per post, for the content schedule.</span>
+    </div>
     <div class="row" style="margin-top:14px">
-      <label style="font-size:13px;color:var(--oc-muted)">Instagram handle shown in the mockup</label>
+      <label style="font-size:13px;color:var(--muted)">Instagram handle shown in the mockup</label>
       <input type="text" data-handle value="${escapeHtml(review.handle || '')}" placeholder="yourbrand" style="width:200px">
       <button class="btn" data-save-handle>Save</button>
       <span class="spacer"></span>
@@ -194,15 +229,11 @@ function settingsCard(review) {
     setTimeout(() => { msg.hidden = true; }, 3500);
   };
 
-  card.querySelector('[data-copy]').addEventListener('click', async (e) => {
-    try {
-      await navigator.clipboard.writeText(shareUrl(review.slug));
-      e.currentTarget.textContent = 'Copied';
-      setTimeout(() => { e.currentTarget.textContent = 'Copy link'; }, 1800);
-    } catch {
-      flash('Copy failed. Select the link and copy it by hand.', true);
-    }
-  });
+  card.querySelector('[data-copy]').addEventListener('click', (e) =>
+    copy(shareUrl(review.slug), e.currentTarget, 'Copy link'));
+
+  card.querySelector('[data-copy-all]').addEventListener('click', (e) =>
+    copy(linkList(review), e.currentTarget, 'Copy all post links'));
 
   card.querySelector('[data-save-handle]').addEventListener('click', async () => {
     try {
@@ -372,6 +403,7 @@ function postsCard(review, onDone) {
           &middot; ${escapeHtml(first.name || first.mime)}</p>
       </div>
       <span class="spacer"></span>
+      <button class="btn" data-link>Copy link</button>
       <button class="btn" data-up aria-label="Move up">${icon('chevL', 14, { sw: 2.4 })}</button>
       <button class="btn" data-down aria-label="Move down">${icon('chevR', 14, { sw: 2.4 })}</button>
       <button class="btn danger" data-remove>Remove</button>
@@ -379,6 +411,9 @@ function postsCard(review, onDone) {
 
     for (const w of warnings) card.appendChild(el(`<p class="warn">${escapeHtml(w)}</p>`));
 
+    card.querySelector('[data-link]').addEventListener('click', async (e) => {
+      await copy(postUrl(review.slug, post.id), e.currentTarget, 'Copy link');
+    });
     card.querySelector('[data-up]').disabled = i === 0;
     card.querySelector('[data-down]').disabled = i === review.posts.length - 1;
     card.querySelector('[data-up]').addEventListener('click', () => move(i, -1));
@@ -406,7 +441,7 @@ function previewSection(review) {
       </div>
       <button class="btn" data-ui aria-pressed="false">Hide Instagram UI</button>
       <button class="btn" data-safe aria-pressed="false">Safe zones</button>
-      <span style="font-size:13px;color:var(--oc-muted)">Exactly what the client sees, plus crop notes.</span>
+      <span style="font-size:13px;color:var(--muted)">Exactly what the client sees, plus crop notes.</span>
     </div>
     <div data-out class="feed"></div>
   </section>`);

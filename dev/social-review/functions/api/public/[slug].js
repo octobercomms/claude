@@ -10,6 +10,7 @@ export async function onRequestGet({ params, env }) {
   const toUrl = (key) => `/m/${key.slice('media/'.length)}`;
 
   return json({
+    brand: env.BRAND_NAME || 'Content Review',
     title: manifest.title,
     handle: manifest.handle,
     avatar: manifest.avatarKey ? toUrl(manifest.avatarKey) : null,

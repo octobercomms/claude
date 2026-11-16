@@ -1,4 +1,4 @@
-// Serves the client view at /r/<slug>.
+// Serves the client view at /r/<slug> and at /r/<slug>/<postId> for a single post.
 //
 // Two things to know if you touch this. Pages `_redirects` cannot do the job:
 // a `/r/* /review.html 200` line comes back as a 308 to /review and drops the
