@@ -1,2 +1,43 @@
+# Two different jobs, two different answers.
+#
+# Search engines: stay out. This is an application, and its public routes are
+# token-gated client material — a client's press coverage (/coverage/:token),
+# a live proposal (/p/:token), a booking (/b/:token). None of it should ever
+# appear in a search result.
+#
+# Link-preview crawlers: come in. When someone deliberately sends a colleague
+# a coverage report in Teams, Slack or WhatsApp, the card should render. Those
+# crawlers read the og:* tags in index.html and respect robots.txt, so a blanket
+# Disallow silently turned every shared link into a bare URL.
+#
+# The pages still carry <meta name="robots" content="noindex, nofollow">, which
+# is what actually keeps them out of an index. That tag can only be obeyed by a
+# crawler allowed to fetch the page — a URL blocked here can still be listed
+# from inbound links alone, because the blocked crawler never reads the tag.
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Slackbot-LinkExpanding
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: Discordbot
+Allow: /
+
 User-agent: *
 Disallow: /

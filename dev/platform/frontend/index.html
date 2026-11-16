@@ -6,6 +6,37 @@
     <title>October Marketing Intelligence</title>
     <meta name="description" content="October Marketing Intelligence. Performance marketing platform for architects, designers and design-led brands." />
     <meta name="robots" content="noindex, nofollow" />
+    <!-- Link preview, for the token-gated pages people actually share: a
+         coverage report (/coverage/:token), a proposal (/p/:token), a booking
+         (/b/:token). Without these a link pasted into Teams, WhatsApp or Slack
+         renders as a bare URL, which reads badly for a PR tool whose whole job
+         is how things look when they land.
+         These coexist with the noindex above and do not contradict it: noindex
+         and robots.txt tell search engines not to list the page, while og:*
+         tells a chat client how to render a card for a link someone was
+         deliberately sent. Different crawlers, different jobs.
+         Social crawlers do not run JavaScript, so these are static and the
+         same for every route — a per-page preview would need the server to
+         render the tags, and the backend does not serve index.html (nginx
+         does). Generic is still a large improvement on nothing.
+         og:url is deliberately absent: it has to be absolute, and hard-coding
+         October's domain would be wrong on any second installation. Crawlers
+         fall back to the URL they fetched.
+         A second installation replaces /og-image.png and these three strings;
+         see docs/omi/multi-install plan — index.html branding is build-time
+         and cannot be reached from Settings. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="October Marketing Intelligence" />
+    <meta property="og:title" content="October Marketing Intelligence" />
+    <meta property="og:description" content="Press, social and performance, in one place." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="October Marketing Intelligence" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="October Marketing Intelligence" />
+    <meta name="twitter:description" content="Press, social and performance, in one place." />
+    <meta name="twitter:image" content="/og-image.png" />
     <!-- Home-screen icons: local, padded, white October mark on brand yellow. -->
     <link rel="icon" type="image/png" href="/icon-32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
