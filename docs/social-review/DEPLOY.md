@@ -31,11 +31,13 @@ or changing any code. You are connecting it to Cloudflare and deploying it.
 **Cloudflare Pages** serves the app. **Cloudflare R2** stores the uploaded
 videos and images. Both sit inside Cloudflare's free tier at this volume.
 
-The Cloudflare account already exists. It is the same account that serves the
-`october-platform` project, account id `ead9401db49f4dd778962bedfaa21cff`. That
-id is an identifier, not a credential; use it only to confirm you are in the
-right account if more than one is listed. **Do not create a new Cloudflare
-account.**
+Use the Cloudflare account the browser is already signed in to. If more than
+one is listed, choose **October Communications**. **Do not create a new
+Cloudflare account.**
+
+R2 is already enabled on that account, so step 1 below should pass straight
+through. A bucket named `omi-recordings` already exists there and belongs to a
+different project. Leave it alone.
 
 ## Decisions already made
 
@@ -60,8 +62,9 @@ Do not revisit these. They are settled.
   and none is on file, stop and report that. Do not proceed past it.
 - **Never put `TEAM_PASSWORD` or `AUTH_SECRET` into a file, a commit, a GitHub
   field, or a chat message.** They go only into Cloudflare's secret fields.
-- **Do not change any other Cloudflare project**, in particular
-  `october-platform`. Only touch `social-review`.
+- **Do not change anything else in the account.** The `omi-recordings` bucket
+  and any other project belong to separate work. Only create and touch
+  `social-review` and `social-review-media`.
 - **Do not change any code**, open a pull request, or push to the repository.
 - If the dashboard's wording differs from this brief, the labels have moved
   rather than the task changing. Match on meaning. If you cannot find the
@@ -77,10 +80,11 @@ Go to `dash.cloudflare.com`, pick the account noted above, and open **R2** in
 the left sidebar.
 
 - If a bucket list appears, R2 is on. Go to step 2.
-- If a sign-up or "Purchase R2" screen appears, R2 is not enabled. Cloudflare
+- If a sign-up or "Purchase R2" screen appears, you are in the wrong account.
+  Check the account switcher. If R2 genuinely is not enabled, Cloudflare
   requires a payment method on file before enabling it, even though the
-  allowance used here costs nothing. **Stop. Report that R2 needs enabling and
-  that it requires a payment method.** Do not enter card details yourself.
+  allowance used here costs nothing. **Stop and report that.** Do not enter
+  card details yourself.
 
 ### 2. Create the bucket
 
@@ -90,8 +94,9 @@ In **R2**, choose **Create bucket**.
 - Location: leave as the default or Automatic
 - Storage class: leave as the default (Standard)
 
-Create it. If a bucket with that name already exists, leave it alone and
-continue.
+Create it. If a bucket named `social-review-media` already exists, leave it as
+it is and continue. Do not rename, empty or delete `omi-recordings` or any
+other bucket.
 
 ### 3. Create the Pages project
 
