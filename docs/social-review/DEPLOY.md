@@ -1,243 +1,203 @@
-# Deploy brief: Social Review
+# Putting Social Review online
 
-A task brief for an agent working in a browser. Everything here is done in the
-Cloudflare dashboard and on GitHub. No terminal is needed and none is available.
+A guide for doing this yourself, in Terminal, from a standing start.
 
----
-
-## Fill this in before handing the brief over
-
-| Field | Value |
-|---|---|
-| `TEAM_PASSWORD` | `________` (the password the October team will type to sign in) |
-
-Leave nothing else to decide. Every other choice is settled below.
+Read the whole of step 0 first. After that, run one command at a time and
+check what it printed before moving on.
 
 ---
 
-## What you are setting up
+## 0. What you need to know first
 
-A small web app called **Social Review**. The October team uploads Instagram
-carousels and reels to it; clients open a link and see each post rendered as it
-will appear in the feed, then approve by email. It is a temporary tool while a
-permanent solution is built.
+**There is nothing to undo.** Earlier attempts created one thing, an R2 storage
+bucket called `social-review-media` in the October Communications Cloudflare
+account. That bucket is wanted and is used below. Nothing else was created and
+nothing was changed.
 
-The code already exists and is merged. It lives in the GitHub repository
-`octobercomms/claude`, in the folder `dev/social-review`. You are not writing
-or changing any code. You are connecting it to Cloudflare and deploying it.
+**Ignore Cloudflare's "connect to Git" option.** This repository is already
+claimed by a Pages project on a different Cloudflare account, so that route
+refuses to save, whatever the project is called. It cannot be unblocked from
+the October Communications account. The method below skips GitHub entirely and
+is unaffected.
 
-## What it runs on
+**What you will end up with:** a site at `https://socialfly.pages.dev`. You
+sign in at `/admin` with a password you choose in step 5. Clients open links
+you send them and need no login.
 
-**Cloudflare Pages** serves the app. **Cloudflare R2** stores the uploaded
-videos and images. Both sit inside Cloudflare's free tier at this volume.
-
-Use the Cloudflare account the browser is already signed in to. If more than
-one is listed, choose **October Communications**. **Do not create a new
-Cloudflare account.**
-
-R2 is already enabled on that account, so step 1 below should pass straight
-through. A bucket named `omi-recordings` already exists there and belongs to a
-different project. Leave it alone.
-
-## Decisions already made
-
-Do not revisit these. They are settled.
-
-- **Project name:** `social-review`
-- **R2 bucket name:** `social-review-media`
-- **Deployment method:** connect to Git, not Direct Upload. Cloudflare watches
-  the repository and redeploys on each push to `main`.
-- **Production branch:** `main`
-- **Root directory:** `dev/social-review`
-- **Build command:** none, leave it empty. There is no build step.
-- **Build output directory:** `public`
-- **Custom domain:** none. The `social-review.pages.dev` address is fine. Skip
-  any prompt offering to add a domain.
+**How long:** about ten minutes the first time. Afterwards, one command.
 
 ---
 
-## Rules
+## 1. Open Terminal in the project folder
 
-- **Never enter payment card details.** If Cloudflare asks for a payment method
-  and none is on file, stop and report that. Do not proceed past it.
-- **Never put `TEAM_PASSWORD` or `AUTH_SECRET` into a file, a commit, a GitHub
-  field, or a chat message.** They go only into Cloudflare's secret fields.
-- **Do not change anything else in the account.** The `omi-recordings` bucket
-  and any other project belong to separate work. Only create and touch
-  `social-review` and `social-review-media`.
-- **Do not change any code**, open a pull request, or push to the repository.
-- If the dashboard's wording differs from this brief, the labels have moved
-  rather than the task changing. Match on meaning. If you cannot find the
-  equivalent, stop and report rather than guessing at something destructive.
+```bash
+cd ~/claude/dev/social-review
+```
 
----
+If that errors with "No such file or directory", the repository is somewhere
+else. Find it, and use that path instead with `/dev/social-review` on the end.
 
-## Steps
+If you have not cloned the repository at all:
 
-### 1. Confirm R2 is on
+```bash
+cd ~ && git clone https://github.com/octobercomms/claude.git && cd claude/dev/social-review
+```
 
-Go to `dash.cloudflare.com`, pick the account noted above, and open **R2** in
-the left sidebar.
+## 2. Get the current code
 
-- If a bucket list appears, R2 is on. Go to step 2.
-- If a sign-up or "Purchase R2" screen appears, you are in the wrong account.
-  Check the account switcher. If R2 genuinely is not enabled, Cloudflare
-  requires a payment method on file before enabling it, even though the
-  allowance used here costs nothing. **Stop and report that.** Do not enter
-  card details yourself.
+```bash
+git checkout main && git pull
+```
 
-### 2. Create the bucket
+**Expect:** either "Already up to date" or a list of changed files. Both fine.
 
-In **R2**, choose **Create bucket**.
+## 3. Sign in to Cloudflare
 
-- Name: `social-review-media`
-- Location: leave as the default or Automatic
-- Storage class: leave as the default (Standard)
+```bash
+npx --yes wrangler@4 login
+```
 
-Create it. If a bucket named `social-review-media` already exists, leave it as
-it is and continue. Do not rename, empty or delete `omi-recordings` or any
-other bucket.
+**Expect:** a browser tab opens asking you to allow Wrangler access. Approve
+it, then return to Terminal, which should say you are logged in.
 
-### 3. Create the Pages project
+You only ever do this once on this machine.
 
-Go to **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
+## 4. Create the project
 
-If GitHub is not yet authorised, follow the prompt to install or authorise the
-Cloudflare GitHub app and grant it access to the `octobercomms/claude`
-repository. This may need an organisation owner to approve.
+```bash
+npx --yes wrangler@4 pages project create socialfly --production-branch main
+```
 
-**Expect friction here.** A Cloudflare Pages Git connection already exists on
-this repository, owned by a different Cloudflare account, and it deploys a
-project called `october-platform`. The GitHub app may therefore appear already
-installed while not being linked to the account you are in. If the repository
-does not appear in the list, or the connection is refused, or you would have to
-change or remove an existing installation to proceed, **stop and report what
-you see. Do not remove or reconfigure the existing connection**, which would
-break someone else's deployment. There is a fallback that needs no GitHub
-connection at all, and the person who gave you this brief can run it.
+**Expect:** a line confirming the project was created, mentioning
+`socialfly.pages.dev`.
 
-Select the repository `octobercomms/claude`, then set:
+**If it says the name is unavailable:** someone else has taken it. Stop and
+pick another name. Whatever you choose must also be changed in `wrangler.toml`
+on the `name =` line, and used in place of `socialfly` in steps 5 and 6.
 
-| Setting | Value |
-|---|---|
-| Project name | `social-review` |
-| Production branch | `main` |
-| Framework preset | None |
-| Build command | leave empty |
-| Build output directory | `public` |
-| Root directory | `dev/social-review` |
+## 5. Upload the site
 
-Root directory is the one that is easy to miss and it is often behind an
-**Advanced** or **Root directory (advanced)** toggle. Without it the deploy
-publishes the wrong folder and the site 404s.
+```bash
+npx --yes wrangler@4 pages deploy --branch main
+```
 
-Save and deploy. The first build takes a minute or two. It will succeed but the
-app will not work yet, because the secrets in step 4 are missing. That is
-expected.
+**Expect:** a list of files uploading, then a success line with the URL.
 
-### 4. Set the two secrets
+The site is now live but will not let you in yet. That is correct. Step 6
+fixes it.
 
-Go to **Workers & Pages** → **social-review** → **Settings**, and find the
-variables and secrets section.
+## 6. Set the two passwords
 
-Add both for the **Production** environment, each with type **Secret** and not
-plain text:
+The first is the password your team will type to sign in. Choose something you
+are happy to keep in the shared password manager.
 
-| Name | Value |
-|---|---|
-| `TEAM_PASSWORD` | The value filled in at the top of this brief |
-| `AUTH_SECRET` | A random string you generate: at least 32 characters, mixed letters and digits. Nobody needs to know it or ever types it. Do not report it back. |
+```bash
+npx --yes wrangler@4 pages secret put TEAM_PASSWORD --project-name socialfly
+```
 
-Save.
+**Expect:** a prompt asking for the value. Type the password and press enter.
+Nothing appears on screen as you type. That is normal.
 
-### 5. Check the R2 binding
+The second is a long random string that signs the login cookie. Nobody ever
+types it or needs to remember it. Generate one:
 
-On the same Settings page, find **Bindings**.
+```bash
+openssl rand -base64 32
+```
 
-The project's `wrangler.toml` declares an R2 binding named `MEDIA` pointing at
-`social-review-media`, and the build should have applied it.
+**Expect:** a line of random characters. Copy it.
 
-- If a binding named `MEDIA` is listed, nothing to do.
-- If it is not listed and the dashboard lets you add one, add: type **R2
-  bucket**, variable name `MEDIA`, bucket `social-review-media`.
-- If the dashboard says bindings are managed by the project's configuration
-  file and will not let you add one, that is fine. It means `wrangler.toml` is
-  in charge. Continue and rely on the test in step 7 to confirm.
+```bash
+npx --yes wrangler@4 pages secret put AUTH_SECRET --project-name socialfly
+```
 
-This binding is what lets uploads reach storage. Without it the team can sign
-in and then every upload fails.
+Paste the random string at the prompt and press enter.
 
-### 6. Redeploy
+## 7. Upload again
 
-The secrets from step 4 are picked up on the next build, not the one already
-run.
+```bash
+npx --yes wrangler@4 pages deploy --branch main
+```
 
-Go to **Workers & Pages** → **social-review** → **Deployments**, find the most
-recent deployment, and choose **Retry deployment** or **Redeploy**. Wait for it
-to report success.
+Passwords set in step 6 only reach the site on the next upload, which is why
+this runs twice. Skipping it is the single most common way this appears
+broken.
 
-Note the URL it gives you. It should be `https://social-review.pages.dev`.
+## 8. Check it works
 
-### 7. Test it end to end
+1. Open `https://socialfly.pages.dev/admin`. You should see a password box.
+   - If it says the passwords are not set, step 7 was skipped. Run it again.
+2. Type a wrong password. It should say "Wrong password".
+3. Type the real one. You should see the review list.
+4. Create a review called `Test`.
+5. Drag any image into **Add a post**. It should appear in a phone frame.
+   - If the upload fails, see Troubleshooting.
+6. Press **Copy link** at the top, open it in a private window. It should load
+   with no password prompt.
+7. Open the `Test` review and press **Delete review**.
 
-This is the part that proves the setup, so do all of it.
-
-1. Open `https://social-review.pages.dev/admin`. A password box should appear.
-2. Enter a deliberately wrong password. It should say "Wrong password".
-   - If it instead says `TEAM_PASSWORD and AUTH_SECRET are not set`, step 4 did
-     not take effect. Redo step 6 and try again.
-3. Enter the real password. A list of reviews should appear.
-4. Create a review named `Deployment test`.
-5. In **Add a post**, upload any single image file, such as a JPG or PNG.
-   - If the upload fails, the R2 binding from step 5 is the cause. Report that.
-6. Confirm the image appears as a post, rendered inside a phone frame.
-7. Copy the client link using **Copy link** at the top of the page.
-8. Open that link in a private or incognito window. It should load with **no
-   password prompt** and show the image in the phone frame.
-9. Return to the admin, open the `Deployment test` review, and choose **Delete
-   review** to clean up.
-10. Choose **Sign out**.
+Working. You are done.
 
 ---
 
-## What to report back
+## Every time after this
 
-- The live URL, which should be `https://social-review.pages.dev`
-- Whether each of steps 1 to 7 succeeded, and the exact wording of any error
-- Whether the `MEDIA` binding was already present or you added it
-- Whether the end to end test in step 7 passed, naming any step that did not
-- Confirmation that the test review was deleted
+Whenever the tool changes, two commands:
 
-Do not include `TEAM_PASSWORD` or `AUTH_SECRET` in your report.
+```bash
+cd ~/claude/dev/social-review && git checkout main && git pull
+```
+
+```bash
+npm run deploy
+```
+
+That is the whole update process. No sign-in, no passwords, no dashboard.
+`npm run deploy` is the same upload as step 5, with the right settings built
+in.
+
+---
+
+## Making it automatic later, if it is worth it
+
+The tool can redeploy itself whenever a change is merged, so you never run a
+command at all. It needs a Cloudflare API token, which takes about five
+minutes to set up once.
+
+Cloudflare's own Git integration cannot do this, because of the repository
+claim described in step 0. A GitHub Actions workflow using an API token is not
+affected by that claim, and `october-platform` in this repo already deploys
+that way.
+
+Worth doing if this tool outlives its stopgap phase. Not worth it for a few
+weeks of use. Ask and it can be set up.
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
+| What you see | What it means | What to do |
 |---|---|---|
-| Admin says `TEAM_PASSWORD and AUTH_SECRET are not set` | Secrets added after the last build | Redeploy, step 6 |
-| Sign-in works, uploads fail | R2 binding missing | Step 5, then redeploy |
-| Site shows 404 on every page | Root directory not set to `dev/social-review` | Settings → Builds, correct it, redeploy |
-| Site loads but has no styling | Build output directory is not `public` | Settings → Builds, correct it, redeploy |
-| Client link asks for a password | A Cloudflare Access policy is on the project | Remove it. Client links are meant to be open |
-| R2 page asks to purchase | R2 not enabled on the account | Stop and report. Do not enter card details |
+| `TEAM_PASSWORD and AUTH_SECRET are not set` on the admin page | Passwords were set but not yet uploaded | Run step 7 |
+| Sign-in works, uploading a file fails | The storage binding is missing | In the Cloudflare dashboard: Workers & Pages, socialfly, Settings, Bindings. Add an R2 bucket binding, variable name `MEDIA`, bucket `social-review-media`. Then run step 7 |
+| Every page shows 404 | The upload ran from the wrong folder | `cd ~/claude/dev/social-review` and run step 5 again |
+| The site loads but looks unstyled | Same cause as above | Same fix |
+| A Cloudflare login screen appears instead of the password box | An Access policy is on the project, or you are looking at the wrong site | Check the address is exactly `socialfly.pages.dev`. If it is, remove the Access policy in Zero Trust |
+| `project name is not available` at step 4 | Someone else has the name | Pick another, and change it in `wrangler.toml` too |
+| Anything mentioning a different Cloudflare account | You are on the Git route, not this one | None of steps 1 to 8 touch GitHub. Re-read step 0 |
 
 ---
 
-## Background, for context only
+## What the pieces are
 
-Nothing below needs doing. It is here so the setup makes sense.
+- **Cloudflare Pages** serves the site. The project is `socialfly`, so the
+  address is `socialfly.pages.dev`.
+- **Cloudflare R2** stores the uploaded videos and images, in the bucket
+  `social-review-media`. There is no database.
+- **`TEAM_PASSWORD`** is what your team types. **`AUTH_SECRET`** signs the
+  login cookie and is never typed by anyone.
+- Client links look like `socialfly.pages.dev/r/caro-november-k3f9qa`, and each
+  post also has its own link ending `/p_7x2mq9ab`. The random ending is why
+  clients need no login: the link cannot be guessed.
 
-Client links look like `https://social-review.pages.dev/r/caro-november-k3f9qa`,
-and each individual post also has its own link ending in `/p_7x2mq9ab`. The
-random suffix means links cannot be found by guessing a client name, which is
-why clients need no login.
-
-The app is deliberately unbranded so one deployment can front every client. The
-header text comes from a `BRAND_NAME` value in the project's `wrangler.toml` and
-reads `Content Review`. Do not change it.
-
-Media and review data both live in the R2 bucket. There is no database.
-
-Full documentation is at `docs/social-review/README.md` in the repository.
+Full documentation of the tool itself is in `README.md` beside this file.

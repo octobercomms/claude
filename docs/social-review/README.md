@@ -63,63 +63,53 @@ be found by guessing a client name. Clients need no login and no account.
 
 ## Deploying it
 
-**There is a step by step walkthrough in `DEPLOY.md`** next to this file,
-written so it can be handed to someone, or to an agent, who has no context.
-What follows is the summary.
+**`DEPLOY.md` beside this file is the step by step guide.** Summary below.
 
-This goes in the **October Communications** Cloudflare account, which already
-has R2 enabled. It is a new project inside that account, not a new account.
+Cloudflare's Git integration is not available for this repo: it is already
+claimed by a Pages project on a different Cloudflare account, and the save is
+refused whatever the project is named. Deployment is therefore a direct upload
+with wrangler, from the October Communications account.
 
-Note that the `october-platform` Pages project is not in that account. The
-Cloudflare Pages check on this repo's pull requests reports from a different
-account, so whoever set that deployment up owns it elsewhere.
+First time:
+
+```bash
+cd dev/social-review && npx --yes wrangler@4 login
+```
+
+```bash
+npx --yes wrangler@4 pages project create socialfly --production-branch main
+```
+
+```bash
+npm run deploy
+```
+
+Then set `TEAM_PASSWORD` and `AUTH_SECRET` as secrets on the project and run
+`npm run deploy` again, because secrets only reach the site on the next upload.
+
+Every time after that, `git pull` then `npm run deploy`. The `--branch main`
+flag is baked into that script; without it wrangler uses the current git branch
+name and the upload lands as a preview rather than the live site.
 
 | Setting | Value |
 |---|---|
-| Pages project | `social-review` |
+| Pages project | `socialfly`, so the address is `socialfly.pages.dev` |
 | R2 bucket | `social-review-media` |
-| Deploy method | Connect to Git, production branch `main` |
-| Root directory | `dev/social-review` |
-| Build command | none |
-| Build output | `public` |
-
-Then two secrets on the project, both type Secret, Production environment:
-
-| Name | What it is |
-|---|---|
-| `TEAM_PASSWORD` | What the team types at `/admin` |
-| `AUTH_SECRET` | 32+ random characters, signs the session cookie, never typed |
+| R2 binding | `MEDIA` |
 
 Three things bite, in order of how often:
 
-1. **R2 needs a payment method on file** before Cloudflare will enable it, even
-   though this stays inside the free allowance. The failure if you skip it does
-   not explain itself.
-2. **Root directory must be `dev/social-review`.** It hides behind an Advanced
-   toggle. Miss it and every page 404s.
-3. **Secrets apply on the next build, not the one already run.** Add them, then
-   redeploy, or the admin reports that they are not set.
+1. **Secrets apply on the next upload, not the one already done.** Set them,
+   then deploy again, or the admin reports they are not set.
+2. **The `MEDIA` binding.** Without it the team signs in and every upload
+   fails.
+3. **Deploying from the wrong folder.** Run it from `dev/social-review` or
+   every page 404s.
 
-The live address is `social-review.pages.dev`. No custom domain is attached,
-which is deliberate while this is a temporary tool. Adding one later does not
-break links already sent, since the `pages.dev` address keeps working.
-
-### If the Git connection cannot be made
-
-A Cloudflare Pages Git connection already exists on this repository, owned by a
-different Cloudflare account, and deploys `october-platform` from it. A second
-Cloudflare account connecting to the same GitHub organisation may be refused.
-
-The fallback needs no GitHub connection. From a terminal, signed in to the
-October Communications account:
-
-```bash
-cd dev/social-review && npx wrangler login && npx wrangler pages deploy
-```
-
-That uploads the folder directly. The trade is that each later change needs the
-same command run again, rather than deploying on merge. Everything else, the
-bucket, the secrets and the binding, is identical.
+Restoring deploy-on-merge is possible despite the repo claim: a GitHub Actions
+workflow with a Cloudflare API token is not subject to it, which is how
+`october-platform` deploys from this same repo. Worth doing only if this tool
+outlives its stopgap phase.
 
 ---
 
