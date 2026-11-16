@@ -1,4 +1,8 @@
-name = "social-review"
+# The Pages project name, which is also the public subdomain:
+# socialfly.pages.dev. That namespace is global across every Cloudflare
+# customer, so a generic name is usually already gone. "social-review" was,
+# and the site at social-review.pages.dev belongs to someone else entirely.
+name = "socialfly"
 compatibility_date = "2025-10-01"
 pages_build_output_dir = "public"
 
