@@ -40,6 +40,39 @@ export async function onRequestPatch({ params, request, env }) {
     manifest.posts = [...reordered, ...manifest.posts.filter((p) => !seen.has(p.id))];
   }
 
+  // Slide-level editing. The client sends the post's complete new media list,
+  // which covers reordering, removing, adding and replacing in one operation.
+  if (typeof body.postId === 'string' && Array.isArray(body.media)) {
+    const post = manifest.posts.find((p) => p.id === body.postId);
+    if (!post) return json({ error: 'That post is no longer in this review' }, { status: 404 });
+
+    const prefix = `media/${params.slug}/`;
+    const clean = body.media
+      .filter((m) => m && typeof m.key === 'string' && m.key.startsWith(prefix))
+      .map((m) => ({
+        key: m.key,
+        mime: String(m.mime || '').slice(0, 60),
+        name: String(m.name || '').slice(0, 120),
+        w: Number.isFinite(m.w) ? Math.round(m.w) : null,
+        h: Number.isFinite(m.h) ? Math.round(m.h) : null,
+      }));
+    if (clean.length !== body.media.length) return json({ error: 'Media rejected' }, { status: 400 });
+    if (!clean.length) {
+      return json({ error: 'A post needs at least one slide. Remove the post instead.' }, { status: 400 });
+    }
+
+    const before = post.media.map((m) => m.key);
+    post.media = clean;
+    // A carousel that drops to one slide is a single post, and vice versa.
+    post.type = clean[0].mime.startsWith('video/')
+      ? 'reel'
+      : clean.length > 1 ? 'carousel' : 'post';
+
+    const stillUsed = new Set(manifest.posts.flatMap((p) => p.media.map((m) => m.key)));
+    const orphans = before.filter((k) => !stillUsed.has(k));
+    if (orphans.length) await env.MEDIA.delete(orphans);
+  }
+
   if (typeof body.removePostId === 'string') {
     const post = manifest.posts.find((p) => p.id === body.removePostId);
     manifest.posts = manifest.posts.filter((p) => p.id !== body.removePostId);

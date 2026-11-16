@@ -409,6 +409,8 @@ function postsCard(review, onDone) {
       <button class="btn danger" data-remove>Remove</button>
     </div></div>`);
 
+    card.appendChild(slidesPanel(review, post, onDone));
+
     for (const w of warnings) card.appendChild(el(`<p class="warn">${escapeHtml(w)}</p>`));
 
     card.querySelector('[data-link]').addEventListener('click', async (e) => {
@@ -430,6 +432,108 @@ function postsCard(review, onDone) {
   });
 
   return wrap;
+}
+
+/* Slide-level editing. Every operation sends the post's complete new media
+   list, so reorder, remove, add and replace are all one request. */
+function slidesPanel(review, post, onDone) {
+  const isReel = (post.media[0].mime || '').startsWith('video/');
+  const url = (m) => `/m/${m.key.slice('media/'.length)}`;
+
+  const panel = el(`<div class="slides">
+    <p class="slides-label">${isReel ? 'Video' : `Slides (${post.media.length})`}</p>
+    <div class="slide-strip"></div>
+    <p class="err" data-err hidden></p>
+  </div>`);
+
+  const strip = panel.querySelector('.slide-strip');
+  const err = panel.querySelector('[data-err]');
+
+  const commit = async (media) => {
+    err.hidden = true;
+    panel.classList.add('busy');
+    try {
+      await api(`/api/reviews/${encodeURIComponent(review.slug)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ postId: post.id, media }),
+      });
+      await onDone();
+    } catch (error) {
+      err.hidden = false;
+      err.textContent = error.message;
+      panel.classList.remove('busy');
+    }
+  };
+
+  const plain = () => post.media.map((m) => ({ key: m.key, mime: m.mime, name: m.name, w: m.w, h: m.h }));
+
+  post.media.forEach((m, i) => {
+    const isVideo = (m.mime || '').startsWith('video/');
+    const slide = el(`<figure class="slide">
+      ${isVideo
+        ? `<video src="${escapeHtml(url(m))}#t=0.1" muted playsinline preload="metadata"></video>`
+        : `<img src="${escapeHtml(url(m))}" alt="Slide ${i + 1}">`}
+      <span class="slide-n">${i + 1}</span>
+      <div class="slide-bar">
+        <button data-left aria-label="Move slide left">${icon('chevL', 12, { sw: 2.6 })}</button>
+        <button data-del aria-label="Remove slide">&times;</button>
+        <button data-right aria-label="Move slide right">${icon('chevR', 12, { sw: 2.6 })}</button>
+      </div>
+    </figure>`);
+
+    const left = slide.querySelector('[data-left]');
+    const right = slide.querySelector('[data-right]');
+    left.disabled = i === 0;
+    right.disabled = i === post.media.length - 1;
+
+    const move = (delta) => {
+      const media = plain();
+      [media[i], media[i + delta]] = [media[i + delta], media[i]];
+      commit(media);
+    };
+    left.addEventListener('click', () => move(-1));
+    right.addEventListener('click', () => move(1));
+
+    slide.querySelector('[data-del]').addEventListener('click', () => {
+      if (post.media.length === 1) {
+        err.hidden = false;
+        err.textContent = 'A post needs at least one slide. Use Remove to delete the whole post.';
+        return;
+      }
+      commit(plain().filter((_, j) => j !== i));
+    });
+
+    strip.appendChild(slide);
+  });
+
+  const accept = isReel
+    ? 'video/mp4,video/webm,video/quicktime'
+    : 'image/jpeg,image/png,image/webp';
+
+  const add = el(`<label class="slide-add">
+    <span>${isReel ? 'Replace' : '+ Add'}</span>
+    <input type="file" accept="${accept}" ${isReel ? '' : 'multiple'} hidden>
+  </label>`);
+
+  add.querySelector('input').addEventListener('change', async (e) => {
+    const files = [...e.currentTarget.files]
+      .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
+    if (!files.length) return;
+    err.hidden = true;
+    panel.classList.add('busy');
+    try {
+      const uploaded = [];
+      for (const file of files) uploaded.push(await uploadFile(review.slug, file));
+      await commit(isReel ? uploaded.slice(0, 1) : [...plain(), ...uploaded]);
+    } catch (error) {
+      err.hidden = false;
+      err.textContent = error.message;
+      panel.classList.remove('busy');
+    }
+  });
+
+  strip.appendChild(add);
+  return panel;
 }
 
 function previewSection(review) {
