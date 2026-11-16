@@ -20,8 +20,9 @@ given to Caro at no charge; Caro carries its own running costs.
 |---|---|---|
 | Sprout Social | **£9,210.66 / year** for 3 licences | Just renewed, so roughly 12 months of runway |
 | Mailchimp | **~£6,000 / year** | Press release distribution, not marketing email. See below |
+| Roxhill | **£6,000–£6,450 + VAT / year** | Media database. Added 16 November; see the meeting report. The team defended it hardest |
 
-About £15,200 a year, but the cost is not the main fault. Three licences for a
+About **£21,200 before VAT** across the three, but the cost is not the main fault. Three licences for a
 team of about twenty means the tool is rationed, so most of the people who get
 asked questions by clients cannot see the numbers that answer them.
 
@@ -397,6 +398,83 @@ Comments, Shares and Saves beneath it.
 6. **Paid and organic are already joined.** Cost per profile visit divides
    Instagram ad budget by an organic metric, in one cell. That is why paid
    social belongs beside the social reporting even though the module is Paid.
+
+---
+
+## The 16 November call
+
+A full read of the Caro resource meeting is at
+`docs/omi/caro-meeting-2026-11-16.md`, with every claim checked against the
+tree. It adds a third tool and seven requirements. The short version:
+
+**Roxhill is replaceable, in stages.** Three of its four jobs already exist in
+OMI: `journalistScout.js` finds journalists not yet in the database and queues
+them for human approval, `pressMediaResearch.js` checks whether contacts are
+still writing and where, and `journalistMatch.js` / `prTarget.js` rank contacts
+against a release. The missing job is **finding newly launched publications**,
+which is exactly what Anya said matters: "you've got this niche magazine and a
+new territory". Build that one watch, run it beside Roxhill for a quarter, and
+let the team judge. Do not propose dropping it first.
+
+**Seven requirements, all agreed in the room:**
+
+| | |
+|---|---|
+| **Outlook capture** | Read the team's Outlook, match senders to contacts, pull conversations into the activity report. Anna: the most involved part of reporting is "re-going through the last month's worth of conversations". Pull everything, let a human choose what goes in. The mailbox machinery exists; `mailboxOauth.js` is Google-only, so Microsoft Graph is a new provider in an existing system. The team settled the privacy question themselves: client aliases are already copied in, so full bodies are acceptable |
+| **Interaction logging** | A logged call, coffee or briefing must count toward a journalist's warmth **and** appear in several clients' reports at once. Anya: "I wouldn't want a journalist to be considered not warm because they haven't responded directly to a press release". Manual entry is accepted |
+| **Editable activity reports** | Generate, hold as a draft, allow edits and added commentary, then send. Daniel's rule for the whole product: fill in what can be filled, leave the rest editable, save 80% of the time |
+| **Drag-and-drop email builder** | The one genuine build on the list. Daniel, looking at the HTML editor mid-demo: "that's not helpful. You want it as drag and drop because that's going to get messy quickly" |
+| **Three campaign starts** | From a URL, from a PDF or DOCX, or blank. URL and blank work today; document upload is a parser in front of an existing path. Every campaign then opens in the builder |
+| **Google Sheet mirror** | **One-way export, several tabs, not a working surface and not sync.** Anya wanted a fallback "in case the website goes down"; the Hetzner daily backups remain the real recovery path |
+| **Per-client AI switch** | Normal, Claude-only, or off. Daniel named it in the call. See the AI policy below |
+
+**Maternity-leave pausing** also wanted: a contact pauses for a year then
+reactivates, alongside the out-of-office harvesting and bounce suppression that
+already work.
+
+**Carolyn raised deliverability as a live problem**, independent of this
+project: "I'm finding that Mailchimp is going into spam quite a lot now".
+Sending reputation attaches to the domain, so changing tool does not fix it.
+Multiple sending domains and blacklist monitoring turn an existing pain into
+something OMI measurably improves.
+
+---
+
+## The AI data policy
+
+**A deliverable in its own right**, for October as well as Caro, written up at
+`docs/omi/ai-data-policy.md` with its sources.
+
+It came out of Anna's question about what clients can be told about AI use. The
+commercially interesting part is that the honest answer is a strong one:
+Anthropic's Commercial Terms, Section B, state that **"Anthropic may not train
+models on Customer Content from Services"**, covering inputs and outputs, with
+output rights assigned to the customer and content treated as confidential.
+Their privacy policy separately confirms it does not govern business content,
+which is the distinction most coverage of AI training misses.
+
+It is stronger still once the Privacy Center detail is added: **the agency is
+the data controller and Anthropic the processor**, a DPA with Standard
+Contractual Clauses is built into the commercial terms, API content is deleted
+within 30 days, and Anthropic is audited against **ISO/IEC 42001** for AI
+management as well as ISO 27001 and SOC 2.
+
+Two facts the document is careful about. Data is **stored in the United
+States**, with a US-only routing option available, which a UK client will ask
+about. And API content **cannot be deleted on demand**, only automatically
+within 30 days, so the client-facing page says that rather than promising
+something we cannot do.
+
+`services/aiModels.js` already flags every AI feature `sensitive: true` or
+`false` and routes each to a chosen model. What the policy needs that does not
+exist: a **per-client AI mode** (normal, Claude-only, off), and a hard refusal
+rather than a warning when a sensitive feature is pointed at a non-Claude
+provider. One standing product rule comes with it: **never add a thumbs up/down
+that sends ratings to Anthropic**, because submitting feedback is one of the
+three ways the no-training default is broken.
+
+Carolyn's framing is why this is worth doing well rather than minimally: "we
+should be the people that are ahead of the game."
 
 ---
 
