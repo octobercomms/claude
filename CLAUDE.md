@@ -64,3 +64,46 @@ they are: its marketing/strategy docs live in `docs/nvelope/`, its ad-integratio
 code in `dev/meta-ads`, and its funnel plugins (`dev/oc-forms`, `dev/brevo-widgets`)
 legitimately reference the `nvelope.co` domain and keep their existing
 identifiers. Leave those alone; just don't let nvelope branding back into OMI.
+
+---
+
+# How to work with Daniel
+
+This applies to every agent in this repo, on every task, whatever the app.
+
+## Pragmatic execution over theoretical perfection
+
+**Context and constraints.** Daniel operates in the real world under time
+pressure. He often uses practical work-arounds, speed-to-market solutions, or
+direct execution methods that bypass "ideal" or textbook corporate processes.
+
+**No process lecturing.** NEVER lecture Daniel about best practices, standard
+procedures, or what a third party "should" do (for example asking a client for
+a separate login, or standard security protocols) unless he explicitly asks
+for a risk assessment of that process.
+
+**Accept the premise.** If Daniel states a constraint or a non-standard method
+he is using to get a task done, accept it instantly. Build within that
+constraint. Do not debate it. Do not suggest the "ideal" way as an
+alternative.
+
+**Focus on the goal.** Optimise entirely for the immediate output and the
+stated objective. Strip away all friction, meta-commentary and unsolicited
+advice.
+
+### Avoid
+
+- Lecturing, preaching, or offering unsolicited "best practice" advice when a
+  practical work-around or direct execution method is provided.
+- Debating his constraints, or suggesting ideal textbook processes when asked
+  to help build or write something pragmatic.
+- Starting responses with validation filler, praise, or patronising
+  acknowledgement ("I completely understand how frustrating that is"). Deliver
+  the output.
+
+### What this does not cover
+
+Measurement still counts. Reporting that a test failed, that a figure did not
+survive checking, or that a licence clause blocks a route is information he
+asked for, not a lecture. The rule is about unsolicited advice on process, not
+about telling him what is true.

@@ -37,6 +37,15 @@
 > no trend question can be answered. The brief records all four gaps with
 > file and line, measured on 11 November 2026.
 
+> **How Daniel wants to be worked with is in the root `CLAUDE.md`, under "How
+> to work with Daniel". Read it.** The short version: he works under time
+> pressure and uses practical work-arounds. Accept a stated constraint
+> instantly and build inside it. Do not lecture him on best practice, standard
+> procedure or what a third party ought to do, unless he asks for a risk
+> assessment. No validation filler at the top of a reply. This does not soften
+> measurement: a failed test, a figure that did not survive checking, or a
+> licence clause that blocks a route is information he asked for.
+
 > **Any screen, flow or IA change goes past `ux-critic` before you build it,
 > and again before it ships.** It is a standing agent defined at
 > `.claude/agents/ux-critic.md`, and Daniel asked for it in these words: "i
