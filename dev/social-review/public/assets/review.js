@@ -24,7 +24,7 @@ function paint() {
     out.innerHTML = '<p class="empty">Nothing has been added to this review yet.</p>';
     return;
   }
-  const ctx = { handle: data.handle, avatar: data.avatar, showWarnings: false };
+  const ctx = { handle: data.handle, avatar: data.avatar, showWarnings: false, fileBase: slug };
 
   if (focusId) {
     const index = data.posts.findIndex((p) => p.id === focusId);

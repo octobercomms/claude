@@ -554,6 +554,7 @@ function previewSection(review) {
   const ctx = {
     handle: review.handle,
     avatar: review.avatarKey ? `/m/${review.avatarKey.slice('media/'.length)}` : null,
+    fileBase: review.slug,
   };
   const posts = review.posts.map((p) => ({
     ...p,
