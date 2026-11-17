@@ -14,6 +14,7 @@ const SVG = {
   mute: 'M11 5 6 9H3v6h3l5 4V5ZM17 9.5l5 5m0-5-5 5',
   play: 'M8 5v14l11-7Z',
   download: 'M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
+  swap: 'M4 8h13m0 0-3.5-3.5M17 8l-3.5 3.5M20 16H7m0 0 3.5-3.5M7 16l3.5 3.5',
 };
 
 const FILLED = new Set(['dots', 'heart-solid']);

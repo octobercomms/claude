@@ -386,10 +386,10 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
   display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; align-items: stretch;
 }
 .slide {
-  margin: 0; position: relative; flex: none; width: 78px; border-radius: 8px;
+  margin: 0; position: relative; flex: none; width: 92px; border-radius: 8px;
   overflow: hidden; background: #eee; border: 1px solid var(--line);
 }
-.slide img, .slide video { width: 78px; height: 97px; object-fit: cover; display: block; }
+.slide img, .slide video { width: 92px; height: 115px; object-fit: cover; display: block; }
 .slide-n {
   position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,.6); color: #fff;
   font-size: 10px; font-weight: 600; border-radius: 4px; padding: 1px 5px;
@@ -398,15 +398,15 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
   position: absolute; left: 0; right: 0; bottom: 0; display: flex;
   background: rgba(0,0,0,.62); backdrop-filter: blur(2px);
 }
-.slide-bar button {
+.slide-bar button, .slide-bar .swap {
   flex: 1; border: 0; background: transparent; color: #fff; cursor: pointer;
-  padding: 4px 0; font: inherit; font-size: 13px; line-height: 1; display: grid; place-items: center;
+  padding: 5px 0; font: inherit; font-size: 13px; line-height: 1; display: grid; place-items: center;
 }
 .slide-bar button:disabled { opacity: .3; cursor: default; }
-.slide-bar button:not(:disabled):hover { background: rgba(255,255,255,.18); }
+.slide-bar button:not(:disabled):hover, .slide-bar .swap:hover { background: rgba(255,255,255,.18); }
 
 .slide-add {
-  flex: none; width: 78px; height: 99px; border-radius: 8px; cursor: pointer;
+  flex: none; width: 92px; height: 117px; border-radius: 8px; cursor: pointer;
   border: 1.5px dashed #cdcac6; display: grid; place-items: center; background: #fff;
   font-size: 12px; font-weight: 550; color: var(--muted); text-align: center; padding: 4px;
 }

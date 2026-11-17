@@ -476,6 +476,10 @@ function slidesPanel(review, post, onDone) {
       <span class="slide-n">${i + 1}</span>
       <div class="slide-bar">
         <button data-left aria-label="Move slide left">${icon('chevL', 12, { sw: 2.6 })}</button>
+        <label class="swap" title="Replace this slide">
+          ${icon('swap', 12, { sw: 2.2 })}
+          <input type="file" accept="${isVideo ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp'}" hidden>
+        </label>
         <button data-del aria-label="Remove slide">&times;</button>
         <button data-right aria-label="Move slide right">${icon('chevR', 12, { sw: 2.6 })}</button>
       </div>
@@ -493,6 +497,24 @@ function slidesPanel(review, post, onDone) {
     };
     left.addEventListener('click', () => move(-1));
     right.addEventListener('click', () => move(1));
+
+    // Swap one slide for another without disturbing its position, which
+    // matters because the post's link is already out with a client.
+    slide.querySelector('.swap input').addEventListener('change', async (e) => {
+      const file = e.currentTarget.files[0];
+      e.currentTarget.value = '';
+      if (!file) return;
+      err.hidden = true;
+      panel.classList.add('busy');
+      try {
+        const replacement = await uploadFile(review.slug, file);
+        await commit(plain().map((m, j) => (j === i ? replacement : m)));
+      } catch (error) {
+        err.hidden = false;
+        err.textContent = error.message;
+        panel.classList.remove('busy');
+      }
+    });
 
     slide.querySelector('[data-del]').addEventListener('click', () => {
       if (post.media.length === 1) {
