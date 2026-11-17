@@ -247,9 +247,17 @@ function allVideos() {
   return document.querySelectorAll('.ig-reel video');
 }
 
-function applySound() {
+export function soundWanted() {
+  return soundOn;
+}
+
+function applySound({ restart = false } = {}) {
   for (const v of allVideos()) {
+    const wasMuted = v.muted;
     v.muted = !(soundOn && interacted);
+    // Whatever played while the browser held sound back was never really
+    // watched, so start it again rather than drop the person mid-sentence.
+    if (restart && wasMuted && !v.muted && !v.paused) v.currentTime = 0;
     v.dispatchEvent(new Event('ocsr:sound'));
   }
 }
@@ -257,13 +265,14 @@ function applySound() {
 export function setSoundOn(on) {
   soundOn = on;
   try { localStorage.setItem(SOUND_KEY, on ? 'on' : 'off'); } catch { /* private window */ }
+  // A deliberate toggle part-way through should not jump back to the start.
   applySound();
 }
 
 function markInteracted() {
   if (interacted) return;
   interacted = true;
-  applySound();
+  applySound({ restart: true });
 }
 
 if (typeof document !== 'undefined') {
@@ -325,6 +334,8 @@ function renderReel(post, ctx) {
           <div class="audio">${icon('music', 13, { sw: 2 })}<span>Original audio</span></div>
         </div>
         <button class="reel-sound" aria-label="Sound" aria-pressed="false"></button>
+        <button class="reel-prompt" type="button" hidden>
+          ${icon('sound', 13, { sw: 2.2 })} Tap for sound</button>
         <span class="reel-tap" hidden>${icon('play', 34, { fill: true })}</span>
         <div class="reel-scrub">
           <input class="reel-range" type="range" min="0" max="1000" value="0" step="1"
@@ -352,9 +363,27 @@ function renderReel(post, ctx) {
     soundBtn.innerHTML = icon(on ? 'sound' : 'mute', 16, { sw: 2 });
     soundBtn.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
   };
-  video.addEventListener('volumechange', paintSound);
-  video.addEventListener('ocsr:sound', paintSound);
-  paintSound();
+  const prompt = phone.querySelector('.reel-prompt');
+  const paintPrompt = () => {
+    prompt.hidden = !(soundWanted() && video.muted && !video.paused);
+  };
+  const paintAll = () => { paintSound(); paintPrompt(); };
+
+  video.addEventListener('volumechange', paintAll);
+  video.addEventListener('ocsr:sound', paintAll);
+  video.addEventListener('play', paintPrompt);
+  video.addEventListener('pause', paintPrompt);
+
+  // The document-level handler has already unmuted and rewound by the time
+  // this runs; this only covers the case where it somehow has not.
+  prompt.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (video.muted) { video.muted = false; video.currentTime = 0; }
+    startPlayback(video);
+    paintAll();
+  });
+
+  paintAll();
 
   soundBtn.addEventListener('click', (e) => {
     e.stopPropagation();
