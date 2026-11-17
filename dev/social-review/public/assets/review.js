@@ -79,6 +79,13 @@ document.getElementById('toggle-ui').addEventListener('click', (e) => {
 });
 document.getElementById('toggle-safe').addEventListener('click', (e) => toggle(e.currentTarget, 'showsafe'));
 
+// Same trap as the admin: a client sent a deployment-specific link would be
+// looking at an old build for ever. Send them to the live one instead.
+const snapshot = /^[0-9a-f]{8}\.(.+\.pages\.dev)$/i.exec(location.hostname);
+if (snapshot) {
+  location.replace(`${location.protocol}//${snapshot[1]}${location.pathname}${location.search}`);
+}
+
 (async () => {
   if (!slug) { sub.textContent = 'No review in this link.'; return; }
   try {
