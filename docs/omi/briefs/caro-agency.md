@@ -432,11 +432,14 @@ let the team judge. Do not propose dropping it first.
 reactivates, alongside the out-of-office harvesting and bounce suppression that
 already work.
 
-**Carolyn raised deliverability as a live problem**, independent of this
-project: "I'm finding that Mailchimp is going into spam quite a lot now".
-Sending reputation attaches to the domain, so changing tool does not fix it.
-Multiple sending domains and blacklist monitoring turn an existing pain into
-something OMI measurably improves.
+**Carolyn's deliverability problem is out of scope.** She raised it in the
+call ("I'm finding that Mailchimp is going into spam quite a lot now"), and
+Daniel ruled it out on 17 November: "ignore carolyn's deliverability issue."
+Recorded so it is not proposed again.
+
+This does not touch the domain warm-up already planned on the Mailchimp track
+above, which is about establishing a reputation for Caro's *new* sending
+domain rather than repairing an existing one.
 
 ---
 

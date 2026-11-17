@@ -277,9 +277,11 @@ Collected because they are easy to lose and expensive to rediscover.
    something more. Worth one sentence from Anya to confirm.
 4. **Roxhill contract timing.** Daniel said he would speak to Cheryl. When it
    renews decides how much runway the new-publication watch has.
-5. **The spam and deliverability problem Carolyn raised.** Separate from this
-   project and worth its own look at Caro's current sending domain, because it
-   affects Mailchimp today and OMI tomorrow.
+**Carolyn's spam and deliverability problem is out of scope.** Daniel, 17
+November: "ignore carolyn's deliverability issue." It was listed here as worth
+its own look; it is not part of this project and should not be raised again.
+Her remark stays recorded above because it is what she said in the call, not
+because anything follows from it.
 
 ---
 
