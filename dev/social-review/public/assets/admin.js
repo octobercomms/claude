@@ -37,7 +37,19 @@ function applyBrand(brand) {
   if (mark) mark.textContent = name.trim().charAt(0);
 }
 
+function warnIfSnapshot() {
+  if (!onSnapshot()) return;
+  const live = `${liveOrigin()}/admin${location.hash}`;
+  document.body.prepend(el(`<div class="snapshot-bar">
+    <b>You are on a frozen copy of one old deployment.</b>
+    Nothing deployed since will appear here, and links copied from this page
+    point at this old build.
+    <a href="${escapeHtml(live)}">Open the live site</a>
+  </div>`));
+}
+
 async function boot() {
+  warnIfSnapshot();
   const { signedIn, configured, brand } = await api('/api/session');
   applyBrand(brand);
   if (!configured) {
@@ -144,7 +156,22 @@ async function showList() {
 
 /* ---------------- one review ---------------- */
 
-const shareUrl = (slug) => `${location.origin}/r/${encodeURIComponent(slug)}`;
+/* Cloudflare gives every deployment its own frozen address, like
+   https://d67bf8c7.socialfly.pages.dev. Open one of those and you are looking
+   at that build for ever, however many times the site is deployed since. Worse,
+   links copied there point at it too, so a client gets pinned to an old build.
+   So links are always built against the live address, never location.origin. */
+
+const SNAPSHOT_HOST = /^[0-9a-f]{8}\.(.+\.pages\.dev)$/i;
+
+function liveOrigin() {
+  const match = SNAPSHOT_HOST.exec(location.hostname);
+  return match ? `${location.protocol}//${match[1]}` : location.origin;
+}
+
+export const onSnapshot = () => SNAPSHOT_HOST.test(location.hostname);
+
+const shareUrl = (slug) => `${liveOrigin()}/r/${encodeURIComponent(slug)}`;
 const postUrl = (slug, postId) => `${shareUrl(slug)}/${encodeURIComponent(postId)}`;
 
 async function copy(text, button, restore) {

@@ -34,6 +34,13 @@ body {
 
 /* ---------- page shell ---------- */
 
+.snapshot-bar {
+  background: #8a2b20; color: #fff; font-size: 13.5px; line-height: 1.5;
+  padding: 11px 20px; text-align: center;
+}
+.snapshot-bar b { font-weight: 650; }
+.snapshot-bar a { color: #fff; font-weight: 600; margin-left: 6px; }
+
 .shell { max-width: 1180px; margin: 0 auto; padding: 0 20px 80px; }
 
 .topbar {
