@@ -103,6 +103,15 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
   background: var(--ink); color: #fff; border-radius: 5px; padding: 2px 7px;
   font-size: 10px; letter-spacing: .06em;
 }
+.slot-label .spacer { flex: 1 1 auto; }
+.slot-label .png {
+  display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 11px;
+  font-weight: 600; letter-spacing: .03em; text-transform: uppercase; cursor: pointer;
+  background: #fff; color: var(--ink); border: 1px solid var(--line);
+  border-radius: 7px; padding: 4px 9px;
+}
+.slot-label .png:hover { border-color: #c9c6c2; }
+.slot-label .png:disabled { opacity: .55; cursor: default; }
 .warn {
   font-size: 12px; line-height: 1.45; color: #8a5a00; background: #fff8e2;
   border: 1px solid #f0dca4; border-radius: 8px; padding: 8px 10px; margin-top: 10px;
@@ -141,8 +150,13 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
 .ig-media { position: relative; background: #efefef; overflow: hidden; }
 .ig-slides {
   display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
-  scrollbar-width: none; height: 100%; width: 100%;
+  scrollbar-width: none; height: 100%; width: 100%; cursor: grab;
+  touch-action: pan-x pinch-zoom;
 }
+.ig-slides.dragging {
+  cursor: grabbing; scroll-snap-type: none; scroll-behavior: auto;
+}
+.ig-slides img { user-select: none; -webkit-user-drag: none; }
 .ig-slides::-webkit-scrollbar { display: none; }
 .ig-slides > figure {
   margin: 0; flex: 0 0 100%; scroll-snap-align: center; position: relative;
@@ -215,13 +229,56 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
 .reel-foot .audio { display: flex; gap: 6px; align-items: center; font-size: 12px; opacity: .95; }
 
 /* Kept out of the middle so it never hides the creative being judged. */
-.reel-unmute {
+.reel-sound {
   position: absolute; top: 52px; right: 14px;
   background: rgba(0,0,0,.55); color: #fff; border: 0; cursor: pointer;
   width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
   backdrop-filter: blur(3px);
 }
-.reel-unmute[hidden] { display: none; }
+
+
+.reel-tap {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  color: rgba(255,255,255,.93); cursor: pointer; background: none; border: 0;
+  filter: drop-shadow(0 2px 7px rgba(0,0,0,.65));
+}
+
+/* Scrubbing. A thin line always, a grabbable slider on hover, like the app. */
+.reel-scrub {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  display: flex; align-items: center; gap: 7px; padding: 0 10px 7px;
+}
+.reel-range {
+  -webkit-appearance: none; appearance: none; flex: 1;
+  height: 15px; background: transparent; cursor: pointer; margin: 0;
+}
+.reel-range::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 2px;
+  background: linear-gradient(to right,
+    #fff var(--seek, 0%), rgba(255,255,255,.38) var(--seek, 0%));
+}
+.reel-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 11px; height: 11px;
+  border-radius: 50%; background: #fff; margin-top: -4px;
+  opacity: 0; transition: opacity .12s;
+}
+.reel-range::-moz-range-track { height: 3px; border-radius: 2px; background: rgba(255,255,255,.38); }
+.reel-range::-moz-range-progress { height: 3px; border-radius: 2px; background: #fff; }
+.reel-range::-moz-range-thumb {
+  width: 11px; height: 11px; border: 0; border-radius: 50%; background: #fff;
+  opacity: 0; transition: opacity .12s;
+}
+.ig-reel:hover .reel-range::-webkit-slider-thumb,
+.reel-range:focus-visible::-webkit-slider-thumb { opacity: 1; }
+.ig-reel:hover .reel-range::-moz-range-thumb { opacity: 1; }
+.reel-time {
+  font-size: 10px; font-weight: 600; color: #fff; min-width: 64px; text-align: right;
+  opacity: 0; transition: opacity .12s; text-shadow: 0 1px 2px rgba(0,0,0,.75);
+}
+.ig-reel:hover .reel-time, .reel-scrub:focus-within .reel-time { opacity: .92; }
+
+/* the caption row sits above the scrubber rather than under it */
+.reel-foot { padding-bottom: 26px; }
 
 /* safe zones: where Instagram's own UI sits over the creative */
 .safe { position: absolute; inset: 0; pointer-events: none; display: none; }
@@ -242,7 +299,8 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
 /* hide the imitation Instagram UI to judge the creative on its own */
 .hideui .ig-head, .hideui .ig-actions, .hideui .ig-likes, .hideui .ig-status,
 .hideui .ig-count, .hideui .ig-dots, .hideui .reel-top, .hideui .reel-rail,
-.hideui .reel-foot { display: none !important; }
+.hideui .reel-foot, .hideui .reel-scrub, .hideui .reel-sound,
+.hideui .reel-tap { display: none !important; }
 
 /* ---------- single post view ---------- */
 

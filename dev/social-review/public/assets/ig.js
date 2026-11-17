@@ -11,6 +11,9 @@ const SVG = {
   reel: 'M3 3h18v18H3Zm0 6h18M9 3 6 9m9-6-3 6m-2.5 3.5 5 2.5-5 2.5Z',
   chevL: 'M15 5 8 12l7 7', chevR: 'M9 5l7 7-7 7',
   sound: 'M11 5 6 9H3v6h3l5 4V5Zm5.5 2.5a5 5 0 0 1 0 9m2.5-12a8.5 8.5 0 0 1 0 15',
+  mute: 'M11 5 6 9H3v6h3l5 4V5ZM17 9.5l5 5m0-5-5 5',
+  play: 'M8 5v14l11-7Z',
+  download: 'M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
 };
 
 const FILLED = new Set(['dots', 'heart-solid']);
@@ -169,10 +172,116 @@ function wireCarousel(phone, count) {
     if (e.key === 'ArrowRight') { e.preventDefault(); go(index + 1); }
     if (e.key === 'ArrowLeft') { e.preventDefault(); go(index - 1); }
   });
+
+  /* Drag with the pointer, the way a finger works on the real thing.
+     Touch is left alone: the browser's own scrolling already does this,
+     and taking it over makes it worse. */
+  let dragging = false;
+  let startX = 0;
+  let startScroll = 0;
+  let travelled = 0;
+
+  slides.addEventListener('dragstart', (e) => e.preventDefault());
+
+  slides.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch' || e.button !== 0) return;
+    dragging = true;
+    travelled = 0;
+    startX = e.clientX;
+    startScroll = slides.scrollLeft;
+    slides.setPointerCapture(e.pointerId);
+    slides.classList.add('dragging');
+  });
+
+  slides.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    travelled = Math.max(travelled, Math.abs(dx));
+    slides.scrollLeft = startScroll - dx;
+  });
+
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    slides.classList.remove('dragging');
+    const width = slides.clientWidth || 1;
+    const raw = slides.scrollLeft / width;
+    const dx = e.clientX - startX;
+    // A short flick still turns the page, as it does on a phone.
+    const target = Math.abs(dx) > 40
+      ? (dx < 0 ? Math.ceil(raw) : Math.floor(raw))
+      : Math.round(raw);
+    go(target);
+  };
+  slides.addEventListener('pointerup', endDrag);
+  slides.addEventListener('pointercancel', endDrag);
+
+  // A drag that ends on an image must not also register as a click.
+  slides.addEventListener('click', (e) => {
+    if (travelled > 6) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
   paint();
 }
 
 /* ---------------- reel ---------------- */
+
+/* ------------------------------------------------------------------
+   Sound
+
+   Browsers refuse to start an unmuted video until the person has
+   interacted with the page, so the first reel on a fresh load starts
+   muted whatever the preference says. The moment they click anything,
+   sound comes on by itself and stays on for the rest of the visit.
+------------------------------------------------------------------ */
+
+const SOUND_KEY = 'ocsr_sound';
+
+let soundOn = (() => {
+  try { return localStorage.getItem(SOUND_KEY) !== 'off'; } catch { return true; }
+})();
+
+let interacted = false;
+
+function allVideos() {
+  return document.querySelectorAll('.ig-reel video');
+}
+
+function applySound() {
+  for (const v of allVideos()) {
+    v.muted = !(soundOn && interacted);
+    v.dispatchEvent(new Event('ocsr:sound'));
+  }
+}
+
+export function setSoundOn(on) {
+  soundOn = on;
+  try { localStorage.setItem(SOUND_KEY, on ? 'on' : 'off'); } catch { /* private window */ }
+  applySound();
+}
+
+function markInteracted() {
+  if (interacted) return;
+  interacted = true;
+  applySound();
+}
+
+if (typeof document !== 'undefined') {
+  for (const type of ['pointerdown', 'keydown']) {
+    document.addEventListener(type, markInteracted, { capture: true, once: true });
+  }
+}
+
+async function startPlayback(video) {
+  video.muted = !(soundOn && interacted);
+  try {
+    await video.play();
+  } catch {
+    // Blocked for want of a gesture. Fall back to muted so something plays.
+    video.muted = true;
+    try { await video.play(); } catch { /* give up quietly */ }
+  }
+}
 
 // Created on first use so this module stays importable outside a browser.
 let videoWatcher;
@@ -180,11 +289,18 @@ function watchVideo(video) {
   videoWatcher ||= new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const v = entry.target;
-      if (entry.isIntersecting) v.play().catch(() => {});
+      if (entry.isIntersecting) startPlayback(v);
       else v.pause();
     }
   }, { threshold: 0.45 });
   videoWatcher.observe(video);
+}
+
+function fmt(t) {
+  if (!Number.isFinite(t)) return '0:00';
+  const m = Math.floor(t / 60);
+  const sec = Math.floor(t % 60);
+  return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
 function renderReel(post, ctx) {
@@ -193,7 +309,7 @@ function renderReel(post, ctx) {
     <div class="phone-screen">
       ${statusBar()}
       <div class="ig-reel">
-        <video src="${escapeHtml(m.url)}" muted loop playsinline preload="metadata"
+        <video src="${escapeHtml(m.url)}" loop playsinline preload="metadata"
                ${m.poster ? `poster="${escapeHtml(m.poster)}"` : ''}></video>
         <div class="reel-top"><span>Reels</span>${icon('camera', 22)}</div>
         <div class="reel-rail">
@@ -208,7 +324,13 @@ function renderReel(post, ctx) {
             <span class="follow">Follow</span></div>
           <div class="audio">${icon('music', 13, { sw: 2 })}<span>Original audio</span></div>
         </div>
-        <button class="reel-unmute" aria-label="Turn sound on">${icon('sound', 16, { sw: 2 })}</button>
+        <button class="reel-sound" aria-label="Sound" aria-pressed="false"></button>
+        <span class="reel-tap" hidden>${icon('play', 34, { fill: true })}</span>
+        <div class="reel-scrub">
+          <input class="reel-range" type="range" min="0" max="1000" value="0" step="1"
+                 aria-label="Seek through the video">
+          <span class="reel-time">0:00</span>
+        </div>
         <div class="safe">
           <i class="t"><em>Instagram UI</em></i><i class="b"><em>Caption &amp; audio</em></i><i class="r"></i>
         </div>
@@ -217,21 +339,193 @@ function renderReel(post, ctx) {
   </div>`);
 
   const video = phone.querySelector('video');
-  const unmute = phone.querySelector('.reel-unmute');
+  const soundBtn = phone.querySelector('.reel-sound');
+  const tap = phone.querySelector('.reel-tap');
+  const range = phone.querySelector('.reel-range');
+  const time = phone.querySelector('.reel-time');
 
-  unmute.addEventListener('click', () => {
-    video.muted = false;
-    video.volume = 1;
-    video.play().catch(() => {});
-    unmute.hidden = true;
+  video.muted = true; // the observer decides the real value when it plays
+
+  const paintSound = () => {
+    const on = !video.muted;
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.innerHTML = icon(on ? 'sound' : 'mute', 16, { sw: 2 });
+    soundBtn.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
+  };
+  video.addEventListener('volumechange', paintSound);
+  video.addEventListener('ocsr:sound', paintSound);
+  paintSound();
+
+  soundBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setSoundOn(video.muted);
   });
-  video.addEventListener('click', () => {
-    if (video.paused) video.play().catch(() => {}); else video.pause();
+
+  // ---- scrubbing ----
+  let scrubbing = false;
+
+  const paintTime = () => {
+    if (!scrubbing && Number.isFinite(video.duration) && video.duration > 0) {
+      range.value = String(Math.round((video.currentTime / video.duration) * 1000));
+    }
+    time.textContent = Number.isFinite(video.duration)
+      ? `${fmt(video.currentTime)} / ${fmt(video.duration)}`
+      : fmt(video.currentTime);
+    phone.style.setProperty('--seek', `${Number(range.value) / 10}%`);
+  };
+
+  video.addEventListener('timeupdate', paintTime);
+  video.addEventListener('loadedmetadata', paintTime);
+  video.addEventListener('durationchange', paintTime);
+
+  const seek = () => {
+    if (!Number.isFinite(video.duration)) return;
+    video.currentTime = (Number(range.value) / 1000) * video.duration;
+    paintTime();
+  };
+
+  range.addEventListener('pointerdown', () => { scrubbing = true; });
+  range.addEventListener('input', () => { scrubbing = true; seek(); });
+  range.addEventListener('change', () => { seek(); scrubbing = false; });
+  for (const type of ['pointerup', 'pointercancel', 'blur']) {
+    range.addEventListener(type, () => { scrubbing = false; });
+  }
+  range.addEventListener('click', (e) => e.stopPropagation());
+
+  // ---- play / pause and keyboard ----
+  const toggle = () => {
+    if (video.paused) startPlayback(video); else video.pause();
+  };
+  video.addEventListener('click', toggle);
+  tap.addEventListener('click', toggle);
+  video.addEventListener('play', () => { tap.hidden = true; });
+  video.addEventListener('pause', () => { tap.hidden = false; });
+
+  phone.addEventListener('keydown', (e) => {
+    if (e.target === range) return; // the slider has its own arrow handling
+    if (e.key === 'ArrowRight') { e.preventDefault(); video.currentTime += 5; }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); video.currentTime -= 5; }
+    else if (e.key === ' ') { e.preventDefault(); toggle(); }
+    else return;
+    paintTime();
   });
-  video.addEventListener('volumechange', () => { unmute.hidden = !video.muted; });
+
   watchVideo(video);
-
+  paintTime();
   return phone;
+}
+
+/* ------------------------------------------------------------------
+   PNG export
+
+   Rendered by hand rather than with a library: the page carries no
+   external dependency, so nothing here breaks when a CDN does.
+
+   The phone is cloned, every computed style is written onto the clone,
+   media is turned into data URIs, and the result is drawn through an
+   SVG foreignObject onto a canvas. The canvas is never filled, so
+   everything outside the phone's rounded corners stays transparent.
+------------------------------------------------------------------ */
+
+async function toDataUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Could not read one of the images');
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not encode one of the images'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function inlineStyles(source, clone) {
+  const computed = getComputedStyle(source);
+  let css = '';
+  for (const prop of computed) css += `${prop}:${computed.getPropertyValue(prop)};`;
+  clone.setAttribute('style', css);
+
+  // Icons carry their own fill and stroke attributes. Writing computed
+  // styles inside an <svg> breaks more than it fixes.
+  if (source.tagName.toLowerCase() === 'svg') return;
+
+  const from = source.children;
+  const to = clone.children;
+  for (let i = 0; i < from.length && i < to.length; i++) inlineStyles(from[i], to[i]);
+}
+
+export async function capturePhone(phone, filename = 'post.png', scale = 2) {
+  const rect = phone.getBoundingClientRect();
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(rect.height);
+  if (!width || !height) throw new Error('Nothing to capture');
+
+  const clone = phone.cloneNode(true);
+  inlineStyles(phone, clone);
+
+  // A clone has no scroll position, so keep only the slide on screen now.
+  const liveSlides = phone.querySelector('.ig-slides');
+  if (liveSlides) {
+    const shown = Math.round(liveSlides.scrollLeft / (liveSlides.clientWidth || 1));
+    [...clone.querySelectorAll('.ig-slides > figure')]
+      .forEach((figure, i) => { if (i !== shown) figure.remove(); });
+  }
+
+  // Controls that only mean something on a live page.
+  for (const selector of ['.reel-scrub', '.reel-sound', '.reel-tap', '.ig-arrow', '.safe']) {
+    for (const node of clone.querySelectorAll(selector)) node.remove();
+  }
+
+  for (const img of clone.querySelectorAll('img')) {
+    img.setAttribute('src', await toDataUrl(img.src));
+  }
+
+  // A video cannot be serialised, so the frame on screen becomes an image.
+  const liveVideo = phone.querySelector('video');
+  const clonedVideo = clone.querySelector('video');
+  if (liveVideo && clonedVideo) {
+    const frame = document.createElement('canvas');
+    frame.width = liveVideo.videoWidth || 1080;
+    frame.height = liveVideo.videoHeight || 1920;
+    try {
+      frame.getContext('2d').drawImage(liveVideo, 0, 0, frame.width, frame.height);
+    } catch { /* nothing decoded yet; the still comes out black */ }
+    const still = document.createElement('img');
+    still.setAttribute('src', frame.toDataURL('image/png'));
+    still.setAttribute('style', clonedVideo.getAttribute('style') || '');
+    clonedVideo.replaceWith(still);
+  }
+
+  // The shadow falls outside the box and would only be clipped.
+  clone.style.boxShadow = 'none';
+  clone.style.margin = '0';
+
+  const xml = new XMLSerializer().serializeToString(clone);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`
+    + `<foreignObject x="0" y="0" width="${width}" height="${height}">`
+    + `<div xmlns="http://www.w3.org/1999/xhtml">${xml}</div>`
+    + '</foreignObject></svg>';
+
+  const image = new Image();
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await image.decode();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const context = canvas.getContext('2d');
+  context.scale(scale, scale);
+  context.drawImage(image, 0, 0); // never filled, so the corners stay clear
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('The browser could not produce a PNG');
+
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(href), 4000);
 }
 
 /* ---------------- public API ---------------- */
@@ -244,10 +538,31 @@ export function renderPost(post, ctx = {}, position = 1) {
   slot.dataset.postId = post.id;
 
   const count = post.type === 'carousel' ? ` &middot; ${post.media.length} slides` : '';
-  slot.appendChild(el(`<p class="slot-label"><span class="tag">${position}</span>
-    ${LABEL[post.type] || 'Post'}${count}</p>`));
+  const label = el(`<p class="slot-label"><span class="tag">${position}</span>
+    ${LABEL[post.type] || 'Post'}${count}<span class="spacer"></span>
+    <button class="png" type="button">${icon('download', 13, { sw: 2.1 })} PNG</button></p>`);
+  slot.appendChild(label);
 
-  slot.appendChild(post.type === 'reel' ? renderReel(post, ctx) : renderFeedPost(post, ctx));
+  const phone = post.type === 'reel' ? renderReel(post, ctx) : renderFeedPost(post, ctx);
+  slot.appendChild(phone);
+
+  const button = label.querySelector('.png');
+  button.addEventListener('click', async () => {
+    const original = button.innerHTML;
+    button.disabled = true;
+    button.textContent = 'Rendering';
+    const base = (ctx.fileBase || 'post').replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
+    try {
+      await capturePhone(phone, `${base}-${position}-${post.type}.png`);
+      button.innerHTML = original;
+    } catch (error) {
+      button.textContent = 'Failed';
+      console.error(error);
+      setTimeout(() => { button.innerHTML = original; }, 2500);
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   if (ctx.showWarnings !== false) {
     for (const w of cropWarnings(post)) {
