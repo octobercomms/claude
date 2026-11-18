@@ -86,6 +86,14 @@ export async function onRequestPatch({ params, request, env }) {
     post.type = deriveType(post.media, body.setType);
   }
 
+  // Signed off. Kept rather than deleted: the link may already be out, and
+  // a client following it should still find the post they approved.
+  if (typeof body.postId === 'string' && typeof body.archived === 'boolean') {
+    const post = manifest.posts.find((p) => p.id === body.postId);
+    if (!post) return json({ error: 'That post is no longer in this review' }, { status: 404 });
+    if (body.archived) post.archived = true; else delete post.archived;
+  }
+
   if (typeof body.removePostId === 'string') {
     const post = manifest.posts.find((p) => p.id === body.removePostId);
     manifest.posts = manifest.posts.filter((p) => p.id !== body.removePostId);
@@ -98,7 +106,11 @@ export async function onRequestPatch({ params, request, env }) {
   }
 
   await writeManifest(env, manifest);
-  await touchIndex(env, params.slug, { title: manifest.title, postCount: manifest.posts.length });
+  await touchIndex(env, params.slug, {
+    title: manifest.title,
+    postCount: manifest.posts.length,
+    archivedCount: manifest.posts.filter((p) => p.archived).length,
+  });
   return json({ review: manifest });
 }
 

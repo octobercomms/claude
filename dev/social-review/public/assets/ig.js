@@ -548,9 +548,10 @@ function inlineStyles(source, clone) {
 }
 
 export async function capturePhone(phone, filename = 'post.png', scale = 2) {
-  const rect = phone.getBoundingClientRect();
-  const width = Math.ceil(rect.width);
-  const height = Math.ceil(rect.height);
+  // offsetWidth ignores any scaling applied to fit several across a row,
+  // so a shrunken preview still exports at full size.
+  const width = phone.offsetWidth;
+  const height = phone.offsetHeight;
   if (!width || !height) throw new Error('Nothing to capture');
 
   const clone = phone.cloneNode(true);
@@ -589,9 +590,11 @@ export async function capturePhone(phone, filename = 'post.png', scale = 2) {
     clonedVideo.replaceWith(still);
   }
 
-  // The shadow falls outside the box and would only be clipped.
+  // The shadow falls outside the box and would only be clipped, and the
+  // clone must not inherit the preview's scaling.
   clone.style.boxShadow = 'none';
   clone.style.margin = '0';
+  clone.style.transform = 'none';
 
   const xml = new XMLSerializer().serializeToString(clone);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`
@@ -621,6 +624,46 @@ export async function capturePhone(phone, filename = 'post.png', scale = 2) {
   setTimeout(() => URL.revokeObjectURL(href), 4000);
 }
 
+/* ------------------------------------------------------------------
+   Fitting several phones across a row
+
+   A phone is built at its real 390px so every size inside it stays
+   honest. To show more than one across, it is scaled rather than
+   rebuilt, and its wrapper is given the scaled height so the page
+   still flows. Layout size is unaffected by a transform, which is why
+   the export below measures offsetWidth rather than the bounding box.
+------------------------------------------------------------------ */
+
+const PHONE_WIDTH = 390;
+
+export function fitPhones(root = document) {
+  for (const fit of root.querySelectorAll('.fit')) {
+    const phone = fit.firstElementChild;
+    if (!phone) continue;
+    const available = fit.clientWidth;
+    if (!available) continue;
+    const scale = Math.min(1, available / (phone.offsetWidth || PHONE_WIDTH));
+    phone.style.transform = scale < 1 ? `scale(${scale})` : '';
+    fit.style.height = `${Math.round(phone.offsetHeight * scale)}px`;
+  }
+}
+
+let fitQueued = false;
+export function watchFit(root) {
+  const run = () => {
+    fitQueued = false;
+    fitPhones(root);
+  };
+  const queue = () => {
+    if (fitQueued) return;
+    fitQueued = true;
+    requestAnimationFrame(run);
+  };
+  queue();
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(queue).observe(root);
+  return queue;
+}
+
 /* ---------------- public API ---------------- */
 
 const LABEL = { reel: 'Reel', story: 'Story', carousel: 'Carousel', post: 'Single post' };
@@ -639,7 +682,10 @@ export function renderPost(post, ctx = {}, position = 1) {
   const phone = post.type === 'reel' ? renderReel(post, ctx)
     : post.type === 'story' ? renderStory(post, ctx)
     : renderFeedPost(post, ctx);
-  slot.appendChild(phone);
+  const fit = document.createElement('div');
+  fit.className = 'fit';
+  fit.appendChild(phone);
+  slot.appendChild(fit);
 
   const button = label.querySelector('.png');
   button.addEventListener('click', async () => {

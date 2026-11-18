@@ -1,4 +1,4 @@
-import { capturePhone, cropWarnings, escapeHtml, icon, renderGrid, renderPost } from './ig.js';
+import { capturePhone, cropWarnings, escapeHtml, fitPhones, icon, renderGrid, renderPost, watchFit } from './ig.js';
 
 const gate = document.getElementById('gate');
 const app = document.getElementById('app');
@@ -403,6 +403,8 @@ function postsCard(review, onDone) {
   if (!review.posts.length) return el('<p class="empty">No posts yet. Add the first one above.</p>');
 
   const wrap = el('<div></div>');
+  const liveCount = review.posts.filter((p) => !p.archived).length;
+  let dividerDone = false;
   const move = async (index, delta) => {
     const order = review.posts.map((p) => p.id);
     const target = index + delta;
@@ -414,7 +416,9 @@ function postsCard(review, onDone) {
     await onDone();
   };
 
-  review.posts.forEach((post, i) => {
+  const ordered = [...review.posts].sort((a, b) =>
+    Number(Boolean(a.archived)) - Number(Boolean(b.archived)));
+  ordered.forEach((post, i) => {
     const first = post.media[0];
     const isVideo = (first.mime || '').startsWith('video/');
     const url = `/m/${first.key.slice('media/'.length)}`;
@@ -436,6 +440,7 @@ function postsCard(review, onDone) {
       <button class="btn" data-link>Copy link</button>
       <button class="btn" data-up aria-label="Move up">${icon('chevL', 14, { sw: 2.4 })}</button>
       <button class="btn" data-down aria-label="Move down">${icon('chevR', 14, { sw: 2.4 })}</button>
+      <button class="btn" data-archive>${post.archived ? 'Restore' : 'Sign off'}</button>
       <button class="btn danger" data-remove>Remove</button>
     </div></div>`);
 
@@ -489,10 +494,19 @@ function postsCard(review, onDone) {
       }
       card.querySelector('.admin-post .spacer').before(seg);
     }
-    card.querySelector('[data-up]').disabled = i === 0;
-    card.querySelector('[data-down]').disabled = i === review.posts.length - 1;
-    card.querySelector('[data-up]').addEventListener('click', () => move(i, -1));
-    card.querySelector('[data-down]').addEventListener('click', () => move(i, 1));
+    const stored = review.posts.indexOf(post);
+    card.querySelector('[data-up]').disabled = stored === 0 || Boolean(post.archived);
+    card.querySelector('[data-down]').disabled = stored === review.posts.length - 1 || Boolean(post.archived);
+    card.querySelector('[data-up]').addEventListener('click', () => move(stored, -1));
+    card.querySelector('[data-down]').addEventListener('click', () => move(stored, 1));
+    card.querySelector('[data-archive]').addEventListener('click', async () => {
+      await api(`/api/reviews/${encodeURIComponent(review.slug)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ postId: post.id, archived: !post.archived }),
+      });
+      await onDone();
+    });
+
     card.querySelector('[data-remove]').addEventListener('click', async () => {
       if (!confirm('Remove this post from the review?')) return;
       await api(`/api/reviews/${encodeURIComponent(review.slug)}`, {
@@ -501,6 +515,13 @@ function postsCard(review, onDone) {
       await onDone();
     });
 
+    if (post.archived && !dividerDone) {
+      dividerDone = true;
+      wrap.appendChild(el(`<p class="signed-off-head">Signed off
+        &middot; ${review.posts.length - liveCount} of ${review.posts.length},
+        hidden from the client's set but still reachable by their own links</p>`));
+    }
+    card.classList.toggle('archived', Boolean(post.archived));
     wrap.appendChild(card);
   });
 
@@ -640,6 +661,9 @@ function previewSection(review) {
       </div>
       <button class="btn" data-ui aria-pressed="false">Hide Instagram UI</button>
       <button class="btn" data-safe aria-pressed="false">Safe zones</button>
+      <label class="cols">Per row
+        <select data-cols><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option></select>
+      </label>
       <span style="font-size:13px;color:var(--muted)">Exactly what the client sees, plus crop notes.</span>
     </div>
     <div data-out class="feed"></div>
@@ -664,7 +688,23 @@ function previewSection(review) {
     if (mode === 'grid') { out.className = ''; out.appendChild(renderGrid(posts, ctx)); return; }
     out.className = 'feed';
     posts.forEach((post, i) => out.appendChild(renderPost(post, ctx, i + 1)));
+    fitPhones(out);
   };
+
+  const colsSelect = section.querySelector('[data-cols]');
+  const COLS_KEY = 'ocsr_admin_cols';
+  try {
+    const saved = localStorage.getItem(COLS_KEY);
+    if (saved) colsSelect.value = saved;
+  } catch { /* private window */ }
+  const applyCols = () => {
+    out.style.setProperty('--cols', colsSelect.value);
+    try { localStorage.setItem(COLS_KEY, colsSelect.value); } catch { /* private window */ }
+    fitPhones(out);
+  };
+  colsSelect.addEventListener('change', applyCols);
+  applyCols();
+  watchFit(out);
 
   section.querySelector('[data-feed]').addEventListener('click', () => {
     mode = 'feed';
