@@ -271,6 +271,17 @@ jobs:
       # duration floor that stops a too-short recording ever being stored.
       - name: Guard — a failed cleanup can be deleted, and says why
         run: node tests/audio-failures.test.js
+      # "Tax deadlines: 23 due within 14 days" arrived every morning over a
+      # table whose soonest row was 58 days past and whose oldest was 269,
+      # every one labelled "upcoming". `getUpcoming` has no lower bound by
+      # design (the dashboard wants what is late as well as what is coming),
+      # so the alert was handed everything and called it due soon, printed the
+      # raw `status` column instead of `effective_status`, and sent the same
+      # list daily with nothing to stop it. This pins all three: what counts
+      # as due, what the rows are labelled, and that an overdue-only list is a
+      # weekly nudge rather than a drumbeat.
+      - name: Guard — a deadline alert is about deadlines that are due
+        run: node tests/tax-deadline-alert.test.js
       # The Library drop target recorded a file's name, type and size and
       # nothing about the picture, so a 90-second clip arrived on the timeline
       # 3.2 seconds long — the editor's fallback length for a source with no

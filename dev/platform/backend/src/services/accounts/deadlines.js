@@ -96,8 +96,9 @@ async function seedForYear(calendarYear) {
   return seedDeadlines(ye);
 }
 
-function addEffectiveStatus(rows) {
-  const now = new Date();
+// `now` is injectable so a guard can drive the calendar rather than wait for
+// a date to pass. It only affects the labelling here, never the SQL.
+function addEffectiveStatus(rows, now = new Date()) {
   return rows.map(r => {
     const due = new Date(r.due_date);
     const daysUntil = Math.ceil((due - now) / 86400000);
@@ -109,7 +110,17 @@ function addEffectiveStatus(rows) {
   });
 }
 
-async function getUpcoming(days = 90) {
+// Everything still open with a due date no later than `days` from now.
+//
+// Note the deliberate absence of a lower bound: the dashboard and the weekly
+// digest both want to see what is late as well as what is coming, and a
+// deadline that slipped does not stop mattering. `addEffectiveStatus` marks
+// those `overdue` and gives every row a negative `days_until`, which is how
+// callers tell the two apart.
+//
+// `sendAlerts` is the one caller that must NOT treat them as the same thing;
+// see `partitionByDue` below.
+async function getUpcoming(days = 90, { now = new Date() } = {}) {
   const { rows } = await db.query(
     `SELECT * FROM acct_tax_deadlines
      WHERE due_date <= now() + ($1 || ' days')::interval
@@ -117,7 +128,28 @@ async function getUpcoming(days = 90) {
      ORDER BY due_date`,
     [String(days)]
   );
-  return addEffectiveStatus(rows);
+  return addEffectiveStatus(rows, now);
+}
+
+// Split what getUpcoming returned into the two things a reader needs to tell
+// apart: deadlines still ahead, and deadlines already missed.
+//
+// Without this the alert said "23 due within 14 days" over a list whose
+// soonest item was 58 days past and whose oldest was 269, every one of them
+// labelled "upcoming". Daniel, 18 November: "i keep getting these every day."
+// An alert somebody has learned to ignore is worse than no alert, because the
+// real VAT deadline arrives in the same email.
+function partitionByDue(rows) {
+  const overdue = [];
+  const dueSoon = [];
+  for (const r of rows) {
+    (r.days_until < 0 ? overdue : dueSoon).push(r);
+  }
+  // Most overdue first: the oldest is the one most likely to be a record that
+  // was never closed rather than a payment genuinely outstanding.
+  overdue.sort((a, b) => a.days_until - b.days_until);
+  dueSoon.sort((a, b) => a.days_until - b.days_until);
+  return { overdue, dueSoon };
 }
 
 async function ensureSeeded() {
@@ -183,36 +215,81 @@ async function updateDeadline(id, data) {
   return rows[0] || null;
 }
 
-async function sendAlerts(daysAhead = 14) {
-  const upcoming = await getUpcoming(daysAhead);
-  if (!upcoming.length) return { sent: false, reason: 'nothing due' };
+// The daily alert.
+//
+// Three rules, each one a bug this had:
+//
+//   1. It only fires for something genuinely due. A deadline already past is
+//      not news every morning for nine months.
+//   2. Overdue items ride along as a second section when the email fires
+//      anyway, so they are visible without being the reason for sending.
+//   3. If nothing is due but something is overdue, it fires once a week
+//      rather than daily. Still a nudge, no longer a drumbeat.
+//
+// `now` and `today` are injectable so the guard can drive the calendar
+// without waiting for a Monday.
+async function sendAlerts(daysAhead = 14, { now = new Date(), weeklyDay = 1 } = {}) {
+  const rows = await getUpcoming(daysAhead, { now });
+  const { overdue, dueSoon } = partitionByDue(rows);
+
+  if (!dueSoon.length && !overdue.length) return { sent: false, reason: 'nothing due' };
+
+  // Nothing imminent: the overdue list alone is worth one reminder a week.
+  if (!dueSoon.length && now.getDay() !== weeklyDay) {
+    return { sent: false, reason: 'only overdue, and not the weekly day', overdue: overdue.length };
+  }
 
   const to = process.env.ACCOUNTS_DIGEST_EMAIL || process.env.ALERT_EMAIL;
   if (!to) return { sent: false, reason: 'no recipient configured' };
 
-  const lines = upcoming.map((d) => {
-    const days = Math.ceil((new Date(d.due_date) - new Date()) / 86400000);
-    const urgency = days <= 3 ? '!!' : days <= 7 ? '!' : '';
+  const row = (d) => {
+    const days = d.days_until;
+    const when = days < 0
+      ? `${Math.abs(days)} days late`
+      : days === 0 ? 'today' : `${days} days`;
+    const urgency = days < 0 ? '!!' : days <= 3 ? '!!' : days <= 7 ? '!' : '';
     return `<tr><td>${urgency} ${d.tax_type}</td><td>${d.period_label}</td>`
-      + `<td>${d.due_date.toISOString().split('T')[0]}</td><td>${days} days</td>`
-      + `<td>${d.status}</td></tr>`;
-  });
+      + `<td>${d.due_date.toISOString().split('T')[0]}</td><td>${when}</td>`
+      // effective_status, not status. The raw column still reads "upcoming"
+      // on a deadline nine months past; addEffectiveStatus is what knows.
+      + `<td>${d.effective_status}</td></tr>`;
+  };
 
-  const html = `<h2>Tax deadline alert</h2>
-<p>${upcoming.length} deadline${upcoming.length > 1 ? 's' : ''} due within ${daysAhead} days:</p>
-<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">
-<tr><th>Type</th><th>Period</th><th>Due</th><th>Remaining</th><th>Status</th></tr>
-${lines.join('\n')}
-</table>
-<p style="color:#666;font-size:12px">Sent by OMI Accounts. Update status at /accounts/deadlines.</p>`;
+  const table = (rowsIn) => `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">
+<tr><th>Type</th><th>Period</th><th>Due</th><th>When</th><th>Status</th></tr>
+${rowsIn.map(row).join('\n')}
+</table>`;
+
+  const parts = ['<h2>Tax deadline alert</h2>'];
+
+  if (dueSoon.length) {
+    parts.push(`<p><strong>${dueSoon.length} deadline${dueSoon.length > 1 ? 's' : ''} due within ${daysAhead} days:</strong></p>`);
+    parts.push(table(dueSoon));
+  }
+
+  if (overdue.length) {
+    parts.push(`<p style="margin-top:24px"><strong>${overdue.length} already overdue.</strong>`
+      + ` If these are paid and simply not recorded, close them in one step at`
+      + ` /accounts/deadlines rather than seeing them here again.</p>`);
+    parts.push(table(overdue));
+  }
+
+  parts.push('<p style="color:#666;font-size:12px">Sent by OMI Accounts. Update status at /accounts/deadlines.</p>');
+
+  // The subject says what is actually due. "23 due within 14 days" over a
+  // list of nine-month-old entries is how this stopped being read.
+  const subject = dueSoon.length
+    ? `Tax deadlines: ${dueSoon.length} due within ${daysAhead} days`
+      + (overdue.length ? `, ${overdue.length} overdue` : '')
+    : `Tax deadlines: ${overdue.length} overdue`;
 
   const { buildTransporter } = require('../../routes/settings');
   const sender = process.env.EMAIL_PROVIDER === 'ses'
     ? (process.env.SES_FROM_EMAIL || process.env.GMAIL_USER)
     : `"October Communications" <${process.env.GMAIL_USER}>`;
 
-  await buildTransporter().sendMail({ from: sender, to, subject: `Tax deadlines: ${upcoming.length} due within ${daysAhead} days`, html });
-  return { sent: true, to, count: upcoming.length };
+  await buildTransporter().sendMail({ from: sender, to, subject, html: parts.join('\n') });
+  return { sent: true, to, dueSoon: dueSoon.length, overdue: overdue.length, subject };
 }
 
 // Infer filed status from confirmed payments in the reconcile queue.
@@ -281,6 +358,7 @@ module.exports = {
   seedDeadlines,
   seedForYear,
   getUpcoming,
+  partitionByDue,
   getAll,
   updateDeadline,
   bulkMarkFiled,
