@@ -292,73 +292,210 @@ ${rowsIn.map(row).join('\n')}
   return { sent: true, to, dueSoon: dueSoon.length, overdue: overdue.length, subject };
 }
 
-// Infer filed status from confirmed payments in the reconcile queue.
-// Matches deadline types to supplier patterns and account codes already
-// in the brain: HMRC (820/VAT), NEST (482/Pension), PAYE (Daniel Nelson).
-const DEADLINE_PAYMENT_MAP = {
-  VAT: { payeePatterns: ['hmrc', 'hm revenue'], accountCodes: ['820'] },
-  PENSION: { payeePatterns: ['nest'], accountCodes: ['482'] },
-  PAYE: { payeePatterns: ['hmrc', 'hm revenue', 'paye'], accountCodes: ['810', '820'] },
-  CT600: { payeePatterns: ['hmrc', 'hm revenue'], accountCodes: ['820'] },
+// Detecting that a deadline was paid.
+//
+// This read the reconcile queue until 18 November, and could never have
+// worked. connectors/xero.js:252 filters that feed with
+// `.filter(tx => tx.IsReconciled !== true)`, so the queue holds only bank
+// lines nobody has reconciled yet. A PAYE or pension payment that was made
+// and then reconciled in Xero never enters it. The one table being asked was
+// the one guaranteed not to hold the answer, which is why the button reported
+// "checked 58 deadlines, 0 updated" even after its SQL was fixed.
+//
+// It now asks Xero directly, through getAllBankTransactions, which carries
+// reconciled and unreconciled alike along with each line's account code.
+//
+// The account codes are read from the chart of accounts rather than written
+// down here. The old map hardcoded 820 for VAT, 482 for pension and 810/820
+// for PAYE; those numbers are a guess about somebody's chart, and 820 served
+// both VAT and PAYE, so an HMRC payment could satisfy either. Matching on the
+// name Xero gives the account ("VAT", "PAYE Payable", "Pension Payable") uses
+// what the file actually says.
+
+const xero = require('../../connectors/xero');
+
+// How a tax type is recognised in an account name. Ordered: pension is tested
+// before PAYE because an account named "Pension/PAYE control" should read as
+// pension, and NEST is the unambiguous signal in this company's data.
+const ACCOUNT_NAME_PATTERNS = [
+  ['PENSION', /pension|\bnest\b|national employment savings/i],
+  ['VAT', /\bvat\b|value added tax/i],
+  ['PAYE', /\bpaye\b|\bnic\b|national insurance|payroll (?:tax|liabilit)/i],
+  ['CT600', /corporation tax/i],
+];
+
+// Payees that identify a tax type on their own. HMRC is deliberately absent:
+// it collects VAT, PAYE and corporation tax alike, so the name alone cannot
+// say which deadline a payment settles. A payment to HMRC with no recognised
+// account code is reported as ambiguous rather than assigned.
+const PAYEE_PATTERNS = [
+  ['PENSION', /\bnest\b|national employment savings/i],
+];
+
+const HMRC = /hmrc|h\.?m\.? revenue/i;
+
+// How far before and after a due date a payment can sit and still be that
+// deadline's. Monthly obligations get a tighter window than quarterly ones:
+// at the old ±60/+14 a single window spanned two and a half monthly periods,
+// so one payment could be read as settling two different months.
+const WINDOWS = {
+  PENSION: { before: 31, after: 21 },
+  PAYE: { before: 31, after: 21 },
+  VAT: { before: 60, after: 21 },
+  CT600: { before: 60, after: 30 },
+  SA: { before: 60, after: 30 },
+  OTHER: { before: 45, after: 21 },
 };
 
-async function inferFiledFromPayments() {
+// code -> tax type, built from the names in the connected Xero file.
+function taxCodeMap(chart) {
+  const map = new Map();
+  for (const account of chart || []) {
+    if (!account?.code || !account?.name) continue;
+    for (const [type, re] of ACCOUNT_NAME_PATTERNS) {
+      if (re.test(account.name)) { map.set(String(account.code), type); break; }
+    }
+  }
+  return map;
+}
+
+// What tax does this payment settle? Returns a type, or null, or the string
+// 'ambiguous' for an HMRC payment carrying nothing that says which tax it is.
+function classifyPayment(tx, codeMap) {
+  // The account it was coded to is the strongest evidence: it is the answer
+  // somebody already gave when they reconciled it.
+  for (const li of tx.lineItems || []) {
+    const type = codeMap.get(String(li.accountCode));
+    if (type) return { type, by: `account ${li.accountCode}` };
+  }
+  const text = `${tx.contactName || ''} ${tx.reference || ''}`;
+  for (const [type, re] of PAYEE_PATTERNS) {
+    if (re.test(text)) return { type, by: 'payee' };
+  }
+  if (HMRC.test(text)) return { type: null, by: 'hmrc, tax not identified', ambiguous: true };
+  return null;
+}
+
+function daysBetween(a, b) {
+  return Math.round((a - b) / 86400000);
+}
+
+/**
+ * Match payments in Xero to deadlines that are not yet marked filed.
+ *
+ * Assignment is one payment to one deadline. A monthly obligation pays every
+ * month, so several payments of the same type fall near each other; pairing
+ * them off by closeness stops one payment being read as settling two months,
+ * which is the shape of error that would quietly mark a period filed that
+ * nobody has paid.
+ *
+ * `dryRun` reports what it would do and changes nothing.
+ */
+async function inferFiledFromPayments({ dryRun = false } = {}) {
   const { rows: unfiled } = await db.query(
     `SELECT * FROM acct_tax_deadlines WHERE status NOT IN ('filed', 'paid') ORDER BY due_date`
   );
-  if (!unfiled.length) return { checked: 0, inferred: 0 };
-
-  let inferred = 0;
-  for (const d of unfiled) {
-    const mapping = DEADLINE_PAYMENT_MAP[d.tax_type];
-    if (!mapping) continue;
-
-    const dueDate = new Date(d.due_date);
-    // Window: 60 days before due date to 14 days after (covers early and late payments).
-    const windowStart = new Date(dueDate);
-    windowStart.setDate(windowStart.getDate() - 60);
-    const windowEnd = new Date(dueDate);
-    windowEnd.setDate(windowEnd.getDate() + 14);
-
-    const payeeLike = mapping.payeePatterns.map((_, i) => `lower(q.payee) LIKE $${i + 4}`).join(' OR ');
-    const params = [
-      windowStart.toISOString(),
-      windowEnd.toISOString(),
-      mapping.accountCodes,
-      ...mapping.payeePatterns.map(p => `%${p}%`),
-    ];
-
-    // suggested_code, not account_code. There has never been an
-    // `account_code` column on acct_reconcile_queue (migration 238 calls it
-    // `suggested_code`, and reconcile.js writes the confirmed code back into
-    // that same column on confirm, so it holds the final code rather than
-    // only the proposed one). The button returned
-    // `column q.account_code does not exist` every time it was pressed, and
-    // nothing caught it: the query is a template literal, so it parses, and
-    // this route is the only thing that runs it.
-    const { rows: payments } = await db.query(
-      `SELECT q.line_date, q.amount, q.payee
-       FROM acct_reconcile_queue q
-       WHERE q.status IN ('confirmed', 'written')
-         AND q.line_date >= $1 AND q.line_date <= $2
-         AND (q.suggested_code = ANY($3) OR (${payeeLike}))
-       ORDER BY q.line_date DESC
-       LIMIT 1`,
-      params
-    );
-
-    if (payments.length) {
-      await db.query(
-        `UPDATE acct_tax_deadlines
-         SET status = 'filed', filing_date = $1, payment_amount = $2, updated_at = now()
-         WHERE id = $3 AND status NOT IN ('filed', 'paid')`,
-        [payments[0].line_date, Math.abs(payments[0].amount), d.id]
-      );
-      inferred++;
-    }
+  if (!unfiled.length) {
+    return { checked: 0, inferred: 0, scanned: 0, matches: [], unmatched: [], notes: ['nothing unfiled'] };
   }
 
-  return { checked: unfiled.length, inferred };
+  const notes = [];
+  const token = await xero.getValidToken();
+
+  const chart = await xero.getChartOfAccounts(token).catch(err => {
+    notes.push(`chart of accounts unavailable (${err.message}); matching on payee only`);
+    return [];
+  });
+  const codeMap = taxCodeMap(chart);
+  if (!codeMap.size) {
+    notes.push('no account in the Xero chart names a tax this tracks, so only NEST payments can be identified');
+  }
+
+  // Reach back far enough to cover the earliest deadline's own window.
+  const earliestDue = new Date(unfiled[0].due_date);
+  const since = new Date(earliestDue);
+  since.setDate(since.getDate() - 70);
+
+  const all = await xero.getAllBankTransactions(token, { since });
+  const spend = all.filter(tx => tx.type === 'SPEND');
+
+  // Group candidate payments by the tax they settle.
+  const byType = new Map();
+  let ambiguous = 0;
+  for (const tx of spend) {
+    const hit = classifyPayment(tx, codeMap);
+    if (!hit) continue;
+    if (hit.ambiguous) { ambiguous++; continue; }
+    if (!byType.has(hit.type)) byType.set(hit.type, []);
+    byType.get(hit.type).push({ ...tx, matchedBy: hit.by });
+  }
+  if (ambiguous) {
+    notes.push(`${ambiguous} HMRC payment${ambiguous === 1 ? '' : 's'} carried no account code naming a tax, so could not be told apart from each other`);
+  }
+
+  // Pair each payment with the open deadline it sits closest to, one to one.
+  const pairs = [];
+  for (const d of unfiled) {
+    const candidates = byType.get(d.tax_type) || [];
+    const win = WINDOWS[d.tax_type] || WINDOWS.OTHER;
+    const due = new Date(d.due_date);
+    for (const tx of candidates) {
+      const gap = daysBetween(new Date(tx.date), due);
+      if (gap < -win.before || gap > win.after) continue;
+      pairs.push({ deadline: d, tx, distance: Math.abs(gap) });
+    }
+  }
+  pairs.sort((a, b) => a.distance - b.distance);
+
+  const takenDeadline = new Set();
+  const takenTx = new Set();
+  const matches = [];
+  for (const pair of pairs) {
+    if (takenDeadline.has(pair.deadline.id) || takenTx.has(pair.tx.transactionId)) continue;
+    takenDeadline.add(pair.deadline.id);
+    takenTx.add(pair.tx.transactionId);
+    matches.push(pair);
+  }
+
+  let inferred = 0;
+  for (const m of matches) {
+    if (dryRun) continue;
+    const { rowCount } = await db.query(
+      `UPDATE acct_tax_deadlines
+       SET status = 'filed', filing_date = $1, payment_amount = $2, updated_at = now()
+       WHERE id = $3 AND status NOT IN ('filed', 'paid')`,
+      [m.tx.date, Math.abs(Number(m.tx.amount) || 0), m.deadline.id]
+    );
+    inferred += rowCount;
+  }
+
+  return {
+    checked: unfiled.length,
+    inferred: dryRun ? 0 : inferred,
+    wouldInfer: matches.length,
+    scanned: spend.length,
+    dryRun,
+    matches: matches.map(m => ({
+      period: m.deadline.period_label,
+      tax_type: m.deadline.tax_type,
+      due_date: m.deadline.due_date,
+      paid_on: m.tx.date,
+      amount: m.tx.amount,
+      payee: m.tx.contactName,
+      reference: m.tx.reference,
+      matched_by: m.tx.matchedBy,
+      reconciled: m.tx.isReconciled,
+    })),
+    unmatched: unfiled
+      .filter(d => !takenDeadline.has(d.id))
+      .map(d => ({
+        period: d.period_label,
+        tax_type: d.tax_type,
+        due_date: d.due_date,
+        candidates_of_this_type: (byType.get(d.tax_type) || []).length,
+      })),
+    notes,
+  };
 }
 
 module.exports = {
@@ -372,4 +509,7 @@ module.exports = {
   bulkMarkFiled,
   inferFiledFromPayments,
   sendAlerts,
+  // Exported for the guard: the pure parts, so the matching can be driven
+  // without a Xero connection.
+  _internals: { taxCodeMap, classifyPayment, ACCOUNT_NAME_PATTERNS, WINDOWS },
 };

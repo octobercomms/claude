@@ -563,9 +563,13 @@ router.put('/deadlines/:id', async (req, res) => {
   }
 });
 
+// `dryRun` reports what it would mark filed and changes nothing, so the
+// matches can be read before any status moves.
 router.post('/deadlines/infer-filed', async (req, res) => {
   try {
-    const result = await accounts.deadlines.inferFiledFromPayments();
+    const result = await accounts.deadlines.inferFiledFromPayments({
+      dryRun: req.body?.dryRun === true,
+    });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
