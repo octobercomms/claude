@@ -403,8 +403,19 @@ function postsCard(review, onDone) {
   if (!review.posts.length) return el('<p class="empty">No posts yet. Add the first one above.</p>');
 
   const wrap = el('<div></div>');
-  const liveCount = review.posts.filter((p) => !p.archived).length;
-  let dividerDone = false;
+  const doneCount = review.posts.filter((p) => p.archived).length;
+  // Signed off means out of the way, not merely further down. They are kept
+  // behind a fold so the list is only what still needs attention, and stay
+  // reachable for the eventual clear-out.
+  const done = doneCount ? el(`<details class="signed-off">
+    <summary>${doneCount} archived<span>Show</span></summary>
+    <div class="signed-off-body">
+      <p class="signed-off-note">Out of the client's set and out of this list. Their own links
+        still work, so anyone already sent one still finds what they approved.
+        <button class="btn danger" data-clear>Delete all ${doneCount}</button></p>
+    </div>
+  </details>`) : null;
+  const doneBody = done && done.querySelector('.signed-off-body');
   const move = async (index, delta) => {
     const order = review.posts.map((p) => p.id);
     const target = index + delta;
@@ -440,7 +451,7 @@ function postsCard(review, onDone) {
       <button class="btn" data-link>Copy link</button>
       <button class="btn" data-up aria-label="Move up">${icon('chevL', 14, { sw: 2.4 })}</button>
       <button class="btn" data-down aria-label="Move down">${icon('chevR', 14, { sw: 2.4 })}</button>
-      <button class="btn" data-archive>${post.archived ? 'Restore' : 'Sign off'}</button>
+      <button class="btn" data-archive>${post.archived ? 'Restore' : 'Archive'}</button>
       <button class="btn danger" data-remove>Remove</button>
     </div></div>`);
 
@@ -515,15 +526,31 @@ function postsCard(review, onDone) {
       await onDone();
     });
 
-    if (post.archived && !dividerDone) {
-      dividerDone = true;
-      wrap.appendChild(el(`<p class="signed-off-head">Signed off
-        &middot; ${review.posts.length - liveCount} of ${review.posts.length},
-        hidden from the client's set but still reachable by their own links</p>`));
-    }
     card.classList.toggle('archived', Boolean(post.archived));
-    wrap.appendChild(card);
+    (post.archived ? doneBody : wrap).appendChild(card);
   });
+
+  if (done) {
+    wrap.appendChild(done);
+    const label = done.querySelector('summary span');
+    done.addEventListener('toggle', () => { label.textContent = done.open ? 'Hide' : 'Show'; });
+
+    done.querySelector('[data-clear]').addEventListener('click', async (e) => {
+      const archived = review.posts.filter((p) => p.archived);
+      if (!confirm(`Delete ${archived.length} archived post${archived.length > 1 ? 's' : ''} and every file in them? This cannot be undone, and their links will stop working.`)) return;
+      e.currentTarget.disabled = true;
+      e.currentTarget.textContent = 'Deleting';
+      for (const post of archived) {
+        await api(`/api/reviews/${encodeURIComponent(review.slug)}`, {
+          method: 'PATCH', body: JSON.stringify({ removePostId: post.id }),
+        });
+      }
+      await onDone();
+    });
+  }
+  if (!review.posts.some((p) => !p.archived)) {
+    wrap.prepend(el('<p class="empty">Nothing left awaiting review.</p>'));
+  }
 
   return wrap;
 }
@@ -676,7 +703,9 @@ function previewSection(review) {
     fileBase: review.slug,
     autoplay: false,
   };
-  const posts = review.posts.map((p) => ({
+  // Signed-off posts have left the client's set, and this preview claims to
+  // be what the client sees, so they leave it too.
+  const posts = review.posts.filter((p) => !p.archived).map((p) => ({
     ...p,
     media: p.media.map((m) => ({ ...m, url: `/m/${m.key.slice('media/'.length)}` })),
   }));

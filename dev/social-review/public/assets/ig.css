@@ -427,12 +427,24 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
 
 .err { color: #b3261e; font-size: 13px; margin: 10px 0 0; }
 
-.signed-off-head {
-  margin: 26px 0 12px; font-size: 11.5px; font-weight: 600; letter-spacing: .05em;
-  text-transform: uppercase; color: var(--muted);
-  border-top: 1px solid var(--line); padding-top: 18px;
+.signed-off { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 16px; }
+.signed-off summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px;
+  font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted); padding: 4px 0;
 }
-.card.archived { opacity: .62; }
+.signed-off summary::-webkit-details-marker { display: none; }
+.signed-off summary span {
+  font-size: 11px; letter-spacing: .04em; border: 1px solid var(--line);
+  border-radius: 6px; padding: 3px 9px; color: var(--ink); background: #fff;
+}
+.signed-off summary:hover span { border-color: #c9c6c2; }
+.signed-off-note {
+  font-size: 13px; color: var(--muted); margin: 12px 0 14px; line-height: 1.5;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.signed-off-note .btn { flex: none; }
+.card.archived { opacity: .7; }
 .card.archived:hover { opacity: 1; }
 .ok { color: #1d6b3f; font-size: 13px; margin: 10px 0 0; }
 
