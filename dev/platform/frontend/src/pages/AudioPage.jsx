@@ -18,6 +18,50 @@ function fmtDate(d) {
   return isNaN(t) ? '' : t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+// Turn a provider error into something an operator can act on.
+//
+// The three failures seen on 18 November all arrived as raw JSON in a red box:
+// a 401 carrying ElevenLabs' credit arithmetic, and two 400s saying a
+// recording was 4.3 and 3.7 seconds against a 4.6 second minimum. None of
+// that reads as instructions, and the last two invite a "Try again" that
+// cannot possibly work, because the same file fails the same way forever.
+//
+// Anything unrecognised keeps its original text rather than being flattened
+// into "something went wrong" — an unhelpful error at least carries a
+// request id somebody can quote.
+function explainAudioError(raw) {
+  const text = String(raw || '');
+  if (!text) return { message: 'Audio cleanup failed, with no reason given.', retryable: true };
+
+  const short = text.match(/duration is ([\d.]+) seconds.*?minimum of ([\d.]+) seconds/i);
+  if (short || /audio_too_short/.test(text)) {
+    const detail = short ? ` It is ${short[1]} seconds and the minimum is ${short[2]}.` : '';
+    return {
+      retryable: false,
+      message: `This recording is too short to clean.${detail} Record a little more and upload again — retrying this file will fail the same way.`,
+    };
+  }
+
+  if (/quota_exceeded/.test(text)) {
+    const credits = text.match(/You have (\d+) credits remaining, while (\d+) credits are required/i);
+    const detail = credits ? ` ${credits[1]} credits left, ${credits[2]} needed for this file.` : '';
+    return {
+      retryable: true,
+      message: `The ElevenLabs account is out of credits.${detail} Top it up, then press Try again — the recording is safe here in the meantime.`,
+    };
+  }
+
+  if (/ELEVENLABS_API_KEY not set/i.test(text)) {
+    return { retryable: true, message: 'No ElevenLabs API key is set. Add one in Settings, then press Try again.' };
+  }
+
+  if (/\b(429|rate.?limit)\b/i.test(text)) {
+    return { retryable: true, message: 'ElevenLabs is rate limiting us. Wait a minute and press Try again.' };
+  }
+
+  return { retryable: true, message: `Audio cleanup failed: ${text}` };
+}
+
 // What the mastering stage did, in one phrase, or nothing.
 //
 // Only ever states figures it actually has. A row cleaned before mastering
@@ -294,11 +338,24 @@ export default function AudioPage({ clientId = null } = {}) {
 
           {current && current.status === 'error' && (
             <div className="card">
-              <h3 className="h3 mb-2">{current.title}</h3>
-              <div style={{ padding: 'var(--s3)', background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
-                Audio cleanup failed: {current.error || 'unknown error'}
+              {/* Delete sits here as well as on a ready recording. It used to
+                  live only inside the `ready` branch, so a file that failed
+                  could not be removed at all and stayed in the list for good.
+                  A failure is the most likely thing somebody wants to clear. */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+                <h3 className="h3" style={{ margin: 0 }}>{current.title}</h3>
+                <button type="button" title="Delete"
+                  {...roWrite(readOnly, { onClick: () => remove(current.id) })}
+                  className="btn-link" style={{ color: 'var(--negative)' }}>Delete</button>
               </div>
-              <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: retry })}>Try again</button>
+              <div style={{ padding: 'var(--s3)', background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', margin: 'var(--s3) 0' }}>
+                {explainAudioError(current.error).message}
+              </div>
+              {/* Retry is pointless on a recording that is simply too short:
+                  the same file fails the same way every time. */}
+              {explainAudioError(current.error).retryable && (
+                <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: retry })}>Try again</button>
+              )}
             </div>
           )}
 

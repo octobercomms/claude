@@ -263,6 +263,14 @@ jobs:
       # signal the second pass never produces.
       - name: Guard — cleaned audio lands on its loudness target
         run: node tests/audio-master.test.js
+      # Three cleanups failed on 18 November and none could be deleted: the
+      # Delete button lived inside the `ready` branch, so a file that failed
+      # stayed in the list for good. Two of the three were simply too short,
+      # and were offered a Try again that could never work. This pins the
+      # button's placement, the wording the operator is shown, and the
+      # duration floor that stops a too-short recording ever being stored.
+      - name: Guard — a failed cleanup can be deleted, and says why
+        run: node tests/audio-failures.test.js
       # The Library drop target recorded a file's name, type and size and
       # nothing about the picture, so a 90-second clip arrived on the timeline
       # 3.2 seconds long — the editor's fallback length for a source with no
