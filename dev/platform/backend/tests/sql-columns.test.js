@@ -1,5 +1,6 @@
 /**
- * Guards that the SQL over the social tables only names columns that exist.
+ * Guards that the SQL over the social and accounts tables only names columns
+ * that exist.
  *
  * This file exists because `socialReport.js` ordered a lateral by
  * `captured_at` and selected `e.engagement_rate`, and neither column has ever
@@ -9,10 +10,22 @@
  * is the only thing that runs it, so the first person to see the failure was
  * Daniel pressing the button in production.
  *
+ * It happened a second time on 18 November, in a table this guard did not
+ * cover: "Infer from payments" on /accounts/deadlines asked for
+ * `q.account_code` on acct_reconcile_queue, where the column is
+ * `suggested_code`. Same shape, same reason nothing caught it, same way it was
+ * found. The accounts tables were added to TABLES then, and the file lost the
+ * word "social" from its name.
+ *
  * The guard reads the schema out of the migrations, works out which alias is
  * bound to which table inside each SQL literal, and checks every column
  * reference against the real column set. It is deliberately conservative:
  * where an alias cannot be resolved, it says nothing rather than guessing.
+ *
+ * Coverage is only as wide as the aliased references in the source: of the 14
+ * accounts tables listed below, 5 are actually reached (40 column references
+ * on 18 November). The rest are listed so that a query written against them
+ * later is checked from the day it lands.
  */
 const test = require('node:test');
 const assert = require('node:assert');
@@ -26,7 +39,18 @@ const SRC = path.join(ROOT, 'src');
 // The tables this guard covers. Narrow on purpose: a table whose shape is
 // built up over many migrations in ways this parser does not model would
 // produce false failures, which teaches the next agent to delete the guard.
-const TABLES = ['social_posts', 'social_post_engagement'];
+const TABLES = [
+  'social_posts', 'social_post_engagement',
+  // Added 18 November. "Infer from payments" on /accounts/deadlines returned
+  // `column q.account_code does not exist` every time it was pressed: the
+  // column is `suggested_code`. Same shape as the bug above, in a table this
+  // guard did not look at, so it went unseen until Daniel pressed the button.
+  'acct_bank_accounts', 'acct_confirmations', 'acct_digests',
+  'acct_drive_subfolders', 'acct_extension_tokens', 'acct_fx_events',
+  'acct_invoice_matches', 'acct_precode_log', 'acct_reconcile_queue',
+  'acct_rules', 'acct_supplier_codings', 'acct_suppliers',
+  'acct_tax_deadlines', 'acct_vat_exceptions',
+];
 
 const NOT_A_COLUMN = new Set([
   'primary', 'unique', 'foreign', 'check', 'constraint', 'exclude', 'like',
@@ -125,6 +149,16 @@ function sqlLiterals(code) {
   return out;
 }
 
+// Words that can open an ORDER BY expression without being a column. The
+// parser takes the first token after ORDER BY, so `ORDER BY CASE status WHEN
+// …` reads as a column called `case`. A function call is already skipped by
+// the lookahead below (it is followed by a paren); these are not. Skipping
+// the whole expression loses the columns inside it, which is the conservative
+// trade this file makes everywhere else: say nothing rather than guess.
+const ORDER_BY_KEYWORD = new Set([
+  'case', 'distinct', 'all', 'null', 'true', 'false', 'interval', 'array',
+]);
+
 const ALIAS_STOP = new Set([
   'on', 'where', 'order', 'group', 'having', 'limit', 'left', 'right', 'inner',
   'outer', 'join', 'lateral', 'cross', 'union', 'set', 'values', 'returning',
@@ -167,6 +201,7 @@ function bareOrderBys(sql) {
       // another table, so the column can only be this table's.
       if (/\b(JOIN|FROM)\b/i.test(m[1])) continue;
       const column = m[2].toLowerCase();
+      if (ORDER_BY_KEYWORD.has(column)) continue;
       // An ORDER BY may name an output alias from the select list
       // (`COUNT(*) AS posts ... ORDER BY posts`), which is not a column.
       if (new RegExp(`\\bAS\\s+${column}\\b`, 'i').test(sql)) continue;
@@ -179,7 +214,7 @@ function bareOrderBys(sql) {
 const SCHEMA = schema();
 const FILES = jsFiles(SRC);
 
-test('the migrations really do describe the social tables', () => {
+test('the migrations really do describe the tables this guard covers', () => {
   for (const table of TABLES) {
     const set = SCHEMA.get(table);
     assert.ok(set && set.size > 3, `no columns parsed for ${table}; the parser, not the schema, is probably wrong`);
@@ -193,7 +228,7 @@ test('the migrations really do describe the social tables', () => {
     'the engagement rate is derived in JS, not stored');
 });
 
-test('every aliased column over the social tables exists', () => {
+test('every aliased column over the covered tables exists', () => {
   const bad = [];
   for (const file of FILES) {
     const code = fs.readFileSync(file, 'utf8');
@@ -233,6 +268,20 @@ test('an ORDER BY inside a single-table social subquery names a real column', ()
     }
   }
   assert.deepStrictEqual(bad, [], `an ORDER BY names a column that does not exist:\n${bad.join('\n')}`);
+});
+
+test('infer-filed reads the column the reconcile queue actually has', () => {
+  const raw = fs.readFileSync(path.join(SRC, 'services', 'accounts', 'deadlines.js'), 'utf8');
+  // Comments stripped first. The note above the query quotes the old error
+  // verbatim, on purpose, to say what went wrong; a guard that trips on prose
+  // teaches the next agent to delete the explanation.
+  const code = raw.replace(/\/\/[^\n]*/g, '');
+  assert.doesNotMatch(code, /q\.account_code/,
+    'acct_reconcile_queue has no account_code column; "Infer from payments" '
+    + 'returned `column q.account_code does not exist` on every press');
+  assert.match(code, /q\.suggested_code = ANY/,
+    'the confirmed code is written back into suggested_code by reconcile.js, '
+    + 'so that is the column to match a payment on');
 });
 
 test("the report's own query is the one that regressed, so assert it directly", () => {

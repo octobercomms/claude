@@ -328,12 +328,20 @@ async function inferFiledFromPayments() {
       ...mapping.payeePatterns.map(p => `%${p}%`),
     ];
 
+    // suggested_code, not account_code. There has never been an
+    // `account_code` column on acct_reconcile_queue (migration 238 calls it
+    // `suggested_code`, and reconcile.js writes the confirmed code back into
+    // that same column on confirm, so it holds the final code rather than
+    // only the proposed one). The button returned
+    // `column q.account_code does not exist` every time it was pressed, and
+    // nothing caught it: the query is a template literal, so it parses, and
+    // this route is the only thing that runs it.
     const { rows: payments } = await db.query(
       `SELECT q.line_date, q.amount, q.payee
        FROM acct_reconcile_queue q
        WHERE q.status IN ('confirmed', 'written')
          AND q.line_date >= $1 AND q.line_date <= $2
-         AND (q.account_code = ANY($3) OR (${payeeLike}))
+         AND (q.suggested_code = ANY($3) OR (${payeeLike}))
        ORDER BY q.line_date DESC
        LIMIT 1`,
       params
