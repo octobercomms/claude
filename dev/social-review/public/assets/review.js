@@ -1,4 +1,4 @@
-import { renderGrid, renderPost } from './ig.js';
+import { fitPhones, renderGrid, renderPost, watchFit } from './ig.js';
 
 const out = document.getElementById('out');
 const title = document.getElementById('title');
@@ -15,6 +15,16 @@ const focusId = parts[1] ? decodeURIComponent(parts[1]) : null;
 
 let data = null;
 let view = 'feed';
+let refit = () => {};
+
+const COLS_KEY = 'ocsr_cols';
+const colsSelect = document.getElementById('cols');
+
+function applyCols(n) {
+  out.style.setProperty('--cols', String(n));
+  try { localStorage.setItem(COLS_KEY, String(n)); } catch { /* private window */ }
+  refit();
+}
 
 const LABEL = { reel: 'Reel', carousel: 'Carousel', post: 'Single post' };
 
@@ -37,9 +47,11 @@ function paint() {
     const post = data.posts[index];
     out.className = 'solo';
     out.appendChild(renderPost(post, ctx, index + 1));
+    fitPhones(out);
     const aside = document.createElement('div');
     aside.className = 'solo-aside';
     aside.innerHTML = `<h2>Post ${index + 1} of ${data.posts.length}</h2>
+      ${post.archived ? '<p><b>Signed off.</b> It is no longer in the running set.</p>' : ''}
       <p>${LABEL[post.type] || 'Post'}${post.type === 'carousel' ? `, ${post.media.length} slides` : ''}.
       This link always points at this post, even if the running order changes.</p>
       <p><a href="/r/${encodeURIComponent(slug)}">See all ${data.posts.length} posts</a></p>`;
@@ -47,12 +59,22 @@ function paint() {
     return;
   }
 
+  // Signed-off posts leave the running set. A link already sent to someone
+  // still opens its own post, which is the branch above.
+  const live = data.posts.filter((p) => !p.archived);
+  if (!live.length) {
+    out.className = '';
+    out.innerHTML = '<p class="empty">Everything in this review has been signed off.</p>';
+    return;
+  }
+
   if (view === 'grid') {
     out.className = '';
-    out.appendChild(renderGrid(data.posts, ctx));
+    out.appendChild(renderGrid(live, ctx));
   } else {
     out.className = 'feed';
-    data.posts.forEach((post, i) => out.appendChild(renderPost(post, ctx, i + 1)));
+    live.forEach((post, i) => out.appendChild(renderPost(post, ctx, i + 1)));
+    fitPhones(out);
   }
 }
 
@@ -78,6 +100,7 @@ document.getElementById('toggle-ui').addEventListener('click', (e) => {
     ? 'Show Instagram UI' : 'Hide Instagram UI';
 });
 document.getElementById('toggle-safe').addEventListener('click', (e) => toggle(e.currentTarget, 'showsafe'));
+colsSelect.addEventListener('change', (e) => applyCols(e.currentTarget.value));
 
 // Same trap as the admin: a client sent a deployment-specific link would be
 // looking at an old build for ever. Send them to the live one instead.
@@ -109,8 +132,19 @@ if (snapshot) {
       + '<b>Safe zones</b> shades the areas Instagram\'s own buttons and caption sit over.';
   }
 
+  refit = watchFit(out);
+  try {
+    const saved = localStorage.getItem(COLS_KEY);
+    if (saved) colsSelect.value = saved;
+  } catch { /* private window */ }
+  applyCols(colsSelect.value);
+  if (focusId) colsSelect.closest('.cols').hidden = true;
+
   const counts = data.posts.reduce((acc, p) => ({ ...acc, [p.type]: (acc[p.type] || 0) + 1 }), {});
-  sub.textContent = Object.entries(counts)
-    .map(([type, n]) => `${n} ${type}${n > 1 ? 's' : ''}`).join(', ') || 'Empty';
+  const signedOff = data.posts.filter((p) => p.archived).length;
+  sub.textContent = [
+    Object.entries(counts).map(([type, n]) => `${n} ${type}${n > 1 ? 's' : ''}`).join(', ') || 'Empty',
+    signedOff ? `${signedOff} signed off` : '',
+  ].filter(Boolean).join(' · ');
   paint();
 })();

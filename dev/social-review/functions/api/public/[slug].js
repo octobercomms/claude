@@ -17,6 +17,7 @@ export async function onRequestGet({ params, env }) {
     posts: manifest.posts.map((p) => ({
       id: p.id,
       type: p.type,
+      archived: Boolean(p.archived),
       media: p.media.map((m) => ({ url: toUrl(m.key), mime: m.mime, w: m.w, h: m.h })),
     })),
   }, { headers: { 'Cache-Control': 'no-store' } });
