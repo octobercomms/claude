@@ -455,8 +455,12 @@ jobs:
         run: node tests/design-render-filed.test.js
       - name: Guard — what the client is shown, on Paid and Shared
         run: node tests/client-visibility.test.js
-      - name: Guard — the social SQL only names columns that exist
-        run: node tests/social-sql-columns.test.js
+      # Widened on 18 November to the accounts tables, after "Infer from
+      # payments" asked acct_reconcile_queue for a column called account_code
+      # (it is suggested_code) and returned a 500 on every press. Same shape as
+      # the social bug this guard was written for, in a table it did not cover.
+      - name: Guard — SQL only names columns that exist
+        run: node tests/sql-columns.test.js
       - name: Guard — snap engine finds edges within threshold and excludes the dragged item
         run: node tests/snap.test.js
       - name: Guard — the render route starts ffmpeg, tracks progress and serves the file
