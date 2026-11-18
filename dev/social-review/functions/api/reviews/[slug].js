@@ -1,7 +1,9 @@
 import { json } from '../../_lib/auth.js';
 import {
-  SLUG_RE, deleteMedia, readManifest, removeFromIndex, touchIndex, writeManifest,
+  SLUG_RE, deleteMedia, deriveType, readManifest, removeFromIndex, touchIndex, writeManifest,
 } from '../../_lib/store.js';
+
+const TYPES = new Set(['reel', 'story', 'carousel', 'post']);
 
 export async function onRequestGet({ params, env }) {
   if (!SLUG_RE.test(params.slug)) return json({ error: 'Bad slug' }, { status: 400 });
@@ -63,14 +65,25 @@ export async function onRequestPatch({ params, request, env }) {
 
     const before = post.media.map((m) => m.key);
     post.media = clean;
-    // A carousel that drops to one slide is a single post, and vice versa.
-    post.type = clean[0].mime.startsWith('video/')
-      ? 'reel'
-      : clean.length > 1 ? 'carousel' : 'post';
+    // A carousel that drops to one slide is a single post, and vice versa,
+    // while a story stays a story.
+    post.type = deriveType(clean, post.type);
 
     const stillUsed = new Set(manifest.posts.flatMap((p) => p.media.map((m) => m.key)));
     const orphans = before.filter((k) => !stillUsed.has(k));
     if (orphans.length) await env.MEDIA.delete(orphans);
+  }
+
+  // Choosing between the formats a single file could be: a 9:16 image is
+  // either a story or a feed post Instagram will crop, and only a person knows.
+  if (typeof body.postId === 'string' && typeof body.setType === 'string') {
+    const post = manifest.posts.find((p) => p.id === body.postId);
+    if (!post) return json({ error: 'That post is no longer in this review' }, { status: 404 });
+    if (!TYPES.has(body.setType)) return json({ error: 'Unknown format' }, { status: 400 });
+    if (body.setType === 'story' && post.media.length !== 1) {
+      return json({ error: 'A story holds one image or video, not a set.' }, { status: 400 });
+    }
+    post.type = deriveType(post.media, body.setType);
   }
 
   if (typeof body.removePostId === 'string') {

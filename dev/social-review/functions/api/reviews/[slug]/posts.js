@@ -1,7 +1,9 @@
 import { json } from '../../../_lib/auth.js';
-import { SLUG_RE, randomToken, readManifest, touchIndex, writeManifest } from '../../../_lib/store.js';
+import {
+  SLUG_RE, deriveType, randomToken, readManifest, touchIndex, writeManifest,
+} from '../../../_lib/store.js';
 
-const TYPES = new Set(['reel', 'carousel', 'post']);
+const TYPES = new Set(['reel', 'story', 'carousel', 'post']);
 
 export async function onRequestPost({ params, request, env }) {
   if (!SLUG_RE.test(params.slug)) return json({ error: 'Bad slug' }, { status: 400 });
@@ -31,9 +33,7 @@ export async function onRequestPost({ params, request, env }) {
     }));
   if (clean.length !== media.length) return json({ error: 'Media rejected' }, { status: 400 });
 
-  const type = TYPES.has(body.type) ? body.type : clean[0].mime.startsWith('video/')
-    ? 'reel'
-    : clean.length > 1 ? 'carousel' : 'post';
+  const type = deriveType(clean, TYPES.has(body.type) ? body.type : null);
 
   const post = { id: `p_${randomToken(8)}`, type, media: clean, added: new Date().toISOString() };
   manifest.posts.push(post);

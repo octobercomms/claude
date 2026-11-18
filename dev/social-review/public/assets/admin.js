@@ -1,4 +1,4 @@
-import { cropWarnings, escapeHtml, icon, renderGrid, renderPost } from './ig.js';
+import { capturePhone, cropWarnings, escapeHtml, icon, renderGrid, renderPost } from './ig.js';
 
 const gate = document.getElementById('gate');
 const app = document.getElementById('app');
@@ -425,11 +425,14 @@ function postsCard(review, onDone) {
         ? `<video class="thumb" src="${escapeHtml(url)}#t=0.1" muted playsinline preload="metadata"></video>`
         : `<img class="thumb" src="${escapeHtml(url)}" alt="">`}
       <div>
-        <h3>${i + 1}. ${post.type === 'reel' ? 'Reel' : post.type === 'carousel' ? `Carousel, ${post.media.length} slides` : 'Single post'}</h3>
+        <h3>${i + 1}. ${{ reel: 'Reel', story: 'Story', post: 'Single post' }[post.type]
+          || `Carousel, ${post.media.length} slides`}</h3>
         <p class="meta">${first.w && first.h ? `${first.w}&times;${first.h}` : 'size unknown'}
           &middot; ${escapeHtml(first.name || first.mime)}</p>
       </div>
       <span class="spacer"></span>
+      <button class="btn" data-png title="Download this post as a PNG">
+        ${icon('download', 13, { sw: 2.1 })} PNG</button>
       <button class="btn" data-link>Copy link</button>
       <button class="btn" data-up aria-label="Move up">${icon('chevL', 14, { sw: 2.4 })}</button>
       <button class="btn" data-down aria-label="Move down">${icon('chevR', 14, { sw: 2.4 })}</button>
@@ -443,6 +446,49 @@ function postsCard(review, onDone) {
     card.querySelector('[data-link]').addEventListener('click', async (e) => {
       await copy(postUrl(review.slug, post.id), e.currentTarget, 'Copy link');
     });
+
+    // Captures the preview further down the page, which is the same markup
+    // the client sees, rather than rendering a second copy of it here.
+    card.querySelector('[data-png]').addEventListener('click', async (e) => {
+      const button = e.currentTarget;
+      const phone = document.querySelector(`.slot[data-post-id="${post.id}"] .phone`);
+      if (!phone) return;
+      const original = button.innerHTML;
+      button.disabled = true;
+      button.textContent = 'Rendering';
+      try {
+        await capturePhone(phone, `${review.slug}-${i + 1}-${post.type}.png`);
+        button.innerHTML = original;
+      } catch (error) {
+        button.textContent = 'Failed';
+        console.error(error);
+        setTimeout(() => { button.innerHTML = original; }, 2500);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    // A 9:16 file is either a story or a feed post Instagram will crop, and
+    // only a person knows which, so the choice sits beside the post.
+    const choices = isVideo ? ['reel', 'story']
+      : post.media.length === 1 ? ['post', 'story'] : [];
+    if (choices.length) {
+      const names = { post: 'Post', story: 'Story', reel: 'Reel' };
+      const seg = el(`<div class="seg format" role="group" aria-label="Format">
+        ${choices.map((c) => `<button data-format="${c}" aria-pressed="${c === post.type}">${names[c]}</button>`).join('')}
+      </div>`);
+      for (const button of seg.querySelectorAll('[data-format]')) {
+        button.addEventListener('click', async () => {
+          if (button.dataset.format === post.type) return;
+          await api(`/api/reviews/${encodeURIComponent(review.slug)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ postId: post.id, setType: button.dataset.format }),
+          });
+          await onDone();
+        });
+      }
+      card.querySelector('.admin-post .spacer').before(seg);
+    }
     card.querySelector('[data-up]').disabled = i === 0;
     card.querySelector('[data-down]').disabled = i === review.posts.length - 1;
     card.querySelector('[data-up]').addEventListener('click', () => move(i, -1));
@@ -604,6 +650,7 @@ function previewSection(review) {
     handle: review.handle,
     avatar: review.avatarKey ? `/m/${review.avatarKey.slice('media/'.length)}` : null,
     fileBase: review.slug,
+    autoplay: false,
   };
   const posts = review.posts.map((p) => ({
     ...p,

@@ -15,6 +15,7 @@ const SVG = {
   play: 'M8 5v14l11-7Z',
   download: 'M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
   swap: 'M4 8h13m0 0-3.5-3.5M17 8l-3.5 3.5M20 16H7m0 0 3.5-3.5M7 16l3.5 3.5',
+  close: 'M5 5l14 14M19 5 5 19',
 };
 
 const FILLED = new Set(['dots', 'heart-solid']);
@@ -41,6 +42,18 @@ export const escapeHtml = (s) =>
 const FEED_MIN = 0.8;     // 4:5
 const FEED_MAX = 1.91;    // 1.91:1
 const REEL_RATIO = 9 / 16;
+const STORY_RATIO = 9 / 16;
+
+/* A post's type follows its media, except that a story can only be chosen.
+   A 9:16 image could be a story or a feed post Instagram will crop, and
+   nothing in the file says which, so the person decides and the choice
+   survives later edits to the media. */
+export function deriveType(media, current) {
+  if (!media.length) return 'post';
+  if (current === 'story' && media.length === 1) return 'story';
+  if ((media[0].mime || '').startsWith('video/')) return 'reel';
+  return media.length > 1 ? 'carousel' : 'post';
+}
 
 const ratioOf = (m) => (m.w && m.h ? m.w / m.h : null);
 const clampFeed = (r) => Math.min(FEED_MAX, Math.max(FEED_MIN, r));
@@ -66,6 +79,15 @@ export function cropWarnings(post) {
   const out = [];
   const media = post.media || [];
   if (!media.length) return out;
+
+  if (post.type === 'story') {
+    const m = media[0];
+    const r = ratioOf(m);
+    if (r && !near(r, STORY_RATIO, 0.03)) {
+      out.push(`This is ${m.w}x${m.h} (${r.toFixed(2)}:1). Stories are 9:16, so it will be cropped or sit on bars.`);
+    }
+    return out;
+  }
 
   if (post.type === 'reel') {
     const m = media[0];
@@ -299,8 +321,9 @@ function watchVideo(video) {
   videoWatcher ||= new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const v = entry.target;
-      if (entry.isIntersecting) startPlayback(v);
-      else v.pause();
+      if (entry.isIntersecting) {
+        if (v.dataset.autoplay !== 'off') startPlayback(v);
+      } else v.pause();
     }
   }, { threshold: 0.45 });
   videoWatcher.observe(video);
@@ -313,14 +336,115 @@ function fmt(t) {
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
+const videoControls = () => `
+  <button class="reel-sound" aria-label="Sound" aria-pressed="false"></button>
+  <button class="reel-prompt" type="button" hidden>
+    ${icon('sound', 13, { sw: 2.2 })} Tap for sound</button>
+  <span class="reel-tap" hidden>${icon('play', 34, { fill: true })}</span>
+  <div class="reel-scrub">
+    <input class="reel-range" type="range" min="0" max="1000" value="0" step="1"
+           aria-label="Seek through the video">
+    <span class="reel-time">0:00</span>
+  </div>`;
+
+/* Sound, scrubbing and play/pause, shared by reels and video stories. */
+function wireVideo(phone, ctx = {}) {
+  const video = phone.querySelector('video');
+  if (!video) return;
+
+  const soundBtn = phone.querySelector('.reel-sound');
+  const prompt = phone.querySelector('.reel-prompt');
+  const tap = phone.querySelector('.reel-tap');
+  const range = phone.querySelector('.reel-range');
+  const time = phone.querySelector('.reel-time');
+
+  video.muted = true; // the observer decides the real value when it plays
+  if (ctx.autoplay === false) video.dataset.autoplay = 'off';
+
+  const paintSound = () => {
+    const on = !video.muted;
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.innerHTML = icon(on ? 'sound' : 'mute', 16, { sw: 2 });
+    soundBtn.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
+  };
+  const paintPrompt = () => {
+    prompt.hidden = !(soundWanted() && video.muted && !video.paused);
+  };
+  const paintAll = () => { paintSound(); paintPrompt(); };
+
+  video.addEventListener('volumechange', paintAll);
+  video.addEventListener('ocsr:sound', paintAll);
+  video.addEventListener('play', paintPrompt);
+  video.addEventListener('pause', paintPrompt);
+
+  prompt.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (video.muted) { video.muted = false; video.currentTime = 0; }
+    startPlayback(video);
+    paintAll();
+  });
+  soundBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setSoundOn(video.muted);
+  });
+  paintAll();
+
+  let scrubbing = false;
+  const paintTime = () => {
+    if (!scrubbing && Number.isFinite(video.duration) && video.duration > 0) {
+      range.value = String(Math.round((video.currentTime / video.duration) * 1000));
+    }
+    time.textContent = Number.isFinite(video.duration)
+      ? `${fmt(video.currentTime)} / ${fmt(video.duration)}`
+      : fmt(video.currentTime);
+    phone.style.setProperty('--seek', `${Number(range.value) / 10}%`);
+  };
+  video.addEventListener('timeupdate', paintTime);
+  video.addEventListener('loadedmetadata', paintTime);
+  video.addEventListener('durationchange', paintTime);
+
+  const seek = () => {
+    if (!Number.isFinite(video.duration)) return;
+    video.currentTime = (Number(range.value) / 1000) * video.duration;
+    paintTime();
+  };
+  range.addEventListener('pointerdown', () => { scrubbing = true; });
+  range.addEventListener('input', () => { scrubbing = true; seek(); });
+  range.addEventListener('change', () => { seek(); scrubbing = false; });
+  for (const type of ['pointerup', 'pointercancel', 'blur']) {
+    range.addEventListener(type, () => { scrubbing = false; });
+  }
+  range.addEventListener('click', (e) => e.stopPropagation());
+
+  const toggle = () => {
+    if (video.paused) startPlayback(video); else video.pause();
+  };
+  video.addEventListener('click', toggle);
+  tap.addEventListener('click', toggle);
+  video.addEventListener('play', () => { tap.hidden = true; });
+  video.addEventListener('pause', () => { tap.hidden = false; });
+  if (ctx.autoplay === false) tap.hidden = false;
+
+  phone.addEventListener('keydown', (e) => {
+    if (e.target === range) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); video.currentTime += 5; }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); video.currentTime -= 5; }
+    else if (e.key === ' ') { e.preventDefault(); toggle(); }
+    else return;
+    paintTime();
+  });
+
+  watchVideo(video);
+  paintTime();
+}
+
 function renderReel(post, ctx) {
   const m = post.media[0];
   const phone = el(`<div class="phone dark">
     <div class="phone-screen">
       ${statusBar()}
       <div class="ig-reel">
-        <video src="${escapeHtml(m.url)}" loop playsinline preload="metadata"
-               ${m.poster ? `poster="${escapeHtml(m.poster)}"` : ''}></video>
+        <video src="${escapeHtml(m.url)}" loop playsinline preload="metadata"></video>
         <div class="reel-top"><span>Reels</span>${icon('camera', 22)}</div>
         <div class="reel-rail">
           <figure>${icon('heart', 26)}<span>1,204</span></figure>
@@ -334,15 +458,7 @@ function renderReel(post, ctx) {
             <span class="follow">Follow</span></div>
           <div class="audio">${icon('music', 13, { sw: 2 })}<span>Original audio</span></div>
         </div>
-        <button class="reel-sound" aria-label="Sound" aria-pressed="false"></button>
-        <button class="reel-prompt" type="button" hidden>
-          ${icon('sound', 13, { sw: 2.2 })} Tap for sound</button>
-        <span class="reel-tap" hidden>${icon('play', 34, { fill: true })}</span>
-        <div class="reel-scrub">
-          <input class="reel-range" type="range" min="0" max="1000" value="0" step="1"
-                 aria-label="Seek through the video">
-          <span class="reel-time">0:00</span>
-        </div>
+        ${videoControls()}
         <div class="safe">
           <i class="t"><em>Instagram UI</em></i><i class="b"><em>Caption &amp; audio</em></i><i class="r"></i>
         </div>
@@ -350,98 +466,45 @@ function renderReel(post, ctx) {
     </div>
   </div>`);
 
-  const video = phone.querySelector('video');
-  const soundBtn = phone.querySelector('.reel-sound');
-  const tap = phone.querySelector('.reel-tap');
-  const range = phone.querySelector('.reel-range');
-  const time = phone.querySelector('.reel-time');
+  wireVideo(phone, ctx);
+  return phone;
+}
 
-  video.muted = true; // the observer decides the real value when it plays
+/* ---------------- story ---------------- */
 
-  const paintSound = () => {
-    const on = !video.muted;
-    soundBtn.setAttribute('aria-pressed', String(on));
-    soundBtn.innerHTML = icon(on ? 'sound' : 'mute', 16, { sw: 2 });
-    soundBtn.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
-  };
-  const prompt = phone.querySelector('.reel-prompt');
-  const paintPrompt = () => {
-    prompt.hidden = !(soundWanted() && video.muted && !video.paused);
-  };
-  const paintAll = () => { paintSound(); paintPrompt(); };
+function renderStory(post, ctx) {
+  const m = post.media[0];
+  const isVideo = (m.mime || '').startsWith('video/');
 
-  video.addEventListener('volumechange', paintAll);
-  video.addEventListener('ocsr:sound', paintAll);
-  video.addEventListener('play', paintPrompt);
-  video.addEventListener('pause', paintPrompt);
+  const phone = el(`<div class="phone dark">
+    <div class="phone-screen">
+      <div class="ig-story">
+        ${isVideo
+          ? `<video src="${escapeHtml(m.url)}" loop playsinline preload="metadata"></video>`
+          : `<img src="${escapeHtml(m.url)}" alt="Story" draggable="false">`}
+        <div class="story-top">
+          <div class="story-bars"><i></i></div>
+          <div class="story-who">
+            ${avatar(ctx.avatar)}
+            <b>${escapeHtml(ctx.handle || 'yourbrand')}</b>
+            <span class="ago">2h</span>
+            <span class="story-x">${icon('close', 17, { sw: 2.2 })}</span>
+          </div>
+        </div>
+        <div class="story-foot">
+          <span class="story-reply">Send message</span>
+          ${icon('heart', 23)}${icon('send', 23)}
+        </div>
+        ${isVideo ? videoControls() : ''}
+        <div class="safe story-safe">
+          <i class="t"><em>Profile &amp; progress</em></i>
+          <i class="b"><em>Reply bar</em></i>
+        </div>
+      </div>
+    </div>
+  </div>`);
 
-  // The document-level handler has already unmuted and rewound by the time
-  // this runs; this only covers the case where it somehow has not.
-  prompt.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (video.muted) { video.muted = false; video.currentTime = 0; }
-    startPlayback(video);
-    paintAll();
-  });
-
-  paintAll();
-
-  soundBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    setSoundOn(video.muted);
-  });
-
-  // ---- scrubbing ----
-  let scrubbing = false;
-
-  const paintTime = () => {
-    if (!scrubbing && Number.isFinite(video.duration) && video.duration > 0) {
-      range.value = String(Math.round((video.currentTime / video.duration) * 1000));
-    }
-    time.textContent = Number.isFinite(video.duration)
-      ? `${fmt(video.currentTime)} / ${fmt(video.duration)}`
-      : fmt(video.currentTime);
-    phone.style.setProperty('--seek', `${Number(range.value) / 10}%`);
-  };
-
-  video.addEventListener('timeupdate', paintTime);
-  video.addEventListener('loadedmetadata', paintTime);
-  video.addEventListener('durationchange', paintTime);
-
-  const seek = () => {
-    if (!Number.isFinite(video.duration)) return;
-    video.currentTime = (Number(range.value) / 1000) * video.duration;
-    paintTime();
-  };
-
-  range.addEventListener('pointerdown', () => { scrubbing = true; });
-  range.addEventListener('input', () => { scrubbing = true; seek(); });
-  range.addEventListener('change', () => { seek(); scrubbing = false; });
-  for (const type of ['pointerup', 'pointercancel', 'blur']) {
-    range.addEventListener(type, () => { scrubbing = false; });
-  }
-  range.addEventListener('click', (e) => e.stopPropagation());
-
-  // ---- play / pause and keyboard ----
-  const toggle = () => {
-    if (video.paused) startPlayback(video); else video.pause();
-  };
-  video.addEventListener('click', toggle);
-  tap.addEventListener('click', toggle);
-  video.addEventListener('play', () => { tap.hidden = true; });
-  video.addEventListener('pause', () => { tap.hidden = false; });
-
-  phone.addEventListener('keydown', (e) => {
-    if (e.target === range) return; // the slider has its own arrow handling
-    if (e.key === 'ArrowRight') { e.preventDefault(); video.currentTime += 5; }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); video.currentTime -= 5; }
-    else if (e.key === ' ') { e.preventDefault(); toggle(); }
-    else return;
-    paintTime();
-  });
-
-  watchVideo(video);
-  paintTime();
+  if (isVideo) wireVideo(phone, ctx);
   return phone;
 }
 
@@ -560,7 +623,7 @@ export async function capturePhone(phone, filename = 'post.png', scale = 2) {
 
 /* ---------------- public API ---------------- */
 
-const LABEL = { reel: 'Reel', carousel: 'Carousel', post: 'Single post' };
+const LABEL = { reel: 'Reel', story: 'Story', carousel: 'Carousel', post: 'Single post' };
 
 export function renderPost(post, ctx = {}, position = 1) {
   const slot = document.createElement('div');
@@ -573,7 +636,9 @@ export function renderPost(post, ctx = {}, position = 1) {
     <button class="png" type="button">${icon('download', 13, { sw: 2.1 })} PNG</button></p>`);
   slot.appendChild(label);
 
-  const phone = post.type === 'reel' ? renderReel(post, ctx) : renderFeedPost(post, ctx);
+  const phone = post.type === 'reel' ? renderReel(post, ctx)
+    : post.type === 'story' ? renderStory(post, ctx)
+    : renderFeedPost(post, ctx);
   slot.appendChild(phone);
 
   const button = label.querySelector('.png');
@@ -613,7 +678,8 @@ export function renderGrid(posts, ctx = {}) {
 
   const grid = wrap.querySelector('.grid');
   // Instagram shows newest first and crops every tile to a square.
-  for (const post of [...posts].reverse()) {
+  // Stories are not in the grid at all, so they are left out.
+  for (const post of [...posts].filter((p) => p.type !== 'story').reverse()) {
     const m = post.media[0];
     const isVideo = (m.mime || '').startsWith('video/');
     grid.appendChild(el(`<div class="cell">
