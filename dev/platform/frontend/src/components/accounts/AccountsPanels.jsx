@@ -1094,6 +1094,10 @@ export function DeadlinesPanel() {
   const [editStatus, setEditStatus] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [inferring, setInferring] = useState(false);
+  // What a dry run found, held until it is applied or dismissed. Detection
+  // reads real payments out of Xero, so showing the evidence before anything
+  // is marked filed is cheaper than undoing a wrong match afterwards.
+  const [inferPreview, setInferPreview] = useState(null);
   const [bulkDate, setBulkDate] = useState('');
   const [bulkFiling, setBulkFiling] = useState(false);
 
@@ -1131,9 +1135,22 @@ export function DeadlinesPanel() {
   async function handleInfer() {
     setInferring(true);
     try {
+      const r = await api.post('/accounts/deadlines/infer-filed', { dryRun: true });
+      setInferPreview(r);
+      if (!r.matches.length) {
+        toast(`Read ${r.scanned} payments from Xero, none matched an open deadline`);
+      }
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setInferring(false); }
+  }
+
+  async function applyInfer() {
+    setInferring(true);
+    try {
       const r = await api.post('/accounts/deadlines/infer-filed');
-      toast(`Checked ${r.checked} deadlines, ${r.inferred} updated from payments`);
-      if (r.inferred > 0) load();
+      toast(`${r.inferred} deadline${r.inferred === 1 ? '' : 's'} marked filed from payments`);
+      setInferPreview(null);
+      load();
     } catch (e) { toast(e.message, 'error'); }
     finally { setInferring(false); }
   }
@@ -1193,6 +1210,65 @@ export function DeadlinesPanel() {
           </button>
         </div>
       </div>
+
+      {inferPreview && (
+        <div className="card" style={{ padding: 'var(--s4)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+            <div className="h4">
+              {inferPreview.matches.length
+                ? `${inferPreview.matches.length} deadline${inferPreview.matches.length === 1 ? '' : 's'} matched to a payment`
+                : 'No payment matched an open deadline'}
+            </div>
+            <div className="body-sm text-muted">
+              {inferPreview.scanned} payment{inferPreview.scanned === 1 ? '' : 's'} read from Xero
+            </div>
+          </div>
+
+          {inferPreview.notes?.length > 0 && (
+            <ul className="body-sm text-muted" style={{ margin: 'var(--s2) 0 0', paddingLeft: '1.2em' }}>
+              {inferPreview.notes.map((n, i) => <li key={i}>{n}</li>)}
+            </ul>
+          )}
+
+          {inferPreview.matches.length > 0 && (
+            <table className="table" style={{ marginTop: 'var(--s3)' }}>
+              <thead>
+                <tr>
+                  <th>Period</th><th>Due</th><th>Paid</th><th>Amount</th>
+                  <th>Payee</th><th>Matched on</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inferPreview.matches.map((m, i) => (
+                  <tr key={i}>
+                    <td>{m.period}</td>
+                    <td>{String(m.due_date).slice(0, 10)}</td>
+                    <td>{String(m.paid_on).slice(0, 10)}</td>
+                    <td>{m.amount}</td>
+                    <td>{m.payee}{m.reference ? ` · ${m.reference}` : ''}</td>
+                    <td className="body-sm text-muted">{m.matched_by}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {inferPreview.unmatched?.length > 0 && (
+            <div className="body-sm text-muted" style={{ marginTop: 'var(--s3)' }}>
+              Still open: {inferPreview.unmatched.map(u => u.period).join(', ')}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s4)' }}>
+            {inferPreview.matches.length > 0 && (
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: applyInfer, disabled: inferring })}>
+                {inferring ? 'Filing...' : `Mark ${inferPreview.matches.length} filed`}
+              </button>
+            )}
+            <button className="btn" onClick={() => setInferPreview(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 'var(--s3)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <span className="body-sm text-muted">Mark all deadlines before</span>

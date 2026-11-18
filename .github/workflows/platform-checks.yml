@@ -282,6 +282,16 @@ jobs:
       # weekly nudge rather than a drumbeat.
       - name: Guard — a deadline alert is about deadlines that are due
         run: node tests/tax-deadline-alert.test.js
+      # "Infer from payments" read acct_reconcile_queue, which connectors
+      # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
+      # payment that was made and then reconciled never enters it, so the one
+      # table being asked was the one that could not hold the answer. It reads
+      # Xero directly now, takes its account codes from the chart of accounts
+      # by name rather than hardcoding 820/482/810, reports an HMRC payment it
+      # cannot identify instead of guessing between VAT and PAYE, and pairs one
+      # payment to one deadline so a month nobody paid is never marked filed.
+      - name: Guard — a paid deadline is detected, and an unpaid one is not
+        run: node tests/deadline-inference.test.js
       # The Library drop target recorded a file's name, type and size and
       # nothing about the picture, so a 90-second clip arrived on the timeline
       # 3.2 seconds long — the editor's fallback length for a source with no

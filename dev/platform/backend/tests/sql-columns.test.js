@@ -270,18 +270,36 @@ test('an ORDER BY inside a single-table social subquery names a real column', ()
   assert.deepStrictEqual(bad, [], `an ORDER BY names a column that does not exist:\n${bad.join('\n')}`);
 });
 
-test('infer-filed reads the column the reconcile queue actually has', () => {
+test('infer-filed does not look for payments in the reconcile queue', () => {
+  // The original bug was a column name, and the first fix corrected it. The
+  // real fault was the table: connectors/xero.js fills acct_reconcile_queue
+  // through `.filter(tx => tx.IsReconciled !== true)`, so a payment that was
+  // made and then reconciled is excluded by construction. Reading it could
+  // never have detected a settled deadline, whatever the column was called.
+  //
+  // Comments are stripped first. The note above the query names the old table
+  // and column on purpose, to say what went wrong, and a guard that trips on
+  // prose teaches the next agent to delete the explanation.
   const raw = fs.readFileSync(path.join(SRC, 'services', 'accounts', 'deadlines.js'), 'utf8');
-  // Comments stripped first. The note above the query quotes the old error
-  // verbatim, on purpose, to say what went wrong; a guard that trips on prose
-  // teaches the next agent to delete the explanation.
   const code = raw.replace(/\/\/[^\n]*/g, '');
-  assert.doesNotMatch(code, /q\.account_code/,
-    'acct_reconcile_queue has no account_code column; "Infer from payments" '
-    + 'returned `column q.account_code does not exist` on every press');
-  assert.match(code, /q\.suggested_code = ANY/,
-    'the confirmed code is written back into suggested_code by reconcile.js, '
-    + 'so that is the column to match a payment on');
+
+  assert.doesNotMatch(code, /acct_reconcile_queue/,
+    'deadline inference is reading the reconcile queue again, which holds '
+    + 'only bank lines nobody has reconciled yet');
+  assert.match(code, /getAllBankTransactions/,
+    'the payments have to come from Xero, where reconciled and unreconciled '
+    + 'transactions are both visible');
+});
+
+test('the queue feed really is unreconciled-only, which is why it was wrong', () => {
+  // Asserted directly, because the claim above rests on it. If this filter
+  // ever goes, the reasoning in that test needs rereading rather than
+  // trusting.
+  const xero = fs.readFileSync(path.join(SRC, 'connectors', 'xero.js'), 'utf8');
+  assert.match(xero, /getBankStatementLines[\s\S]{0,1200}IsReconciled !== true/,
+    'getBankStatementLines no longer filters to unreconciled transactions; '
+    + 'the reasoning about why the reconcile queue could not detect a paid '
+    + 'deadline depends on that filter');
 });
 
 test("the report's own query is the one that regressed, so assert it directly", () => {
