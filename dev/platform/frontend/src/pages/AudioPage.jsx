@@ -18,6 +18,20 @@ function fmtDate(d) {
   return isNaN(t) ? '' : t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+// What the mastering stage did, in one phrase, or nothing.
+//
+// Only ever states figures it actually has. A row cleaned before mastering
+// existed carries no `mastering` at all and says nothing rather than implying
+// the file was levelled. A row where mastering failed says so plainly: the
+// audio is still isolated and still usable, so this is information rather
+// than an error.
+function loudnessNote(m) {
+  if (!m) return null;
+  if (m.skipped) return 'levelling skipped';
+  if (typeof m.input_lufs !== 'number' || typeof m.target_lufs !== 'number') return null;
+  return `levelled from ${m.input_lufs.toFixed(1)} to ${m.target_lufs} LUFS`;
+}
+
 function pickAudioMime() {
   if (typeof MediaRecorder === 'undefined') return null;
   const opts = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
@@ -305,7 +319,16 @@ export default function AudioPage({ clientId = null } = {}) {
               <div style={{ marginTop: 'var(--s4)' }}>
                 <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 'var(--s1)' }}>Cleaned</div>
                 <audio src={`/api/audio/${current.id}/cleaned`} controls style={{ width: '100%' }} />
-                {current.cleaned_size && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{fmtSize(current.cleaned_size)}</div>}
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
+                  {current.cleaned_size ? fmtSize(current.cleaned_size) : null}
+                  {/* State the loudness it started from rather than claiming an
+                      improvement nobody can check. Absent on rows cleaned
+                      before mastering existed; the skipped case says so,
+                      because the audio is still cleaned and still usable. */}
+                  {loudnessNote(current.mastering) && (
+                    <> · {loudnessNote(current.mastering)}</>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s4)', flexWrap: 'wrap' }}>

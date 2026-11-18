@@ -10,6 +10,7 @@
 const pool = require('../db');
 const mediaStore = require('./mediaStore');
 const { getSetting } = require('../utils/settings');
+const audioMaster = require('./audioMaster');
 
 const BASE_URL = 'https://api.elevenlabs.io/v1';
 
@@ -40,15 +41,36 @@ async function processCleanup(id) {
       throw new Error(`ElevenLabs Audio Isolation ${res.status}: ${detail || 'request failed'}`);
     }
 
-    const cleanedBuf = Buffer.from(await res.arrayBuffer());
+    const isolatedBuf = Buffer.from(await res.arrayBuffer());
+
+    // Second stage: level it and shape the voice. Isolation removes what
+    // should not be there; this fixes what is. See services/audioMaster.js.
+    //
+    // Deliberately non-fatal. A clean but quiet file is worth delivering, so a
+    // mastering failure falls back to the isolated audio and records why,
+    // rather than turning a working cleanup into an error the operator has to
+    // interpret. `mastering` stays null in that case, which is what the screen
+    // reads to decide whether it can quote a loudness figure.
+    let finalBuf = isolatedBuf;
+    let mastering = null;
+    try {
+      const mastered = await audioMaster.master(isolatedBuf, { ext: 'mp3' });
+      finalBuf = mastered.buffer;
+      mastering = mastered.mastering;
+    } catch (err) {
+      console.warn('[audioIsolation] mastering failed for', id, err.message);
+      mastering = { skipped: true, reason: err.message.slice(0, 300) };
+    }
+
     const cleanedKey = row.storage_key.replace(/(\.[a-z0-9]+)$/i, '-cleaned$1');
-    await mediaStore.saveBuffer(cleanedKey, cleanedBuf, 'audio/mpeg');
+    await mediaStore.saveBuffer(cleanedKey, finalBuf, 'audio/mpeg');
 
     await pool.query(
       `UPDATE audio_cleanups
-         SET status = 'ready', cleaned_key = $2, cleaned_size = $3, error = NULL
+         SET status = 'ready', cleaned_key = $2, cleaned_size = $3,
+             mastering = $4::jsonb, error = NULL
        WHERE id = $1`,
-      [id, cleanedKey, cleanedBuf.length]
+      [id, cleanedKey, finalBuf.length, JSON.stringify(mastering)]
     );
   } catch (err) {
     console.warn('[audioIsolation] cleanup failed for', id, err.message);
