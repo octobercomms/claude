@@ -253,6 +253,16 @@ jobs:
       # step checks for it rather than assuming the install above worked.
       - name: Install ffmpeg for the render guards
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      # Audio cleanup tells the operator a recording was levelled to -16 LUFS
+      # and stores what it started from so the claim is checkable. This runs
+      # both loudnorm passes over real audio and measures the result with
+      # ebur128 — a different filter from the one that did the work, so it is
+      # a check rather than an echo. It also pins the filter order: the
+      # de-esser has to follow the compressor that lifts the sibilance, and
+      # both passes have to share one chain or the measurement describes a
+      # signal the second pass never produces.
+      - name: Guard — cleaned audio lands on its loudness target
+        run: node tests/audio-master.test.js
       # The Library drop target recorded a file's name, type and size and
       # nothing about the picture, so a 90-second clip arrived on the timeline
       # 3.2 seconds long — the editor's fallback length for a source with no

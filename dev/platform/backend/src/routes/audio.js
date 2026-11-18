@@ -41,6 +41,12 @@ function present(r) {
     size_bytes: r.size_bytes != null ? Number(r.size_bytes) : null,
     cleaned_size: r.cleaned_size != null ? Number(r.cleaned_size) : null,
     has_cleaned: !!r.cleaned_key,
+    // What the mastering stage measured, so the screen can state the loudness
+    // it started from rather than claim an unverifiable improvement. Null on
+    // rows that predate migration 254; carries `skipped` when isolation
+    // succeeded but mastering did not, which is a working cleanup rather than
+    // an error.
+    mastering: r.mastering || null,
     created_at: r.created_at,
   };
 }
