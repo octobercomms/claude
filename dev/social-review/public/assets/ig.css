@@ -298,6 +298,48 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
 /* the caption row sits above the scrubber rather than under it */
 .reel-foot { padding-bottom: 26px; }
 
+/* ---------- story ---------- */
+
+.ig-story { position: relative; aspect-ratio: 9 / 16; background: #000; overflow: hidden; }
+.ig-story img, .ig-story video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.story-top {
+  position: absolute; top: 0; left: 0; right: 0; padding: 8px 10px 0;
+  background: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,0));
+}
+.story-bars { display: flex; gap: 3px; }
+.story-bars i {
+  flex: 1; height: 2.5px; border-radius: 2px; background: rgba(255,255,255,.4);
+  position: relative; overflow: hidden;
+}
+.story-bars i::after {
+  content: ''; position: absolute; inset: 0 55% 0 0; background: #fff; border-radius: 2px;
+}
+.story-who {
+  display: flex; align-items: center; gap: 8px; color: #fff; padding: 11px 2px 0;
+}
+.story-who .ig-avatar, .story-who img.ig-avatar { width: 28px; height: 28px; }
+.story-who b { font-size: 13px; font-weight: 600; }
+.story-who .ago { font-size: 12px; opacity: .72; }
+.story-who .story-x { margin-left: auto; display: flex; }
+
+.story-foot {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: flex; align-items: center; gap: 13px; padding: 0 13px 14px; color: #fff;
+  background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.45));
+}
+.story-reply {
+  flex: 1; border: 1px solid rgba(255,255,255,.75); border-radius: 999px;
+  padding: 9px 15px; font-size: 13px; color: rgba(255,255,255,.92);
+}
+
+/* A story's own safe area: no right-hand rail, and a shallower foot. */
+.story-safe .t { height: 13%; }
+.story-safe .b { height: 14%; }
+.story-safe .r { display: none; }
+
+.hideui .story-top, .hideui .story-foot { display: none !important; }
+
 /* safe zones: where Instagram's own UI sits over the creative */
 .safe { position: absolute; inset: 0; pointer-events: none; display: none; }
 .showsafe .safe { display: block; }
@@ -380,7 +422,9 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
 .err { color: #b3261e; font-size: 13px; margin: 10px 0 0; }
 .ok { color: #1d6b3f; font-size: 13px; margin: 10px 0 0; }
 
-.admin-post { display: flex; gap: 14px; align-items: center; }
+.admin-post { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.seg.format { padding: 2px; }
+.seg.format button { font-size: 12px; padding: 5px 11px; }
 /* ---------- slide-level editing ---------- */
 
 .slides { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }

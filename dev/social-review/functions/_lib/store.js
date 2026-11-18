@@ -88,3 +88,14 @@ export async function deleteMedia(env, slug) {
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
 }
+
+/* A post's type follows its media, except that a story can only be chosen.
+   A 9:16 image could be a story or a feed post Instagram will crop, and
+   nothing in the file says which, so the choice is kept across media edits.
+   Mirrors deriveType in public/assets/ig.js. */
+export function deriveType(media, current) {
+  if (!media.length) return 'post';
+  if (current === 'story' && media.length === 1) return 'story';
+  if ((media[0].mime || '').startsWith('video/')) return 'reel';
+  return media.length > 1 ? 'carousel' : 'post';
+}
