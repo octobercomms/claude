@@ -9,7 +9,11 @@ const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, assertClientAccess } = require('../middleware/clientAccess');
 const pool = require('../db');
+const os = require('os');
+const path = require('path');
+const fsp = require('fs/promises');
 const mediaStore = require('../services/mediaStore');
+const { probeMedia } = require('../services/mediaProbe');
 const audioIsolation = require('../services/audioIsolation');
 
 const router = express.Router();
@@ -29,6 +33,29 @@ function extFromName(name, mime) {
     'audio/ogg': 'ogg', 'audio/flac': 'flac',
   };
   return map[String(mime || '').toLowerCase()] || 'audio';
+}
+
+// ElevenLabs Audio Isolation's own floor, from the 400 it returns:
+// "Audio duration is 4.3 seconds, which is below the minimum of 4.6 seconds."
+const MIN_DURATION_S = 4.6;
+
+// Returns { seconds } when the recording is definitely too short, or null —
+// which covers both "long enough" and "could not tell". Never throws: a probe
+// that fails must not block an upload that would have worked.
+async function durationBelowMinimum(buffer, ext) {
+  const tmp = path.join(os.tmpdir(), `omi-audio-probe-${crypto.randomUUID()}.${ext || 'bin'}`);
+  try {
+    await fsp.writeFile(tmp, buffer);
+    const { duration } = await probeMedia(tmp);
+    // A zero means ffprobe read the container but found no duration, which is
+    // not the same as a short file, so it is let through.
+    if (duration > 0 && duration < MIN_DURATION_S) return { seconds: duration };
+    return null;
+  } catch {
+    return null;
+  } finally {
+    await fsp.unlink(tmp).catch(() => {});
+  }
 }
 
 function present(r) {
@@ -61,6 +88,27 @@ router.post('/', upload.single('file'), async (req, res) => {
 
     const id = crypto.randomUUID();
     const ext = extFromName(req.file.originalname, req.file.mimetype);
+
+    // Refuse a recording the cleaner will refuse anyway.
+    //
+    // ElevenLabs Audio Isolation rejects anything under 4.6 seconds. Without
+    // this the file is stored, a row is created, the job runs, the API says
+    // no, and the operator is left with a dead row carrying a JSON validation
+    // error — and, until this commit, no way to delete it. Two of the three
+    // failures on this screen on 18 November were exactly that: 4.3 seconds
+    // and 3.7 seconds.
+    //
+    // Fails open on purpose. If ffprobe is missing or cannot read the
+    // container, the upload proceeds as before: a probe that cannot run is a
+    // reason to let a valid file through, not to block it.
+    const tooShort = await durationBelowMinimum(req.file.buffer, ext);
+    if (tooShort) {
+      return res.status(400).json({
+        error: `This recording is ${tooShort.seconds.toFixed(1)} seconds. `
+          + `Audio cleanup needs at least ${MIN_DURATION_S} seconds, so record a little more and try again.`,
+      });
+    }
+
     const key = mediaStore.keyFor(id, ext);
     await mediaStore.saveBuffer(key, req.file.buffer, req.file.mimetype);
 
