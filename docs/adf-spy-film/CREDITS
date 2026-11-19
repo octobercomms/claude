@@ -1,0 +1,50 @@
+The Quarter
+A title sequence for the Atlanta Design Festival's Industry Resources, made entirely in code.
+No stock footage, no generated video, no generated images, no photographs.
+
+TYPEFACES
+  League Gothic — The League of Moveable Type — SIL Open Font License 1.1
+    Used for the credits, which are the sets: the role list, the site names, the figures.
+  League Spartan — The League of Moveable Type — SIL Open Font License 1.1
+    Used for the subtitle strip.
+  Licence texts ship beside the fonts in fonts/.
+  The title lettering (THE QUARTER) is drawn for this film in cuttitle.js: geometric paper-cut
+  letterforms, straight cuts and arcs, with uneven weights and a staggered baseline. It is not
+  based on any existing title's lettering, logo or mark.
+
+ENGINE
+  The paper-cut engine (paper.js, glyph.js, chars.js) comes from the Lemo-Opuscar library's
+  60s Spy Title Sequence demo and is used as the technical base this style ships for the purpose:
+  scissor-cut edges cached in local space, cut gaps, paper shadows, the paper texture and the
+  silhouette layer with joint slits. github.com/lemomo-ai/lemo-opuscar, code MIT. The four inks,
+  the story, the sets, the staging, the title lettering, the score and the timing are this film's
+  own; none of the demo's story, shots, props or timings are in it. The demo's brass key is
+  explicitly not carried over: this courier carries the sponsor's package.
+
+  opentype.js 1.3.4 (MIT) reads the font outlines so each letter can be re-cut.
+
+SOUND
+  Score and foley synthesised in this project (mix.py) with numpy and scipy: stacked brass,
+  crash, walking upright bass, surf-guitar twang through a spring reverb, brushes, bongos,
+  shaker, vibraphone, flute and organ, and the paper and tape foley. An original motif in D minor
+  at 144 BPM. No sample libraries, no recordings, no third-party audio. The score deliberately
+  avoids the chromatic figure and the ending chord of the best-known spy theme.
+
+VOICE
+  Kokoro (kokoro-onnx), voice am_michael, run locally and offline, then put through a tape chain
+  in mix.py: band-pass 220-5200 Hz, soft saturation, slow wow and hiss. Synthetic narration, not a
+  recording of a person. Script in lines.json, subtitles in the .srt.
+
+  The speech-to-text check the pipeline normally runs could not run here: the Whisper model host
+  is unreachable from this environment. The six lines carry no digits or abbreviations, and the
+  subtitles carry the authoritative wording.
+
+CONTENT
+  Every figure is from the client's own Industry Resources 2027 kit: 8,911 industry subscribers,
+  39% average open, 19% average click, 0.2% unsubscribe, three sites, four slots a year, and the
+  2027 founding rate of $2,500 which the kit states rises to $5,000 for 2028. The film quotes
+  rates and the published inventory; it promises no reach, because the kit's own performance line
+  is an average of past editions rather than a guarantee.
+
+RIGHTS
+  The client owns the source kit and is responsible for where this film is shown.
