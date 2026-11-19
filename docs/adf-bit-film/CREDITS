@@ -1,0 +1,49 @@
+The Desk
+A 1-bit film for the Atlanta Design Festival's Industry Resources, made entirely in code.
+No stock footage, no generated video, no photographs, no third-party imagery.
+
+TYPEFACES
+  Anton — Vernon Adams and contributors — SIL Open Font License 1.1
+    Stamps and stencils: the hook, the figures, the headings.
+  Courier Prime — Quote-Unquote Apps — SIL Open Font License 1.1
+    Labels, the screen and the typed lines.
+  Archivo — Omnibus-Type — SIL Open Font License 1.1
+    The printed mastheads.
+  Licence texts ship beside the fonts in fonts/. Every word in the film is drawn on an object's
+  own canvas and dithered with it: there are no overlay captions.
+
+ENGINE
+  The 1-bit pipeline (pipe.js: shading, surface-anchored G-buffer, the two-ink pass, and the
+  presenter that mixes, inverts and wipes two 1-bit images) and the kit (kit.js: printed-paper
+  and halftone materials, text canvases, screen-space boxes for the reading check) come from the
+  Lemo-Opuscar 1-bit Dither demo and are the engine this style ships for the purpose.
+  github.com/lemomo-ai/lemo-opuscar, code MIT. The lossless renderer (tools/render.mjs) is the
+  same demo's, patched only so it finds the library through LIB rather than a fixed path.
+
+  The world, the two inks, the shot list, the cameras, the printed surfaces, the score and the
+  timing are this film's own. None of the demo's story, sets, props or timings are in it, and no
+  game, film or product named in the style's reference list is copied or named here.
+
+  three.js r170 (MIT) renders the scene.
+
+SOUND
+  Score and foley synthesised in this project (mix.py) with numpy and scipy: bass clarinet,
+  glockenspiel, pizzicato low strings and a detuned upright piano, over a relay, a print head,
+  a drum motor, stamps on cork, card slaps, paper and a drawer. No sample libraries, no
+  recordings, no third-party audio. No narration: the brief asked for density and pace, and in
+  this medium a stamp lands in two frames where a spoken line costs four seconds.
+
+PICTURE
+  Rendered at 960×540 internally and scaled with nearest neighbour, as the style requires, then
+  captured as lossless PNG into an FFV1 master and encoded to H.264 exactly once. Three lossy
+  generations would smear the dot edges into grey.
+
+CONTENT
+  Every figure is from the client's Industry Resources 2027 kit: 8,911 industry subscribers,
+  39% average open against a trade average near 21%, 19% average click, 0.2% unsubscribe, three
+  banner sizes, three posts, four slots a year with one sponsor in each, and the 2027 founding
+  rate of $2,500 which the kit states rises to $5,000 for 2028. The film quotes rates and the
+  published inventory and promises no reach.
+
+RIGHTS
+  The client owns the source kit and is responsible for where this film is shown.
