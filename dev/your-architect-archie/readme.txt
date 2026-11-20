@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.38
+Stable tag: 0.7.39
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.39 =
+* A/B test (Variant A) email gate is now a real hard gate. It was enforced only by
+  the prompt, so the no-model fast path read a typed postcode/address/service as the
+  next answer and advanced past the email question (the price panel stayed blank but
+  the chat moved on). The gate is now enforced in code: until a valid email is given,
+  the fast paths are held, no fields but the email are recorded, and no quote, service
+  chips or progression are shown — Archie just re-asks for the email. A valid email
+  typed anywhere in the message lifts the gate instantly.
 
 = 0.7.38 =
 * The A/B test now has an on/off switch in Archie → Settings ("Run the A/B test").
