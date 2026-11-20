@@ -427,6 +427,13 @@ input:focus-visible, .btn:focus-visible, .seg button:focus-visible {
 
 .err { color: #b3261e; font-size: 13px; margin: 10px 0 0; }
 
+.archive-link {
+  margin: 0 0 12px; font-size: 13.5px; display: flex; align-items: baseline; gap: 10px;
+  flex-wrap: wrap;
+}
+.archive-link a { color: var(--ink); font-weight: 600; }
+.archive-link span { color: var(--muted); font-size: 13px; }
+
 .signed-off { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 16px; }
 .signed-off summary {
   cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px;
