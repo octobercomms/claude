@@ -930,6 +930,24 @@ class YAA_Archie {
 	 *
 	 * @return array[] each: { label, value, answered }
 	 */
+	/**
+	 * Funnel position for the Meta Pixel ArchieStart / ArchieProgress events: how many
+	 * of the questions that apply to THIS project are answered (step) out of the
+	 * applicable total. Built from answer_summary so it tracks the dynamic flow (the
+	 * set grows once a service is chosen). No personal data - counts only.
+	 */
+	public static function progress( array $state ) {
+		$rows  = self::answer_summary( $state );
+		$total = count( $rows );
+		$step  = 0;
+		foreach ( $rows as $r ) {
+			if ( ! empty( $r['answered'] ) ) {
+				$step++;
+			}
+		}
+		return array( 'step' => $step, 'total' => $total );
+	}
+
 	public static function answer_summary( array $s ) {
 		$types = array(
 			'extension'   => 'Rear / side extension',
