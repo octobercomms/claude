@@ -237,6 +237,11 @@ class YAA_Rest {
 				YAA_Experiment::mark_quoted( $id );
 			}
 		}
+		// Funnel step/total for the Meta Pixel progress events (the browser decides what
+		// to fire; this is only the position). One place, so every turn() path is covered.
+		if ( is_array( $result ) ) {
+			$result['progress'] = YAA_Archie::progress( YAA_Project::state( $id ) );
+		}
 		return new WP_REST_Response( $result );
 	}
 

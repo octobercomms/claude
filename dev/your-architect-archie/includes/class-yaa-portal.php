@@ -355,7 +355,7 @@ class YAA_Portal {
 							value: <?php echo wp_json_encode( round( (float) $project->amount_paid / 100, 2 ) ); ?>,
 							currency: 'GBP',
 							content_name: 'Your Architect project'
-						});
+						}, { eventID: 'yaa-purchase-' + pi });
 					}
 				} catch (e) {}
 			})();

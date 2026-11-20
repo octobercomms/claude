@@ -65,6 +65,58 @@
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
 
+  // ---- Meta Pixel funnel events -------------------------------------------
+  // Every call is a silent no-op when fbq is absent — a visitor who declined
+  // cookies (Complianz) has no fbq, and tracking must never break the chat or
+  // spill a console error. Each event carries a per-event UUID as `eventID`, so
+  // server-side (Conversions API) sending can be added later without double-
+  // counting. NEVER put personal data (email, name, address, postcode) in the
+  // parameters — values and step numbers only. Once-guards are session-scoped
+  // (sessionStorage) so a reload mid-chat can't double-count.
+  var FB_FIRED = 'yaaFbFired';
+  function firedOnce(key) {
+    try {
+      var raw = sessionStorage.getItem(FB_FIRED);
+      var map = raw ? JSON.parse(raw) : {};
+      if (map[key]) return true;
+      map[key] = 1;
+      sessionStorage.setItem(FB_FIRED, JSON.stringify(map));
+    } catch (e) {}
+    return false;
+  }
+  function fbUuid() {
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
+  }
+  // method: 'track' for Meta standard events (Lead, Purchase), 'trackCustom' for ours.
+  // onceKey (optional): fire at most once per session for that key. The guard is only
+  // consumed when fbq is actually present, so consent granted mid-session still lets
+  // the first real event through.
+  function fbFire(method, event, params, onceKey) {
+    try {
+      if (typeof fbq !== 'function') return;          // no consent / pixel absent
+      if (onceKey && firedOnce(onceKey)) return;      // already sent this session
+      fbq(method, event, params || {}, { eventID: fbUuid() });
+    } catch (e) {}
+  }
+  // Map the server's funnel position to ArchieStart (the first answer) / ArchieProgress
+  // (each subsequent answer). step is 1-based; re-answering an earlier step or asking a
+  // clarifying question doesn't advance it, so it never re-fires.
+  var fbLastStep = 0;
+  function fbProgress(p) {
+    if (!p) return;
+    var step = p.step | 0, total = p.total | 0;
+    if (step <= fbLastStep) return;
+    fbLastStep = step;
+    if (step === 1) {
+      fbFire('trackCustom', 'ArchieStart', { page_path: location.pathname }, 'start');
+    } else {
+      fbFire('trackCustom', 'ArchieProgress', { step: step, total: total }, 'progress_' + step);
+    }
+  }
+
   // Consent note (privacy + terms links), shown with the quote at submit.
   if (consentNote) {
     var _t = D.termsUrl || '#', _p = D.privacyUrl || '#';
@@ -207,6 +259,7 @@
       addMsg('bot', escapeHtml(res.body.message));
       renderPackage(res.body.package);
       renderOptions(res.body.options);
+      fbProgress(res.body.progress); // Meta: ArchieStart on the first answer, ArchieProgress after
       if (res.body.placeholder) input.placeholder = res.body.placeholder;
       if (res.body.hasEmail && !emailSaved) markEmailSaved('', 'Saved — we’ll email your quote to you.');
       revealSaveQuote();
@@ -290,13 +343,12 @@
       addMsg('bot', escapeHtml(d.message || 'Project saved.') + (d.ref ? ' <strong>(ref ' + d.ref + ')</strong>' : ''), 'note');
       submitBtn.textContent = 'Submitted ✓';
       setBusy(false); // now that submitted is true, this locks the composer
-      // Meta Pixel — a submitted project is a Lead. Guarded: fbq is absent until
-      // the visitor consents (Complianz), and must never throw inside submit.
-      try {
-        if (typeof fbq === 'function') {
-          fbq('track', 'Lead', { content_name: 'Archie project submission', value: lastTotal, currency: 'GBP' });
-        }
-      } catch (e) {}
+      // Meta Pixel — a submitted project is the conversion. Fire our own ArchieComplete
+      // (custom) and the standard Lead at the same moment (Lead kept so the historical
+      // series stays continuous), each once per session, each with an eventID for later
+      // Conversions-API dedup. Both no-op without consent. No personal data — value only.
+      fbFire('trackCustom', 'ArchieComplete', { value: lastTotal, currency: 'GBP' }, 'complete');
+      fbFire('track', 'Lead', { content_name: 'Archie project submission', value: lastTotal, currency: 'GBP' }, 'lead');
     }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
   }
   submitBtn.addEventListener('click', doSubmit);

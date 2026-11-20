@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.39
+Stable tag: 0.7.40
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,20 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.40 =
+* Meta Pixel funnel tracking, for retargeting audiences and conversion optimisation.
+  Adds three custom events - ArchieStart (first answer, page_path), ArchieProgress
+  (each later answer, with step + total) and ArchieComplete (quote submitted, value)
+  - keeps the standard Lead firing at submit for series continuity, and keeps Purchase
+  on the paid portal return. Every event now carries a UUID eventID (ready for the
+  Conversions API later without double-counting), fires at most once per session via a
+  sessionStorage guard that survives a mid-chat reload, no-ops silently when cookies
+  are declined (no fbq, clean console), and carries no personal data - values and step
+  numbers only. step/total are computed server-side from the applicable question set,
+  so they follow Archie's dynamic flow. Lead was never mis-wired: it sits on submit,
+  which is simply rare - the new upper-funnel events are what make engaged-but-
+  unsubmitted visitors visible and retargetable.
 
 = 0.7.39 =
 * A/B test (Variant A) email gate is now a real hard gate. It was enforced only by
