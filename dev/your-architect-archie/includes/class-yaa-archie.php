@@ -426,15 +426,28 @@ class YAA_Archie {
 		// the REST layer (self::message's caller) so every return path is covered.
 		$email_first = class_exists( 'YAA_Experiment' ) && YAA_Experiment::gated( $project_id, $state );
 
+		// HARD GATE (Variant A): capture a valid email the instant it's typed so the
+		// gate lifts deterministically, and hold the no-model fast paths below until it
+		// has. Without this, a postcode/address/service name typed into the email
+		// question is taken as the next answer and sails straight past the gate.
+		if ( $email_first ) {
+			$maybe = self::extract_email( $user_text );
+			if ( '' !== $maybe ) {
+				$state['email'] = $maybe;
+				YAA_Project::log_event( $project_id, 'email_gate_passed' );
+				$email_first = false; // lifted this turn - carry on with the normal flow.
+			}
+		}
+
 		// Instant, no-model handling of the opening address/postcode steps.
-		$fast = self::fast_path( $project_id, $user_text, $state );
+		$fast = $email_first ? null : self::fast_path( $project_id, $user_text, $state );
 		if ( null !== $fast ) {
 			return $fast;
 		}
 
 		// Instant handling of a single service chip-tap — guarantees the next question
 		// is asked (the model sometimes stubs with just "Great choice!").
-		$svc_fast = self::service_tap_fast( $project_id, $user_text, $state );
+		$svc_fast = $email_first ? null : self::service_tap_fast( $project_id, $user_text, $state );
 		if ( null !== $svc_fast ) {
 			return $svc_fast;
 		}
@@ -442,7 +455,9 @@ class YAA_Archie {
 		// Record a tap on one of our own closed-set chips before the model runs, so
 		// the deterministic flow always advances even if the model forgets to set the
 		// field (e.g. a declined add-on) — keeps the chips in step with the question.
-		self::record_tap_answer( $state, self::suggested_options( $state ), $user_text );
+		if ( ! $email_first ) { // no chips are shown while gated, so nothing to record
+			self::record_tap_answer( $state, self::suggested_options( $state ), $user_text );
+		}
 
 		// This turn will call the model — count it against the per-session daily cap
 		// (fast-path turns above are free and never counted).
@@ -476,6 +491,11 @@ class YAA_Archie {
 
 			foreach ( $input as $k => $v ) {
 				if ( ! in_array( $k, self::$allowed, true ) ) {
+					continue;
+				}
+				// Gate still closed? Record NOTHING but the email - no postcode, service or
+				// anything else may slip into state ahead of it.
+				if ( $email_first && 'email' !== $k ) {
 					continue;
 				}
 				if ( 'done' === $k ) {
@@ -568,6 +588,9 @@ class YAA_Archie {
 		if ( ! empty( $deterministic ) ) {
 			$options = $deterministic;
 		}
+		if ( $email_first ) {
+			$options = array(); // Variant A gate still closed - email is open text, no chips.
+		}
 
 		if ( ! empty( $state['name'] ) || ! empty( $state['email'] ) ) {
 			YAA_Project::set_contact( $project_id, isset( $state['name'] ) ? $state['name'] : '', isset( $state['email'] ) ? $state['email'] : '' );
@@ -593,7 +616,9 @@ class YAA_Archie {
 		// The model sometimes returns a tool call with no spoken text (it recorded a
 		// field but didn't continue). Fall back to the next question, not a dead-end
 		// "thanks", so the conversation always moves forward.
-		$message = '' !== $result['text'] ? $result['text'] : self::next_prompt( $state, $done );
+		$message = '' !== $result['text']
+			? $result['text']
+			: ( $email_first ? self::email_gate_prompt() : self::next_prompt( $state, $done ) );
 
 		// Once everything's collected, always close with the call to action — the
 		// model sometimes signs off ("That's everything I need!") without telling
@@ -809,6 +834,25 @@ class YAA_Archie {
 			return $m[1] . ' ' . $m[2];
 		}
 		return '';
+	}
+
+	/**
+	 * Pull the first valid-looking email address out of free text, so the Variant A
+	 * gate can lift the moment one is typed without relying on the model. '' if none.
+	 */
+	public static function extract_email( $text ) {
+		if ( preg_match( '/[^\s<>()\[\]:;,"\']+@[^\s<>()\[\]:;,"\']+\.[A-Za-z]{2,}/', (string) $text, $m ) ) {
+			$email = sanitize_email( $m[0] );
+			if ( is_email( $email ) ) {
+				return $email;
+			}
+		}
+		return '';
+	}
+
+	/** The warm, canned email re-ask shown while the Variant A gate is still closed. */
+	public static function email_gate_prompt() {
+		return __( "Before I can build your quote I just need the best email address to send it to - that's how our architects get back to you, and we'll only ever use it for your quote and project. What's the best address to use?", 'your-architect-archie' );
 	}
 
 	/** Address lookup (London/M25, listed, conservation) → drives smarter follow-ups. */

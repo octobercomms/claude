@@ -232,6 +232,7 @@ class YAA_Rest {
 			if ( YAA_Experiment::gated( $id, $st ) ) {
 				$result['package']  = array( 'nodes' => array(), 'total' => 0 );
 				$result['redirect'] = false;
+				$result['options']  = array(); // no service chips while gated either
 			} elseif ( ! empty( $result['package']['nodes'] ) && (int) ( $result['package']['total'] ?? 0 ) > 0 ) {
 				YAA_Experiment::mark_quoted( $id );
 			}
