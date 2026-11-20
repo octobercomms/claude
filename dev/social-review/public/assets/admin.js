@@ -94,8 +94,10 @@ back.addEventListener('click', () => { location.hash = ''; });
 window.addEventListener('hashchange', route);
 
 function route() {
-  const slug = location.hash.replace(/^#\/?/, '');
-  if (slug) showReview(slug); else showList();
+  const [slug, section] = location.hash.replace(/^#\/?/, '').split('/');
+  if (slug && section === 'archive') showArchive(slug);
+  else if (slug) showReview(slug);
+  else showList();
 }
 
 /* ---------------- review list ---------------- */
@@ -209,8 +211,73 @@ async function showReview(slug) {
     view.innerHTML = '';
     view.appendChild(settingsCard(review));
     view.appendChild(uploadCard(review, () => reload()));
-    view.appendChild(postsCard(review, () => reload()));
-    view.appendChild(previewSection(review));
+
+    const archived = review.posts.filter((p) => p.archived).length;
+    if (archived) {
+      view.appendChild(el(`<p class="archive-link"><a href="#/${encodeURIComponent(review.slug)}/archive">${archived} archived post${archived > 1 ? 's' : ''} &rarr;</a><span>Out of the client's set. Their own links still work.</span></p>`));
+    }
+
+    view.appendChild(postsCard(review, () => reload(), 'live'));
+    view.appendChild(previewSection(review, 'live'));
+  };
+
+  const reload = async () => {
+    ({ review } = await api(`/api/reviews/${encodeURIComponent(slug)}`));
+    render();
+  };
+
+  render();
+}
+
+async function showArchive(slug) {
+  back.hidden = false;
+  view.innerHTML = '<p class="empty">Loading</p>';
+
+  let review;
+  try {
+    ({ review } = await api(`/api/reviews/${encodeURIComponent(slug)}`));
+  } catch (error) {
+    view.innerHTML = `<p class="empty">${escapeHtml(error.message)}</p>`;
+    return;
+  }
+  crumb.textContent = `${review.title} · Archive`;
+
+  const render = () => {
+    const archived = review.posts.filter((p) => p.archived);
+    view.innerHTML = '';
+    view.appendChild(el(`<div class="card">
+      <div class="row">
+        <div>
+          <h3>Archive</h3>
+          <p class="meta">${archived.length} post${archived.length === 1 ? '' : 's'},
+            out of the client's set. Each one's own link still works, so anyone
+            already sent one still finds what they approved.</p>
+        </div>
+        <span class="spacer"></span>
+        <a class="btn" href="#/${encodeURIComponent(review.slug)}">Back to review</a>
+        ${archived.length ? `<a class="btn" href="/api/reviews/${encodeURIComponent(review.slug)}/zip?set=archived">
+          ${icon('download', 13, { sw: 2.1 })} Download originals</a>
+        <button class="btn danger" data-clear>Delete all ${archived.length}</button>` : ''}
+      </div>
+    </div>`));
+
+    const clear = view.querySelector('[data-clear]');
+    if (clear) {
+      clear.addEventListener('click', async (e) => {
+        if (!confirm(`Delete ${archived.length} archived post${archived.length > 1 ? 's' : ''} and every file in them? This cannot be undone, and their links will stop working.`)) return;
+        e.currentTarget.disabled = true;
+        e.currentTarget.textContent = 'Deleting';
+        for (const post of archived) {
+          await api(`/api/reviews/${encodeURIComponent(review.slug)}`, {
+            method: 'PATCH', body: JSON.stringify({ removePostId: post.id }),
+          });
+        }
+        await reload();
+      });
+    }
+
+    view.appendChild(postsCard(review, () => reload(), 'archived'));
+    if (archived.length) view.appendChild(previewSection(review, 'archived'));
   };
 
   const reload = async () => {
@@ -235,7 +302,9 @@ function settingsCard(review) {
     </div>
     <div class="row" style="margin-top:10px">
       <button class="btn" data-copy-all ${review.posts.length ? '' : 'disabled'}>Copy all post links</button>
-      <span style="font-size:13px;color:var(--muted)">One numbered line per post, for the content schedule.</span>
+      <a class="btn" data-zip href="/api/reviews/${encodeURIComponent(review.slug)}/zip?set=live">
+        ${icon('download', 13, { sw: 2.1 })} Download originals</a>
+      <span style="font-size:13px;color:var(--muted)">The files as uploaded, full resolution, one folder per post.</span>
     </div>
     <div class="row" style="margin-top:14px">
       <label style="font-size:13px;color:var(--muted)">Instagram handle shown in the mockup</label>
@@ -399,23 +468,16 @@ function uploadCard(review, onDone) {
 
 /* ---------------- post list and preview ---------------- */
 
-function postsCard(review, onDone) {
-  if (!review.posts.length) return el('<p class="empty">No posts yet. Add the first one above.</p>');
-
+function postsCard(review, onDone, which = 'live') {
   const wrap = el('<div></div>');
-  const doneCount = review.posts.filter((p) => p.archived).length;
-  // Signed off means out of the way, not merely further down. They are kept
-  // behind a fold so the list is only what still needs attention, and stay
-  // reachable for the eventual clear-out.
-  const done = doneCount ? el(`<details class="signed-off">
-    <summary>${doneCount} archived<span>Show</span></summary>
-    <div class="signed-off-body">
-      <p class="signed-off-note">Out of the client's set and out of this list. Their own links
-        still work, so anyone already sent one still finds what they approved.
-        <button class="btn danger" data-clear>Delete all ${doneCount}</button></p>
-    </div>
-  </details>`) : null;
-  const doneBody = done && done.querySelector('.signed-off-body');
+  const shown = review.posts.filter((p) => (which === 'archived' ? p.archived : !p.archived));
+
+  if (!shown.length) {
+    return el(`<p class="empty">${which === 'archived'
+      ? 'Nothing archived yet.'
+      : review.posts.length ? 'Nothing left awaiting review.' : 'No posts yet. Add the first one above.'}</p>`);
+  }
+
   const move = async (index, delta) => {
     const order = review.posts.map((p) => p.id);
     const target = index + delta;
@@ -427,9 +489,7 @@ function postsCard(review, onDone) {
     await onDone();
   };
 
-  const ordered = [...review.posts].sort((a, b) =>
-    Number(Boolean(a.archived)) - Number(Boolean(b.archived)));
-  ordered.forEach((post, i) => {
+  shown.forEach((post, i) => {
     const first = post.media[0];
     const isVideo = (first.mime || '').startsWith('video/');
     const url = `/m/${first.key.slice('media/'.length)}`;
@@ -527,30 +587,8 @@ function postsCard(review, onDone) {
     });
 
     card.classList.toggle('archived', Boolean(post.archived));
-    (post.archived ? doneBody : wrap).appendChild(card);
+    wrap.appendChild(card);
   });
-
-  if (done) {
-    wrap.appendChild(done);
-    const label = done.querySelector('summary span');
-    done.addEventListener('toggle', () => { label.textContent = done.open ? 'Hide' : 'Show'; });
-
-    done.querySelector('[data-clear]').addEventListener('click', async (e) => {
-      const archived = review.posts.filter((p) => p.archived);
-      if (!confirm(`Delete ${archived.length} archived post${archived.length > 1 ? 's' : ''} and every file in them? This cannot be undone, and their links will stop working.`)) return;
-      e.currentTarget.disabled = true;
-      e.currentTarget.textContent = 'Deleting';
-      for (const post of archived) {
-        await api(`/api/reviews/${encodeURIComponent(review.slug)}`, {
-          method: 'PATCH', body: JSON.stringify({ removePostId: post.id }),
-        });
-      }
-      await onDone();
-    });
-  }
-  if (!review.posts.some((p) => !p.archived)) {
-    wrap.prepend(el('<p class="empty">Nothing left awaiting review.</p>'));
-  }
 
   return wrap;
 }
@@ -679,7 +717,7 @@ function slidesPanel(review, post, onDone) {
   return panel;
 }
 
-function previewSection(review) {
+function previewSection(review, which = 'live') {
   const section = el(`<section style="margin-top:34px">
     <div class="controls">
       <div class="seg" role="group" aria-label="View">
@@ -703,9 +741,11 @@ function previewSection(review) {
     fileBase: review.slug,
     autoplay: false,
   };
-  // Signed-off posts have left the client's set, and this preview claims to
-  // be what the client sees, so they leave it too.
-  const posts = review.posts.filter((p) => !p.archived).map((p) => ({
+  // The preview shows whichever set the page is about, so the review page
+  // claims nothing about posts that have left the client's set.
+  const posts = review.posts
+    .filter((p) => (which === 'archived' ? p.archived : !p.archived))
+    .map((p) => ({
     ...p,
     media: p.media.map((m) => ({ ...m, url: `/m/${m.key.slice('media/'.length)}` })),
   }));
