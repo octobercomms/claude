@@ -10,6 +10,8 @@ needs a double-click.
 
 ## What it does
 
+- **Auto-cut silence**: analyse one long take, find the gaps, split what is left
+  into reviewable segments
 - Drop in multiple video clips, reorder them, set in/out points per clip
 - Per-clip fit: fill frame, fit with black bars, or fit over a blurred copy of
   itself (for landscape footage in a 9:16 frame)
@@ -22,8 +24,52 @@ needs a double-click.
 ## What it does not do
 
 - Transitions, speed ramps, colour grading, keyframes
+- Transcription, and therefore any content-aware cutting (see below)
 - Non-real-time export (see below)
 - Anything server-side. No upload, no account, no telemetry
+
+## Auto-cut, and what it can honestly promise
+
+Point it at one long take and it decodes the audio, builds a 20ms RMS envelope,
+and marks everything below a threshold relative to the recording's own peak as
+silence. Runs of silence longer than the minimum gap become cuts. What is left
+is padded by the breath-room value, merged where padding overlaps, and handed
+back as segments. The waveform strip shows kept in accent, cut in grey, and
+updates live as you move the three controls.
+
+Splitting turns each segment into an ordinary clip, so trimming, reordering,
+captions and export all work on them unchanged.
+
+**Removing silence is automatic. Removing bad takes is not.** There is no
+audio-level signal that distinguishes a flubbed line from a good one. Doing it
+properly needs transcription, which means pulling a speech model into the page
+and losing the offline single-file property. The design decision here is to make
+the human pass fast rather than to fake the automatic one: segments are a few
+seconds each, with a Play button, so a five minute take is a short click-through.
+
+The **possible retake** tag is a duration heuristic, not a judgement: a segment
+within 18% of the length of the next one, with under 1.2s between them, which is
+the shape a flubbed line and its second attempt tend to make. It over-flags, and
+the UI says so. On the synthetic test clip it tagged two segments where one was a
+genuine repeat. It is a pointer to where to look first.
+
+### Threshold behaviour
+
+The threshold is relative to the take's own peak, so it travels between
+recordings of different levels. On material with a wide gap between speech and
+room tone, a broad span of threshold values gives identical results; the control
+only bites near the noise floor. Verified by sweep on the test clip, whose 56 dB
+dynamic range produced the same six segments anywhere from −55 to −15 dB, one
+segment at −58, and correct sensitivity throughout the minimum-gap control.
+
+### When decoding fails
+
+`decodeAudioData` handles most camera and phone files, but some containers carry
+audio it cannot read. The page says so plainly and gives the conversion:
+
+```
+ffmpeg -i source.mov -c:v copy -c:a aac converted.mp4
+```
 
 ## Running it
 
@@ -84,6 +130,25 @@ Tested headless with Playwright against generated clips:
 | Layout at 400px | No horizontal scroll |
 
 The audio track came back as Opus in Chromium, hence the remux note above.
+
+Auto-cut was tested against a generated 14.2s take holding six speech bursts,
+five silences and a deliberate flubbed-line-then-retake pair:
+
+| Check | Result |
+|---|---|
+| Segments found | 6, matching the six bursts |
+| Segment starts | 0.0, 1.9, 4.8, 6.9, 8.8, 11.2s against sources at 0.0, 2.0, 4.9, 7.0, 8.9, 11.3s |
+| Silence removed | 3.2s of 14.2s, leaving 11.0s |
+| Threshold sweep | −58 to −15 dB behaved as expected for the clip's dynamic range |
+| Min-gap sweep | 6 segments at 200/400ms, 3 at 900ms, 1 at 2000ms |
+| Retake flag | Caught the planted pair, plus one false positive |
+| Segment removal then export | 5 segments, 9.3s, valid MP4 at the expected duration |
+| Thumbnails | All six segments decode a frame at their in-point |
+| Console errors | None |
+
+One bug found and fixed during this pass: `#wave` is an ID selector, so it
+outranked the browser's default `[hidden]` rule and the waveform would not hide
+after a split. The stylesheet now restates `#wave[hidden] { display: none }`.
 
 ## Known limits
 

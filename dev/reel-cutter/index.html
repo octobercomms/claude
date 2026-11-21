@@ -128,6 +128,31 @@
   .trim-line input[type=number] { width: 5.5rem; flex: none; font-family: var(--mono); }
   .len { font-family: var(--mono); font-size: .76rem; color: var(--text); background: var(--accent-soft); padding: .15rem .45rem; border-radius: var(--r-sm); white-space: nowrap; }
 
+  /* auto-cut */
+  #wave { width: 100%; height: 64px; display: block; border: var(--bw) solid var(--card-border); border-radius: var(--r-sm); background: var(--sunken); }
+  /* an ID selector outranks the browser's default [hidden] rule, so restate it here */
+  #wave[hidden] { display: none; }
+  .seg {
+    display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; gap: .7rem;
+    align-items: center; padding: .55rem; border: var(--bw) solid var(--card-border);
+    border-radius: var(--r-sm); background: var(--sunken); min-width: 0;
+  }
+  .seg.cut { opacity: .42; }
+  .seg video { width: 100%; border-radius: 6px; background: #000; display: block; }
+  .seg-info { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+  .seg-top { display: flex; gap: .45rem; align-items: baseline; flex-wrap: wrap; }
+  .seg-top strong { font-size: .85rem; font-weight: 600; }
+  .seg-acts { display: flex; flex-direction: column; gap: .3rem; }
+  .seg-nums { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+  .seg-nums input { width: 4.6rem; font-family: var(--mono); font-size: .76rem; padding: .25rem .35rem; }
+  .seg-nums label { font-size: .64rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--subtle); }
+  .flag {
+    font-size: .62rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    padding: .14rem .42rem; border-radius: var(--r-pill); background: var(--warning);
+    color: #fff; white-space: nowrap;
+  }
+  @media (max-width: 600px) { .seg { grid-template-columns: 72px minmax(0, 1fr); } .seg-acts { grid-column: 1 / -1; flex-direction: row; } }
+
   /* timeline bar */
   .tl { display: flex; height: 34px; border-radius: var(--r-sm); overflow: hidden; border: var(--bw) solid var(--card-border); background: var(--sunken); }
   .tl-seg { display: grid; place-items: center; font-size: .7rem; font-family: var(--mono); color: var(--accent-on); background: var(--accent); border-right: 1px solid rgba(17,17,16,.25); overflow: hidden; white-space: nowrap; min-width: 0; }
@@ -189,6 +214,35 @@
         </div>
         <input type="file" id="clipInput" accept="video/*" multiple class="hidden">
         <div class="clips" id="clips"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Auto-cut silence</h2>
+          <span class="eyebrow" id="acState">no source</span>
+        </div>
+        <p class="fine">For one long take. Finds the gaps, splits what is left into segments, and lets you drop the duff ones. Silence removal is automatic. Deciding which take to keep is yours.</p>
+        <div class="row">
+          <div class="field" style="flex:1 1 100%">
+            <span class="field-label">Source clip</span>
+            <select id="acSource"></select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <span class="field-label">Silence below peak <span class="clip-meta" id="acThOut">−35 dB</span></span>
+            <input type="range" id="acTh" min="-60" max="-15" value="-35">
+          </div>
+          <div class="field"><span class="field-label">Min gap (ms)</span><input type="number" id="acGap" value="400" min="100" step="50"></div>
+          <div class="field"><span class="field-label">Breath room (ms)</span><input type="number" id="acPad" value="120" min="0" step="20"></div>
+        </div>
+        <canvas id="wave" height="64"></canvas>
+        <div class="row">
+          <button class="btn" id="btnAnalyse">Analyse audio</button>
+          <button class="btn btn-primary" id="btnSplit" disabled>Split into segments</button>
+          <span class="clip-meta" id="acResult" style="margin-left:auto"></span>
+        </div>
+        <div class="note" id="acNote"></div>
       </div>
 
       <div class="panel">
@@ -477,7 +531,7 @@
       v.controls = true;
       v.muted = true;
       var clip = {
-        id: ++uid, name: f.name, url: url, el: v,
+        id: ++uid, name: f.name, url: url, el: v, file: f,
         duration: 0, in: 0, out: 0, fit: 'cover', vol: 1
       };
       clips.push(clip);
@@ -533,6 +587,7 @@
     $('clipCount').textContent = clips.length ? clips.length + (clips.length === 1 ? ' clip' : ' clips') : 'none';
 
     clips.forEach(function (c, idx) {
+      if (c.compact) { host.appendChild(compactCard(c, idx)); return; }
       var card = document.createElement('div');
       card.className = 'clip';
 
@@ -649,6 +704,95 @@
 
     renderTimeline();
     renderOverlays();
+    populateSources();
+  }
+
+  function compactCard(c, idx) {
+    var row = mk('div', 'seg');
+
+    var left = mk('div');
+    left.style.minWidth = '0';
+    c.el.style.width = '100%';
+    c.el.controls = true;
+    left.appendChild(c.el);
+
+    var info = mk('div', 'seg-info');
+    var top = mk('div', 'seg-top');
+    top.appendChild(mk('strong', null, 'Segment ' + (idx + 1)));
+    top.appendChild(mk('span', 'len', fmt(Math.max(0, c.out - c.in))));
+    top.appendChild(mk('span', 'clip-meta', 'at ' + fmt(c.in) + ' in source'));
+    if (c.retake) { top.appendChild(mk('span', 'flag', 'possible retake')); }
+    info.appendChild(top);
+
+    var nums = mk('div', 'seg-nums');
+    nums.appendChild(mk('label', null, 'In'));
+    var ni = document.createElement('input');
+    ni.type = 'number'; ni.step = '0.1'; ni.min = '0';
+    ni.value = (Math.round(c.in * 10) / 10).toFixed(1);
+    ni.onchange = function () { c.in = clamp(parseFloat(ni.value) || 0, 0, Math.max(0, c.out - 0.1)); render(); };
+    nums.appendChild(ni);
+    nums.appendChild(mk('label', null, 'Out'));
+    var no = document.createElement('input');
+    no.type = 'number'; no.step = '0.1'; no.min = '0';
+    no.value = (Math.round(c.out * 10) / 10).toFixed(1);
+    no.onchange = function () { c.out = clamp(parseFloat(no.value) || 0, c.in + 0.1, c.duration); render(); };
+    nums.appendChild(no);
+    var bi = mk('button', 'btn btn-sm', 'Mark in');
+    var bo = mk('button', 'btn btn-sm', 'Mark out');
+    bi.onclick = function () { c.in = clamp(c.el.currentTime, 0, Math.max(0, c.out - 0.1)); render(); };
+    bo.onclick = function () { c.out = clamp(c.el.currentTime, c.in + 0.1, c.duration); render(); };
+    nums.appendChild(bi); nums.appendChild(bo);
+    info.appendChild(nums);
+
+    var acts = mk('div', 'seg-acts');
+    var play = mk('button', 'btn btn-sm', 'Play');
+    play.onclick = function () {
+      try {
+        c.el.currentTime = c.in;
+        c.el.muted = false;
+        c.el.play();
+        var stop = function () {
+          if (c.el.currentTime >= c.out) { c.el.pause(); c.el.removeEventListener('timeupdate', stop); }
+        };
+        c.el.addEventListener('timeupdate', stop);
+      } catch (e) {}
+    };
+    var rm = mk('button', 'btn btn-sm btn-danger', 'Remove');
+    rm.onclick = function () { clips.splice(idx, 1); render(); paintIdle(); };
+    acts.appendChild(play); acts.appendChild(rm);
+
+    row.appendChild(left);
+    row.appendChild(info);
+    row.appendChild(acts);
+    return row;
+  }
+
+  function populateSources() {
+    var sel = $('acSource');
+    if (!sel) { return; }
+    var prev = sel.value;
+    sel.textContent = '';
+    var usable = clips.filter(function (c) { return !c.error && !c.compact; });
+    if (!usable.length) {
+      var o = document.createElement('option');
+      o.textContent = clips.length ? 'already split into segments' : 'add a clip first';
+      o.value = '';
+      sel.appendChild(o);
+      sel.disabled = true;
+      $('acState').textContent = clips.length ? 'split' : 'no source';
+      $('btnAnalyse').disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    $('btnAnalyse').disabled = false;
+    $('acState').textContent = 'ready';
+    usable.forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = String(c.id);
+      o.textContent = c.name + (c.duration ? ' · ' + fmt(c.duration) : '');
+      sel.appendChild(o);
+    });
+    if (prev && sel.querySelector('option[value="' + prev + '"]')) { sel.value = prev; }
   }
 
   function mk(tag, cls, text) {
@@ -929,6 +1073,210 @@
       clips.forEach(function (c) { try { c.el.pause(); c.el.muted = true; } catch (e) {} });
     }
   }
+
+  // ---------- auto-cut: silence analysis ----------
+  var analysis = null;
+
+  $('acTh').addEventListener('input', function () {
+    $('acThOut').textContent = '−' + Math.abs(parseInt($('acTh').value, 10)) + ' dB';
+    if (analysis) { recompute(); }
+  });
+  $('acGap').addEventListener('change', function () { if (analysis) { recompute(); } });
+  $('acPad').addEventListener('change', function () { if (analysis) { recompute(); } });
+
+  function envelope(buf) {
+    var sr = buf.sampleRate;
+    var win = Math.max(1, Math.round(sr * 0.02));
+    var chans = [];
+    for (var c = 0; c < buf.numberOfChannels; c++) { chans.push(buf.getChannelData(c)); }
+    var n = Math.floor(chans[0].length / win);
+    var db = new Float32Array(n);
+    var peak = 1e-9;
+    for (var i = 0; i < n; i++) {
+      var sum = 0;
+      var base = i * win;
+      for (var j = 0; j < win; j++) {
+        var v = 0;
+        for (var k = 0; k < chans.length; k++) { v += chans[k][base + j]; }
+        v /= chans.length;
+        sum += v * v;
+      }
+      var rms = Math.sqrt(sum / win);
+      if (rms > peak) { peak = rms; }
+      db[i] = rms;
+    }
+    for (var m = 0; m < n; m++) { db[m] = 20 * Math.log10((db[m] / peak) + 1e-9); }
+    return { db: db, winDur: win / sr, duration: buf.duration, peak: peak };
+  }
+
+  function segmentsFrom(env, thDb, minGapMs, padMs) {
+    var wd = env.winDur;
+    var minGapW = Math.max(1, Math.round((minGapMs / 1000) / wd));
+    var padS = padMs / 1000;
+    var loud = [];
+    for (var i = 0; i < env.db.length; i++) { loud.push(env.db[i] > thDb); }
+
+    // collapse quiet runs shorter than the minimum gap back into speech
+    var i2 = 0;
+    while (i2 < loud.length) {
+      if (!loud[i2]) {
+        var j = i2;
+        while (j < loud.length && !loud[j]) { j++; }
+        if ((j - i2) < minGapW) { for (var k = i2; k < j; k++) { loud[k] = true; } }
+        i2 = j;
+      } else { i2++; }
+    }
+
+    var segs = [];
+    var s = -1;
+    for (var p = 0; p < loud.length; p++) {
+      if (loud[p] && s < 0) { s = p; }
+      if ((!loud[p] || p === loud.length - 1) && s >= 0) {
+        var endW = loud[p] ? p + 1 : p;
+        segs.push({ start: Math.max(0, s * wd - padS), end: Math.min(env.duration, endW * wd + padS) });
+        s = -1;
+      }
+    }
+
+    // merge overlaps created by padding, drop fragments
+    var out = [];
+    segs.forEach(function (g) {
+      var last = out[out.length - 1];
+      if (last && g.start <= last.end) { last.end = Math.max(last.end, g.end); }
+      else { out.push({ start: g.start, end: g.end }); }
+    });
+    out = out.filter(function (g) { return (g.end - g.start) >= 0.18; });
+
+    // flag a likely flubbed take: similar length to the next one, small gap between
+    for (var q = 0; q < out.length - 1; q++) {
+      var a = out[q].end - out[q].start;
+      var b = out[q + 1].end - out[q + 1].start;
+      var gap = out[q + 1].start - out[q].end;
+      var ratio = Math.abs(a - b) / Math.max(a, b);
+      out[q].retake = (gap < 1.2 && ratio < 0.18 && a > 0.7);
+    }
+    return out;
+  }
+
+  function drawWave() {
+    var cvw = $('wave');
+    var w = cvw.clientWidth || 600;
+    if (cvw.width !== w) { cvw.width = w; }
+    var g = cvw.getContext('2d');
+    var cs = getComputedStyle(document.documentElement);
+    var accent = cs.getPropertyValue('--accent').trim() || '#E7CD41';
+    var dim = cs.getPropertyValue('--card-border').trim() || '#ccc';
+    g.clearRect(0, 0, cvw.width, cvw.height);
+    cvw.hidden = !analysis;
+    if (!analysis) { return; }
+    var env = analysis.env, segs = analysis.segs, h = cvw.height;
+    var n = env.db.length;
+    for (var x = 0; x < cvw.width; x++) {
+      var idx = Math.floor((x / cvw.width) * n);
+      var d = env.db[idx];
+      if (d == null) { continue; }
+      var norm = Math.max(0, Math.min(1, (d + 60) / 60));
+      var bh = Math.max(1, norm * (h - 6));
+      var t = (idx * env.winDur);
+      var kept = segs.some(function (s) { return t >= s.start && t <= s.end; });
+      g.fillStyle = kept ? accent : dim;
+      g.fillRect(x, (h - bh) / 2, 1, bh);
+    }
+  }
+  window.addEventListener('resize', function () { if (analysis) { drawWave(); } });
+
+  function recompute() {
+    if (!analysis) { return; }
+    analysis.segs = segmentsFrom(
+      analysis.env,
+      parseInt($('acTh').value, 10),
+      parseFloat($('acGap').value) || 400,
+      parseFloat($('acPad').value) || 0
+    );
+    drawWave();
+    var kept = analysis.segs.reduce(function (s, g) { return s + (g.end - g.start); }, 0);
+    var flags = analysis.segs.filter(function (g) { return g.retake; }).length;
+    $('acResult').textContent = analysis.segs.length + ' segments · keeps ' + fmt(kept) +
+      ' of ' + fmt(analysis.env.duration) + ' · cuts ' + fmt(analysis.env.duration - kept) +
+      (flags ? ' · ' + flags + ' flagged' : '');
+    $('btnSplit').disabled = analysis.segs.length < 1;
+  }
+
+  $('btnAnalyse').addEventListener('click', async function () {
+    var id = parseInt($('acSource').value, 10);
+    var clip = clips.filter(function (c) { return c.id === id; })[0];
+    if (!clip) { return; }
+    var note = $('acNote');
+    note.className = 'note';
+    note.innerHTML = '<span>Decoding audio…</span>';
+    $('btnAnalyse').disabled = true;
+    $('acState').textContent = 'working';
+    try {
+      var ac = ensureAudio();
+      if (!ac) { throw new Error('No Web Audio support in this browser.'); }
+      var buf = await clip.file.arrayBuffer();
+      var decoded = await ac.decodeAudioData(buf);
+      analysis = { clipId: clip.id, env: envelope(decoded), segs: [] };
+      recompute();
+      note.className = 'note ok';
+      note.innerHTML = '<span>Yellow is kept, grey is cut. Adjust the three controls until the split looks right, then split.</span>';
+      $('acState').textContent = 'analysed';
+    } catch (e) {
+      analysis = null;
+      $('btnSplit').disabled = true;
+      $('acState').textContent = 'failed';
+      note.className = 'note bad';
+      note.innerHTML = '<span><b>Could not decode this file’s audio.</b> ' +
+        'The browser can read the picture but not this audio codec. Convert the clip first, then drop the result in: ' +
+        '<code>ffmpeg -i source.mov -c:v copy -c:a aac converted.mp4</code></span>';
+    }
+    $('btnAnalyse').disabled = false;
+  });
+
+  $('btnSplit').addEventListener('click', function () {
+    if (!analysis) { return; }
+    var src = clips.filter(function (c) { return c.id === analysis.clipId; })[0];
+    if (!src) { return; }
+    var segs = analysis.segs;
+    var made = [];
+    segs.forEach(function (g) {
+      var v = document.createElement('video');
+      v.src = src.url;
+      v.preload = 'metadata';
+      v.playsInline = true;
+      v.controls = true;
+      v.muted = true;
+      // park it on its first frame so the card shows a picture, not black
+      v.addEventListener('loadedmetadata', function () {
+        try { v.currentTime = g.start; } catch (e) {}
+      });
+      v.addEventListener('seeked', function once() {
+        v.removeEventListener('seeked', once);
+        paintIdle();
+      });
+      made.push({
+        id: ++uid, name: src.name, url: src.url, el: v,
+        file: src.file,
+        duration: src.duration, in: g.start, out: g.end,
+        fit: src.fit, vol: src.vol, compact: true, retake: !!g.retake
+      });
+    });
+    var at = clips.indexOf(src);
+    clips.splice(at, 1);
+    Array.prototype.splice.apply(clips, [at, 0].concat(made));
+    analysis = null;
+    $('btnSplit').disabled = true;
+    $('acResult').textContent = '';
+    drawWave();
+    var note = $('acNote');
+    note.className = 'note ok';
+    note.innerHTML = '<span><b>' + made.length + ' segments.</b> Play each one and remove the duds. ' +
+      'A <b>possible retake</b> tag means only that a segment runs about as long as the one after it with barely a gap between, ' +
+      'which is the shape a flubbed line and its second attempt tend to make. It goes on duration alone, so it over-flags. ' +
+      'Treat it as where to look first, not as a verdict.</span>';
+    render();
+    paintIdle();
+  });
 
   $('btnPlay').addEventListener('click', function () { runSequence(false); });
   $('btnExport').addEventListener('click', function () { runSequence(true); });
