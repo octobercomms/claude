@@ -62,6 +62,8 @@
   var submitted = false, submitReadyShown = false;
   var termsAccepted = false, countdownTimer = null, submitLabel = 'Save & submit project';
   var TERMS_URL = D.termsUrl || '#', PRIV_URL = D.privacyUrl || '#';
+  var WORDS = D.words || {}; // studio-editable wording (Archie → Words & Voice); {} = use the built-in defaults.
+  function termLink(url, label) { return '<a href="' + url + '" target="_blank" rel="noopener">' + label + '</a>'; }
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
 
@@ -281,11 +283,13 @@
     submitReadyShown = true;
     if (submitConsent && hasService) submitConsent.hidden = false;
     if (!submitBtn.disabled) submitBtn.classList.add('ready');
-    addMsg('bot', 'Your quote’s ready. One last thing before I send it to our team — please confirm you’re happy with our ' +
-      '<a href="' + TERMS_URL + '" target="_blank" rel="noopener">Terms</a> and ' +
-      '<a href="' + PRIV_URL + '" target="_blank" rel="noopener">Privacy Policy</a>. ' +
-      'Tap below and I’ll submit your project — or you can keep asking me questions or add another service first.' +
-      '<div style="margin-top:12px"><button type="button" class="a-agree" style="background:#253E94;color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:.95rem">I agree — submit my project</button></div>', 'note');
+    var readyText = (WORDS.submitReady ||
+      'Your quote’s ready. One last thing before I send it to our team — please confirm you’re happy with our {terms} and {privacy}. Tap below and I’ll submit your project — or you can keep asking me questions or add another service first.')
+      .replace('{terms}', termLink(TERMS_URL, 'Terms'))
+      .replace('{privacy}', termLink(PRIV_URL, 'Privacy Policy'));
+    var agreeLabel = WORDS.agreeBtn || 'I agree — submit my project';
+    addMsg('bot', readyText +
+      '<div style="margin-top:12px"><button type="button" class="a-agree" style="background:#253E94;color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:.95rem">' + escapeHtml(agreeLabel) + '</button></div>', 'note');
     // On phones the quote panel flows inline below the chat — bring it into view so
     // the finished summary and the submit button are right there (no sheet to open).
     if (panel && mobileFlow()) {
