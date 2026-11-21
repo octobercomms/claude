@@ -365,10 +365,28 @@ function settingsCard(review) {
 
 /* ---------------- uploading ---------------- */
 
+/* Chrome will sit on a video it cannot decode without ever firing
+   loadedmetadata or error. H.265 out of Premiere and some ProRes files do
+   exactly that. Dimensions are only used for the crop warnings, so a file
+   that will not give them up is uploaded without them rather than holding
+   up everything behind it for ever. */
+export const MEASURE_TIMEOUT = 12000;
+
 function measure(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
-    const done = (w, h) => { URL.revokeObjectURL(url); resolve({ w, h }); };
+    let settled = false;
+
+    const done = (w, h, timedOut = false) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      resolve({ w, h, timedOut });
+    };
+
+    const timer = setTimeout(() => done(null, null, true), MEASURE_TIMEOUT);
+
     if (file.type.startsWith('video/')) {
       const v = document.createElement('video');
       v.preload = 'metadata';
@@ -434,11 +452,17 @@ function send(slug, file, onProgress) {
 
 async function uploadFile(slug, file, report = {}) {
   if (report.onPhase) report.onPhase('reading', file);
-  const { w, h } = await measure(file);
+  const { w, h, timedOut } = await measure(file);
+  if (timedOut && report.onUnreadable) report.onUnreadable(file);
   if (report.onPhase) report.onPhase('uploading', file);
   const up = await send(slug, file, report.onProgress);
   return { ...up, w, h };
 }
+
+/* onDone() rebuilds the whole view, so anything written onto the upload card
+   just before it is thrown away. The outcome is parked here and picked up by
+   the card that replaces it. */
+let pendingNote = null;
 
 function uploadCard(review, onDone) {
   const card = el(`<div class="card">
@@ -470,6 +494,12 @@ function uploadCard(review, onDone) {
   const fill = card.querySelector('.bar i');
   const err = card.querySelector('[data-err]');
   const okMsg = card.querySelector('[data-ok]');
+
+  if (pendingNote) {
+    if (pendingNote.ok) { okMsg.hidden = false; okMsg.textContent = pendingNote.ok; }
+    if (pendingNote.err) { err.hidden = false; err.textContent = pendingNote.err; }
+    pendingNote = null;
+  }
 
   const handle = async (fileList) => {
     const files = [...fileList];
@@ -532,40 +562,78 @@ function uploadCard(review, onDone) {
 
     const next = (file) => { sentBefore += file.size; index += 1; };
 
-    try {
-      for (const video of videos) {
+    const failures = [];
+    const unreadable = [];
+    report.onUnreadable = (file) => unreadable.push(file.name);
+    let reels = 0;
+    let set = 0;
+
+    // One bad file in a batch of five should not throw away the other four,
+    // and each post appears as it is made rather than all at the end, so a
+    // long run shows its work.
+    for (const video of videos) {
+      try {
         const media = await uploadFile(review.slug, video, report);
         what.textContent = 'Creating the reel';
         await api(`/api/reviews/${encodeURIComponent(review.slug)}/posts`, {
           method: 'POST', body: JSON.stringify({ type: 'reel', media: [media] }),
         });
-        next(video);
+        reels += 1;
+        await onDone();
+      } catch (error) {
+        failures.push(`${video.name}: ${error.message}`);
       }
-      if (images.length) {
-        const media = [];
-        for (const image of images) {
-          media.push(await uploadFile(review.slug, image, report));
-          next(image);
-        }
-        what.textContent = images.length > 1 ? 'Creating the carousel' : 'Creating the post';
-        detail.textContent = '';
-        await api(`/api/reviews/${encodeURIComponent(review.slug)}/posts`, {
-          method: 'POST',
-          body: JSON.stringify({ type: images.length > 1 ? 'carousel' : 'post', media }),
-        });
-      }
-      fill.style.width = '100%';
-      pct.textContent = '100%';
-      okMsg.hidden = false;
-      okMsg.textContent = `Added ${videos.length ? `${videos.length} reel${videos.length > 1 ? 's' : ''}` : ''}${videos.length && images.length ? ' and ' : ''}${images.length ? `1 ${images.length > 1 ? 'carousel' : 'post'}` : ''}.`;
-      await onDone();
-    } catch (error) {
-      err.hidden = false;
-      err.textContent = error.message;
-    } finally {
-      panel.hidden = true;
-      input.value = '';
+      next(video);
     }
+
+    if (images.length) {
+      const media = [];
+      for (const image of images) {
+        try {
+          media.push(await uploadFile(review.slug, image, report));
+        } catch (error) {
+          failures.push(`${image.name}: ${error.message}`);
+        }
+        next(image);
+      }
+      if (media.length) {
+        what.textContent = media.length > 1 ? 'Creating the carousel' : 'Creating the post';
+        detail.textContent = '';
+        try {
+          await api(`/api/reviews/${encodeURIComponent(review.slug)}/posts`, {
+            method: 'POST',
+            body: JSON.stringify({ type: media.length > 1 ? 'carousel' : 'post', media }),
+          });
+          set = 1;
+          await onDone();
+        } catch (error) {
+          failures.push(error.message);
+        }
+      }
+    }
+
+    fill.style.width = '100%';
+    pct.textContent = '100%';
+    panel.hidden = true;
+    input.value = '';
+
+    const added = [
+      reels ? `${reels} reel${reels > 1 ? 's' : ''}` : '',
+      set ? (images.length > 1 ? '1 carousel' : '1 post') : '',
+    ].filter(Boolean).join(' and ');
+
+    pendingNote = {
+      ok: added
+        ? `Added ${added}.`
+          + (unreadable.length
+            ? ` ${unreadable.join(', ')} would not report its size, so there are no crop notes for it. It uploaded fine.`
+            : '')
+        : '',
+      err: failures.length
+        ? `${failures.length} file${failures.length > 1 ? 's' : ''} did not go up. ${failures.join('. ')}`
+        : '',
+    };
+    await onDone();
   };
 
   input.addEventListener('change', (e) => handle(e.currentTarget.files));

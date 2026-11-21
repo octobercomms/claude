@@ -660,15 +660,18 @@ export function fitPhones(root = document) {
   }
 }
 
-let fitQueued = false;
 export function watchFit(root) {
+  // Per watcher, not shared: a page can hold more than one preview, and a
+  // module-wide flag let one of them swallow another's pending fit, which
+  // left phones drawn at full size inside a narrower column.
+  let queued = false;
   const run = () => {
-    fitQueued = false;
+    queued = false;
     fitPhones(root);
   };
   const queue = () => {
-    if (fitQueued) return;
-    fitQueued = true;
+    if (queued) return;
+    queued = true;
     requestAnimationFrame(run);
   };
   queue();
