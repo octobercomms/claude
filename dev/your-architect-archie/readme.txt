@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.41
+Stable tag: 0.7.42
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.42 =
+* New: Archie → Words & Voice. Edit Archie's wording from the admin without a code
+  change - both greetings, the scripted acknowledgements (postcode ask, service-choice
+  prompt, email re-ask, finishing nudge, the quote-ready message + agree button) and
+  every tappable answer button (what-the-work-is, submit & manage, 3D, site visit,
+  existing plans, structural, timeframe, the advice option). The buttons are a single
+  source of truth, so editing a label stays in step with the answer-matching logic.
+  Plus a 'house voice' box appended to every prompt to steer the AI-phrased replies
+  (tone, standing rules), editable listed-building / conservation-area guidance, and a
+  read-only 'what Archie asks, in order' view. Every field falls back to the current
+  wording when left blank, so nothing changes until you edit it.
 
 = 0.7.41 =
 * Archie is more concise - a prompt directive to match length to need (short when a

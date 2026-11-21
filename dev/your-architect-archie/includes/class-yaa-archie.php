@@ -27,6 +27,9 @@ class YAA_Archie {
 	/** The fixed opener (no Claude call — saves a turn's tokens). Free-text, no chips. */
 	/** The opener greeting text — no side effects, safe to show before a project exists. */
 	public static function opener_text( $variant = 'B' ) {
+		if ( class_exists( 'YAA_Words' ) ) {
+			return YAA_Words::greeting( $variant );
+		}
 		if ( 'A' === $variant ) {
 			// A/B Variant A (email-first gate): lead with the email ask.
 			return __( "Hi — I'm Archie. I'll build your fixed price with you. First, what's your email address?", 'your-architect-archie' );
@@ -150,6 +153,11 @@ class YAA_Archie {
 		// cacheable prefix. The per-turn context below (address intelligence,
 		// decisions already made, the live quote) changes as the chat moves, so it
 		// is sent as a separate, uncached block after the cache breakpoint.
+		if ( class_exists( 'YAA_Words' ) && '' !== YAA_Words::voice() ) {
+			$lines[] = '';
+			$lines[] = 'HOUSE STYLE (studio instructions — these take priority on tone and wording):';
+			$lines[] = YAA_Words::voice();
+		}
 		$stable = implode( "\n", $lines );
 
 		$vol = array();
@@ -248,10 +256,10 @@ class YAA_Archie {
 			: '- Location: this address is outside London / the M25, so do not offer the London site visit.';
 
 		if ( ! empty( $state['listed'] ) ) {
-			$facts[] = '- This appears to be a LISTED BUILDING. Gently let them know (many owners do not realise): it means the building is legally protected for its special architectural or historic interest, so most changes need "listed building consent" as well as planning permission, and work has to be more sympathetic. Reassure them this is completely normal and we handle listed buildings routinely. Then ask what they are hoping to do. Never imply it is impossible, and never quote a number.';
+			$facts[] = '- ' . ( class_exists( 'YAA_Words' ) ? YAA_Words::get( 'snip_listed' ) : 'This appears to be a LISTED BUILDING; we handle these routinely.' );
 		}
 		if ( ! empty( $state['conservation'] ) ) {
-			$facts[] = '- This appears to be in a CONSERVATION AREA. Explain simply: that is an area protected for its overall character, so the council applies stricter rules and some normal "permitted development" rights are removed (meaning more things need permission). Reassure them we deal with conservation areas all the time and it just shapes the design and paperwork. Never quote a number.';
+			$facts[] = '- ' . ( class_exists( 'YAA_Words' ) ? YAA_Words::get( 'snip_conservation' ) : 'This appears to be in a CONSERVATION AREA; we deal with these all the time.' );
 		}
 
 		return "WHAT WE KNOW ABOUT THIS PROPERTY (from an address lookup — use it to be genuinely helpful and to ask smarter questions; introduce it warmly, never to alarm):\n" . implode( "\n", $facts );
@@ -337,7 +345,7 @@ class YAA_Archie {
 			}
 			$state['postcode'] = $pc;
 			self::apply_address_lookup( $state, $pc );
-			$reply = __( 'Thanks — got that. Which of these best matches what you need? Tap one below, or if you\'re not sure, tap “I\'m not sure — I need advice”.', 'your-architect-archie' );
+			$reply = class_exists( 'YAA_Words' ) ? YAA_Words::line( 'line_after_postcode' ) : __( 'Thanks — got that. Which of these best matches what you need?', 'your-architect-archie' );
 		} else {
 			// No postcode yet. Only treat it as an address if it looks like one and we
 			// don't already have an address; otherwise let the model handle it.
@@ -346,7 +354,7 @@ class YAA_Archie {
 				return null;
 			}
 			$state['address'] = sanitize_text_field( $text );
-			$reply = __( 'Thanks — and what\'s the postcode of the property? I need it to make sure we can help and to build your quote accurately.', 'your-architect-archie' );
+			$reply = class_exists( 'YAA_Words' ) ? YAA_Words::line( 'line_ask_postcode' ) : __( 'Thanks — what is the postcode of the property?', 'your-architect-archie' );
 		}
 
 		$package = YAA_Pricing::build_package( $state );
@@ -385,7 +393,7 @@ class YAA_Archie {
 				return null; // new dwelling etc. → let the model hand off warmly.
 			}
 			$state['services'] = array( $key );
-			$reply   = __( 'Great — and to picture it: what is the work, roughly? For example a rear or side extension, a loft, a garage conversion, or something else.', 'your-architect-archie' );
+			$reply   = class_exists( 'YAA_Words' ) ? YAA_Words::line( 'line_service_picked' ) : __( 'Great — what is the work, roughly?', 'your-architect-archie' );
 			$package = YAA_Pricing::build_package( $state );
 			YAA_Project::set_state( $project_id, $state );
 			YAA_Project::add_message( $project_id, 'assistant', $reply );
@@ -625,7 +633,7 @@ class YAA_Archie {
 		// model sometimes signs off ("That's everything I need!") without telling
 		// them to press the button, which leaves the quote stranded, never submitted.
 		if ( $done && false === stripos( $message, 'submit' ) ) {
-			$message = rtrim( $message ) . ' ' . __( 'You\'re all set — just press the "Save & submit project" button to send everything to our team. Nothing goes to them until you do.', 'your-architect-archie' );
+			$message = rtrim( $message ) . ' ' . ( class_exists( 'YAA_Words' ) ? YAA_Words::line( 'line_finish_cta' ) : __( 'You are all set — just press Save & submit project to send it to our team.', 'your-architect-archie' ) );
 		}
 
 		YAA_Project::set_state( $project_id, $state );
@@ -710,7 +718,7 @@ class YAA_Archie {
 			foreach ( $services as $svc_row ) {
 				$opts[] = $svc_row['label'];
 			}
-			$opts[] = 'I\'m not sure — I need advice';
+			$opts[] = class_exists( 'YAA_Words' ) ? YAA_Words::chip( 'advice' ) : 'I\'m not sure — I need advice';
 			return array_slice( $opts, 0, 9 );
 		}
 
@@ -720,27 +728,27 @@ class YAA_Archie {
 
 		// 2) Light project-type context.
 		if ( ! $has( 'projectType' ) || '' === $s['projectType'] ) {
-			return array( 'Rear or side extension', 'Loft or mansard conversion', 'Garage conversion', 'Garden room / outbuilding', 'Internal alterations', 'Something else' );
+			return class_exists( 'YAA_Words' ) ? YAA_Words::chip_list( 'projectType' ) : array( 'Rear or side extension', 'Loft or mansard conversion', 'Garage conversion', 'Garden room / outbuilding', 'Internal alterations', 'Something else' );
 		}
 		// 3) Add-ons.
 		if ( $has_planning && ! $has( 'submitApp' ) ) {
-			return array( 'Please submit & manage it for me', 'I\'ll submit it myself' );
+			return class_exists( 'YAA_Words' ) ? array( YAA_Words::chip( 'submitApp_yes' ), YAA_Words::chip( 'submitApp_no' ) ) : array( 'Please submit & manage it for me', 'I\'ll submit it myself' );
 		}
 		if ( ! $has( 'concept' ) ) {
-			return array( 'Yes, add a 3D visualisation', 'No thanks', 'What\'s that?' );
+			return class_exists( 'YAA_Words' ) ? array( YAA_Words::chip( 'concept_yes' ), YAA_Words::chip( 'concept_no' ), YAA_Words::chip( 'concept_info' ) ) : array( 'Yes, add a 3D visualisation', 'No thanks', 'What\'s that?' );
 		}
 		if ( ! empty( $s['london'] ) && ! $has( 'siteVisit' ) ) {
-			return array( 'Yes, please visit', 'No need' );
+			return class_exists( 'YAA_Words' ) ? array( YAA_Words::chip( 'siteVisit_yes' ), YAA_Words::chip( 'siteVisit_no' ) ) : array( 'Yes, please visit', 'No need' );
 		}
 		// 4) Existing plans (measured survey), structural, timeframe.
 		if ( ! $has( 'survey' ) ) {
-			return array( 'Yes, I have plans drawn up', 'No — please help with a survey', 'What\'s a measured survey?' );
+			return class_exists( 'YAA_Words' ) ? array( YAA_Words::chip( 'survey_yes' ), YAA_Words::chip( 'survey_no' ), YAA_Words::chip( 'survey_info' ) ) : array( 'Yes, I have plans drawn up', 'No — please help with a survey', 'What\'s a measured survey?' );
 		}
 		if ( ! $has( 'structural' ) ) {
-			return array( 'Yes', 'No / not sure' );
+			return class_exists( 'YAA_Words' ) ? array( YAA_Words::chip( 'structural_yes' ), YAA_Words::chip( 'structural_no' ) ) : array( 'Yes', 'No / not sure' );
 		}
 		if ( ! $has( 'timeframe' ) || '' === $s['timeframe'] ) {
-			return array( 'Next few weeks', 'A few months', 'Just planning ahead' );
+			return class_exists( 'YAA_Words' ) ? YAA_Words::chip_list( 'timeframe' ) : array( 'Next few weeks', 'A few months', 'Just planning ahead' );
 		}
 		return array(); // name / email → free text.
 	}
@@ -765,61 +773,25 @@ class YAA_Archie {
 		if ( empty( $offered ) || '' === $text || ! in_array( $text, $offered, true ) ) {
 			return;
 		}
-		// Submit & manage (planning add-on).
-		if ( in_array( 'Please submit & manage it for me', $offered, true ) ) {
-			if ( 'Please submit & manage it for me' === $text ) {
-				$s['submitApp'] = true;
-			} elseif ( "I'll submit it myself" === $text ) {
-				$s['submitApp'] = false;
-			}
-			return;
+		if ( ! class_exists( 'YAA_Words' ) ) {
+			return; // labels live in YAA_Words; without it the model still records the answer.
 		}
-		// 3D visualisation. "What's that?" is a clarification — leave unset.
-		if ( in_array( 'Yes, add a 3D visualisation', $offered, true ) ) {
-			if ( 'Yes, add a 3D visualisation' === $text ) {
-				$s['concept'] = true;
-			} elseif ( 'No thanks' === $text ) {
-				$s['concept'] = false;
-			}
-			return;
-		}
-		// London / M25 site visit.
-		if ( in_array( 'Yes, please visit', $offered, true ) ) {
-			if ( 'Yes, please visit' === $text ) {
-				$s['siteVisit'] = true;
-			} elseif ( 'No need' === $text ) {
-				$s['siteVisit'] = false;
-			}
-			return;
-		}
-		// Existing plans / measured survey. "What's a measured survey?" → clarification.
-		if ( in_array( 'Yes, I have plans drawn up', $offered, true ) ) {
-			if ( 'Yes, I have plans drawn up' === $text ) {
-				$s['hasDrawings'] = true;
-				$s['survey']      = false;
-			} elseif ( 'No — please help with a survey' === $text ) {
-				$s['survey']      = true;
-				$s['hasDrawings'] = false;
-			}
-			return;
-		}
-		// Structural changes.
-		if ( in_array( 'Yes', $offered, true ) && in_array( 'No / not sure', $offered, true ) ) {
-			if ( 'Yes' === $text ) {
-				$s['structural'] = true;
-			} elseif ( 'No / not sure' === $text ) {
-				$s['structural'] = false;
-			}
-			return;
-		}
-		// Timeframe.
-		if ( in_array( 'Next few weeks', $offered, true ) ) {
-			$s['timeframe'] = $text;
-			return;
-		}
-		// Light project-type context.
-		if ( in_array( 'Rear or side extension', $offered, true ) && 'Something else' !== $text ) {
-			$s['projectType'] = $text;
+		// Each label is read from YAA_Words so an edited button and this matching can never desync.
+		if ( $text === YAA_Words::chip( 'submitApp_yes' ) ) { $s['submitApp'] = true;  return; }
+		if ( $text === YAA_Words::chip( 'submitApp_no' ) )  { $s['submitApp'] = false; return; }
+		if ( $text === YAA_Words::chip( 'concept_yes' ) ) { $s['concept'] = true;  return; } // 'what's that?' = clarify, leave unset
+		if ( $text === YAA_Words::chip( 'concept_no' ) )  { $s['concept'] = false; return; }
+		if ( $text === YAA_Words::chip( 'siteVisit_yes' ) ) { $s['siteVisit'] = true;  return; }
+		if ( $text === YAA_Words::chip( 'siteVisit_no' ) )  { $s['siteVisit'] = false; return; }
+		if ( $text === YAA_Words::chip( 'survey_yes' ) ) { $s['hasDrawings'] = true; $s['survey'] = false; return; }
+		if ( $text === YAA_Words::chip( 'survey_no' ) )  { $s['survey'] = true; $s['hasDrawings'] = false; return; }
+		if ( $text === YAA_Words::chip( 'structural_yes' ) ) { $s['structural'] = true;  return; }
+		if ( $text === YAA_Words::chip( 'structural_no' ) )  { $s['structural'] = false; return; }
+		if ( in_array( $text, YAA_Words::chip_list( 'timeframe' ), true ) ) { $s['timeframe'] = $text; return; }
+		$pt = YAA_Words::chip_list( 'projectType' ); // last entry = the 'something else' catch-all
+		if ( in_array( $text, $pt, true ) ) {
+			$other = end( $pt );
+			if ( $text !== $other ) { $s['projectType'] = $text; }
 			return;
 		}
 	}
@@ -853,7 +825,7 @@ class YAA_Archie {
 
 	/** The warm, canned email re-ask shown while the Variant A gate is still closed. */
 	public static function email_gate_prompt() {
-		return __( "Before I can build your quote I just need the best email address to send it to - that's how our architects get back to you, and we'll only ever use it for your quote and project. What's the best address to use?", 'your-architect-archie' );
+		return class_exists( 'YAA_Words' ) ? YAA_Words::line( 'line_email_gate' ) : __( 'Before I can build your quote I just need your email address.', 'your-architect-archie' );
 	}
 
 	/** Address lookup (London/M25, listed, conservation) → drives smarter follow-ups. */

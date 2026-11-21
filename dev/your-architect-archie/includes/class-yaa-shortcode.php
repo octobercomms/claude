@@ -66,6 +66,10 @@ class YAA_Shortcode {
 				'iconUrl'    => esc_url_raw( YAA_URL . 'assets/archie-icon.svg' ),
 				'termsUrl'   => esc_url_raw( YAA_Settings::get( 'terms_url', '' ) ? YAA_Settings::get( 'terms_url', '' ) : home_url( '/terms-of-service/' ) ),
 				'privacyUrl' => esc_url_raw( YAA_Settings::get( 'privacy_url', '' ) ? YAA_Settings::get( 'privacy_url', '' ) : home_url( '/privacy-policy/' ) ),
+				'words'      => class_exists( 'YAA_Words' ) ? array(
+					'submitReady' => YAA_Words::get( 'line_submit_ready' ),
+					'agreeBtn'    => YAA_Words::get( 'line_agree_btn' ),
+				) : array(),
 			)
 		);
 	}
