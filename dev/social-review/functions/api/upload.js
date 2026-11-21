@@ -13,6 +13,11 @@ const EXT = {
 // Cloudflare caps a request body at 100MB on the free plan. Stay clear of the edge.
 const MAX_BYTES = 95 * 1024 * 1024;
 
+// The browser checks this too and says it better, with a link. This is the
+// backstop for anything that gets past it.
+const OVER_LIMIT = 'That file is over 95MB, which is Cloudflare\'s cap on a single '
+  + 'upload. Compress it with HandBrake (handbrake.fr) and try again.';
+
 export async function onRequestPost({ request, env }) {
   const slug = new URL(request.url).searchParams.get('slug') || '';
   if (!SLUG_RE.test(slug)) return json({ error: 'Bad slug' }, { status: 400 });
@@ -20,7 +25,7 @@ export async function onRequestPost({ request, env }) {
 
   const declared = Number(request.headers.get('Content-Length') || 0);
   if (declared > MAX_BYTES) {
-    return json({ error: 'That file is over 95MB. Export the reel smaller.' }, { status: 413 });
+    return json({ error: OVER_LIMIT }, { status: 413 });
   }
 
   let form;
@@ -39,7 +44,7 @@ export async function onRequestPost({ request, env }) {
     return json({ error: `${mime || 'That file type'} is not supported. Use JPG, PNG, WebP or MP4.` }, { status: 415 });
   }
   if (file.size > MAX_BYTES) {
-    return json({ error: 'That file is over 95MB. Export the reel smaller.' }, { status: 413 });
+    return json({ error: OVER_LIMIT }, { status: 413 });
   }
 
   const key = `media/${slug}/${randomToken(14)}.${ext}`;
