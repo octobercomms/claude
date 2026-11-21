@@ -386,6 +386,24 @@ function measure(file) {
 
 export const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes < 10485760 ? 1 : 0)} MB`;
 
+/* Cloudflare caps a request body at 100MB, so this is not a setting that can
+   be raised from here. Checked in the browser as well as on the server, so a
+   doomed upload is refused before it starts rather than after the wait. */
+export const MAX_BYTES = 95 * 1024 * 1024;
+
+const COMPRESS_HELP = 'Compress it with <a href="https://handbrake.fr" target="_blank" '
+  + 'rel="noopener">HandBrake</a>, which is free and runs on your machine, so client '
+  + 'footage never goes near a third party. The Fast 1080p30 preset, or raising RF to '
+  + 'about 24, usually clears it with no visible difference.';
+
+export function tooBig(files) {
+  const over = [...files].filter((f) => f.size > MAX_BYTES);
+  if (!over.length) return null;
+  const names = over.map((f) => `${f.name} is ${mb(f.size)}`).join(', ');
+  return `${names}. The limit is ${mb(MAX_BYTES)} per file, which is Cloudflare's cap `
+    + `on a single upload rather than a setting here. ${COMPRESS_HELP}`;
+}
+
 /* fetch cannot report how much of a request body has gone out, so a large
    video uploaded through it shows nothing at all until it finishes. This
    uses XMLHttpRequest for the one thing it still does better. */
@@ -428,7 +446,8 @@ function uploadCard(review, onDone) {
     <label class="drop" data-drop>
       <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple>
       <b>Drop files here</b> or click to choose.<br>
-      Each video becomes its own reel. Images dropped together become one carousel, ordered by filename.
+      Each video becomes its own reel. Images dropped together become one carousel, ordered by filename.<br>
+      <small>Up to ${mb(MAX_BYTES)} per file. MP4 for video.</small>
     </label>
     <div class="up" data-progress hidden>
       <div class="up-head">
@@ -457,6 +476,14 @@ function uploadCard(review, onDone) {
     if (!files.length) return;
     err.hidden = true;
     okMsg.hidden = true;
+
+    const oversized = tooBig(files);
+    if (oversized) {
+      err.hidden = false;
+      err.innerHTML = oversized;
+      input.value = '';
+      return;
+    }
 
     const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
     const videos = files.filter((f) => f.type.startsWith('video/'));
@@ -753,6 +780,8 @@ function slidesPanel(review, post, onDone) {
       const file = e.currentTarget.files[0];
       e.currentTarget.value = '';
       if (!file) return;
+      const oversized = tooBig([file]);
+      if (oversized) { err.hidden = false; err.innerHTML = oversized; return; }
       err.hidden = true;
       panel.classList.add('busy');
       try {
@@ -797,6 +826,8 @@ function slidesPanel(review, post, onDone) {
     const files = [...e.currentTarget.files]
       .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
     if (!files.length) return;
+    const oversized = tooBig(files);
+    if (oversized) { err.hidden = false; err.innerHTML = oversized; return; }
     err.hidden = true;
     panel.classList.add('busy');
     try {
