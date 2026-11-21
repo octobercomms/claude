@@ -384,11 +384,41 @@ function measure(file) {
   });
 }
 
-async function uploadFile(slug, file) {
-  const form = new FormData();
-  form.append('file', file, file.name);
+export const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes < 10485760 ? 1 : 0)} MB`;
+
+/* fetch cannot report how much of a request body has gone out, so a large
+   video uploaded through it shows nothing at all until it finishes. This
+   uses XMLHttpRequest for the one thing it still does better. */
+function send(slug, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', `/api/upload?slug=${encodeURIComponent(slug)}`);
+
+    request.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total);
+    });
+
+    request.addEventListener('load', () => {
+      let body = {};
+      try { body = JSON.parse(request.responseText); } catch { /* not JSON */ }
+      if (request.status >= 200 && request.status < 300) resolve(body);
+      else reject(new Error(body.error || `Upload failed (${request.status})`));
+    });
+    request.addEventListener('error', () => reject(new Error('The upload did not reach the server. Check the connection and try again.')));
+    request.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+    request.addEventListener('timeout', () => reject(new Error('The upload timed out')));
+
+    const form = new FormData();
+    form.append('file', file, file.name);
+    request.send(form);
+  });
+}
+
+async function uploadFile(slug, file, report = {}) {
+  if (report.onPhase) report.onPhase('reading', file);
   const { w, h } = await measure(file);
-  const up = await api(`/api/upload?slug=${encodeURIComponent(slug)}`, { method: 'POST', body: form });
+  if (report.onPhase) report.onPhase('uploading', file);
+  const up = await send(slug, file, report.onProgress);
   return { ...up, w, h };
 }
 
@@ -400,14 +430,24 @@ function uploadCard(review, onDone) {
       <b>Drop files here</b> or click to choose.<br>
       Each video becomes its own reel. Images dropped together become one carousel, ordered by filename.
     </label>
-    <div class="bar" hidden><i></i></div>
+    <div class="up" data-progress hidden>
+      <div class="up-head">
+        <span data-what>Reading the files</span>
+        <b data-pct>0%</b>
+      </div>
+      <div class="bar"><i></i></div>
+      <p class="up-detail" data-detail></p>
+    </div>
     <p class="err" data-err hidden></p>
     <p class="ok" data-ok hidden></p>
   </div>`);
 
   const drop = card.querySelector('[data-drop]');
   const input = card.querySelector('input[type=file]');
-  const bar = card.querySelector('.bar');
+  const panel = card.querySelector('[data-progress]');
+  const what = card.querySelector('[data-what]');
+  const pct = card.querySelector('[data-pct]');
+  const detail = card.querySelector('[data-detail]');
   const fill = card.querySelector('.bar i');
   const err = card.querySelector('[data-err]');
   const okMsg = card.querySelector('[data-ok]');
@@ -415,33 +455,80 @@ function uploadCard(review, onDone) {
   const handle = async (fileList) => {
     const files = [...fileList];
     if (!files.length) return;
-    err.hidden = true; okMsg.hidden = true;
-    bar.hidden = false; fill.style.width = '0%';
+    err.hidden = true;
+    okMsg.hidden = true;
 
+    const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
     const videos = files.filter((f) => f.type.startsWith('video/'));
     const images = files.filter((f) => f.type.startsWith('image/'))
       .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
+    const order = [...videos, ...images];
 
-    const total = files.length;
-    let done = 0;
-    const step = () => { done += 1; fill.style.width = `${Math.round((done / total) * 100)}%`; };
+    // The reassurance stays in the detail line for the whole read phase. An
+    // earlier "Preparing" state was set and replaced in the same synchronous
+    // block, so it never reached the screen and took this line with it.
+    const waiting = `${mb(totalBytes)}${files.length > 1 ? ' in total' : ''}. `
+      + 'Large videos take a while; this page can stay open.';
+
+    panel.hidden = false;
+    fill.style.width = '0%';
+    pct.textContent = '0%';
+    what.textContent = `Reading ${order[0].name}`;
+    detail.textContent = waiting;
+
+    let sentBefore = 0;   // bytes of files already finished
+    let index = 0;
+
+    const paint = (loaded, size, name) => {
+      const overall = totalBytes ? Math.min(1, (sentBefore + loaded) / totalBytes) : 0;
+      const shown = Math.round(overall * 100);
+      fill.style.width = `${shown}%`;
+      pct.textContent = `${shown}%`;
+      detail.textContent = `${name} · ${mb(loaded)} of ${mb(size)}`;
+    };
+
+    const report = {
+      onPhase: (phase, file) => {
+        if (phase === 'reading') {
+          what.textContent = order.length > 1
+            ? `Reading ${file.name} · ${index + 1} of ${order.length}`
+            : `Reading ${file.name}`;
+          detail.textContent = waiting;
+        } else {
+          what.textContent = order.length > 1
+            ? `Uploading ${index + 1} of ${order.length}`
+            : 'Uploading';
+        }
+      },
+      onProgress: (loaded, size) => paint(loaded, size, order[index].name),
+    };
+
+    const next = (file) => { sentBefore += file.size; index += 1; };
 
     try {
       for (const video of videos) {
-        const media = await uploadFile(review.slug, video);
-        step();
+        const media = await uploadFile(review.slug, video, report);
+        what.textContent = 'Creating the reel';
         await api(`/api/reviews/${encodeURIComponent(review.slug)}/posts`, {
           method: 'POST', body: JSON.stringify({ type: 'reel', media: [media] }),
         });
+        next(video);
       }
       if (images.length) {
         const media = [];
-        for (const image of images) { media.push(await uploadFile(review.slug, image)); step(); }
+        for (const image of images) {
+          media.push(await uploadFile(review.slug, image, report));
+          next(image);
+        }
+        what.textContent = images.length > 1 ? 'Creating the carousel' : 'Creating the post';
+        detail.textContent = '';
         await api(`/api/reviews/${encodeURIComponent(review.slug)}/posts`, {
           method: 'POST',
           body: JSON.stringify({ type: images.length > 1 ? 'carousel' : 'post', media }),
         });
       }
+      fill.style.width = '100%';
+      pct.textContent = '100%';
       okMsg.hidden = false;
       okMsg.textContent = `Added ${videos.length ? `${videos.length} reel${videos.length > 1 ? 's' : ''}` : ''}${videos.length && images.length ? ' and ' : ''}${images.length ? `1 ${images.length > 1 ? 'carousel' : 'post'}` : ''}.`;
       await onDone();
@@ -449,7 +536,7 @@ function uploadCard(review, onDone) {
       err.hidden = false;
       err.textContent = error.message;
     } finally {
-      bar.hidden = true;
+      panel.hidden = true;
       input.value = '';
     }
   };
@@ -602,10 +689,12 @@ function slidesPanel(review, post, onDone) {
   const panel = el(`<div class="slides">
     <p class="slides-label">${isReel ? 'Video' : `Slides (${post.media.length})`}</p>
     <div class="slide-strip"></div>
+    <p class="slide-note" data-note></p>
     <p class="err" data-err hidden></p>
   </div>`);
 
   const strip = panel.querySelector('.slide-strip');
+  const note = panel.querySelector('[data-note]');
   const err = panel.querySelector('[data-err]');
 
   const commit = async (media) => {
@@ -620,6 +709,7 @@ function slidesPanel(review, post, onDone) {
     } catch (error) {
       err.hidden = false;
       err.textContent = error.message;
+      note.textContent = '';
       panel.classList.remove('busy');
     }
   };
@@ -666,11 +756,18 @@ function slidesPanel(review, post, onDone) {
       err.hidden = true;
       panel.classList.add('busy');
       try {
-        const replacement = await uploadFile(review.slug, file);
+        const replacement = await uploadFile(review.slug, file, {
+          onPhase: (phase) => { note.textContent = `${phase === 'reading' ? 'Reading' : 'Uploading'} ${file.name}`; },
+          onProgress: (loaded, size) => {
+            note.textContent = `${Math.round((loaded / size) * 100)}% of ${mb(size)}`;
+          },
+        });
+        note.textContent = 'Saving';
         await commit(plain().map((m, j) => (j === i ? replacement : m)));
       } catch (error) {
         err.hidden = false;
         err.textContent = error.message;
+        note.textContent = '';
         panel.classList.remove('busy');
       }
     });
@@ -704,7 +801,15 @@ function slidesPanel(review, post, onDone) {
     panel.classList.add('busy');
     try {
       const uploaded = [];
-      for (const file of files) uploaded.push(await uploadFile(review.slug, file));
+      for (const [i, file] of files.entries()) {
+        uploaded.push(await uploadFile(review.slug, file, {
+          onPhase: (phase) => { note.textContent = `${phase === 'reading' ? 'Reading' : 'Uploading'} ${file.name}`; },
+          onProgress: (loaded, size) => {
+            note.textContent = `${files.length > 1 ? `${i + 1} of ${files.length} · ` : ''}${Math.round((loaded / size) * 100)}% of ${mb(size)}`;
+          },
+        }));
+      }
+      note.textContent = 'Saving';
       await commit(isReel ? uploaded.slice(0, 1) : [...plain(), ...uploaded]);
     } catch (error) {
       err.hidden = false;

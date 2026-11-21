@@ -59,6 +59,14 @@ const ratioOf = (m) => (m.w && m.h ? m.w / m.h : null);
 const clampFeed = (r) => Math.min(FEED_MAX, Math.max(FEED_MIN, r));
 const near = (a, b, tol = 0.02) => Math.abs(a - b) <= tol;
 
+/* Stand-in caption. Real copy lives in the content schedule, and the point
+   here is the shape: where Instagram cuts a caption off, and how much of a
+   post the text below the picture takes up. */
+const CAPTION = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, '
+  + 'sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. '
+  + 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.';
+const CAPTION_CUT = 112;   // about where the feed stops and offers "more"
+
 function statusBar() {
   return `<div class="ig-status"><span>9:41</span>
     <span class="glyphs"><svg width="25" height="12" viewBox="0 0 25 12" aria-hidden="true">
@@ -151,7 +159,11 @@ function renderFeedPost(post, ctx) {
         ${multi ? `<div class="ig-dots">${media.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
         <span class="save">${icon('bookmark', 24)}</span>
       </div>
-      <div class="ig-likes">248 likes <span>&middot; view all 12 comments</span></div>
+      <div class="ig-likes">248 likes</div>
+      <p class="ig-caption"><b>${escapeHtml(ctx.handle || 'yourbrand')}</b>
+        ${escapeHtml(CAPTION.slice(0, CAPTION_CUT))}<span class="more">&hellip; more</span></p>
+      <p class="ig-comments">View all 12 comments</p>
+      <p class="ig-when">2 days ago</p>
     </div>
   </div>`);
 
