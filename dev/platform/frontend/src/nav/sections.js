@@ -318,6 +318,7 @@ export const SECTIONS = {
         { tab: 'ctr_boost',         label: 'CTR boost' },
         { tab: 'ai_seo',            label: 'AI SEO' },
         { tab: 'agent_ready',       label: 'Agent ready' },
+        { tab: 'citation_structure', label: 'Citation structure' },
       ] },
       { heading: 'Produce', rows: [
         { tab: 'topic_map', label: 'Topic map', step: 1 },
