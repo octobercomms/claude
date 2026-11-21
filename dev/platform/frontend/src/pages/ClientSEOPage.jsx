@@ -32,6 +32,7 @@ import BacklinksPanel from '../components/organic/BacklinksPanel';
 import SeoDriftPanel from '../components/organic/SeoDriftPanel';
 import LocalSeoPanel from '../components/organic/LocalSeoPanel';
 import AgentReadinessPanel from '../components/organic/AgentReadinessPanel';
+import CitationStructurePanel from '../components/organic/CitationStructurePanel';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -1198,6 +1199,7 @@ export default function ClientSEOPage() {
       {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
       {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
       {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
+      {activeTab === 'citation_structure' && <CitationStructurePanel clientId={id} />}
 
       {/* Local — seven tools that were split across two accordions, three in
           Health and four in Optimise, for no reason a user could see. */}

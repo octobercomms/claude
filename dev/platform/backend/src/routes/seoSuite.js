@@ -1560,6 +1560,40 @@ router.get('/clients/:clientId/agent-readiness', async (req, res) => {
   }
 });
 
+// ─── CITATION STRUCTURE ───────────────────────────────────────────────────
+// Agent readiness asks whether an agent can navigate the site, and scans the
+// homepage. This asks a different question of a content page: is it shaped so
+// an answer engine can lift something out of it. Deterministic parse, no model
+// call, nothing billable — so it is safe to run across a client's whole
+// published library.
+//
+// POST with { url } scores one page. POST with no url scores every published
+// page for the client, one at a time so their own site is not hit with twenty
+// concurrent requests.
+router.post('/clients/:clientId/citation-structure', async (req, res) => {
+  try {
+    const citationStructure = require('../services/citationStructure');
+    const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+    if (url) {
+      return res.json(await citationStructure.analyze(url, { clientId: req.params.clientId }));
+    }
+    const limit = Math.min(Number(req.body?.limit) || 25, 100);
+    res.json(await citationStructure.analyzeClientPages(req.params.clientId, { limit }));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Latest scan per URL. DB-only read, so the panel is populated on reload.
+router.get('/clients/:clientId/citation-structure', async (req, res) => {
+  try {
+    const citationStructure = require('../services/citationStructure');
+    res.json(await citationStructure.getLatest(req.params.clientId));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // Branded, client-facing PDF of the whole Owned (SEO) Overview. Cookie-authed
 // like every route here, so the frontend links to it with a plain <a download>.
 router.get('/clients/:clientId/overview-report.pdf', async (req, res) => {

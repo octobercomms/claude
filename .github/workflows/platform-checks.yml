@@ -292,6 +292,15 @@ jobs:
       # payment to one deadline so a month nobody paid is never marked filed.
       - name: Guard — a paid deadline is detected, and an unpaid one is not
         run: node tests/deadline-inference.test.js
+      # Scores whether a content page is shaped so an answer engine can lift an
+      # answer out of it: questions and answers, heading hierarchy, lists and
+      # tables, schema types. Deterministic parse, no model call. The guard is
+      # mostly about the floor — a scorer that cannot fail a wall of prose tells
+      # an account manager the page is fine when it is not — plus the two
+      # inflating mistakes: counting navigation menus as content structure, and
+      # counting lists raw rather than against the prose around them.
+      - name: Guard — the citation structure scorer can say no
+        run: node tests/citation-structure.test.js
       # The Library drop target recorded a file's name, type and size and
       # nothing about the picture, so a 90-second clip arrived on the timeline
       # 3.2 seconds long — the editor's fallback length for a source with no
