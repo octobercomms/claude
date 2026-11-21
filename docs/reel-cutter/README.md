@@ -62,10 +62,40 @@ only bites near the noise floor. Verified by sweep on the test clip, whose 56 dB
 dynamic range produced the same six segments anywhere from −55 to −15 dB, one
 segment at −58, and correct sensitivity throughout the minimum-gap control.
 
-### When decoding fails
+### Two ways of reading the audio
 
-`decodeAudioData` handles most camera and phone files, but some containers carry
-audio it cannot read. The page says so plainly and gives the conversion:
+**One-pass decode.** `decodeAudioData` on the whole track. Fast, accurate, used
+whenever it works.
+
+**Playback measurement.** Safari routinely refuses the one-pass decode for `.MOV`
+even while playing the file perfectly well, so the fallback plays the media
+through an `AnalyserNode` at zero gain, faster than real time, and samples the
+level as it goes. It uses the decoder the browser already proved it has by
+rendering the picture. No conversion, no terminal.
+
+The fallback is automatic. The button becomes Stop while it runs, and the
+progress readout shows percentage and speed. Speed targets about 45 seconds of
+analysis and is capped at 4x, because past that the sampler's spacing gets coarse
+enough to miss short gaps. A three minute take takes roughly 45 seconds.
+
+It is slightly coarser than a direct decode. Bins follow the sampler's measured
+median spacing, and unmeasured bins are filled by interpolating between
+neighbours rather than carrying the last level forward, which would bridge short
+silences. The analyser smears each boundary by about one window, so the minimum
+gap is relaxed by one bin on this path.
+
+That compensation matters. Before it, a 0.5s silence against a 400ms minimum gap
+was found in 2 runs out of 5. After it, 5 out of 5, with segment starts within
+0.1s of truth. Expect reliable detection of gaps comfortably above the minimum
+and marginal behaviour within about 100ms of it. Lower the minimum gap if short
+pauses are being missed.
+
+If a browser stops feeding audio to Web Audio at speed, which some do, the pass
+reads as silent and it retries once at 2x before giving up.
+
+### When both fail
+
+The page says so and gives the conversion:
 
 ```
 ffmpeg -i source.mov -c:v copy -c:a aac converted.mp4
@@ -149,6 +179,20 @@ five silences and a deliberate flubbed-line-then-retake pair:
 One bug found and fixed during this pass: `#wave` is an ID selector, so it
 outranked the browser's default `[hidden]` rule and the waveform would not hide
 after a split. The stylesheet now restates `#wave[hidden] { display: none }`.
+
+The playback-measurement fallback was tested by stubbing `decodeAudioData` to
+reject, reproducing Safari's `.MOV` behaviour:
+
+| Check | Result |
+|---|---|
+| Fallback engages | Automatically, with the button switching to Stop |
+| Segments found | 6, matching the direct-decode path |
+| Segment starts | Within 0.1s of the direct-decode path on all six |
+| Stability | 5 runs of 5 found all six segments |
+| Stop mid-analysis | Clean, state unchanged, split stays disabled |
+| Direct-decode regression | Unchanged, 6 segments, export valid |
+| Multi-clip regression | Unchanged, export valid |
+| Console errors | None |
 
 ## Known limits
 

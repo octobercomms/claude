@@ -1109,9 +1109,139 @@
     return { db: db, winDur: win / sr, duration: buf.duration, peak: peak };
   }
 
+  // Fallback for files whose audio decodeAudioData cannot parse (Safari and .MOV,
+  // most often). Plays the media faster than real time through an AnalyserNode at
+  // zero gain and samples the level, which uses the decoder the browser already
+  // proved it has by rendering the picture.
+  var rtAbort = false;
+
+  function envelopeRealtime(clip, onProgress, rateOverride) {
+    return new Promise(function (resolve, reject) {
+      var ac = ensureAudio();
+      if (!ac) { reject(new Error('no-webaudio')); return; }
+
+      var v = document.createElement('video');
+      v.src = clip.url;
+      v.preload = 'auto';
+      v.playsInline = true;
+      v.muted = false;
+
+      var cleaned = false;
+      var src = null, analyser = null, mute = null;
+      function cleanup() {
+        if (cleaned) { return; }
+        cleaned = true;
+        try { v.pause(); } catch (e) {}
+        try { if (src) { src.disconnect(); } } catch (e) {}
+        try { if (analyser) { analyser.disconnect(); } } catch (e) {}
+        try { if (mute) { mute.disconnect(); } } catch (e) {}
+        v.removeAttribute('src');
+        try { v.load(); } catch (e) {}
+      }
+
+      v.addEventListener('error', function () { cleanup(); reject(new Error('load')); });
+
+      v.addEventListener('loadedmetadata', function () {
+        var dur = v.duration;
+        if (!isFinite(dur) || dur <= 0) { cleanup(); reject(new Error('duration')); return; }
+
+        try {
+          src = ac.createMediaElementSource(v);
+          analyser = ac.createAnalyser();
+          analyser.fftSize = 1024;   // ~23ms window: less boundary smear than 2048
+          mute = ac.createGain();
+          mute.gain.value = 0;          // analyse without making a sound
+          src.connect(analyser);
+          analyser.connect(mute);
+          mute.connect(ac.destination);
+        } catch (e) { cleanup(); reject(new Error('graph')); return; }
+
+        // Aim for roughly 45 seconds of analysis. Capped at 4x: faster than that
+        // and the sampler's spacing gets coarse enough to miss short gaps.
+        var rate = rateOverride || Math.max(2, Math.min(4, dur / 45));
+        try { v.playbackRate = rate; } catch (e) { rate = 1; }
+
+        var buf = new Float32Array(analyser.fftSize);
+        var samples = [];
+
+        v.play().then(function () {
+          function tick() {
+            if (rtAbort) { cleanup(); reject(new Error('aborted')); return; }
+            if (v.ended || v.currentTime >= dur - 0.04) { finish(); return; }
+
+            analyser.getFloatTimeDomainData(buf);
+            var s = 0;
+            for (var i = 0; i < buf.length; i++) { s += buf[i] * buf[i]; }
+            var rms = Math.sqrt(s / buf.length);
+
+            samples.push({ t: v.currentTime, r: rms });
+
+            onProgress(v.currentTime / dur, rate);
+            requestAnimationFrame(tick);
+          }
+
+          function finish() {
+            cleanup();
+            if (samples.length < 8) { reject(new Error('samples')); return; }
+
+            // Size the bins to what the sampler actually achieved, so most bins
+            // hold a real measurement instead of a guess.
+            var gaps = [];
+            for (var i = 1; i < samples.length; i++) {
+              var d = samples[i].t - samples[i - 1].t;
+              if (d > 0) { gaps.push(d); }
+            }
+            gaps.sort(function (a, b) { return a - b; });
+            var median = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0.05;
+            var winDur = Math.max(0.04, Math.min(0.2, median));
+
+            var bins = Math.ceil(dur / winDur);
+            var lvl = new Float32Array(bins);
+            var seen = new Uint8Array(bins);
+            for (var j = 0; j < samples.length; j++) {
+              var b = Math.max(0, Math.min(bins - 1, Math.floor(samples[j].t / winDur)));
+              if (samples[j].r > lvl[b]) { lvl[b] = samples[j].r; }
+              seen[b] = 1;
+            }
+
+            // Interpolate across unmeasured bins rather than carrying the last
+            // level forward, which would bridge short silences and lose cuts.
+            var k = 0;
+            while (k < bins) {
+              if (seen[k]) { k++; continue; }
+              var start = k;
+              while (k < bins && !seen[k]) { k++; }
+              var before = start > 0 ? lvl[start - 1] : 0;
+              var after = k < bins ? lvl[k] : 0;
+              var span = k - start + 1;
+              for (var m = start; m < k; m++) {
+                lvl[m] = before + (after - before) * ((m - start + 1) / span);
+              }
+            }
+
+            var peak = 1e-9;
+            for (var n = 0; n < bins; n++) { if (lvl[n] > peak) { peak = lvl[n]; } }
+            if (peak < 1e-6) { reject(new Error('silent')); return; }
+            var db = new Float32Array(bins);
+            for (var q = 0; q < bins; q++) { db[q] = 20 * Math.log10((lvl[q] / peak) + 1e-9); }
+            resolve({ db: db, winDur: winDur, duration: dur, peak: peak, realtime: true });
+          }
+
+          requestAnimationFrame(tick);
+        }, function () { cleanup(); reject(new Error('play')); });
+      });
+
+      try { v.load(); } catch (e) { cleanup(); reject(new Error('load')); }
+    });
+  }
+
   function segmentsFrom(env, thDb, minGapMs, padMs) {
     var wd = env.winDur;
     var minGapW = Math.max(1, Math.round((minGapMs / 1000) / wd));
+    // The playback-measured envelope smears each boundary by about one window,
+    // so a silence close to the minimum gap reads shorter than it is. Allow a
+    // window back, or gaps near the threshold become a coin flip.
+    if (env.realtime) { minGapW = Math.max(1, minGapW - 1); }
     var padS = padMs / 1000;
     var loud = [];
     for (var i = 0; i < env.db.length; i++) { loud.push(env.db[i] > thDb); }
@@ -1202,35 +1332,94 @@
     $('btnSplit').disabled = analysis.segs.length < 1;
   }
 
+  var analysing = false;
+
   $('btnAnalyse').addEventListener('click', async function () {
+    if (analysing) { rtAbort = true; return; }
+
     var id = parseInt($('acSource').value, 10);
     var clip = clips.filter(function (c) { return c.id === id; })[0];
     if (!clip) { return; }
+
     var note = $('acNote');
+    var btn = $('btnAnalyse');
+    analysing = true;
+    rtAbort = false;
     note.className = 'note';
-    note.innerHTML = '<span>Decoding audio…</span>';
-    $('btnAnalyse').disabled = true;
+    note.innerHTML = '<span>Reading the audio…</span>';
     $('acState').textContent = 'working';
+    $('btnSplit').disabled = true;
+
+    var env = null, viaFallback = false;
+
+    // Fast path: decode the whole track at once. Safari often refuses this for
+    // .MOV even when it plays the file happily, so a failure here is routine.
     try {
       var ac = ensureAudio();
-      if (!ac) { throw new Error('No Web Audio support in this browser.'); }
+      if (!ac) { throw new Error('no-webaudio'); }
       var buf = await clip.file.arrayBuffer();
       var decoded = await ac.decodeAudioData(buf);
-      analysis = { clipId: clip.id, env: envelope(decoded), segs: [] };
-      recompute();
-      note.className = 'note ok';
-      note.innerHTML = '<span>Yellow is kept, grey is cut. Adjust the three controls until the split looks right, then split.</span>';
-      $('acState').textContent = 'analysed';
+      env = envelope(decoded);
     } catch (e) {
-      analysis = null;
-      $('btnSplit').disabled = true;
-      $('acState').textContent = 'failed';
-      note.className = 'note bad';
-      note.innerHTML = '<span><b>Could not decode this file’s audio.</b> ' +
-        'The browser can read the picture but not this audio codec. Convert the clip first, then drop the result in: ' +
-        '<code>ffmpeg -i source.mov -c:v copy -c:a aac converted.mp4</code></span>';
+      env = null;
     }
-    $('btnAnalyse').disabled = false;
+
+    if (!env) {
+      viaFallback = true;
+      btn.textContent = 'Stop';
+      note.className = 'note warn';
+      note.innerHTML = '<span><b>This file’s audio will not decode in one pass</b>, which is normal for .MOV in Safari. ' +
+        'Playing it through at speed instead. Leave this tab in front.</span>';
+      var report = function (frac, rate) {
+        $('acResult').textContent = 'analysing ' + Math.round(frac * 100) + '% · ' +
+          (Math.round(rate * 10) / 10) + '× speed';
+      };
+      try {
+        try {
+          env = await envelopeRealtime(clip, report);
+        } catch (eFast) {
+          // Some browsers stop feeding audio to Web Audio above a certain
+          // playback rate, which reads as a silent track. Try again at 2x
+          // before concluding the file has no usable audio.
+          if (eFast && eFast.message === 'silent' && !rtAbort) {
+            note.className = 'note warn';
+            note.innerHTML = '<span>Nothing came through at speed, which some browsers do. ' +
+              'Trying again at 2×. This takes longer.</span>';
+            env = await envelopeRealtime(clip, report, 2);
+          } else {
+            throw eFast;
+          }
+        }
+      } catch (e2) {
+        env = null;
+        var why = e2 && e2.message;
+        analysing = false;
+        rtAbort = false;
+        btn.textContent = 'Analyse audio';
+        btn.disabled = false;
+        $('acResult').textContent = '';
+        $('btnSplit').disabled = true;
+        $('acState').textContent = why === 'aborted' ? 'stopped' : 'failed';
+        note.className = why === 'aborted' ? 'note' : 'note bad';
+        note.innerHTML = why === 'aborted'
+          ? '<span>Stopped. Nothing changed.</span>'
+          : '<span><b>Could not read this file’s audio.</b> Both the one-pass decode and playing it through failed' +
+            (why === 'silent' ? ', and what came through was silent, so the clip may have no audio track' : '') +
+            '. Convert it and drop the result in: ' +
+            '<code>ffmpeg -i source.mov -c:v copy -c:a aac converted.mp4</code></span>';
+        return;
+      }
+    }
+
+    analysing = false;
+    btn.textContent = 'Analyse audio';
+    btn.disabled = false;
+    analysis = { clipId: clip.id, env: env, segs: [] };
+    recompute();
+    note.className = 'note ok';
+    note.innerHTML = '<span>Yellow is kept, grey is cut. Move the three controls until the split looks right, then split.' +
+      (viaFallback ? ' Measured by playback, so it is a little coarser than a direct decode.' : '') + '</span>';
+    $('acState').textContent = 'analysed';
   });
 
   $('btnSplit').addEventListener('click', function () {
