@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.3
-Stable tag: 0.7.40
+Stable tag: 0.7.41
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.41 =
+* Archie is more concise - a prompt directive to match length to need (short when a
+  short answer serves, more words only when something genuinely needs explaining), cut
+  filler openers, and stop restating what the visitor just said. Both openers trimmed,
+  and the Variant A email-first re-ask is now one short sentence.
+* Fix: while the Variant A email gate is open, the input box now reads "Enter your
+  email address" instead of falling through to "Address..." (a side-effect of the gate
+  recording no fields but the email).
 
 = 0.7.40 =
 * Meta Pixel funnel tracking, for retargeting audiences and conversion optimisation.

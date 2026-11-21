@@ -29,9 +29,9 @@ class YAA_Archie {
 	public static function opener_text( $variant = 'B' ) {
 		if ( 'A' === $variant ) {
 			// A/B Variant A (email-first gate): lead with the email ask.
-			return __( "Hi — I'm Archie, Your Architect's project assistant. I'll build your fixed price with you and email you a copy to keep. To get started, what's the best email address to send it to?", 'your-architect-archie' );
+			return __( "Hi — I'm Archie. I'll build your fixed price with you. First, what's your email address?", 'your-architect-archie' );
 		}
-		return __( "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few simple questions, explain anything that's unclear, and build your fixed price as we go. There are no silly questions here. To start, what's the address of the property?", 'your-architect-archie' );
+		return __( "Hi — I'm Archie. I'll build your fixed price with you as we go. First, what's the address of the property?", 'your-architect-archie' );
 	}
 
 	public static function opener( $project_id ) {
@@ -105,6 +105,7 @@ class YAA_Archie {
 			'HOW TO ASK EVERYTHING:',
 			'- One short question at a time, in plain everyday English. Never use jargon without immediately explaining it in a few words (e.g. "planning permission — that\'s the council\'s formal go-ahead to build").',
 			'- Keep every reply to one or two warm, direct sentences. British English.',
+			'- BE CONCISE — get to the point. Match length to need: when a short answer serves, keep it short (often one sentence, sometimes just a few words); spend more words only when something genuinely needs explaining (a jargon term, a reassurance, a real choice). Lead with the question itself. Cut filler openers like "Thanks for that!" or "Great question!", and do not restate back what they just told you before moving on.',
 			'- Write in plain, everyday text only — never use markdown, asterisks (**), bullet characters, headings or other formatting. Whatever you type is shown to the person exactly as-is, so formatting marks appear as literal characters.',
 			'- EVERY turn must include a spoken reply AND move the conversation forward with the next question — never reply with only the set_fields tool and no words, and never stop after acknowledging an answer. As soon as you have the postcode, thank them briefly and ask which service they need (offering the service menu as tappable options plus "I\'m not sure — I need advice").',
 			'- After ANY question that has a handful of natural answers, ALSO propose tappable buttons via the set_fields tool\'s `replies` field (2–5 very short labels, in the person\'s own words). The person can tap one OR type their own — both are fine.',
@@ -155,7 +156,7 @@ class YAA_Archie {
 		// A/B Variant A: hard email gate. This lives in the volatile (uncached) block
 		// because it changes the moment we have their email — then the gate lifts.
 		if ( $email_first ) {
-			$vol[] = 'EMAIL FIRST — this visitor is in a variant that REQUIRES an email before anything else, and you do NOT have it yet. Your only job this turn is to warmly ask for the best email address to send their fixed-price quote to, explaining you will email their quote there and it is how the team gets back to them. Do NOT ask about the property, services or anything else; do NOT build, mention, hint at or reveal any price or quote; do NOT proceed until they give a valid email. If they hesitate, briefly explain that is simply how Your Architect sends the quote and sets up their project, and ask once more. The moment they give a valid email, thank them and carry on normally with the rest of the questions.';
+			$vol[] = 'EMAIL FIRST — this visitor must give an email before anything else, and you do NOT have it yet. Ask ONLY for their email, in one short sentence (for example: "First, what is your email address?"). Do NOT restate what they just said, do NOT add preamble, and do NOT ask about the property or services or reveal any price. If they push back, give ONE short reason (it is how we send the quote and reach them) and ask once more. The moment they give a valid email, carry on normally.';
 		}
 		$known = self::address_knowledge( $state );
 		if ( $known ) {
@@ -643,7 +644,7 @@ class YAA_Archie {
 			'message'     => $message,
 			'package'     => $package,
 			'options'     => $options,
-			'placeholder' => self::input_hint( $state, $done ),
+			'placeholder' => self::input_hint( $state, $done, $email_first ),
 			'redirect'    => ! empty( $package['redirect'] ),
 			'done'        => $done,
 			'hasEmail'    => ! empty( $state['email'] ),
@@ -877,9 +878,12 @@ class YAA_Archie {
 	 * for right now, so the field itself guides the person (an "address box", an
 	 * "email box", etc.). Mirrors the flow order in suggested_options().
 	 */
-	public static function input_hint( array $s, $done = false ) {
+	public static function input_hint( array $s, $done = false, $email_first = false ) {
 		if ( $done ) {
 			return __( 'That\'s everything — thank you.', 'your-architect-archie' );
+		}
+		if ( $email_first && empty( $s['email'] ) ) {
+			return __( 'Enter your email address', 'your-architect-archie' );
 		}
 		if ( ! empty( $s['outsideUk'] ) ) {
 			return __( 'Type your message…', 'your-architect-archie' );
