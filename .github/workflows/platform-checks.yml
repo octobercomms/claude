@@ -301,6 +301,15 @@ jobs:
       # counting lists raw rather than against the prose around them.
       - name: Guard — the citation structure scorer can say no
         run: node tests/citation-structure.test.js
+      # The platform is the distribution point for every WordPress plugin
+      # October ships, and what breaks here breaks silently on sites we do not
+      # own. Moving the legacy /wordpress-plugin/info path does not error: the
+      # self-updater simply stops seeing new versions, everywhere at once. And
+      # WordPress installs a plugin by the archive's top-level folder, then
+      # looks for {slug}/{slug}.php, so a slug that disagrees with the folder
+      # installs something that cannot be activated or updated.
+      - name: Guard — every paired site can still find its plugin
+        run: node tests/wp-plugin-distribution.test.js
       # The Library drop target recorded a file's name, type and size and
       # nothing about the picture, so a 90-second clip arrived on the timeline
       # 3.2 seconds long — the editor's fallback length for a source with no
