@@ -768,33 +768,167 @@
 		}
 	}
 
+	// Endings. Until 1.4 this edited one screen, `default`, and the schema
+	// sanitiser deleted anything else on save. The form asked for budget and
+	// timing and then thanked everyone identically.
+	//
+	// Endings are tested top to bottom and the first whose rules match wins,
+	// so order is behaviour. `default` is the fallback and is never matched by
+	// rule, which is why it has no rule editor.
 	function renderEndings(host) {
-		var e = schema.endings.default = schema.endings.default || {};
-		host.appendChild(el('h3', null, ['On submit']));
+		schema.endings = schema.endings || {};
+		if (!schema.endings.default) schema.endings.default = {};
 
-		host.appendChild(el('label', { class: 'ocf-b-field' }, [
-			el('span', null, ['Redirect to URL after submit (optional)']),
-			el('input', { type: 'url', class: 'widefat', placeholder: 'https://nvelope.co/thank-you', value: e.redirect_url || '', onInput: function (ev) { e.redirect_url = ev.target.value; syncHiddenInput(); } })
+		host.appendChild(el('h3', null, ['Endings']));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, [
+			'Checked in order, top to bottom. The first ending whose rules match is the one the visitor sees. ' +
+			'Anyone who matches nothing gets the fallback at the bottom.'
 		]));
-		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['If set, the visitor is redirected here once the form is submitted. The ending screen below is ignored.']));
 
-		host.appendChild(el('h4', null, ['Ending screen (used when no redirect is set)']));
-		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+		var keys = Object.keys(schema.endings).filter(function (k) { return k !== 'default'; });
+
+		keys.forEach(function (key, i) {
+			host.appendChild(endingCard(key, i, keys.length));
+		});
+
+		// An inline field rather than window.prompt: a browser can refuse a
+		// prompt and return null with nothing on screen to say why, and the
+		// click then looks broken.
+		var nameInput = el('input', {
+			type: 'text', class: 'regular-text',
+			placeholder: 'qualified, not_ready, out_of_scope…',
+			onKeyDown: function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); addEnding(); } }
+		});
+		function addEnding() {
+			var slug = String(nameInput.value || '').toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '');
+			if (!slug) { nameInput.focus(); return; }
+			if (slug === 'default') { alert('"default" is the fallback below and already exists.'); return; }
+			if (schema.endings[slug]) { alert('An ending called ' + slug + ' already exists.'); return; }
+			// Rebuilt so the new ending lands before the fallback, which has
+			// to stay last for the order to mean anything.
+			var rebuilt = {};
+			Object.keys(schema.endings).forEach(function (k) { if (k !== 'default') rebuilt[k] = schema.endings[k]; });
+			rebuilt[slug] = { label: slug, outcome: slug, is_conversion: false, rules: [] };
+			rebuilt.default = schema.endings.default;
+			schema.endings = rebuilt;
+			nameInput.value = '';
+			syncHiddenInput();
+			render();
+		}
+		host.appendChild(el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' } }, [
+			nameInput,
+			el('button', { type: 'button', class: 'button', onClick: addEnding }, ['+ Add ending'])
+		]));
+
+		host.appendChild(el('hr', { style: { margin: '20px 0' } }));
+		host.appendChild(el('h4', null, ['Fallback — everyone who matches nothing above']));
+		host.appendChild(endingFields('default'));
+	}
+
+	function endingCard(key, index, total) {
+		var e = schema.endings[key];
+		var card = el('div', { class: 'ocf-b-card', style: { border: '1px solid #dcdcde', padding: '12px', marginBottom: '12px' } });
+
+		var head = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' } }, [
+			el('strong', null, [(index + 1) + '. ' + (e.label || key)]),
+			el('span', null, [
+				index > 0 ? el('button', { type: 'button', class: 'button button-small', onClick: function () { moveEnding(key, -1); } }, ['↑']) : null,
+				index < total - 1 ? el('button', { type: 'button', class: 'button button-small', onClick: function () { moveEnding(key, 1); } }, ['↓']) : null,
+				el('button', {
+					type: 'button', class: 'button button-small', style: { marginLeft: '8px' },
+					onClick: function () {
+						if (!confirm('Delete the "' + key + '" ending?')) return;
+						delete schema.endings[key];
+						syncHiddenInput();
+						render();
+					}
+				}, ['Delete'])
+			])
+		]);
+		card.appendChild(head);
+		card.appendChild(endingFields(key));
+		card.appendChild(logicEditor('Send the visitor here if…', e.rules || [], function (rules) {
+			e.rules = rules;
+			syncHiddenInput();
+		}));
+		card.appendChild(el('p', { class: 'ocf-b-hint' }, [
+			'An ending with no rules is skipped entirely, so it can never swallow every visitor by accident.'
+		]));
+		return card;
+	}
+
+	function moveEnding(key, delta) {
+		var keys = Object.keys(schema.endings).filter(function (k) { return k !== 'default'; });
+		var i = keys.indexOf(key);
+		var j = i + delta;
+		if (i < 0 || j < 0 || j >= keys.length) return;
+		keys.splice(j, 0, keys.splice(i, 1)[0]);
+		// Objects keep insertion order for string keys, so rebuilding the map
+		// in the new order is what persists the change.
+		var rebuilt = {};
+		keys.forEach(function (k) { rebuilt[k] = schema.endings[k]; });
+		rebuilt.default = schema.endings.default;
+		schema.endings = rebuilt;
+		syncHiddenInput();
+		render();
+	}
+
+	function endingFields(key) {
+		var e = schema.endings[key] = schema.endings[key] || {};
+		var wrap = el('div');
+
+		if (key !== 'default') {
+			wrap.appendChild(el('label', { class: 'ocf-b-field' }, [
+				el('span', null, ['Name shown in this builder']),
+				el('input', { type: 'text', class: 'widefat', value: e.label || key, onInput: function (ev) { e.label = ev.target.value; syncHiddenInput(); } })
+			]));
+		}
+
+		wrap.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Redirect to URL (optional)']),
+			el('input', { type: 'url', class: 'widefat', value: e.redirect_url || '', onInput: function (ev) { e.redirect_url = ev.target.value; syncHiddenInput(); } })
+		]));
+		wrap.appendChild(el('p', { class: 'ocf-b-hint' }, ['If set, the screen below is skipped. Tracking still fires first.']));
+
+		wrap.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['Heading']),
 			el('input', { type: 'text', class: 'widefat', value: e.heading || '', onInput: function (ev) { e.heading = ev.target.value; syncHiddenInput(); } })
 		]));
-		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+		wrap.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['Body']),
 			el('textarea', { rows: 4, class: 'widefat', onInput: function (ev) { e.body = ev.target.value; syncHiddenInput(); } }, [e.body || ''])
 		]));
-		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+		wrap.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['CTA label']),
 			el('input', { type: 'text', class: 'widefat', value: e.cta_label || '', onInput: function (ev) { e.cta_label = ev.target.value; syncHiddenInput(); } })
 		]));
-		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+		wrap.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['CTA URL']),
 			el('input', { type: 'url', class: 'widefat', value: e.cta_url || '', onInput: function (ev) { e.cta_url = ev.target.value; syncHiddenInput(); } })
 		]));
+
+		wrap.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Tracking name']),
+			el('input', {
+				type: 'text', class: 'widefat', placeholder: key,
+				value: e.outcome || '',
+				onInput: function (ev) { e.outcome = ev.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'); syncHiddenInput(); }
+			})
+		]));
+		wrap.appendChild(el('p', { class: 'ocf-b-hint' }, ['Reported to Google, Meta and X as sbm_' + (e.outcome || key) + '. Defaults to the ending name.']));
+
+		var cb = el('input', { type: 'checkbox', onChange: function (ev) { e.is_conversion = ev.target.checked; syncHiddenInput(); } });
+		cb.checked = !!e.is_conversion;
+		wrap.appendChild(el('label', { class: 'ocf-b-field', style: { display: 'flex', gap: '8px', alignItems: 'flex-start' } }, [
+			cb,
+			el('span', null, ['Count this as a conversion'])
+		]));
+		wrap.appendChild(el('p', { class: 'ocf-b-hint' }, [
+			'Sends the ad platforms their standard Lead event, which is what a campaign optimises towards. ' +
+			'Tick it only for endings worth paying for. Ticking every ending tells Meta and Google to buy whoever will fill in a form.'
+		]));
+
+		return wrap;
 	}
 
 	function renderJson(host) {

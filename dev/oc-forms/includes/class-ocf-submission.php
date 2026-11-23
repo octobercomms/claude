@@ -52,6 +52,29 @@ class OCF_Submission {
 		return self::find( $wpdb->insert_id );
 	}
 
+	/**
+	 * Which ending the visitor reached, and whether it counted as a
+	 * conversion. Stored rather than only returned to the browser: the event
+	 * fired on the page is gone the moment the tab closes, and OMI reads this
+	 * table. Without it there is no way to ask how many qualified enquiries a
+	 * client had last month, which is the number the whole funnel exists to
+	 * move.
+	 */
+	public static function set_outcome( $submission_id, $outcome, $is_conversion ) {
+		global $wpdb;
+		$wpdb->update(
+			self::table(),
+			array(
+				'outcome'       => $outcome !== '' ? substr( (string) $outcome, 0, 40 ) : null,
+				'is_conversion' => $is_conversion ? 1 : 0,
+				'updated_at'    => current_time( 'mysql' ),
+			),
+			array( 'id' => (int) $submission_id ),
+			array( '%s', '%d', '%s' ),
+			array( '%d' )
+		);
+	}
+
 	public static function update_payload( $submission_id, $answers, $email = null ) {
 		global $wpdb;
 		$update = array(

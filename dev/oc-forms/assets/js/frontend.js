@@ -66,6 +66,61 @@
 		});
 	}
 
+	// Tell the ad platforms what happened.
+	//
+	// Until 1.4 the plugin fired nothing. The only events reaching Google
+	// and Meta came from the theme, keyed off a ?step= parameter, so the
+	// strongest signal either platform had was "somebody arrived on the
+	// page". Optimising a campaign against that buys the cheapest people
+	// who will land, which is the opposite of qualifying a buyer.
+	//
+	// Two events per completion:
+	//
+	//   sbm_{outcome}  always. Granular, and matches the sbm_{step}
+	//                  convention the theme already uses, so existing
+	//                  conversion actions keep working.
+	//   Lead           only when the ending is marked is_conversion.
+	//                  This is the one a campaign optimises towards, and
+	//                  it is a standard event on both platforms, which
+	//                  both handle better than a custom one. Firing it on
+	//                  every completion, including out-of-scope, would put
+	//                  us straight back to buying volume.
+	//
+	// Every call is wrapped: the pixels are injected per studio by the
+	// theme and most clients have some of them blank, so a missing global
+	// is the normal case, not an error. A failure here must never stop the
+	// visitor seeing their ending.
+	function trackCompletion(cfg, ending) {
+		var outcome = String(ending.outcome || 'lead').replace(/[^a-z0-9_]/gi, '_');
+		var evt = 'sbm_' + outcome;
+		var converts = !!ending.is_conversion;
+
+		try { if (typeof window.gtag === 'function') {
+			window.gtag('event', evt, { form_id: cfg.formId, outcome: outcome });
+			if (converts) window.gtag('event', 'generate_lead', { form_id: cfg.formId, outcome: outcome });
+		} } catch (e) {}
+
+		try { if (typeof window.fbq === 'function') {
+			window.fbq('trackCustom', evt, { form_id: cfg.formId, outcome: outcome });
+			if (converts) window.fbq('track', 'Lead', { content_name: outcome });
+		} } catch (e) {}
+
+		try { if (typeof window.twq === 'function') {
+			window.twq('track', converts ? 'Lead' : evt);
+		} } catch (e) {}
+
+		try { if (typeof window.pintrk === 'function') {
+			window.pintrk('track', converts ? 'lead' : 'custom', { event: evt });
+		} } catch (e) {}
+
+		// A dataLayer push regardless, so a tag manager can pick this up
+		// later without the plugin needing to know about it.
+		try {
+			window.dataLayer = window.dataLayer || [];
+			window.dataLayer.push({ event: evt, ocf_form_id: cfg.formId, ocf_outcome: outcome, ocf_is_conversion: converts });
+		} catch (e) {}
+	}
+
 	function getOrCreateSession() {
 		try {
 			var s = window.localStorage.getItem('ocf_sess');
@@ -358,6 +413,8 @@
 				ocf_hp_email: (root.querySelector('input[name="ocf_hp_email"]') || {}).value || ''
 			} }).then(function (res) {
 				var ending = res.ending || {};
+				// Before the redirect, or the pixel never fires.
+				trackCompletion(cfg, ending);
 				if (ending.redirect_url) {
 					window.location.href = ending.redirect_url;
 					return;
@@ -706,9 +763,14 @@
 		}
 
 		function renderEnding(ending) {
+			ending = ending || {};
+			// Same events as the standard path. The AI route completes a
+			// submission too, and a conversion that only fires on one of two
+			// paths is worse than none: the platform learns from half the data
+			// and nothing on screen says so.
+			trackCompletion(cfg, ending);
 			done = true;
 			footer.style.display = 'none';
-			ending = ending || {};
 			if (ending.redirect_url) { window.location.href = ending.redirect_url; return; }
 			if (ending.heading || ending.body) {
 				msgList.appendChild(el('div', { class: 'ocf-chat-ending' }, [

@@ -27,6 +27,8 @@ class OCF_Activator {
 			step_reached TINYINT UNSIGNED NOT NULL DEFAULT 0,
 			seconds_active INT UNSIGNED NOT NULL DEFAULT 0,
 			session_hash VARCHAR(64) DEFAULT NULL,
+			outcome VARCHAR(40) DEFAULT NULL,
+			is_conversion TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			completed_at DATETIME DEFAULT NULL,
@@ -35,7 +37,8 @@ class OCF_Activator {
 			KEY form_id (form_id),
 			KEY status (status),
 			KEY email (email),
-			KEY session_hash (session_hash)
+			KEY session_hash (session_hash),
+			KEY outcome (form_id, outcome)
 		) {$charset_collate};
 
 		CREATE TABLE {$views} (
