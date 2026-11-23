@@ -788,8 +788,20 @@ the tests and the build:
   The drive script asserts this: editing weekly, saving from Monthly, and
   checking the PUT body still carries the weekly edit.
 
-`tests/` cannot see any of it, so the guard is the browser drive script, with
-both layout rules mutation-tested.
+**Hold reports for review is one flag covering both**, and it lives under the
+two cards rather than inside either. It shipped inside the Monthly card,
+directly above "This month's focus", which really is monthly only — so a
+setting that also governs the weekly report read as a monthly one. Nothing
+failed; it just said the wrong thing, which is this screen's whole failure
+mode. It carries its own Save, because moving it away from the two cards left
+it with no button beside it.
+
+`tests/` cannot see any of it, so the guard is a browser drive script. Until
+23 November this paragraph claimed one existed and none did: the rules above
+were written down and unguarded for three weeks. `drives/drive-reports-tab.mjs`
+is it now — 12 assertions, mutation-tested four ways — and it covers the save
+rule as well, by editing a weekly field, saving from the Monthly card, and
+checking the PUT still carries both that edit and the hold flag.
 
 ### A report is editable, and the editable thing is the sections array (23 Nov 2026)
 
