@@ -87,32 +87,64 @@ const coverage = [];
 // to update: adding the next *-checks.yml fails here until the gate is taught
 // about it.
 const WF_DIR = require('path').join(__dirname);
+
+// Discovered by trigger, not by filename.
+//
+// The first version of this filtered on `-checks.yml`, which quietly missed
+// automerge-gate.yml — the guard on the file that decides unattended merges,
+// and the one workflow where a gap matters most. A naming convention is not a
+// rule the repo enforces; `on: pull_request` is.
+//
+// auto-merge-claude.yml is PR-triggered too, because that is how it evaluates
+// a PR. It is the gate, not a guard, so it is the single exclusion.
+const GATE_FILE = 'auto-merge-claude.yml';
 const checkWorkflows = fs.readdirSync(WF_DIR)
-  .filter((f) => /-checks\.yml$/.test(f))
+  .filter((f) => /\.ya?ml$/.test(f) && f !== GATE_FILE)
   .map((f) => {
     const text = fs.readFileSync(require('path').join(WF_DIR, f), 'utf8');
+    if (!/^\s{2}pull_request:/m.test(text)) return null;
     const name = (text.match(/^name:\s*(.+)$/m) || [])[1];
-    // Paths the workflow watches, minus its own file, and job names.
+    // Paths it watches, minus its own file: a workflow watching itself is a
+    // trigger concern, not a gating one.
     const paths = [...text.matchAll(/^\s+- '([^']+)'$/gm)].map((m) => m[1])
-      .filter((x) => !x.startsWith('.github/'));
+      .filter((x) => x !== `.github/workflows/${f}`);
     const jobs = [...text.matchAll(/^  ([a-z][a-z0-9_-]*):\n\s+runs-on:/gm)].map((m) => m[1]);
     return { file: f, name: name && name.trim().replace(/^["']|["']$/g, ''), paths, jobs };
-  });
+  })
+  .filter(Boolean);
 
-if (!checkWorkflows.length) {
-  coverage.push(['at least one checks workflow was found to verify', false]);
+// Guard the discovery itself.
+//
+// Narrowing the filter does not fail anything: it just generates fewer
+// assertions, and a suite that checks less still reports green. Two mutations
+// proved that — going back to a `-checks.yml` filename filter, and excluding
+// every .github/ path — both of which left the gate's own guard unverified
+// while the run stayed at "0 failed".
+//
+// So the known guards are named. Adding a fourth is covered by the derived
+// checks above; dropping one of these three fails here.
+const MUST_BE_COVERED = ['platform-checks.yml', 'oc-forms-checks.yml', 'automerge-gate.yml'];
+for (const file of MUST_BE_COVERED) {
+  coverage.push([
+    `${file} is discovered as a guard the gate must know about`,
+    checkWorkflows.some((w) => w.file === file),
+  ]);
+}
+
+// And each discovered guard has to have produced real path assertions, or the
+// loop above ran over an empty list and verified nothing.
+for (const wfm of checkWorkflows) {
+  coverage.push([
+    `${wfm.file}: at least one watched path was actually checked`,
+    wfm.paths.length > 0,
+  ]);
 }
 
 for (const wfm of checkWorkflows) {
-  // The gate itself never gates on its own run; it is in the wake list only.
-  const isGateOwn = wfm.file === 'automerge-gate.yml';
-
   coverage.push([
     `${wfm.file}: "${wfm.name}" can wake the gate`,
     !!wfm.name && new RegExp(`workflows:\\s*\\[[^\\]]*"${wfm.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`).test(code),
   ]);
-
-  if (isGateOwn) continue;
 
   // Each path the workflow watches must appear in the required mapping, or a
   // PR touching it merges with nothing required of it.

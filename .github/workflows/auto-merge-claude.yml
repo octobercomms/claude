@@ -140,6 +140,18 @@ jobs:
                 *) required="$required backend" ;;
               esac
             fi
+            # And a change to this gate, or to its test, must pass the gate's
+            # own guard before merging. automerge-gate.yml existed and was in
+            # the wake list, but nothing required it: the file that decides
+            # unattended merges could merge with its guard still running. #2108
+            # did exactly that, finishing nine seconds before the merge.
+            needs_gate=false
+            printf '%s\n' "$files" | grep -q '^.github/workflows/auto-merge-claude.yml$' && needs_gate=true
+            printf '%s\n' "$files" | grep -q '^.github/workflows/auto-merge-gate.test.js$' && needs_gate=true
+            printf '%s\n' "$files" | grep -q '^.github/workflows/automerge-gate.yml$' && needs_gate=true
+            if [ "$needs_gate" = true ]; then
+              required="$required gate"
+            fi
 
             # Does merging this PR need a deploy? Mirrors the paths in
             # platform-deploy.yml's `on: push` filter; the gate test reads both
