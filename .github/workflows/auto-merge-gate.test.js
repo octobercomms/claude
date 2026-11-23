@@ -70,6 +70,80 @@ const invocation = [
   ['and specifically when the platform checks do', /workflows:\s*\[[^\]]*"Platform checks"/.test(code)],
   ['a safety-net schedule is still present', /schedule:/.test(code)],
 ];
+
+const coverage = [];
+
+// Every app with its own checks workflow has to be BOTH required by the gate
+// and able to wake it.
+//
+// platform-checks is scoped to dev/platform/**, so each app outside that tree
+// needs its own *-checks.yml. The gate knew about one of them. #2107 touched
+// dev/oc-forms/ in November 2026, matched no path in the required mapping, and
+// merged at 10:10:39 with its `forms` job still running; the job finished nine
+// seconds later and happened to be green. A failure would have merged exactly
+// the same way.
+//
+// So this is derived from the filesystem rather than a list someone remembers
+// to update: adding the next *-checks.yml fails here until the gate is taught
+// about it.
+const WF_DIR = require('path').join(__dirname);
+const checkWorkflows = fs.readdirSync(WF_DIR)
+  .filter((f) => /-checks\.yml$/.test(f))
+  .map((f) => {
+    const text = fs.readFileSync(require('path').join(WF_DIR, f), 'utf8');
+    const name = (text.match(/^name:\s*(.+)$/m) || [])[1];
+    // Paths the workflow watches, minus its own file, and job names.
+    const paths = [...text.matchAll(/^\s+- '([^']+)'$/gm)].map((m) => m[1])
+      .filter((x) => !x.startsWith('.github/'));
+    const jobs = [...text.matchAll(/^  ([a-z][a-z0-9_-]*):\n\s+runs-on:/gm)].map((m) => m[1]);
+    return { file: f, name: name && name.trim().replace(/^["']|["']$/g, ''), paths, jobs };
+  });
+
+if (!checkWorkflows.length) {
+  coverage.push(['at least one checks workflow was found to verify', false]);
+}
+
+for (const wfm of checkWorkflows) {
+  // The gate itself never gates on its own run; it is in the wake list only.
+  const isGateOwn = wfm.file === 'automerge-gate.yml';
+
+  coverage.push([
+    `${wfm.file}: "${wfm.name}" can wake the gate`,
+    !!wfm.name && new RegExp(`workflows:\\s*\\[[^\\]]*"${wfm.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`).test(code),
+  ]);
+
+  if (isGateOwn) continue;
+
+  // Each path the workflow watches must appear in the required mapping, or a
+  // PR touching it merges with nothing required of it.
+  for (const pathGlob of wfm.paths) {
+    const prefix = pathGlob.replace(/\*+$/, '').replace(/\/$/, '');
+    coverage.push([
+      `${wfm.file}: a PR touching ${prefix} is required to pass something`,
+      code.includes(`'^${prefix}`),
+    ]);
+  }
+
+  // And the thing it is required to pass must be a job that workflow runs,
+  // unless the job is on the list below.
+  //
+  // An exclusion has to be written down with a reason. That is the whole
+  // point: the oc-forms gap was not a decision anybody made, it was a line
+  // nobody added, and nothing said so.
+  const NOT_GATED = {
+    // Eight minutes of real browser runs. Gating every merge on them would
+    // make the queue unusable, and a drive failure is almost always a timing
+    // problem with the drive rather than a fault in the diff. Deliberate.
+    drives: 'browser drives are too slow to gate a merge queue on',
+  };
+  for (const job of wfm.jobs) {
+    if (NOT_GATED[job]) continue;
+    coverage.push([
+      `${wfm.file}: the gate requires its "${job}" job by name`,
+      new RegExp(`required="[^"]*\\b${job}\\b`).test(code),
+    ]);
+  }
+}
 console.log('--- filter extracted from the workflow ---');
 console.log(FILTER.split('\n').map((l) => '  ' + l.trim()).join('\n'));
 console.log();
@@ -162,12 +236,12 @@ const deployPaths = (deployWf.match(/- '([^']+)'/g) || [])
 const matcher = (bare.match(/grep -qE '\^\(([^']+)\)'/) || [])[1] || '';
 for (const p of deployPaths) {
   const stem = p.replace(/\*+$/, '').replace(/\./g, '\\.');
-  asserts.push([`the deploy path ${p} is matched by the bot too`, matcher.includes(stem)]);
+  coverage.push([`the deploy path ${p} is matched by the bot too`, matcher.includes(stem)]);
 }
 asserts.push(['the deploy actually lists paths to compare against', deployPaths.length >= 3]);
 
 let pass = 0, fail = 0;
-for (const [label, good] of invocation.concat(asserts)) {
+for (const [label, good] of invocation.concat(asserts, coverage)) {
   good ? pass++ : fail++;
   console.log((good ? 'PASS  ' : 'FAIL  ') + label);
 }

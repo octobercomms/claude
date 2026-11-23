@@ -52,7 +52,7 @@ on:
   # workflow_run does fire for Actions workflows, so this is the trigger that
   # lets the gate see CI finish.
   workflow_run:
-    workflows: ["Platform checks", "Auto-merge gate"]
+    workflows: ["Platform checks", "Auto-merge gate", "October Forms checks"]
     types: [completed]
   schedule:
     - cron: '*/30 * * * *'   # safety net for any missed events
@@ -111,6 +111,34 @@ jobs:
             required=""
             if printf '%s\n' "$files" | grep -q '^dev/platform/'; then
               required="backend frontend"
+            fi
+            # oc-forms has its own checks workflow, because platform-checks is
+            # scoped to dev/platform/** and would never run on a change to the
+            # plugin. Without this line the gate required nothing of such a PR
+            # and merged it while the guard was still running: #2107 merged at
+            # 10:10:39 and its `forms` job finished at 10:10:48. It passed, but
+            # a failure would not have stopped the merge.
+            if printf '%s\n' "$files" | grep -q '^dev/oc-forms/'; then
+              required="$required forms"
+            fi
+            # The briefs guard runs in the backend job and reads docs/omi/, the
+            # root CLAUDE.md and .claude/agents/. platform-checks lists those
+            # paths precisely because deleting the pointer out of
+            # agent-guide.md is a docs-only commit — but the gate required
+            # nothing of such a PR, so the guard ran and could not block.
+            # Separate greps on purpose, not one -qE alternation: the gate test
+            # extracts the first `grep -qE '^(...)'` in this file to compare
+            # against platform-deploy.yml's paths, so a second one here would
+            # silently become the thing it checks.
+            needs_backend=false
+            printf '%s\n' "$files" | grep -q '^docs/omi/' && needs_backend=true
+            printf '%s\n' "$files" | grep -q '^CLAUDE.md$' && needs_backend=true
+            printf '%s\n' "$files" | grep -q '^.claude/agents/' && needs_backend=true
+            if [ "$needs_backend" = true ]; then
+              case " $required " in
+                *" backend "*) ;;
+                *) required="$required backend" ;;
+              esac
             fi
 
             # Does merging this PR need a deploy? Mirrors the paths in
