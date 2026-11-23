@@ -741,25 +741,6 @@ export default function ClientDetailPage() {
 
               {/* Across the three columns, because it governs both schedules
                   rather than belonging to either. */}
-              <div style={{ marginTop: 'var(--s5)', padding: 'var(--s4)', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
-                <label style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!client.review_before_send}
-                    onChange={e => setClient(p => ({ ...p, review_before_send: e.target.checked }))}
-                    style={{ marginTop: 3 }}
-                  />
-                  <span>
-                    <strong>Hold reports for review before sending</strong>
-                    <div className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
-                      A generated report waits instead of going out. You get an email, read it on the
-                      Reports tab, add anything it is missing, and send it yourself. Nothing reaches{' '}
-                      {client.name || 'the client'} until you do.
-                    </div>
-                  </span>
-                </label>
-              </div>
-
               {/* Full width under the three columns rather than squeezed into
                   the schedule one. It is a paragraph you write, not a setting
                   you pick, and the only field on this screen with no weekly
@@ -784,6 +765,39 @@ export default function ClientDetailPage() {
 
             </div>
 
+          </div>
+
+          {/* Out of the Monthly card and under both, because it governs both.
+              Inside that card it sat directly above "This month's focus",
+              which really is monthly only, so a setting covering the weekly
+              report as well read as a monthly one.
+
+              It carries its own Save for the same reason the other two say
+              "Save changes": every button on this screen submits one client
+              record and the PUT sends all of it. Moving the checkbox away
+              from the cards left it with no button beside it, which is how a
+              setting gets ticked and lost. */}
+          <div className="card" style={{ marginTop: 'var(--s5)', display: 'flex', gap: 'var(--s4)', alignItems: 'flex-start' }}>
+            <label style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start', cursor: 'pointer', flex: 1 }}>
+              <input
+                type="checkbox"
+                checked={!!client.review_before_send}
+                onChange={e => setClient(p => ({ ...p, review_before_send: e.target.checked }))}
+                style={{ marginTop: 3 }}
+              />
+              <span>
+                <strong>Hold reports for review before sending</strong>
+                <div className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
+                  Applies to <strong>both the weekly and the monthly report</strong>. A generated
+                  report waits instead of going out. You get an email, read it, add anything it is
+                  missing, and send it yourself. Nothing reaches{' '}
+                  {client.name || 'the client'} until you do.
+                </div>
+              </span>
+            </label>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving} style={{ flex: 'none' }}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
           </div>
 
         </form>
