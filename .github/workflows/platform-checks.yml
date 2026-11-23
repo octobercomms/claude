@@ -290,6 +290,16 @@ jobs:
       # return value — otherwise six days in seven are thrown away.
       - name: Guard — IG discovery reports weekly, in one email
         run: node tests/ig-weekly-digest.test.js
+      # A report held for review must not reach the client. The failure is
+      # one-directional: a held report that goes out anyway has reached a
+      # client and cannot be recalled, while a sent one that gets held is a
+      # nudge nobody acted on. So every ambiguous case resolves towards
+      # holding, including review-on-with-no-reviewer-address. It also pins
+      # that all three generate paths go through the gate: a single direct
+      # sendReport left behind keeps auto-sending, and it would be the path
+      # nobody notices until a client has had it.
+      - name: Guard — a report held for review never reaches the client
+        run: node tests/report-review-hold.test.js
       # "Infer from payments" read acct_reconcile_queue, which connectors
       # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
       # payment that was made and then reconciled never enters it, so the one

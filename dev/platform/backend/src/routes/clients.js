@@ -152,7 +152,7 @@ router.put('/:id', async (req, res) => {
   // of fields that must NEVER be added here: `id`, `owner_id`,
   // `social_autopilot_paused` (has its own admin-only route),
   // `ads_margin` (already on its own route), connector arrays.
-  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain, strategist_recipients, reporting_currency } = req.body;
+  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain, strategist_recipients, reporting_currency, review_before_send } = req.body;
   try {
     const current = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
     if (!current.rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -165,8 +165,9 @@ router.put('/:id', async (req, res) => {
         report_recipients = $6, report_schedule = $7,
         report_sections = $8, section_instructions = $9, domain = $10,
         strategist_recipients = $11,
-        reporting_currency = $12
-       WHERE id = $13 RETURNING *`,
+        reporting_currency = $12,
+        review_before_send = $13
+       WHERE id = $14 RETURNING *`,
       [
         name ?? c.name,
         slug ?? c.slug,
@@ -185,6 +186,9 @@ router.put('/:id', async (req, res) => {
           ? (/^[A-Za-z]{3}$/.test(String(reporting_currency || '').trim())
               ? String(reporting_currency).trim().toUpperCase() : null)
           : c.reporting_currency,
+        // Explicitly boolean. A form posting the string "false" would be
+        // truthy, and the client would quietly start holding every report.
+        review_before_send !== undefined ? !!review_before_send : c.review_before_send,
         req.params.id,
       ]
     );
