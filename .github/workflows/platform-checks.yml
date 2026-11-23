@@ -300,6 +300,20 @@ jobs:
       # nobody notices until a client has had it.
       - name: Guard — a report held for review never reaches the client
         run: node tests/report-review-hold.test.js
+      # A report is editable before it is sent, and the editable thing is the
+      # sections array rather than the rendered HTML — one array feeds both the
+      # A4 PDF and the email body, from two separate renderers. Two claims are
+      # pinned. The server does not store the document it is sent: edits are
+      # merged onto the generated sections field by field, so a payload cannot
+      # change what a section is, only the words in it. That matters because a
+      # malformed section fails quietly — both renderers return '' for a chart
+      # with no chart — so the client would get a report with a hole in it and
+      # the send would report success. And the two renderers agree: a field
+      # handled in one and forgotten in the other means a client's attachment
+      # says something different from the message it came with, which nobody
+      # internally would ever see.
+      - name: Guard — edits reach the PDF and the email, and nothing else
+        run: node tests/report-edits.test.js
       # "Infer from payments" read acct_reconcile_queue, which connectors
       # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
       # payment that was made and then reconciled never enters it, so the one

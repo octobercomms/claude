@@ -160,15 +160,39 @@ function escapeHtml(str) {
 // Mirrors pdfService.renderResolvedSection — same section types, same data
 // shapes, but with email-safe inline-styled HTML (tables instead of flexbox,
 // no @page rules). The email then shows the same content the PDF does.
+// Escaped multi-paragraph body for a human note. Upright, where the model's
+// insight above it is italic, so the client can tell a person wrote it.
+// Returns '' when there is nothing to say, so callers concatenate it freely.
+function renderEmailNote(text) {
+  const paragraphs = String(text || '').split('\n').filter(p => p.trim());
+  if (!paragraphs.length) return '';
+  const body = paragraphs
+    .map(p => `<p style="margin:0 0 8px;font-size:13px;color:#2b2b2b;line-height:1.6;">${escapeHtml(p)}</p>`)
+    .join('');
+  return `<div style="margin:12px 0 0;padding:10px 12px;background:#fffdf5;border-left:3px solid #E7CD41;">${body}</div>`;
+}
+
 function renderEmailSection(s) {
   if (!s) return '';
+  // Hidden by whoever reviewed the report before it went out.
+  if (s.hidden) return '';
   const title = s.title ? `<div style="font-size:14px;font-weight:700;color:#000;margin:0 0 6px;">${escapeHtml(s.title)}</div>` : '';
   const insight = s.insight
     ? `<div style="font-size:12px;color:#555;font-style:italic;line-height:1.5;margin:0 0 10px;padding:6px 10px;border-left:3px solid #E7CD41;background:#fffdf5;">${escapeHtml(s.insight)}</div>`
     : '';
-  const wrap = (inner) => `<div style="margin:0 0 22px;">${title}${insight}${inner}</div>`;
+  // A human remark goes after the thing it explains, matching the PDF. The
+  // two renderers are fed the same sections array and have to agree, or the
+  // email body and its attachment say different things.
+  const note = renderEmailNote(s.note);
+  const wrap = (inner) => `<div style="margin:0 0 22px;">${title}${insight}${inner}${note}</div>`;
 
   switch (s.type) {
+    case 'note': {
+      // Added by a reviewer rather than resolved from data.
+      const body = renderEmailNote(s.text);
+      if (!body && !(s.title || '').trim()) return '';
+      return `<div style="margin:0 0 22px;">${title}${body}</div>`;
+    }
     case 'narrative': {
       const paragraphs = (s.text || '').split('\n').filter(p => p.trim())
         .map(p => `<p style="margin:0 0 10px;font-size:13px;color:#333;line-height:1.7;">${escapeHtml(p)}</p>`).join('');
@@ -1367,4 +1391,10 @@ async function sendAccountsDigest({ summary }) {
 }
 
 module.exports = {
+  // Exposed so the report-edit guard can render the same sections array
+  // through both renderers and assert they agree. The PDF side
+  // (pdfService.buildTemplateReportHtml) is already exported; without this one
+  // a field added to the PDF and forgotten in the email would only show up in
+  // a client's inbox.
+  buildFullReportEmailHtml,
   sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgWeeklyDigest, sendReportReview, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert, sendAccountsDigest };

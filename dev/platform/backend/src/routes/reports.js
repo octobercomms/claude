@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const reportService = require('../services/reportService');
+const reportEdits = require('../services/reportEdits');
 const users = require('../services/users');
 const dataCollector = require('../services/dataCollector');
 const reportTemplate = require('../services/reportTemplate');
@@ -363,6 +364,92 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Resend report email
+// ── Editing a generated report before it goes out ──────────────────────────
+//
+// A report is automated to create and editable before it is sent. The editable
+// thing is the sections array, not the rendered HTML: the same array renders
+// the PDF and the email body, so an edit here reaches both. See
+// services/reportEdits.js for what may be changed and why the rest may not.
+//
+// Writes need no extra role guard — `authenticate` already refuses every
+// non-GET for the read-only 'client' role, so a client cannot edit the report
+// they are about to be sent.
+
+async function reportForCaller(req, res) {
+  const { rows } = await pool.query(
+    `SELECT r.*, c.name AS client_name
+       FROM reports r JOIN clients c ON c.id = r.client_id
+      WHERE r.id = $1`,
+    [req.params.id]
+  );
+  if (!rows.length) { res.status(404).json({ error: 'Report not found' }); return null; }
+  if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+    res.status(403).json({ error: 'Not authorised for this report' });
+    return null;
+  }
+  return rows[0];
+}
+
+// The document to edit, alongside the generated original so the editor can
+// show what a person changed and offer to put it back.
+router.get('/:id/sections', async (req, res) => {
+  try {
+    const report = await reportForCaller(req, res);
+    if (!report) return;
+    const generated = (report.summary || {}).sections || [];
+    const sections = reportEdits.effectiveSections(report);
+    res.json({
+      report_id: report.id,
+      client_name: report.client_name,
+      report_type: report.report_type,
+      status: report.status,
+      period: { start: report.period_start, end: report.period_end },
+      sections,
+      generated,
+      edited: Array.isArray(report.edited_sections) && report.edited_sections.length > 0,
+      edited_at: report.edited_at,
+      edited_by: report.edited_by,
+      changes: reportEdits.diffSections(generated, sections),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save edits. Rebuilds the stored HTML and the attached PDF in the same call,
+// so a saved report is never half-updated: a 200 here means the preview, the
+// email body and the attachment are the same document.
+router.put('/:id/sections', async (req, res) => {
+  try {
+    const report = await reportForCaller(req, res);
+    if (!report) return;
+    const sections = req.body && req.body.sections;
+    if (!Array.isArray(sections)) {
+      return res.status(400).json({ error: 'sections must be a list' });
+    }
+    const result = await reportService.saveEdits(req.params.id, sections, req.user?.username || null);
+    res.json({ message: 'Edits saved', ...result });
+  } catch (err) {
+    // A rejected edit is almost always the payload disagreeing with the
+    // generated report, and the message says which section and how — pass it
+    // through as a 400 rather than flattening it into a 500.
+    const isValidation = /section|cells|note|hidden|characters|cannot be edited|no stored/i.test(err.message);
+    res.status(isValidation ? 400 : 500).json({ error: err.message });
+  }
+});
+
+// Throw the edits away and restore the generated report.
+router.post('/:id/revert-edits', async (req, res) => {
+  try {
+    const report = await reportForCaller(req, res);
+    if (!report) return;
+    const result = await reportService.revertEdits(req.params.id);
+    res.json({ message: 'Edits discarded', ...result });
+  } catch (err) {
+    res.status(/cannot be edited|no stored/i.test(err.message) ? 400 : 500).json({ error: err.message });
+  }
+});
+
 router.post('/:id/resend', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM reports WHERE id = $1', [req.params.id]);
