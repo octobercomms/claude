@@ -188,10 +188,12 @@ class OCF_REST_API {
 		}
 		if ( $row['status'] === 'complete' ) {
 			$schema_complete = OCF_Schema::get( (int) $row['form_id'] );
+			// Resolve against what was stored, so a resubmitted token sees the
+			// same ending it saw the first time rather than the fallback.
 			return rest_ensure_response( array(
 				'ok'               => true,
 				'already_complete' => true,
-				'ending'           => self::shape_ending( $schema_complete['endings']['default'] ?? array() ),
+				'ending'           => OCF_Endings::resolve( $schema_complete, self::stored_answers( $row ) ),
 			) );
 		}
 		$form_id = (int) $row['form_id'];
@@ -204,7 +206,13 @@ class OCF_REST_API {
 		if ( ! empty( $schema['spam']['honeypot'] ) && ! OCF_Spam::honeypot_ok( $req->get_params() ) ) {
 			// Pretend success so bots don't probe.
 			OCF_Submission::mark_complete( (int) $row['id'] );
-			return rest_ensure_response( array( 'ok' => true, 'ending' => 'default' ) );
+			// The fallback, shaped. This returned the bare string 'default',
+			// which the browser then read properties off, so a bot-flagged
+			// submission rendered an ending with no heading.
+			return rest_ensure_response( array(
+				'ok'     => true,
+				'ending' => OCF_Endings::shape( $schema['endings'][ OCF_Endings::DEFAULT_KEY ] ?? array() ),
+			) );
 		}
 		if ( ! empty( $schema['spam']['turnstile'] ) && OCF_Spam::turnstile_enabled() ) {
 			$verify = OCF_Spam::verify_turnstile( $req->get_param( 'turnstile_token' ) );
@@ -240,7 +248,7 @@ class OCF_REST_API {
 
 		return rest_ensure_response( array(
 			'ok'     => true,
-			'ending' => self::shape_ending( $schema['endings']['default'] ?? array() ),
+			'ending' => OCF_Endings::resolve( $schema, $answers ),
 		) );
 	}
 
@@ -254,6 +262,17 @@ class OCF_REST_API {
 	private static function finalize_submission( $row, $form_id, $schema, $answers, $step_reached = 0, $seconds_active = 0 ) {
 		$email = self::extract_email( $answers );
 		OCF_Submission::update_payload( (int) $row['id'], $answers, $email );
+
+		// Record which ending this submission resolved to. Both completion
+		// paths come through here, so neither can quietly skip it. Guarded
+		// like every other side-effect below: by this point the answers are
+		// already saved, and losing the label is better than losing the lead.
+		try {
+			$resolved = OCF_Endings::resolve( $schema, $answers );
+			OCF_Submission::set_outcome( (int) $row['id'], $resolved['outcome'], $resolved['is_conversion'] );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: set_outcome threw: ' . $e->getMessage() );
+		}
 
 		try {
 			OCF_Analytics::update_progress( (int) $row['id'], (int) $step_reached, (int) $seconds_active );
@@ -308,7 +327,7 @@ class OCF_REST_API {
 				'ok'       => true,
 				'reply'    => '',
 				'complete' => true,
-				'ending'   => self::shape_ending( $schema['endings']['default'] ?? array() ),
+				'ending'   => OCF_Endings::resolve( $schema, self::stored_answers( $row ) ),
 			) );
 		}
 
@@ -426,7 +445,7 @@ class OCF_REST_API {
 		if ( ! empty( $result['complete'] ) && self::required_satisfied( $schema, $answers ) ) {
 			self::finalize_submission( $row, $form_id, $schema, $answers, $answered, $secs );
 			$response['complete'] = true;
-			$response['ending']   = self::shape_ending( $schema['endings']['default'] ?? array() );
+			$response['ending']   = OCF_Endings::resolve( $schema, $answers );
 		}
 
 		return rest_ensure_response( $response );
@@ -467,15 +486,9 @@ class OCF_REST_API {
 		return true;
 	}
 
-	private static function shape_ending( $ending ) {
-		$ending = is_array( $ending ) ? $ending : array();
-		return array(
-			'heading'      => $ending['heading']      ?? 'Thanks!',
-			'body'         => $ending['body']         ?? '',
-			'cta_label'    => $ending['cta_label']    ?? '',
-			'cta_url'      => $ending['cta_url']      ?? '',
-			'redirect_url' => $ending['redirect_url'] ?? '',
-		);
+	private static function stored_answers( $row ) {
+		$decoded = json_decode( $row['payload'] ?? '', true );
+		return is_array( $decoded ) ? $decoded : array();
 	}
 
 	private static function sanitize_answers( $raw, $form_id ) {

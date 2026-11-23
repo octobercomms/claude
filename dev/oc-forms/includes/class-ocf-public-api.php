@@ -241,6 +241,10 @@ class OCF_Public_API {
 			'form_id'        => (int) $row['form_id'],
 			'status'         => $row['status'],
 			'email'          => $row['email'],
+			// Which ending the visitor reached. Null on anything submitted
+			// before 1.4, and on partials, which have not reached one yet.
+			'outcome'        => $row['outcome'] ?? null,
+			'is_conversion'  => ! empty( $row['is_conversion'] ),
 			'step_reached'   => (int) ( $row['step_reached'] ?? 0 ),
 			'seconds_active' => (int) ( $row['seconds_active'] ?? 0 ),
 			'ip_address'     => $row['ip_address'],

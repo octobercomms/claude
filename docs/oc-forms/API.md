@@ -106,6 +106,22 @@ Daily counts for `views`, `starts`, `completes`. Useful for sparklines.
 }
 ```
 
+#### `outcome` and `is_conversion` (1.4.0)
+
+Which ending the form routed this submission to, and whether that ending is one
+the ad platforms were told to count as a conversion.
+
+- `outcome` is a short label such as `qualified`, `not_ready`, `out_of_scope` or
+  `lead`, chosen by rules on the form's answers. It is `null` on partials, which
+  have not reached an ending, and on anything submitted before 1.4.0.
+- `is_conversion` is whether the same completion fired the platforms' standard
+  Lead event.
+
+Both exist so lead quality can be read from outside WordPress. Before 1.4.0 the
+outcome lived only in a browser event that vanished when the tab closed, and the
+only thing the ad platforms were told was that somebody had arrived on the page.
+Filter on `outcome` to count qualified enquiries rather than form fills.
+
 ### `GET /forms/{id}/submissions?from=&to=&status=&limit=&offset=`
 Paginated list of submission rows (no answers — call `/submissions/{id}` for the full payload).
 
@@ -121,6 +137,8 @@ Paginated list of submission rows (no answers — call `/submissions/{id}` for t
       "form_id": 42,
       "status": "complete",
       "email": "client@example.com",
+      "outcome": "qualified",
+      "is_conversion": true,
       "step_reached": 6,
       "seconds_active": 142,
       "ip_address": "203.0.113.42",

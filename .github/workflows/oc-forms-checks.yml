@@ -1,0 +1,63 @@
+# October Forms checks.
+#
+# Its own workflow rather than a job on platform-checks.yml, which is scoped to
+# dev/platform/**: a change to this plugin would not trigger that workflow at
+# all, so the guard would sit there never running on the commits it exists to
+# catch.
+#
+# Everything here runs without WordPress. The classes under test are pure
+# logic, and the test file stubs the handful of WP functions they touch, so
+# there is no database, no bootstrap and nothing to install beyond PHP itself.
+
+name: October Forms checks
+
+on:
+  pull_request:
+    paths:
+      - 'dev/oc-forms/**'
+      - '.github/workflows/oc-forms-checks.yml'
+
+concurrency:
+  group: oc-forms-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  forms:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dev/oc-forms
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      # A parse error in a plugin file is a white screen on every page of the
+      # site it is activated on, so this runs before anything else.
+      - name: Every PHP file parses
+        run: |
+          set -e
+          find . -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+          echo "all PHP files parse"
+
+      # The forms are rendered and submitted by these two files; a syntax error
+      # in either takes the form off the page with nothing in the PHP log.
+      - name: The frontend and builder scripts parse
+        run: |
+          node --check assets/js/frontend.js
+          node --check assets/js/builder.js
+
+      # Endings route a visitor by their answers and decide what counts as a
+      # conversion. Two failures here are silent: an ending with no rules
+      # matching everybody and shadowing the ones below it, and every ending
+      # reporting a Lead, which tells Meta and Google to buy whoever will fill
+      # in a form while the reporting says results improved.
+      - name: Guard — endings route by answer, and only some count as conversions
+        run: php tests/endings.test.php
+
+      # Until 1.4 the plugin fired no analytics at all, so the strongest signal
+      # the ad platforms had was that somebody arrived on the page. This pins
+      # that completion still reports, on both the standard and the AI path.
+      - name: Guard — a completed form reports to the ad platforms
+        run: node tests/tracking.test.js
