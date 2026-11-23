@@ -82,6 +82,54 @@ ok('a metric label and value can be reworded', () => {
 
 // ── what may not ────────────────────────────────────────────────────────────
 
+ok('a renumbered cell loses the comparison that no longer matches it', () => {
+  const renumbered = generated();
+  renumbered[1].cells[0].value = '9,000';
+  const cell = reportEdits.mergeEdits(generated(), renumbered).find(s => s.id === 'kpis').cells[0];
+  // Keeping them produced "9,000 / up 12% / vs 1,075": a contradiction the
+  // client can catch with mental arithmetic and nobody internally would. The
+  // delta is computed against the generated figure and nothing recomputes it,
+  // so the only honest options were to drop the comparison or refuse the edit.
+  assert.strictEqual(cell.value, '9,000');
+  assert.strictEqual(cell.delta, undefined,
+    'an edited value kept its old delta, so the cell now contradicts itself');
+  assert.strictEqual(cell.deltaDirection, undefined, 'the delta arrow survived an edited value');
+  assert.strictEqual(cell.previous, undefined,
+    'the previous-period figure survived an edited value, so the comparison is against a number nobody wrote');
+});
+
+ok('a reworded label keeps the comparison, because wording does not invalidate it', () => {
+  const relabelled = generated();
+  relabelled[1].cells[0].label = 'Visits';
+  const cell = reportEdits.mergeEdits(generated(), relabelled).find(s => s.id === 'kpis').cells[0];
+  assert.strictEqual(cell.label, 'Visits');
+  assert.strictEqual(cell.delta, '12%',
+    'renaming Sessions to Visits threw away a true comparison — the drop is meant to follow the figure, not the wording');
+  assert.strictEqual(cell.previous, '1,075');
+});
+
+ok('an insight can be corrected', () => {
+  const fixed = generated();
+  fixed[1].insight = 'Sessions are up, but enquiries are not.';
+  const merged = reportEdits.mergeEdits(generated(), fixed);
+  // Claude writes it, it is an assertion about the numbers, and it goes to the
+  // client in italics under the heading. Leaving it uneditable meant the only
+  // remedy for a wrong one was hiding the whole section.
+  assert.strictEqual(merged.find(s => s.id === 'kpis').insight, 'Sessions are up, but enquiries are not.',
+    'a corrected insight did not save, so a wrong machine claim can only be removed with its section');
+});
+
+ok('a narrative insight reaches the PDF as well as the email', () => {
+  const withInsight = [{ id: 'intro', type: 'narrative', title: 'Overview', text: 'Body.', insight: 'A claim about the month.' }];
+  const pdf = pdfService.buildTemplateReportHtml({ client: { name: 'X' }, period: 'P', sections: withInsight });
+  const mail = emailService.buildFullReportEmailHtml({ clientName: 'X', period: 'P', periodLabel: 'P', sections: withInsight });
+  for (const [name, html] of [['PDF', pdf], ['email', mail]]) {
+    assert.ok(html.includes('A claim about the month.'),
+      `a narrative's insight is missing from the ${name}. It rendered in the email and vanished from the `
+      + 'attachment, which is the disagreement between these two renderers that nobody would ever see');
+  }
+});
+
 ok('a hand-typed delta is ignored and the computed comparison kept', () => {
   const faked = generated();
   faked[1].cells[0].delta = '400%';
@@ -89,9 +137,9 @@ ok('a hand-typed delta is ignored and the computed comparison kept', () => {
   faked[1].cells[0].previous = '3';
   const merged = reportEdits.mergeEdits(generated(), faked);
   const cell = merged.find(s => s.id === 'kpis').cells[0];
-  // A delta is a comparison against the previous period and nothing
-  // recomputes it. Accepting a typed one puts a number in a client report that
-  // contradicts the figure directly above it.
+  // The value is untouched here, so the generated comparison stands. A typed
+  // delta must not replace it: that would let a report claim any change it
+  // likes under a figure it did not change.
   assert.strictEqual(cell.delta, '12%', 'a typed delta was saved, so a report can claim any change it likes');
   assert.strictEqual(cell.deltaDirection, 'up');
   assert.strictEqual(cell.previous, '1,075', 'a typed previous-period figure was saved');
@@ -329,12 +377,31 @@ ok('the editable fields are the ones named here, and no others', () => {
   // `cells` editable on a bar_chart or adding chart data to the list, this
   // fails and the widening has to be deliberate.
   const { EDITABLE_BY_TYPE, EDITABLE_CELL_FIELDS } = reportEdits._internals;
-  assert.deepStrictEqual(EDITABLE_BY_TYPE.narrative, ['title', 'note', 'text']);
-  assert.deepStrictEqual(EDITABLE_BY_TYPE.metrics_grid, ['title', 'note', 'cells']);
-  assert.deepStrictEqual(EDITABLE_BY_TYPE.tables, ['title', 'note']);
-  assert.deepStrictEqual(EDITABLE_BY_TYPE.bar_chart, ['title', 'note']);
-  assert.deepStrictEqual(EDITABLE_BY_TYPE.position_distribution, ['title', 'note']);
+  assert.deepStrictEqual(EDITABLE_BY_TYPE.narrative, ['title', 'note', 'text', 'insight']);
+  assert.deepStrictEqual(EDITABLE_BY_TYPE.metrics_grid, ['title', 'note', 'cells', 'insight']);
+  assert.deepStrictEqual(EDITABLE_BY_TYPE.tables, ['title', 'note', 'insight']);
+  assert.deepStrictEqual(EDITABLE_BY_TYPE.bar_chart, ['title', 'note', 'insight']);
+  assert.deepStrictEqual(EDITABLE_BY_TYPE.position_distribution, ['title', 'note', 'insight']);
   assert.deepStrictEqual(EDITABLE_CELL_FIELDS, ['label', 'value']);
+  assert.deepStrictEqual(reportEdits._internals.COMPARISON_FIELDS, ['delta', 'deltaDirection', 'previous'],
+    'the comparison fields dropped on a value edit have changed; a field added to a cell and left out '
+    + 'of this list will survive an edit it contradicts');
+});
+
+// ── the way in ──────────────────────────────────────────────────────────────
+
+ok('the review nudge links to the report, not to the schedule screen', () => {
+  process.env.PUBLIC_URL = 'https://platform.example.com/';
+  const url = emailService.reportReviewUrl('c-1', 'r-9');
+  // The nudge is the only thing that makes a held report reachable. It pointed
+  // at /clients/:id/dashboard/reports, where the one action on a report row is
+  // Delete, while the email said "read it, add anything it is missing, and
+  // send it from the Reports page".
+  assert.strictEqual(url, 'https://platform.example.com/clients/c-1/reports/r-9',
+    'the review email does not link to the report, so a held report has no surface to be reviewed on');
+  delete process.env.PUBLIC_URL;
+  assert.ok(emailService.reportReviewUrl('c-1', 'r-9').startsWith('https://'),
+    'with no PUBLIC_URL set the link is relative, which is not clickable in an email client');
 });
 
 console.log(`\n${passed} passed, 0 failed`);

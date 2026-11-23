@@ -179,17 +179,27 @@ function clientRoutes() {
   return [...app.matchAll(/path="clients\/:id\/?([^"]*)"/g)].map(m => m[1]);
 }
 
-// Build the set of leaves that take a :screen, and those that do not.
+// Build the set of leaves that take a :screen, those that address a single
+// record, and those that take nothing.
+//
+// The third kind was missing and a real route fell into the wrong bucket.
+// `clients/:id/reports/:reportId` is one page per report, not a section with
+// screens, so its second segment is an id — and because its `rest` held no
+// `:screen`, routeShape filed it under `bare` and every link to a report read
+// as "/reports takes no screen segment". Derived from App.jsx rather than
+// listed here, so a route added later cannot drift away from it.
 function routeShape() {
   const withScreen = new Set();
+  const withRecord = new Set();
   const bare = new Set();
   for (const r of clientRoutes()) {
     if (!r) continue;                                  // "clients/:id" itself
     const [leaf, ...rest] = r.split('/');
     if (rest.some(p => p.startsWith(':screen'))) withScreen.add(leaf);
+    else if (rest.some(p => p.startsWith(':'))) withRecord.add(leaf);
     else bare.add(leaf);
   }
-  return { withScreen, bare };
+  return { withScreen, withRecord, bare };
 }
 
 test('the dispatched-elsewhere list cannot hide a screen that is simply missing', () => {
@@ -260,7 +270,7 @@ test('the route table and the section table name the same leaves', () => {
 // Extracted from the test below so the test can also feed it source of its
 // own: a scanner with no positive control is one `continue` away from passing
 // on everything, and that mutation escaped the first time it was tried.
-function scanNavigations(body, label, { withScreen, bare }, slugsByLeaf) {
+function scanNavigations(body, label, { withScreen, withRecord, bare }, slugsByLeaf) {
   const problems = [];
   // Every /clients/... string literal in the file, minus the ones that are
   // backend calls. Anchoring on navigate(/to=/href= instead missed the case
@@ -291,6 +301,16 @@ function scanNavigations(body, label, { withScreen, bare }, slugsByLeaf) {
     // named, and the pair is checked against this same table by 'every
     // search result opens a screen that exists' above.
     if (leaf.startsWith(':v')) continue;
+
+    // A leaf addressing one record (reports). What follows is an id, which
+    // cannot be checked from the source any more than an interpolated section
+    // can — but anything AFTER it is a segment no route has.
+    if (withRecord.has(leaf) && !withScreen.has(leaf)) {
+      if (parts.length > 4) {
+        problems.push(`${where} — /${leaf} addresses one record; there is nothing below it`);
+      }
+      continue;
+    }
 
     if (bare.has(leaf) && !withScreen.has(leaf)) {
       // A leaf route with no :screen (data, brand). Anything after it is wrong.

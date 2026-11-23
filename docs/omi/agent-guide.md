@@ -791,6 +791,61 @@ the tests and the build:
 `tests/` cannot see any of it, so the guard is the browser drive script, with
 both layout rules mutation-tested.
 
+### A report is editable, and the editable thing is the sections array (23 Nov 2026)
+
+`/clients/:id/reports/:reportId` is the report itself: read it, add what it is
+missing, send it. The review email links there. It used to link to
+`/clients/:id/dashboard/reports`, the schedule configuration screen, where the
+only action on a report row is Delete, while the email said "read it, add
+anything it is missing, and send it from the Reports page".
+
+**Edit the sections array, never `html_content`.** A report is an ordered array
+of typed sections and that one array drives both renderers —
+`pdfService.renderResolvedSection` for the A4 PDF, `emailService.renderEmailSection`
+for the email body. Edit the structure and both agree. Edit the rendered HTML
+and you have hand-written markup in a client email with **no sanitiser
+installed anywhere in this project**, plus an attachment still saying the old
+thing. Both renderers escape every field, so at the sections layer it is plain
+text in, escaped out.
+
+Four things about the storage, each of which cost something to work out:
+
+- `summary.sections` is the generated original and is **never overwritten**.
+  `edited_sections` is the human version, `NULL` when untouched. Both are kept
+  because the only way to answer "did we change this before it went out, and to
+  what" afterwards is to still have both.
+- **Saving rebuilds `html_content` and the PDF**, because the PDF is built at
+  generation time. Without that, an edit sends edited prose with an unedited
+  attachment — the one failure here a client notices and nobody internally
+  does.
+- The rebuilt PDF goes to a **new filename** and the row is pointed at it in
+  the same statement that stores the edits. Overwriting in place left a window
+  — render succeeds, database write fails — where the file was the edited
+  report and the row said it was unedited. Anything linking to a report's PDF
+  must read `pdf_path`, not build `report-<id>.pdf` from the id.
+- A **renumbered** metric cell loses its `delta`, `deltaDirection` and
+  `previous`; a **relabelled** one keeps them. Nothing recomputes a comparison,
+  so keeping it produced "9,000 / up 8.2% / vs 11,534".
+
+`generateMonthlyReport` and `generateWeeklyReport` in `reportService.js` are
+**dead code** — nothing calls them, they are not exported, every live report
+goes through `generateTemplatedReport`. They carry their own PDF and email
+paths, so read them as live and you will draw the wrong conclusions about how a
+report is built.
+
+**The guard is a browser drive script**, `tests/browser/report.mjs`, in
+`npm run test:browser`. Three defects in that screen passed `vite build` and
+the lint and were only visible once something rendered it: a revert control
+positioned on top of the neighbouring metric cell, a sentence inside a metric
+cell that doubled its height and shoved the grid around, and an edited-state
+marker drawn as the same yellow rule a comment carries. Two notes for writing
+one of these in this container: pass
+`PW_CHROMIUM=/opt/pw-browsers/chromium`, because the project's pinned
+Playwright does not match the preinstalled browser; and **Playwright matches
+the last registered route first**, so a `**/api/**` catch-all registered after
+the specific stubs silently swallows them and the page renders its
+nothing-to-edit state instead.
+
 ### The Strategist has a memory now (29 Oct 2026)
 
 It did not before, and that was the whole problem. Migration `041` said the

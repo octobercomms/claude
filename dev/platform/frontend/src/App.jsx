@@ -26,6 +26,7 @@ import WatchPage from './pages/WatchPage';
 const Layout = lazyChunk('Layout', () => import('./components/Layout'));
 const ClientsPage = lazyChunk('ClientsPage', () => import('./pages/ClientsPage'));
 const ClientDetailPage = lazyChunk('ClientDetailPage', () => import('./pages/ClientDetailPage'));
+const ReportReviewPage = lazyChunk('ReportReviewPage', () => import('./pages/ReportReviewPage'));
 const RankingsPage = lazyChunk('RankingsPage', () => import('./pages/RankingsPage'));
 const ClientSEOPage = lazyChunk('ClientSEOPage', () => import('./pages/ClientSEOPage'));
 const ClientConvertPage = lazyChunk('ClientConvertPage', () => import('./pages/ClientConvertPage'));
@@ -117,6 +118,10 @@ export default function App() {
                 keeping two URL schemes alive at once. */}
             <Route path="clients/:id" element={<ClientHome />} />
             <Route path="clients/:id/dashboard/:screen?" element={<ClientDetailPage />} />
+            {/* A report has an address of its own because the review email
+                links to it, and because it is a document you refresh, come
+                back to and leave half-edited. */}
+            <Route path="clients/:id/reports/:reportId" element={<ReportReviewPage />} />
             <Route path="clients/:id/ads/:screen?" element={<ClientAdsPage />} />
             <Route path="clients/:id/pr/:screen?" element={<ClientPRPage />} />
             <Route path="clients/:id/social/:screen?" element={<ClientSocialPage />} />

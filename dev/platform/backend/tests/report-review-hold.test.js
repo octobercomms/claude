@@ -124,6 +124,9 @@ const clientGotEmail = () => sent.client.length;
     assert.strictEqual(n.clientId, 'c-1',
       'the client id did not travel, so the link cannot reach that client\'s reports');
     assert.ok(n.period, 'the nudge does not say which period it is about');
+    assert.strictEqual(n.reportId, 'r-1',
+      'the report id did not travel, so the nudge cannot link to the report the reviewer is being '
+      + 'asked to read — which is how it came to point at the schedule screen instead');
   });
 
   // ── the setting beats the environment ──────────────────────────────────────
