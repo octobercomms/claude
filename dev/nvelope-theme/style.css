@@ -1,0 +1,501 @@
+/*
+Theme Name: JupiterX Child
+Template: jupiterx
+Version: 1.0.1
+*/
+
+/* =========================================================
+   nvelope: Single Studio + Single Learn shared styles
+   ========================================================= */
+
+@font-face {
+  font-family: 'Adobe Caslon Pro';
+    src: url('https://nvelope.co/wp-content/uploads/fonts/ACaslonPro-Regular.eot');
+    src: url('https://nvelope.co/wp-content/uploads/fonts/ACaslonPro-Regular.eot?#iefix') format('embedded-opentype'),
+         url('https://nvelope.co/wp-content/uploads/fonts/ACaslonPro-Regular.woff2') format('woff2'),
+         url('https://nvelope.co/wp-content/uploads/fonts/ACaslonPro-Regular.ttf') format('truetype'),
+         url('https://nvelope.co/wp-content/uploads/fonts/ACaslonPro-Regular.svg#league_spartanregular') format('svg');
+}
+
+/* Page shell */
+body.single-studio,
+body.single-learn {
+	font-family: var(--studio-font-body);
+	font-size: var(--studio-font-size-base);
+	color: var(--studio-font-color);
+	background-color: var(--studio-bg-color);
+}
+
+body.single-studio .jupiterx-main,
+body.single-learn  .jupiterx-main {
+	background-color: var(--studio-bg-color);
+}
+
+/* Base typography */
+body.single-studio p,
+body.single-studio ul,
+body.single-studio ol,
+body.single-studio li,
+body.single-studio a,
+body.single-studio .e-con,
+body.single-learn  p,
+body.single-learn  ul,
+body.single-learn  ol,
+body.single-learn  li,
+body.single-learn  a,
+body.single-learn  .e-con {
+	font-family: var(--studio-font-body);
+	color: var(--studio-font-color);
+}
+
+body.single-studio h1,
+body.single-studio h2,
+body.single-studio h3,
+body.single-studio h4,
+body.single-studio h5,
+body.single-studio h6,
+body.single-learn  h1,
+body.single-learn  h2,
+body.single-learn  h3,
+body.single-learn  h4,
+body.single-learn  h5,
+body.single-learn  h6 {
+	font-family: var(--studio-font-heading);
+	font-weight: var(--studio-heading-weight);
+	color: var(--studio-font-color);
+	line-height: 1.2;
+}
+
+/* Popup Styles */
+.nvelope-popup-title {
+	font-family: var(--studio-font-heading);
+	font-weight: var(--studio-heading-weight);
+	color: var(--studio-font-color);
+	line-height: 1.2;
+	font-size: 2.5em !important;
+	text-wrap:balance;
+}
+.nvelope-popup-standfirst {
+	font-family: var(--studio-font-heading);
+	font-weight: var(--studio-heading-weight);
+	color: var(--studio-font-color);
+	line-height: 1.2;
+	font-size: 1.5em !important;
+	text-wrap:balance;
+}
+.raven-divider-solid {
+	background-color: var(--studio-font-color);
+}
+
+
+/* Links */
+body.single-studio a:hover,
+body.single-learn  a:hover {
+	color: var(--studio-font-color);
+	border-bottom: 2px solid;
+}
+
+body.single-studio a:has(img):hover,
+body.single-learn  a:has(img):hover {
+	border-bottom: 0;
+	text-decoration: none;
+}
+
+/* Buttons: base */
+body.single-studio .elementor-button,
+body.single-studio .elementor-button-link,
+body.single-studio a.button,
+body.single-learn  .elementor-button,
+body.single-learn  .elementor-button-link,
+body.single-learn  a.button {
+	background-color: var(--studio-accent-color) !important;
+	color: #ffffff !important;
+	border-radius: 15px;
+	border: 2px solid var(--studio-accent-color);
+}
+
+body.single-learn .button .jet-listing-dynamic-link__link {
+	padding: 10px 20px;
+	border:0!important;
+	border-radius: 15px;
+	background-color: var(--studio-accent-color) !important;
+	color: var(--studio-hover-color);
+}
+body.single-learn .button .jet-listing-dynamic-link__link:hover {
+	border:0!important;
+	background-color: var(--studio-hover-color) !important;
+	color: var(--studio-accent-color);
+}
+
+/* Buttons: variants */
+body.single-studio .button1 .elementor-button,
+body.single-learn  .button1 .elementor-button {
+	padding: 10px 75px !important;
+	border: 2px solid var(--studio-accent-color) !important;
+}
+
+body.single-studio .button2 .elementor-button,
+body.single-learn  .button2 .elementor-button {
+	padding: 10px 75px !important;
+	border: 2px solid var(--studio-font-color) !important;
+	background: transparent !important;
+	color: var(--studio-font-color) !important;
+}
+
+/* Buttons: hover (single source of truth)
+   Note: this overrides the earlier hover you had (font-color/bg-color). */
+body.single-studio .elementor-button:hover,
+body.single-studio a.button:hover,
+body.single-learn  .elementor-button:hover,
+body.single-learn  a.button:hover {
+	border: 2px solid var(--studio-hover-color) !important;
+	background: var(--studio-hover-color) !important;
+	color: var(--studio-font-color) !important;
+}
+
+
+/* Panels */
+body.single-studio .panel,
+body.single-learn  .panel {
+	border: 2px solid var(--studio-font-color) !important;
+	background-color: var(--studio-panel-color);
+}
+
+body.single-studio .panel2,
+body.single-learn  .panel2 {
+	background-color: var(--studio-panel-color);
+}
+
+/* Icons / SVGs */
+body.single-studio .icon1,
+body.single-learn  .icon1 {
+	color: var(--studio-font-color) !important;
+	fill: var(--studio-font-color) !important;
+}
+
+/* Image ratio crop */
+body.single-studio .elementor-element.ratio1 .raven-image,
+body.single-learn  .elementor-element.ratio1 .raven-image {
+	position: relative;
+	width: 100%;
+	padding-top: 125%;
+	overflow: hidden;
+}
+
+body.single-studio .elementor-element.ratio1 .raven-image img,
+body.single-learn  .elementor-element.ratio1 .raven-image img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+	body.single-studio .elementor-element.ratio1 .raven-image,
+	body.single-learn  .elementor-element.ratio1 .raven-image {
+		padding-top: 0;
+	}
+
+	body.single-studio .elementor-element.ratio1 .raven-image img,
+	body.single-learn  .elementor-element.ratio1 .raven-image img {
+		position: static;
+		width: 100%;
+		height: auto;
+	}
+
+	body.single-studio .button1 .elementor-button,
+	body.single-learn  .button1 .elementor-button,
+	body.single-studio .button2 .elementor-button,
+	body.single-learn  .button2 .elementor-button {
+		padding: 10px !important;
+	}
+}
+
+/* =========================================================
+   Single Learn only
+   ========================================================= */
+
+body.single-learn .button-free .elementor-button {
+	padding: 12px 20px !important;
+	border: 2px solid #228B22 !important;
+	background: #228B22 !important;
+	color: #fff !important;
+}
+
+body.single-learn .button3 .elementor-button,
+body.single-learn .button5 .elementor-button
+{
+	padding: 10px 20px !important;
+	border: 2px solid var(--studio-font-color) !important;
+	background: transparent !important;
+	color: var(--studio-font-color) !important;
+}
+
+body.single-learn .panel3 {
+	background-color: #f4ab97;
+	border: 2px solid #EA6542 !important;
+}
+
+/* =========================================================
+   Utilities
+   ========================================================= */
+
+.pre-quiz:hover {
+	opacity: 0.3;
+}
+
+.nvelope-asset-uid {
+  display: none !important;
+}
+.nvelope-asset-title {
+  display: none !important;
+}
+.nvelope-asset-standfirst {
+  display: none !important;
+}
+.nvelope-asset-body {
+  display: none !important;
+}
+.nvelope-asset-type {
+  display: none !important;
+}
+.nvelope-asset-file {
+  display: none !important;
+}
+.nvelope-asset-cta {
+  display: none !important;
+}
+.nvelope-asset-gated {
+  display: none !important;
+}
+.nvelope-asset-file {
+  display: none !important;
+}
+.js-asset-file {
+  display: none !important;
+}
+
+/* =========================================================
+   JupiterX Advanced Accordion
+   ========================================================= */
+
+.jupiterx-advanced-accordion-wrapper .jupiterx-advanced-accordion-inner-wrapper {
+	border-radius: 15px;
+}
+
+.jupiterx-advanced-accordion-wrapper
+	.jupiterx-advanced-accordion-inner-wrapper
+	.jupiterx-single-advanced-accordion-wrapper
+	.jx-single-accordion-header,
+.jupiterx-advanced-accordion-wrapper
+	.jupiterx-advanced-accordion-inner-wrapper
+	.jupiterx-single-advanced-accordion-wrapper
+	.jx-single-accordion-body {
+	background-color: var(--studio-panel-color) !important;
+}
+
+/* =========================================================
+   BREVO
+   ========================================================= */
+
+.brevo-embed {
+	max-width: 100%;
+	margin: 0 auto;
+}
+
+.brevo-embed iframe {
+	width: 100%;
+	height: 390px;
+	border: 0;
+	display: block;
+}
+
+
+
+
+
+
+.jupiterx-popup.jupiterx-popup--front-mode .jupiterx-popup__close-button {
+	background-color: var(--studio-accent-color) !important;
+	color: #ffffff !important;
+	padding:0 0 3px 0;
+}
+.jupiterx-popup.jupiterx-popup--front-mode .jupiterx-popup__close-button:hover {
+	background: var(--studio-panel-color) !important;
+	color: var(--studio-font-color) !important;
+}
+
+#jupiterx-popups-848 .jupiterx-popup__container-inner {
+	background-color: var(--studio-panel-color) !important;
+}
+
+/* Default: locked */
+.asset-unlocked { display: none; }
+
+/* If session unlocked */
+html.nvelope-unlocked .asset-locked { display: none; }
+html.nvelope-unlocked .asset-unlocked { display: block; }
+
+
+
+
+
+
+
+
+/* =========================================================
+   nvelope: Popup media (Option A)
+   - Media area collapses for PDFs
+   - 16:9 responsive embed for videos
+   ========================================================= */
+
+/* Media container: default hidden, JS turns on for video */
+.nvelope-popup-media {
+  display: none;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* If JS injects nothing, keep it collapsed */
+.nvelope-popup-media:empty {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Video wrapper injected by JS */
+.nvelope-popup-media .nvelope-popup-video-wrap {
+  display: block;
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
+  height: 0;
+  overflow: hidden;
+  margin: 16px 0 0; /* optional spacing under text */
+}
+
+/* Iframe fills wrapper */
+.nvelope-popup-media .nvelope-popup-video-wrap iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* Defensive: if Elementor adds spacing around the HTML widget */
+.nvelope-popup-media,
+.nvelope-popup-media .elementor-widget-container {
+  min-height: 0 !important;
+}
+
+
+
+
+
+
+  /* 1) Make sure the desktop nav is visible */
+  .raven-nav-menu-main.raven-nav-menu-horizontal {
+    display: block !important;
+  }
+
+  /* 2) Force the UL + LI to lay out horizontally */
+  .raven-nav-menu-main.raven-nav-menu-horizontal > ul.raven-nav-menu {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 18px !important; /* spacing between items */
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .raven-nav-menu-main.raven-nav-menu-horizontal > ul.raven-nav-menu > li {
+    display: inline-flex !important;
+    margin: 0 !important;
+  }
+
+  /* 3) Hide the mobile dropdown + burger toggle on desktop */
+  .raven-nav-menu-toggle,
+  nav.raven-nav-menu-mobile,
+  .raven-nav-menu-dropdown {
+    display: none !important;
+  }
+
+
+
+
+
+
+@media (min-width: 1024px) {
+    .cmplz-cookiebanner {
+        margin: 0px!important;
+        width: 100%!important;
+    }
+}
+
+
+
+
+
+
+/* Email input — bottom border only */
+.remind-form input[type="email"] {
+  border: none;
+  border-bottom: 1px dashed var(--studio-font-color);
+		opacity: 0.5;
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+}
+
+/* Arrow button — circle, no fill */
+.remind-form button {
+  border: 1px solid var(--studio-font-color);
+  border-radius: 50%;
+  background: transparent;
+  width: 25px;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+/* Confirmation message */
+.remind-form-done {
+  font-size: 0.8em;
+}
+
+/* Placeholder text color */
+.remind-form input[type="email"]::placeholder {
+  color: var(--studio-font-color);
+}
+
+/* Input text color (what the user types) */
+.remind-form input[type="email"] {
+  color: var(--studio-font-color);
+  font-size: 0.8em;
+padding: 2px 0px 2px 0px;
+}
+
+/* Arrow icon color */
+.remind-form button {
+  color: var(--studio-font-color);
+}
+
+/* Arrow on hover */
+.remind-form button:hover {
+opacity: 0.5;
+}
+
+#remind-bar {
+	background-color: var(--studio-bg-color);
+}
