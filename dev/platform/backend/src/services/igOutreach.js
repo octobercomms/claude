@@ -248,8 +248,52 @@ async function runAutopilot() {
   return out;
 }
 
+/**
+ * Everything discovered in the last `days`, grouped by client, for the weekly
+ * digest.
+ *
+ * Discovery still runs daily — a public profile that appears and disappears
+ * should be caught — but the email is weekly and covers everyone. It used to
+ * be one email per client per search, every morning, which for several active
+ * searches is several emails a day about a handful of profiles nobody is going
+ * to action before the weekend anyway.
+ *
+ * Read from found_at rather than from a run's return value, so a week's worth
+ * accumulates across seven daily runs instead of only the last one.
+ */
+function windowDays(days) {
+  const n = Number(days);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 7;
+}
+
+async function recentProspectsByClient({ days = 7 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT p.client_id, c.name AS client_name, p.username, p.display_name,
+            p.bio, p.profile_url, p.status, p.found_at
+       FROM ig_outreach_prospects p
+       JOIN clients c ON c.id = p.client_id
+      WHERE p.found_at >= now() - ($1 || ' days')::interval
+      ORDER BY c.name, p.found_at DESC`,
+    // Anything that is not a positive number becomes the default week. The
+    // first version mixed two rules: 0 fell through to 7 while -5 clamped to
+    // 1, so a caller passing nonsense got a different kind of nonsense back
+    // depending on which nonsense it was.
+    [String(windowDays(days))]
+  );
+
+  const byClient = new Map();
+  for (const r of rows) {
+    if (!byClient.has(r.client_id)) {
+      byClient.set(r.client_id, { clientId: r.client_id, clientName: r.client_name, prospects: [] });
+    }
+    byClient.get(r.client_id).prospects.push(r);
+  }
+  return [...byClient.values()];
+}
+
 module.exports = {
   listSearches, createSearch, updateSearch, deleteSearch,
   listProspects, listClientWorked, runSearch, setStatus, draftMessage, draftAll, enrichEmail, runAutopilot,
-  countUnassigned, reclaimOrphans,
+  countUnassigned, reclaimOrphans, recentProspectsByClient,
+  _internals: { windowDays },
 };

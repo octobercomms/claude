@@ -915,29 +915,46 @@ async function sendPrEmail({ to, subject, html }) {
 }
 
 // Daily digest of new IG outreach prospects discovered by the autopilot.
-async function sendIgDiscoveryDigest({ clientName, searchName, prospects }) {
+// One weekly email covering every client's new Instagram prospects.
+//
+// This used to be sendIgDiscoveryDigest: one email per client, per search,
+// every morning. With several active searches that is several emails a day
+// about a handful of profiles, and a DM nobody was going to send before the
+// weekend anyway. Discovery still runs daily; this reports it once a week.
+async function sendIgWeeklyDigest({ clients, days = 7 }) {
   if (!process.env.ALERT_EMAIL) return;
-  if (!prospects || !prospects.length) return;
-  const rows = prospects.map(p => `
-    <tr>
-      <td style="padding:8px;border:1px solid #ddd;"><strong>@${p.username}</strong>${p.display_name && p.display_name !== p.username ? ` — ${p.display_name}` : ''}<br>
-        <span style="color:#666;font-size:12px;">${(p.bio || '').slice(0, 160)}</span></td>
-      <td style="padding:8px;border:1px solid #ddd;white-space:nowrap;">
-        <a href="https://www.instagram.com/${p.username}/">Profile</a> ·
-        <a href="https://ig.me/m/${p.username}">Open DM</a></td>
-    </tr>`).join('');
-  const label = searchName ? `${clientName} · ${searchName}` : clientName;
+  const groups = (clients || []).filter(c => c.prospects && c.prospects.length);
+  if (!groups.length) return;
+
+  const total = groups.reduce((n, c) => n + c.prospects.length, 0);
+
+  const section = (c) => {
+    const rows = c.prospects.map(p => `
+      <tr>
+        <td style="padding:8px;border:1px solid #ddd;"><strong>@${p.username}</strong>${p.display_name && p.display_name !== p.username ? ` — ${p.display_name}` : ''}<br>
+          <span style="color:#666;font-size:12px;">${(p.bio || '').slice(0, 160)}</span></td>
+        <td style="padding:8px;border:1px solid #ddd;white-space:nowrap;font-size:12px;">${p.status || 'new'}</td>
+        <td style="padding:8px;border:1px solid #ddd;white-space:nowrap;">
+          <a href="https://www.instagram.com/${p.username}/">Profile</a> ·
+          <a href="https://ig.me/m/${p.username}">Open DM</a></td>
+      </tr>`).join('');
+    return `
+      <h3 style="margin:24px 0 4px">${c.clientName} <span style="font-weight:400;color:#666;font-size:14px;">· ${c.prospects.length}</span></h3>
+      <table style="width:100%;border-collapse:collapse;">${rows}</table>`;
+  };
+
   const html = `
-    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
-      <h2>New Instagram prospects — ${label}</h2>
-      <p>${prospects.length} new public profile${prospects.length === 1 ? '' : 's'} from your "${searchName || 'discovery'}" search. Review in OMI → Social → Discover. Send by hand, keep it personalised.</p>
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;">${rows}</table>
-      <p style="color:#666;font-size:12px;">October Marketing Intelligence · discovery only, you send the DMs.</p>
+    <div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px;">
+      <h2>New Instagram prospects — last ${days} days</h2>
+      <p>${total} new public profile${total === 1 ? '' : 's'} across ${groups.length} client${groups.length === 1 ? '' : 's'}. Review in OMI → Social → Discover. Send by hand, keep it personalised.</p>
+      ${groups.map(section).join('')}
+      <p style="color:#666;font-size:12px;margin-top:24px;">October Marketing Intelligence · discovery only, you send the DMs. Weekly.</p>
     </div>`;
+
   return getTransporter().sendMail({
     from: getSenderAddress(),
     to: process.env.ALERT_EMAIL,
-    subject: `${prospects.length} new IG prospect${prospects.length === 1 ? '' : 's'} — ${label}`,
+    subject: `${total} new IG prospect${total === 1 ? '' : 's'} across ${groups.length} client${groups.length === 1 ? '' : 's'}`,
     html,
   });
 }
@@ -1314,4 +1331,4 @@ async function sendAccountsDigest({ summary }) {
 }
 
 module.exports = {
-  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert, sendAccountsDigest };
+  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgWeeklyDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert, sendAccountsDigest };
