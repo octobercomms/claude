@@ -18,7 +18,6 @@ const router = express.Router();
 const REPO_ROOT = path.join(__dirname, '..', '..', '..', '..', '..');
 const GTM_CONTAINER = path.join(REPO_ROOT, 'docs', 'october-mi-gtm', 'october-mi-v1.json');
 
-const WP_SLUG = wpPackage.SLUG;
 
 router.get('/gtm-container', (req, res) => {
   if (!fs.existsSync(GTM_CONTAINER)) {
@@ -36,26 +35,28 @@ router.get('/gtm-container', (req, res) => {
 // deploy rebuilds the zip → every paired site updates, with no GitHub token on
 // any site and no `zip` CLI on the host.
 
-// Manifest the plugin's self-updater polls.
-router.get('/wordpress-plugin/info', (req, res) => {
-  const version = wpPackage.pluginVersion();
-  if (!version) return res.status(503).json({ error: 'Plugin version unavailable.' });
+// Shared by the legacy and the slug-addressed manifest routes.
+function manifest(req, slug) {
+  const entry = wpPackage.get(slug);
+  if (!entry) return null;
+  const version = wpPackage.pluginVersion(slug);
+  if (!version) return null;
   const base = `${req.protocol}://${req.get('host')}`;
-  res.json({
-    name: 'October Marketing Intelligence',
-    slug: WP_SLUG,
+  return {
+    name: entry.name,
+    slug: entry.slug,
     version,
-    package: `${base}/api/integrations/wordpress-plugin`,
-    homepage: 'https://octobercomms.com',
-  });
-});
+    // Slug-addressed, so a plugin added later gets a correct download URL
+    // without this having to know which one is the legacy default.
+    package: `${base}/api/integrations/wordpress-plugin/${entry.slug}`,
+    homepage: entry.homepage || 'https://octobercomms.com',
+  };
+}
 
-// The plugin zip itself (initial install from the Integrations page, and the
-// self-updater's download).
-router.get('/wordpress-plugin', (req, res) => {
+function sendZip(res, slug) {
   let built;
   try {
-    built = wpPackage.ensurePluginZip();
+    built = wpPackage.ensurePluginZip(slug);
   } catch (err) {
     console.error('[integrations] plugin package build failed:', err.message);
   }
@@ -63,8 +64,39 @@ router.get('/wordpress-plugin', (req, res) => {
     return res.status(503).json({ error: 'The plugin package is not available yet — try again shortly.' });
   }
   res.setHeader('Content-Type', 'application/zip');
-  res.setHeader('Content-Disposition', `attachment; filename="${WP_SLUG}-${built.version}.zip"`);
-  fs.createReadStream(built.path).pipe(res);
+  res.setHeader('Content-Disposition', `attachment; filename="${built.slug}-${built.version}.zip"`);
+  return fs.createReadStream(built.path).pipe(res);
+}
+
+// ── Legacy paths, which paired sites are polling right now ──────────────────
+//
+// Every site that already has October MI installed asks these two URLs. If
+// they moved, nothing would error: the self-updater would simply stop seeing
+// new versions, on every site at once, with nothing on any screen to say so.
+// They stay, and they serve the default plugin.
+//
+// Registered BEFORE the :slug routes so Express matches the literal `/info`
+// first. The :slug handler also 404s an unknown slug, so even if that ordering
+// were broken later, `/wordpress-plugin/info` could not be read as a plugin
+// called "info".
+router.get('/wordpress-plugin/info', (req, res) => {
+  const body = manifest(req, wpPackage.SLUG);
+  if (!body) return res.status(503).json({ error: 'Plugin version unavailable.' });
+  res.json(body);
+});
+
+router.get('/wordpress-plugin', (req, res) => sendZip(res, wpPackage.SLUG));
+
+// ── Slug-addressed, for every plugin including the default ──────────────────
+router.get('/wordpress-plugin/:slug/info', (req, res) => {
+  const body = manifest(req, req.params.slug);
+  if (!body) return res.status(404).json({ error: 'Unknown plugin.' });
+  res.json(body);
+});
+
+router.get('/wordpress-plugin/:slug', (req, res) => {
+  if (!wpPackage.get(req.params.slug)) return res.status(404).json({ error: 'Unknown plugin.' });
+  return sendZip(res, req.params.slug);
 });
 
 module.exports = router;
