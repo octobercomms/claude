@@ -670,7 +670,11 @@ function renderResolvedSection(s) {
   switch (s.type) {
     case 'narrative': {
       const paragraphs = (s.text || '').split('\n').filter(p => p.trim()).map(p => `<p>${escapeXml(p)}</p>`).join('');
-      return `${open}${title}${paragraphs}${note}${close}`;
+      // ${insight} belongs here as it does in every other case. Without it a
+      // narrative's insight rendered in the email and silently vanished from
+      // the attachment, which is the exact disagreement these two renderers
+      // exist to avoid.
+      return `${open}${title}${insight}${paragraphs}${note}${close}`;
     }
     case 'metrics_grid': {
       if (s.layout === 'table' && s.rows?.length) {

@@ -354,6 +354,7 @@ async function deliverOrHold(report, overrides) {
       to: reviewer,
       clientName: report.client_name,
       clientId: report.client_id,
+      reportId: report.id,
       reportType: report.report_type,
       period: formatPeriod(report.report_type, toYmdLocal(report.period_start), toYmdLocal(report.period_end)),
     });
@@ -389,23 +390,51 @@ async function loadForEdit(reportId) {
   return report;
 }
 
-// Re-render the stored HTML and the attached PDF from a sections array, so the
-// preview, the email body and the attachment are the same document. The PDF is
-// built at generation time, so without this an edit would send edited prose
-// with an unedited attachment, which is the one failure here a client would
-// notice and nobody internally would.
-async function rerender(report, sections) {
+// The HTML a sections array renders to. Pure: no writes, no PDF, no Claude and
+// no connector call, so it is safe to call for a preview as well as a save.
+function renderSections(report, sections) {
   const period = formatPeriod(report.report_type, toYmdLocal(report.period_start), toYmdLocal(report.period_end));
   const visible = reportEdits.visibleSections(sections);
   if (!visible.length) {
     throw new Error('Every section is hidden — a report with nothing in it cannot be saved');
   }
-  const htmlContent = pdfService.buildTemplateReportHtml({
+  return pdfService.buildTemplateReportHtml({
     client: { name: report.client_name }, period, sections: visible,
   });
+}
+
+// Re-render the stored HTML and rebuild the attachment, so the preview, the
+// email body and the PDF are one document. The PDF is built at generation
+// time, so without this an edit would send edited prose with an unedited
+// attachment: the one failure here a client would notice and nobody
+// internally would.
+//
+// The new PDF goes to a filename of its own rather than over the top of the
+// old one, and the row is pointed at it in the same statement that stores the
+// edits. Overwriting in place left a window — render succeeds, database write
+// fails — where the file on disk was the edited report and the row still said
+// the sections were unedited, which is the same mismatch the other way round.
+// Now a failed render saves nothing and a failed write leaves an unreferenced
+// file, and the row never disagrees with what it points at.
+async function rerender(report, sections) {
+  const htmlContent = renderSections(report, sections);
   const footerLines = [process.env.REPORT_FOOTER_LINE_1, process.env.REPORT_FOOTER_LINE_2, process.env.REPORT_FOOTER_LINE_3].filter(Boolean);
-  const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true, footerLines });
+  const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+  const pdfPath = await pdfService.generatePDF(`${report.id}-r${stamp}`, htmlContent, { printFooter: true, footerLines });
   return { htmlContent, pdfPath };
+}
+
+// Delete a PDF this feature wrote once nothing points at it. Only ever a
+// re-render ('-r<stamp>'); the report's generated PDF is left alone, because
+// it is the one artefact that says what the machine produced.
+function dropSupersededPdf(previousPath, newPath) {
+  if (!previousPath || previousPath === newPath) return;
+  if (!/-r\d{14}\.pdf$/.test(previousPath)) return;
+  try {
+    require('fs').unlinkSync(previousPath);
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.warn(`[reports] could not remove superseded PDF ${previousPath}:`, err.message);
+  }
 }
 
 // Save a human's edits. The payload is merged onto the generated sections
@@ -425,6 +454,7 @@ async function saveEdits(reportId, incomingSections, editedBy) {
       WHERE id = $5`,
     [JSON.stringify(merged), editedBy || null, htmlContent, pdfPath, reportId]
   );
+  dropSupersededPdf(report.pdf_path, pdfPath);
 
   return {
     sections: merged,
@@ -434,6 +464,16 @@ async function saveEdits(reportId, incomingSections, editedBy) {
 }
 
 // Throw the edits away and put the generated report back, HTML and PDF with it.
+// Render an array the editor is holding, without storing anything. The editor
+// draws its own approximation of the report for typing into; this is what the
+// client will actually receive, so the two never have to agree by hand.
+async function renderPreview(reportId, sections) {
+  const report = await loadForEdit(reportId);
+  const generated = (report.summary || {}).sections;
+  const merged = reportEdits.mergeEdits(generated, sections);
+  return { html: renderSections(report, merged) };
+}
+
 async function revertEdits(reportId) {
   const report = await loadForEdit(reportId);
   const generated = (report.summary || {}).sections;
@@ -449,6 +489,7 @@ async function revertEdits(reportId) {
       WHERE id = $3`,
     [htmlContent, pdfPath, reportId]
   );
+  dropSupersededPdf(report.pdf_path, pdfPath);
 
   return { sections: generated };
 }
@@ -718,4 +759,4 @@ async function setStatus(reportId, status) {
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', [status, reportId]);
 }
 
-module.exports = { generateReport, sendReport, recipientsFor, deliverOrHold, saveEdits, revertEdits };
+module.exports = { generateReport, sendReport, recipientsFor, deliverOrHold, saveEdits, revertEdits, renderPreview };

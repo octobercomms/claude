@@ -3,6 +3,7 @@ import { useScreen } from '../hooks/useScreen';
 import ScreenHeading from '../components/ScreenHeading';
 import { PageActionsProvider, PageActionsSlot, PageActions } from '../components/PageActions';
 import { useParams, useNavigate, useSearchParams, Link, Navigate } from 'react-router-dom';
+import { reportStatusLabel, reportStatusTone } from '../utils/reportStatus';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
@@ -807,11 +808,21 @@ export default function ClientDetailPage() {
                       <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5', textTransform: 'capitalize' }}>{r.report_type}</td>
                       <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>{r.period_start ? new Date(r.period_start).toLocaleDateString('en-GB') : '—'}</td>
                       <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>
-                        <span style={{ color: r.status === 'sent' || r.status === 'generated' ? 'var(--positive)' : r.status === 'failed' ? 'var(--negative)' : 'var(--text-subtle)' }}>{r.status}</span>
+                        {/* reportStatusLabel, not the raw column. This printed
+                            'generated' in the same green as 'sent', so a
+                            report waiting to be read looked delivered. */}
+                        <span className={`chip chip-${reportStatusTone(r.status)}`}>{reportStatusLabel(r.status)}</span>
                       </td>
                       <td style={{ padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5', color: 'var(--text-subtle)' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
                       <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', textAlign: 'right' }}>
-                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-danger btn-sm">Delete</button>
+                        <div className="row center" style={{ gap: 'var(--s2)', justifyContent: 'flex-end' }}>
+                          {['generated', 'sent', 'skipped_no_recipients'].includes(r.status) && (
+                            <Link to={`/clients/${id}/reports/${r.id}`} className="btn btn-secondary btn-sm">
+                              {r.status === 'generated' ? 'Review and send' : 'Open'}
+                            </Link>
+                          )}
+                          <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-danger btn-sm">Delete</button>
+                        </div>
                       </td>
                     </tr>
                     {r.status === 'failed' && r.error_log && (

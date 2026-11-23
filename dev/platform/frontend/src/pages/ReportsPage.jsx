@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
@@ -13,6 +13,13 @@ import BulkDeleteReports from '../components/BulkDeleteReports';
 // `embedded` prop that the one caller always passed, with a comment saying
 // the flag stayed in case of a bare render. Nothing renders it bare, so the
 // hero was unreachable and is gone.
+// The served path for a stored PDF. pdf_path is absolute on the server and
+// /pdfs is the directory it lives in, so the basename is the whole link.
+function pdfHref(pdfPath) {
+  const name = String(pdfPath || '').split('/').pop();
+  return `/pdfs/${name}`;
+}
+
 export default function ReportsPage() {
   const toast = useToast();
   const { readOnly } = useAuth();
@@ -53,10 +60,13 @@ export default function ReportsPage() {
   }
 
   async function handleResend(reportId) {
-    if (!window.confirm('Resend this report?')) return;
+    // The button next to this says "Send to client" for a report that has
+    // never gone out. Asking "Resend?" there tells the person it already has.
+    const first = reports.find(x => x.id === reportId)?.status === 'generated';
+    if (!window.confirm(first ? 'Send this report to the client?' : 'Resend this report?')) return;
     try {
       await api.post(`/reports/${reportId}/resend`);
-      toast('Resend initiated');
+      toast(first ? 'Sending to the client' : 'Resend initiated');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -185,11 +195,16 @@ export default function ReportsPage() {
                 <td >{r.sent_at ? fmtDate(r.sent_at) : '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end' }}>
-                    {(r.status === 'generated' || r.status === 'sent') && (
-                      <button onClick={() => handlePreview(r.id)} className="btn btn-secondary btn-sm">Preview</button>
+                    {(r.status === 'generated' || r.status === 'sent' || r.status === 'skipped_no_recipients') && (
+                      <Link to={`/clients/${r.client_id}/reports/${r.id}`} className="btn btn-secondary btn-sm">Open</Link>
                     )}
                     {r.pdf_path && (
-                      <a href={`/pdfs/report-${r.id}.pdf`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">PDF</a>
+                      // From pdf_path, not from the report id. Saving an edit
+                      // rebuilds the attachment under a new filename, so a
+                      // link built from the id alone 404s on every edited
+                      // report — and already did on legacy weekly ones, which
+                      // were saved as report-<id>-weekly.pdf.
+                      <a href={pdfHref(r.pdf_path)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">PDF</a>
                     )}
                     {(r.status === 'generated' || r.status === 'sent' || r.status === 'failed') && (
                       <button

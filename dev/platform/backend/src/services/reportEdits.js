@@ -22,12 +22,18 @@
 
 // Per type, the fields a human may change. Everything absent from this list is
 // taken from the generated section, whatever the payload says.
+//
+// `insight` is in here although Claude writes it: it is a one-line assertion
+// about the numbers, set in italics under the heading, and it goes to the
+// client. Leaving it out meant the model's sharpest claim in the document was
+// the one sentence a person could not correct, and the only remedy for a wrong
+// one was hiding the entire section.
 const EDITABLE_BY_TYPE = {
-  narrative:              ['title', 'note', 'text'],
-  metrics_grid:           ['title', 'note', 'cells'],
-  tables:                 ['title', 'note'],
-  bar_chart:              ['title', 'note'],
-  position_distribution:  ['title', 'note'],
+  narrative:              ['title', 'note', 'text', 'insight'],
+  metrics_grid:           ['title', 'note', 'cells', 'insight'],
+  tables:                 ['title', 'note', 'insight'],
+  bar_chart:              ['title', 'note', 'insight'],
+  position_distribution:  ['title', 'note', 'insight'],
   note:                   ['title', 'note', 'text'],
   // A generated report cannot contain one: generateReport throws rather than
   // ship a failed section. Listed so an unexpected one is inert, not editable.
@@ -37,13 +43,20 @@ const EDITABLE_BY_TYPE = {
 // Only these two on a metric cell. A delta, its direction and the previous
 // value are a computed comparison against the prior period; typed by hand they
 // would contradict the number they sit under, and nothing downstream
-// recomputes them. Hide the section instead of hand-correcting a comparison.
+// recomputes them.
 const EDITABLE_CELL_FIELDS = ['label', 'value'];
+
+// Dropped from a cell whose value was changed. Keeping them was the one
+// outcome a client can catch with mental arithmetic: change 12,481 to 9,000
+// and the cell reads "9,000 / up 8.2% / vs 11,534". Nothing recomputes a
+// delta, so the only honest options are to drop the comparison or to refuse
+// the edit, and refusing it would not have been editing the report.
+const COMPARISON_FIELDS = ['delta', 'deltaDirection', 'previous'];
 
 // Caps, so a paste cannot produce a report nobody can open. Generous against
 // real copy: the longest narrative section this has been seen to produce is
 // under 2,000 characters.
-const LIMITS = { title: 300, note: 2000, text: 20000, label: 120, value: 60 };
+const LIMITS = { title: 300, note: 2000, text: 20000, label: 120, value: 60, insight: 600 };
 
 const ADDABLE_TYPES = ['note'];
 
@@ -91,6 +104,11 @@ function mergeCells(originalCells, incomingCells, sectionId) {
     for (const field of EDITABLE_CELL_FIELDS) {
       const cleaned = cleanText(incoming[field], LIMITS[field], `Section ${sectionId}, cell ${i + 1} ${field}`);
       if (cleaned !== undefined) merged[field] = cleaned;
+    }
+    // The comparison belongs to the generated figure, not to whatever replaced
+    // it. A relabelled cell keeps it; a renumbered one cannot.
+    if (merged.value !== cell.value) {
+      for (const field of COMPARISON_FIELDS) delete merged[field];
     }
     return merged;
   });
@@ -239,5 +257,5 @@ module.exports = {
   visibleSections,
   effectiveSections,
   diffSections,
-  _internals: { EDITABLE_BY_TYPE, EDITABLE_CELL_FIELDS, LIMITS, ADDABLE_TYPES, cleanText, mergeCells },
+  _internals: { EDITABLE_BY_TYPE, EDITABLE_CELL_FIELDS, COMPARISON_FIELDS, LIMITS, ADDABLE_TYPES, cleanText, mergeCells },
 };

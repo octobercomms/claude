@@ -377,7 +377,7 @@ router.delete('/:id', async (req, res) => {
 
 async function reportForCaller(req, res) {
   const { rows } = await pool.query(
-    `SELECT r.*, c.name AS client_name
+    `SELECT r.*, c.name AS client_name, c.report_recipients
        FROM reports r JOIN clients c ON c.id = r.client_id
       WHERE r.id = $1`,
     [req.params.id]
@@ -410,6 +410,10 @@ router.get('/:id/sections', async (req, res) => {
       edited_at: report.edited_at,
       edited_by: report.edited_by,
       changes: reportEdits.diffSections(generated, sections),
+      // Named on the send confirmation. The skipped_no_recipients status
+      // exists because sends have silently gone nowhere, so the moment of
+      // sending is the moment the addresses are worth showing.
+      recipients: reportService.recipientsFor(report.report_recipients, report.report_type),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -433,6 +437,26 @@ router.put('/:id/sections', async (req, res) => {
     // A rejected edit is almost always the payload disagreeing with the
     // generated report, and the message says which section and how — pass it
     // through as a 400 rather than flattening it into a 500.
+    const isValidation = /section|cells|note|hidden|characters|cannot be edited|no stored/i.test(err.message);
+    res.status(isValidation ? 400 : 500).json({ error: err.message });
+  }
+});
+
+// What the client would receive if this were sent now. The editor draws its
+// own approximation for typing into; this comes from the same builder that
+// makes the PDF, so the preview cannot drift from the real thing. Stores
+// nothing.
+router.post('/:id/render', async (req, res) => {
+  try {
+    const report = await reportForCaller(req, res);
+    if (!report) return;
+    const sections = req.body && req.body.sections;
+    if (!Array.isArray(sections)) {
+      return res.status(400).json({ error: 'sections must be a list' });
+    }
+    const result = await reportService.renderPreview(req.params.id, sections);
+    res.json(result);
+  } catch (err) {
     const isValidation = /section|cells|note|hidden|characters|cannot be edited|no stored/i.test(err.message);
     res.status(isValidation ? 400 : 500).json({ error: err.message });
   }

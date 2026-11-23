@@ -988,13 +988,25 @@ async function sendIgWeeklyDigest({ clients, days = 7 }) {
 // Goes to the reviewer, never to the client. The whole point is that this is
 // the one email in the chain the client does not get, so the subject says so
 // plainly rather than looking like the report itself arriving.
-async function sendReportReview({ to, clientName, clientId, reportType, period }) {
-  if (!to) return;
-  // Links to the Reports screen, not to /api/reports/:id/html — that route
-  // requires a signed, expiring token, and more to the point the reviewer
-  // needs to ACT, not just read. This lands them where Preview and Send are.
+// Where the review nudge sends the reviewer: the report itself.
+//
+// This used to point at /clients/:id/dashboard/reports, which is the schedule
+// configuration screen, where the only action on a report row was Delete. The
+// email said "read it, add anything it is missing, and send it" and landed
+// somewhere you could do none of those three. Exported so that stays true:
+// the link is the only thing making the hold-for-review flow reachable.
+function reportReviewUrl(clientId, reportId) {
   const base = (process.env.PUBLIC_URL || process.env.APP_URL || 'https://platform.octobercomms.com').replace(/\/$/, '');
-  const preview = `${base}/clients/${clientId}/dashboard/reports`;
+  return `${base}/clients/${clientId}/reports/${reportId}`;
+}
+
+async function sendReportReview({ to, clientName, clientId, reportId, reportType, period }) {
+  if (!to) return;
+  // Links into the app, not to /api/reports/:id/html — that route requires a
+  // signed, expiring token, and more to the point the reviewer needs to ACT,
+  // not just read. This lands them on the report itself, where they can read
+  // it, add what it is missing, and send it.
+  const preview = reportReviewUrl(clientId, reportId);
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;">
@@ -1397,4 +1409,5 @@ module.exports = {
   // a field added to the PDF and forgotten in the email would only show up in
   // a client's inbox.
   buildFullReportEmailHtml,
+  reportReviewUrl,
   sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgWeeklyDigest, sendReportReview, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert, sendAccountsDigest };
