@@ -19,6 +19,7 @@ const reportTemplate = require('./reportTemplate');
 const templateRenderer = require('./templateRenderer');
 const { toYmdLocal } = require('../utils/dates');
 const { getSetting } = require('../utils/settings');
+const reportEdits = require('./reportEdits');
 
 async function generateReport(reportId) {
   const { rows } = await pool.query(
@@ -365,6 +366,93 @@ async function deliverOrHold(report, overrides) {
   return { held: true, reviewer };
 }
 
+// A report may be edited while it is sitting generated, and after it has gone
+// out so a correction can be resent. Not while a send is in flight: the edit
+// would land underneath the email being built.
+const EDITABLE_STATUSES = ['generated', 'sent', 'skipped_no_recipients'];
+
+async function loadForEdit(reportId) {
+  const { rows } = await pool.query(
+    `SELECT r.*, c.name AS client_name
+       FROM reports r JOIN clients c ON c.id = r.client_id
+      WHERE r.id = $1`,
+    [reportId]
+  );
+  if (!rows.length) throw new Error(`Report ${reportId} not found`);
+  const report = rows[0];
+  if (!EDITABLE_STATUSES.includes(report.status)) {
+    throw new Error(
+      `A report at status "${report.status}" cannot be edited`
+      + (report.status === 'sending' ? ' while it is being sent' : '')
+    );
+  }
+  return report;
+}
+
+// Re-render the stored HTML and the attached PDF from a sections array, so the
+// preview, the email body and the attachment are the same document. The PDF is
+// built at generation time, so without this an edit would send edited prose
+// with an unedited attachment, which is the one failure here a client would
+// notice and nobody internally would.
+async function rerender(report, sections) {
+  const period = formatPeriod(report.report_type, toYmdLocal(report.period_start), toYmdLocal(report.period_end));
+  const visible = reportEdits.visibleSections(sections);
+  if (!visible.length) {
+    throw new Error('Every section is hidden — a report with nothing in it cannot be saved');
+  }
+  const htmlContent = pdfService.buildTemplateReportHtml({
+    client: { name: report.client_name }, period, sections: visible,
+  });
+  const footerLines = [process.env.REPORT_FOOTER_LINE_1, process.env.REPORT_FOOTER_LINE_2, process.env.REPORT_FOOTER_LINE_3].filter(Boolean);
+  const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true, footerLines });
+  return { htmlContent, pdfPath };
+}
+
+// Save a human's edits. The payload is merged onto the generated sections
+// rather than stored as sent (see reportEdits), and the generated original in
+// summary.sections is never touched, so a revert is always available and the
+// audit trail survives.
+async function saveEdits(reportId, incomingSections, editedBy) {
+  const report = await loadForEdit(reportId);
+  const generated = (report.summary || {}).sections;
+  const merged = reportEdits.mergeEdits(generated, incomingSections);
+  const { htmlContent, pdfPath } = await rerender(report, merged);
+
+  await pool.query(
+    `UPDATE reports
+        SET edited_sections = $1, edited_at = NOW(), edited_by = $2,
+            html_content = $3, pdf_path = $4
+      WHERE id = $5`,
+    [JSON.stringify(merged), editedBy || null, htmlContent, pdfPath, reportId]
+  );
+
+  return {
+    sections: merged,
+    changes: reportEdits.diffSections(generated, merged),
+    edited_by: editedBy || null,
+  };
+}
+
+// Throw the edits away and put the generated report back, HTML and PDF with it.
+async function revertEdits(reportId) {
+  const report = await loadForEdit(reportId);
+  const generated = (report.summary || {}).sections;
+  if (!Array.isArray(generated) || !generated.length) {
+    throw new Error('This report has no stored generated sections to revert to');
+  }
+  const { htmlContent, pdfPath } = await rerender(report, generated);
+
+  await pool.query(
+    `UPDATE reports
+        SET edited_sections = NULL, edited_at = NULL, edited_by = NULL,
+            html_content = $1, pdf_path = $2
+      WHERE id = $3`,
+    [htmlContent, pdfPath, reportId]
+  );
+
+  return { sections: generated };
+}
+
 async function sendReport(reportId, overrides = {}) {
   // overrides.pdfPath can be passed directly (not stored in summary JSON)
   const { rows } = await pool.query(
@@ -380,7 +468,15 @@ async function sendReport(reportId, overrides = {}) {
   if (!overrides.summaryHtml && stored.summaryHtml) overrides.summaryHtml = `<p>${stored.summaryHtml.replace(/\n/g, '<br>')}</p>`;
   if (!overrides.metrics && stored.metrics) overrides.metrics = stored.metrics;
   if (!overrides.weekLabel && stored.weekLabel) overrides.weekLabel = stored.weekLabel;
-  if (!overrides.sections && stored.sections) overrides.sections = stored.sections;
+  // Both the hold-then-send and the resend paths arrive with no overrides, so
+  // the body is rebuilt from what is stored. An edited array wins over the
+  // generated original, and a section somebody hid is gone from the email as
+  // well as from the PDF — the PDF having been rebuilt when the edit was
+  // saved, so the two cannot disagree.
+  if (!overrides.sections) {
+    const visible = reportEdits.visibleSections(reportEdits.effectiveSections(report));
+    if (visible.length) overrides.sections = visible;
+  }
 
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', ['sending', reportId]);
 
@@ -622,4 +718,4 @@ async function setStatus(reportId, status) {
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', [status, reportId]);
 }
 
-module.exports = { generateReport, sendReport, recipientsFor, deliverOrHold };
+module.exports = { generateReport, sendReport, recipientsFor, deliverOrHold, saveEdits, revertEdits };

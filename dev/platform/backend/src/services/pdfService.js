@@ -203,6 +203,21 @@ thead { display: table-header-group; } /* repeat table headers on each page */
   padding-left: 8pt;
   border-left: 2pt solid #E7CD41;
 }
+/* A remark written by the account manager, not by the model. Upright and
+   panelled, where .section-insight is italic and rule-only, so a reader can
+   tell a person wrote it. */
+.section-note {
+  font-size: 9pt;
+  color: #2b2b2b;
+  line-height: 1.5;
+  margin: 10pt 0 0;
+  padding: 8pt 10pt;
+  background: #fffdf5;
+  border-left: 3pt solid #E7CD41;
+}
+.section-note p { margin: 0 0 6pt; }
+.section-note p:last-child { margin-bottom: 0; }
+.note-block { margin-bottom: 16pt; }
 .metrics-table th { background: #f3f3f3; font-weight: 700; padding: 5pt 8pt; border: 0.5pt solid #ccc; font-size: 9pt; }
 .metrics-table td { padding: 5pt 8pt; border: 0.5pt solid #eee; font-size: 9pt; }
 
@@ -630,22 +645,36 @@ ${blocks}
 </html>`;
 }
 
+// Multi-paragraph escaped body for a human note, in the PDF and nowhere else.
+// Returns '' for empty input so callers can concatenate it unconditionally.
+function renderNoteBody(text, className) {
+  const paragraphs = String(text || '').split('\n').filter(p => p.trim());
+  if (!paragraphs.length) return '';
+  return `<div class="${className}">${paragraphs.map(p => `<p>${escapeXml(p)}</p>`).join('')}</div>`;
+}
+
 function renderResolvedSection(s) {
+  // Hidden by whoever reviewed the report. Kept in the stored array so it can
+  // be put back, but it renders nowhere.
+  if (s && s.hidden) return '';
   const title = `<div class="section-title">${escapeXml(s.title || '')}</div>`;
   const insight = s.insight
     ? `<div class="section-insight">${escapeXml(s.insight)}</div>`
     : '';
+  // A human remark sits AFTER the thing it is about, so it reads as the
+  // explanation of the numbers above rather than a preamble to them.
+  const note = renderNoteBody(s.note, 'section-note');
   const open = `<div class="section">`;
   const close = `</div>`;
 
   switch (s.type) {
     case 'narrative': {
       const paragraphs = (s.text || '').split('\n').filter(p => p.trim()).map(p => `<p>${escapeXml(p)}</p>`).join('');
-      return `${open}${title}${paragraphs}${close}`;
+      return `${open}${title}${paragraphs}${note}${close}`;
     }
     case 'metrics_grid': {
       if (s.layout === 'table' && s.rows?.length) {
-        return `${open}${title}${insight}${buildMetricsTableHtml(s.metricLabels || [], s.rows, s.compare)}${close}`;
+        return `${open}${title}${insight}${buildMetricsTableHtml(s.metricLabels || [], s.rows, s.compare)}${note}${close}`;
       }
       const cells = s.cells || [];
       if (!cells.length) return '';
@@ -661,20 +690,27 @@ function renderResolvedSection(s) {
         const prev = c.previous ? `<div class="delta-prev">vs ${escapeXml(c.previous)}</div>` : '';
         return `<div class="metric-cell"><div class="val">${escapeXml(c.value)}</div><div class="lbl">${escapeXml(c.label)}</div>${delta}${prev}</div>`;
       }).join('')}</div>`).join('');
-      return `${open}${title}${insight}${rowsHtml}${close}`;
+      return `${open}${title}${insight}${rowsHtml}${note}${close}`;
     }
     case 'tables': {
       if (!s.tables || !s.tables.length) return '';
-      return `${open}${title}${insight}${s.tables.map(t => buildTableHtml(t)).join('')}${close}`;
+      return `${open}${title}${insight}${s.tables.map(t => buildTableHtml(t)).join('')}${note}${close}`;
     }
     case 'bar_chart': {
       if (!s.chart) return '';
-      return `${open}${title}${insight}${buildChartHtml(s.chart)}${close}`;
+      return `${open}${title}${insight}${buildChartHtml(s.chart)}${note}${close}`;
     }
     case 'position_distribution': {
       const rankings = (s.rankings || []).filter(k => k.current_position);
       if (!rankings.length) return '';
-      return `${open}${title}${insight}${buildPositionDistributionHtml(rankings)}${close}`;
+      return `${open}${title}${insight}${buildPositionDistributionHtml(rankings)}${note}${close}`;
+    }
+    case 'note': {
+      // Added by a reviewer rather than resolved from data. A note with
+      // neither heading nor body renders nothing rather than an empty panel.
+      const body = renderNoteBody(s.text, 'section-note');
+      if (!body && !(s.title || '').trim()) return '';
+      return `${open}${title}${body}${close}`;
     }
     case 'error': {
       // Never render the raw error envelope — for narrative sections that
