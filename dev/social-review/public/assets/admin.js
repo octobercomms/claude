@@ -688,7 +688,11 @@ function postsCard(review, onDone, which = 'live') {
           &middot; ${escapeHtml(first.name || first.mime)}</p>
       </div>
       <span class="spacer"></span>
-      <button class="btn" data-png title="Download this post as a PNG">
+      <a class="btn" data-files
+         href="/api/reviews/${encodeURIComponent(review.slug)}/zip?post=${encodeURIComponent(post.id)}"
+         title="Download the file${post.media.length > 1 ? 's' : ''} for this post, ready to publish">
+        ${icon('download', 13, { sw: 2.1 })} ${post.media.length > 1 ? 'Files' : 'File'}</a>
+      <button class="btn" data-png title="Download this post as a PNG of the mockup">
         ${icon('download', 13, { sw: 2.1 })} PNG</button>
       <button class="btn" data-link>Copy link</button>
       <button class="btn" data-up aria-label="Move up">${icon('chevL', 14, { sw: 2.4 })}</button>
