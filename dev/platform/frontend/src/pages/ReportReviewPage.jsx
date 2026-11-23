@@ -687,7 +687,10 @@ function MetricsGrid({ section, generatedSection, index, patchCell }) {
               const gCell = ((generatedSection && generatedSection.cells) || [])[cellIndex] || {};
               const valueChanged = cell.value !== gCell.value;
               return (
-                <div key={ci} style={{ border: 'var(--border-w) solid var(--text)', padding: 'var(--s2) var(--s3)' }}>
+                // data-cell is for the browser harness: a metric's label and
+                // value are input values, not text nodes, so there is nothing
+                // to select a cell by otherwise.
+                <div key={ci} data-cell={cellIndex} style={{ border: 'var(--border-w) solid var(--text)', padding: 'var(--s2) var(--s3)' }}>
                   <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, lineHeight: 1.2 }}>
                     <Field
                       value={cell.value}
