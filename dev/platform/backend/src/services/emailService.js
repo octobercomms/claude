@@ -915,29 +915,82 @@ async function sendPrEmail({ to, subject, html }) {
 }
 
 // Daily digest of new IG outreach prospects discovered by the autopilot.
-async function sendIgDiscoveryDigest({ clientName, searchName, prospects }) {
+// One weekly email covering every client's new Instagram prospects.
+//
+// This used to be sendIgDiscoveryDigest: one email per client, per search,
+// every morning. With several active searches that is several emails a day
+// about a handful of profiles, and a DM nobody was going to send before the
+// weekend anyway. Discovery still runs daily; this reports it once a week.
+async function sendIgWeeklyDigest({ clients, days = 7 }) {
   if (!process.env.ALERT_EMAIL) return;
-  if (!prospects || !prospects.length) return;
-  const rows = prospects.map(p => `
-    <tr>
-      <td style="padding:8px;border:1px solid #ddd;"><strong>@${p.username}</strong>${p.display_name && p.display_name !== p.username ? ` — ${p.display_name}` : ''}<br>
-        <span style="color:#666;font-size:12px;">${(p.bio || '').slice(0, 160)}</span></td>
-      <td style="padding:8px;border:1px solid #ddd;white-space:nowrap;">
-        <a href="https://www.instagram.com/${p.username}/">Profile</a> ·
-        <a href="https://ig.me/m/${p.username}">Open DM</a></td>
-    </tr>`).join('');
-  const label = searchName ? `${clientName} · ${searchName}` : clientName;
+  const groups = (clients || []).filter(c => c.prospects && c.prospects.length);
+  if (!groups.length) return;
+
+  const total = groups.reduce((n, c) => n + c.prospects.length, 0);
+
+  const section = (c) => {
+    const rows = c.prospects.map(p => `
+      <tr>
+        <td style="padding:8px;border:1px solid #ddd;"><strong>@${p.username}</strong>${p.display_name && p.display_name !== p.username ? ` — ${p.display_name}` : ''}<br>
+          <span style="color:#666;font-size:12px;">${(p.bio || '').slice(0, 160)}</span></td>
+        <td style="padding:8px;border:1px solid #ddd;white-space:nowrap;font-size:12px;">${p.status || 'new'}</td>
+        <td style="padding:8px;border:1px solid #ddd;white-space:nowrap;">
+          <a href="https://www.instagram.com/${p.username}/">Profile</a> ·
+          <a href="https://ig.me/m/${p.username}">Open DM</a></td>
+      </tr>`).join('');
+    return `
+      <h3 style="margin:24px 0 4px">${c.clientName} <span style="font-weight:400;color:#666;font-size:14px;">· ${c.prospects.length}</span></h3>
+      <table style="width:100%;border-collapse:collapse;">${rows}</table>`;
+  };
+
   const html = `
-    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
-      <h2>New Instagram prospects — ${label}</h2>
-      <p>${prospects.length} new public profile${prospects.length === 1 ? '' : 's'} from your "${searchName || 'discovery'}" search. Review in OMI → Social → Discover. Send by hand, keep it personalised.</p>
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;">${rows}</table>
-      <p style="color:#666;font-size:12px;">October Marketing Intelligence · discovery only, you send the DMs.</p>
+    <div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px;">
+      <h2>New Instagram prospects — last ${days} days</h2>
+      <p>${total} new public profile${total === 1 ? '' : 's'} across ${groups.length} client${groups.length === 1 ? '' : 's'}. Review in OMI → Social → Discover. Send by hand, keep it personalised.</p>
+      ${groups.map(section).join('')}
+      <p style="color:#666;font-size:12px;margin-top:24px;">October Marketing Intelligence · discovery only, you send the DMs. Weekly.</p>
     </div>`;
+
   return getTransporter().sendMail({
     from: getSenderAddress(),
     to: process.env.ALERT_EMAIL,
-    subject: `${prospects.length} new IG prospect${prospects.length === 1 ? '' : 's'} — ${label}`,
+    subject: `${total} new IG prospect${total === 1 ? '' : 's'} across ${groups.length} client${groups.length === 1 ? '' : 's'}`,
+    html,
+  });
+}
+
+// A report is generated and waiting for somebody to read it.
+//
+// Goes to the reviewer, never to the client. The whole point is that this is
+// the one email in the chain the client does not get, so the subject says so
+// plainly rather than looking like the report itself arriving.
+async function sendReportReview({ to, clientName, clientId, reportType, period }) {
+  if (!to) return;
+  // Links to the Reports screen, not to /api/reports/:id/html — that route
+  // requires a signed, expiring token, and more to the point the reviewer
+  // needs to ACT, not just read. This lands them where Preview and Send are.
+  const base = (process.env.PUBLIC_URL || process.env.APP_URL || 'https://platform.octobercomms.com').replace(/\/$/, '');
+  const preview = `${base}/clients/${clientId}/dashboard/reports`;
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;">
+      <h2 style="margin-bottom:4px;">${clientName} — ${reportType} report ready to review</h2>
+      <p style="color:#666;margin-top:0;">${period}</p>
+      <p>This report has been generated and <strong>has not been sent to the client</strong>.
+         Read it, add anything it is missing, then send it from the Reports page.</p>
+      <p style="margin:24px 0;">
+        <a href="${preview}" style="background:#111;color:#fff;padding:10px 18px;border-radius:4px;text-decoration:none;">Open the report</a>
+      </p>
+      <p style="color:#666;font-size:12px;">
+        Nothing goes to ${clientName} until you send it. This client is set to hold reports for
+        review; turn that off in their settings if you would rather they went straight out.
+      </p>
+    </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to,
+    subject: `Review: ${clientName} ${reportType} report (not yet sent)`,
     html,
   });
 }
@@ -1314,4 +1367,4 @@ async function sendAccountsDigest({ summary }) {
 }
 
 module.exports = {
-  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert, sendAccountsDigest };
+  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgWeeklyDigest, sendReportReview, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert, sendAccountsDigest };

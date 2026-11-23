@@ -152,6 +152,34 @@ function partitionByDue(rows) {
   return { overdue, dueSoon };
 }
 
+// How urgent a deadline is, as a band rather than a number.
+//
+// This is what decides whether an alert is news. The 18 November fix stopped
+// the alert claiming nine-month-old entries were due within fourteen days, and
+// left a true one repeating: the gate asked only "is anything due", so one real
+// deadline in the window emailed every weekday until it passed. Ten emails
+// about one deadline trains you to ignore the eleventh, which is the same
+// failure in a different costume.
+//
+// Banding means an approaching deadline re-alerts when it crosses a line —
+// typically three or four times over a fortnight, each because something
+// actually changed — rather than once a day regardless.
+const ALERT_BUCKETS = ['overdue', 'today', 'days_3', 'days_7', 'days_14'];
+
+function urgencyBucket(daysUntil) {
+  if (daysUntil < 0) return 'overdue';
+  if (daysUntil === 0) return 'today';
+  if (daysUntil <= 3) return 'days_3';
+  if (daysUntil <= 7) return 'days_7';
+  return 'days_14';
+}
+
+// Has anything changed about this deadline since it was last mentioned?
+// A row never alerted (null bucket) is always news.
+function isNewsSince(deadline) {
+  return urgencyBucket(deadline.days_until) !== (deadline.last_alert_bucket || null);
+}
+
 async function ensureSeeded() {
   const now = new Date();
   const thisYear = now.getFullYear();
@@ -239,6 +267,20 @@ async function sendAlerts(daysAhead = 14, { now = new Date(), weeklyDay = 1 } = 
     return { sent: false, reason: 'only overdue, and not the weekly day', overdue: overdue.length };
   }
 
+  // Something is due — but has anything about it changed since the last email?
+  // Without this the same deadline is reported every weekday until it passes.
+  // The weekly overdue nudge is exempt: it is already once a week, and its
+  // whole point is to keep asking.
+  const news = dueSoon.filter(isNewsSince);
+  if (dueSoon.length && !news.length) {
+    return {
+      sent: false,
+      reason: 'already alerted at this urgency',
+      dueSoon: dueSoon.length,
+      overdue: overdue.length,
+    };
+  }
+
   const to = process.env.ACCOUNTS_DIGEST_EMAIL || process.env.ALERT_EMAIL;
   if (!to) return { sent: false, reason: 'no recipient configured' };
 
@@ -289,7 +331,32 @@ ${rowsIn.map(row).join('\n')}
     : `"October Communications" <${process.env.GMAIL_USER}>`;
 
   await buildTransporter().sendMail({ from: sender, to, subject, html: parts.join('\n') });
-  return { sent: true, to, dueSoon: dueSoon.length, overdue: overdue.length, subject };
+
+  // Record what each deadline in this email was reported as, so the next run
+  // can tell whether anything moved. Best-effort: the email has gone, and
+  // losing the bookkeeping means one extra email rather than a missed
+  // deadline.
+  const alerted = [...dueSoon, ...overdue];
+  if (alerted.length) {
+    try {
+      await db.query(
+        `UPDATE acct_tax_deadlines AS d
+            SET last_alert_bucket = v.bucket, last_alerted_at = now()
+           FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::text[]) AS bucket) AS v
+          WHERE d.id = v.id`,
+        [alerted.map(d => d.id), alerted.map(d => urgencyBucket(d.days_until))]
+      );
+    } catch (err) {
+      console.error('[deadlines] recording alert state failed:', err.message);
+    }
+  }
+
+  return {
+    sent: true, to, subject,
+    dueSoon: dueSoon.length,
+    overdue: overdue.length,
+    newsCount: news.length,
+  };
 }
 
 // Detecting that a deadline was paid.
@@ -511,5 +578,5 @@ module.exports = {
   sendAlerts,
   // Exported for the guard: the pure parts, so the matching can be driven
   // without a Xero connection.
-  _internals: { taxCodeMap, classifyPayment, ACCOUNT_NAME_PATTERNS, WINDOWS },
+  _internals: { taxCodeMap, classifyPayment, ACCOUNT_NAME_PATTERNS, WINDOWS, urgencyBucket, isNewsSince, ALERT_BUCKETS },
 };

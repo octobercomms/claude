@@ -738,6 +738,27 @@ export default function ClientDetailPage() {
               </div>
               </div>
 
+              {/* Across the three columns, because it governs both schedules
+                  rather than belonging to either. */}
+              <div style={{ marginTop: 'var(--s5)', padding: 'var(--s4)', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
+                <label style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!client.review_before_send}
+                    onChange={e => setClient(p => ({ ...p, review_before_send: e.target.checked }))}
+                    style={{ marginTop: 3 }}
+                  />
+                  <span>
+                    <strong>Hold reports for review before sending</strong>
+                    <div className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
+                      A generated report waits instead of going out. You get an email, read it on the
+                      Reports tab, add anything it is missing, and send it yourself. Nothing reaches{' '}
+                      {client.name || 'the client'} until you do.
+                    </div>
+                  </span>
+                </label>
+              </div>
+
               {/* Full width under the three columns rather than squeezed into
                   the schedule one. It is a paragraph you write, not a setting
                   you pick, and the only field on this screen with no weekly

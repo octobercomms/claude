@@ -239,18 +239,36 @@ cron.schedule('30 7 * * *', async () => {
   } catch (e) { console.error('[Scheduler] TLS watch failed:', e.message); }
 });
 
-// Daily at 08:00 — Instagram discovery autopilot. Re-runs each enabled client's
-// saved query and emails a digest of any NEW public profiles found. Discovery
+// Daily at 08:00 — Instagram discovery autopilot. Re-runs each enabled
+// client's saved query and stores any NEW public profiles found. Discovery
 // only; the AM still sends every DM by hand.
+//
+// Discovery stays daily because a public profile can appear and disappear, and
+// finding it late is finding it never. The REPORTING is weekly, below: this
+// used to email one digest per client per search every morning, which for
+// several active searches is several emails a day about a handful of profiles
+// nobody was going to DM before the weekend.
 cron.schedule('0 8 * * *', async () => {
   console.log('[Scheduler] Running IG discovery autopilot...');
   try {
     const results = await require('./igOutreach').runAutopilot();
-    for (const r of results) {
-      try { await emailService.sendIgDiscoveryDigest({ clientName: r.clientName, searchName: r.searchName, prospects: r.newProspects }); }
-      catch (e) { console.error('[Scheduler] IG digest email failed:', e.message); }
-    }
+    const added = results.reduce((n, r) => n + (r.newProspects ? r.newProspects.length : 0), 0);
+    if (added) console.log(`[Scheduler] IG discovery: ${added} new prospect(s) across ${results.length} search(es)`);
   } catch (e) { console.error('[Scheduler] IG autopilot failed:', e.message); }
+});
+
+// Monday 08:30 — one email covering every client's new Instagram prospects
+// from the past week. Reads found_at rather than a run's return value, so a
+// week accumulates across seven daily discovery runs rather than only the last.
+cron.schedule('30 8 * * 1', async () => {
+  console.log('[Scheduler] Sending weekly IG prospect digest...');
+  try {
+    const clients = await require('./igOutreach').recentProspectsByClient({ days: 7 });
+    const total = clients.reduce((n, c) => n + c.prospects.length, 0);
+    if (!total) { console.log('[Scheduler] IG weekly digest: nothing new, not sending'); return; }
+    await emailService.sendIgWeeklyDigest({ clients, days: 7 });
+    console.log(`[Scheduler] IG weekly digest: ${total} prospect(s) across ${clients.length} client(s)`);
+  } catch (e) { console.error('[Scheduler] IG weekly digest failed:', e.message); }
 });
 
 // PR thank-you auto-send ramp: daily at 10:00. For clients on the

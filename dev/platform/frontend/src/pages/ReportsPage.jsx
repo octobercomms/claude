@@ -192,7 +192,16 @@ export default function ReportsPage() {
                       <a href={`/pdfs/report-${r.id}.pdf`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">PDF</a>
                     )}
                     {(r.status === 'generated' || r.status === 'sent' || r.status === 'failed') && (
-                      <button onClick={() => handleResend(r.id)} className="btn btn-secondary btn-sm">{r.status === 'failed' ? 'Retry' : 'Resend'}</button>
+                      <button
+                        onClick={() => handleResend(r.id)}
+                        className={r.status === 'generated' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                        title={r.status === 'generated' ? 'This has not been sent to the client yet' : undefined}
+                      >
+                        {/* "Resend" on something that has never been sent reads as
+                            though it already went out, which on a held report is
+                            exactly the wrong impression. */}
+                        {r.status === 'failed' ? 'Retry' : r.status === 'generated' ? 'Send to client' : 'Resend'}
+                      </button>
                     )}
                     <button onClick={() => handleDelete(r.id)} className="btn btn-danger btn-sm">✕</button>
                   </div>

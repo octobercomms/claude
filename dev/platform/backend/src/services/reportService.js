@@ -18,10 +18,11 @@ const dataCollector = require('./dataCollector');
 const reportTemplate = require('./reportTemplate');
 const templateRenderer = require('./templateRenderer');
 const { toYmdLocal } = require('../utils/dates');
+const { getSetting } = require('../utils/settings');
 
 async function generateReport(reportId) {
   const { rows } = await pool.query(
-    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients, c.report_sections FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
+    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients, c.report_sections, c.review_before_send FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
     [reportId]
   );
   if (!rows.length) throw new Error(`Report ${reportId} not found`);
@@ -174,7 +175,7 @@ async function generateTemplatedReport({ report, client, period, periodStart, pe
     ? new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
     : null;
 
-  await sendReport(report.id, {
+  await deliverOrHold(report, {
     summaryHtml: `<p>${summaryText.replace(/\n/g, '<br>')}</p>`,
     summaryText,
     metrics: topMetrics,
@@ -244,7 +245,7 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   );
 
   // Send email
-  await sendReport(report.id, { summaryHtml: `<p>${executiveSummary.replace(/\n/g, '<br>')}</p>`, metrics: topMetrics });
+  await deliverOrHold(report, { summaryHtml: `<p>${executiveSummary.replace(/\n/g, '<br>')}</p>`, metrics: topMetrics });
 }
 
 async function generateWeeklyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}, chatHistory = []) {
@@ -294,7 +295,7 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
     ['generated', pdfPath, htmlContent, JSON.stringify({ summaryText, metrics, weekLabel }), report.id]
   );
 
-  await sendReport(report.id, { summaryText, metrics, weekLabel, pdfPath });
+  await deliverOrHold(report, { summaryText, metrics, weekLabel, pdfPath });
 }
 
 // Who a report of this type would actually be emailed to.
@@ -314,6 +315,54 @@ function recipientsFor(reportRecipients, reportType) {
   const list = reportType === 'monthly' ? r.monthly : r.weekly;
   if (!Array.isArray(list)) return [];
   return list.filter(a => typeof a === 'string' && a.trim());
+}
+
+// Send to the client, or stop and ask a human to read it first.
+//
+// generateReport used to call sendReport directly at each of its three paths,
+// so a scheduled report was written, rendered and delivered in one pass with
+// nobody able to read it in between. For a month where the numbers need a
+// sentence of context, the only choices were to let it go bare or to turn
+// scheduling off.
+//
+// One function rather than the same condition written three times: three
+// copies is three chances for one of them to keep auto-sending, and the one
+// that does is the one nobody notices until a client has already had it.
+async function deliverOrHold(report, overrides) {
+  if (!report.review_before_send) {
+    return sendReport(report.id, overrides);
+  }
+
+  // The report is already at status 'generated', which means rendered and not
+  // delivered. That is exactly the state wanted, so nothing moves.
+  const reviewer = (await getSetting('REPORTS_REVIEW_EMAIL'))
+    || process.env.REPORTS_REVIEW_EMAIL
+    || process.env.ALERT_EMAIL;
+
+  if (!reviewer) {
+    // Do not fall through to sending. A client with review_before_send on has
+    // been marked as one whose reports a person reads first; delivering
+    // because the reviewer address is missing would quietly do the opposite of
+    // what was asked.
+    console.warn(`[reports] ${report.id} held for review but no REPORTS_REVIEW_EMAIL configured — not sending`);
+    return { held: true, reviewer: null, reason: 'no reviewer configured' };
+  }
+
+  try {
+    await emailService.sendReportReview({
+      to: reviewer,
+      clientName: report.client_name,
+      clientId: report.client_id,
+      reportType: report.report_type,
+      period: formatPeriod(report.report_type, toYmdLocal(report.period_start), toYmdLocal(report.period_end)),
+    });
+  } catch (err) {
+    // The report is generated and waiting either way; a failed nudge should
+    // not mark it failed and invite a regeneration.
+    console.error(`[reports] review nudge for ${report.id} failed:`, err.message);
+  }
+
+  return { held: true, reviewer };
 }
 
 async function sendReport(reportId, overrides = {}) {
@@ -573,4 +622,4 @@ async function setStatus(reportId, status) {
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', [status, reportId]);
 }
 
-module.exports = { generateReport, sendReport, recipientsFor };
+module.exports = { generateReport, sendReport, recipientsFor, deliverOrHold };
