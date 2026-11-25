@@ -20,9 +20,9 @@ given to Caro at no charge; Caro carries its own running costs.
 |---|---|---|
 | Sprout Social | **£9,210.66 / year** for 3 licences | Just renewed, so roughly 12 months of runway |
 | Mailchimp | **~£6,000 / year** | Press release distribution, not marketing email. See below |
-| Roxhill | **£6,000–£6,450 + VAT / year** | Media database. Added 16 November; see the meeting report. The team defended it hardest |
+| Roxhill | **£6,891.00 + VAT / year** | Media database, renews **January**. Confirmed 25 November, £441 above the range given in the room. The team defended it hardest |
 
-About **£21,200 before VAT** across the three, but the cost is not the main fault. Three licences for a
+About **£22,101.66 before VAT**, or **£26,521.99 with it**, across the three — £1,841.81 a month. The Mailchimp figure is the soft one: approximate, given verbally, and it prices on contacts held, so it drifts. But the cost is not the main fault. Three licences for a
 team of about twenty means the tool is rationed, so most of the people who get
 asked questions by clients cannot see the numbers that answer them.
 
@@ -415,6 +415,14 @@ against a release. The missing job is **finding newly launched publications**,
 which is exactly what Anya said matters: "you've got this niche magazine and a
 new territory". Build that one watch, run it beside Roxhill for a quarter, and
 let the team judge. Do not propose dropping it first.
+
+**The renewal decides the timetable.** Roxhill renews in **January**, which is
+too close for a quarter of parallel running to have proved anything. So it
+renews for another year whatever is built, and the comparison is judged against
+**January 2028**. Nothing is lost by that: the build has a full year to be
+right, and the saving was never the argument for it. It does mean Roxhill
+cannot be the first saving, and Mailchimp can, because Mailchimp is tied to no
+renewal date.
 
 **Seven requirements, all agreed in the room:**
 

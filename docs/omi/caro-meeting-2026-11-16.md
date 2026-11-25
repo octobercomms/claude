@@ -22,9 +22,17 @@ one the team defended hardest.
 |---|---|---|
 | Sprout Social | £9,210.66 / year, 3 licences | "obviously we're very reliant on Sprout" (Anya) |
 | Mailchimp | ~£6,000 / year | "Mailchimp, I can imagine us working away from" (Tejal) |
-| **Roxhill** | **£6,000–£6,450 + VAT / year** | "I'd be a little bit worried if we got rid of it" (Anya) |
+| **Roxhill** | **£6,891.00 + VAT / year**, renews January | "I'd be a little bit worried if we got rid of it" (Anya) |
 
-**£21,200 to £21,650 before VAT**, against about £4 a month of running cost.
+**£22,101.66 before VAT, £26,521.99 with it**, against about £4 a month of
+running cost.
+
+> **Roxhill confirmed at £6,891.00 + VAT on 25 November 2026** (Daniel), £441
+> above the top of the £6,000–£6,450 range given in the room. The renewal date
+> is the part that moves the plan: January is too close for the parallel run
+> recommended below to have concluded, so Roxhill renews for another year
+> whatever happens, and the comparison proves itself against **January 2028**.
+> Mailchimp stays the first saving because it is tied to no renewal date.
 
 Tejal's summary is the one to work from: *"Mailchimp and Roxhill are the two
 biggies… Mailchimp, I can imagine us working away from, whereas Roxhill, I'd
