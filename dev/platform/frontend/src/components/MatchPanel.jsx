@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { usePrompt } from '../context/PromptContext';
 import { roWrite } from '../utils/readOnly';
 import { downloadCsv, csvSlug } from '../utils/csv';
 
@@ -46,6 +47,10 @@ function emailState(r) {
 
 export default function MatchPanel({ clientId, clientName, releases = [], readOnly }) {
   const toast = useToast();
+  // Not window.prompt: in some embedded views it shows nothing and returns
+  // null, so the save silently does not happen and the button reads as broken.
+  // tests/no-window-prompt.test.js holds the line and caught this one.
+  const ask = usePrompt();
 
   const [releaseId, setReleaseId] = useState('');
   const [url, setUrl] = useState('');
@@ -151,8 +156,14 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
   }
 
   async function saveList() {
-    const name = window.prompt('Name this media list', (brief.split('\n')[0] || '').slice(0, 80));
-    if (name === null) return;
+    const name = await ask({
+      title: 'Name this media list',
+      detail: `${exportRows.length} contact${exportRows.length === 1 ? '' : 's'}, with the story they were ranked against.`,
+      label: 'Name',
+      defaultValue: (brief.split('\n')[0] || '').slice(0, 80),
+      confirmLabel: 'Save list',
+    });
+    if (name == null) return;
     try {
       const saved = await api.post(`/pr/clients/${clientId}/media-lists`, {
         name, release_id: releaseId || null, source_url: url.trim(), source_text: brief.trim(),
