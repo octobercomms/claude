@@ -5,17 +5,17 @@
 // applies that to every route in the router using `:searchId`, whatever the
 // route is actually about.
 //
-// So the saved pitch searches, which live in a different table, cannot use
-// that name. They did for about ten minutes: `/pitch-searches/:searchId` was
+// So the media lists, which live in a different table, cannot use that name.
+// They did for about ten minutes: `/pitch-searches/:searchId` was
 // looked up in the coverage table, found nothing, and returned
 // "Search not found" for every id that existed. Nothing threw, no test
 // covered it, and the failure reads like a missing record rather than like
 // routing.
 //
-// Two tables with "search" in the name is the underlying trap, and the names
-// point in opposite directions: pr_coverage_searches is a standing query run
-// against the open web on a cadence; pr_pitch_searches is a pitch you ran by
-// hand against your own contacts, kept to run again.
+// Two things called a search in one section was the underlying trap, which is
+// why the saved Match results are now called media lists:
+// pr_coverage_searches is a standing query run against the open web on a
+// cadence, and a media list is the journalists you picked for one story.
 //
 //   node tests/pr-route-params.test.js
 
@@ -58,22 +58,22 @@ ok('the searchId resolver still reads the coverage table', () => {
     + 'was written against pr_coverage_searches and needs rethinking');
 });
 
-ok('no pitch-search route borrows the coverage resolver', () => {
-  const borrowed = paths.filter(p => p.includes('pitch-searches') && /:searchId\b/.test(p));
+ok('no media-list route borrows the coverage resolver', () => {
+  const borrowed = paths.filter(p => p.includes('media-lists') && /:searchId\b/.test(p));
   assert.deepStrictEqual(borrowed, [],
     `these routes use :searchId, so router.param('searchId') resolves them against `
     + `pr_coverage_searches and every real id 404s: ${borrowed.join(', ')}`);
 });
 
-ok('the pitch-search routes exist and use their own parameter', () => {
-  const pitch = paths.filter(p => p.includes('pitch-searches'));
-  assert.ok(pitch.length >= 3,
-    `expected the list, create, delete and ran routes; found ${pitch.length}: ${pitch.join(', ')}`);
-  const byId = pitch.filter(p => /\/pitch-searches\/:/.test(p));
-  assert.ok(byId.length >= 2, 'no by-id pitch-search routes found');
+ok('the media-list routes exist and use their own parameter', () => {
+  const lists = paths.filter(p => p.includes('media-lists'));
+  assert.ok(lists.length >= 4,
+    `expected the list, create, read, ran and delete routes; found ${lists.length}: ${lists.join(', ')}`);
+  const byId = lists.filter(p => /\/media-lists\/:/.test(p));
+  assert.ok(byId.length >= 3, 'no by-id media-list routes found');
   for (const p of byId) {
-    assert.ok(/:pitchSearchId\b/.test(p),
-      `${p} does not use :pitchSearchId, so it is either colliding or inventing a third name`);
+    assert.ok(/:listId\b/.test(p),
+      `${p} does not use :listId, so it is either colliding or inventing a second name`);
   }
 });
 

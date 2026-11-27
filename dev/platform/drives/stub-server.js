@@ -307,6 +307,17 @@ const API = {
       last_error: null, matched: 9, unsubscribed: 0, ooo_queued: 0 },
   ] },
   // ── Earned + Produce, enough to open one record of every searchable kind ──
+  '/api/pr/clients/c1/media-lists': { items: [
+    { id: 'ml1', name: 'Margate workshop', member_count: 2, last_run_at: '2026-11-14T10:00:00Z', source_text: 'A Margate studio opens its first public workshop.', source_url: '', release_id: null, mode: 'semantic' },
+  ] },
+  '/api/pr/media-lists/ml1': {
+    id: 'ml1', name: 'Margate workshop', source_text: 'A Margate studio opens its first public workshop.',
+    source_url: '', release_id: null, mode: 'semantic',
+    // Anna was on the list last time; Tom and Imogen were not, so a re-run
+    // has to mark those two as new and leave Anna unmarked.
+    members: [{ contact_id: 'jm1', name: 'Anna Fitzgerald', rank: 1, fit: 90 }],
+  },
+  '/api/press/releases/p1/segments': { segments: [{ id: 'seg1', name: 'Trade press' }] },
   '/api/pr/clients/c1/press-releases': { items: [
     { id: 'p1', title: 'Atlas launch coverage', status: 'draft', updated_at: new Date().toISOString() },
     { id: 'p2', title: 'Second release', status: 'draft', updated_at: new Date().toISOString() },
@@ -1085,6 +1096,37 @@ const handler = (req, res) => {
         'Access-Control-Expose-Headers': 'X-Report-Posts, X-Report-Via-Omi, X-Report-Connected',
       });
       res.end(pdf);
+    });
+  }
+  if (url === '/api/pr/clients/c1/pitch-match' && req.method === 'POST') {
+    let raw = ''; req.on('data', c => raw += c);
+    return req.on('end', () => {
+      fs.appendFileSync(path.join(__dirname, 'pitch-match.log'), raw + '\n');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        angle: 'A Margate studio opens its first public workshop.',
+        terms: ['architecture', 'coastal'], mode: 'semantic', degraded: [],
+        items: [
+          { id: 'jm1', name: 'Anna Fitzgerald', email: 'anna@dezeen.com', verification_status: 'verified',
+            outlet: 'Dezeen', tier: 1, fit: 92, matched: ['architecture'], covered_client: true,
+            has_email: true, reason: 'Covers UK practices opening public spaces.', agreed: true },
+          { id: 'jm2', name: 'Tom Hale', email: 'tom@wallpaper.com', verification_status: 'guessed',
+            outlet: 'Wallpaper*', tier: 1, fit: 81, matched: ['coastal'], covered_client: false,
+            has_email: true, reason: '', agreed: false },
+          { id: 'jm3', name: 'Imogen Clarke', email: '', verification_status: null,
+            outlet: 'FT Weekend', tier: 1, fit: null, matched: [], covered_client: false,
+            has_email: false, reason: 'Writes the seaside regeneration column.', agreed: false },
+        ],
+      }));
+    });
+  }
+  if (/^\/api\/press\/segments\/[^/]+\/members$/.test(url) && req.method === 'POST') {
+    let raw = ''; req.on('data', c => raw += c);
+    return req.on('end', () => {
+      fs.appendFileSync(path.join(__dirname, 'segment-members.log'), raw + '\n');
+      const ids = (JSON.parse(raw || '{}').contact_ids) || [];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ added: ids.length, conflicts: [] }));
     });
   }
   if (url === '/__report') {
