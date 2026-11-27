@@ -314,6 +314,16 @@ jobs:
       # internally would ever see.
       - name: Guard — edits reach the PDF and the email, and nothing else
         run: node tests/report-edits.test.js
+      # A route parameter name in pr.js selects a lookup, not just a label.
+      # router.param('searchId') resolves against pr_coverage_searches and
+      # 404s when the id is not there, and Express applies it to every route
+      # in the router using that name. The saved pitch searches live in
+      # another table, so /pitch-searches/:searchId returned "Search not
+      # found" for every id that existed — nothing threw, and the failure
+      # reads like a missing record rather than like routing. Two tables with
+      # "search" in the name is the trap underneath it.
+      - name: Guard — a route does not borrow another resource's id resolver
+        run: node tests/pr-route-params.test.js
       # "Infer from payments" read acct_reconcile_queue, which connectors
       # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
       # payment that was made and then reconciled never enters it, so the one
