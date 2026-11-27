@@ -346,6 +346,18 @@ jobs:
       # at.
       - name: Guard — every match carries a fit, in both modes
         run: node tests/journalist-match-fit.test.js
+      # Match ranks only the contacts you already hold, so "who should I pitch
+      # this to" quietly meant "the best of whoever you happen to have". The
+      # scheduled scout searches the web, but it briefs on a CLIENT and asks
+      # for "MORE journalists on these and adjacent beats" — right for a
+      # standing sweep, circular for a project: a client with no Gulf
+      # architecture press is never sent to look for Gulf architecture press,
+      # because there is none on the list to be adjacent to. The story brief
+      # exists for that, and if it ever collapses back into the client brief
+      # the search still runs, still returns real bylines, and still looks
+      # like it worked while answering a different question.
+      - name: Guard — a story search is not a client sweep
+        run: node tests/scout-story.test.js
       # "Infer from payments" read acct_reconcile_queue, which connectors
       # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
       # payment that was made and then reconciled never enters it, so the one

@@ -82,7 +82,9 @@ const ranked = (id, name, fit, over = {}) => ({
 });
 const reasoned = (id, name, over = {}) => ({
   id, name, outlet: 'Dezeen', tier: 1, reason: 'Covers UK practices.',
-  strength_label: 'warm', published_for_client: 0, has_email: true, ...over,
+  strength_label: 'warm', published_for_client: 0, has_email: true,
+  email: `${name.toLowerCase().replace(/\W+/g, '.')}@example.com`,
+  verification_status: 'verified', ...over,
 });
 
 (async () => {
@@ -147,8 +149,29 @@ const reasoned = (id, name, over = {}) => ({
 
   reset();
   rankedResult = { terms: [], mode: 'keyword', items: [ranked('a', 'Anna', 60)] };
-  reasonedResult = { angle: '', targets: [reasoned('z', 'Zoe', { has_email: false, tier: 1 })] };
+  // Zoe has no address; Wendy has one. Only the second case can show whether
+  // the address survives the merge, and the first version of this test had
+  // only Zoe, so its loop ran over nothing and asserted nothing.
+  reasonedResult = { angle: '', targets: [
+    reasoned('z', 'Zoe', { has_email: false, email: '', tier: 1 }),
+    reasoned('w', 'Wendy', { email: 'wendy@ft.com' }),
+  ] };
   const noEmail = await pitchMatch.combined({ clientId: 'c1', brief: 'story' });
+
+  ok('a contact only Claude found keeps the address that is on file', () => {
+    // prTarget reads c.email out of the database and used to return only a
+    // has_email boolean, so a journalist it picked showed blank in the list
+    // and in the export even though the address was held. Spotted from the
+    // export: "i also know i have emails for some of them".
+    const wendy = noEmail.items.find(i => i.id === 'w');
+    assert.ok(wendy, 'the Claude-only contact with an address is missing from the list entirely');
+    assert.strictEqual(wendy.email, 'wendy@ft.com',
+      'the address was dropped on the way through, so the row reads blank and the export is blank '
+      + 'for someone whose address is in the database');
+    assert.strictEqual(wendy.has_email, true);
+    assert.strictEqual(wendy.verification_status, 'verified',
+      'the verification state did not travel, so a guessed address cannot be flagged as a guess');
+  });
 
   ok('a contact with no email on file is kept, not dropped', () => {
     const zoe = noEmail.items.find(i => i.id === 'z');
@@ -160,9 +183,14 @@ const reasoned = (id, name, over = {}) => ({
     assert.strictEqual(zoe.email, '');
   });
 
-  ok('but sits below the ones you can actually email', () => {
+  ok('but sits below the scored rows', () => {
+    // Anna is the only scored row, so she leads. Wendy and Zoe are both
+    // unscored and tie on everything but name.
     assert.strictEqual(noEmail.items[0].id, 'a');
-    assert.strictEqual(noEmail.items[1].id, 'z');
+    const unscored = noEmail.items.slice(1).map(i => i.id);
+    assert.deepStrictEqual(unscored, ['w', 'z'],
+      `unscored rows came back as ${unscored.join(', ')}; they should follow the scored ones, `
+      + 'ordered by name when nothing else separates them');
   });
 
   ok('a row with no score does not read as a zero fit', () => {
@@ -263,6 +291,43 @@ const reasoned = (id, name, over = {}) => ({
     assert.strictEqual(usableEmail('anna@dezeen.com'), true);
     assert.strictEqual(usableEmail(''), false);
     assert.strictEqual(usableEmail(null), false);
+  });
+
+  // ── when the ranking has nothing to offer ────────────────────────────────
+
+  reset();
+  // Top score 39%, which is what a trip-logistics brief actually produced
+  // against this client's book.
+  rankedResult = { terms: [], mode: 'semantic', items: [ranked('a', 'Anna', 39), ranked('b', 'Ben', 35)] };
+  reasonedResult = { angle: '', targets: [reasoned('w', 'Wainwright', { email: '', has_email: false })] };
+  const weakRun = await pitchMatch.combined({ clientId: 'c1', brief: 'story' });
+
+  ok('a weak top score puts the reasoned picks first', () => {
+    // Measured on two real runs: a logistics brief topped out at 39% and
+    // returned travel-trade press, with the only usable names — the
+    // Guardian's architecture critic and two SCMP writers — buried at the
+    // bottom behind a Manchester nightlife blog that matched no topic.
+    assert.strictEqual(weakRun.items[0].id, 'w',
+      `${weakRun.items[0].name} led a 39% run; below the floor the ranking's order is noise and `
+      + 'the reasoned picks are the only usable list');
+    assert.strictEqual(weakRun.weak, true);
+    assert.strictEqual(weakRun.top_fit, 39);
+  });
+
+  reset();
+  rankedResult = { terms: [], mode: 'semantic', items: [ranked('a', 'Anna', 51)] };
+  reasonedResult = { angle: '', targets: [reasoned('w', 'Wainwright', { email: '', has_email: false })] };
+  const strongRun = await pitchMatch.combined({ clientId: 'c1', brief: 'story' });
+
+  ok('a healthy top score leaves the scored rows in front', () => {
+    assert.strictEqual(strongRun.items[0].id, 'a',
+      'the reasoned picks jumped the queue on a run the ranking handled well');
+    assert.strictEqual(strongRun.weak, false);
+  });
+
+  ok('the floor is a stated number, not a feeling', () => {
+    assert.strictEqual(pitchMatch._internals.WEAK_FIT, 50,
+      'moving the floor changes which runs reorder; it should be a deliberate edit');
   });
 
   // ── the cap ───────────────────────────────────────────────────────────────

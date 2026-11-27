@@ -90,7 +90,7 @@ async function findTargets({ clientId, url, brief, visibleClientIds = null }) {
   }
   const { rows } = await db.query(
     `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email, c.beats, c.topics,
-            c.enrichment_note, c.availability_status, o.name AS outlet, o.tier,
+            c.enrichment_note, c.availability_status, c.verification_status, o.name AS outlet, o.tier,
             COUNT(l.id) FILTER (WHERE l.status IN ('published','download')) AS published,
             MAX(CASE WHEN l.status IN ('published','download') THEN COALESCE(l.issue_date, l.request_date) END) AS last_featured
        FROM outreach_contacts c
@@ -138,7 +138,13 @@ async function findTargets({ clientId, url, brief, visibleClientIds = null }) {
   const targets = (d.targets || [])
     .map((t) => ({ ...(byId[t.id] || {}), reason: String(t.reason || '').slice(0, 300) }))
     .filter((t) => t.id)
-    .map((t) => ({ id: t.id, name: t.name, outlet: t.outlet || '', tier: t.tier || '', strength: t.strength, strength_label: t.strength_label, published_for_client: +t.published || 0, last_featured: t.last_featured, has_email: !!(t.email && !/@import\.local$/i.test(t.email)), reason: t.reason }));
+    .map((t) => ({ id: t.id, name: t.name, outlet: t.outlet || '', tier: t.tier || '', strength: t.strength, strength_label: t.strength_label, published_for_client: +t.published || 0, last_featured: t.last_featured, has_email: !!(t.email && !/@import\.local$/i.test(t.email)),
+      // The address itself, not only whether there is one. Returning the
+      // boolean alone meant a contact this engine picked showed blank in the
+      // merged list and in the export even though the address was on file —
+      // it was read out of the database two lines above and thrown away.
+      email: t.email || '', verification_status: t.verification_status || null,
+      reason: t.reason }));
   return { angle, keywords, targets };
 }
 

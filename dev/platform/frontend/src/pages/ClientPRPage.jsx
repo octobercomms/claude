@@ -887,7 +887,8 @@ export default function ClientPRPage() {
   // with two boxes to paste the same release into; /pitch-match runs both
   // engines and merges them. See components/MatchPanel.jsx.
   const renderMatch = () => (
-    <MatchPanel clientId={id} clientName={client?.name} releases={releases} readOnly={readOnly} />
+    <MatchPanel clientId={id} clientName={client?.name} releases={releases} readOnly={readOnly}
+      onOpenJournalist={(jid) => setProfileTarget({ type: 'journalist', id: jid })} />
   );
 
   const renderFind = () => (

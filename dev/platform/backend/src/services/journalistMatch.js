@@ -118,8 +118,20 @@ async function matchSemantic(text, { visibleClientIds = null, clientId = null, l
     scored.push({
       id: r.id, name: r.name, email: r.email, verification_status: r.verification_status,
       outlet: r.outlet || '', tier: r.tier || null,
-      fit: Math.round(sim * 100), score,
-      matched: matched.length ? matched : [...new Set(topics)].slice(0, 3),
+      // The number shown has to be the number sorted on. This was the raw
+      // similarity while the ordering used `score`, which adds the bonuses
+      // below — so a row could sit above one with a higher displayed fit and
+      // the column looked arbitrary.
+      fit: Math.min(100, Math.round(score * 100)), score,
+      // Real matches only. This used to fall back to the journalist's own
+      // first three topics whenever nothing matched, so a row that matched on
+      // nothing advertised three matches: a Manchester music-and-nightlife
+      // writer appeared ninth on a Shenzhen architecture story showing
+      // "manchester music events" as though that were why.
+      matched,
+      // Their beat, carried separately so a caller can say what someone
+      // covers without claiming it as the reason they are in the list.
+      topics: [...new Set(topics)].slice(0, 4),
       covered_client: !!r.covered_client, last_article: r.last_article,
     });
   }
@@ -183,6 +195,11 @@ async function matchKeyword(text, { visibleClientIds = null, clientId = null, li
       id: r.id, name: r.name, email: r.email, verification_status: r.verification_status,
       outlet: r.outlet || '', tier: r.tier || null,
       score, matched: [...new Set(matched)],
+      // Same shape as the semantic ranker: what they cover, kept apart from
+      // what matched. Here a row cannot reach this point without a real
+      // match, but a caller should not have to know which ranker it came
+      // from to read the fields.
+      topics: [...new Set([...(Array.isArray(r.beats) ? r.beats : []), ...(Array.isArray(r.topics) ? r.topics : []), ...(Array.isArray(r.auto_topics) ? r.auto_topics : [])])].slice(0, 4),
       covered_client: !!r.covered_client,
       last_article: r.last_article,
     });
