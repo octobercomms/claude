@@ -112,6 +112,27 @@
   --fs-title: 18px;    /* card & section headings */
   --fs-section: 24px;  /* bigger section heads / sub-hero */
   --fs-display: 40px;  /* page titles + hero KPI numbers */
+
+  /* Weights for the type scale, and only for it.
+   *
+   * Everything else in this file, and the 688 inline fontWeight values across
+   * the components, stays a literal number. Those are local emphasis — a bold
+   * figure in a table cell — and making every one of them configurable would
+   * be a different product. These ten are the roles that decide how the
+   * interface reads, which is what the Settings editor governs.
+   *
+   * Changed in one place so an override can land on :root at runtime without
+   * touching a stylesheet. */
+  --fw-display: 700;  /* 800 has no Brockmann file; it rendered as 700 */
+  --fw-h1: 700;
+  --fw-h2: 700;
+  --fw-h3: 600;
+  --fw-body: 400;
+  --fw-body-sm: 400;
+  --fw-body-xs: 400;
+  --fw-caption: 700;
+  --fw-metric: 700;
+  --fw-kicker: 700;
   /* Component spacing rhythm — air between components, tight within atoms. */
   --pad-page: 24px; --pad-card: 22px; --gap-comp: 20px;
   /* Text/link hover — dim to subtle grey, never colour. */
@@ -275,20 +296,34 @@ button { font-family: inherit; }
 /* ─── Type ───────────────────────────────────────────────────────── */
 
 .display {
-  font-size: var(--fs-display); font-weight: 800; line-height: 1;
+  font-size: var(--fs-display); font-weight: var(--fw-display); line-height: 1;
   letter-spacing: -1.6px; color: var(--text); margin: 0;
 }
 
-.h1 { font-size: var(--fs-section); font-weight: 700; line-height: 1.15; letter-spacing: -0.6px; color: var(--text); margin: 0; }
-.h2 { font-size: var(--fs-section); font-weight: 700; line-height: 1.2; letter-spacing: -0.3px; color: var(--text); margin: 0; }
-.h3 { font-size: var(--fs-body); font-weight: 600; line-height: 1.3; color: var(--text); margin: 0; }
+/* The one place in OMI where the type scale is pinned.
+   This card is how a scale gets undone, so it has to stay readable however
+   broken the scale is — including a 10px caption set by the fields inside it.
+   Sizes only: a 400 heading weight is still legible, and pinning the weights
+   would stop the card previewing a weight change at all. The specimen inside
+   re-declares the draft values on itself. Do not "fix" this. */
+.type-editor {
+  --fs-caption: 12px;
+  --fs-body: 14px;
+  --fs-title: 18px;
+  --fs-section: 24px;
+  --fs-display: 40px;
+}
 
-.body    { font-size: var(--fs-body); font-weight: 400; line-height: 1.55; color: var(--text-muted); margin: 0; }
-.body-sm { font-size: var(--fs-body); font-weight: 400; line-height: 1.5;  color: var(--text); margin: 0; }
-.body-xs { font-size: var(--fs-caption); font-weight: 400; line-height: 1.4;  color: var(--text-muted); margin: 0; }
+.h1 { font-size: var(--fs-section); font-weight: var(--fw-h1); line-height: 1.15; letter-spacing: -0.6px; color: var(--text); margin: 0; }
+.h2 { font-size: var(--fs-section); font-weight: var(--fw-h2); line-height: 1.2; letter-spacing: -0.3px; color: var(--text); margin: 0; }
+.h3 { font-size: var(--fs-body); font-weight: var(--fw-h3); line-height: 1.3; color: var(--text); margin: 0; }
+
+.body    { font-size: var(--fs-body); font-weight: var(--fw-body); line-height: 1.55; color: var(--text-muted); margin: 0; }
+.body-sm { font-size: var(--fs-body); font-weight: var(--fw-body-sm); line-height: 1.5;  color: var(--text); margin: 0; }
+.body-xs { font-size: var(--fs-caption); font-weight: var(--fw-body-xs); line-height: 1.4;  color: var(--text-muted); margin: 0; }
 
 .caption {
-  font-size: var(--fs-caption); font-weight: 700; letter-spacing: 1.4px;
+  font-size: var(--fs-caption); font-weight: var(--fw-caption); letter-spacing: 1.4px;
   text-transform: uppercase; color: var(--text); margin: 0;
 }
 .caption-muted { color: var(--text-subtle); }
@@ -299,7 +334,7 @@ button { font-family: inherit; }
 .text-dark   { color: var(--text); }
 
 .metric {
-  font-size: var(--fs-display); font-weight: 700; line-height: 1.05;
+  font-size: var(--fs-display); font-weight: var(--fw-metric); line-height: 1.05;
   letter-spacing: -0.6px; color: var(--text);
 }
 
@@ -307,7 +342,7 @@ button { font-family: inherit; }
 /* Tracked uppercase context line that sits above a page hero. */
 .kicker {
   display: flex; align-items: center; gap: var(--s3);
-  font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.18em;
+  font-size: var(--fs-caption); font-weight: var(--fw-kicker); letter-spacing: 0.18em;
   text-transform: uppercase; color: var(--text-subtle);
   margin-bottom: var(--s3);
 }

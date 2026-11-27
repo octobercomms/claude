@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { setApiReadOnly } from '../utils/api';
+import { loadScale, forgetScale } from '../utils/typeScale';
 
 const AuthContext = createContext(null);
 
@@ -22,7 +23,7 @@ export function AuthProvider({ children }) {
     // redirect-to-login — on the login page that would loop.
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then(u => setUser(u))
+      .then(u => { setUser(u); loadScale(); })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
@@ -31,12 +32,17 @@ export function AuthProvider({ children }) {
   // cookie server-side and returned the user).
   function login(u) {
     setUser(u);
+    // Their own scale, not whatever the last person on this browser had.
+    loadScale();
   }
 
   function logout() {
     // Clear the cookie server-side; ignore failures (we still drop local state).
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     setUser(null);
+    // Otherwise the next login boots with the previous user's font sizes until
+    // the fetch comes back.
+    forgetScale();
   }
 
   return (

@@ -4,6 +4,12 @@ import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import './styles/tailwind.css';
+import { applyCachedScale } from './utils/typeScale';
+
+// Before the first paint. The type scale lives in CSS custom properties on
+// :root, so applying a saved one after React has mounted resizes every
+// heading and table a beat after they appear.
+applyCachedScale();
 
 // Browser-level safety nets — unhandled errors and promise rejections
 // outside the React tree (event handlers attached imperatively, async

@@ -4410,3 +4410,61 @@ rules.
 - The Chrome extension is strictly read-only. It must never write to Xero.
   Xero Developer Platform Terms require this. If someone asks for write
   capability, the answer is no.
+
+---
+
+## 16. The type scale, and what the design system does not actually ship
+
+Added 27 November, building the text size editor (Settings → Appearance).
+Four facts here cost measurement to establish, and each is invisible from the
+code.
+
+**Brockmann ships four weights: 400, 500, 600, 700.** Nothing else. Render the
+same string at 300 through 900 in headless Chromium and hash the pixels: 300 is
+identical to 400, and 800 and 900 are both identical to 700. `--fw-display` was
+800 and has always rendered at 700, as do the 34 literal `font-weight: 800`
+declarations in `index.css` and the 49 inline ones. The brand style guide's type
+table still says "Display 800 / Metric 700 to 800"; it is describing a weight the
+webfont cannot produce.
+
+Do not measure this with advance widths. Brockmann's weights are
+metric-compatible — same widths, different shapes — so width says there are two
+weights when there are four. Screenshot the element and compare the bytes.
+
+**There is no `--border` token.** It is `--card-border`. An undefined custom
+property does not fall back to anything: it invalidates the whole declaration,
+which the browser then drops in silence. `border: 1.5px solid var(--border)`
+produces no border, no console warning and no build error. Four preset buttons
+shipped looking like plain text because of it, and only a screenshot showed it.
+
+**48 places reference size tokens that do not exist** — `--fs-body-sm` (39),
+`--fs-h3` (8), `--fs-h1` (1). Measured in the browser they render at 16px, the
+inherited browser default. They follow nothing, including the text size editor.
+Declaring the three as aliases in `:root` would fix all 48 and resize screens
+that are already signed off, so it is Daniel's call, not a tidy-up.
+
+**`.type-editor` in `index.css` is load-bearing and nothing says so.** It
+re-declares the five size tokens at the house defaults so the editor card stays
+readable when the scale it controls is set to 10px. Delete it and all 28 unit
+tests still pass; the only thing that catches it is `drives/drive-type-scale.mjs`
+measuring the card while the page around it is wrecked. If you touch it, run that
+drive — and rebuild `frontend/dist` first, because the drives serve the built
+bundle and a stale `dist` will show you the previous state for an hour.
+
+**Weights are tokenised for the nine role classes only.** 344 places in JSX write
+a size token next to a literal `fontWeight`, 116 of them `--fs-caption` + 700,
+which is `.caption` by any other name. They follow the size fields perfectly and
+ignore the weight fields completely. Sweeping them is option 2 from the 27 Nov
+scoping question and was not chosen; if it is ever picked up, the mapping that
+costs no pixels is caption+700 → `--fw-caption`, body+600 → `--fw-h3`,
+section+700/800 → `--fw-h1`, display+700/800 → `--fw-metric`, caption+400 →
+`--fw-body-xs`, which covers 193 of the 344. The rest (body+700, caption+600,
+title+700) have no matching role and would need new tokens.
+
+**Where the values live.** The catalogue of tokens, bounds and the four named
+steps is `backend/src/services/typeScale.js` — one list, asserted against the
+`:root` block in `index.css` by `tests/type-scale.test.js`. Add a token to the
+CSS and forget the catalogue and the editor renders one field fewer, looking
+complete. The house default is one plain-JSON row in `platform_settings`
+(`UI_TYPE_SCALE`, deliberately not encrypted — a rotated `ENCRYPTION_KEY` would
+silently drop it) and the per-user override is `users.ui_prefs`.
