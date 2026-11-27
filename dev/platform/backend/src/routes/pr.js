@@ -1326,92 +1326,146 @@ router.post('/clients/:clientId/pitch-targets', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
-// ── Saved pitch searches ─────────────────────────────────────────────────────
+// ── Media lists ──────────────────────────────────────────────────────────────
 //
-// A pitch you ran by hand, kept so it can be run again. Only the query is
-// stored: the answer is meant to change as the contact database learns new
-// beats and bylines, which is the entire reason to re-run one.
+// The journalists picked for one story, kept. Called a media list rather than
+// a saved search because Earned already has saved searches two rows away —
+// pr_coverage_searches, the coverage monitor — and one section with two
+// meanings for one phrase makes "re-run the saved search" ambiguous.
 //
-// Not to be confused with /clients/:clientId/searches, which is the coverage
-// MONITOR — a standing query run on a cadence against the open web. The two
-// point in opposite directions and both have "search" in the name.
+// The query is stored so a re-run reproduces the search; the members are
+// stored because who you pitched must not change retroactively when the
+// database learns something afterwards, and because a re-run can only say
+// what is NEW against a record of what was there before.
 
-// The param is `pitchSearchId`, not `searchId`, deliberately. This router
-// already registers router.param('searchId'), which looks the id up in
-// pr_coverage_searches and 404s when it is not there — it would fire on these
-// routes too and reject every pitch search against the wrong table.
-async function pitchSearchForCaller(req, res) {
-  const { rows } = await db.query('SELECT * FROM pr_pitch_searches WHERE id = $1', [req.params.pitchSearchId]);
-  if (!rows.length) { res.status(404).json({ error: 'Saved search not found' }); return null; }
+async function mediaListForCaller(req, res) {
+  const { rows } = await db.query('SELECT * FROM media_lists WHERE id = $1', [req.params.listId]);
+  if (!rows.length) { res.status(404).json({ error: 'Media list not found' }); return null; }
   try { assertClientAccess(req, rows[0].client_id); }
   catch (e) { res.status(e.status || 403).json({ error: e.message }); return null; }
   return rows[0];
 }
 
-router.get('/clients/:clientId/pitch-searches', async (req, res) => {
+router.get('/clients/:clientId/media-lists', async (req, res) => {
   try {
-    // No access check here: the router applies requireClientAccess for
-    // :clientId to everything below it.
     const { rows } = await db.query(
-      `SELECT id, label, url, brief, created_by, last_run_at, run_count, created_at
-         FROM pr_pitch_searches
-        WHERE client_id = $1
-        ORDER BY COALESCE(last_run_at, created_at) DESC`,
+      `SELECT l.id, l.name, l.release_id, l.source_url, l.source_text, l.mode,
+              l.created_by, l.last_run_at, l.run_count, l.created_at,
+              COUNT(m.contact_id)::int AS member_count
+         FROM media_lists l
+         LEFT JOIN media_list_members m ON m.list_id = l.id
+        WHERE l.client_id = $1
+        GROUP BY l.id
+        ORDER BY COALESCE(l.last_run_at, l.created_at) DESC`,
       [req.params.clientId]
     );
     res.json({ items: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/clients/:clientId/pitch-searches', async (req, res) => {
+router.post('/clients/:clientId/media-lists', async (req, res) => {
+  const client = await db.connect();
   try {
     const b = req.body || {};
-    const url = String(b.url || '').trim().slice(0, 2000);
-    const brief = String(b.brief || '').trim().slice(0, 20000);
-    if (!url && !brief) {
-      return res.status(400).json({ error: 'Nothing to save — a saved search needs a URL or a brief' });
+    const url = String(b.source_url || '').trim().slice(0, 2000);
+    const text = String(b.source_text || '').trim().slice(0, 20000);
+    if (!url && !text) {
+      return res.status(400).json({ error: 'Nothing to save — a list needs the story it was built from' });
     }
-    // A label the operator recognises next month. Falling back to the first
-    // line of the brief beats "Untitled search": a list of those is a list
-    // nobody opens.
-    const label = (String(b.label || '').trim()
-      || brief.split('\n')[0].trim()
-      || url).slice(0, 200);
-    const { rows } = await db.query(
-      `INSERT INTO pr_pitch_searches (client_id, label, url, brief, created_by)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id, label, url, brief, created_by, last_run_at, run_count, created_at`,
-      [req.params.clientId, label, url, brief, req.user?.username || null]
+    const members = Array.isArray(b.members) ? b.members.slice(0, 500) : [];
+    // A name the operator recognises next month. The first line of the story
+    // beats "Untitled list": a list of those is a list nobody opens.
+    const name = (String(b.name || '').trim() || text.split('\n')[0].trim() || url).slice(0, 200);
+
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO media_lists (client_id, name, release_id, source_url, source_text, mode, created_by, last_run_at, run_count)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),1) RETURNING *`,
+      [req.params.clientId, name, b.release_id || null, url, text, b.mode || null, req.user?.username || null]
     );
-    res.status(201).json(rows[0]);
-  } catch (err) { res.status(400).json({ error: err.message }); }
+    const list = rows[0];
+    for (const [i, m] of members.entries()) {
+      if (!m || !m.contact_id) continue;
+      await client.query(
+        `INSERT INTO media_list_members (list_id, contact_id, rank, fit, reason)
+         VALUES ($1,$2,$3,$4,$5) ON CONFLICT (list_id, contact_id) DO NOTHING`,
+        [list.id, m.contact_id, i + 1, m.fit ?? null, m.reason || null]
+      );
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ ...list, member_count: members.length });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(400).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
-router.delete('/pitch-searches/:pitchSearchId', async (req, res) => {
+// One list and who was on it, so a re-run can mark what is new.
+router.get('/media-lists/:listId', async (req, res) => {
   try {
-    const found = await pitchSearchForCaller(req, res);
-    if (!found) return;
-    await db.query('DELETE FROM pr_pitch_searches WHERE id = $1', [req.params.pitchSearchId]);
+    const list = await mediaListForCaller(req, res);
+    if (!list) return;
+    const { rows } = await db.query(
+      `SELECT m.contact_id, m.rank, m.fit, m.reason, m.snapshot_at,
+              TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email, o.name AS outlet
+         FROM media_list_members m
+         JOIN outreach_contacts c ON c.id = m.contact_id
+         LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+        WHERE m.list_id = $1
+        ORDER BY m.rank NULLS LAST`,
+      [list.id]
+    );
+    res.json({ ...list, members: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Re-run: record it, and replace the snapshot only when asked to. Replacing
+// it by default would erase the record of who the list held when it was last
+// acted on, which is the thing "what is new since last time" compares against.
+router.post('/media-lists/:listId/ran', async (req, res) => {
+  const client = await db.connect();
+  try {
+    const list = await mediaListForCaller(req, res);
+    if (!list) return;
+    const members = Array.isArray(req.body?.members) ? req.body.members.slice(0, 500) : null;
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE media_lists SET last_run_at = NOW(), run_count = run_count + 1, mode = COALESCE($2, mode)
+        WHERE id = $1 RETURNING id, last_run_at, run_count, mode`,
+      [list.id, req.body?.mode || null]
+    );
+    if (members) {
+      await client.query('DELETE FROM media_list_members WHERE list_id = $1', [list.id]);
+      for (const [i, m] of members.entries()) {
+        if (!m || !m.contact_id) continue;
+        await client.query(
+          `INSERT INTO media_list_members (list_id, contact_id, rank, fit, reason)
+           VALUES ($1,$2,$3,$4,$5) ON CONFLICT (list_id, contact_id) DO NOTHING`,
+          [list.id, m.contact_id, i + 1, m.fit ?? null, m.reason || null]
+        );
+      }
+    }
+    await client.query('COMMIT');
+    res.json(rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(400).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete('/media-lists/:listId', async (req, res) => {
+  try {
+    const list = await mediaListForCaller(req, res);
+    if (!list) return;
+    await db.query('DELETE FROM media_lists WHERE id = $1', [list.id]);
     res.json({ deleted: 1 });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
-// Record that a saved search was run, so the list orders by what is actually
-// in use rather than by when each was first written.
-router.post('/pitch-searches/:pitchSearchId/ran', async (req, res) => {
-  try {
-    const found = await pitchSearchForCaller(req, res);
-    if (!found) return;
-    const { rows } = await db.query(
-      `UPDATE pr_pitch_searches
-          SET last_run_at = NOW(), run_count = run_count + 1
-        WHERE id = $1
-        RETURNING id, last_run_at, run_count`,
-      [req.params.pitchSearchId]
-    );
-    res.json(rows[0]);
-  } catch (err) { res.status(400).json({ error: err.message }); }
-});
 
 // ── Thank-yous (assisted) ────────────────────────────────────────────────────
 // Published pieces with a known journalist email, not yet thanked or skipped.

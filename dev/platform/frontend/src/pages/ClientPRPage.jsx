@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useScreen } from '../hooks/useScreen';
 import { useOpenOnce, useOpenState, useViewParam } from '../hooks/useOpenRecord';
 import PressReleaseEditor from '../components/PressReleaseEditor';
+import MatchPanel from '../components/MatchPanel';
 import WritingStandardDrawer from '../components/WritingStandardDrawer';
 import { usePrompt } from '../context/PromptContext';
 import PillarMeasure from '../components/PillarMeasure';
@@ -132,11 +133,6 @@ export default function ClientPRPage() {
   const [suggestions, setSuggestions] = useState([]);
   const [scoutBusy, setScoutBusy] = useState(false);
   const [selSugg, setSelSugg] = useState(() => new Set());
-  const [matchText, setMatchText] = useState('');
-  const [matchItems, setMatchItems] = useState([]);
-  const [matchTerms, setMatchTerms] = useState([]);
-  const [matchMode, setMatchMode] = useState(null);
-  const [matchBusy, setMatchBusy] = useState(false);
   // Press campaigns live here in Earned → Pitch (the front door). The full
   // send/preview/autopilot/results view is the PressCampaignDetail component.
   const [pressReleases, setPressReleases] = useState([]);
@@ -191,20 +187,6 @@ export default function ClientPRPage() {
   const [drafting, setDrafting] = useState(false);
   const [sendingThank, setSendingThank] = useState(false);
   const [thankSettings, setThankSettings] = useState(null); // { thank_stage, stages, record }
-  const [pitch, setPitch] = useState({ url: '', brief: '' });
-  const [pitchLoading, setPitchLoading] = useState(false);
-  const [pitchResult, setPitchResult] = useState(null);
-
-  async function findTargets() {
-    if (!pitch.url.trim() && !pitch.brief.trim()) { toast('Paste a press-release URL or a brief', 'error'); return; }
-    setPitchLoading(true); setPitchResult(null);
-    try {
-      const r = await api.post(`/pr/clients/${id}/pitch-targets`, { url: pitch.url.trim(), brief: pitch.brief.trim() });
-      if (r.error) { toast(r.error, 'error'); return; }
-      setPitchResult(r);
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setPitchLoading(false); }
-  }
   const [releases, setReleases] = useState([]);
   const [pr, setPr] = useState(null); // null | release row being edited
   const [prSaving, setPrSaving] = useState(false);
@@ -391,18 +373,6 @@ export default function ClientPRPage() {
   }
   function loadSuggestions() {
     api.get(`/pr/clients/${id}/journalist-suggestions`).then((r) => setSuggestions(r.items || [])).catch(() => {});
-  }
-  async function runMatch() {
-    if (matchText.trim().length < 20) { toast('Paste the release or a sentence about the story first.', 'error'); return; }
-    setMatchBusy(true);
-    try {
-      const r = await api.post('/pr/match-journalists', { text: matchText, client_id: id, limit: 40 });
-      setMatchTerms(r.terms || []);
-      setMatchMode(r.mode || null);
-      setMatchItems(r.items || []);
-      if (!(r.items || []).length) toast('No strong matches yet — the more the feeds learn, the better this gets.', 'info');
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setMatchBusy(false); }
   }
   async function runScout() {
     setScoutBusy(true);
@@ -913,90 +883,11 @@ export default function ClientPRPage() {
 
   // Both blocks answer "who do I send this story to", from a pasted story and
   // from the contact book respectively.
+  // One card, one list. The two that used to be here asked the same question
+  // with two boxes to paste the same release into; /pitch-match runs both
+  // engines and merges them. See components/MatchPanel.jsx.
   const renderMatch = () => (
-        <div>
-          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
-            {/* One button under both fields, because either one feeds the
-                same call and whichever you fill the action is the same. It sat
-                beside the URL, which read as "search this URL" and left the
-                brief below it looking like a second, unservable form. */}
-            <label className="field" style={{ marginBottom: 'var(--s2)' }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
-            <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
-            <div style={{ marginTop: 'var(--s3)' }}>
-              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
-            </div>
-            {pitchResult && (
-              <div style={{ marginTop: 'var(--s3)' }}>
-                {pitchResult.angle && <p style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}><strong>Angle:</strong> {pitchResult.angle}</p>}
-                {pitchResult.targets && pitchResult.targets.length ? (
-                  <table className="table">
-                    <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Why</th></tr></thead>
-                    <tbody>
-                      {pitchResult.targets.map((t) => (
-                        <tr key={t.id}>
-                          <td><button type="button" className="row-trigger" onClick={() => setProfileTarget({ type: 'journalist', id: t.id })}>{t.name}</button>{t.strength_label ? <span className="chip" style={{ marginLeft: 'var(--s2)' }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 'var(--s2)' }}>no email</span>}</td>
-                          <td>{t.outlet || '—'}</td>
-                          <td>{t.tier ? `T${t.tier}` : '—'}</td>
-                          <td style={{ fontSize: 'var(--fs-body)' }}>{t.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{pitchResult.note || 'No strong matches found.'}</p>}
-              </div>
-            )}
-          </div>
-
-          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <h3 className="h3 mb-2">🎯 Best contacts for a story</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginTop: 0, marginBottom: 'var(--s2)' }}>
-              Paste the release (or describe the story). OMI ranks journalists by what they actually write about — from their real recent articles, not just old tags — and who’s covered {client?.name || 'this client'} before.
-            </p>
-            <textarea className="input" rows={4} value={matchText} onChange={(e) => setMatchText(e.target.value)} placeholder="Paste your press release or a sentence about the story…" style={{ marginBottom: 'var(--s2)' }} />
-            <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runMatch, disabled: matchBusy })}>
-              {matchBusy ? 'Matching…' : '🎯 Find best contacts'}
-            </button>
-            {matchTerms.length > 0 && (
-              <div style={{ marginTop: 'var(--s3)' }}>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
-                  {matchMode === 'semantic'
-                    ? <span title="Ranked by meaning — understands related topics even when the exact words differ.">🧠 Semantic match · </span>
-                    : <span title="Ranked by shared topic/word overlap. Add an OpenAI key in Settings to enable meaning-based matching.">Keyword match · </span>}
-                  key themes: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 'var(--s1)' }}>{t}</span>)}
-                </div>
-                {matchItems.length === 0 ? (
-                  <p className="body-sm text-muted" style={{ margin: 0 }}>No strong matches on file yet — this sharpens as the feeds learn more journalists.</p>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="table" style={{ width: '100%' }}>
-                      <thead><tr><th>Journalist</th><th>Outlet</th><th>Why</th><th style={{ width: 60 }}>Fit</th></tr></thead>
-                      <tbody>
-                        {matchItems.map((m) => (
-                          <tr key={m.id}>
-                            <td>
-                              <div style={{ fontWeight: 600 }}>{m.name}</div>
-                              <div style={{ fontSize: 'var(--fs-caption)', color: m.verification_status === 'guessed' ? 'var(--danger, #c62828)' : 'var(--text-subtle)' }}>
-                                {m.email}{m.verification_status === 'guessed' ? ' · guess' : ''}
-                              </div>
-                            </td>
-                            <td style={{ fontSize: 'var(--fs-caption)' }}>{m.outlet || '—'}{m.tier ? ` · T${m.tier}` : ''}</td>
-                            <td style={{ fontSize: 'var(--fs-caption)' }}>
-                              {(m.matched || []).slice(0, 4).join(', ')}
-                              {m.covered_client && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)' }}>covered before</span>}
-                            </td>
-                            <td><span className="chip">{m.fit != null ? `${m.fit}%` : m.score}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+    <MatchPanel clientId={id} clientName={client?.name} releases={releases} readOnly={readOnly} />
   );
 
   const renderFind = () => (
