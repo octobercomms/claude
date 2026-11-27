@@ -23,6 +23,9 @@ const batchActions = [];
 const http = require('http');
 let LAST_SOCIAL_EXPORT = null;
 let LAST_REPORT = null;
+// The saved type scale, as two levels. Starts empty: nobody has overridden
+// anything, which is the state a fresh install is in.
+const TYPE_SCALE = { company: {}, user: {} };
 // The stored subreddit list. Starts empty, which is the state the screen's
 // first action exists for; STUB_SUBS=1 starts it populated.
 let SUBS = process.env.STUB_SUBS === '1' ? [
@@ -1023,6 +1026,36 @@ const handler = (req, res) => {
       res.end(raw || '{}');
     });
   }
+  // ── the type scale ─────────────────────────────────────────────────────────
+  // Backed by the real catalogue rather than a copy of it, so the drive
+  // exercises the bounds, the presets and the clamping that production uses.
+  // A copy here would let a drive pass against a scale the server rejects.
+  if (url === '/api/ui/type-scale' || url.startsWith('/api/ui/type-scale/')) {
+    const ts = require('../backend/src/services/typeScale');
+    const answer = () => ({
+      ...ts.catalogue(),
+      company: TYPE_SCALE.company,
+      user: TYPE_SCALE.user,
+      effective: ts.resolve(TYPE_SCALE.company, TYPE_SCALE.user),
+      can_edit_company: true,
+    });
+    if (req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(answer()));
+    }
+    if (req.method === 'PUT') {
+      let raw = ''; req.on('data', c => raw += c);
+      return req.on('end', () => {
+        let body = {}; try { body = JSON.parse(raw || '{}'); } catch { /* keep {} */ }
+        const { values } = ts.sanitise(body.values);
+        if (url.endsWith('/company')) TYPE_SCALE.company = values;
+        else TYPE_SCALE.user = values;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(answer()));
+      });
+    }
+  }
+
   if (req.method === 'PUT' && url.startsWith('/api/clients/')) {
     let raw = ''; req.on('data', c => raw += c);
     return req.on('end', () => {

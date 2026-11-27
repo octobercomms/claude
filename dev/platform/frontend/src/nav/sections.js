@@ -530,6 +530,14 @@ export const SECTIONS = {
         { tab: 'security', label: 'Security' },
         { tab: 'alerts',   label: 'Alerts' },
       ] },
+      // Its own heading rather than a row under Tools. Tools is four things
+      // that produce output and this produces none; dropping it there is the
+      // "Other" failure the comments above rail against. "Text size" rather
+      // than "Type", because a row called Type under Costs/Connections/Tools
+      // reads as a typeface picker.
+      { heading: 'Appearance', rows: [
+        { tab: 'typescale', label: 'Text size', slug: 'text-size' },
+      ] },
     ],
   },
 

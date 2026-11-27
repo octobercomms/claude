@@ -21,17 +21,22 @@
 // (the sidebar labels wrap, table cells blow out of their columns). A user can
 // make OMI ugly from here. They must not be able to make it unusable.
 
+// `affects` names the roles each size governs, in words, because the roles are
+// not one-to-one with the sizes: .h1 and .h2 share --fs-section, and .h3 shares
+// --fs-body with paragraph text. Someone raising Body and finding their card
+// headings moved will otherwise conclude the editor is broken. Printing the
+// consequence on the row is cheaper than explaining it afterwards.
 const SIZE_TOKENS = [
   { token: '--fs-caption', label: 'Caption',     px: 12, min: 10, max: 18,
-    affects: 'Labels, meta, chips, table sub-text' },
+    affects: 'Labels, chips, table sub-text, kickers' },
   { token: '--fs-body',    label: 'Body',        px: 14, min: 11, max: 20,
-    affects: 'Default reading size, table cells, buttons, H3' },
+    affects: 'Reading text, table cells, card headings (h3), nav' },
   { token: '--fs-title',   label: 'Title',       px: 18, min: 13, max: 28,
-    affects: 'Card and section headings' },
+    affects: 'Card and panel headings' },
   { token: '--fs-section', label: 'Section',     px: 24, min: 15, max: 40,
-    affects: 'H1 and H2, sub-hero headings' },
+    affects: 'Section openers (h1, h2), big stat values' },
   { token: '--fs-display', label: 'Display',     px: 40, min: 20, max: 72,
-    affects: 'Page titles and hero KPI numbers' },
+    affects: 'Page titles, hero numbers (metric)' },
 ];
 
 // Weights run in hundreds, and only the four Brockmann actually ships.
@@ -61,6 +66,27 @@ const WEIGHT_TOKENS = [
   { token: '--fw-kicker',   label: 'Kicker',       weight: 700, affects: 'Tracked-out eyebrows' },
 ];
 
+// Four named steps, for the person who wants bigger text rather than a scale.
+//
+// Sizes only. Weight is not a reading-comfort axis — it is how October's work
+// looks — and a staffer choosing "Large" is asking to read, not to restyle.
+//
+// Hand-tuned per step rather than generated from a ratio. The shipped scale
+// (12/14/18/24/40) is not on a ratio: the steps are 1.167, 1.286, 1.333 and
+// 1.667, because display is deliberately far from section — it is a masthead —
+// and caption stays at 12 where its 1.4px uppercase tracking was set. A ratio
+// control would flatten all of that on first touch.
+//
+// Every step holds the ordering caption < body < title < section < display,
+// which is what stops a choice here inverting the hierarchy: at body 18 with
+// title unchanged, an h3 would be the same size as a card heading.
+const PRESETS = [
+  { key: 'compact',     label: 'Compact',     values: { '--fs-caption': 11, '--fs-body': 13, '--fs-title': 16, '--fs-section': 22, '--fs-display': 36 } },
+  { key: 'default',     label: 'Default',     values: { '--fs-caption': 12, '--fs-body': 14, '--fs-title': 18, '--fs-section': 24, '--fs-display': 40 } },
+  { key: 'comfortable', label: 'Comfortable', values: { '--fs-caption': 13, '--fs-body': 15, '--fs-title': 20, '--fs-section': 26, '--fs-display': 44 } },
+  { key: 'large',       label: 'Large',       values: { '--fs-caption': 15, '--fs-body': 18, '--fs-title': 22, '--fs-section': 30, '--fs-display': 50 } },
+];
+
 const WEIGHT_MIN = 400;
 const WEIGHT_MAX = 700;
 
@@ -79,6 +105,7 @@ function catalogue() {
     sizes: SIZE_TOKENS.map(t => ({ ...t })),
     weights: WEIGHT_TOKENS.map(t => ({ ...t, min: WEIGHT_MIN, max: WEIGHT_MAX, step: 100 })),
     defaults: defaults(),
+    presets: PRESETS.map(p => ({ ...p, values: { ...p.values } })),
   };
 }
 
@@ -131,7 +158,18 @@ function cssValue(token, value) {
   return SIZE_BY_TOKEN.has(token) ? `${value}px` : String(value);
 }
 
+// Which preset a set of values is, if any. The screen needs this to show the
+// chosen step as chosen after a reload, and to say "Default" rather than
+// "Custom" for someone who has never touched it.
+function presetFor(values) {
+  const v = values || {};
+  for (const p of PRESETS) {
+    if (SIZE_TOKENS.every(t => Number(v[t.token]) === p.values[t.token])) return p.key;
+  }
+  return null;
+}
+
 module.exports = {
-  catalogue, defaults, sanitise, resolve, cssValue,
-  SIZE_TOKENS, WEIGHT_TOKENS, WEIGHT_MIN, WEIGHT_MAX,
+  catalogue, defaults, sanitise, resolve, cssValue, presetFor,
+  SIZE_TOKENS, WEIGHT_TOKENS, WEIGHT_MIN, WEIGHT_MAX, PRESETS,
 };

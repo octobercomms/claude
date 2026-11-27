@@ -15,6 +15,7 @@ import ProposalsPage from './ProposalsPage';
 import ProofLibraryPage from './ProofLibraryPage';
 import BookingSettingsPage from './BookingSettingsPage';
 import SecurityPanel from '../components/SecurityPanel';
+import TypeScalePanel from '../components/TypeScalePanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
 import TendersPanel from '../components/TendersPanel';
 import AiModelsPanel from '../components/AiModelsPanel';
@@ -105,6 +106,9 @@ const SECTIONS = [
     // The alert email: who the platform tells when a connector fails. It was
     // in "Other", filed next to a report footer.
     { k: 'alerts' },
+  ] },
+  { key: 'appearance', subs: [
+    { k: 'typescale' },
   ] },
   { key: 'accounts', subs: [
     { k: 'overview' },
@@ -366,6 +370,7 @@ export default function SettingsPage() {
       {tab === 'booking' && <BookingSettingsPage />}
       {tab === 'tenders' && <TendersPanel />}
       {tab === 'security' && <SecurityPanel />}
+      {tab === 'typescale' && <TypeScalePanel />}
       {tab === 'strategy' && <StrategyTemplatesPanel />}
       {tab === 'costs' && (<>
       <CostsPanel />

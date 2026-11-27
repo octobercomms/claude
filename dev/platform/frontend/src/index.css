@@ -300,6 +300,20 @@ button { font-family: inherit; }
   letter-spacing: -1.6px; color: var(--text); margin: 0;
 }
 
+/* The one place in OMI where the type scale is pinned.
+   This card is how a scale gets undone, so it has to stay readable however
+   broken the scale is — including a 10px caption set by the fields inside it.
+   Sizes only: a 400 heading weight is still legible, and pinning the weights
+   would stop the card previewing a weight change at all. The specimen inside
+   re-declares the draft values on itself. Do not "fix" this. */
+.type-editor {
+  --fs-caption: 12px;
+  --fs-body: 14px;
+  --fs-title: 18px;
+  --fs-section: 24px;
+  --fs-display: 40px;
+}
+
 .h1 { font-size: var(--fs-section); font-weight: var(--fw-h1); line-height: 1.15; letter-spacing: -0.6px; color: var(--text); margin: 0; }
 .h2 { font-size: var(--fs-section); font-weight: var(--fw-h2); line-height: 1.2; letter-spacing: -0.3px; color: var(--text); margin: 0; }
 .h3 { font-size: var(--fs-body); font-weight: var(--fw-h3); line-height: 1.3; color: var(--text); margin: 0; }
