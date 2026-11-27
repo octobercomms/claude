@@ -184,6 +184,8 @@ jobs:
         run: node tests/deploy-visibility.test.js
       - name: Guard — the design studio keeps the work
         run: node tests/design-studio.test.js
+      - name: Guard — the type scale editor reaches every token, and offers no weight the font lacks
+        run: node tests/type-scale.test.js
       - name: Guard — an IMAP socket error cannot take the backend down
         run: node tests/imap-client.test.js
       - name: Guard — PHP support dates are right, so a client site is not called safe

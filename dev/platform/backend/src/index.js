@@ -210,6 +210,7 @@ app.use('/api/approvals', require('./routes/approvals'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/docs', require('./routes/docs'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/ui', require('./routes/uiPrefs'));
 app.use('/api/security', require('./routes/security'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/tender', require('./routes/tender'));
