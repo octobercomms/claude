@@ -337,6 +337,15 @@ jobs:
       # list the other could have filled while reading as "no matches".
       - name: Guard — one list from both matchers, losing nobody
         run: node tests/pitch-match.test.js
+      # journalistMatch has two rankers and only the semantic one returned a
+      # `fit`. Keyword mode returned a raw score and nothing else, so the Fit
+      # column held a percentage on an install with an OpenAI key and nothing
+      # at all on an install without one, and the merged Match list — which
+      # sorts on fit — fell back to whatever order the rows arrived in. Same
+      # code, same data, different product, decided by a setting nobody looks
+      # at.
+      - name: Guard — every match carries a fit, in both modes
+        run: node tests/journalist-match-fit.test.js
       # "Infer from payments" read acct_reconcile_queue, which connectors
       # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
       # payment that was made and then reconciled never enters it, so the one

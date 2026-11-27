@@ -26,6 +26,7 @@ let rankedResult = { terms: [], mode: 'semantic', items: [] };
 let reasonedThrows = null;
 let rankedThrows = null;
 const seenText = { reasoned: null, ranked: null };
+const seenScope = { reasoned: undefined, ranked: undefined };
 let resolveCalls = 0;
 
 require.cache[targetPath] = {
@@ -37,8 +38,9 @@ require.cache[targetPath] = {
       if (url) return `fetched body of ${url}`;
       throw Object.assign(new Error('Give a press-release URL or paste a brief.'), { status: 400 });
     },
-    findTargets: async ({ brief }) => {
+    findTargets: async ({ brief, visibleClientIds }) => {
       seenText.reasoned = brief;
+      seenScope.reasoned = visibleClientIds;
       if (reasonedThrows) throw new Error(reasonedThrows);
       return reasonedResult;
     },
@@ -47,8 +49,9 @@ require.cache[targetPath] = {
 require.cache[matchPath] = {
   id: matchPath, filename: matchPath, loaded: true,
   exports: {
-    matchForText: async (text) => {
+    matchForText: async (text, opts = {}) => {
       seenText.ranked = text;
+      seenScope.ranked = opts.visibleClientIds;
       if (rankedThrows) throw new Error(rankedThrows);
       return rankedResult;
     },
@@ -67,6 +70,8 @@ function reset() {
   rankedThrows = null;
   seenText.reasoned = null;
   seenText.ranked = null;
+  seenScope.reasoned = undefined;
+  seenScope.ranked = undefined;
   resolveCalls = 0;
 }
 
@@ -103,12 +108,33 @@ const reasoned = (id, name, over = {}) => ({
     assert.strictEqual(anna.agreed, true);
   });
 
-  ok('agreement outranks a higher score from one engine alone', () => {
-    // Ben scores 91 against Anna's 70, and Anna still leads: two independent
-    // engines picking the same person is the signal neither produces alone.
-    assert.strictEqual(agreed.items[0].id, 'a',
-      `${agreed.items[0].name} led the list — agreement is not being ranked above a lone score`);
-    assert.strictEqual(agreed.items[1].id, 'b');
+  ok('the score leads, and agreement does not override it', () => {
+    // Ben scores 91 against Anna's 70, and Ben leads even though both engines
+    // picked Anna.
+    //
+    // The first version ranked agreement above the score, on the reasoning
+    // that two engines agreeing independently is the strongest signal. They
+    // are not independent: journalistEmbed embeds beats, topics, auto_topics,
+    // enrichment_note and recent titles, and prTarget's pool is a LIKE over
+    // enrichment_note, beats, topics and outlet name. Both read the same
+    // columns, so agreement means the beats data agrees with itself — and
+    // where a contact's beats are stale both engines are wrong together and
+    // the error went to the top of the page. It also put a 41% above a 92%.
+    assert.strictEqual(agreed.items[0].id, 'b',
+      `${agreed.items[0].name} led with a lower score — agreement is being ranked above fit again`);
+    assert.strictEqual(agreed.items[1].id, 'a');
+  });
+
+  ok('agreement breaks a tie between equal scores', () => {
+    // Where it is genuinely useful, and the only place it touches the order.
+    const tied = [...agreed.items];
+    assert.ok(tied.every(i => typeof i.agreed === 'boolean'),
+      'rows do not carry `agreed`, so the screen cannot preselect a shortlist from it');
+    const { compareRows } = pitchMatch._internals;
+    const both = { fit: 70, agreed: true, name: 'Zoe' };
+    const one = { fit: 70, agreed: false, name: 'Anna' };
+    assert.ok(compareRows(both, one) < 0,
+      'at the same score the row both engines picked should come first, even against an earlier name');
   });
 
   ok('the angle and the match mode both come through', () => {
@@ -242,13 +268,44 @@ const reasoned = (id, name, over = {}) => ({
   // ── the cap ───────────────────────────────────────────────────────────────
 
   reset();
-  rankedResult = { terms: [], mode: 'keyword', items: Array.from({ length: 60 }, (_, i) => ranked(`r${i}`, `R${i}`, 50)) };
-  reasonedResult = { angle: '', targets: Array.from({ length: 60 }, (_, i) => reasoned(`t${i}`, `T${i}`)) };
-  const capped = await pitchMatch.combined({ clientId: 'c1', brief: 'story', limit: 10 });
+  rankedResult = { terms: [], mode: 'keyword', items: Array.from({ length: 60 }, (_, i) => ranked(`r${i}`, `R${i}`, 50 + (i % 7))) };
+  reasonedResult = { angle: '', targets: [reasoned('only-claude', 'Imogen Clarke', { has_email: false })] };
+  const full = await pitchMatch.combined({ clientId: 'c1', brief: 'story', limit: 40 });
 
-  ok('the limit applies to the merged list, not to each engine', () => {
-    assert.strictEqual(capped.items.length, 10,
-      `asked for 10 and got ${capped.items.length}: capping per engine returns up to twice what was asked for`);
+  ok('a full page of scored rows does not evict the Claude-only picks', () => {
+    // The regression this whole merge exists to prevent, and the first
+    // version made it certain rather than occasional. The free pass is asked
+    // for `limit` rows and returns that many on any populated database, the
+    // unscored rows sorted last, and the slice landed exactly on them — the
+    // contacts with no address, which the free pass structurally cannot
+    // return at all. Nothing threw. The names were simply never shown.
+    const imogen = full.items.find(i => i.id === 'only-claude');
+    assert.ok(imogen,
+      'the Claude-only pick was cut by the cap, so the one thing the merge adds is gone on any '
+      + 'database with 40 matching contacts');
+    assert.strictEqual(imogen.has_email, false);
+  });
+
+  ok('the cap still holds the scored rows to what was asked for', () => {
+    // 60 scored rows offered against a cap of 40, so a missing slice shows.
+    const scored = full.items.filter(i => i.fit != null);
+    assert.strictEqual(scored.length, 40, `asked for 40 scored rows, got ${scored.length}`);
+    assert.strictEqual(full.items.length, 41, 'exactly the extra Claude pick beyond the cap');
+  });
+
+  reset();
+  rankedResult = { terms: [], mode: 'keyword', items: [ranked('a', 'Anna', 60)] };
+  reasonedResult = { angle: '', targets: [] };
+  await pitchMatch.combined({ clientId: 'c1', brief: 'story', visibleClientIds: ['c1'] });
+
+  ok('the caller\'s client scope reaches the reasoning pass too', () => {
+    // prTarget had no visibility scoping while journalistMatch did, so on a
+    // viewer limited to one client the merged list drew journalists out of
+    // every other client's book — and it would have surfaced as the two
+    // engines disagreeing about who exists rather than as a leak.
+    assert.deepStrictEqual(seenScope.reasoned, ['c1'],
+      'the Claude pass ran unscoped, so a scoped viewer sees contacts they are not entitled to');
+    assert.deepStrictEqual(seenScope.ranked, ['c1']);
   });
 
   console.log(`\n${passed} passed, 0 failed`);

@@ -28,18 +28,34 @@
 const prTarget = require('./prTarget');
 const journalistMatch = require('./journalistMatch');
 
-// Where a row came from, worst to best. Agreement first, then the engine that
-// scored it, then the one that reasoned about it.
+// The list is sorted by fit, descending. Agreement is a tie-break inside a
+// score, never a band above it.
 //
-// A Claude-only row is usually a contact the free pass could not return at
-// all — no email on file, or not yet embedded — so it sits last rather than
-// being dropped. At a title that matters, a journalist you have no address
-// for is still worth knowing you should find one.
-const RANK = { both: 0, ranked: 1, reasoned: 2 };
-
-function sourceKey(sources) {
-  if (sources.length > 1) return 'both';
-  return sources[0] === 'ranked' ? 'ranked' : 'reasoned';
+// The first version of this ranked agreement first, on the reasoning that two
+// engines picking the same journalist independently is the strongest signal
+// available. The independence is not there. journalistEmbed embeds
+// beats + topics + auto_topics + enrichment_note + recent article titles, and
+// prTarget's candidate pool is a LIKE over enrichment_note, beats, topics and
+// outlet name with the same fields sent to Claude. Both read the same columns,
+// so agreement says the beats data is consistent with itself — and where a
+// contact's beats are stale, both engines are wrong together and the ranking
+// promotes the error to the top of the page.
+//
+// The negative case is worse than useless. Claude is asked for "the best up to
+// 15" of 40 candidates, so a row it did not return may have been judged wrong
+// for the story, may have been sixteenth, or may never have reached the
+// shortlist. Ranking on agreement ranks partly on where that cut happened to
+// fall.
+//
+// It is still worth surfacing: `agreed` travels on each row so the screen can
+// preselect those rows for a shortlist, where it is a visible suggestion the
+// operator can override rather than a hidden term in a score.
+function compareRows(a, b) {
+  const fa = a.fit == null ? -1 : a.fit;
+  const fb = b.fit == null ? -1 : b.fit;
+  if (fa !== fb) return fb - fa;
+  if (a.agreed !== b.agreed) return a.agreed ? -1 : 1;
+  return String(a.name || '').localeCompare(String(b.name || ''));
 }
 
 // An email we hold but cannot use is not an email. The import placeholder is
@@ -64,7 +80,7 @@ async function combined({ clientId, url, brief, visibleClientIds = null, limit =
   // not empty a list the other could fill. A Claude outage should cost the
   // reasons, not the contacts.
   const [reasoned, ranked] = await Promise.allSettled([
-    prTarget.findTargets({ clientId, brief: text }),
+    prTarget.findTargets({ clientId, brief: text, visibleClientIds }),
     journalistMatch.matchForText(text, { clientId, visibleClientIds, limit }),
   ]);
 
@@ -137,22 +153,24 @@ async function combined({ clientId, url, brief, visibleClientIds = null, limit =
     degraded.push({ engine: 'reasoned', message: reasoned.value.error });
   }
 
-  const items = [...byId.values()]
-    .map(r => ({ ...r, agreed: r.sources.length > 1 }))
-    .sort((a, b) => {
-      const ra = RANK[sourceKey(a.sources)];
-      const rb = RANK[sourceKey(b.sources)];
-      if (ra !== rb) return ra - rb;
-      // Within a band, the score when there is one. A missing fit sorts last
-      // rather than as zero, so a Claude-only row never reads as a 0% fit.
-      const fa = a.fit == null ? -1 : a.fit;
-      const fb = b.fit == null ? -1 : b.fit;
-      if (fa !== fb) return fb - fa;
-      return String(a.name || '').localeCompare(String(b.name || ''));
-    })
-    .slice(0, limit);
+  const all = [...byId.values()].map(r => ({ ...r, agreed: r.sources.length > 1 }));
+
+  // The cap applies to the scored rows, and the unscored Claude picks are
+  // appended after it rather than competing for the same slots.
+  //
+  // Sorting everything together and slicing deleted them outright: the free
+  // pass is asked for `limit` rows and returns that many on any populated
+  // database, so the cut landed exactly on the rows only Claude found —
+  // overwhelmingly the contacts with no address, which the free pass cannot
+  // return at all. The merge existed to stop those disappearing and instead
+  // made it certain. A name a model explicitly put forward for this story is
+  // never dropped to make room; worst case the table is a little longer than
+  // asked for.
+  const scored = all.filter(r => r.fit != null).sort(compareRows).slice(0, limit);
+  const unscored = all.filter(r => r.fit == null).sort(compareRows);
+  const items = [...scored, ...unscored];
 
   return { angle, terms, mode, items, degraded };
 }
 
-module.exports = { combined, _internals: { sourceKey, usableEmail, RANK } };
+module.exports = { combined, _internals: { compareRows, usableEmail } };
