@@ -1424,8 +1424,13 @@ router.get('/media-lists/:listId', async (req, res) => {
     const list = await mediaListForCaller(req, res);
     if (!list) return;
     const { rows } = await db.query(
+      // Enough to render the list without running the search again. That is
+      // the whole point of saving one: opening it used to refill the boxes
+      // and clear the results, so "open a past search" meant "type it out
+      // again and pay for it again".
       `SELECT m.contact_id, m.rank, m.fit, m.reason, m.snapshot_at,
-              TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email, o.name AS outlet
+              TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name,
+              c.email, c.verification_status, o.name AS outlet, o.tier
          FROM media_list_members m
          JOIN outreach_contacts c ON c.id = m.contact_id
          LEFT JOIN pr_outlets o ON o.id = c.outlet_id

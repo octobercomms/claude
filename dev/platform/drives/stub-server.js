@@ -314,8 +314,14 @@ const API = {
     id: 'ml1', name: 'Margate workshop', source_text: 'A Margate studio opens its first public workshop.',
     source_url: '', release_id: null, mode: 'semantic',
     // Anna was on the list last time; Tom and Imogen were not, so a re-run
-    // has to mark those two as new and leave Anna unmarked.
-    members: [{ contact_id: 'jm1', name: 'Anna Fitzgerald', rank: 1, fit: 90 }],
+    // has to mark those two as new and leave Anna unmarked. The fields match
+    // what the members query returns, because opening a list has to render
+    // without running the search again.
+    members: [{
+      contact_id: 'jm1', name: 'Anna Fitzgerald', rank: 1, fit: 90,
+      email: 'anna@dezeen.com', verification_status: 'verified', outlet: 'Dezeen', tier: 1,
+      reason: 'Covers UK practices opening public spaces.', snapshot_at: '2026-11-14T10:00:00Z',
+    }],
   },
   '/api/press/releases/p1/segments': { segments: [{ id: 'seg1', name: 'Trade press' }] },
   '/api/pr/clients/c1/press-releases': { items: [

@@ -58,7 +58,28 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
   const [url, setUrl] = useState('');
   const [brief, setBrief] = useState('');
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
+
+  // The last search survives a refresh.
+  //
+  // sessionStorage rather than usePersistedState, which is localStorage: a
+  // result carries journalists' names and addresses, and on a shared machine
+  // localStorage would hand the next person to log in the previous one's
+  // list. Tying it to the tab covers the actual complaint — "every time i
+  // refresh the page it loses the last search" — and nothing more.
+  const cacheKey = `omi:match:${clientId}`;
+  const [result, setResultRaw] = useState(() => {
+    try {
+      const raw = window.sessionStorage.getItem(cacheKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  const setResult = useCallback((next) => {
+    setResultRaw(next);
+    try {
+      if (next) window.sessionStorage.setItem(cacheKey, JSON.stringify(next));
+      else window.sessionStorage.removeItem(cacheKey);
+    } catch { /* a browser refusing storage still gets a working page */ }
+  }, [cacheKey]);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
 
@@ -206,10 +227,32 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
       setUrl(l.source_url || '');
       setBrief(l.source_text || '');
       setOpenList({ id: l.id, name: l.name, memberIds: new Set((l.members || []).map(m => m.contact_id)) });
-      setResult(null);
+      // Show what was saved, rather than clearing the table and making the
+      // search be paid for again. A snapshot is not a live ranking and says
+      // so; Rank contacts refreshes it when that is what you want.
+      setResult({
+        snapshot_at: (l.members || [])[0]?.snapshot_at || l.last_run_at || l.created_at,
+        angle: '', terms: [], mode: l.mode || null, degraded: [], weak: false, top_fit: null,
+        items: (l.members || []).map(m => ({
+          id: m.contact_id,
+          name: m.name,
+          email: m.email || '',
+          verification_status: m.verification_status || null,
+          outlet: m.outlet || '',
+          tier: m.tier || '',
+          fit: m.fit == null ? null : m.fit,
+          matched: [],
+          topics: [],
+          covered_client: false,
+          has_email: !!(m.email && !/@import\.local$/i.test(m.email)),
+          reason: m.reason || '',
+          agreed: false,
+          sources: [],
+        })),
+      });
       setSelected(new Set());
       setShowLists(false);
-      toast(`Opened "${l.name}" — run it again to see what has changed`, 'info');
+      toast(`Opened "${l.name}" — ${(l.members || []).length} contacts as saved`, 'success');
     } catch (e) { toast(`Could not open that list: ${e.message}`, 'error'); }
   }
 
@@ -332,6 +375,14 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
                   {webBusy ? 'Searching the web…' : 'Search the web instead'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {result.snapshot_at && (
+            <div className="callout" style={{ marginBottom: 'var(--s3)' }}>
+              Saved {new Date(result.snapshot_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
+              This is the list as it stood then — <strong>Rank contacts</strong> runs it again against
+              what the database knows now, and marks what has changed.
             </div>
           )}
 
