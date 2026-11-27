@@ -293,6 +293,43 @@ const reasoned = (id, name, over = {}) => ({
     assert.strictEqual(usableEmail(null), false);
   });
 
+  // ── when the ranking has nothing to offer ────────────────────────────────
+
+  reset();
+  // Top score 39%, which is what a trip-logistics brief actually produced
+  // against this client's book.
+  rankedResult = { terms: [], mode: 'semantic', items: [ranked('a', 'Anna', 39), ranked('b', 'Ben', 35)] };
+  reasonedResult = { angle: '', targets: [reasoned('w', 'Wainwright', { email: '', has_email: false })] };
+  const weakRun = await pitchMatch.combined({ clientId: 'c1', brief: 'story' });
+
+  ok('a weak top score puts the reasoned picks first', () => {
+    // Measured on two real runs: a logistics brief topped out at 39% and
+    // returned travel-trade press, with the only usable names — the
+    // Guardian's architecture critic and two SCMP writers — buried at the
+    // bottom behind a Manchester nightlife blog that matched no topic.
+    assert.strictEqual(weakRun.items[0].id, 'w',
+      `${weakRun.items[0].name} led a 39% run; below the floor the ranking's order is noise and `
+      + 'the reasoned picks are the only usable list');
+    assert.strictEqual(weakRun.weak, true);
+    assert.strictEqual(weakRun.top_fit, 39);
+  });
+
+  reset();
+  rankedResult = { terms: [], mode: 'semantic', items: [ranked('a', 'Anna', 51)] };
+  reasonedResult = { angle: '', targets: [reasoned('w', 'Wainwright', { email: '', has_email: false })] };
+  const strongRun = await pitchMatch.combined({ clientId: 'c1', brief: 'story' });
+
+  ok('a healthy top score leaves the scored rows in front', () => {
+    assert.strictEqual(strongRun.items[0].id, 'a',
+      'the reasoned picks jumped the queue on a run the ranking handled well');
+    assert.strictEqual(strongRun.weak, false);
+  });
+
+  ok('the floor is a stated number, not a feeling', () => {
+    assert.strictEqual(pitchMatch._internals.WEAK_FIT, 50,
+      'moving the floor changes which runs reorder; it should be a deliberate edit');
+  });
+
   // ── the cap ───────────────────────────────────────────────────────────────
 
   reset();

@@ -29,10 +29,15 @@ require.cache[dbPath] = {
 const claudePath = require.resolve('../src/services/claude');
 require.cache[claudePath] = { id: claudePath, filename: claudePath, loaded: true, exports: {} };
 const embedPath = require.resolve('../src/services/embeddings');
-require.cache[embedPath] = {
-  id: embedPath, filename: embedPath, loaded: true,
-  exports: { available: async () => false },     // force keyword mode
+// One object, mutated in place. journalistMatch binds the module at require
+// time, so swapping `exports` for a new object later changes nothing it can
+// see — the first attempt did that and got "embeddings.embed is not a
+// function" from a stub that plainly had one.
+const embedStub = {
+  available: async () => false,                  // keyword mode to start with
+  embed: async () => [[1, 0]],
 };
+require.cache[embedPath] = { id: embedPath, filename: embedPath, loaded: true, exports: embedStub };
 
 const journalistMatch = require('../src/services/journalistMatch');
 
@@ -96,6 +101,51 @@ const contact = (id, name, beats, over = {}) => ({
   ok('no matches is an empty list, not a divide by zero', () => {
     assert.deepStrictEqual(empty.items, []);
     assert.strictEqual(empty.mode, 'keyword');
+  });
+
+  // ── the semantic ranker, where both faults lived ──────────────────────────
+  //
+  // Keyword mode drops a contact before scoring it when no term matches
+  // (`if (!matched.length) continue`), so it can never show the fallback. The
+  // semantic ranker scores on meaning and keeps rows that matched no topic by
+  // name — which is exactly where the fallback printed their own topics as
+  // though they were the reason.
+
+  // Two dimensions makes similarity predictable: [1,0] is the story, so a
+  // contact at [1,0] is a perfect match and [0,1] is unrelated.
+  embedStub.available = async () => true;
+
+  rows = [
+    { ...contact('on', 'On Topic', ['architecture']), topic_embedding: [1, 0] },
+    // Matches strongly on meaning, matches no term by name, and is tier 1 so
+    // the bonuses apply. This is the Manchester Wire shape.
+    { ...contact('meaning', 'Meaning Only', ['manchester music events', 'live music', 'hospitality openings'], { tier: 1 }),
+      topic_embedding: [0.9, 0.44] },
+  ];
+
+  const sem = await journalistMatch.matchSemantic('architecture in shenzhen', { limit: 40 });
+
+  ok('a row that matched no topic by name says so, rather than listing its own', () => {
+    const m = sem.items.find(i => i.id === 'meaning');
+    assert.ok(m, 'the meaning-only row was dropped; semantic mode is supposed to keep it');
+    assert.deepStrictEqual(m.matched, [],
+      `it claims to have matched ${JSON.stringify(m.matched)} — those are its own topics, printed as `
+      + 'the reason it is in the list. That is how a Manchester nightlife writer came ninth on a '
+      + 'Shenzhen architecture story');
+    assert.deepStrictEqual(m.topics, ['manchester music events', 'live music', 'hospitality openings'],
+      'its beat should still be available, just not as a claim about the match');
+  });
+
+  ok('the fit shown is the fit sorted on', () => {
+    // fit was the raw similarity while the order used similarity plus
+    // bonuses for tier, recency and prior coverage, so a row could sit above
+    // one showing a higher number.
+    const bySort = sem.items.map(i => i.fit);
+    assert.deepStrictEqual(bySort, [...bySort].sort((a, b) => b - a),
+      `fits run ${bySort.join(', ')} down the list, so the column disagrees with the order`);
+    const m = sem.items.find(i => i.id === 'meaning');
+    assert.strictEqual(m.fit, Math.min(100, Math.round(m.score * 100)),
+      'the displayed fit is not derived from the score the list is sorted on');
   });
 
   console.log(`\n${passed} passed, 0 failed`);

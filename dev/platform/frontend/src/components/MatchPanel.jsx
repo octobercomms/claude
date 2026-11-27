@@ -31,6 +31,7 @@ const COLUMNS = [
   ['Tier', r => (r.tier ? `T${r.tier}` : '')],
   ['Fit', r => (r.fit == null ? '' : `${r.fit}%`)],
   ['Matched topics', r => (r.matched || []).join('; ')],
+  ['Covers', r => (r.topics || []).join('; ')],
   ['Covered before', r => (r.covered_client ? 'yes' : '')],
   ['Why', r => r.reason],
 ];
@@ -297,6 +298,15 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
             </div>
           ))}
 
+          {result.weak && (
+            <div className="callout callout-warning" style={{ marginBottom: 'var(--s3)' }}>
+              <strong>Nothing scored above {result.top_fit}%.</strong> The ranking found little to work
+              with, so its order is close to noise and Claude's picks are listed first. Usually this
+              means the text describes the project around the story rather than the story — a studio
+              or a release reads better than a brief about organising something.
+            </div>
+          )}
+
           {result.angle && (
             <p className="body-sm" style={{ marginTop: 0, marginBottom: 'var(--s3)' }}><strong>Angle:</strong> {result.angle}</p>
           )}
@@ -408,11 +418,20 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
                             : `${m.fit}%`}
                         </td>
                         <td style={{ fontSize: 'var(--fs-caption)' }}>
-                          {m.reason
-                            ? <span title={m.reason}>{m.reason}</span>
-                            : (m.matched || []).slice(0, 4).map((t, i) => (
-                                <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 'var(--s1)' }}>{t}</span>
-                              ))}
+                          {m.reason && <span title={m.reason}>{m.reason}</span>}
+                          {!m.reason && (m.matched || []).length > 0 && (m.matched || []).slice(0, 4).map((t, i) => (
+                            <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 'var(--s1)' }}>{t}</span>
+                          ))}
+                          {!m.reason && !(m.matched || []).length && (
+                            // Nothing matched by name. In semantic mode that is a real
+                            // outcome — the match is on meaning — and the honest thing is
+                            // to say so and show their beat as their beat, not to print
+                            // unrelated topics as though they were the reason.
+                            <span className="text-subtle">
+                              Matched on meaning
+                              {(m.topics || []).length ? <> · covers {(m.topics || []).slice(0, 3).join(', ')}</> : null}
+                            </span>
+                          )}
                         </td>
                         <td style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                           {m.covered_client ? 'Covered before' : ''}

@@ -50,6 +50,9 @@ const journalistMatch = require('./journalistMatch');
 // It is still worth surfacing: `agreed` travels on each row so the screen can
 // preselect those rows for a shortlist, where it is a visible suggestion the
 // operator can override rather than a hidden term in a score.
+// Below this, the ranking is not telling you anything. See where it is used.
+const WEAK_FIT = 50;
+
 function compareRows(a, b) {
   const fa = a.fit == null ? -1 : a.fit;
   const fb = b.fit == null ? -1 : b.fit;
@@ -103,6 +106,7 @@ async function combined({ clientId, url, brief, visibleClientIds = null, limit =
         tier: m.tier || '',
         fit: m.fit != null ? m.fit : null,
         matched: m.matched || [],
+        topics: m.topics || [],
         covered_client: !!m.covered_client,
         has_email: usableEmail(m.email),
         reason: '',
@@ -140,6 +144,7 @@ async function combined({ clientId, url, brief, visibleClientIds = null, limit =
         tier: t.tier || '',
         fit: null,                       // and does not score; it ranks by order
         matched: [],
+        topics: [],
         covered_client: (t.published_for_client || 0) > 0,
         has_email: !!t.has_email,
         reason: t.reason || '',
@@ -169,9 +174,24 @@ async function combined({ clientId, url, brief, visibleClientIds = null, limit =
   // asked for.
   const scored = all.filter(r => r.fit != null).sort(compareRows).slice(0, limit);
   const unscored = all.filter(r => r.fit == null).sort(compareRows);
-  const items = [...scored, ...unscored];
 
-  return { angle, terms, mode, items, degraded };
+  // When the best score in the whole set is this low, the ranking has nothing
+  // to offer and the order among its rows is noise.
+  //
+  // Measured on two real runs for the same client. A trip-logistics brief
+  // topped out at 39% and returned travel-trade press; the studio's own bio
+  // topped out at 51% and returned the architecture press. In the first, the
+  // only usable names were Claude's — the Guardian's architecture critic and
+  // two South China Morning Post writers — and they sat at the bottom behind
+  // a Manchester nightlife blog that had matched no topic at all.
+  //
+  // So below the floor the reasoned picks lead, and `weak` says why so the
+  // screen can tell the operator rather than silently reordering on them.
+  const topFit = scored.length ? scored[0].fit : null;
+  const weak = topFit != null && topFit < WEAK_FIT;
+  const items = weak ? [...unscored, ...scored] : [...scored, ...unscored];
+
+  return { angle, terms, mode, items, degraded, weak, top_fit: topFit };
 }
 
-module.exports = { combined, _internals: { compareRows, usableEmail } };
+module.exports = { combined, _internals: { compareRows, usableEmail, WEAK_FIT } };
