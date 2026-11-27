@@ -18,6 +18,7 @@ const humanity = require('../services/humanity');
 const pangram = require('../services/pangram');
 const budget = require('../services/budget');
 const prTarget = require('../services/prTarget');
+const pitchMatch = require('../services/pitchMatch');
 const prArchive = require('../services/prArchive');
 const { getSetting } = require('../utils/settings');
 const prEngage = require('../services/prEngage');
@@ -1296,6 +1297,25 @@ router.post('/engagement/:nudgeId/dismiss', async (req, res) => {
   catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// One list from both matchers — see services/pitchMatch.js for why both run.
+// Supersedes /pitch-targets and /match-journalists, which stay until the
+// screen stops calling them.
+router.post('/clients/:clientId/pitch-match', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const out = await pitchMatch.combined({
+      clientId: req.params.clientId,
+      url: b.url,
+      brief: b.brief ?? b.text,
+      visibleClientIds: req.visibleClientIds ?? null,
+      limit: Math.min(Number(b.limit) || 40, 100),
+    });
+    res.json(out);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // Targeting: "who should I pitch this story to?" — paste a release URL or brief.
 router.post('/clients/:clientId/pitch-targets', async (req, res) => {
   try {
@@ -1303,6 +1323,93 @@ router.post('/clients/:clientId/pitch-targets', async (req, res) => {
     const out = await prTarget.findTargets({ clientId: req.params.clientId, url: b.url, brief: b.brief });
     if (out.error) return res.status(400).json(out);
     res.json(out);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ── Saved pitch searches ─────────────────────────────────────────────────────
+//
+// A pitch you ran by hand, kept so it can be run again. Only the query is
+// stored: the answer is meant to change as the contact database learns new
+// beats and bylines, which is the entire reason to re-run one.
+//
+// Not to be confused with /clients/:clientId/searches, which is the coverage
+// MONITOR — a standing query run on a cadence against the open web. The two
+// point in opposite directions and both have "search" in the name.
+
+// The param is `pitchSearchId`, not `searchId`, deliberately. This router
+// already registers router.param('searchId'), which looks the id up in
+// pr_coverage_searches and 404s when it is not there — it would fire on these
+// routes too and reject every pitch search against the wrong table.
+async function pitchSearchForCaller(req, res) {
+  const { rows } = await db.query('SELECT * FROM pr_pitch_searches WHERE id = $1', [req.params.pitchSearchId]);
+  if (!rows.length) { res.status(404).json({ error: 'Saved search not found' }); return null; }
+  try { assertClientAccess(req, rows[0].client_id); }
+  catch (e) { res.status(e.status || 403).json({ error: e.message }); return null; }
+  return rows[0];
+}
+
+router.get('/clients/:clientId/pitch-searches', async (req, res) => {
+  try {
+    // No access check here: the router applies requireClientAccess for
+    // :clientId to everything below it.
+    const { rows } = await db.query(
+      `SELECT id, label, url, brief, created_by, last_run_at, run_count, created_at
+         FROM pr_pitch_searches
+        WHERE client_id = $1
+        ORDER BY COALESCE(last_run_at, created_at) DESC`,
+      [req.params.clientId]
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/pitch-searches', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const url = String(b.url || '').trim().slice(0, 2000);
+    const brief = String(b.brief || '').trim().slice(0, 20000);
+    if (!url && !brief) {
+      return res.status(400).json({ error: 'Nothing to save — a saved search needs a URL or a brief' });
+    }
+    // A label the operator recognises next month. Falling back to the first
+    // line of the brief beats "Untitled search": a list of those is a list
+    // nobody opens.
+    const label = (String(b.label || '').trim()
+      || brief.split('\n')[0].trim()
+      || url).slice(0, 200);
+    const { rows } = await db.query(
+      `INSERT INTO pr_pitch_searches (client_id, label, url, brief, created_by)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id, label, url, brief, created_by, last_run_at, run_count, created_at`,
+      [req.params.clientId, label, url, brief, req.user?.username || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.delete('/pitch-searches/:pitchSearchId', async (req, res) => {
+  try {
+    const found = await pitchSearchForCaller(req, res);
+    if (!found) return;
+    await db.query('DELETE FROM pr_pitch_searches WHERE id = $1', [req.params.pitchSearchId]);
+    res.json({ deleted: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Record that a saved search was run, so the list orders by what is actually
+// in use rather than by when each was first written.
+router.post('/pitch-searches/:pitchSearchId/ran', async (req, res) => {
+  try {
+    const found = await pitchSearchForCaller(req, res);
+    if (!found) return;
+    const { rows } = await db.query(
+      `UPDATE pr_pitch_searches
+          SET last_run_at = NOW(), run_count = run_count + 1
+        WHERE id = $1
+        RETURNING id, last_run_at, run_count`,
+      [req.params.pitchSearchId]
+    );
+    res.json(rows[0]);
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 

@@ -314,6 +314,38 @@ jobs:
       # internally would ever see.
       - name: Guard — edits reach the PDF and the email, and nothing else
         run: node tests/report-edits.test.js
+      # A route parameter name in pr.js selects a lookup, not just a label.
+      # router.param('searchId') resolves against pr_coverage_searches and
+      # 404s when the id is not there, and Express applies it to every route
+      # in the router using that name. The saved pitch searches live in
+      # another table, so /pitch-searches/:searchId returned "Search not
+      # found" for every id that existed — nothing threw, and the failure
+      # reads like a missing record rather than like routing. Two tables with
+      # "search" in the name is the trap underneath it.
+      - name: Guard — a route does not borrow another resource's id resolver
+        run: node tests/pr-route-params.test.js
+      # Earned → Match had two cards asking the same question, with two boxes
+      # to paste the same release into. They stay as two engines because they
+      # are good at different things — Claude reads the release and reasons
+      # over a shortlist; the other ranks the whole contact database by what
+      # journalists actually publish and is the only one that has the
+      # addresses. The merge exists for what neither produces alone: when both
+      # independently pick the same journalist, that agreement is the
+      # strongest signal on the page. Every failure here is quiet — a name
+      # listed twice looks like a database fault, a name dropped because only
+      # one engine found it is invisible, and one engine being down empties a
+      # list the other could have filled while reading as "no matches".
+      - name: Guard — one list from both matchers, losing nobody
+        run: node tests/pitch-match.test.js
+      # journalistMatch has two rankers and only the semantic one returned a
+      # `fit`. Keyword mode returned a raw score and nothing else, so the Fit
+      # column held a percentage on an install with an OpenAI key and nothing
+      # at all on an install without one, and the merged Match list — which
+      # sorts on fit — fell back to whatever order the rows arrived in. Same
+      # code, same data, different product, decided by a setting nobody looks
+      # at.
+      - name: Guard — every match carries a fit, in both modes
+        run: node tests/journalist-match-fit.test.js
       # "Infer from payments" read acct_reconcile_queue, which connectors
       # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
       # payment that was made and then reconciled never enters it, so the one

@@ -47,7 +47,23 @@ async function extractAngle(text) {
  * Build a target list for a client's story.
  * @param {{clientId:string, url?:string, brief?:string}} input
  */
-async function findTargets({ clientId, url, brief }) {
+/**
+ * The story as text, from a brief or by fetching the URL.
+ *
+ * Exported because the combined matcher feeds BOTH engines from one story,
+ * and only this module can turn a URL into text. Fetching it twice would mean
+ * two requests to the client's own newsroom for one click, and the two
+ * engines ranking against two different scrapes of the same page.
+ */
+async function resolveText({ url, brief }) {
+  const text = String(brief || '').trim();
+  if (text) return text;
+  if (!url) throw Object.assign(new Error('Give a press-release URL or paste a brief.'), { status: 400 });
+  try { return await fetchText(url); }
+  catch (e) { throw Object.assign(new Error(`Couldn't fetch that URL: ${e.message}`), { status: 400 }); }
+}
+
+async function findTargets({ clientId, url, brief, visibleClientIds = null }) {
   if (!claude || !claude.callClaude) return { error: 'Claude not configured.' };
   let text = String(brief || '').trim();
   if (!text && url) { try { text = await fetchText(url); } catch (e) { return { error: `Couldn't fetch that URL: ${e.message}` }; } }
@@ -59,6 +75,19 @@ async function findTargets({ clientId, url, brief }) {
 
   // Candidate pool: enriched press contacts whose beats/topics/notes/outlet
   // overlap the story keywords. Cheap SQL, capped — no LLM here.
+  //
+  // Scoped to what the caller may see, like every other contact read in this
+  // app. Without it a viewer assigned to one client gets journalists out of
+  // every other client's book. It matters more now this feeds a merged list
+  // beside journalistMatch, which IS scoped: the leak would surface as the
+  // two engines disagreeing about who exists rather than as a leak.
+  const params = [likes, clientId];
+  let visibility = '';
+  if (visibleClientIds !== null && visibleClientIds !== undefined) {
+    params.push(visibleClientIds);
+    visibility = `AND EXISTS (SELECT 1 FROM outreach_contact_clients m
+                               WHERE m.contact_id = c.id AND m.client_id = ANY($${params.length}::uuid[]))`;
+  }
   const { rows } = await db.query(
     `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email, c.beats, c.topics,
             c.enrichment_note, c.availability_status, o.name AS outlet, o.tier,
@@ -68,15 +97,21 @@ async function findTargets({ clientId, url, brief }) {
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
        LEFT JOIN pr_editorial_log l ON l.contact_id = c.id AND l.client_id = $2
       WHERE c.kind = 'media' AND c.availability_status = 'active'
+        -- merged_into, because journalistMatch filters on it. Without it a
+        -- contact that was deduplicated into another still comes back here
+        -- under its old id, fails to match the surviving id in the merge, and
+        -- one human appears in the list as two people.
+        AND c.merged_into IS NULL
         AND (
           lower(COALESCE(c.enrichment_note,'')) ILIKE ANY($1)
           OR lower(c.beats::text) ILIKE ANY($1)
           OR lower(c.topics::text) ILIKE ANY($1)
           OR lower(COALESCE(o.name,'')) ILIKE ANY($1)
         )
+        ${visibility}
       GROUP BY c.id, o.name, o.tier
       LIMIT 200`,
-    [likes, clientId]
+    params
   );
   if (!rows.length) return { angle, keywords, targets: [], note: 'No matching contacts yet — enrich the contacts (or import more) and try again.' };
 
@@ -107,4 +142,4 @@ async function findTargets({ clientId, url, brief }) {
   return { angle, keywords, targets };
 }
 
-module.exports = { findTargets };
+module.exports = { findTargets, resolveText };

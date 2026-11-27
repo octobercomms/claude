@@ -188,7 +188,23 @@ async function matchKeyword(text, { visibleClientIds = null, clientId = null, li
     });
   }
   scored.sort((a, b) => b.score - a.score);
-  return { mode: 'keyword', terms, items: scored.slice(0, limit) };
+
+  // A `fit` in keyword mode too, normalised against the best score in this
+  // result set. Semantic mode returns a 0-100 cosine percentage and this one
+  // returned only a raw `score`, so anything consuming both — the merged
+  // Match list, for one — had a column whose type changed with whether an
+  // OpenAI key happened to be configured: a populated percentage on one
+  // install and an empty column on another, with the sort collapsing to
+  // whatever order the rows arrived in.
+  //
+  // It is a relative figure, not a confidence: the top row is 100% by
+  // construction. Callers say so, which is why `mode` travels with it.
+  const top = scored.length ? scored[0].score : 0;
+  const items = scored.slice(0, limit).map(r => ({
+    ...r,
+    fit: top > 0 ? Math.round((r.score / top) * 100) : null,
+  }));
+  return { mode: 'keyword', terms, items };
 }
 
 module.exports = { extractTerms, matchForText, matchSemantic, matchKeyword };
