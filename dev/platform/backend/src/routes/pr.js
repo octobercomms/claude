@@ -18,6 +18,7 @@ const humanity = require('../services/humanity');
 const pangram = require('../services/pangram');
 const budget = require('../services/budget');
 const prTarget = require('../services/prTarget');
+const pitchMatch = require('../services/pitchMatch');
 const prArchive = require('../services/prArchive');
 const { getSetting } = require('../utils/settings');
 const prEngage = require('../services/prEngage');
@@ -1294,6 +1295,25 @@ router.post('/engagement/:nudgeId/send', async (req, res) => {
 router.post('/engagement/:nudgeId/dismiss', async (req, res) => {
   try { res.json(await prEngage.dismiss(req.params.nudgeId)); }
   catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// One list from both matchers — see services/pitchMatch.js for why both run.
+// Supersedes /pitch-targets and /match-journalists, which stay until the
+// screen stops calling them.
+router.post('/clients/:clientId/pitch-match', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const out = await pitchMatch.combined({
+      clientId: req.params.clientId,
+      url: b.url,
+      brief: b.brief ?? b.text,
+      visibleClientIds: req.visibleClientIds ?? null,
+      limit: Math.min(Number(b.limit) || 40, 100),
+    });
+    res.json(out);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 // Targeting: "who should I pitch this story to?" — paste a release URL or brief.

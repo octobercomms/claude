@@ -47,6 +47,22 @@ async function extractAngle(text) {
  * Build a target list for a client's story.
  * @param {{clientId:string, url?:string, brief?:string}} input
  */
+/**
+ * The story as text, from a brief or by fetching the URL.
+ *
+ * Exported because the combined matcher feeds BOTH engines from one story,
+ * and only this module can turn a URL into text. Fetching it twice would mean
+ * two requests to the client's own newsroom for one click, and the two
+ * engines ranking against two different scrapes of the same page.
+ */
+async function resolveText({ url, brief }) {
+  const text = String(brief || '').trim();
+  if (text) return text;
+  if (!url) throw Object.assign(new Error('Give a press-release URL or paste a brief.'), { status: 400 });
+  try { return await fetchText(url); }
+  catch (e) { throw Object.assign(new Error(`Couldn't fetch that URL: ${e.message}`), { status: 400 }); }
+}
+
 async function findTargets({ clientId, url, brief }) {
   if (!claude || !claude.callClaude) return { error: 'Claude not configured.' };
   let text = String(brief || '').trim();
@@ -107,4 +123,4 @@ async function findTargets({ clientId, url, brief }) {
   return { angle, keywords, targets };
 }
 
-module.exports = { findTargets };
+module.exports = { findTargets, resolveText };

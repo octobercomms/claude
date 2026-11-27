@@ -324,6 +324,19 @@ jobs:
       # "search" in the name is the trap underneath it.
       - name: Guard — a route does not borrow another resource's id resolver
         run: node tests/pr-route-params.test.js
+      # Earned → Match had two cards asking the same question, with two boxes
+      # to paste the same release into. They stay as two engines because they
+      # are good at different things — Claude reads the release and reasons
+      # over a shortlist; the other ranks the whole contact database by what
+      # journalists actually publish and is the only one that has the
+      # addresses. The merge exists for what neither produces alone: when both
+      # independently pick the same journalist, that agreement is the
+      # strongest signal on the page. Every failure here is quiet — a name
+      # listed twice looks like a database fault, a name dropped because only
+      # one engine found it is invisible, and one engine being down empties a
+      # list the other could have filled while reading as "no matches".
+      - name: Guard — one list from both matchers, losing nobody
+        run: node tests/pitch-match.test.js
       # "Infer from payments" read acct_reconcile_queue, which connectors
       # /xero.js fills through `.filter(tx => tx.IsReconciled !== true)`: a
       # payment that was made and then reconciled never enters it, so the one
