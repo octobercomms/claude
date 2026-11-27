@@ -147,6 +147,32 @@ ok(!!sent && sent.contact_ids.length === 1 && sent.contact_ids[0] === 'jm1',
    'only the mailable contact is sent to the audience',
    JSON.stringify(sent));
 
+// ── a refresh must not lose the search ───────────────────────────────────────
+
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(900);
+
+ok(await rows().count() === 3,
+   'the search survives a refresh',
+   'losing it meant running — and paying for — the same search over and over');
+ok(/Anna Fitzgerald/.test(await rows().first().innerText()),
+   'and comes back in the same order');
+
+// ── opening a saved list shows the list ──────────────────────────────────────
+
+await page.locator('button:has-text("Media lists")').click();
+await page.waitForTimeout(300);
+await page.locator('button.row-trigger', { hasText: 'Margate workshop' }).click();
+await page.waitForTimeout(700);
+
+ok(await rows().count() === 1,
+   'opening a saved list renders what was saved',
+   'it used to clear the table and make you run the search again, which is not opening a past search');
+ok(/Anna Fitzgerald/.test(await rows().first().innerText()), 'with the contact that was on it');
+ok(await page.locator('text=/Saved 14 November 2026/').count() > 0,
+   'and says it is a snapshot, with its date',
+   'a saved list must not be mistaken for a live ranking');
+
 ok(errors.length === 0, 'no page errors', errors.join(' | '));
 console.log(`\n${pass} passed, ${fail} failed`);
 await browser.close();
