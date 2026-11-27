@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { usePrompt } from '../context/PromptContext';
@@ -480,15 +481,21 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
 
       {web && (web.candidates || []).length > 0 && (
         <div className="card" style={{ marginTop: 'var(--s4)' }}>
-          <h3 className="h3" style={{ marginTop: 0, marginBottom: 'var(--s1)' }}>
-            Not in your list yet · {web.candidates.length}
-          </h3>
+          <div className="row center" style={{ justifyContent: 'space-between', marginBottom: 'var(--s1)' }}>
+            <h3 className="h3" style={{ margin: 0 }}>Not in your list yet · {web.candidates.length}</h3>
+            {/* Telling someone their candidates are queued somewhere and then
+                not taking them there is half a feature. */}
+            <Link to={`/clients/${clientId}/pr/find`} className="btn btn-primary btn-sm">
+              Review {web.candidates.length} in Find
+            </Link>
+          </div>
           <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 'var(--s3)' }}>
             Found on the open web for this story. These are <strong>candidates, not contacts</strong> —
             no verified address and no history with {clientName || 'this client'} — so they cannot be
             exported or added to an audience from here. Each is queued in{' '}
-            <strong>Find</strong> for you to approve, and approving one makes it a real contact that
-            future searches will rank.
+            <strong>Find</strong> for you to approve. Approving one creates the contact, resolves its
+            outlet and carries its beat across, so every future search ranks them — and where only a
+            guessed address was found it is stored flagged as a guess, never as verified.
           </p>
           <div style={{ overflowX: 'auto' }}>
             <table className="table" style={{ width: '100%' }}>
