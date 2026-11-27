@@ -45,7 +45,7 @@ function emailState(r) {
   return { key: 'ok', label: '', tone: 'var(--text-subtle)' };
 }
 
-export default function MatchPanel({ clientId, clientName, releases = [], readOnly }) {
+export default function MatchPanel({ clientId, clientName, releases = [], readOnly, onOpenJournalist }) {
   const toast = useToast();
   // Not window.prompt: in some embedded views it shows nothing and returns
   // null, so the save silently does not happen and the button reads as broken.
@@ -384,11 +384,19 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
                         <td><input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} aria-label={`Select ${m.name}`} /></td>
                         <td>
                           <div style={{ fontWeight: 600 }}>
-                            {m.name}
+                            {onOpenJournalist
+                              ? <button type="button" className="row-trigger" onClick={() => onOpenJournalist(m.id)}>{m.name}</button>
+                              : m.name}
                             {openList && isNew(m.id) && <span className="chip" style={{ marginLeft: 'var(--s2)' }}>new</span>}
                           </div>
                           <div style={{ fontSize: 'var(--fs-caption)', color: state.tone }}>
                             {m.email || state.label}{m.email && state.label ? ` · ${state.label}` : ''}
+                            {!m.has_email && onOpenJournalist && (
+                              <button type="button" onClick={() => onOpenJournalist(m.id)}
+                                style={{ border: 'none', background: 'none', padding: 0, marginLeft: 'var(--s2)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}>
+                                add one
+                              </button>
+                            )}
                           </div>
                         </td>
                         <td style={{ fontSize: 'var(--fs-caption)' }}>

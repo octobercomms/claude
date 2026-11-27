@@ -125,6 +125,7 @@ async function combined({ clientId, url, brief, visibleClientIds = null, limit =
         // The free pass does not know about prior coverage of this client in
         // the editorial log; this one counts it.
         existing.published_for_client = t.published_for_client || 0;
+        if (!existing.email && t.email) existing.email = t.email;
         existing.strength_label = t.strength_label || null;
         if (!existing.outlet) existing.outlet = t.outlet || '';
         if (!existing.tier) existing.tier = t.tier || '';
@@ -133,8 +134,8 @@ async function combined({ clientId, url, brief, visibleClientIds = null, limit =
       byId.set(t.id, {
         id: t.id,
         name: t.name,
-        email: '',                       // this engine does not return the address
-        verification_status: null,
+        email: t.email || '',
+        verification_status: t.verification_status || null,
         outlet: t.outlet || '',
         tier: t.tier || '',
         fit: null,                       // and does not score; it ranks by order

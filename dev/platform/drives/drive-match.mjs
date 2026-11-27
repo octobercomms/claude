@@ -79,6 +79,15 @@ ok(/—/.test(imogen),
 ok(/guess/i.test(await rowFor('Tom Hale').innerText()),
    'a guessed address is called a guess');
 
+// The two cards this replaced both opened the journalist from their name,
+// and the rebuild dropped it — so a row saying "no email" gave you nowhere
+// to go and fix it. That is where an address gets corrected.
+ok(await rowFor('Anna Fitzgerald').locator('button.row-trigger').count() === 1,
+   'the name opens the journalist',
+   'without it the list is read-only and a wrong contact cannot be put right from here');
+ok(await rowFor('Imogen Clarke').locator('text=add one').count() === 1,
+   'and a row with no address offers somewhere to add one');
+
 const order = await rows().allInnerTexts();
 ok(/Anna Fitzgerald/.test(order[0]) && /Tom Hale/.test(order[1]),
    'the list is in fit order', order.map(o => o.split('\n')[0]).join(' / '));
