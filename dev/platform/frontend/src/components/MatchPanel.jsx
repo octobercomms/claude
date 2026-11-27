@@ -71,6 +71,13 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
   // Add to an audience, which belongs to a release.
   const [addTo, setAddTo] = useState(null);            // { releaseId, segments, segId }
 
+  // Journalists who are NOT in the contact book. Kept apart from the ranked
+  // list on purpose: they have no verified address, no relationship history
+  // and no tier, so they are candidates rather than contacts and must not be
+  // selectable into an audience. They are queued for review on the way back.
+  const [webBusy, setWebBusy] = useState(false);
+  const [web, setWeb] = useState(null);
+
   const loadLists = useCallback(async () => {
     try { setLists((await api.get(`/pr/clients/${clientId}/media-lists`)).items || []); }
     catch { /* the panel still works without them */ }
@@ -124,6 +131,20 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
       setError(e.message);
       setResult(null);
     } finally { setBusy(false); }
+  }
+
+  async function searchWeb() {
+    const story = brief.trim() || url.trim();
+    if (!story) return;
+    setWebBusy(true);
+    try {
+      const r = await api.post(`/pr/clients/${clientId}/scout-story`, { story });
+      setWeb(r);
+      if (r.budget_stopped) toast('This month\'s media research budget is spent.', 'info');
+      else if (!r.added) toast(r.found ? 'Everyone it found is already on your list.' : 'Nothing new found on the web.', 'info');
+    } catch (e) {
+      toast(`Web search failed: ${e.message}`, 'error');
+    } finally { setWebBusy(false); }
   }
 
   function toggle(id) {
@@ -304,6 +325,12 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
               with, so its order is close to noise and Claude's picks are listed first. Usually this
               means the text describes the project around the story rather than the story — a studio
               or a release reads better than a brief about organising something.
+              <div style={{ marginTop: 'var(--s2)' }}>
+                <button type="button" className="btn btn-secondary btn-sm"
+                  {...roWrite(readOnly, { onClick: searchWeb, disabled: webBusy })}>
+                  {webBusy ? 'Searching the web…' : 'Search the web instead'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -327,6 +354,11 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
             </div>
             <div className="row center" style={{ gap: 'var(--s2)' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={selectAgreed}>Select best 10</button>
+              <button type="button" className="btn btn-secondary btn-sm"
+                {...roWrite(readOnly, { onClick: searchWeb, disabled: webBusy })}
+                title="Looks for journalists who fit this story and are not in your contacts yet">
+                {webBusy ? 'Searching the web…' : 'Search the web'}
+              </button>
               <button type="button" className="btn btn-secondary btn-sm" onClick={exportCsv}>
                 {chosen.length ? `Export ${chosen.length}` : 'Export CSV'}
               </button>
@@ -443,6 +475,52 @@ export default function MatchPanel({ clientId, clientName, releases = [], readOn
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {web && (web.candidates || []).length > 0 && (
+        <div className="card" style={{ marginTop: 'var(--s4)' }}>
+          <h3 className="h3" style={{ marginTop: 0, marginBottom: 'var(--s1)' }}>
+            Not in your list yet · {web.candidates.length}
+          </h3>
+          <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 'var(--s3)' }}>
+            Found on the open web for this story. These are <strong>candidates, not contacts</strong> —
+            no verified address and no history with {clientName || 'this client'} — so they cannot be
+            exported or added to an audience from here. Each is queued in{' '}
+            <strong>Find</strong> for you to approve, and approving one makes it a real contact that
+            future searches will rank.
+          </p>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ width: '100%' }}>
+              <thead>
+                <tr><th>Journalist</th><th>Outlet</th><th>Why</th><th style={{ width: 90 }}>Source</th></tr>
+              </thead>
+              <tbody>
+                {web.candidates.map(c => (
+                  <tr key={c.id || `${c.name}-${c.outlet}`}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{c.name}</div>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: c.email ? 'var(--text-subtle)' : 'var(--text-muted)' }}>
+                        {c.email || (c.guessed_email ? `${c.guessed_email} · guessed from the outlet's pattern` : 'no address found')}
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 'var(--fs-caption)' }}>
+                      {c.outlet || '—'}
+                      {c.beat ? <div className="text-muted">{c.beat}</div> : null}
+                    </td>
+                    <td style={{ fontSize: 'var(--fs-caption)' }}>{c.why}</td>
+                    <td style={{ fontSize: 'var(--fs-caption)' }}>
+                      {/* Provenance is the point: every one of these has to be
+                          a page somebody can open and check. */}
+                      {c.source_url
+                        ? <a href={c.source_url} target="_blank" rel="noreferrer">the byline</a>
+                        : <span className="text-subtle">none given</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

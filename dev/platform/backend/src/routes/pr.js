@@ -1326,6 +1326,22 @@ router.post('/clients/:clientId/pitch-targets', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// Search the open web for journalists who fit ONE story, rather than for the
+// client in general. Candidates land in the same review queue the scheduled
+// scout uses, so nothing unvetted becomes a contact, and they come back in
+// the response because a person is waiting on the answer.
+router.post('/clients/:clientId/scout-story', async (req, res) => {
+  try {
+    const out = await journalistScout.scoutForStory(req.params.clientId, {
+      story: (req.body && (req.body.story || req.body.brief)) || '',
+      maxResults: Math.min(Number(req.body?.limit) || 20, 40),
+    });
+    res.json(out);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // ── Media lists ──────────────────────────────────────────────────────────────
 //
 // The journalists picked for one story, kept. Called a media list rather than

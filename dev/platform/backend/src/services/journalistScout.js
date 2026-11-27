@@ -29,7 +29,7 @@ async function model() {
 
 // Build the search brief for a client: who they are + what beats already cover
 // them, so the scout looks for more of the right kind of journalist.
-async function buildContext(clientId) {
+async function buildContext(clientId, { story = '' } = {}) {
   const { rows: crows } = await pool.query(
     'SELECT id, name, briefing_field, monthly_focus FROM clients WHERE id = $1',
     [clientId]
@@ -71,11 +71,63 @@ async function buildContext(clientId) {
   const coverage = covRows.map(r => `${r.story_title}${r.outlet ? ` (${r.outlet})` : ''}`);
   const outlets = [...new Set(covRows.map(r => (r.outlet || '').trim()).filter(Boolean))];
 
-  return { client, beats, coverage, outlets };
+  // A story, when one is given, changes what this search is FOR. Without it
+  // the scout widens an existing list: the prompt asks for more journalists on
+  // the beats already covered. That is the right job for a standing client
+  // sweep and the wrong one for a specific project, and it is circular where
+  // it matters most — a client with no Gulf architecture press will never be
+  // sent looking for Gulf architecture press, because there is none on the
+  // list to be adjacent to.
+  return { client, beats, coverage, outlets, story: String(story || '').trim() };
+}
+
+// Searching for ONE story, not for a client in general.
+//
+// The existing list goes in only as an exclusion. Feeding it in as "find more
+// like these" is what makes the client sweep entrench the book it already
+// has, and on a project that is exactly backwards: the names worth finding
+// are in the territories and specialisms the list is missing.
+function buildStoryPrompt(ctx, maxResults) {
+  const { client, beats, outlets, story } = ctx;
+  return `You are a PR account executive building a media list for ONE specific story. Using web search, find REAL, currently-active journalists, editors or contributors who would cover THIS story — including people in markets and specialisms this client has never worked with.
+
+THE STORY:
+${story.slice(0, 4000)}
+
+PITCHING ON BEHALF OF: ${client.name}
+
+ALREADY ON THE LIST — do NOT return these people or duplicate them: ${outlets.length ? outlets.join(', ') : '(no outlets recorded)'}
+BEATS ALREADY COVERED — useful context, but do NOT limit yourself to them: ${beats.length ? beats.slice(0, 25).join(', ') : '(none recorded)'}
+
+What matters here:
+- Fit to THIS story, not to the client's usual coverage. A journalist who has never written about this client but owns this subject is exactly what is wanted.
+- Go where the list is thin. If the story implies a market, a language or a region the beats above do not cover, search there on purpose.
+- Named critics and section editors at the titles that actually set the agenda for this subject, not only trade press.
+
+Rules:
+- Only REAL journalists you can verify on the open web via a recent byline. Never invent a person, outlet, or email.
+- Prefer people writing NOW (a byline in roughly the last 12 months). Skip anyone who looks retired or off the beat.
+- Do NOT propose generic "editorial@" inboxes as people. If you can't find a real personal email, leave email null — never guess one.
+- Each must have ONE specific, true reason they fit THIS story: a recent relevant article they wrote, with its outlet.
+- Provenance is required: "source_url" must be a real page you actually read (ideally the byline/article).
+- Spread across outlets, tiers and territories rather than clustering at one title.
+
+Return up to ${maxResults} journalists — get as close to that number as you honestly can. Output ONLY a JSON array (in a \`\`\`json code block):
+[
+  {
+    "name": "journalist full name",
+    "outlet": "the outlet they write for now",
+    "beat": "what they cover, in a few words",
+    "email": "personal work email, or null if you could not verify one",
+    "why": "one sentence: the specific recent article that makes them right for THIS story",
+    "source_url": "the page you read"
+  }
+]`;
 }
 
 function buildPrompt(ctx, maxResults) {
-  const { client, beats, coverage, outlets } = ctx;
+  const { client, beats, coverage, outlets, story } = ctx;
+  if (story) return buildStoryPrompt(ctx, maxResults);
   return `You are a PR account executive building a media list for a client. Using web search, find REAL, currently-active journalists, editors or contributors who would plausibly cover this client — people who are NOT already on the list below.
 
 CLIENT: ${client.name}
@@ -268,6 +320,48 @@ async function scoutClient(clientId, { maxResults = 25, log = () => {} } = {}) {
   return { found: candidates.length, added };
 }
 
+// One story, on demand, from Match.
+//
+// Everything expensive and correct is shared with the client sweep: the web
+// search runs at Anthropic's end, provenance is required, nothing invented,
+// isKnown drops anyone already a contact or already suggested, and what
+// survives lands in the same review queue a human approves from. The only
+// difference is the brief.
+//
+// It RETURNS the survivors as well as queueing them, because the caller is a
+// person who just pressed a button and is owed the answer on screen — unlike
+// the cron, which has nobody watching.
+async function scoutForStory(clientId, { story, maxResults = 20, log = () => {} } = {}) {
+  const text = String(story || '').trim();
+  if (text.length < 20) {
+    throw Object.assign(new Error('Give the story first — a sentence is enough.'), { status: 400 });
+  }
+  // A paid web search, and the global cap in callClaude never sees this path
+  // because it calls the SDK directly. Same gate the cron uses.
+  if (await budget.taskCapReached('media_research')) {
+    return { found: 0, added: 0, candidates: [], budget_stopped: true };
+  }
+
+  const ctx = await buildContext(clientId, { story: text });
+  if (!ctx) throw Object.assign(new Error('Client not found'), { status: 404 });
+
+  const candidates = await findCandidates(ctx, { maxResults, log });
+  const fresh = [];
+  for (const c of candidates) {
+    if (await isKnown(clientId, c)) continue;
+    const guessed = c.email ? null : await guessEmail(c.name, c.outlet);
+    const { rows } = await pool.query(
+      `INSERT INTO pr_journalist_suggestions
+         (client_id, name, outlet, beat, email, guessed_email, why, source_url, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'new') RETURNING id`,
+      [clientId, c.name, c.outlet, c.beat, c.email, guessed, c.why, c.source_url]
+    );
+    fresh.push({ ...c, id: rows[0].id, guessed_email: guessed });
+  }
+  log(`journalistScout: story search for ${clientId} — ${candidates.length} found, ${fresh.length} new`);
+  return { found: candidates.length, added: fresh.length, candidates: fresh, budget_stopped: false };
+}
+
 // Cron entry — scout every press-active client (has at least one press release).
 // Low-frequency (weekly) because it's the paid web-search step.
 async function scoutAllActive({ log = () => {} } = {}) {
@@ -288,4 +382,4 @@ async function scoutAllActive({ log = () => {} } = {}) {
   return { clients: scouted, scanned: rows.length, added: total, budget_stopped: budgetStopped };
 }
 
-module.exports = { buildContext, findCandidates, scoutClient, scoutAllActive, extractArray, guessEmail, isKnown };
+module.exports = { buildContext, buildPrompt, findCandidates, scoutClient, scoutForStory, scoutAllActive, extractArray, guessEmail, isKnown };
